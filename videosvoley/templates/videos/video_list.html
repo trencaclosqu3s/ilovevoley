@@ -1,0 +1,41 @@
+{% extends '../base.html' %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-3xl font-bold text-gray-800">Partidos y Entrenamientos</h2>
+    {% if can_add %}
+        <a href="{% url 'video_create' %}" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-6 py-2 rounded-lg font-semibold transition">
+            + Añadir Vídeo
+        </a>
+    {% endif %}
+</div>
+
+{% if videos %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for video in videos %}
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="aspect-video">
+                    <iframe 
+                        class="w-full h-full"
+                        src="{{ video.get_embed_url }}" 
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen>
+                    </iframe>
+                </div>
+                <div class="p-4">
+                    <h3 class="font-bold text-lg text-gray-800 mb-2">{{ video.title }}</h3>
+                    {% if video.description %}
+                        <p class="text-gray-600 text-sm">{{ video.description }}</p>
+                    {% endif %}
+                    <p class="text-gray-400 text-xs mt-2">{{ video.created_at|date:"d/m/Y H:i" }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-12">
+        <p class="text-gray-500 text-lg">Todavía no hay vídeos subidos</p>
+    </div>
+{% endif %}
+{% endblock %}

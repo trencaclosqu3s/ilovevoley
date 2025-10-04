@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=volleyvideos
+      - POSTGRES_USER=volleyuser
+      - POSTGRES_PASSWORD=volleypass
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=postgresql://volleyuser:volleypass@db:5432/volleyvideos
+      - SECRET_KEY=change-me-in-production
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

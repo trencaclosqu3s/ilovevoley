@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Vídeos del Equipo{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'csj-purple': '#9B7FBF',
+                        'csj-yellow': '#F4D47C',
+                        'csj-purple-dark': '#7B5FA0',
+                        'csj-yellow-dark': '#E5C05A',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-purple-50 via-yellow-50 to-purple-100">
+    <nav class="bg-white shadow-lg border-b-4 border-csj-purple">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <span class="text-3xl">🏐</span>
+                    <div>
+                        <a href="{% url 'video_list' %}" class="text-xl font-bold text-csj-purple">Club Sant Josep Palma</a>
+                        <p class="text-xs text-gray-500">Infantil Masculino 25/26</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    {% if user.is_authenticated %}
+                        <span class="text-gray-600">Hola, {{ user.username }}</span>
+                        <a href="{% url 'account_logout' %}" class="text-csj-purple hover:text-csj-purple-dark font-semibold transition">Salir</a>
+                    {% else %}
+                        <a href="{% url 'account_login' %}" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-semibold transition">Entrar</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-4 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-800 border-l-4 border-green-500{% elif message.tags == 'error' %}bg-red-100 text-red-800 border-l-4 border-red-500{% else %}bg-csj-yellow bg-opacity-30 text-gray-800 border-l-4 border-csj-yellow{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
