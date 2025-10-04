@@ -1,0 +1,56 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="Eslint" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="JSHint" enabled="true" level="ERROR" enabled_by_default="true" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="python-slugify" />
+          <option value="argon2-cffi" />
+          <option value="redis" />
+          <option value="hiredis" />
+          <option value="celery" />
+          <option value="django-celery-beat" />
+          <option value="flower" />
+          <option value="uvicorn" />
+          <option value="uvicorn-worker" />
+          <option value="django-environ" />
+          <option value="django-model-utils" />
+          <option value="django-allauth" />
+          <option value="crispy-bootstrap5" />
+          <option value="django-redis" />
+          <option value="django-cors-headers" />
+          <option value="drf-spectacular" />
+          <option value="mysqlclient" />
+          <option value="django-jazzmin" />
+          <option value="django-htmx" />
+          <option value="django-braces" />
+          <option value="retrying" />
+          <option value="django-extensions" />
+          <option value="psycopg" />
+          <option value="Collectfasta" />
+          <option value="django-storages" />
+          <option value="django-anymail" />
+          <option value="Werkzeug" />
+          <option value="ipdb" />
+          <option value="watchfiles" />
+          <option value="mypy" />
+          <option value="django-stubs" />
+          <option value="pytest" />
+          <option value="pytest-sugar" />
+          <option value="djangorestframework-stubs" />
+          <option value="sphinx" />
+          <option value="sphinx-autobuild" />
+          <option value="ruff" />
+          <option value="coverage" />
+          <option value="djlint" />
+          <option value="pre-commit" />
+          <option value="factory-boy" />
+          <option value="django-coverage-plugin" />
+          <option value="pytest-django" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
