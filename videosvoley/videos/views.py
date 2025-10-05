@@ -1,7 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from .models import Video, Comment
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.contrib.postgres.search import TrigramSimilarity
+from unidecode import unidecode
+from .models import Video, Comment, Category
 from .forms import VideoForm, CommentForm
 
 
@@ -13,7 +17,30 @@ def user_is_approved(user):
 @login_required
 @user_passes_test(user_is_approved, login_url='/pending-approval/')
 def video_list(request):
-    videos = Video.objects.prefetch_related('comments').all()
+    videos = Video.objects.select_related('category', 'created_by').prefetch_related('comments').all()
+    categories = Category.objects.filter(is_active=True)
+    
+    # Filtros
+    category_filter = request.GET.get('category')
+    search_query = request.GET.get('search', '').strip()
+    
+    # Aplicar filtro de categoría
+    if category_filter:
+        videos = videos.filter(category_id=category_filter)
+    
+    # Aplicar búsqueda de texto (case-insensitive, accent-insensitive)
+    if search_query:
+        # Buscar en título y descripción sin considerar acentos ni mayúsculas
+        videos = videos.filter(
+            Q(title__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    # Paginación
+    paginator = Paginator(videos, 12)  # 12 videos por página
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     can_add = request.user.groups.filter(name='VideoManagers').exists()
     
     # Mensaje de prueba para verificar el sistema de toast (solo para desarrollo)
@@ -29,7 +56,10 @@ def video_list(request):
             messages.info(request, 'Toast de información funcionando correctamente')
     
     return render(request, 'videos/video_list.html', {
-        'videos': videos,
+        'page_obj': page_obj,
+        'categories': categories,
+        'selected_category': category_filter,
+        'search_query': search_query,
         'can_add': can_add
     })
 
