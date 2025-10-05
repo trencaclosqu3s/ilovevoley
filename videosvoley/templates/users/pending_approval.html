@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Pendiente de Aprobación - Club Sant Josep Palma{% endblock %}
+
+{% block content %}
+<div class="min-h-[60vh] flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-xl p-8 max-w-lg w-full border-t-4 border-csj-yellow">
+        <div class="text-center mb-8">
+            <div class="text-6xl mb-4">⏳</div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Cuenta Pendiente de Aprobación</h1>
+        </div>
+
+        <div class="space-y-4 mb-6">
+            <div class="bg-csj-yellow bg-opacity-20 border-l-4 border-csj-yellow p-4 rounded">
+                <h3 class="font-semibold text-gray-800 mb-2">¡Hola {{ user.first_name|default:user.username }}!</h3>
+                <p class="text-gray-700 text-sm">
+                    Tu cuenta ha sido creada correctamente, pero necesita ser aprobada por un administrador antes de que puedas acceder al contenido.
+                </p>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded">
+                <h4 class="font-semibold text-gray-800 mb-2">¿Por qué necesito aprobación?</h4>
+                <p class="text-gray-600 text-sm">
+                    Para proteger la privacidad de los menores que aparecen en los vídeos, todas las cuentas deben ser validadas manualmente por el staff del club.
+                </p>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded">
+                <h4 class="font-semibold text-gray-800 mb-2">¿Qué hago ahora?</h4>
+                <ul class="text-gray-600 text-sm space-y-1">
+                    <li>• Un administrador revisará tu solicitud</li>
+                    <li>• Recibirás acceso en cuanto sea aprobada</li>
+                    <li>• Puedes cerrar esta página y volver más tarde</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="text-center space-y-4">
+            <div class="text-xs text-gray-500">
+                <strong>Email registrado:</strong> {{ user.email }}
+            </div>
+            
+            <div class="flex space-x-3">
+                <a href="{% url 'account_logout' %}" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition text-center">
+                    Cerrar Sesión
+                </a>
+                <button onclick="location.reload()" class="flex-1 bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-medium transition">
+                    Verificar Estado
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-gray-200 text-center">
+            <p class="text-xs text-gray-500">
+                Si tienes dudas, contacta con el staff del Club Sant Josep Palma
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

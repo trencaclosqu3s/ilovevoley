@@ -1,0 +1,88 @@
+{% extends '../base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Navegación de vuelta -->
+    <div class="mb-4 sm:mb-6">
+        <a href="{% url 'video_list' %}" class="inline-flex items-center text-csj-purple hover:text-csj-purple-dark font-semibold transition touch-manipulation py-2 -mx-2 px-2 rounded-lg">
+            <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            Volver a videos
+        </a>
+    </div>
+
+    <!-- Video principal -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden mb-4 sm:mb-6">
+        <div class="aspect-video">
+            <iframe 
+                class="w-full h-full"
+                src="{{ video.get_embed_url }}" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                allowfullscreen
+                referrerpolicy="strict-origin-when-cross-origin">
+            </iframe>
+        </div>
+        <div class="p-4 sm:p-6">
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-800 mb-3 leading-tight">{{ video.title }}</h1>
+            {% if video.description %}
+                <p class="text-gray-600 mb-3 text-sm sm:text-base">{{ video.description }}</p>
+            {% endif %}
+            <p class="text-gray-400 text-sm">{{ video.created_at|date:"d/m/Y H:i" }}</p>
+        </div>
+    </div>
+
+    <!-- Sección de comentarios -->
+    <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+        <h2 class="text-lg sm:text-xl font-bold text-gray-800 mb-4">
+            Comentarios 
+            {% if comments %}
+                <span class="text-sm font-normal text-gray-500">({{ comments.count }})</span>
+            {% endif %}
+        </h2>
+
+        <!-- Formulario para nuevo comentario -->
+        <form method="post" class="mb-6 p-4 bg-gray-50 rounded-lg">
+            {% csrf_token %}
+            <div class="mb-4">
+                {{ comment_form.content }}
+            </div>
+            <button type="submit" class="w-full sm:w-auto bg-csj-purple hover:bg-csj-purple-dark text-white py-3 sm:py-2 px-6 rounded-lg font-semibold transition touch-manipulation">
+                Añadir Comentario
+            </button>
+        </form>
+
+        <!-- Lista de comentarios -->
+        {% if comments %}
+            <div class="space-y-3 sm:space-y-4 max-h-80 sm:max-h-96 overflow-y-auto">
+                {% for comment in comments %}
+                    <div class="flex items-start space-x-3 p-3 sm:p-4 bg-gray-50 rounded-lg">
+                        {% if comment.user.avatar %}
+                            <img src="{{ comment.user.avatar.url }}" alt="{{ comment.user.username }}" class="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0">
+                        {% else %}
+                            <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-csj-purple flex items-center justify-center text-white text-xs sm:text-sm font-bold flex-shrink-0">
+                                {{ comment.user.username|first|upper }}
+                            </div>
+                        {% endif %}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-1">
+                                <p class="font-semibold text-gray-800 text-sm sm:text-base truncate">{{ comment.user.username }}</p>
+                                <p class="text-xs text-gray-400 mt-1 sm:mt-0">{{ comment.created_at|date:"d/m/Y H:i" }}</p>
+                            </div>
+                            <p class="text-gray-700 text-sm sm:text-base break-words">{{ comment.content }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-6 sm:py-8 text-gray-500">
+                <div class="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                    <span class="text-xl">💬</span>
+                </div>
+                <p class="text-sm sm:text-base">Aún no hay comentarios. ¡Sé el primero en comentar!</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
