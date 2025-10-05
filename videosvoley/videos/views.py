@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.contrib.postgres.search import TrigramSimilarity
 from unidecode import unidecode
 from datetime import datetime, timedelta
+import calendar
 from django.utils import timezone
 from .models import Video, Comment, Category, League, Match, Team, Standing
 from .forms import VideoForm, CommentForm
@@ -254,6 +255,51 @@ def calendar_view(request):
     prev_month = start_date - timedelta(days=1)
     next_month = end_date + timedelta(days=1)
     
+    # Generar grid del calendario
+    cal = calendar.Calendar(firstweekday=0)  # Lunes como primer día
+    month_days = cal.monthdayscalendar(year, month)
+    
+    # Crear diccionario de partidos por día
+    matches_by_day = {}
+    for match in monthly_matches:
+        day = match.match_date.day
+        if day not in matches_by_day:
+            matches_by_day[day] = []
+        matches_by_day[day].append(match)
+    
+    # Crear estructura del calendario con partidos
+    calendar_weeks = []
+    for week in month_days:
+        calendar_week = []
+        for day in week:
+            if day == 0:
+                calendar_week.append({
+                    'day': None,
+                    'is_current_month': False,
+                    'matches': []
+                })
+            else:
+                day_matches = matches_by_day.get(day, [])
+                is_today = (datetime.now().date() == datetime(year, month, day).date())
+                calendar_week.append({
+                    'day': day,
+                    'is_current_month': True,
+                    'is_today': is_today,
+                    'matches': day_matches,
+                    'match_count': len(day_matches)
+                })
+        calendar_weeks.append(calendar_week)
+    
+    # Obtener modo de vista (lista o calendario)
+    view_mode = request.GET.get('view', 'list')  # 'list' o 'calendar'
+    
+    # Nombres de meses en español
+    month_names_es = {
+        1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+        5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+        9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+    }
+    
     return render(request, 'videos/calendar.html', {
         'matches': monthly_matches,
         'leagues': leagues,
@@ -267,6 +313,9 @@ def calendar_view(request):
         'next_month': next_month,
         'year': year,
         'month': month,
+        'calendar_weeks': calendar_weeks,
+        'view_mode': view_mode,
+        'month_name': month_names_es[month],
     })
 
 

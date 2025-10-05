@@ -44,7 +44,7 @@
                             {% if match.match_date.time.hour != 0 or match.match_date.time.minute != 0 %}
                                 <div class="text-xs">{{ match.match_date|date:"H:i" }}</div>
                             {% else %}
-                                <div class="text-xs text-csj-yellow-dark">Fecha provisional</div>
+                                <div class="text-xs text-orange-600 font-medium">Provisional</div>
                             {% endif %}
                         </div>
                     </div>

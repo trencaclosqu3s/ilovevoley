@@ -257,56 +257,22 @@
         </div>
     {% endif %}
 
-    <!-- Leyenda y enlaces rápidos -->
+    <!-- Enlaces rápidos -->
     <div class="bg-white rounded-lg shadow-lg p-6">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Leyenda -->
-            <div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">📋 Leyenda</h3>
-                <div class="space-y-2 text-sm">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-4 h-4 bg-green-100 rounded"></div>
-                        <span>Posiciones 1-3: Zona de clasificación</span>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-4 h-4 bg-blue-100 rounded"></div>
-                        <span>Posiciones 4-6: Zona media</span>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-4 h-4 bg-red-100 rounded"></div>
-                        <span>Posiciones inferiores: Zona de descenso</span>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-4 h-4 bg-csj-purple bg-opacity-20 border-l-2 border-csj-purple rounded"></div>
-                        <span class="font-medium text-csj-purple">{{ club_team_name }}</span>
-                    </div>
-                </div>
-                
-                <div class="mt-4 text-xs text-gray-600">
-                    <p><strong>PJ:</strong> Partidos Jugados | <strong>G:</strong> Ganados | <strong>P:</strong> Perdidos</p>
-                    <p><strong>Sets:</strong> Sets a favor - Sets en contra | <strong>Puntos:</strong> Puntos a favor - Puntos en contra</p>
-                    <p><strong>Pts:</strong> Puntos de clasificación</p>
-                </div>
-            </div>
-
-            <!-- Enlaces rápidos -->
-            <div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">🔗 Enlaces relacionados</h3>
-                <div class="flex flex-wrap gap-3">
-                    <a href="{% url 'calendar_view' %}" 
-                       class="inline-flex items-center px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-semibold transition">
-                        📅 Ver calendario
-                    </a>
-                    <a href="{% url 'league_list' %}" 
-                       class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold transition">
-                        📋 Ver ligas
-                    </a>
-                    <a href="{% url 'video_list' %}" 
-                       class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold transition">
-                        🎬 <span class="hidden sm:inline ml-1">Ver</span> Videos
-                    </a>
-                </div>
-            </div>
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">🔗 Enlaces relacionados</h3>
+        <div class="flex flex-wrap gap-3">
+            <a href="{% url 'calendar_view' %}" 
+               class="inline-flex items-center px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-semibold transition">
+                📅 Ver calendario
+            </a>
+            <a href="{% url 'league_list' %}" 
+               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold transition">
+                📋 Ver ligas
+            </a>
+            <a href="{% url 'video_list' %}" 
+               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold transition">
+                🎬 <span class="hidden sm:inline ml-1">Ver</span> Videos
+            </a>
         </div>
     </div>
 </div>

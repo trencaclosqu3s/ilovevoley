@@ -231,6 +231,123 @@ class MatchesParser(BaseParser):
         }
 
 
+class CalendarParser(BaseParser):
+    """Parser específico para calendarios con estructura de tabla"""
+    
+    def parse_content(self, content: str) -> Dict[str, Any]:
+        """Parsea el HTML del calendario con tablas calendario-completo"""
+        soup = BeautifulSoup(content, 'html.parser')
+        
+        matches = []
+        
+        # Buscar todas las tablas de calendario
+        calendar_tables = soup.find_all('table', class_='calendario-completo')
+        
+        for table in calendar_tables:
+            current_round = 1
+            
+            # Buscar el header de jornada
+            round_header = table.find('tr', class_='jornada')
+            if round_header:
+                th = round_header.find('th')
+                if th:
+                    header_text = th.get_text(strip=True)
+                    # Extraer número de jornada: "Jornada 1 18/10/2025"
+                    try:
+                        parts = header_text.split()
+                        if len(parts) >= 2 and parts[0].lower() == 'jornada':
+                            current_round = int(parts[1])
+                    except (ValueError, IndexError):
+                        pass
+            
+            # Procesar todas las filas de partidos (excluyendo header)
+            rows = table.find_all('tr')
+            for row in rows:
+                if 'jornada' in row.get('class', []):
+                    continue  # Saltar headers de jornada
+                
+                try:
+                    match_data = self._parse_calendar_row(row, current_round)
+                    if match_data:
+                        matches.append(match_data)
+                except Exception as e:
+                    logger.warning(f"Error parsing calendar row: {e}")
+                    continue
+        
+        return {'matches': matches}
+    
+    def _parse_calendar_row(self, row, round_number: int) -> Optional[Dict[str, Any]]:
+        """Parsea una fila individual del calendario"""
+        cells = row.find_all('td')
+        if len(cells) < 3:
+            return None
+            
+        # Extraer equipos
+        home_team = cells[0].get_text(strip=True)
+        away_team = cells[1].get_text(strip=True)
+        
+        # Saltar si algún equipo "Descansa"
+        if home_team.lower() == 'descansa' or away_team.lower() == 'descansa':
+            return None
+            
+        # Extraer fecha y hora
+        date_cell = cells[2]
+        date_html = date_cell.decode_contents() if hasattr(date_cell, 'decode_contents') else str(date_cell)
+        
+        # El HTML puede contener: <strong>18/10/2025<br>09:30</strong>
+        # Extraer fecha y hora
+        date_text = date_cell.get_text(strip=True)
+        
+        try:
+            # Limpiar y normalizar el texto de fecha
+            date_text = date_text.replace('\n', ' ').strip()
+            
+            # Detectar si la fecha y hora están pegadas (ej: "18/10/202509:30")
+            import re
+            date_pattern = r'(\d{2}/\d{2}/\d{4})(\d{2}:\d{2})?'
+            match = re.match(date_pattern, date_text)
+            
+            if match:
+                date_str = match.group(1)
+                time_str = match.group(2) if match.group(2) else None
+            else:
+                # Fallback: intentar parsear por espacios
+                parts = date_text.split()
+                if len(parts) >= 2:
+                    date_str = parts[0]
+                    time_str = parts[1] if ':' in parts[1] else None
+                else:
+                    date_str = date_text
+                    time_str = None
+            
+            # Crear datetime object
+            if time_str:
+                match_datetime = datetime.strptime(f"{date_str} {time_str}", "%d/%m/%Y %H:%M")
+            else:
+                # Si no hay hora, usar medianoche para indicar que la hora está pendiente
+                match_datetime = datetime.strptime(date_str, "%d/%m/%Y")
+                # Mantener hora 00:00 para indicar que está pendiente de confirmar
+            
+            match_datetime = timezone.make_aware(match_datetime)
+            
+        except ValueError as e:
+            logger.warning(f"Error parsing calendar date '{date_text}': {e}")
+            return None
+        
+        return {
+            'home_team': home_team,
+            'away_team': away_team,
+            'match_date': match_datetime,
+            'venue': '',  # No disponible en formato calendario
+            'city': '',   # No disponible en formato calendario
+            'round_number': round_number,
+            'home_score': None,  # No hay resultados en calendario
+            'away_score': None,  # No hay resultados en calendario
+            'status': 'scheduled',
+            'federation_id': f"{self.league.federation_id}_{home_team.replace(' ', '_')}_{away_team.replace(' ', '_')}_{match_datetime.strftime('%Y%m%d')}"
+        }
+
+
 class FederationScraper:
     """Clase principal para manejar el scraping de la federación"""
     
@@ -239,7 +356,7 @@ class FederationScraper:
         self.parsers = {
             'table_standings': StandingsParser(league),
             'match_results': MatchesParser(league),
-            'match_calendar': MatchesParser(league),
+            'match_calendar': CalendarParser(league),
         }
     
     def scrape_endpoint(self, endpoint: ScrapingEndpoint, **kwargs) -> Dict[str, Any]:
