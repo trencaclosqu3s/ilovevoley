@@ -1,5 +1,5 @@
 from django import forms
-from .models import Video
+from .models import Video, Comment
 
 
 class VideoForm(forms.ModelForm):
@@ -25,4 +25,20 @@ class VideoForm(forms.ModelForm):
             'title': 'Título',
             'youtube_url': 'URL de YouTube',
             'description': 'Descripción',
+        }
+
+
+class CommentForm(forms.ModelForm):
+    class Meta:
+        model = Comment
+        fields = ['content']
+        widgets = {
+            'content': forms.Textarea(attrs={
+                'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent resize-none',
+                'rows': 2,
+                'placeholder': '¡Añade un comentario de apoyo! 💪'
+            }),
+        }
+        labels = {
+            'content': '',
         }

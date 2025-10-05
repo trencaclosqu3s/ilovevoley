@@ -1,5 +1,6 @@
 from django.urls import path
+from . import views
 
 urlpatterns = [
-    # De momento vacío, lo llenaremos después
+    path('pending-approval/', views.pending_approval, name='pending_approval'),
 ]

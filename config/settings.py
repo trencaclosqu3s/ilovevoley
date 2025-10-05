@@ -68,6 +68,18 @@ LOGOUT_REDIRECT_URL = '/'
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 
+# Suprimir mensajes automáticos de allauth
+ACCOUNT_SESSION_REMEMBER = None
+SOCIALACCOUNT_AUTO_SIGNUP = True
+ACCOUNT_EMAIL_VERIFICATION = 'none'
+
+# Configurar qué mensajes de allauth mostrar
+ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
+
+# Adapters personalizados para suprimir mensajes
+ACCOUNT_ADAPTER = 'videosvoley.users.adapters.CustomAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'videosvoley.users.adapters.CustomSocialAccountAdapter'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
