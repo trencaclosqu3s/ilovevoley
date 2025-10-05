@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ match.home_team.name }} vs {{ match.away_team.name }} - Vídeos del Equipo{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header del partido -->
+    <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div class="flex-1">
+                <!-- Equipos enfrentados -->
+                <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mb-3">
+                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">
+                        <span class="{% if 'SANT JOSEP' in match.home_team.name %}text-csj-purple{% endif %}">
+                            {{ match.home_team.name }}
+                        </span>
+                        <span class="text-gray-500 mx-2">vs</span>
+                        <span class="{% if 'SANT JOSEP' in match.away_team.name %}text-csj-purple{% endif %}">
+                            {{ match.away_team.name }}
+                        </span>
+                    </h1>
+                    
+                    <!-- Resultado si está disponible -->
+                    {% if match.is_finished %}
+                        <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-2 sm:mt-0">
+                            {{ match.result_display }}
+                        </div>
+                    {% else %}
+                        <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 mt-2 sm:mt-0">
+                            {{ match.get_status_display }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Información del partido -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-sm text-gray-600">
+                    <!-- Fecha y hora -->
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <div>
+                            <div class="font-medium">{{ match.match_date|date:"d/m/Y" }}</div>
+                            {% if match.match_date.time.hour != 0 or match.match_date.time.minute != 0 %}
+                                <div class="text-xs">{{ match.match_date|date:"H:i" }}</div>
+                            {% else %}
+                                <div class="text-xs text-csj-yellow-dark">Fecha provisional</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Liga -->
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                        <div>
+                            <div class="font-medium">{{ match.league.name }}</div>
+                            {% if match.league.category %}
+                                <div class="text-xs">{{ match.league.category.name }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Ubicación -->
+                    {% if match.venue %}
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <div>
+                                <div class="font-medium">{{ match.venue }}</div>
+                                {% if match.city %}
+                                    <div class="text-xs">{{ match.city }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Jornada -->
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                        </svg>
+                        <div>
+                            <div class="font-medium">Jornada {{ match.round_number }}</div>
+                            <div class="text-xs">{{ match.league.season }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enlaces rápidos -->
+            <div class="flex flex-wrap gap-2 sm:gap-3">
+                <a href="{% url 'calendar_view' %}" 
+                   class="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
+                    📅 Calendario
+                </a>
+                <a href="{% url 'league_detail' match.league.id %}" 
+                   class="inline-flex items-center px-3 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
+                    📋 Liga
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Videos del partido -->
+    {% if videos %}
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800">
+                    📹 Videos del partido ({{ videos.count }})
+                </h2>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 sm:p-6">
+                {% for video in videos %}
+                    <div class="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition">
+                        <!-- Video embed -->
+                        <div class="relative aspect-video bg-black rounded-t-lg">
+                            <iframe 
+                                src="{{ video.get_embed_url }}" 
+                                frameborder="0" 
+                                allowfullscreen
+                                class="absolute inset-0 w-full h-full">
+                            </iframe>
+                        </div>
+                        
+                        <!-- Video info -->
+                        <div class="p-4">
+                            <h3 class="font-semibold text-gray-800 mb-2 line-clamp-2">
+                                <a href="{% url 'video_detail' video.id %}" class="hover:text-csj-purple transition">
+                                    {{ video.title }}
+                                </a>
+                            </h3>
+                            
+                            {% if video.description %}
+                                <p class="text-sm text-gray-600 mb-3 line-clamp-3">{{ video.description }}</p>
+                            {% endif %}
+                            
+                            <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+                                <div class="flex items-center space-x-3">
+                                    {% if video.category %}
+                                        <span class="bg-csj-purple bg-opacity-20 text-csj-purple px-2 py-1 rounded">
+                                            {{ video.category.name }}
+                                        </span>
+                                    {% endif %}
+                                    <span>{{ video.created_at|date:"d/m/Y" }}</span>
+                                </div>
+                                <span>Por {{ video.created_by.username }}</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <!-- Sin videos -->
+        <div class="bg-white rounded-lg shadow-lg p-8 sm:p-12 text-center">
+            <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+            </svg>
+            <h3 class="mt-4 text-lg font-medium text-gray-900">No hay videos para este partido</h3>
+            <p class="mt-2 text-sm text-gray-500">
+                Aún no se han subido videos para este enfrentamiento. 
+                {% if user.groups.all %}
+                    {% for group in user.groups.all %}
+                        {% if group.name == 'VideoManagers' %}
+                            <a href="{% url 'video_create' %}" class="text-csj-purple hover:text-csj-purple-dark font-medium">
+                                ¡Sé el primero en añadir uno!
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+
+    <!-- Navegación -->
+    <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">🔗 Enlaces relacionados</h3>
+        <div class="flex flex-wrap gap-2 sm:gap-3">
+            <a href="{% url 'video_list' %}" 
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
+                🎬 <span class="hidden sm:inline ml-1">Ver</span> Videos
+            </a>
+            <a href="{% url 'calendar_view' %}" 
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
+                📅 <span class="hidden sm:inline ml-1">Ver</span> Calendario
+            </a>
+            <a href="{% url 'standings_view' %}" 
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
+                🏆 <span class="hidden sm:inline ml-1">Ver</span> Clasificación
+            </a>
+            <a href="{% url 'league_list' %}" 
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
+                📋 <span class="hidden sm:inline ml-1">Ver</span> Ligas
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

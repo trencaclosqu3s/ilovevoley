@@ -170,3 +170,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Configuración específica del club
+CLUB_TEAM_NAME = 'SANT JOSEP'  # Nombre del equipo principal para filtrar videos
+
+# Configuración multi-equipo por categoría
+CLUB_TEAM_NAMES = {
+    'default': 'SANT JOSEP',
+    'senior': ['SANT JOSEP', 'CV SANT JOSEP'],
+    'cadete': ['SANT JOSEP CADETE', 'CV SANT JOSEP CADETE'],
+    'infantil': ['SANT JOSEP INFANTIL', 'CV SANT JOSEP INFANTIL'],
+    'juvenil': ['SANT JOSEP JUVENIL', 'CV SANT JOSEP JUVENIL'],
+}

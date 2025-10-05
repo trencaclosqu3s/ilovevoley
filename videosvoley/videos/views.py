@@ -5,7 +5,9 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib.postgres.search import TrigramSimilarity
 from unidecode import unidecode
-from .models import Video, Comment, Category
+from datetime import datetime, timedelta
+from django.utils import timezone
+from .models import Video, Comment, Category, League, Match, Team, Standing
 from .forms import VideoForm, CommentForm
 
 
@@ -17,23 +19,40 @@ def user_is_approved(user):
 @login_required
 @user_passes_test(user_is_approved, login_url='/pending-approval/')
 def video_list(request):
-    videos = Video.objects.select_related('category', 'created_by').prefetch_related('comments').all()
+    videos = Video.objects.select_related('category', 'created_by', 'match__home_team', 'match__away_team', 'match__league').prefetch_related('comments').all()
     categories = Category.objects.filter(is_active=True)
+    leagues = League.objects.filter(is_active=True)
+    teams = Team.objects.all()
     
     # Filtros
     category_filter = request.GET.get('category')
+    league_filter = request.GET.get('league')
+    team_filter = request.GET.get('team')
     search_query = request.GET.get('search', '').strip()
     
     # Aplicar filtro de categoría
     if category_filter:
         videos = videos.filter(category_id=category_filter)
     
+    # Aplicar filtro de liga
+    if league_filter:
+        videos = videos.filter(match__league_id=league_filter)
+    
+    # Aplicar filtro de equipo
+    if team_filter:
+        videos = videos.filter(
+            Q(match__home_team_id=team_filter) | 
+            Q(match__away_team_id=team_filter)
+        )
+    
     # Aplicar búsqueda de texto (case-insensitive, accent-insensitive)
     if search_query:
-        # Buscar en título y descripción sin considerar acentos ni mayúsculas
+        # Buscar en título, descripción y equipos
         videos = videos.filter(
             Q(title__icontains=search_query) |
-            Q(description__icontains=search_query)
+            Q(description__icontains=search_query) |
+            Q(match__home_team__name__icontains=search_query) |
+            Q(match__away_team__name__icontains=search_query)
         )
     
     # Paginación
@@ -58,7 +77,11 @@ def video_list(request):
     return render(request, 'videos/video_list.html', {
         'page_obj': page_obj,
         'categories': categories,
+        'leagues': leagues,
+        'teams': teams,
         'selected_category': category_filter,
+        'selected_league': league_filter,
+        'selected_team': team_filter,
         'search_query': search_query,
         'can_add': can_add
     })
@@ -107,4 +130,190 @@ def video_detail(request, video_id):
         'video': video,
         'comments': comments,
         'comment_form': comment_form
+    })
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def league_list(request):
+    """Vista para mostrar todas las ligas disponibles"""
+    leagues = League.objects.filter(is_active=True).prefetch_related('matches__videos')
+    
+    return render(request, 'videos/league_list.html', {
+        'leagues': leagues
+    })
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def league_detail(request, league_id):
+    """Vista detallada de una liga con partidos y clasificación"""
+    league = get_object_or_404(League, id=league_id, is_active=True)
+    
+    # Obtener partidos de la liga
+    matches = Match.objects.filter(league=league).select_related(
+        'home_team', 'away_team'
+    ).prefetch_related('videos').order_by('-match_date')
+    
+    # Obtener clasificación
+    standings = league.standings.select_related('team').order_by('position')
+    
+    # Filtros opcionales
+    round_filter = request.GET.get('round')
+    if round_filter:
+        matches = matches.filter(round_number=round_filter)
+    
+    # Obtener jornadas disponibles
+    available_rounds = matches.values_list('round_number', flat=True).distinct().order_by('round_number')
+    
+    # Paginación de partidos
+    paginator = Paginator(matches, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'videos/league_detail.html', {
+        'league': league,
+        'page_obj': page_obj,
+        'standings': standings,
+        'available_rounds': available_rounds,
+        'selected_round': round_filter
+    })
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def match_detail(request, match_id):
+    """Vista detallada de un partido con sus videos"""
+    match = get_object_or_404(
+        Match.objects.select_related('home_team', 'away_team', 'league'), 
+        id=match_id
+    )
+    
+    # Obtener videos del partido
+    videos = match.videos.select_related('created_by', 'category').all()
+    
+    return render(request, 'videos/match_detail.html', {
+        'match': match,
+        'videos': videos
+    })
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def calendar_view(request):
+    """Vista del calendario de partidos"""
+    # Configuración del club
+    CLUB_TEAM_NAME = 'SANT JOSEP'
+    
+    # Obtener filtros
+    show_all_teams = request.GET.get('all_teams', '0') == '1'
+    league_filter = request.GET.get('league')
+    category_filter = request.GET.get('category')
+    
+    # Consulta base de partidos
+    matches = Match.objects.select_related(
+        'home_team', 'away_team', 'league', 'league__category'
+    ).order_by('match_date')
+    
+    # Filtrar por equipo del club por defecto
+    if not show_all_teams:
+        matches = matches.filter(
+            Q(home_team__name__icontains=CLUB_TEAM_NAME) | 
+            Q(away_team__name__icontains=CLUB_TEAM_NAME)
+        )
+    
+    # Aplicar filtro de liga
+    if league_filter:
+        matches = matches.filter(league_id=league_filter)
+    
+    # Aplicar filtro de categoría
+    if category_filter:
+        matches = matches.filter(league__category_id=category_filter)
+    
+    # Obtener datos para filtros
+    leagues = League.objects.filter(is_active=True).order_by('name')
+    categories = Category.objects.filter(is_active=True).order_by('name')
+    
+    # Obtener el mes actual o el solicitado
+    year = int(request.GET.get('year', timezone.now().year))
+    month = int(request.GET.get('month', timezone.now().month))
+    
+    # Filtrar partidos del mes seleccionado
+    start_date = datetime(year, month, 1)
+    if month == 12:
+        end_date = datetime(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        end_date = datetime(year, month + 1, 1) - timedelta(days=1)
+    
+    monthly_matches = matches.filter(
+        match_date__date__gte=start_date.date(),
+        match_date__date__lte=end_date.date()
+    )
+    
+    # Navegación de meses
+    prev_month = start_date - timedelta(days=1)
+    next_month = end_date + timedelta(days=1)
+    
+    return render(request, 'videos/calendar.html', {
+        'matches': monthly_matches,
+        'leagues': leagues,
+        'categories': categories,
+        'selected_league': league_filter,
+        'selected_category': category_filter,
+        'show_all_teams': show_all_teams,
+        'club_team_name': CLUB_TEAM_NAME,
+        'current_month': start_date,
+        'prev_month': prev_month,
+        'next_month': next_month,
+        'year': year,
+        'month': month,
+    })
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def standings_view(request):
+    """Vista de clasificación de las ligas"""
+    # Obtener filtros
+    league_filter = request.GET.get('league')
+    category_filter = request.GET.get('category')
+    
+    # Configuración del club
+    CLUB_TEAM_NAME = 'SANT JOSEP'
+    
+    # Consulta base de clasificaciones
+    standings = Standing.objects.select_related(
+        'team', 'league', 'league__category'
+    ).order_by('league__name', 'position')
+    
+    # Aplicar filtro de liga
+    if league_filter:
+        standings = standings.filter(league_id=league_filter)
+    
+    # Aplicar filtro de categoría
+    if category_filter:
+        standings = standings.filter(league__category_id=category_filter)
+    
+    # Agrupar por liga
+    standings_by_league = {}
+    for standing in standings:
+        league_name = standing.league.name
+        if league_name not in standings_by_league:
+            standings_by_league[league_name] = {
+                'league': standing.league,
+                'standings': []
+            }
+        standings_by_league[league_name]['standings'].append(standing)
+    
+    # Obtener datos para filtros
+    leagues = League.objects.filter(is_active=True).order_by('name')
+    categories = Category.objects.filter(is_active=True).order_by('name')
+    
+    return render(request, 'videos/standings.html', {
+        'standings_by_league': standings_by_league,
+        'leagues': leagues,
+        'categories': categories,
+        'selected_league': league_filter,
+        'selected_category': category_filter,
+        'club_team_name': CLUB_TEAM_NAME,
     })

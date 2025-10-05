@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+
+{% block title %}Calendario de Partidos - Vídeos del Equipo{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header con título y navegación de meses -->
+    <div class="bg-white rounded-lg shadow-lg p-6 border-t-4 border-csj-purple">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">📅 Calendario de Partidos</h1>
+                <p class="text-gray-600">
+                    {% if show_all_teams %}
+                        Mostrando todos los equipos
+                    {% else %}
+                        Mostrando partidos de {{ club_team_name }}
+                    {% endif %}
+                </p>
+            </div>
+            
+            <!-- Navegación de meses -->
+            <div class="flex items-center space-x-1 sm:space-x-2">
+                <a href="?year={{ prev_month.year }}&month={{ prev_month.month }}{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}"
+                   class="p-2 sm:p-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition touch-manipulation">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </a>
+                <h2 class="text-sm sm:text-lg font-semibold text-gray-700 px-2 sm:px-4 min-w-0">
+                    <span class="hidden sm:inline">{{ current_month|date:"F Y" }}</span>
+                    <span class="sm:hidden">{{ current_month|date:"M Y" }}</span>
+                </h2>
+                <a href="?year={{ next_month.year }}&month={{ next_month.month }}{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}"
+                   class="p-2 sm:p-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition touch-manipulation">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <form method="get" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                <!-- Toggle equipos -->
+                <div class="flex items-center space-x-3 md:col-span-1">
+                    <label class="flex items-center cursor-pointer touch-manipulation">
+                        <input type="checkbox" name="all_teams" value="1" 
+                               {% if show_all_teams %}checked{% endif %}
+                               class="w-5 h-5 text-csj-purple border-gray-300 rounded focus:ring-csj-purple">
+                        <span class="ml-2 text-sm text-gray-700">Todos los equipos</span>
+                    </label>
+                </div>
+
+                <!-- Filtro de Liga -->
+                <select name="league" class="rounded-lg border-gray-300 focus:border-csj-purple focus:ring focus:ring-csj-purple focus:ring-opacity-50">
+                    <option value="">Todas las ligas</option>
+                    {% for league in leagues %}
+                        <option value="{{ league.id }}" {% if selected_league == league.id|stringformat:"s" %}selected{% endif %}>
+                            {{ league.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <!-- Filtro de Categoría -->
+                <select name="category" class="rounded-lg border-gray-300 focus:border-csj-purple focus:ring focus:ring-csj-purple focus:ring-opacity-50">
+                    <option value="">Todas las categorías</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <!-- Botón aplicar filtros -->
+                <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-3 rounded-lg font-semibold transition touch-manipulation w-full sm:w-auto">
+                    Filtrar
+                </button>
+            </div>
+            
+            <!-- Campos ocultos para mantener la navegación -->
+            <input type="hidden" name="year" value="{{ year }}">
+            <input type="hidden" name="month" value="{{ month }}">
+        </form>
+    </div>
+
+    <!-- Calendario/Lista de partidos -->
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        {% if matches %}
+            <div class="divide-y divide-gray-200">
+                {% for match in matches %}
+                    <div class="p-3 sm:p-4 hover:bg-gray-50 transition">
+                        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 sm:gap-4">
+                            <!-- Información del partido -->
+                            <div class="flex-1">
+                                <div class="flex flex-wrap items-center gap-2 mb-2">
+                                    <!-- Fecha y hora -->
+                                    <div class="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
+                                        <svg class="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                        </svg>
+                                        <span class="font-medium">{{ match.match_date|date:"d/m/Y" }}</span>
+                                        {% if match.match_date.time.hour != 0 or match.match_date.time.minute != 0 %}
+                                            <span class="hidden sm:inline">{{ match.match_date|date:"H:i" }}</span>
+                                            <span class="sm:hidden">{{ match.match_date|date:"H:i" }}</span>
+                                        {% else %}
+                                            <span class="text-csj-yellow-dark font-medium text-xs">Provisional</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Categoría -->
+                                    {% if match.league.category %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-csj-purple bg-opacity-20 text-csj-purple-dark">
+                                            {{ match.league.category.name }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Equipos -->
+                                <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                                    <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-2">
+                                        <span class="font-semibold text-sm sm:text-base text-gray-800 
+                                            {% if club_team_name in match.home_team.name %}text-csj-purple{% endif %} break-words">
+                                            {{ match.home_team.name }}
+                                        </span>
+                                        <span class="text-gray-500 text-xs sm:text-sm self-center sm:self-auto">vs</span>
+                                        <span class="font-semibold text-sm sm:text-base text-gray-800 
+                                            {% if club_team_name in match.away_team.name %}text-csj-purple{% endif %} break-words">
+                                            {{ match.away_team.name }}
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Resultado si está disponible -->
+                                    {% if match.is_finished %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            {{ match.result_display }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Liga y ubicación -->
+                                <div class="flex flex-wrap items-center gap-1 sm:gap-2 mt-2 text-xs sm:text-sm text-gray-600">
+                                    <span class="bg-gray-100 px-2 py-1 rounded text-xs">{{ match.league.name }}</span>
+                                    {% if match.venue %}
+                                        <span class="text-xs">📍 
+                                            <span class="hidden sm:inline">{{ match.venue }}{% if match.city %} - {{ match.city }}{% endif %}</span>
+                                            <span class="sm:hidden">{{ match.venue|truncatechars:15 }}</span>
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Acciones -->
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2 w-full sm:w-auto">
+                                <!-- Indicador de videos -->
+                                {% if match.videos.exists %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-csj-yellow bg-opacity-30 text-csj-yellow-dark">
+                                        📹 {{ match.videos.count }} video{{ match.videos.count|pluralize }}
+                                    </span>
+                                {% endif %}
+                                
+                                <!-- Enlace al detalle -->
+                                <a href="{% url 'match_detail' match.id %}" 
+                                   class="inline-flex items-center justify-center px-3 py-2 border border-csj-purple text-xs sm:text-sm font-medium rounded-md text-csj-purple hover:bg-csj-purple hover:text-white transition touch-manipulation w-full sm:w-auto">
+                                    <span class="hidden sm:inline">Ver detalles</span>
+                                    <span class="sm:hidden">Detalles</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Estado vacío -->
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No hay partidos programados</h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    No se encontraron partidos para 
+                    {% if show_all_teams %}
+                        el mes de {{ current_month|date:"F Y" }}
+                    {% else %}
+                        {{ club_team_name }} en {{ current_month|date:"F Y" }}
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Enlaces rápidos -->
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Enlaces relacionados</h3>
+        <div class="flex flex-wrap gap-3">
+            <a href="{% url 'standings_view' %}" 
+               class="inline-flex items-center px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-semibold transition">
+                🏆 Ver clasificación
+            </a>
+            <a href="{% url 'league_list' %}" 
+               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold transition">
+                📋 Ver ligas
+            </a>
+            <a href="{% url 'video_list' %}" 
+               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold transition">
+                🎬 Ver videos
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
