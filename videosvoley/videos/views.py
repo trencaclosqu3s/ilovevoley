@@ -591,7 +591,8 @@ def image_upload(request):
                     
                     if detected_labels or detected_text:
                         auto_tags = process_vision_tags_for_volleyball(detected_labels, detected_text)
-                        image.add_auto_tags(auto_tags)
+                        # Establecer las etiquetas automáticas directamente
+                        image.auto_tags = auto_tags
                     
                     # Auto-aprobar SOLO si es segura, la API funcionó correctamente y la moderación automática está habilitada
                     if (vision_result.get('safe', False) and 
@@ -619,6 +620,11 @@ def image_upload(request):
                 messages.success(request, f'Imagen subida correctamente. Está pendiente de moderación.{auto_tags_msg}')
             
             return redirect('videos:image_gallery')
+        else:
+            # El formulario no es válido, mostrar errores
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = ImageUploadForm()
     

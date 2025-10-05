@@ -294,10 +294,8 @@ class ImageUploadForm(forms.ModelForm):
         image_type = cleaned_data.get('image_type')
         match = cleaned_data.get('match')
         
-        # Si es tipo 'match' pero no hay partido seleccionado, advertir pero no fallar
-        if image_type == 'match' and not match:
-            self.add_error('match', 
-                'Se recomienda seleccionar un partido para imágenes de tipo "Partido"')
+        # Si es tipo 'match' pero no hay partido seleccionado, solo mostrar advertencia como ayuda
+        # No bloquear el formulario - será una recomendación visual en el frontend
         
         return cleaned_data
 
