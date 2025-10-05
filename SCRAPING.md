@@ -9,7 +9,8 @@ Este sistema permite obtener automáticamente datos de ligas de voleibol desde l
 ### Modelos de Datos
 
 - **`League`**: Representa una competición/liga
-- **`Team`**: Equipos participantes 
+- **`Club`**: Información oficial de clubes (datos de contacto, ubicación, logos)
+- **`Team`**: Equipos participantes (pueden incluir patrocinadores)
 - **`Match`**: Partidos entre equipos
 - **`Standing`**: Clasificaciones de liga
 - **`ScrapingEndpoint`**: Configuración de endpoints para scraping
@@ -21,6 +22,7 @@ Este sistema permite obtener automáticamente datos de ligas de voleibol desde l
 - **`StandingsParser`**: Parser para tablas de clasificación
 - **`MatchesParser`**: Parser para calendarios y resultados
 - **`FederationScraper`**: Coordinador principal del scraping
+- **`ClubScraper`**: Sistema de scraping de clubes con matching inteligente
 
 ## Configuración de Nueva Liga
 
@@ -64,9 +66,65 @@ docker-compose exec web python manage.py setup_league \
    - Patrón URL: `JSON/get_resultados.asp?id={league_id}&f={round}`
    - Tipo de parser: Resultados de Partidos
 
+## Scraping de Clubes (NUEVO)
+
+### Importación Inicial de Clubes
+
+```bash
+# Scraping completo de todos los clubes desde voleibolib.net
+docker-compose exec web python manage.py scrape_clubs --verbose
+
+# Modo dry-run para ver qué se haría sin hacer cambios
+docker-compose exec web python manage.py scrape_clubs --dry-run --verbose
+
+# Con delay personalizado entre requests (recomendado para ser respetuoso)
+docker-compose exec web python manage.py scrape_clubs --delay 2.0 --verbose
+```
+
+### Matching Automático de Equipos con Clubes
+
+```bash
+# Solo ejecutar matching de equipos existentes con clubes
+docker-compose exec web python manage.py scrape_clubs --match-teams --verbose
+
+# Scraping de clubes + matching en una sola operación
+docker-compose exec web python manage.py scrape_clubs --match-teams --verbose
+```
+
+### Funcionalidades del Sistema de Clubes
+
+#### **Datos Completos de Clubes**
+- Nombre oficial del club
+- Presidente/representante
+- Datos de contacto (email, teléfono, dirección)
+- Información del campo de juego
+- Redes sociales (Instagram, Facebook, Twitter, web)
+- Logo oficial automático desde federación
+
+#### **Matching Inteligente**
+El sistema asocia automáticamente equipos con patrocinadores a sus clubes oficiales:
+
+- `ALARO VOLEI CLINICA DENTAL` → `ALARO VOLEI CLUB ESPORTIU`
+- `CAIXA COLONYA CV MANACOR` → `CLUB VOLEIBOL MANACOR`
+- `CV SANT JOSEP` → `CLUB ESPORTIU SANT JOSEP OBRER`
+
+#### **Algoritmo de Matching**
+1. **Normalización**: Quita acentos, convierte a mayúsculas, elimina caracteres especiales
+2. **Similitud**: Usa difflib.SequenceMatcher para calcular similitud
+3. **Palabras clave**: Detecta coincidencias parciales significativas
+4. **Umbral**: Solo matches con confianza > 0.55 se aplican automáticamente
+5. **Manual**: Matches con menor confianza se reportan para revisión
+
+#### **Gestión desde Admin**
+- Vista previa de logos en listados
+- Acción para sincronizar clubes seleccionados
+- Matching manual desde la vista de equipos
+- Autocomplete para relación Club-Team
+- Campos organizados por categorías (Básico, Contacto, Sede, Redes)
+
 ## Ejecución de Scraping
 
-### Scraping de Múltiples Ligas (NUEVO)
+### Scraping de Múltiples Ligas
 
 ```bash
 # Scraping de TODAS las ligas activas
@@ -98,6 +156,9 @@ Para scraping automático, puedes usar cron:
 # Scraping de todas las ligas diario a las 20:00
 0 20 * * * cd /path/to/project && docker-compose exec -T web python manage.py scrape_all_leagues
 
+# Scraping de clubes semanal (domingos a las 2:00 AM)
+0 2 * * 0 cd /path/to/project && docker-compose exec -T web python manage.py scrape_clubs --match-teams
+
 # O scraping individual por liga
 0 20 * * * cd /path/to/project && docker-compose exec -T web python manage.py scrape_league --league-id 7998
 ```
@@ -111,14 +172,26 @@ O configurar Celery para tareas programadas (opcional).
 - **Clasificaciones**: `JSON/get_clasificacion.asp?id={league_id}`
 - **Resultados**: `JSON/get_resultados.asp?id={league_id}&f={round}`
 - **Calendario**: Similar a resultados pero con partidos futuros
+- **Lista de Clubes**: `JSON/get_clubes.asp`
+- **Datos de Club**: `JSON/get_datos_club.asp?id={club_id}`
+- **Logos de Clubes**: `https://voleibolib.federatio.com/fichas/clubes/{club_id}.jpg`
 
 ### Parámetros Dinámicos
 
 - `{league_id}`: ID de la federación de la liga
+- `{club_id}`: ID de la federación del club
 - `{round}`: Número de jornada (opcional)
 - Parámetros adicionales se pueden configurar en `extra_params` (JSON)
 
-## Gestión de Equipos
+## Gestión de Equipos y Clubes
+
+### Relación Club-Team
+
+El nuevo sistema establece una relación clara entre clubes oficiales y equipos:
+
+- **Club**: Entidad oficial con datos de contacto y ubicación
+- **Team**: Equipo específico que puede incluir patrocinadores
+- **Relación**: Un club puede tener múltiples equipos (senior, cadete, infantil, etc.)
 
 ### Normalización de Nombres
 
@@ -127,13 +200,21 @@ El sistema maneja automáticamente:
 - Espacios extra
 - Diferencias de mayúsculas/minúsculas
 - Variaciones menores en nombres
+- Eliminación de patrocinadores para matching
 
 ### Búsqueda Inteligente
 
-Si no encuentra un equipo exacto, el sistema:
+Para equipos de ligas:
 1. Busca por nombre normalizado
 2. Busca por similitud parcial
 3. Registra warnings para revisión manual
+
+Para matching Club-Team:
+1. Normaliza nombres de ambos
+2. Calcula similitud usando difflib
+3. Considera coincidencias de palabras clave
+4. Aplica umbral de confianza (0.55)
+5. Reporta matches potenciales para revisión manual
 
 ## Configuración Avanzada
 
@@ -223,14 +304,37 @@ docker-compose exec web pip install beautifulsoup4
 - Verificar nombres de equipos en logs
 - Comprobar normalización de caracteres especiales
 
+**"Error obteniendo detalles del club"**
+- Verificar conectividad a voleibolib.net
+- Comprobar que el ID del club existe
+- Revisar rate limiting (aumentar delay si es necesario)
+
+**"Matching no encuentra clubes obvios"**
+- Revisar umbral de confianza en comando (ajustar --threshold si disponible)
+- Verificar normalización de nombres en logs verbose
+- Hacer matching manual desde Django admin
+
 ### Debugging
 
 ```bash
 # Scraping con logs detallados
 docker-compose exec web python manage.py scrape_league --league-id 7998 --verbose
 
+# Debug de clubes en modo dry-run
+docker-compose exec web python manage.py scrape_clubs --dry-run --verbose
+
 # Verificar contenido de endpoint
 curl "https://www.voleibolib.net/JSON/get_clasificacion.asp?id=7998"
+curl "https://www.voleibolib.net/JSON/get_clubes.asp"
+curl "https://www.voleibolib.net/JSON/get_datos_club.asp?id=1"
+
+# Verificar matching desde Django shell
+docker-compose exec web python manage.py shell
+>>> from videosvoley.videos.models import Team, Club
+>>> # Ver equipos sin club
+>>> Team.objects.filter(club__isnull=True)
+>>> # Ver clubes disponibles
+>>> Club.objects.all()
 ```
 
 ## Mantenimiento
@@ -240,6 +344,8 @@ curl "https://www.voleibolib.net/JSON/get_clasificacion.asp?id=7998"
 - El scraping actualiza datos existentes sin duplicar
 - Las clasificaciones se reemplazan completamente
 - Los partidos se actualizan o crean según `federation_id`
+- Los clubes se actualizan automáticamente (mantiene relaciones existentes)
+- El matching de equipos respeta asociaciones manuales existentes
 
 ### Limpieza de Datos
 
@@ -247,8 +353,15 @@ curl "https://www.voleibolib.net/JSON/get_clasificacion.asp?id=7998"
 # Eliminar liga y todos sus datos relacionados
 # (Cuidado: esto borra todo)
 docker-compose exec web python manage.py shell
->>> from videosvoley.videos.models import League
+>>> from videosvoley.videos.models import League, Club
 >>> League.objects.get(federation_id='7998').delete()
+
+# Eliminar todos los clubes (mantiene equipos)
+>>> Club.objects.all().delete()
+
+# Resetear asociaciones Club-Team
+>>> from videosvoley.videos.models import Team
+>>> Team.objects.update(club=None, sponsor_name='')
 ```
 
 ### Backup
@@ -277,7 +390,7 @@ El sistema está diseñado para funcionar con cualquier federación que use estr
 - Respuestas HTML tabulares
 - Estructura consistente
 
-## Ejemplo Completo: Club Multi-Categoría
+## Ejemplo Completo: Club Multi-Categoría con Sistema de Clubes
 
 ```bash
 # 1. Configurar múltiples ligas
@@ -298,12 +411,21 @@ docker-compose exec web python manage.py setup_league \
 # 3. Ejecutar scraping de todas las ligas
 docker-compose exec web python manage.py scrape_all_leagues --verbose
 
-# 4. Verificar datos en admin: http://localhost:8000/admin/
+# 4. Importar todos los clubes con matching automático
+docker-compose exec web python manage.py scrape_clubs --match-teams --verbose
 
-# 5. Programar scraping automático diario
+# 5. Verificar datos en admin: http://localhost:8000/admin/
+# - Ver clubes en /admin/videos/club/
+# - Ver equipos asociados en /admin/videos/team/
+# - Logos automáticos desde federación
+
+# 6. Programar scraping automático
+# Ligas diarias
 0 22 * * * cd /path/to/project && docker-compose exec -T web python manage.py scrape_all_leagues
+# Clubes semanales
+0 2 * * 0 cd /path/to/project && docker-compose exec -T web python manage.py scrape_clubs --match-teams
 
-# 6. Scraping por categorías específicas
+# 7. Scraping por categorías específicas
 docker-compose exec web python manage.py scrape_all_leagues --category "Senior"
 ```
 
@@ -311,14 +433,20 @@ docker-compose exec web python manage.py scrape_all_leagues --category "Senior"
 - **Videos de Senior**: Solo muestran partidos de senior de SANT JOSEP
 - **Videos de Cadete**: Solo muestran partidos de cadete de SANT JOSEP  
 - **Admin completo**: Ve todos los partidos para gestión integral
+- **Datos de clubes**: Información completa de contacto, ubicación y logos automáticos
+- **Matching inteligente**: Equipos con patrocinadores asociados automáticamente a clubes oficiales
+- **Gestión unificada**: Vista consolidada de toda la información del club y sus equipos
 
 ## Notas Importantes
 
-- ⚠️ **Respetar rate limiting**: No hacer requests muy frecuentes
+- ⚠️ **Respetar rate limiting**: No hacer requests muy frecuentes (usar --delay)
 - 📊 **Verificar datos**: Revisar logs para detectar problemas
 - 🔄 **Backup regular**: Los datos se actualizan automáticamente
 - 🆕 **Nuevas fases**: Configurar endpoints adicionales cuando aparezcan liguillas
 - 📱 **Monitoreo**: Verificar que las URLs de federación no cambien
+- 🏆 **Clubes actualizados**: El sistema mantiene automáticamente los datos de clubes actualizados
+- 🎯 **Matching inteligente**: Revisa manualmente los matches sugeridos en logs
+- 🔗 **Relaciones preservadas**: Las asociaciones manuales Club-Team no se sobrescriben
 
 ## Soporte
 
