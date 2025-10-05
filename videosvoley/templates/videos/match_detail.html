@@ -93,11 +93,11 @@
 
             <!-- Enlaces rápidos -->
             <div class="flex flex-wrap gap-2 sm:gap-3">
-                <a href="{% url 'calendar_view' %}" 
+                <a href="{% url 'videos:calendar_view' %}"
                    class="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                     📅 Calendario
                 </a>
-                <a href="{% url 'league_detail' match.league.id %}" 
+                <a href="{% url 'videos:league_detail' match.league.id %}" 
                    class="inline-flex items-center px-3 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
                     📋 Liga
                 </a>
@@ -130,7 +130,7 @@
                         <!-- Video info -->
                         <div class="p-4">
                             <h3 class="font-semibold text-gray-800 mb-2 line-clamp-2">
-                                <a href="{% url 'video_detail' video.id %}" class="hover:text-csj-purple transition">
+                                <a href="{% url 'videos:video_detail' video.id %}" class="hover:text-csj-purple transition">
                                     {{ video.title }}
                                 </a>
                             </h3>
@@ -167,7 +167,7 @@
                 {% if user.groups.all %}
                     {% for group in user.groups.all %}
                         {% if group.name == 'VideoManagers' %}
-                            <a href="{% url 'video_create' %}" class="text-csj-purple hover:text-csj-purple-dark font-medium">
+                            <a href="{% url 'videos:video_create' %}" class="text-csj-purple hover:text-csj-purple-dark font-medium">
                                 ¡Sé el primero en añadir uno!
                             </a>
                         {% endif %}
@@ -235,19 +235,19 @@
     <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">🔗 Enlaces relacionados</h3>
         <div class="flex flex-wrap gap-2 sm:gap-3">
-            <a href="{% url 'video_list' %}" 
+            <a href="{% url 'videos:video_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 🎬 <span class="hidden sm:inline ml-1">Ver</span> Videos
             </a>
-            <a href="{% url 'calendar_view' %}" 
+            <a href="{% url 'videos:calendar_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 📅 <span class="hidden sm:inline ml-1">Ver</span> Calendario
             </a>
-            <a href="{% url 'standings_view' %}" 
+            <a href="{% url 'videos:standings_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
                 🏆 <span class="hidden sm:inline ml-1">Ver</span> Clasificación
             </a>
-            <a href="{% url 'league_list' %}" 
+            <a href="{% url 'videos:league_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 📋 <span class="hidden sm:inline ml-1">Ver</span> Ligas
             </a>

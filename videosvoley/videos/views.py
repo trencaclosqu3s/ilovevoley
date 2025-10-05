@@ -472,15 +472,42 @@ def image_gallery(request):
     filter_form = ImageFilterForm(request.GET)
     if filter_form.is_valid():
         search = filter_form.cleaned_data.get('search')
+        tags = filter_form.cleaned_data.get('tags')
+        image_type = filter_form.cleaned_data.get('image_type')
+        match_filter = filter_form.cleaned_data.get('match_filter')
         category = filter_form.cleaned_data.get('category')
         year = filter_form.cleaned_data.get('year')
         status_filter = filter_form.cleaned_data.get('status')
         
+        # Búsqueda general en título, descripción y etiquetas
         if search:
             images = images.filter(
                 Q(title__icontains=search) | 
-                Q(description__icontains=search)
+                Q(description__icontains=search) |
+                Q(tags__icontains=search)
             )
+        
+        # Búsqueda específica por etiquetas (incluye auto_tags)
+        if tags:
+            tag_queries = Q()
+            for tag in tags.split(','):
+                tag = tag.strip()
+                if tag:
+                    tag_queries |= (
+                        Q(tags__icontains=tag) |
+                        Q(auto_tags__icontains=tag)
+                    )
+            images = images.filter(tag_queries)
+        
+        # Filtro por tipo de imagen
+        if image_type:
+            images = images.filter(image_type=image_type)
+        
+        # Filtro por partido vinculado
+        if match_filter == 'with_match':
+            images = images.filter(match__isnull=False)
+        elif match_filter == 'without_match':
+            images = images.filter(match__isnull=True)
         
         if category:
             images = images.filter(category=category)
@@ -499,12 +526,40 @@ def image_gallery(request):
     # Estadísticas para la vista
     total_images = Image.objects.filter(status='approved').count()
     pending_images = Image.objects.filter(status='pending').count()
+    images_with_match = Image.objects.filter(status='approved', match__isnull=False).count()
+    images_without_match = Image.objects.filter(status='approved', match__isnull=True).count()
+    
+    # Obtener etiquetas populares para sugerencias
+    popular_tags = []
+    try:
+        # Recopilar todas las etiquetas manuales
+        manual_tags = []
+        for image in Image.objects.filter(status='approved').exclude(tags=''):
+            manual_tags.extend([tag.strip().lower() for tag in image.tags.split(',') if tag.strip()])
+        
+        # Recopilar etiquetas automáticas
+        auto_tags = []
+        for image in Image.objects.filter(status='approved').exclude(auto_tags=[]):
+            if isinstance(image.auto_tags, list):
+                auto_tags.extend([tag.lower() for tag in image.auto_tags])
+        
+        # Combinar y contar frecuencias
+        from collections import Counter
+        all_tags = manual_tags + auto_tags
+        if all_tags:
+            tag_counts = Counter(all_tags)
+            popular_tags = [tag for tag, count in tag_counts.most_common(15)]
+    except Exception as e:
+        print(f"Error obteniendo etiquetas populares: {e}")
     
     context = {
         'page_obj': page_obj,
         'filter_form': filter_form,
         'total_images': total_images,
         'pending_images': pending_images,
+        'images_with_match': images_with_match,
+        'images_without_match': images_without_match,
+        'popular_tags': popular_tags,
         'current_filters': request.GET.dict(),
     }
     
@@ -524,25 +579,45 @@ def image_upload(request):
             # Procesar con Google Vision API si está habilitado
             if getattr(settings, 'GOOGLE_VISION_ENABLED', False):
                 try:
-                    from .utils import check_image_with_vision_api
-                    vision_result = check_image_with_vision_api(image.image)
+                    from .utils import check_image_with_vision_api, process_vision_tags_for_volleyball
+                    vision_result = check_image_with_vision_api(image.image, extract_labels=True, extract_text=True)
                     image.vision_api_checked = True
-                    image.vision_api_safe = vision_result.get('safe', True)
+                    image.vision_api_safe = vision_result.get('safe', False)
                     image.vision_api_details = vision_result
                     
-                    # Auto-aprobar si es segura y la moderación automática está habilitada
-                    if (vision_result.get('safe', True) and 
+                    # Procesar etiquetas automáticas si se detectaron
+                    detected_labels = vision_result.get('labels', [])
+                    detected_text = vision_result.get('text', '')
+                    
+                    if detected_labels or detected_text:
+                        auto_tags = process_vision_tags_for_volleyball(detected_labels, detected_text)
+                        image.add_auto_tags(auto_tags)
+                    
+                    # Auto-aprobar SOLO si es segura, la API funcionó correctamente y la moderación automática está habilitada
+                    if (vision_result.get('safe', False) and 
+                        vision_result.get('details', {}).get('api_response_ok', False) and
                         getattr(settings, 'AUTO_MODERATION_ENABLED', False)):
                         image.status = 'approved'
                         image.moderated_by = request.user
                         image.moderation_date = timezone.now()
                         image.moderation_notes = 'Auto-aprobada por Google Vision API'
                 except Exception as e:
-                    # Log error pero continuar
+                    # Log error y marcar como que requiere revisión manual
                     print(f"Error en Vision API: {e}")
+                    image.vision_api_checked = False
+                    image.vision_api_safe = False
+                    image.vision_api_details = {'error': str(e), 'api_response_ok': False}
             
             image.save()
-            messages.success(request, 'Imagen subida correctamente. Está pendiente de moderación.')
+            
+            # Mensaje dinámico según el estado de la imagen
+            if image.status == 'approved':
+                auto_tags_msg = f" Se detectaron automáticamente las etiquetas: {', '.join(image.auto_tags[:3])}." if image.auto_tags else ""
+                messages.success(request, f'Imagen subida y aprobada automáticamente.{auto_tags_msg}')
+            else:
+                auto_tags_msg = f" Se detectaron automáticamente las etiquetas: {', '.join(image.auto_tags[:3])}." if image.auto_tags else ""
+                messages.success(request, f'Imagen subida correctamente. Está pendiente de moderación.{auto_tags_msg}')
+            
             return redirect('videos:image_gallery')
     else:
         form = ImageUploadForm()

@@ -193,7 +193,7 @@
                                 {% endif %}
                                 
                                 <!-- Enlace al detalle -->
-                                <a href="{% url 'match_detail' match.id %}" 
+                                <a href="{% url 'videos:match_detail' match.id %}"
                                    class="inline-flex items-center px-4 py-2 border border-csj-purple text-sm font-medium rounded-lg text-csj-purple hover:bg-csj-purple hover:text-white transition">
                                     Ver detalles
                                 </a>
@@ -335,15 +335,15 @@
     <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">🔗 Enlaces relacionados</h3>
         <div class="flex flex-wrap gap-2 sm:gap-3">
-            <a href="{% url 'league_list' %}" 
+            <a href="{% url 'videos:league_list' %}"
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 ← Volver a ligas
             </a>
-            <a href="{% url 'calendar_view' %}" 
+            <a href="{% url 'videos:calendar_view' %}"
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
                 📅 Calendario
             </a>
-            <a href="{% url 'video_list' %}" 
+            <a href="{% url 'videos:video_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 🎬 Videos
             </a>

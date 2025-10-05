@@ -4,7 +4,7 @@
 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Partidos y Entrenamientos</h2>
     {% if can_add %}
-        <a href="{% url 'video_create' %}" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-6 py-3 sm:py-2 rounded-lg font-semibold transition text-center">
+        <a href="{% url 'videos:video_create' %}" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-6 py-3 sm:py-2 rounded-lg font-semibold transition text-center">
             + Añadir Vídeo
         </a>
     {% endif %}
@@ -52,7 +52,7 @@
         <!-- Botones -->
         <div class="flex gap-2">
             <a 
-                href="{% url 'video_list' %}"
+                href="{% url 'videos:video_list' %}"
                 id="clear-filters"
                 class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition"
             >
@@ -100,7 +100,7 @@
                     </iframe>
                 </div>
                 <div class="p-5 lg:p-6">
-                    <a href="{% url 'video_detail' video.id %}" class="block hover:bg-gray-50 transition -m-5 lg:-m-6 p-5 lg:p-6 rounded-lg touch-manipulation">
+                    <a href="{% url 'videos:video_detail' video.id %}" class="block hover:bg-gray-50 transition -m-5 lg:-m-6 p-5 lg:p-6 rounded-lg touch-manipulation">
                         <h3 class="font-bold text-xl lg:text-2xl text-gray-800 mb-3 hover:text-csj-purple transition leading-tight">{{ video.title }}</h3>
                         {% if video.description %}
                             <p class="text-gray-600 mb-4 line-clamp-3">{{ video.description }}</p>

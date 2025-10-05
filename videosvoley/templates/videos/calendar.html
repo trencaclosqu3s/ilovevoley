@@ -280,7 +280,7 @@
                                     {% endif %}
                                     
                                     <!-- Enlace al detalle -->
-                                    <a href="{% url 'match_detail' match.id %}" 
+                                    <a href="{% url 'videos:match_detail' match.id %}" 
                                        class="inline-flex items-center justify-center px-3 py-2 border border-csj-purple text-xs sm:text-sm font-medium rounded-md text-csj-purple hover:bg-csj-purple hover:text-white transition touch-manipulation w-full sm:w-auto">
                                         <span class="hidden sm:inline">Ver detalles</span>
                                         <span class="sm:hidden">Detalles</span>
@@ -314,15 +314,15 @@
     <div class="bg-white rounded-lg shadow-lg p-6">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">Enlaces relacionados</h3>
         <div class="flex flex-wrap gap-3">
-            <a href="{% url 'standings_view' %}" 
+            <a href="{% url 'videos:standings_view' %}" 
                class="inline-flex items-center px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-semibold transition">
                 🏆 Ver clasificación
             </a>
-            <a href="{% url 'league_list' %}" 
+            <a href="{% url 'videos:league_list' %}" 
                class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold transition">
                 📋 Ver ligas
             </a>
-            <a href="{% url 'video_list' %}" 
+            <a href="{% url 'videos:video_list' %}" 
                class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold transition">
                 🎬 Ver videos
             </a>

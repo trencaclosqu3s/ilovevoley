@@ -179,7 +179,7 @@ class ImageUploadForm(forms.ModelForm):
     
     class Meta:
         model = Image
-        fields = ['image', 'title', 'description', 'match']
+        fields = ['image', 'title', 'description', 'image_type', 'tags', 'match']
         widgets = {
             'image': forms.FileInput(attrs={
                 'class': 'hidden',
@@ -196,25 +196,42 @@ class ImageUploadForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'Descripción opcional'
             }),
+            'image_type': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'id': 'id_image_type'
+            }),
+            'tags': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'placeholder': 'Ej: gol, victoria, senior, entrenamiento (separadas por comas)',
+                'data-toggle': 'tags'
+            }),
             'match': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'id': 'id_match'
             }),
         }
         labels = {
             'image': 'Imagen',
             'title': 'Título',
             'description': 'Descripción',
-            'match': 'Partido',
+            'image_type': 'Tipo de imagen',
+            'tags': 'Etiquetas',
+            'match': 'Partido (opcional)',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+        # Hacer campos opcionales
+        self.fields['description'].required = False
+        self.fields['tags'].required = False
+        self.fields['match'].required = False
+        
         # Filtrar partidos del club
         self._setup_match_queryset()
         
-        # Hacer campos opcionales según necesidad
-        self.fields['description'].required = False
+        # Configurar lógica condicional para el campo match
+        self._setup_conditional_logic()
         
     def _setup_match_queryset(self):
         """Configura el queryset de partidos basado en equipos del club"""
@@ -228,7 +245,19 @@ class ImageUploadForm(forms.ModelForm):
             'home_team', 'away_team', 'league'
         ).filter(club_query).order_by('-match_date')
         
-        self.fields['match'].empty_label = "Seleccionar partido"
+        self.fields['match'].empty_label = "Seleccionar partido (opcional)"
+    
+    def _setup_conditional_logic(self):
+        """Configura la lógica condicional entre tipo de imagen y partido"""
+        # Si hay datos del formulario, verificar lógica
+        if self.data and 'image_type' in self.data:
+            image_type = self.data.get('image_type')
+            if image_type == 'match':
+                # Para imágenes de partido, sugerir que seleccionen un partido
+                self.fields['match'].help_text = 'Se recomienda seleccionar el partido correspondiente'
+            else:
+                # Para otros tipos, el partido es completamente opcional
+                self.fields['match'].help_text = 'Opcional: vincula la imagen a un partido específico'
 
     def clean_image(self):
         image = self.cleaned_data.get('image')
@@ -242,6 +271,35 @@ class ImageUploadForm(forms.ModelForm):
                 raise forms.ValidationError('Formato no válido. Use JPG, PNG o WebP')
         
         return image
+    
+    def clean_tags(self):
+        """Validar y limpiar etiquetas"""
+        tags = self.cleaned_data.get('tags', '')
+        if tags:
+            # Limpiar etiquetas: separar por comas, limpiar espacios, eliminar vacías
+            cleaned_tags = [tag.strip().lower() for tag in tags.split(',') if tag.strip()]
+            # Limitar número de etiquetas
+            if len(cleaned_tags) > 10:
+                raise forms.ValidationError('Máximo 10 etiquetas permitidas')
+            # Limitar longitud de cada etiqueta
+            for tag in cleaned_tags:
+                if len(tag) > 30:
+                    raise forms.ValidationError(f'La etiqueta "{tag}" es demasiado larga (máximo 30 caracteres)')
+            return ', '.join(cleaned_tags)
+        return ''
+    
+    def clean(self):
+        """Validación global del formulario"""
+        cleaned_data = super().clean()
+        image_type = cleaned_data.get('image_type')
+        match = cleaned_data.get('match')
+        
+        # Si es tipo 'match' pero no hay partido seleccionado, advertir pero no fallar
+        if image_type == 'match' and not match:
+            self.add_error('match', 
+                'Se recomienda seleccionar un partido para imágenes de tipo "Partido"')
+        
+        return cleaned_data
 
 
 class ImageModerationForm(forms.ModelForm):
@@ -287,13 +345,56 @@ class ImageFilterForm(forms.Form):
         ('rejected', 'Rechazadas'),
     ]
     
+    IMAGE_TYPE_CHOICES = [
+        ('', 'Todos los tipos'),
+        ('match', 'Partido'),
+        ('celebration', 'Celebración'),
+        ('training', 'Entrenamiento'),
+        ('team_photo', 'Foto de Equipo'),
+        ('facilities', 'Instalaciones'),
+        ('other', 'Otro'),
+    ]
+    
+    MATCH_FILTER_CHOICES = [
+        ('', 'Todas las imágenes'),
+        ('with_match', 'Con partido vinculado'),
+        ('without_match', 'Sin partido vinculado'),
+    ]
+    
     search = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-            'placeholder': 'Buscar por título o descripción...'
+            'placeholder': 'Buscar por título, descripción o etiquetas...'
         }),
         label='Buscar'
+    )
+    
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'placeholder': 'Buscar por etiquetas específicas...'
+        }),
+        label='Etiquetas'
+    )
+    
+    image_type = forms.ChoiceField(
+        choices=IMAGE_TYPE_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+        }),
+        label='Tipo'
+    )
+    
+    match_filter = forms.ChoiceField(
+        choices=MATCH_FILTER_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+        }),
+        label='Partido'
     )
     
     category = forms.ModelChoiceField(

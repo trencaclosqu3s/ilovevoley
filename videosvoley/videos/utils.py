@@ -5,17 +5,21 @@ Utilidades para el sistema de gestión de imágenes
 from django.conf import settings
 
 
-def check_image_with_vision_api(image_file):
+def check_image_with_vision_api(image_file, extract_labels=True, extract_text=True):
     """
-    Verifica una imagen usando Google Vision API para detectar contenido inapropiado
+    Verifica una imagen usando Google Vision API para detectar contenido inapropiado y extraer etiquetas
     
     Args:
         image_file: El archivo de imagen a verificar
+        extract_labels: Si extraer etiquetas de la imagen
+        extract_text: Si extraer texto de la imagen
         
     Returns:
         dict: Resultado de la verificación con los campos:
             - safe (bool): Si la imagen es segura
             - reasons (list): Lista de razones si no es segura
+            - labels (list): Etiquetas detectadas
+            - text (str): Texto detectado
             - details (dict): Detalles completos de la API
     """
     
@@ -23,6 +27,8 @@ def check_image_with_vision_api(image_file):
         return {
             'safe': True,
             'reasons': [],
+            'labels': [],
+            'text': '',
             'details': {'message': 'Google Vision API no está habilitada'}
         }
     
@@ -74,13 +80,51 @@ def check_image_with_vision_api(image_file):
         
         is_safe = len(unsafe_reasons) == 0
         
+        # Inicializar variables para etiquetas y texto
+        detected_labels = []
+        detected_text = ""
+        
+        # Detectar etiquetas/objetos (opcional)
+        if extract_labels:
+            try:
+                label_detection = client.label_detection(image=image)
+                labels = label_detection.label_annotations
+                
+                # Extraer etiquetas relevantes para voleibol
+                volleyball_related = ['volleyball', 'sport', 'game', 'team', 'player', 'ball', 'court', 'athletic', 'competition']
+                general_labels = ['celebration', 'victory', 'team', 'group', 'people', 'indoor', 'outdoor']
+                
+                for label in labels:
+                    if label.score > 0.5:  # Solo etiquetas con alta confianza
+                        label_text = label.description.lower()
+                        # Incluir etiquetas relacionadas con voleibol o generales útiles
+                        if (any(keyword in label_text for keyword in volleyball_related) or 
+                            any(keyword in label_text for keyword in general_labels) or
+                            label.score > 0.8):  # O etiquetas con muy alta confianza
+                            detected_labels.append(label_text)
+                
+                # Limitar a las 10 etiquetas más relevantes
+                detected_labels = detected_labels[:10]
+                
+            except Exception as e:
+                print(f"Error en detección de etiquetas: {e}")
+        
         # Detectar texto (opcional)
-        text_detection = client.text_detection(image=image)
-        detected_text = text_detection.text_annotations[0].description if text_detection.text_annotations else ""
+        if extract_text:
+            try:
+                text_detection = client.text_detection(image=image)
+                if text_detection.text_annotations:
+                    detected_text = text_detection.text_annotations[0].description
+                    # Limpiar y limitar texto detectado
+                    detected_text = detected_text[:500] if detected_text else ""
+            except Exception as e:
+                print(f"Error en detección de texto: {e}")
         
         return {
             'safe': is_safe,
             'reasons': unsafe_reasons,
+            'labels': detected_labels,
+            'text': detected_text,
             'details': {
                 'safe_search': {
                     'adult': safe_search.adult.name,
@@ -89,7 +133,8 @@ def check_image_with_vision_api(image_file):
                     'medical': safe_search.medical.name,
                     'spoof': safe_search.spoof.name
                 },
-                'detected_text': detected_text[:500] if detected_text else "",
+                'detected_text': detected_text,
+                'detected_labels': detected_labels,
                 'api_response_ok': True
             }
         }
@@ -99,13 +144,84 @@ def check_image_with_vision_api(image_file):
         print(f"Error en Google Vision API: {e}")
         
         return {
-            'safe': True,  # Default a seguro si hay error
-            'reasons': [],
+            'safe': False,  # Default a NO seguro si hay error - requiere moderación manual
+            'reasons': ['Google Vision API error - requires manual review'],
+            'labels': [],
+            'text': '',
             'details': {
                 'error': str(e),
                 'api_response_ok': False
             }
         }
+
+
+def process_vision_tags_for_volleyball(detected_labels, detected_text=''):
+    """
+    Procesa las etiquetas detectadas por Vision API para contexto de voleibol
+    
+    Args:
+        detected_labels: Lista de etiquetas detectadas por Vision API
+        detected_text: Texto detectado en la imagen
+        
+    Returns:
+        list: Lista de etiquetas procesadas y relevantes para voleibol
+    """
+    # Mapeo de etiquetas en inglés a español
+    label_mapping = {
+        'volleyball': 'voleibol',
+        'sport': 'deporte',
+        'game': 'juego',
+        'team': 'equipo',
+        'player': 'jugador',
+        'ball': 'balón',
+        'court': 'cancha',
+        'athletic': 'atlético',
+        'competition': 'competición',
+        'celebration': 'celebración',
+        'victory': 'victoria',
+        'group': 'grupo',
+        'people': 'personas',
+        'indoor': 'interior',
+        'outdoor': 'exterior',
+        'uniform': 'uniforme',
+        'net': 'red',
+        'spike': 'remate',
+        'serve': 'saque',
+        'jump': 'salto',
+        'stadium': 'estadio',
+        'gymnasium': 'gimnasio',
+        'tournament': 'torneo',
+        'match': 'partido',
+        'win': 'victoria',
+        'loss': 'derrota'
+    }
+    
+    processed_tags = []
+    
+    # Procesar etiquetas detectadas
+    for label in detected_labels:
+        # Convertir a español si tiene mapeo
+        spanish_label = label_mapping.get(label.lower(), label.lower())
+        processed_tags.append(spanish_label)
+    
+    # Buscar palabras clave en texto detectado
+    if detected_text:
+        text_lower = detected_text.lower()
+        volleyball_keywords = ['voleibol', 'volleyball', 'set', 'punto', 'partido', 'equipo', 'victoria', 'derrota']
+        
+        for keyword in volleyball_keywords:
+            if keyword in text_lower and keyword not in processed_tags:
+                processed_tags.append(keyword)
+    
+    # Eliminar duplicados manteniendo orden
+    seen = set()
+    unique_tags = []
+    for tag in processed_tags:
+        if tag not in seen:
+            seen.add(tag)
+            unique_tags.append(tag)
+    
+    return unique_tags[:8]  # Limitar a 8 etiquetas automáticas
 
 
 def get_image_metadata(image_file):

@@ -24,14 +24,14 @@ AUTH_USER_MODEL = 'users.User'
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-x*bcpy_nb811_5s6+7*-0y&mzj36^+v$6rzwglc0v)0j+njp(g'
+SECRET_KEY = env_config('SECRET_KEY', default='django-insecure-x*bcpy_nb811_5s6+7*-0y&mzj36^+v$6rzwglc0v)0j+njp(g')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = env_config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0', cast=lambda v: [s.strip() for s in v.split(',')])
 ALLOWED_HOSTS += ['aerologic-nonfluent-jase.ngrok-free.dev']
-CSRF_TRUSTED_ORIGINS = ['https://aerologic-nonfluent-jase.ngrok-free.dev']
+CSRF_TRUSTED_ORIGINS = env_config('CSRF_TRUSTED_ORIGINS', default='https://aerologic-nonfluent-jase.ngrok-free.dev', cast=lambda v: [s.strip() for s in v.split(',')])
 
 
 # Application definition

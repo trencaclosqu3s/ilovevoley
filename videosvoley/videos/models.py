@@ -283,6 +283,15 @@ class Image(models.Model):
         ('rejected', 'Rechazada'),
     ]
     
+    IMAGE_TYPES = [
+        ('match', 'Partido'),
+        ('celebration', 'Celebración'),
+        ('training', 'Entrenamiento'),
+        ('team_photo', 'Foto de Equipo'),
+        ('facilities', 'Instalaciones'),
+        ('other', 'Otro'),
+    ]
+    
     image = models.ImageField(
         upload_to=image_upload_path,
         validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp'])],
@@ -291,12 +300,32 @@ class Image(models.Model):
     title = models.CharField(max_length=200, help_text='Título descriptivo de la imagen')
     description = models.TextField(blank=True, help_text='Descripción opcional')
     
+    # Tipo y etiquetas
+    image_type = models.CharField(
+        max_length=20,
+        choices=IMAGE_TYPES,
+        default='other',
+        help_text='Tipo de imagen'
+    )
+    tags = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text='Etiquetas separadas por comas (ej: gol, victoria, senior)'
+    )
+    auto_tags = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Etiquetas detectadas automáticamente por Vision API'
+    )
+    
     # Relaciones
     match = models.ForeignKey(
         'Match', 
         on_delete=models.CASCADE, 
+        null=True,
+        blank=True,
         related_name='images',
-        help_text='Partido al que pertenece la imagen'
+        help_text='Partido al que pertenece la imagen (opcional)'
     )
     category = models.ForeignKey(
         Category, 
@@ -351,13 +380,16 @@ class Image(models.Model):
             models.Index(fields=['category']),
             models.Index(fields=['year']),
             models.Index(fields=['upload_date']),
+            models.Index(fields=['image_type']),
         ]
 
     def __str__(self):
-        return f'{self.title} - {self.match}'
+        if self.match:
+            return f'{self.title} - {self.match}'
+        return f'{self.title} ({self.get_image_type_display()})'
 
     def save(self, *args, **kwargs):
-        # Auto-asignar categoría y año desde el partido
+        # Auto-asignar categoría y año desde el partido si está vinculado
         if self.match:
             if self.match.league and self.match.league.category:
                 self.category = self.match.league.category
@@ -371,6 +403,14 @@ class Image(models.Model):
                 except (ValueError, IndexError):
                     self.year = timezone.now().year
             else:
+                self.year = timezone.now().year
+            
+            # Si es una imagen de partido pero no se especificó el tipo, asignarlo
+            if self.image_type == 'other':
+                self.image_type = 'match'
+        else:
+            # Para imágenes sin partido, usar año actual si no se especifica
+            if not self.year:
                 self.year = timezone.now().year
         
         super().save(*args, **kwargs)
@@ -395,3 +435,24 @@ class Image(models.Model):
         self.moderation_date = timezone.now()
         self.moderation_notes = notes
         self.save()
+    
+    @property
+    def all_tags(self):
+        """Combina etiquetas manuales y automáticas"""
+        manual_tags = [tag.strip() for tag in self.tags.split(',') if tag.strip()]
+        auto_tags = self.auto_tags if isinstance(self.auto_tags, list) else []
+        return list(set(manual_tags + auto_tags))
+    
+    @property
+    def tags_display(self):
+        """Devuelve etiquetas formateadas para mostrar"""
+        return ', '.join(self.all_tags)
+    
+    def add_auto_tags(self, tags_list):
+        """Agrega etiquetas automáticas sin duplicar"""
+        if not isinstance(tags_list, list):
+            return
+        current_auto_tags = self.auto_tags if isinstance(self.auto_tags, list) else []
+        # Combinar y eliminar duplicados manteniendo orden
+        combined = current_auto_tags + [tag for tag in tags_list if tag not in current_auto_tags]
+        self.auto_tags = combined

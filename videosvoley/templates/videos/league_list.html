@@ -88,7 +88,7 @@
 
                         <!-- Acciones -->
                         <div class="flex flex-col sm:flex-row gap-2">
-                            <a href="{% url 'league_detail' league.id %}" 
+                            <a href="{% url 'videos:league_detail' league.id %}" 
                                class="flex-1 inline-flex items-center justify-center px-4 py-2 bg-csj-purple hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition touch-manipulation">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -98,7 +98,7 @@
                             </a>
                             
                             {% if league.standings.exists %}
-                                <a href="{% url 'standings_view' %}?league={{ league.id }}" 
+                                <a href="{% url 'videos:standings_view' %}?league={{ league.id }}" 
                                    class="inline-flex items-center justify-center px-3 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 text-sm font-medium rounded-lg transition touch-manipulation">
                                     🏆
                                 </a>
@@ -157,15 +157,15 @@
     <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">🔗 Enlaces relacionados</h3>
         <div class="flex flex-wrap gap-2 sm:gap-3">
-            <a href="{% url 'calendar_view' %}" 
+            <a href="{% url 'videos:calendar_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
                 📅 <span class="hidden sm:inline ml-1">Ver</span> Calendario
             </a>
-            <a href="{% url 'standings_view' %}" 
+            <a href="{% url 'videos:standings_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 🏆 <span class="hidden sm:inline ml-1">Ver</span> Clasificación
             </a>
-            <a href="{% url 'video_list' %}" 
+            <a href="{% url 'videos:video_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 🎬 <span class="hidden sm:inline ml-1">Ver</span> Videos
             </a>

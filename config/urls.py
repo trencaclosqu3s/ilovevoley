@@ -24,7 +24,7 @@ from django.contrib.auth.decorators import login_required
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('allauth.urls')),
-    path('videos/', include('videosvoley.videos.urls')),
+    path('videos/', include('videosvoley.videos.urls', namespace='videos')),
     path('', include('videosvoley.users.urls')),
     path('', login_required(RedirectView.as_view(url='/videos/', permanent=False))),
 ]

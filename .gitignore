@@ -1,3 +1,8 @@
+# Google Cloud Credentials (NEVER COMMIT)
+*.json
+google-credentials.json
+service-account*.json
+
 ### Python template
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -54,7 +59,7 @@ coverage.xml
 staticfiles/
 
 # Sphinx documentation
-docs/_build/
+videosvoley/docs/_build/
 
 # PyBuilder
 target/
@@ -327,6 +332,7 @@ dump.rdb
 
 ### Project template
 videosvoley/media/
+media/
 
 
 .pytest_cache/
