@@ -130,6 +130,7 @@ class Team(models.Model):
     club = models.ForeignKey(Club, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams')
     sponsor_name = models.CharField(max_length=200, blank=True, help_text='Nombre con patrocinador si aplica')
     logo_url = models.URLField(blank=True, null=True)
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams', help_text='Categoría asignada automáticamente durante el scraping')
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

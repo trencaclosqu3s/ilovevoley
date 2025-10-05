@@ -386,10 +386,25 @@ class FederationScraper:
         for team_data in teams_data:
             team, created = Team.objects.get_or_create(
                 federation_id=team_data['federation_id'],
-                defaults={'name': team_data['name']}
+                defaults={
+                    'name': team_data['name'],
+                    'category': self.league.category  # Asignar categoría de la liga automáticamente
+                }
             )
+            
+            # Actualizar nombre y categoría si el equipo ya existía
+            updated = False
             if not created and team.name != team_data['name']:
                 team.name = team_data['name']
+                updated = True
+            
+            # Asignar/actualizar categoría si la liga tiene categoría y el equipo no la tiene o es diferente
+            if self.league.category and team.category != self.league.category:
+                team.category = self.league.category
+                updated = True
+                logger.info(f"Assigned category '{self.league.category}' to team: {team.name}")
+            
+            if updated:
                 team.save()
             
             # Agregar tanto el nombre original como normalizado para buscar
@@ -397,7 +412,7 @@ class FederationScraper:
             team_objects[self._normalize_team_name(team_data['name'])] = team
             
             if created:
-                logger.info(f"Created new team: {team.name}")
+                logger.info(f"Created new team: {team.name} with category: {self.league.category}")
         
         return team_objects
     

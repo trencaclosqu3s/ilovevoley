@@ -1,7 +1,7 @@
 from django import forms
 from django.conf import settings
 from django.db.models import Q
-from .models import Video, Comment, Category, Match
+from .models import Video, Comment, Category, Match, Team
 
 
 class VideoForm(forms.ModelForm):
@@ -47,9 +47,8 @@ class VideoForm(forms.ModelForm):
         
     def _setup_match_queryset(self):
         """Configura el queryset de partidos basado en categoría y equipos del club"""
-        # Obtener configuración de equipos
-        club_team_names = getattr(settings, 'CLUB_TEAM_NAMES', {})
-        default_team = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+        # Obtener configuración de equipos del club
+        club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
         
         # Si hay una categoría preseleccionada, filtrar por equipos de esa categoría
         category = None
@@ -62,38 +61,27 @@ class VideoForm(forms.ModelForm):
         elif self.instance and self.instance.category:
             category = self.instance.category
         
-        # Determinar nombres de equipos a buscar
-        team_names = []
+        # Construir query base para equipos del club
+        club_query = (Q(home_team__name__icontains=club_team_name) | 
+                     Q(away_team__name__icontains=club_team_name))
+        
+        # Si hay categoría específica, filtrar por equipos de esa categoría
         if category:
-            category_key = category.name.lower()
-            if category_key in club_team_names:
-                team_names = club_team_names[category_key]
-                if isinstance(team_names, str):
-                    team_names = [team_names]
-            else:
-                # Buscar equipos que contengan tanto el nombre de la categoría como SANT JOSEP
-                team_names = [f"SANT JOSEP {category.name.upper()}", f"CV SANT JOSEP {category.name.upper()}"]
-        
-        # Si no hay categoría específica o no se encontraron equipos, usar configuración por defecto
-        if not team_names:
-            default_names = club_team_names.get('default', default_team)
-            if isinstance(default_names, str):
-                team_names = [default_names]
-            else:
-                team_names = default_names
-        
-        # Construir query para buscar cualquiera de los nombres de equipo
-        team_query = Q()
-        for team_name in team_names:
-            team_query |= Q(home_team__name__icontains=team_name) | Q(away_team__name__icontains=team_name)
-        
-        # Si hay categoría, también filtrar por ligas de esa categoría
-        if category:
-            team_query &= Q(league__category=category)
+            # Filtrar por equipos que tengan la categoría específica O por liga de esa categoría
+            category_query = (Q(home_team__category=category) | Q(away_team__category=category) |
+                            Q(league__category=category))
+            
+            # Combinar: partidos del club Y de la categoría específica
+            final_query = club_query & category_query
+            
+        else:
+            # Sin categoría específica, mostrar todos los partidos del club
+            final_query = club_query
         
         self.fields['match'].queryset = Match.objects.select_related(
-            'home_team', 'away_team', 'league', 'league__category'
-        ).filter(team_query).order_by('-match_date')
+            'home_team', 'away_team', 'home_team__category', 'away_team__category', 
+            'league', 'league__category'
+        ).filter(final_query).order_by('-match_date')
         
         # Actualizar label basado en contexto
         if category:
@@ -116,3 +104,71 @@ class CommentForm(forms.ModelForm):
         labels = {
             'content': '',
         }
+
+
+class MatchAdminForm(forms.ModelForm):
+    """Formulario personalizado para el admin de Match con filtrado por categoría"""
+    
+    filter_by_category = forms.BooleanField(
+        required=False, 
+        initial=True,
+        label='Filtrar equipos por categoría de la liga',
+        help_text='Desmarca para ver todos los equipos disponibles'
+    )
+    
+    class Meta:
+        model = Match
+        fields = '__all__'
+        widgets = {
+            'match_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Configurar filtrado por defecto
+        filter_by_category = True
+        league_category = None
+        
+        # Si estamos editando un match existente y tiene liga
+        if self.instance and self.instance.pk and self.instance.league:
+            league_category = self.instance.league.category
+            
+            # Verificar si se envió el formulario con el checkbox
+            if self.data and 'filter_by_category' in self.data:
+                filter_by_category = self.data.get('filter_by_category') == 'on'
+        
+        # Si hay datos POST sobre league, obtener la categoría de esa liga
+        elif self.data and 'league' in self.data and self.data['league']:
+            try:
+                from .models import League
+                league = League.objects.get(id=self.data['league'])
+                league_category = league.category
+                if self.data and 'filter_by_category' in self.data:
+                    filter_by_category = self.data.get('filter_by_category') == 'on'
+            except (League.DoesNotExist, ValueError):
+                pass
+        
+        # Aplicar filtrado de equipos
+        if filter_by_category and league_category:
+            # Filtrar equipos por la categoría de la liga
+            filtered_teams = Team.objects.filter(category=league_category).order_by('name')
+            self.fields['home_team'].queryset = filtered_teams
+            self.fields['away_team'].queryset = filtered_teams
+            
+            # Actualizar help text
+            self.fields['home_team'].help_text = f'Equipos de la categoría: {league_category.name}'
+            self.fields['away_team'].help_text = f'Equipos de la categoría: {league_category.name}'
+        else:
+            # Mostrar todos los equipos
+            self.fields['home_team'].queryset = Team.objects.all().order_by('name')
+            self.fields['away_team'].queryset = Team.objects.all().order_by('name')
+        
+        # Agregar clases CSS y atributos para JavaScript
+        self.fields['filter_by_category'].widget.attrs.update({
+            'id': 'id_filter_by_category'
+        })
+        
+        # Establecer valor inicial del checkbox
+        if 'filter_by_category' not in self.data:
+            self.fields['filter_by_category'].initial = True

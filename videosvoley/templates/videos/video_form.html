@@ -43,4 +43,52 @@
         </ol>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categorySelect = document.getElementById('id_category');
+    const matchSelect = document.getElementById('id_match');
+    
+    if (categorySelect && matchSelect) {
+        categorySelect.addEventListener('change', function() {
+            const categoryId = this.value;
+            
+            // Limpiar opciones actuales del select de partidos
+            matchSelect.innerHTML = '<option value="">Cargando partidos...</option>';
+            matchSelect.disabled = true;
+            
+            // Hacer petición AJAX para obtener partidos filtrados
+            fetch(`{% url 'ajax_matches_by_category' %}?category_id=${categoryId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Limpiar el select
+                    matchSelect.innerHTML = '';
+                    
+                    // Agregar opción vacía
+                    const emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = categoryId ? 
+                        `Seleccionar partido de ${categorySelect.options[categorySelect.selectedIndex].text} (opcional)` : 
+                        'Seleccionar partido del club (opcional)';
+                    matchSelect.appendChild(emptyOption);
+                    
+                    // Agregar partidos
+                    data.matches.forEach(match => {
+                        const option = document.createElement('option');
+                        option.value = match.id;
+                        option.textContent = match.text;
+                        matchSelect.appendChild(option);
+                    });
+                    
+                    matchSelect.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error fetching matches:', error);
+                    matchSelect.innerHTML = '<option value="">Error cargando partidos</option>';
+                    matchSelect.disabled = false;
+                });
+        });
+    }
+});
+</script>
 {% endblock %}

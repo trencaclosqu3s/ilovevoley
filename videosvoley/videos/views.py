@@ -4,6 +4,8 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib.postgres.search import TrigramSimilarity
+from django.http import JsonResponse
+from django.conf import settings
 from unidecode import unidecode
 from datetime import datetime, timedelta
 import calendar
@@ -365,4 +367,89 @@ def standings_view(request):
         'selected_league': league_filter,
         'selected_category': category_filter,
         'club_team_name': CLUB_TEAM_NAME,
+    })
+
+
+@login_required
+def ajax_matches_by_category(request):
+    """Vista AJAX para obtener partidos filtrados por categoría"""
+    category_id = request.GET.get('category_id')
+    club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+    
+    # Construir query base para equipos del club
+    club_query = (Q(home_team__name__icontains=club_team_name) | 
+                 Q(away_team__name__icontains=club_team_name))
+    
+    # Si hay categoría específica, filtrar por equipos de esa categoría
+    if category_id and category_id != '':
+        try:
+            category = Category.objects.get(id=category_id)
+            # Filtrar por equipos que tengan la categoría específica O por liga de esa categoría
+            category_query = (Q(home_team__category=category) | Q(away_team__category=category) |
+                            Q(league__category=category))
+            
+            # Combinar: partidos del club Y de la categoría específica
+            final_query = club_query & category_query
+        except Category.DoesNotExist:
+            final_query = club_query
+    else:
+        # Sin categoría específica, mostrar todos los partidos del club
+        final_query = club_query
+    
+    # Obtener partidos
+    matches = Match.objects.select_related(
+        'home_team', 'away_team', 'home_team__category', 'away_team__category', 
+        'league', 'league__category'
+    ).filter(final_query).order_by('-match_date')[:50]  # Limitar a 50 partidos más recientes
+    
+    # Formatear respuesta
+    matches_data = []
+    for match in matches:
+        matches_data.append({
+            'id': match.id,
+            'text': f"{match.home_team.name} vs {match.away_team.name} - {match.match_date.strftime('%d/%m/%Y')} ({match.league.name})"
+        })
+    
+    return JsonResponse({
+        'matches': matches_data
+    })
+
+
+@login_required
+def ajax_teams_by_league_category(request):
+    """Vista AJAX para obtener equipos filtrados por categoría de liga (para admin)"""
+    league_id = request.GET.get('league_id')
+    filter_by_category = request.GET.get('filter_by_category', 'true').lower() == 'true'
+    
+    if league_id and filter_by_category:
+        try:
+            from .models import League
+            league = League.objects.get(id=league_id)
+            
+            if league.category:
+                # Filtrar equipos por la categoría de la liga
+                teams = Team.objects.filter(category=league.category).order_by('name')
+            else:
+                # Si la liga no tiene categoría, mostrar todos
+                teams = Team.objects.all().order_by('name')
+        except League.DoesNotExist:
+            teams = Team.objects.all().order_by('name')
+    else:
+        # Sin filtrado o sin liga, mostrar todos los equipos
+        teams = Team.objects.all().order_by('name')
+    
+    # Formatear respuesta
+    teams_data = []
+    for team in teams:
+        display_name = team.name
+        if team.category:
+            display_name += f" ({team.category.name})"
+        
+        teams_data.append({
+            'id': team.id,
+            'text': display_name
+        })
+    
+    return JsonResponse({
+        'teams': teams_data
     })

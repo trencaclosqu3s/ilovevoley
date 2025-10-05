@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import Video, Category, League, Team, Match, ScrapingEndpoint, Standing, Club
+from .forms import MatchAdminForm
 
 
 @admin.register(Category)
@@ -142,15 +143,15 @@ class ClubAdmin(admin.ModelAdmin):
 
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'club_name', 'sponsor_name', 'federation_id', 'logo_preview')
-    list_filter = ('club', 'created_at')
-    search_fields = ('name', 'federation_id', 'sponsor_name', 'club__official_name')
+    list_display = ('name', 'category', 'club_name', 'sponsor_name', 'federation_id', 'logo_preview')
+    list_filter = ('category', 'club', 'created_at')
+    search_fields = ('name', 'federation_id', 'sponsor_name', 'club__official_name', 'category__name')
     readonly_fields = ('created_at', 'display_logo')
-    autocomplete_fields = ('club',)
+    autocomplete_fields = ('club', 'category')
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('name', 'federation_id', 'club')
+            'fields': ('name', 'federation_id', 'club', 'category')
         }),
         ('Patrocinio', {
             'fields': ('sponsor_name',),
@@ -249,12 +250,17 @@ class ScrapingEndpointAdmin(admin.ModelAdmin):
 
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
-    list_display = ('home_team', 'away_team', 'match_date', 'venue', 'status', 'result_display')
-    list_filter = ('status', 'league', 'match_date')
-    search_fields = ('home_team__name', 'away_team__name', 'venue', 'city')
+    form = MatchAdminForm
+    list_display = ('home_team', 'away_team', 'match_date', 'venue', 'status', 'result_display', 'league_category')
+    list_filter = ('status', 'league', 'league__category', 'match_date')
+    search_fields = ('home_team__name', 'away_team__name', 'venue', 'city', 'league__name')
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'match_date'
     fieldsets = (
+        ('Configuración de Filtrado', {
+            'fields': ('filter_by_category',),
+            'description': 'Controla qué equipos se muestran en los campos de selección'
+        }),
         ('Partido', {
             'fields': ('league', 'home_team', 'away_team', 'match_date')
         }),
@@ -269,6 +275,14 @@ class MatchAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         })
     )
+    
+    class Media:
+        js = ('admin/js/match_admin.js',)
+    
+    def league_category(self, obj):
+        """Muestra la categoría de la liga"""
+        return obj.league.category.name if obj.league and obj.league.category else '-'
+    league_category.short_description = 'Categoría'
     
     def get_search_results(self, request, queryset, search_term):
         """Mejora la búsqueda para autocomplete en VideoAdmin"""
