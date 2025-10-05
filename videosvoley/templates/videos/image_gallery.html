@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Galería de Imágenes{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow-sm p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Galería de Imágenes</h1>
+            <p class="text-gray-600 mt-1">{{ total_images }} imágenes totales{% if pending_images > 0 %} • {{ pending_images }} pendientes de moderación{% endif %}</p>
+        </div>
+        <a href="{% url 'videos:image_upload' %}" class="bg-csj-purple text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200">
+            <i class="fas fa-plus mr-2"></i>Subir Imagen
+        </a>
+    </div>
+
+    <!-- Filtros -->
+    <div class="bg-gray-50 rounded-lg p-4 mb-6">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                {{ filter_form.search.label_tag }}
+                {{ filter_form.search }}
+            </div>
+            <div>
+                {{ filter_form.category.label_tag }}
+                {{ filter_form.category }}
+            </div>
+            <div>
+                {{ filter_form.year.label_tag }}
+                {{ filter_form.year }}
+            </div>
+            {% if user.is_staff %}
+            <div>
+                {{ filter_form.status.label_tag }}
+                {{ filter_form.status }}
+            </div>
+            {% endif %}
+            <div class="flex items-end">
+                <button type="submit" class="bg-csj-purple text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200 mr-2">
+                    <i class="fas fa-search mr-1"></i>Filtrar
+                </button>
+                <a href="{% url 'videos:image_gallery' %}" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors duration-200">
+                    <i class="fas fa-times mr-1"></i>Limpiar
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Grid de Imágenes -->
+    {% if page_obj %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {% for image in page_obj %}
+                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+                    <div class="aspect-square relative">
+                        <img src="{{ image.image.url }}" 
+                             alt="{{ image.title }}" 
+                             class="w-full h-full object-cover cursor-pointer"
+                             onclick="openLightbox('{{ image.image.url }}', '{{ image.title|escapejs }}', {{ image.id }})">
+                        
+                        <!-- Badge de estado (solo para admins) -->
+                        {% if user.is_staff and image.status != 'approved' %}
+                            <span class="absolute top-2 right-2 px-2 py-1 text-xs font-semibold rounded-full
+                                {% if image.status == 'pending' %}bg-yellow-100 text-yellow-800
+                                {% elif image.status == 'rejected' %}bg-red-100 text-red-800
+                                {% endif %}">
+                                {% if image.status == 'pending' %}Pendiente
+                                {% elif image.status == 'rejected' %}Rechazada
+                                {% endif %}
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="p-4">
+                        <h3 class="font-semibold text-gray-900 mb-2 truncate">{{ image.title }}</h3>
+                        
+                        {% if image.match %}
+                            <div class="text-sm text-gray-600 mb-2">
+                                <i class="fas fa-calendar-alt mr-1"></i>
+                                <a href="{% url 'videos:match_images' image.match.id %}" class="hover:text-csj-purple">
+                                    {{ image.match.home_team.name }} vs {{ image.match.away_team.name }}
+                                </a>
+                            </div>
+                        {% endif %}
+                        
+                        {% if image.category %}
+                            <div class="text-sm text-gray-600 mb-2">
+                                <i class="fas fa-tag mr-1"></i>{{ image.category.name }}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="flex justify-between items-center text-xs text-gray-500">
+                            <span><i class="fas fa-user mr-1"></i>{{ image.uploaded_by.username }}</span>
+                            <span>{{ image.upload_date|date:"d/m/Y" }}</span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+            <div class="flex justify-center mt-8">
+                <nav class="flex space-x-2">
+                    {% if page_obj.has_previous %}
+                        <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1" 
+                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                        <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}" 
+                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    {% endif %}
+
+                    <span class="px-3 py-2 text-sm font-medium text-white bg-csj-purple border border-csj-purple rounded-md">
+                        {{ page_obj.number }}
+                    </span>
+
+                    {% if page_obj.has_next %}
+                        <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}" 
+                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                        <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}" 
+                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    {% endif %}
+                </nav>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-12">
+            <i class="fas fa-images text-gray-400 text-6xl mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No se encontraron imágenes</h3>
+            <p class="text-gray-600 mb-4">No hay imágenes que coincidan con los filtros seleccionados.</p>
+            <a href="{% url 'videos:image_upload' %}" class="bg-csj-purple text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200">
+                <i class="fas fa-plus mr-2"></i>Subir primera imagen
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Lightbox Modal -->
+<div id="lightbox" class="fixed inset-0 bg-black bg-opacity-75 hidden z-50 flex items-center justify-center p-4">
+    <div class="relative max-w-4xl max-h-full">
+        <button onclick="closeLightbox()" class="absolute top-4 right-4 text-white text-2xl z-10 hover:text-gray-300">
+            <i class="fas fa-times"></i>
+        </button>
+        <img id="lightbox-image" src="" alt="" class="max-w-full max-h-full object-contain">
+        <div class="absolute bottom-4 left-4 right-4 text-white bg-black bg-opacity-50 rounded p-3">
+            <h3 id="lightbox-title" class="font-semibold mb-2"></h3>
+            <div class="flex justify-between">
+                <span id="lightbox-info"></span>
+                <a id="lightbox-detail-link" href="#" class="text-blue-300 hover:text-blue-100">Ver detalles</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openLightbox(imageUrl, title, imageId) {
+    document.getElementById('lightbox-image').src = imageUrl;
+    document.getElementById('lightbox-title').textContent = title;
+    document.getElementById('lightbox-detail-link').href = `/videos/imagenes/${imageId}/`;
+    document.getElementById('lightbox').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+// Cerrar con ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeLightbox();
+    }
+});
+
+// Cerrar clickeando fuera de la imagen
+document.getElementById('lightbox').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeLightbox();
+    }
+});
+</script>
+{% endblock %}

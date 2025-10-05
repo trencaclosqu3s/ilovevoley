@@ -177,6 +177,60 @@
         </div>
     {% endif %}
 
+    <!-- Imágenes del partido -->
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800">
+                    📸 Galería del partido
+                </h2>
+                <a href="{% url 'videos:match_images' match.id %}" 
+                   class="text-csj-purple hover:text-purple-700 text-sm font-medium">
+                    Ver todas <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+        </div>
+        
+        {% if match.images.approved.all %}
+            <div class="p-4 sm:p-6">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                    {% for image in match.images.approved.all|slice:":8" %}
+                        <div class="aspect-square relative group cursor-pointer" 
+                             onclick="openImageLightbox('{{ image.image.url }}', '{{ image.title|escapejs }}', {{ image.id }})">
+                            <img src="{{ image.image.url }}" 
+                                 alt="{{ image.title }}" 
+                                 class="w-full h-full object-cover rounded-lg group-hover:scale-105 transition-transform duration-200">
+                            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-expand text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"></i>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                {% if match.images.approved.count > 8 %}
+                    <div class="text-center mt-4">
+                        <a href="{% url 'videos:match_images' match.id %}" 
+                           class="inline-flex items-center px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
+                            Ver las {{ match.images.approved.count }} imágenes <i class="fas fa-images ml-2"></i>
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="p-8 sm:p-12 text-center">
+                <i class="fas fa-images text-gray-400 text-4xl mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No hay imágenes para este partido</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                    Aún no se han subido imágenes para este enfrentamiento.
+                </p>
+                <a href="{% url 'videos:image_upload' %}?match={{ match.id }}" 
+                   class="inline-flex items-center px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
+                    <i class="fas fa-plus mr-2"></i>Subir primera imagen
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
     <!-- Navegación -->
     <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">🔗 Enlaces relacionados</h3>
@@ -197,7 +251,57 @@
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 📋 <span class="hidden sm:inline ml-1">Ver</span> Ligas
             </a>
+            <a href="{% url 'videos:image_gallery' %}" 
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
+                📸 <span class="hidden sm:inline ml-1">Ver</span> Galería
+            </a>
         </div>
     </div>
 </div>
+
+<!-- Lightbox Modal para Imágenes -->
+<div id="image-lightbox" class="fixed inset-0 bg-black bg-opacity-75 hidden z-50 flex items-center justify-center p-4">
+    <div class="relative max-w-4xl max-h-full">
+        <button onclick="closeImageLightbox()" class="absolute top-4 right-4 text-white text-2xl z-10 hover:text-gray-300">
+            <i class="fas fa-times"></i>
+        </button>
+        <img id="lightbox-image" src="" alt="" class="max-w-full max-h-full object-contain">
+        <div class="absolute bottom-4 left-4 right-4 text-white bg-black bg-opacity-50 rounded p-3">
+            <h3 id="lightbox-title" class="font-semibold mb-2"></h3>
+            <div class="flex justify-between">
+                <span>{{ match.home_team.name }} vs {{ match.away_team.name }}</span>
+                <a id="lightbox-detail-link" href="#" class="text-blue-300 hover:text-blue-100">Ver detalles</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openImageLightbox(imageUrl, title, imageId) {
+    document.getElementById('lightbox-image').src = imageUrl;
+    document.getElementById('lightbox-title').textContent = title;
+    document.getElementById('lightbox-detail-link').href = `/videos/imagenes/${imageId}/`;
+    document.getElementById('image-lightbox').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImageLightbox() {
+    document.getElementById('image-lightbox').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+// Cerrar con ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeImageLightbox();
+    }
+});
+
+// Cerrar clickeando fuera de la imagen
+document.getElementById('image-lightbox').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeImageLightbox();
+    }
+});
+</script>
 {% endblock %}

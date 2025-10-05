@@ -1,6 +1,10 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Video, Category, League, Team, Match, ScrapingEndpoint, Standing, Club
+from django.utils.safestring import mark_safe
+from django.utils import timezone
+from django.conf import settings
+from django.db.models import Count
+from .models import Video, Category, League, Team, Match, ScrapingEndpoint, Standing, Club, Image
 from .forms import MatchAdminForm
 
 
@@ -223,6 +227,28 @@ class ScrapingEndpointInline(admin.TabularInline):
     fields = ('endpoint_type', 'url_pattern', 'parser_type', 'is_active')
 
 
+# Agregar inline de imágenes a MatchAdmin
+class ImageInline(admin.TabularInline):
+    model = Image
+    extra = 0
+    readonly_fields = ('thumbnail_preview', 'status', 'uploaded_by', 'upload_date')
+    fields = ('thumbnail_preview', 'title', 'status', 'uploaded_by', 'upload_date')
+    
+    def thumbnail_preview(self, obj):
+        """Miniatura para inline"""
+        if obj.image:
+            return format_html(
+                '<img src="{}" width="40" height="40" style="object-fit: cover; border-radius: 3px;" />',
+                obj.image.url
+            )
+        return '-'
+    thumbnail_preview.short_description = 'Img'
+    
+    def has_add_permission(self, request, obj=None):
+        """No permitir agregar desde inline"""
+        return False
+
+
 @admin.register(ScrapingEndpoint)
 class ScrapingEndpointAdmin(admin.ModelAdmin):
     list_display = ('league', 'endpoint_type', 'parser_type', 'is_active')
@@ -256,6 +282,7 @@ class MatchAdmin(admin.ModelAdmin):
     search_fields = ('home_team__name', 'away_team__name', 'venue', 'city', 'league__name')
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'match_date'
+    inlines = [ImageInline]
     fieldsets = (
         ('Configuración de Filtrado', {
             'fields': ('filter_by_category',),
@@ -316,3 +343,136 @@ class StandingAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         })
     )
+
+
+@admin.register(Image)
+class ImageAdmin(admin.ModelAdmin):
+    list_display = ('thumbnail_preview', 'title', 'match', 'category', 'status', 'uploaded_by', 'upload_date', 'moderated_by')
+    list_filter = ('status', 'category', 'year', 'upload_date', 'match__league')
+    search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name')
+    readonly_fields = ('upload_date', 'thumbnail_preview', 'vision_api_details', 'moderation_date')
+    date_hierarchy = 'upload_date'
+    actions = ['approve_images', 'reject_images', 'check_with_vision_api']
+    
+    fieldsets = (
+        ('Imagen', {
+            'fields': ('thumbnail_preview', 'image', 'title', 'description')
+        }),
+        ('Asociación', {
+            'fields': ('match', 'category', 'year'),
+            'description': 'Categoría y año se asignan automáticamente desde el partido'
+        }),
+        ('Moderación', {
+            'fields': ('status', 'moderated_by', 'moderation_date', 'moderation_notes')
+        }),
+        ('Google Vision API', {
+            'fields': ('vision_api_checked', 'vision_api_safe', 'vision_api_details'),
+            'classes': ('collapse',),
+            'description': 'Información de verificación automática de contenido'
+        }),
+        ('Metadata', {
+            'fields': ('uploaded_by', 'upload_date'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def thumbnail_preview(self, obj):
+        """Muestra miniatura de la imagen"""
+        if obj.image:
+            return format_html(
+                '<img src="{}" width="80" height="80" style="object-fit: cover; border-radius: 4px;" />',
+                obj.image.url
+            )
+        return '-'
+    thumbnail_preview.short_description = 'Preview'
+    
+    def get_queryset(self, request):
+        """Optimizar consultas con select_related"""
+        return super().get_queryset(request).select_related(
+            'match__home_team', 'match__away_team', 'match__league',
+            'category', 'uploaded_by', 'moderated_by'
+        )
+    
+    def approve_images(self, request, queryset):
+        """Acción masiva para aprobar imágenes"""
+        updated = queryset.filter(status='pending').update(
+            status='approved',
+            moderated_by=request.user,
+            moderation_date=timezone.now(),
+            moderation_notes='Aprobada masivamente desde admin'
+        )
+        
+        if updated:
+            self.message_user(request, f'{updated} imagen(es) aprobada(s) correctamente.')
+        else:
+            self.message_user(request, 'No hay imágenes pendientes para aprobar.')
+    
+    approve_images.short_description = "Aprobar imágenes seleccionadas"
+    
+    def reject_images(self, request, queryset):
+        """Acción masiva para rechazar imágenes"""
+        updated = queryset.filter(status='pending').update(
+            status='rejected',
+            moderated_by=request.user,
+            moderation_date=timezone.now(),
+            moderation_notes='Rechazada masivamente desde admin'
+        )
+        
+        if updated:
+            self.message_user(request, f'{updated} imagen(es) rechazada(s) correctamente.')
+        else:
+            self.message_user(request, 'No hay imágenes pendientes para rechazar.')
+    
+    reject_images.short_description = "Rechazar imágenes seleccionadas"
+    
+    def check_with_vision_api(self, request, queryset):
+        """Acción para verificar imágenes con Google Vision API"""
+        if not getattr(settings, 'GOOGLE_VISION_ENABLED', False):
+            self.message_user(request, 'Google Vision API no está habilitada.', level='WARNING')
+            return
+        
+        try:
+            from .utils import check_image_with_vision_api
+            checked_count = 0
+            unsafe_count = 0
+            
+            for image in queryset:
+                if not image.vision_api_checked:
+                    try:
+                        result = check_image_with_vision_api(image.image)
+                        image.vision_api_checked = True
+                        image.vision_api_safe = result.get('safe', True)
+                        image.vision_api_details = result
+                        
+                        if not result.get('safe', True):
+                            unsafe_count += 1
+                            # Auto-rechazar si no es segura
+                            image.status = 'rejected'
+                            image.moderated_by = request.user
+                            image.moderation_date = timezone.now()
+                            image.moderation_notes = 'Auto-rechazada por Google Vision API'
+                        
+                        image.save()
+                        checked_count += 1
+                        
+                    except Exception as e:
+                        self.message_user(request, f'Error verificando {image.title}: {e}', level='ERROR')
+            
+            if checked_count > 0:
+                self.message_user(request, f'{checked_count} imagen(es) verificada(s) con Vision API.')
+                if unsafe_count > 0:
+                    self.message_user(request, f'{unsafe_count} imagen(es) marcada(s) como insegura(s).', level='WARNING')
+            
+        except ImportError:
+            self.message_user(request, 'Utilidad de Vision API no disponible.', level='ERROR')
+    
+    check_with_vision_api.short_description = "Verificar con Google Vision API"
+    
+    def save_model(self, request, obj, form, change):
+        """Auto-asignar moderador en cambios de estado"""
+        if change and 'status' in form.changed_data:
+            if obj.status in ['approved', 'rejected'] and not obj.moderated_by:
+                obj.moderated_by = request.user
+                obj.moderation_date = timezone.now()
+        
+        super().save_model(request, obj, form, change)

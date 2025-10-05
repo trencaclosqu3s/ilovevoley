@@ -1,7 +1,9 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.core.validators import FileExtensionValidator
 import re
+import os
 
 
 class Category(models.Model):
@@ -262,3 +264,134 @@ class Standing(models.Model):
     @property
     def point_difference(self):
         return self.points_for - self.points_against
+
+
+def image_upload_path(instance, filename):
+    """Genera ruta de subida para imágenes organizadas por año y mes"""
+    year = timezone.now().year
+    month = timezone.now().month
+    # Mantener extensión original pero limpiar el nombre
+    name, ext = os.path.splitext(filename)
+    clean_name = re.sub(r'[^a-zA-Z0-9_-]', '_', name)
+    return f'images/{year}/{month:02d}/{clean_name}{ext}'
+
+
+class Image(models.Model):
+    MODERATION_STATUS = [
+        ('pending', 'Pendiente de Moderación'),
+        ('approved', 'Aprobada'),
+        ('rejected', 'Rechazada'),
+    ]
+    
+    image = models.ImageField(
+        upload_to=image_upload_path,
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp'])],
+        help_text='Formatos permitidos: JPG, PNG, WebP. Tamaño máximo: 10MB'
+    )
+    title = models.CharField(max_length=200, help_text='Título descriptivo de la imagen')
+    description = models.TextField(blank=True, help_text='Descripción opcional')
+    
+    # Relaciones
+    match = models.ForeignKey(
+        'Match', 
+        on_delete=models.CASCADE, 
+        related_name='images',
+        help_text='Partido al que pertenece la imagen'
+    )
+    category = models.ForeignKey(
+        Category, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='images',
+        help_text='Se asigna automáticamente desde el partido'
+    )
+    year = models.IntegerField(help_text='Año de la temporada')
+    
+    # Metadatos
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE,
+        related_name='uploaded_images'
+    )
+    upload_date = models.DateTimeField(auto_now_add=True)
+    
+    # Moderación
+    status = models.CharField(
+        max_length=20, 
+        choices=MODERATION_STATUS, 
+        default='pending',
+        help_text='Estado de moderación'
+    )
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='moderated_images'
+    )
+    moderation_date = models.DateTimeField(null=True, blank=True)
+    moderation_notes = models.TextField(
+        blank=True,
+        help_text='Notas internas de moderación'
+    )
+    
+    # Google Vision API (opcional)
+    vision_api_checked = models.BooleanField(default=False)
+    vision_api_safe = models.BooleanField(default=True)
+    vision_api_details = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        ordering = ['-upload_date']
+        verbose_name = 'Imagen'
+        verbose_name_plural = 'Imágenes'
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['match']),
+            models.Index(fields=['category']),
+            models.Index(fields=['year']),
+            models.Index(fields=['upload_date']),
+        ]
+
+    def __str__(self):
+        return f'{self.title} - {self.match}'
+
+    def save(self, *args, **kwargs):
+        # Auto-asignar categoría y año desde el partido
+        if self.match:
+            if self.match.league and self.match.league.category:
+                self.category = self.match.league.category
+            # Extraer año de la fecha del partido o temporada
+            if hasattr(self.match, 'match_date') and self.match.match_date:
+                self.year = self.match.match_date.year
+            elif hasattr(self.match.league, 'season'):
+                # Extraer año de temporada (ej: "2024-25" -> 2024)
+                try:
+                    self.year = int(self.match.league.season.split('-')[0])
+                except (ValueError, IndexError):
+                    self.year = timezone.now().year
+            else:
+                self.year = timezone.now().year
+        
+        super().save(*args, **kwargs)
+
+    @property
+    def is_approved(self):
+        return self.status == 'approved'
+    
+    @property
+    def is_pending(self):
+        return self.status == 'pending'
+    
+    @property
+    def thumbnail_url(self):
+        """URL para thumbnail - se puede implementar con django-imagekit"""
+        return self.image.url if self.image else None
+        
+    def moderate(self, moderator, approved=True, notes=''):
+        """Helper para moderar la imagen"""
+        self.status = 'approved' if approved else 'rejected'
+        self.moderated_by = moderator
+        self.moderation_date = timezone.now()
+        self.moderation_notes = notes
+        self.save()

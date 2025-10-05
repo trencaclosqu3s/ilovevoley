@@ -31,6 +31,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 ALLOWED_HOSTS += ['aerologic-nonfluent-jase.ngrok-free.dev']
+CSRF_TRUSTED_ORIGINS = ['https://aerologic-nonfluent-jase.ngrok-free.dev']
+
 
 # Application definition
 
@@ -176,6 +178,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Configuración de subida de archivos
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10MB
+
+# Configuración para Google Vision API (opcional)
+GOOGLE_VISION_ENABLED = env_config('GOOGLE_VISION_ENABLED', default=False, cast=bool)
+GOOGLE_APPLICATION_CREDENTIALS = env_config('GOOGLE_APPLICATION_CREDENTIALS', default='')
+
+# Configuración de moderación automática
+AUTO_MODERATION_ENABLED = env_config('AUTO_MODERATION_ENABLED', default=False, cast=bool)
 
 # Configuración específica del club
 CLUB_TEAM_NAME = 'SANT JOSEP'  # Nombre del equipo principal para filtrar videos

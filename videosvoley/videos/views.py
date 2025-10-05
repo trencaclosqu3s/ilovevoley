@@ -10,8 +10,8 @@ from unidecode import unidecode
 from datetime import datetime, timedelta
 import calendar
 from django.utils import timezone
-from .models import Video, Comment, Category, League, Match, Team, Standing
-from .forms import VideoForm, CommentForm
+from .models import Video, Comment, Category, League, Match, Team, Standing, Image
+from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm
 
 
 def user_is_approved(user):
@@ -453,3 +453,250 @@ def ajax_teams_by_league_category(request):
     return JsonResponse({
         'teams': teams_data
     })
+
+
+# ===============================
+# VISTAS DE GESTIÓN DE IMÁGENES
+# ===============================
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def image_gallery(request):
+    """Vista de galería de imágenes con filtros"""
+    images = Image.objects.select_related(
+        'match__home_team', 'match__away_team', 'match__league', 
+        'category', 'uploaded_by'
+    ).filter(status='approved').order_by('-upload_date')
+    
+    # Aplicar filtros
+    filter_form = ImageFilterForm(request.GET)
+    if filter_form.is_valid():
+        search = filter_form.cleaned_data.get('search')
+        category = filter_form.cleaned_data.get('category')
+        year = filter_form.cleaned_data.get('year')
+        status_filter = filter_form.cleaned_data.get('status')
+        
+        if search:
+            images = images.filter(
+                Q(title__icontains=search) | 
+                Q(description__icontains=search)
+            )
+        
+        if category:
+            images = images.filter(category=category)
+            
+        if year:
+            images = images.filter(year=year)
+            
+        if status_filter:
+            images = images.filter(status=status_filter)
+    
+    # Paginación
+    paginator = Paginator(images, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Estadísticas para la vista
+    total_images = Image.objects.filter(status='approved').count()
+    pending_images = Image.objects.filter(status='pending').count()
+    
+    context = {
+        'page_obj': page_obj,
+        'filter_form': filter_form,
+        'total_images': total_images,
+        'pending_images': pending_images,
+        'current_filters': request.GET.dict(),
+    }
+    
+    return render(request, 'videos/image_gallery.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def image_upload(request):
+    """Vista para subir imágenes"""
+    if request.method == 'POST':
+        form = ImageUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            image = form.save(commit=False)
+            image.uploaded_by = request.user
+            
+            # Procesar con Google Vision API si está habilitado
+            if getattr(settings, 'GOOGLE_VISION_ENABLED', False):
+                try:
+                    from .utils import check_image_with_vision_api
+                    vision_result = check_image_with_vision_api(image.image)
+                    image.vision_api_checked = True
+                    image.vision_api_safe = vision_result.get('safe', True)
+                    image.vision_api_details = vision_result
+                    
+                    # Auto-aprobar si es segura y la moderación automática está habilitada
+                    if (vision_result.get('safe', True) and 
+                        getattr(settings, 'AUTO_MODERATION_ENABLED', False)):
+                        image.status = 'approved'
+                        image.moderated_by = request.user
+                        image.moderation_date = timezone.now()
+                        image.moderation_notes = 'Auto-aprobada por Google Vision API'
+                except Exception as e:
+                    # Log error pero continuar
+                    print(f"Error en Vision API: {e}")
+            
+            image.save()
+            messages.success(request, 'Imagen subida correctamente. Está pendiente de moderación.')
+            return redirect('videos:image_gallery')
+    else:
+        form = ImageUploadForm()
+    
+    # Obtener partidos recientes para sugerir
+    recent_matches = Match.objects.select_related(
+        'home_team', 'away_team', 'league'
+    ).filter(
+        Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
+    ).order_by('-match_date')[:10]
+    
+    context = {
+        'form': form,
+        'recent_matches': recent_matches,
+    }
+    
+    return render(request, 'videos/image_upload.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def image_detail(request, image_id):
+    """Vista de detalle de imagen"""
+    image = get_object_or_404(
+        Image.objects.select_related(
+            'match__home_team', 'match__away_team', 'match__league',
+            'category', 'uploaded_by', 'moderated_by'
+        ),
+        id=image_id
+    )
+    
+    # Solo mostrar imágenes aprobadas a usuarios normales
+    if not request.user.is_staff and image.status != 'approved':
+        messages.error(request, 'Imagen no disponible.')
+        return redirect('videos:image_gallery')
+    
+    # Imágenes relacionadas del mismo partido
+    related_images = Image.objects.filter(
+        match=image.match,
+        status='approved'
+    ).exclude(id=image.id)[:6]
+    
+    context = {
+        'image': image,
+        'related_images': related_images,
+    }
+    
+    return render(request, 'videos/image_detail.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff, login_url='/')
+def image_moderation(request):
+    """Vista de moderación para admins"""
+    images = Image.objects.select_related(
+        'match__home_team', 'match__away_team', 'match__league',
+        'category', 'uploaded_by'
+    ).filter(status='pending').order_by('upload_date')
+    
+    # Paginación
+    paginator = Paginator(images, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'pending_count': images.count(),
+    }
+    
+    return render(request, 'videos/image_moderation.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff, login_url='/')
+def image_moderate_action(request, image_id):
+    """Acción de moderación individual"""
+    image = get_object_or_404(Image, id=image_id, status='pending')
+    
+    if request.method == 'POST':
+        form = ImageModerationForm(request.POST, instance=image)
+        if form.is_valid():
+            action = form.cleaned_data['action']
+            notes = form.cleaned_data['moderation_notes']
+            
+            image.moderate(
+                moderator=request.user,
+                approved=(action == 'approve'),
+                notes=notes
+            )
+            
+            action_text = 'aprobada' if action == 'approve' else 'rechazada'
+            messages.success(request, f'Imagen {action_text} correctamente.')
+            return redirect('videos:image_moderation')
+    else:
+        form = ImageModerationForm()
+    
+    context = {
+        'image': image,
+        'form': form,
+    }
+    
+    return render(request, 'videos/image_moderate.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff, login_url='/')
+def image_moderate_bulk(request):
+    """Moderación masiva de imágenes"""
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        image_ids = request.POST.getlist('image_ids')
+        notes = request.POST.get('notes', '')
+        
+        if action in ['approve', 'reject'] and image_ids:
+            images = Image.objects.filter(id__in=image_ids, status='pending')
+            approved = (action == 'approve')
+            
+            for image in images:
+                image.moderate(
+                    moderator=request.user,
+                    approved=approved,
+                    notes=notes
+                )
+            
+            action_text = 'aprobadas' if approved else 'rechazadas'
+            messages.success(request, f'{images.count()} imágenes {action_text}.')
+        
+        return redirect('videos:image_moderation')
+    
+    return redirect('videos:image_moderation')
+
+
+def match_images(request, match_id):
+    """Vista de imágenes de un partido específico"""
+    match = get_object_or_404(
+        Match.objects.select_related('home_team', 'away_team', 'league'),
+        id=match_id
+    )
+    
+    images = Image.objects.filter(
+        match=match,
+        status='approved'
+    ).select_related('uploaded_by').order_by('-upload_date')
+    
+    # Paginación
+    paginator = Paginator(images, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'match': match,
+        'page_obj': page_obj,
+        'total_images': images.count(),
+    }
+    
+    return render(request, 'videos/match_images.html', context)

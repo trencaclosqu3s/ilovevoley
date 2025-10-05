@@ -1,7 +1,7 @@
 from django import forms
 from django.conf import settings
 from django.db.models import Q
-from .models import Video, Comment, Category, Match, Team
+from .models import Video, Comment, Category, Match, Team, Image
 
 
 class VideoForm(forms.ModelForm):
@@ -172,3 +172,154 @@ class MatchAdminForm(forms.ModelForm):
         # Establecer valor inicial del checkbox
         if 'filter_by_category' not in self.data:
             self.fields['filter_by_category'].initial = True
+
+
+class ImageUploadForm(forms.ModelForm):
+    """Formulario para subida de imágenes con soporte drag & drop"""
+    
+    class Meta:
+        model = Image
+        fields = ['image', 'title', 'description', 'match']
+        widgets = {
+            'image': forms.FileInput(attrs={
+                'class': 'hidden',
+                'id': 'image-input',
+                'accept': 'image/jpeg,image/jpg,image/png,image/webp',
+                'multiple': False
+            }),
+            'title': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'placeholder': 'Título descriptivo de la imagen'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'rows': 3,
+                'placeholder': 'Descripción opcional'
+            }),
+            'match': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+            }),
+        }
+        labels = {
+            'image': 'Imagen',
+            'title': 'Título',
+            'description': 'Descripción',
+            'match': 'Partido',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Filtrar partidos del club
+        self._setup_match_queryset()
+        
+        # Hacer campos opcionales según necesidad
+        self.fields['description'].required = False
+        
+    def _setup_match_queryset(self):
+        """Configura el queryset de partidos basado en equipos del club"""
+        club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+        
+        # Filtrar partidos del club ordenados por fecha
+        club_query = (Q(home_team__name__icontains=club_team_name) | 
+                     Q(away_team__name__icontains=club_team_name))
+        
+        self.fields['match'].queryset = Match.objects.select_related(
+            'home_team', 'away_team', 'league'
+        ).filter(club_query).order_by('-match_date')
+        
+        self.fields['match'].empty_label = "Seleccionar partido"
+
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        if image:
+            # Validar tamaño (10MB máximo)
+            if image.size > 10 * 1024 * 1024:
+                raise forms.ValidationError('El archivo es demasiado grande. Tamaño máximo: 10MB')
+            
+            # Validar tipo de archivo
+            if not image.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                raise forms.ValidationError('Formato no válido. Use JPG, PNG o WebP')
+        
+        return image
+
+
+class ImageModerationForm(forms.ModelForm):
+    """Formulario para moderación de imágenes por admin"""
+    
+    MODERATION_ACTIONS = [
+        ('approve', 'Aprobar'),
+        ('reject', 'Rechazar'),
+    ]
+    
+    action = forms.ChoiceField(
+        choices=MODERATION_ACTIONS,
+        widget=forms.RadioSelect,
+        label='Acción'
+    )
+    
+    class Meta:
+        model = Image
+        fields = ['moderation_notes']
+        widgets = {
+            'moderation_notes': forms.Textarea(attrs={
+                'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg',
+                'rows': 3,
+                'placeholder': 'Notas de moderación (opcional)'
+            }),
+        }
+        labels = {
+            'moderation_notes': 'Notas',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['moderation_notes'].required = False
+
+
+class ImageFilterForm(forms.Form):
+    """Formulario para filtrar la galería de imágenes"""
+    
+    STATUS_CHOICES = [
+        ('', 'Todos los estados'),
+        ('pending', 'Pendientes'),
+        ('approved', 'Aprobadas'),
+        ('rejected', 'Rechazadas'),
+    ]
+    
+    search = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'placeholder': 'Buscar por título o descripción...'
+        }),
+        label='Buscar'
+    )
+    
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.filter(is_active=True),
+        required=False,
+        empty_label='Todas las categorías',
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+        }),
+        label='Categoría'
+    )
+    
+    year = forms.IntegerField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'placeholder': 'Año'
+        }),
+        label='Año'
+    )
+    
+    status = forms.ChoiceField(
+        choices=STATUS_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+        }),
+        label='Estado'
+    )

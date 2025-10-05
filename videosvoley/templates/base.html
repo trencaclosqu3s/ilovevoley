@@ -168,11 +168,19 @@
                         <span class="text-lg mr-3">📋</span>
                         <span class="font-medium">Ligas</span>
                     </a>
+                    <a href="{% url 'videos:image_gallery' %}" class="flex items-center px-4 py-4 text-gray-700 hover:bg-gray-50 transition touch-manipulation">
+                        <span class="text-lg mr-3">📸</span>
+                        <span class="font-medium">Galería</span>
+                    </a>
                     {% if can_add %}
                         <div class="border-t border-gray-100 mt-2 pt-2">
                             <a href="{% url 'video_create' %}" class="flex items-center px-4 py-4 text-csj-purple hover:bg-gray-50 font-semibold transition touch-manipulation">
                                 <span class="text-lg mr-3">➕</span>
                                 <span>Añadir Video</span>
+                            </a>
+                            <a href="{% url 'videos:image_upload' %}" class="flex items-center px-4 py-4 text-csj-purple hover:bg-gray-50 font-semibold transition touch-manipulation">
+                                <span class="text-lg mr-3">📸</span>
+                                <span>Subir Imagen</span>
                             </a>
                         </div>
                     {% endif %}
