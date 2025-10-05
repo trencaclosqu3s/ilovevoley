@@ -225,15 +225,29 @@
                                     <!-- Equipos -->
                                     <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                                         <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-2">
-                                            <span class="font-semibold text-sm sm:text-base text-gray-800 
-                                                {% if club_team_name in match.home_team.name %}text-csj-purple{% endif %} break-words">
-                                                {{ match.home_team.name }}
-                                            </span>
+                                            <div class="flex items-center space-x-2">
+                                                {% if match.home_team.display_logo %}
+                                                    <img src="{{ match.home_team.display_logo }}" alt="{{ match.home_team.name }}" 
+                                                         class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
+                                                         onerror="this.style.display='none'">
+                                                {% endif %}
+                                                <span class="font-semibold text-sm sm:text-base text-gray-800 
+                                                    {% if club_team_name in match.home_team.name %}text-csj-purple{% endif %} break-words">
+                                                    {{ match.home_team.name }}
+                                                </span>
+                                            </div>
                                             <span class="text-gray-500 text-xs sm:text-sm self-center sm:self-auto">vs</span>
-                                            <span class="font-semibold text-sm sm:text-base text-gray-800 
-                                                {% if club_team_name in match.away_team.name %}text-csj-purple{% endif %} break-words">
-                                                {{ match.away_team.name }}
-                                            </span>
+                                            <div class="flex items-center space-x-2">
+                                                {% if match.away_team.display_logo %}
+                                                    <img src="{{ match.away_team.display_logo }}" alt="{{ match.away_team.name }}" 
+                                                         class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
+                                                         onerror="this.style.display='none'">
+                                                {% endif %}
+                                                <span class="font-semibold text-sm sm:text-base text-gray-800 
+                                                    {% if club_team_name in match.away_team.name %}text-csj-purple{% endif %} break-words">
+                                                    {{ match.away_team.name }}
+                                                </span>
+                                            </div>
                                         </div>
                                         
                                         <!-- Resultado si está disponible -->
@@ -347,6 +361,8 @@ window.calendarData = {
             time: '{% if match.match_date.time.hour != 0 or match.match_date.time.minute != 0 %}{{ match.match_date|date:"H:i" }}{% else %}Provisional{% endif %}',
             home_team: '{{ match.home_team.name|escapejs }}',
             away_team: '{{ match.away_team.name|escapejs }}',
+            home_team_logo: '{% if match.home_team.display_logo %}{{ match.home_team.display_logo|escapejs }}{% endif %}',
+            away_team_logo: '{% if match.away_team.display_logo %}{{ match.away_team.display_logo|escapejs }}{% endif %}',
             league: '{{ match.league.name|escapejs }}',
             category: '{% if match.league.category %}{{ match.league.category.name|escapejs }}{% endif %}',
             venue: '{% if match.venue %}{{ match.venue|escapejs }}{% endif %}',
@@ -394,10 +410,16 @@ function showDayMatches(day, monthName, year) {
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">J${match.round_number}</span>
                             ${match.category ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">${match.category}</span>` : ''}
                         </div>
-                        <div class="font-semibold text-gray-900 mb-1">
-                            <span class="${isClubMatch && match.home_team.includes(match.club_team_name) ? 'text-purple-600' : ''}">${match.home_team}</span>
-                            <span class="text-gray-500 mx-2">vs</span>
-                            <span class="${isClubMatch && match.away_team.includes(match.club_team_name) ? 'text-purple-600' : ''}">${match.away_team}</span>
+                        <div class="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                            <div class="flex items-center space-x-2">
+                                ${match.home_team_logo ? `<img src="${match.home_team_logo}" alt="${match.home_team}" class="w-5 h-5 object-contain rounded-sm" onerror="this.style.display='none'">` : ''}
+                                <span class="${isClubMatch && match.home_team.includes(match.club_team_name) ? 'text-purple-600' : ''}">${match.home_team}</span>
+                            </div>
+                            <span class="text-gray-500">vs</span>
+                            <div class="flex items-center space-x-2">
+                                ${match.away_team_logo ? `<img src="${match.away_team_logo}" alt="${match.away_team}" class="w-5 h-5 object-contain rounded-sm" onerror="this.style.display='none'">` : ''}
+                                <span class="${isClubMatch && match.away_team.includes(match.club_team_name) ? 'text-purple-600' : ''}">${match.away_team}</span>
+                            </div>
                         </div>
                         ${match.result ? `<div class="text-sm text-green-600 font-medium">Resultado: ${match.result}</div>` : ''}
                         <div class="text-sm text-gray-600">
