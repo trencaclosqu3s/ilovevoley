@@ -90,9 +90,45 @@ class League(models.Model):
         return f'{self.name} ({self.season})'
 
 
+class Club(models.Model):
+    federation_id = models.CharField(max_length=200, unique=True)
+    official_name = models.CharField(max_length=200)
+    president = models.CharField(max_length=200, blank=True)
+    address = models.TextField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    email = models.EmailField(blank=True)
+    venue_name = models.CharField(max_length=200, blank=True)
+    venue_address = models.CharField(max_length=200, blank=True)
+    province = models.CharField(max_length=100, blank=True)
+    instagram = models.URLField(blank=True)
+    facebook = models.URLField(blank=True)
+    twitter = models.URLField(blank=True)
+    website = models.URLField(blank=True)
+    logo_url = models.URLField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['official_name']
+        verbose_name = 'Club'
+        verbose_name_plural = 'Clubes'
+
+    def __str__(self):
+        return self.official_name
+
+    @property
+    def logo_federation_url(self):
+        """Genera URL del logo basada en federation_id"""
+        if self.federation_id:
+            return f'https://voleibolib.federatio.com/fichas/clubes/{self.federation_id}.jpg'
+        return None
+
+
 class Team(models.Model):
     name = models.CharField(max_length=200)
     federation_id = models.CharField(max_length=200, unique=True)
+    club = models.ForeignKey(Club, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams')
+    sponsor_name = models.CharField(max_length=200, blank=True, help_text='Nombre con patrocinador si aplica')
     logo_url = models.URLField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -103,6 +139,11 @@ class Team(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def display_logo(self):
+        """Devuelve logo del equipo o del club si no tiene"""
+        return self.logo_url or (self.club.logo_federation_url if self.club else None)
 
 
 class Match(models.Model):
