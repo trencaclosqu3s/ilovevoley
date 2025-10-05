@@ -30,6 +30,7 @@ SECRET_KEY = 'django-insecure-x*bcpy_nb811_5s6+7*-0y&mzj36^+v$6rzwglc0v)0j+njp(g
 DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS += ['aerologic-nonfluent-jase.ngrok-free.dev']
 
 # Application definition
 
