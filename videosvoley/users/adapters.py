@@ -3,7 +3,7 @@ from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 
 
 class CustomAccountAdapter(DefaultAccountAdapter):
-    def add_message(self, request, level, message_tag, message, extra_tags=''):
+    def add_message(self, request, level, message_template=None, message_context=None, extra_tags="", message=None):
         """
         Suprimir mensajes automáticos de login/logout
         """
@@ -16,17 +16,18 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         ]
         
         # Si el mensaje contiene alguna frase suprimida, no lo mostramos
-        message_str = str(message).lower()
-        for suppressed in suppressed_messages:
-            if suppressed in message_str:
-                return
+        if message:
+            message_str = str(message).lower()
+            for suppressed in suppressed_messages:
+                if suppressed in message_str:
+                    return
         
         # Para el resto de mensajes, usar el comportamiento por defecto
-        super().add_message(request, level, message_tag, message, extra_tags)
+        super().add_message(request, level, message_template, message_context, extra_tags, message)
 
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
-    def add_message(self, request, level, message_tag, message, extra_tags=''):
+    def add_message(self, request, level, message_template=None, message_context=None, extra_tags="", message=None):
         """
         Suprimir mensajes automáticos de login/logout para cuentas sociales
         """
@@ -41,10 +42,11 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         ]
         
         # Si el mensaje contiene alguna frase suprimida, no lo mostramos
-        message_str = str(message).lower()
-        for suppressed in suppressed_messages:
-            if suppressed in message_str:
-                return
+        if message:
+            message_str = str(message).lower()
+            for suppressed in suppressed_messages:
+                if suppressed in message_str:
+                    return
         
         # Para el resto de mensajes, usar el comportamiento por defecto
-        super().add_message(request, level, message_tag, message, extra_tags)
+        super().add_message(request, level, message_template, message_context, extra_tags, message)

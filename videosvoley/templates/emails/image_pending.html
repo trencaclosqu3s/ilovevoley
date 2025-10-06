@@ -1,0 +1,127 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Nueva imagen pendiente - {{ site_name }}{% endblock %}
+
+{% block header_subtitle %}Nueva Imagen Pendiente de Moderación{% endblock %}
+
+{% block content %}
+    <div class="alert warning">
+        <h2 style="margin-top: 0;">📷 Nueva imagen subida</h2>
+        <p>Un usuario ha subido una nueva imagen que requiere moderación antes de ser publicada.</p>
+    </div>
+
+    <h3>Detalles de la imagen:</h3>
+    <table class="data-table">
+        <tr>
+            <th>Título:</th>
+            <td><strong>{{ image.title }}</strong></td>
+        </tr>
+        <tr>
+            <th>Descripción:</th>
+            <td>{{ image.description|default:"Sin descripción"|truncatewords:20 }}</td>
+        </tr>
+        <tr>
+            <th>Tipo de imagen:</th>
+            <td>{{ image.get_image_type_display }}</td>
+        </tr>
+        <tr>
+            <th>Etiquetas:</th>
+            <td>{{ image.tags|default:"Sin etiquetas" }}</td>
+        </tr>
+        <tr>
+            <th>Fecha de subida:</th>
+            <td>{{ image.upload_date|date:"d/m/Y H:i" }}</td>
+        </tr>
+        <tr>
+            <th>Estado actual:</th>
+            <td><span style="color: #f39c12;">⏳ {{ image.get_status_display }}</span></td>
+        </tr>
+    </table>
+
+    <h3>Información del usuario:</h3>
+    <table class="data-table">
+        <tr>
+            <th>Usuario:</th>
+            <td><strong>{{ user.username }}</strong></td>
+        </tr>
+        <tr>
+            <th>Email:</th>
+            <td>{{ user.email|default:"No proporcionado" }}</td>
+        </tr>
+        <tr>
+            <th>Nombre completo:</th>
+            <td>{{ user.get_full_name|default:"No proporcionado" }}</td>
+        </tr>
+        <tr>
+            <th>Imágenes subidas anteriormente:</th>
+            <td>{{ user.uploaded_images.count }} imagen{{ user.uploaded_images.count|pluralize:"a,as" }}</td>
+        </tr>
+    </table>
+
+    {% if image.match %}
+    <h3>Partido asociado:</h3>
+    <table class="data-table">
+        <tr>
+            <th>Partido:</th>
+            <td><strong>{{ image.match }}</strong></td>
+        </tr>
+        <tr>
+            <th>Liga:</th>
+            <td>{{ image.match.league.name }}</td>
+        </tr>
+        <tr>
+            <th>Fecha del partido:</th>
+            <td>{{ image.match.match_date|date:"d/m/Y" }}</td>
+        </tr>
+        <tr>
+            <th>Categoría:</th>
+            <td>{{ image.category.name|default:"Sin categoría" }}</td>
+        </tr>
+    </table>
+    {% endif %}
+
+    {% if image.auto_tags %}
+    <div class="alert">
+        <h4 style="margin-top: 0;">🤖 Etiquetas automáticas detectadas</h4>
+        <p><strong>Google Vision API:</strong> {{ image.auto_tags|join:", " }}</p>
+        {% if not image.vision_api_safe %}
+            <p style="color: #e74c3c;"><strong>⚠️ Advertencia:</strong> La imagen puede contener contenido inapropiado según el análisis automático.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <h3>Acciones requeridas:</h3>
+    <p>Para moderar esta imagen, puede:</p>
+    <ol>
+        <li>Acceder al panel de administración</li>
+        <li>Revisar la imagen y su contenido</li>
+        <li>Aprobar o rechazar la imagen según las normas de la comunidad</li>
+        <li>Añadir notas de moderación si es necesario</li>
+    </ol>
+
+    <div style="text-align: center; margin: 25px 0;">
+        <a href="{{ admin_url }}" class="button">
+            🔧 Moderar en Admin Panel
+        </a>
+    </div>
+
+    {% if image_url %}
+    <div class="alert">
+        <h4 style="margin-top: 0;">🖼️ Vista previa de la imagen</h4>
+        <p style="text-align: center;">
+            <img src="{{ image_url }}" alt="{{ image.title }}" style="max-width: 100%; max-height: 300px; border-radius: 5px; border: 1px solid #ddd;">
+        </p>
+    </div>
+    {% endif %}
+
+    <div class="alert">
+        <h4 style="margin-top: 0;">📋 Recordatorio de moderación</h4>
+        <p>Las imágenes deben cumplir con las normas de la comunidad:</p>
+        <ul>
+            <li>Contenido relacionado con voleibol o deportes</li>
+            <li>Sin contenido ofensivo o inapropiado</li>
+            <li>Calidad mínima aceptable</li>
+            <li>Sin violación de derechos de autor</li>
+        </ul>
+    </div>
+{% endblock %}

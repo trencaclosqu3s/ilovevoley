@@ -92,6 +92,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    'videosvoley.core.middleware.Error404TrackingMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -164,7 +165,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = 'videosvoley/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 STATICFILES_DIRS = [
@@ -200,4 +201,27 @@ CLUB_TEAM_NAMES = {
     'cadete': ['SANT JOSEP CADETE', 'CV SANT JOSEP CADETE'],
     'infantil': ['SANT JOSEP INFANTIL', 'CV SANT JOSEP INFANTIL'],
     'juvenil': ['SANT JOSEP JUVENIL', 'CV SANT JOSEP JUVENIL'],
+}
+
+# Email configuration
+EMAIL_BACKEND = env_config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = env_config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = env_config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = env_config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = env_config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env_config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = env_config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
+SERVER_EMAIL = env_config('SERVER_EMAIL', default=EMAIL_HOST_USER)
+
+# Notificaciones
+NOTIFICATION_EMAIL_ENABLED = env_config('NOTIFICATION_EMAIL_ENABLED', default=False, cast=bool)
+ADMIN_EMAIL_LIST = env_config('ADMIN_EMAIL_LIST', default='', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
+
+# Configuración específica de notificaciones
+EMAIL_NOTIFICATIONS = {
+    'new_user_pending': env_config('EMAIL_NOTIFY_NEW_USER', default=True, cast=bool),
+    'user_approved': env_config('EMAIL_NOTIFY_USER_APPROVED', default=True, cast=bool),
+    'image_pending': env_config('EMAIL_NOTIFY_IMAGE_PENDING', default=True, cast=bool),
+    'image_moderated': env_config('EMAIL_NOTIFY_IMAGE_MODERATED', default=True, cast=bool),
+    'error_404_daily': env_config('EMAIL_NOTIFY_404_DAILY', default=False, cast=bool),
 }

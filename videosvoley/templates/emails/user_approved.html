@@ -1,0 +1,72 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Cuenta aprobada - {{ site_name }}{% endblock %}
+
+{% block header_subtitle %}¡Tu cuenta ha sido aprobada!{% endblock %}
+
+{% block content %}
+    <div class="alert success">
+        <h2 style="margin-top: 0;">🎉 ¡Enhorabuena!</h2>
+        <p>Tu cuenta en {{ site_name }} ha sido aprobada y ya puedes acceder a todas las funcionalidades del sistema.</p>
+    </div>
+
+    <h3>Hola {{ user.get_full_name|default:user.username }},</h3>
+    
+    <p>Nos complace informarte que tu solicitud de acceso a <strong>{{ site_name }}</strong> ha sido revisada y aprobada por nuestro equipo.</p>
+
+    <h3>¿Qué puedes hacer ahora?</h3>
+    <ul>
+        <li>🎥 <strong>Ver videos:</strong> Accede a toda nuestra biblioteca de videos de voleibol</li>
+        <li>💬 <strong>Comentar:</strong> Participa en las discusiones de la comunidad</li>
+        <li>📸 <strong>Subir imágenes:</strong> Comparte tus mejores momentos del voleibol</li>
+        <li>📊 <strong>Ver estadísticas:</strong> Consulta clasificaciones, resultados y calendarios</li>
+        <li>👤 <strong>Personalizar perfil:</strong> Actualiza tu información y foto de perfil</li>
+    </ul>
+
+    <div style="text-align: center; margin: 25px 0;">
+        <a href="{{ site_url }}" class="button">
+            🏐 Acceder a {{ site_name }}
+        </a>
+    </div>
+
+    <div class="alert">
+        <h4 style="margin-top: 0;">📋 Información de tu cuenta</h4>
+        <table style="width: 100%; margin: 10px 0;">
+            <tr>
+                <td><strong>Usuario:</strong></td>
+                <td>{{ user.username }}</td>
+            </tr>
+            <tr>
+                <td><strong>Email:</strong></td>
+                <td>{{ user.email }}</td>
+            </tr>
+            <tr>
+                <td><strong>Fecha de registro:</strong></td>
+                <td>{{ user.date_joined|date:"d/m/Y" }}</td>
+            </tr>
+            <tr>
+                <td><strong>Estado:</strong></td>
+                <td><span style="color: #27ae60;">✅ Aprobado</span></td>
+            </tr>
+        </table>
+    </div>
+
+    <h3>Normas de la comunidad:</h3>
+    <p>Para mantener un ambiente positivo y constructivo, te recordamos:</p>
+    <ul>
+        <li>Respeta a otros usuarios en comentarios y discusiones</li>
+        <li>Comparte contenido relacionado con voleibol y deportes</li>
+        <li>Las imágenes subidas serán revisadas antes de publicarse</li>
+        <li>Reporta cualquier contenido inapropiado que encuentres</li>
+    </ul>
+
+    <div class="alert">
+        <h4 style="margin-top: 0;">🆘 ¿Necesitas ayuda?</h4>
+        <p>Si tienes alguna duda o problema para acceder al sistema, no dudes en contactarnos. Estamos aquí para ayudarte a aprovechar al máximo tu experiencia en {{ site_name }}.</p>
+    </div>
+
+    <p style="margin-top: 30px;">
+        <strong>¡Bienvenido a la comunidad {{ site_name }}!</strong><br>
+        Esperamos que disfrutes explorando nuestro contenido y compartiendo tu pasión por el voleibol.
+    </p>
+{% endblock %}
