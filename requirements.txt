@@ -12,3 +12,5 @@ celery==5.3.4
 django-celery-beat==2.8.1
 google-cloud-vision==3.8.0
 django-storages==1.14.4
+gunicorn==21.2.0
+redis==5.0.1

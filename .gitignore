@@ -347,3 +347,9 @@ media/
 .cursor/rules/estilos.mdc
 .vscode/settings.json
 CLAUDE.md
+celerybeat-schedule*
+certbot/
+static/
+certbot/
+postgres/
+redis/

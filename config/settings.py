@@ -153,7 +153,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es-ES'
 
 TIME_ZONE = 'UTC'
 
@@ -165,7 +165,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'videosvoley/static/'
+STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 STATICFILES_DIRS = [
@@ -225,3 +225,11 @@ EMAIL_NOTIFICATIONS = {
     'image_moderated': env_config('EMAIL_NOTIFY_IMAGE_MODERATED', default=True, cast=bool),
     'error_404_daily': env_config('EMAIL_NOTIFY_404_DAILY', default=False, cast=bool),
 }
+
+# Celery Configuration
+CELERY_BROKER_URL = env_config('REDIS_URL', default='redis://redis:6379/0')
+CELERY_RESULT_BACKEND = env_config('REDIS_URL', default='redis://redis:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
