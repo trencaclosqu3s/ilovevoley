@@ -349,7 +349,8 @@ media/
 CLAUDE.md
 celerybeat-schedule*
 certbot/
-static/
+# Ignorar staticfiles recopilados, pero NO el directorio source static
+/staticfiles/
 certbot/
 postgres/
 redis/

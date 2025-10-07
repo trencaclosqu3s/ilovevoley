@@ -52,6 +52,7 @@ services:
     depends_on:
       - db
       - redis
+      - web
     restart: unless-stopped
     networks:
       - app-network
@@ -70,6 +71,7 @@ services:
     depends_on:
       - db
       - redis
+      - web
     restart: unless-stopped
     networks:
       - app-network
