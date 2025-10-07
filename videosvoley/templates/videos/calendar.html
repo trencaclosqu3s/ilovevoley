@@ -9,12 +9,12 @@
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Header con título y navegación de meses -->
-    <div class="bg-white rounded-lg shadow-lg p-6 border-t-4 border-csj-purple">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">📅 Calendario de Partidos</h1>
-                <p class="text-gray-600">
+    <!-- Header con título y navegación de meses - STICKY EN MÓVIL -->
+    <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple sticky top-0 z-30 lg:static">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+            <div class="flex-1 min-w-0">
+                <h1 class="text-xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">📅 Calendario de Partidos</h1>
+                <p class="text-xs sm:text-base text-gray-600">
                     {% if show_all_teams %}
                         Mostrando todos los equipos
                     {% else %}
@@ -24,34 +24,44 @@
             </div>
             
             <!-- Navegación y controles -->
-            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+            <div class="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                <!-- Botón de filtros (solo móvil) -->
+                <button onclick="toggleFilters()" 
+                        class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark transition touch-manipulation">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                    </svg>
+                    Filtros
+                    <span id="activeFiltersCount" class="ml-1 hidden px-1.5 py-0.5 bg-white text-csj-purple rounded-full text-xs font-bold"></span>
+                </button>
+                
                 <!-- Toggle de vista -->
                 <div class="flex bg-gray-100 rounded-lg p-1">
                     <a href="?view=list{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&year={{ year }}&month={{ month }}"
-                       class="px-3 py-2 rounded-md text-sm font-medium transition {% if view_mode == 'list' %}bg-white text-csj-purple shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
-                        📋 Lista
+                       class="px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition {% if view_mode == 'list' %}bg-white text-csj-purple shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
+                        📋 <span class="hidden sm:inline">Lista</span>
                     </a>
                     <a href="?view=calendar{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&year={{ year }}&month={{ month }}"
-                       class="px-3 py-2 rounded-md text-sm font-medium transition {% if view_mode == 'calendar' %}bg-white text-csj-purple shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
-                        📅 Calendario
+                       class="px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition {% if view_mode == 'calendar' %}bg-white text-csj-purple shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
+                        📅 <span class="hidden sm:inline">Calendario</span>
                     </a>
                 </div>
                 
                 <!-- Navegación de meses -->
-                <div class="flex items-center space-x-1 sm:space-x-2">
+                <div class="flex items-center space-x-1">
                     <a href="?year={{ prev_month.year }}&month={{ prev_month.month }}{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&view={{ view_mode }}"
-                       class="p-2 sm:p-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition touch-manipulation">
-                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       class="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition touch-manipulation">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                         </svg>
                     </a>
-                    <h2 class="text-sm sm:text-lg font-semibold text-gray-700 px-2 sm:px-4 min-w-0">
+                    <h2 class="text-xs sm:text-lg font-semibold text-gray-700 px-1 sm:px-4">
                         <span class="hidden sm:inline">{{ month_name }} {{ year }}</span>
-                        <span class="sm:hidden">{{ month_name|slice:":3" }} {{ year }}</span>
+                        <span class="sm:hidden">{{ month_name|slice:":3" }} '{{ year|slice:"2:" }}</span>
                     </h2>
                     <a href="?year={{ next_month.year }}&month={{ next_month.month }}{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&view={{ view_mode }}"
-                       class="p-2 sm:p-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition touch-manipulation">
-                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       class="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition touch-manipulation">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                         </svg>
                     </a>
@@ -60,8 +70,8 @@
         </div>
     </div>
 
-    <!-- Filtros con aplicación automática -->
-    <div class="bg-white rounded-lg shadow-lg p-6">
+    <!-- Filtros con aplicación automática - COLAPSABLES EN MÓVIL -->
+    <div id="filtersSection" class="bg-white rounded-lg shadow-lg p-6 hidden lg:block">
         <div class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 <!-- Filtro de Categoría -->
@@ -495,6 +505,44 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeDayMatches();
     }
+});
+
+// Toggle de filtros para móvil
+function toggleFilters() {
+    const filtersSection = document.getElementById('filtersSection');
+    filtersSection.classList.toggle('hidden');
+    
+    // Scroll suave hacia los filtros cuando se abren
+    if (!filtersSection.classList.contains('hidden')) {
+        filtersSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// Actualizar contador de filtros activos
+function updateActiveFiltersCount() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let activeCount = 0;
+    
+    // Contar filtros activos (excluir parámetros de navegación)
+    const navigationParams = ['view', 'year', 'month', 'page', 'show_all'];
+    for (const [key, value] of urlParams.entries()) {
+        if (!navigationParams.includes(key) && value !== '') {
+            activeCount++;
+        }
+    }
+    
+    const countBadge = document.getElementById('activeFiltersCount');
+    if (activeCount > 0) {
+        countBadge.textContent = activeCount;
+        countBadge.classList.remove('hidden');
+    } else {
+        countBadge.classList.add('hidden');
+    }
+}
+
+// Inicializar al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    updateActiveFiltersCount();
 });
 </script>
 {% endblock %}
