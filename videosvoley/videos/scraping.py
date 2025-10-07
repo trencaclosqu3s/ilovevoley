@@ -450,6 +450,7 @@ class FederationScraper:
     @transaction.atomic
     def update_matches(self, matches_data: List[Dict[str, Any]], team_objects: Dict[str, Team]):
         """Actualiza partidos en la base de datos"""
+        from datetime import timedelta
         
         for match_data in matches_data:
             home_team_name = match_data.pop('home_team')
@@ -473,20 +474,61 @@ class FederationScraper:
                     logger.error(f"Could not match teams: {home_team_name} vs {away_team_name}")
                     continue
             
-            match, created = Match.objects.update_or_create(
-                federation_id=match_data.get('federation_id'),
-                defaults={
-                    'league': self.league,
-                    'home_team': home_team,
-                    'away_team': away_team,
-                    **match_data
-                }
-            )
+            match_date = match_data.get('match_date')
+            federation_id = match_data.get('federation_id')
             
-            if created:
-                logger.info(f"Created new match: {match}")
+            # Primero intentar buscar por federation_id si existe
+            existing_match = None
+            if federation_id:
+                try:
+                    existing_match = Match.objects.get(federation_id=federation_id)
+                except Match.DoesNotExist:
+                    pass
+            
+            # Si no existe por federation_id, buscar por liga + equipos + fecha (mismo día)
+            if not existing_match and match_date:
+                # Buscar partidos en el mismo día entre los mismos equipos
+                date_start = match_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                date_end = date_start + timedelta(days=1)
+                
+                existing_match = Match.objects.filter(
+                    league=self.league,
+                    home_team=home_team,
+                    away_team=away_team,
+                    match_date__gte=date_start,
+                    match_date__lt=date_end
+                ).first()
+                
+                if existing_match:
+                    logger.info(f"Found existing match by teams+date: {home_team} vs {away_team} on {match_date.date()}")
+            
+            # Crear o actualizar el partido
+            if existing_match:
+                # Actualizar partido existente
+                for key, value in match_data.items():
+                    # Solo actualizar si el valor no es None o si estamos actualizando desde resultados
+                    if value is not None:
+                        setattr(existing_match, key, value)
+                
+                # Asegurarse de que los datos básicos estén correctos
+                existing_match.league = self.league
+                existing_match.home_team = home_team
+                existing_match.away_team = away_team
+                
+                existing_match.save()
+                logger.info(f"Updated existing match: {existing_match}")
+                match = existing_match
+                created = False
             else:
-                logger.info(f"Updated match: {match}")
+                # Crear nuevo partido
+                match = Match.objects.create(
+                    league=self.league,
+                    home_team=home_team,
+                    away_team=away_team,
+                    **match_data
+                )
+                logger.info(f"Created new match: {match}")
+                created = True
     
     def _find_similar_team(self, team_name: str) -> Optional[Team]:
         """Busca equipos similares en la base de datos"""

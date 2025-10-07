@@ -309,10 +309,19 @@ def scrape_calendar_task(self, league_id=None, delay=2.0):
                         'error': result['error']
                     })
                 else:
+                    # Actualizar equipos si los hay
+                    all_teams = {}
+                    if 'teams' in result:
+                        all_teams = scraper.update_teams(result['teams'])
+                    
+                    # Actualizar partidos en la base de datos
+                    if 'matches' in result:
+                        scraper.update_matches(result['matches'], all_teams)
+                    
                     matches_count = len(result.get('matches', []))
                     total_results['total_matches'] += matches_count
                     total_results['leagues_success'] += 1
-                    logger.info(f'{league.name}: {matches_count} partidos encontrados en el calendario')
+                    logger.info(f'{league.name}: {matches_count} partidos guardados en el calendario')
                 
                 total_results['leagues_processed'] += 1
                 
@@ -454,10 +463,19 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
                         'error': result['error']
                     })
                 else:
+                    # Actualizar equipos si los hay
+                    all_teams = {}
+                    if 'teams' in result:
+                        all_teams = scraper.update_teams(result['teams'])
+                    
+                    # Actualizar partidos en la base de datos
+                    if 'matches' in result:
+                        scraper.update_matches(result['matches'], all_teams)
+                    
                     matches_count = len(result.get('matches', []))
                     total_results['total_matches'] += matches_count
                     total_results['leagues_success'] += 1
-                    logger.info(f'{league.name}: {matches_count} resultados de partidos encontrados')
+                    logger.info(f'{league.name}: {matches_count} resultados guardados')
                 
                 total_results['leagues_processed'] += 1
                 
