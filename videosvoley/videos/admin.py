@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.db.models import Count
 from django_celery_beat.models import PeriodicTask, IntervalSchedule, CrontabSchedule
+from django_celery_beat.admin import PeriodicTaskForm
 from .models import Video, Category, League, Team, Match, ScrapingEndpoint, Standing, Club, Image
 from .forms import MatchAdminForm
 
@@ -505,6 +506,8 @@ class CustomPeriodicTaskAdmin(admin.ModelAdmin):
     
     Permite configurar tareas de scraping automático y otras tareas periódicas.
     """
+    form = PeriodicTaskForm  # Usar el formulario de django-celery-beat para detectar tareas
+    
     list_display = (
         'name', 
         'task', 
@@ -520,7 +523,9 @@ class CustomPeriodicTaskAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('name', 'task', 'enabled', 'description')
+            'fields': ('name', 'task', 'enabled', 'description'),
+            'description': 'En "Task (registered)" puedes elegir de las tareas disponibles '
+                          'o escribir el nombre completo de una tarea personalizada.'
         }),
         ('Programación', {
             'fields': ('interval', 'crontab', 'solar', 'clocked'),
@@ -530,10 +535,14 @@ class CustomPeriodicTaskAdmin(admin.ModelAdmin):
         ('Argumentos', {
             'fields': ('args', 'kwargs'),
             'classes': ('collapse',),
-            'description': 'Argumentos para la tarea en formato JSON. '
-                          'Ejemplos:<br>'
-                          'args: [] o ["valor1", "valor2"]<br>'
-                          'kwargs: {} o {"round_number": 1, "category_filter": "senior"}'
+            'description': '<strong>Argumentos para las tareas de scraping:</strong><br><br>'
+                          '<strong>scrape_all_leagues:</strong><br>'
+                          '{"delay": 2.0, "category_filter": "senior", "round_number": 1}<br><br>'
+                          '<strong>scrape_league:</strong><br>'
+                          '{"league_id": "12345", "round_number": 1}<br><br>'
+                          '<strong>scrape_clubs:</strong><br>'
+                          '{"match_teams": true, "delay": 1.0}<br><br>'
+                          '<em>Nota: Los argumentos deben estar en formato JSON válido.</em>'
         }),
         ('Configuración Avanzada', {
             'fields': ('queue', 'exchange', 'routing_key', 'priority', 'expires', 'expire_seconds'),
