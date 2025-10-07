@@ -51,8 +51,12 @@ class UserProfileForm(forms.ModelForm):
     
     class Meta:
         model = User
-        fields = ['username', 'email', 'first_name', 'last_name', 'parent_info', 'preferred_categories']
+        fields = ['avatar', 'username', 'email', 'first_name', 'last_name', 'parent_info', 'preferred_categories']
         widgets = {
+            'avatar': forms.FileInput(attrs={
+                'class': 'hidden',
+                'accept': 'image/*'
+            }),
             'parent_info': forms.Textarea(attrs={
                 'rows': 3,
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
@@ -75,6 +79,7 @@ class UserProfileForm(forms.ModelForm):
             }),
         }
         labels = {
+            'avatar': 'Foto de Perfil',
             'username': 'Nombre de Usuario',
             'email': 'Correo Electrónico',
             'first_name': 'Nombre',
@@ -83,6 +88,7 @@ class UserProfileForm(forms.ModelForm):
             'preferred_categories': 'Categorías de Interés'
         }
         help_texts = {
+            'avatar': 'Sube una imagen para tu perfil (opcional)',
             'parent_info': 'Indica de qué niño/a eres padre/familiar',
             'preferred_categories': 'Selecciona las categorías de contenido que te interesan'
         }
