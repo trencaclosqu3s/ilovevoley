@@ -5,6 +5,7 @@ from allauth.socialaccount.signals import social_account_added
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from videosvoley.core.email_utils import send_notification_email
+from videosvoley.core.moderation_views import generate_moderation_token
 
 User = get_user_model()
 
@@ -21,10 +22,16 @@ def user_signed_up_handler(request, user, **kwargs):
     
     # Enviar email de notificación a admins
     if settings.EMAIL_NOTIFICATIONS.get('new_user_pending', True):
+        # Generar tokens de moderación
+        approve_token = generate_moderation_token('user', user.id, 'approve')
+        reject_token = generate_moderation_token('user', user.id, 'reject')
+        
         context = {
             'user': user,
             'site_name': 'VideosVoley',
             'admin_url': f'{request.build_absolute_uri("/admin/users/user/")}{user.id}/change/',
+            'approve_url': request.build_absolute_uri(f'/moderate/user/{approve_token}/'),
+            'reject_url': request.build_absolute_uri(f'/moderate/user/{reject_token}/'),
         }
         send_notification_email(
             subject=f'Nuevo usuario pendiente de aprobación: {user.username}',
@@ -46,11 +53,17 @@ def social_account_added_handler(request, sociallogin, **kwargs):
         
         # Enviar email de notificación a admins (mismo que registro normal)
         if settings.EMAIL_NOTIFICATIONS.get('new_user_pending', True):
+            # Generar tokens de moderación
+            approve_token = generate_moderation_token('user', user.id, 'approve')
+            reject_token = generate_moderation_token('user', user.id, 'reject')
+            
             context = {
                 'user': user,
                 'site_name': 'VideosVoley',
                 'admin_url': f'{request.build_absolute_uri("/admin/users/user/")}{user.id}/change/',
                 'is_oauth': True,
+                'approve_url': request.build_absolute_uri(f'/moderate/user/{approve_token}/'),
+                'reject_url': request.build_absolute_uri(f'/moderate/user/{reject_token}/'),
             }
             send_notification_email(
                 subject=f'Nuevo usuario OAuth pendiente de aprobación: {user.username}',

@@ -91,17 +91,33 @@
     {% endif %}
 
     <h3>Acciones requeridas:</h3>
-    <p>Para moderar esta imagen, puede:</p>
-    <ol>
-        <li>Acceder al panel de administración</li>
-        <li>Revisar la imagen y su contenido</li>
-        <li>Aprobar o rechazar la imagen según las normas de la comunidad</li>
-        <li>Añadir notas de moderación si es necesario</li>
-    </ol>
+    <p><strong>¡Puedes aprobar o rechazar esta imagen directamente desde aquí!</strong></p>
+    <p style="color: #7f8c8d; font-size: 14px;">La imagen está adjunta a este email para que puedas revisarla fácilmente. Haz clic en uno de los botones de abajo para tomar una decisión rápida.</p>
 
-    <div style="text-align: center; margin: 25px 0;">
-        <a href="{{ admin_url }}" class="button">
-            🔧 Moderar en Admin Panel
+    <div style="text-align: center; margin: 30px 0;">
+        <table cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+            <tr>
+                <td style="padding: 0 10px;">
+                    <a href="{{ approve_url }}" class="button" style="background-color: #27ae60; text-decoration: none; color: white; padding: 12px 30px; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+                        ✓ Aprobar Imagen
+                    </a>
+                </td>
+                <td style="padding: 0 10px;">
+                    <a href="{{ reject_url }}" class="button" style="background-color: #e74c3c; text-decoration: none; color: white; padding: 12px 30px; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+                        ✗ Rechazar Imagen
+                    </a>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <p style="text-align: center; color: #95a5a6; font-size: 13px; margin: 20px 0;">
+        <em>O si necesitas añadir notas de moderación, accede al panel de administración:</em>
+    </p>
+
+    <div style="text-align: center; margin: 15px 0;">
+        <a href="{{ admin_url }}" style="background-color: #95a5a6; text-decoration: none; color: white; padding: 10px 25px; border-radius: 5px; display: inline-block; font-size: 14px;">
+            🔧 Ver en Admin Panel
         </a>
     </div>
 

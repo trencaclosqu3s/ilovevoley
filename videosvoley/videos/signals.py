@@ -3,6 +3,8 @@ from django.dispatch import receiver
 from django.conf import settings
 from .models import Image
 from videosvoley.core.email_utils import send_notification_email
+from videosvoley.core.moderation_views import generate_moderation_token
+import os
 
 
 @receiver(post_save, sender=Image)
@@ -15,17 +17,34 @@ def image_uploaded_handler(sender, instance, created, **kwargs):
         
         # Enviar email de notificación a admins
         if settings.EMAIL_NOTIFICATIONS.get('image_pending', True):
+            # Generar tokens de moderación
+            approve_token = generate_moderation_token('image', instance.id, 'approve')
+            reject_token = generate_moderation_token('image', instance.id, 'reject')
+            
+            # Preparar ruta absoluta de la imagen para adjuntar
+            attachments = []
+            if instance.image:
+                try:
+                    image_path = instance.image.path
+                    if os.path.exists(image_path):
+                        attachments.append(image_path)
+                except Exception as e:
+                    print(f"No se pudo adjuntar la imagen: {str(e)}")
+            
             context = {
                 'image': instance,
                 'user': instance.uploaded_by,
                 'site_name': 'VideosVoley',
                 'admin_url': f'/admin/videos/image/{instance.id}/change/',
                 'image_url': instance.image.url if instance.image else None,
+                'approve_url': f'/moderate/image/{approve_token}/',
+                'reject_url': f'/moderate/image/{reject_token}/',
             }
             send_notification_email(
                 subject=f'Nueva imagen pendiente de moderación: {instance.title}',
                 template_name='emails/image_pending.html',
-                context=context
+                context=context,
+                attachments=attachments if attachments else None
             )
 
 
