@@ -229,6 +229,291 @@ def scrape_league_task(self, league_id, round_number=None):
         }
 
 
+@shared_task(name='scrape_calendar', bind=True)
+def scrape_calendar_task(self, league_id=None, delay=2.0):
+    """
+    Ejecuta scraping del calendario de partidos.
+    
+    Si se proporciona league_id, scrapea solo esa liga.
+    Si no se proporciona, scrapea el calendario de todas las ligas activas.
+    
+    Args:
+        league_id: ID de la federación de la liga (opcional)
+        delay: Tiempo de espera entre ligas en segundos (default: 2.0)
+    
+    Returns:
+        dict: Estadísticas del scraping realizado
+    """
+    logger.info("Iniciando scraping de calendario de partidos")
+    
+    try:
+        if league_id:
+            # Scraping de una liga específica
+            try:
+                league = League.objects.get(federation_id=league_id, is_active=True)
+            except League.DoesNotExist:
+                error_msg = f'Liga con ID {league_id} no encontrada o inactiva'
+                logger.error(error_msg)
+                return {'status': 'error', 'message': error_msg}
+            
+            leagues = [league]
+        else:
+            # Scraping de todas las ligas activas
+            leagues = League.objects.filter(is_active=True).select_related('category')
+            
+            if not leagues.exists():
+                error_msg = 'No se encontraron ligas activas'
+                logger.warning(error_msg)
+                return {'status': 'error', 'message': error_msg}
+        
+        total_results = {
+            'status': 'success',
+            'leagues_processed': 0,
+            'leagues_success': 0,
+            'leagues_errors': 0,
+            'total_matches': 0,
+            'errors': []
+        }
+        
+        for i, league in enumerate(leagues):
+            category_name = league.category.name if league.category else 'Sin categoría'
+            logger.info(f'[{i+1}/{len(leagues)}] Procesando calendario de {league.name} ({category_name})')
+            
+            try:
+                scraper = FederationScraper(league)
+                
+                # Buscar endpoint de calendario
+                calendar_endpoint = league.scraping_endpoints.filter(
+                    endpoint_type='calendar',
+                    is_active=True
+                ).first()
+                
+                if not calendar_endpoint:
+                    logger.warning(f'No se encontró endpoint de calendario activo para {league.name}')
+                    total_results['leagues_processed'] += 1
+                    total_results['leagues_errors'] += 1
+                    total_results['errors'].append({
+                        'league': league.name,
+                        'error': 'No se encontró endpoint de calendario activo'
+                    })
+                    continue
+                
+                # Ejecutar scraping del calendario
+                result = scraper.scrape_endpoint(calendar_endpoint)
+                
+                if 'error' in result:
+                    logger.error(f'{league.name} - Error: {result["error"]}')
+                    total_results['leagues_errors'] += 1
+                    total_results['errors'].append({
+                        'league': league.name,
+                        'error': result['error']
+                    })
+                else:
+                    matches_count = len(result.get('matches', []))
+                    total_results['total_matches'] += matches_count
+                    total_results['leagues_success'] += 1
+                    logger.info(f'{league.name}: {matches_count} partidos encontrados en el calendario')
+                
+                total_results['leagues_processed'] += 1
+                
+                # Rate limiting entre ligas
+                if i < len(leagues) - 1:
+                    time.sleep(delay)
+            
+            except Exception as e:
+                total_results['leagues_errors'] += 1
+                total_results['leagues_processed'] += 1
+                error_msg = f'Error crítico en {league.name}: {str(e)}'
+                logger.error(error_msg, exc_info=True)
+                total_results['errors'].append({
+                    'league': league.name,
+                    'error': str(e)
+                })
+        
+        # Log resumen final
+        logger.info(
+            f"Scraping de calendario completado - Procesadas: {total_results['leagues_processed']}, "
+            f"Exitosas: {total_results['leagues_success']}, "
+            f"Con errores: {total_results['leagues_errors']}"
+        )
+        
+        # Enviar email a admins si hay errores y las notificaciones están habilitadas
+        if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
+            subject = f"[VideosVoley] Errores en scraping automático de calendario"
+            message = f"""
+            Se han detectado errores durante el scraping automático del calendario:
+            
+            - Ligas procesadas: {total_results['leagues_processed']}
+            - Ligas exitosas: {total_results['leagues_success']}
+            - Ligas con errores: {total_results['leagues_errors']}
+            
+            Partidos encontrados: {total_results['total_matches']}
+            
+            Errores detectados:
+            {chr(10).join([f"- {e['league']}: {e['error']}" for e in total_results['errors'][:10]])}
+            """
+            
+            try:
+                mail_admins(subject, message, fail_silently=True)
+            except Exception as e:
+                logger.error(f"Error enviando email de notificación: {e}")
+        
+        return total_results
+    
+    except Exception as e:
+        error_msg = f'Error general durante scraping de calendario: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return {
+            'status': 'error',
+            'message': error_msg
+        }
+
+
+@shared_task(name='scrape_results', bind=True)
+def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
+    """
+    Ejecuta scraping de resultados de partidos.
+    
+    Si se proporciona league_id, scrapea solo esa liga.
+    Si no se proporciona, scrapea los resultados de todas las ligas activas.
+    
+    Args:
+        league_id: ID de la federación de la liga (opcional)
+        round_number: Jornada específica a scrapear (opcional)
+        delay: Tiempo de espera entre ligas en segundos (default: 2.0)
+    
+    Returns:
+        dict: Estadísticas del scraping realizado
+    """
+    logger.info("Iniciando scraping de resultados de partidos")
+    
+    try:
+        if league_id:
+            # Scraping de una liga específica
+            try:
+                league = League.objects.get(federation_id=league_id, is_active=True)
+            except League.DoesNotExist:
+                error_msg = f'Liga con ID {league_id} no encontrada o inactiva'
+                logger.error(error_msg)
+                return {'status': 'error', 'message': error_msg}
+            
+            leagues = [league]
+        else:
+            # Scraping de todas las ligas activas
+            leagues = League.objects.filter(is_active=True).select_related('category')
+            
+            if not leagues.exists():
+                error_msg = 'No se encontraron ligas activas'
+                logger.warning(error_msg)
+                return {'status': 'error', 'message': error_msg}
+        
+        total_results = {
+            'status': 'success',
+            'leagues_processed': 0,
+            'leagues_success': 0,
+            'leagues_errors': 0,
+            'total_matches': 0,
+            'errors': []
+        }
+        
+        for i, league in enumerate(leagues):
+            category_name = league.category.name if league.category else 'Sin categoría'
+            logger.info(f'[{i+1}/{len(leagues)}] Procesando resultados de {league.name} ({category_name})')
+            
+            try:
+                scraper = FederationScraper(league)
+                
+                # Buscar endpoint de resultados
+                results_endpoint = league.scraping_endpoints.filter(
+                    endpoint_type='results',
+                    is_active=True
+                ).first()
+                
+                if not results_endpoint:
+                    logger.warning(f'No se encontró endpoint de resultados activo para {league.name}')
+                    total_results['leagues_processed'] += 1
+                    total_results['leagues_errors'] += 1
+                    total_results['errors'].append({
+                        'league': league.name,
+                        'error': 'No se encontró endpoint de resultados activo'
+                    })
+                    continue
+                
+                # Ejecutar scraping de resultados
+                kwargs = {}
+                if round_number:
+                    kwargs['round'] = round_number
+                
+                result = scraper.scrape_endpoint(results_endpoint, **kwargs)
+                
+                if 'error' in result:
+                    logger.error(f'{league.name} - Error: {result["error"]}')
+                    total_results['leagues_errors'] += 1
+                    total_results['errors'].append({
+                        'league': league.name,
+                        'error': result['error']
+                    })
+                else:
+                    matches_count = len(result.get('matches', []))
+                    total_results['total_matches'] += matches_count
+                    total_results['leagues_success'] += 1
+                    logger.info(f'{league.name}: {matches_count} resultados de partidos encontrados')
+                
+                total_results['leagues_processed'] += 1
+                
+                # Rate limiting entre ligas
+                if i < len(leagues) - 1:
+                    time.sleep(delay)
+            
+            except Exception as e:
+                total_results['leagues_errors'] += 1
+                total_results['leagues_processed'] += 1
+                error_msg = f'Error crítico en {league.name}: {str(e)}'
+                logger.error(error_msg, exc_info=True)
+                total_results['errors'].append({
+                    'league': league.name,
+                    'error': str(e)
+                })
+        
+        # Log resumen final
+        logger.info(
+            f"Scraping de resultados completado - Procesadas: {total_results['leagues_processed']}, "
+            f"Exitosas: {total_results['leagues_success']}, "
+            f"Con errores: {total_results['leagues_errors']}"
+        )
+        
+        # Enviar email a admins si hay errores y las notificaciones están habilitadas
+        if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
+            subject = f"[VideosVoley] Errores en scraping automático de resultados"
+            message = f"""
+            Se han detectado errores durante el scraping automático de resultados:
+            
+            - Ligas procesadas: {total_results['leagues_processed']}
+            - Ligas exitosas: {total_results['leagues_success']}
+            - Ligas con errores: {total_results['leagues_errors']}
+            
+            Partidos encontrados: {total_results['total_matches']}
+            
+            Errores detectados:
+            {chr(10).join([f"- {e['league']}: {e['error']}" for e in total_results['errors'][:10]])}
+            """
+            
+            try:
+                mail_admins(subject, message, fail_silently=True)
+            except Exception as e:
+                logger.error(f"Error enviando email de notificación: {e}")
+        
+        return total_results
+    
+    except Exception as e:
+        error_msg = f'Error general durante scraping de resultados: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return {
+            'status': 'error',
+            'message': error_msg
+        }
+
+
 @shared_task(name='scrape_clubs', bind=True)
 def scrape_clubs_task(self, match_teams=True, delay=1.0):
     """

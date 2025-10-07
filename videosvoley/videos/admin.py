@@ -526,8 +526,10 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
                 if 'description' not in new_opts:
                     new_opts['description'] = (
                         '<strong>Tareas disponibles:</strong><br>'
-                        '• scrape_all_leagues - Scrapea todas las ligas activas<br>'
+                        '• scrape_all_leagues - Scrapea todas las ligas activas (equipos, partidos, clasificaciones)<br>'
                         '• scrape_league - Scrapea una liga específica<br>'
+                        '• scrape_calendar - Scrapea el calendario de partidos programados<br>'
+                        '• scrape_results - Scrapea los resultados de partidos jugados<br>'
                         '• scrape_clubs - Scrapea clubes y asocia equipos<br><br>'
                         'Selecciona la tarea del desplegable "Task (registered)".'
                     )
@@ -539,6 +541,10 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
                     '<code>{"delay": 2.0, "category_filter": "senior", "round_number": 1}</code><br><br>'
                     '<strong>scrape_league:</strong><br>'
                     '<code>{"league_id": "12345", "round_number": 1}</code><br><br>'
+                    '<strong>scrape_calendar:</strong><br>'
+                    '<code>{"league_id": "12345", "delay": 2.0}</code> (league_id opcional)<br><br>'
+                    '<strong>scrape_results:</strong><br>'
+                    '<code>{"league_id": "12345", "round_number": 5, "delay": 2.0}</code> (todos opcionales)<br><br>'
                     '<strong>scrape_clubs:</strong><br>'
                     '<code>{"match_teams": true, "delay": 1.0}</code><br><br>'
                     '<em>Nota: Los argumentos deben estar en formato JSON válido.</em>'
@@ -557,7 +563,13 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
     
     def run_tasks_now(self, request, queryset):
         """Ejecuta las tareas seleccionadas inmediatamente"""
-        from videosvoley.videos.tasks import scrape_all_leagues_task, scrape_league_task, scrape_clubs_task
+        from videosvoley.videos.tasks import (
+            scrape_all_leagues_task, 
+            scrape_league_task, 
+            scrape_calendar_task,
+            scrape_results_task,
+            scrape_clubs_task
+        )
         
         count = 0
         for task in queryset:
@@ -566,6 +578,8 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
                 task_map = {
                     'scrape_all_leagues': scrape_all_leagues_task,
                     'scrape_league': scrape_league_task,
+                    'scrape_calendar': scrape_calendar_task,
+                    'scrape_results': scrape_results_task,
                     'scrape_clubs': scrape_clubs_task,
                 }
                 
