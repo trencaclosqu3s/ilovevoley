@@ -22,7 +22,7 @@ from django.views.generic import RedirectView
 from django.contrib.auth.decorators import login_required
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path(settings.ADMIN_URL, admin.site.urls),
     path('accounts/', include('allauth.urls')),
     path('videos/', include('videosvoley.videos.urls', namespace='videos')),
     path('', include('videosvoley.users.urls')),

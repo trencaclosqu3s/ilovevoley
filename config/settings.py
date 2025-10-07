@@ -242,3 +242,11 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+
+# Admin URL Configuration
+# En producción (DEBUG=False) usa la URL cifrada del .env
+# En desarrollo (DEBUG=True) siempre usa 'admin/' para facilitar el desarrollo
+if DEBUG:
+    ADMIN_URL = 'admin/'
+else:
+    ADMIN_URL = env_config('DJANGO_ADMIN_URL', default='admin/')

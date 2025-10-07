@@ -129,6 +129,9 @@
                             <a href="{% url 'videos:league_list' %}" class="text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium">Ligas</a>
                         </div>
                         <div class="border-l border-gray-300 h-6"></div>
+                        {% if user.is_staff or user.is_superuser %}
+                            <a href="{% url 'admin:index' %}" class="text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium">⚙️ Administración</a>
+                        {% endif %}
                         <a href="{% url 'profile' %}" class="text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium">
                             <span class="hidden lg:inline">👤 {{ user.username }}</span>
                             <span class="lg:hidden">👤 Perfil</span>
@@ -190,6 +193,14 @@
                             <a href="{% url 'videos:image_upload' %}" class="flex items-center px-4 py-4 text-csj-purple hover:bg-gray-50 font-semibold transition touch-manipulation">
                                 <span class="text-lg mr-3">📸</span>
                                 <span>Subir Imagen</span>
+                            </a>
+                        </div>
+                    {% endif %}
+                    {% if user.is_staff or user.is_superuser %}
+                        <div class="border-t border-gray-100 mt-2 pt-2">
+                            <a href="{% url 'admin:index' %}" class="flex items-center px-4 py-4 text-csj-purple hover:bg-gray-50 font-semibold transition touch-manipulation">
+                                <span class="text-lg mr-3">⚙️</span>
+                                <span>Administración</span>
                             </a>
                         </div>
                     {% endif %}
