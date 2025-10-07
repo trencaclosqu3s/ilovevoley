@@ -50,3 +50,37 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         
         # Para el resto de mensajes, usar el comportamiento por defecto
         super().add_message(request, level, message_template, message_context, extra_tags, message)
+    
+    def is_auto_signup_allowed(self, request, sociallogin):
+        """
+        Permitir auto-signup para usuarios de Google
+        """
+        return True
+    
+    def populate_user(self, request, sociallogin, data):
+        """
+        Poblar datos del usuario desde la cuenta social
+        """
+        user = super().populate_user(request, sociallogin, data)
+        
+        # Extraer información adicional de Google
+        if sociallogin.account.provider == 'google':
+            extra_data = sociallogin.account.extra_data
+            
+            # Intentar obtener el nombre completo o crear un username
+            if not user.username:
+                # Usar el email como base para el username
+                email = data.get('email', '')
+                if email:
+                    username_base = email.split('@')[0]
+                    # Asegurar que el username es único
+                    from django.contrib.auth import get_user_model
+                    User = get_user_model()
+                    username = username_base
+                    counter = 1
+                    while User.objects.filter(username=username).exists():
+                        username = f"{username_base}{counter}"
+                        counter += 1
+                    user.username = username
+        
+        return user

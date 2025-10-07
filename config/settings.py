@@ -75,9 +75,15 @@ ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 ACCOUNT_SESSION_REMEMBER = None
 SOCIALACCOUNT_AUTO_SIGNUP = True
 ACCOUNT_EMAIL_VERIFICATION = 'none'
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 
 # Configurar qué mensajes de allauth mostrar
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
+
+# Configuración para login con Google
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_STORE_TOKENS = True
 
 # Adapters personalizados para suprimir mensajes
 ACCOUNT_ADAPTER = 'videosvoley.users.adapters.CustomAccountAdapter'
