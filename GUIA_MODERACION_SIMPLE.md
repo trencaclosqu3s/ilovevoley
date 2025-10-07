@@ -64,12 +64,13 @@ Cuando alguien suba una foto, te llegará un email con:
    - Tipo de imagen (partido, celebración, etc.)
    - Etiquetas
 
-2. **LA IMAGEN ADJUNTA** 📎:
-   - Puedes verla directamente en el email
-   - También está adjunta como archivo
-   - Puedes revisarla sin internet
+2. **LA IMAGEN VISIBLE EN EL EMAIL** 🖼️:
+   - **La imagen aparece directamente en el cuerpo del email** (grande y clara)
+   - También está adjunta como archivo por si quieres guardarla
+   - Puedes revisarla sin internet una vez descargado el email
+   - Se ve perfectamente en móvil y ordenador
 
-3. **Vista previa en el email** (HTML)
+3. **Botones de Acción**: Aprobar o Rechazar directamente
 
 ### ¿Qué Hacer?
 
@@ -125,9 +126,11 @@ Cuando alguien suba una foto, te llegará un email con:
 - Busca el usuario/imagen
 - Cambia el estado manualmente
 
-**❓ No veo la imagen adjunta**
-- Algunos clientes de correo no muestran adjuntos grandes
-- Solución: Mira la vista previa en el HTML del email
+**❓ No veo la imagen en el email**
+- La imagen debería verse directamente en el cuerpo del email
+- Si no la ves, comprueba si tu cliente de correo bloquea imágenes
+- En Gmail/Outlook: busca un botón que diga "Mostrar imágenes" o "Display images"
+- La imagen también está adjunta, puedes abrirla desde ahí
 - O accede al panel de admin para ver la imagen
 
 ---
@@ -157,7 +160,7 @@ Cuando alguien suba una foto, te llegará un email con:
 ### Primera Vez Que Recibes Un Email De Imagen:
 
 1. 📧 Te llega el email: **"Nueva imagen pendiente de moderación: Partido Infantil vs Aleví"**
-2. 📎 Abres el adjunto para ver la imagen completa
+2. 🖼️ **Ves la imagen directamente en el email** (grande y clara)
 3. 👀 Revisas que sea apropiada
 4. ✅ Si está bien, haces clic en el botón verde **"Aprobar Imagen"**
 5. 🌐 Se abre una página confirmando que fue aprobada

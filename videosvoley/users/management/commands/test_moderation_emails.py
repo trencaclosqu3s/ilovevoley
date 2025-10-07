@@ -126,23 +126,27 @@ class Command(BaseCommand):
         # Simular URLs absolutas
         base_url = 'http://localhost:8000'
         
-        # Preparar adjunto
+        # Preparar imagen embebida y adjunta
+        embedded_images = {}
         attachments = []
         if test_image.image:
             try:
                 image_path = test_image.image.path
                 if os.path.exists(image_path):
+                    # Embeber en el HTML
+                    embedded_images['pending_image'] = image_path
+                    # También adjuntar
                     attachments.append(image_path)
-                    self.stdout.write(self.style.SUCCESS(f'✓ Imagen adjunta: {os.path.basename(image_path)}'))
+                    self.stdout.write(self.style.SUCCESS(f'✓ Imagen embebida y adjunta: {os.path.basename(image_path)}'))
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'⚠ No se pudo adjuntar imagen: {str(e)}'))
+                self.stdout.write(self.style.WARNING(f'⚠ No se pudo procesar imagen: {str(e)}'))
         
         context = {
             'image': test_image,
             'user': test_image.uploaded_by,
             'site_name': 'VideosVoley',
             'admin_url': f'{base_url}/admin/videos/image/{test_image.id}/change/',
-            'image_url': test_image.image.url if test_image.image else None,
+            'image_cid': 'pending_image' if embedded_images else None,
             'approve_url': f'{base_url}/moderate/image/{approve_token}/',
             'reject_url': f'{base_url}/moderate/image/{reject_token}/',
         }
@@ -152,7 +156,8 @@ class Command(BaseCommand):
             template_name='emails/image_pending.html',
             context=context,
             recipient_list=recipient_list,
-            attachments=attachments if attachments else None
+            attachments=attachments if attachments else None,
+            embedded_images=embedded_images if embedded_images else None
         )
         
         if success:

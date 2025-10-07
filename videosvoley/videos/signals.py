@@ -21,22 +21,26 @@ def image_uploaded_handler(sender, instance, created, **kwargs):
             approve_token = generate_moderation_token('image', instance.id, 'approve')
             reject_token = generate_moderation_token('image', instance.id, 'reject')
             
-            # Preparar ruta absoluta de la imagen para adjuntar
+            # Preparar imagen para embeber (CID) y adjuntar
+            embedded_images = {}
             attachments = []
             if instance.image:
                 try:
                     image_path = instance.image.path
                     if os.path.exists(image_path):
+                        # Usar CID para embeber la imagen en el HTML
+                        embedded_images['pending_image'] = image_path
+                        # También adjuntar para que se pueda descargar
                         attachments.append(image_path)
                 except Exception as e:
-                    print(f"No se pudo adjuntar la imagen: {str(e)}")
+                    print(f"No se pudo procesar la imagen: {str(e)}")
             
             context = {
                 'image': instance,
                 'user': instance.uploaded_by,
                 'site_name': 'VideosVoley',
                 'admin_url': f'/admin/videos/image/{instance.id}/change/',
-                'image_url': instance.image.url if instance.image else None,
+                'image_cid': 'pending_image' if embedded_images else None,  # CID para usar en el template
                 'approve_url': f'/moderate/image/{approve_token}/',
                 'reject_url': f'/moderate/image/{reject_token}/',
             }
@@ -44,7 +48,8 @@ def image_uploaded_handler(sender, instance, created, **kwargs):
                 subject=f'Nueva imagen pendiente de moderación: {instance.title}',
                 template_name='emails/image_pending.html',
                 context=context,
-                attachments=attachments if attachments else None
+                attachments=attachments if attachments else None,
+                embedded_images=embedded_images if embedded_images else None
             )
 
 

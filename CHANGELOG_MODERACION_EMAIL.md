@@ -2,6 +2,23 @@
 
 ## Fecha: 7 de Octubre 2025
 
+### 🔄 Actualización: Imagen Embebida en Email (v1.1)
+
+**Mejora**: La imagen ahora se ve **embebida directamente en el cuerpo del email** usando Content-ID (CID), en lugar de solo aparecer como adjunto.
+
+**Cambios técnicos**:
+- Uso de `MIMEImage` con `Content-ID` para embeber imágenes
+- La imagen aparece en el HTML del email con `<img src="cid:pending_image">`
+- La imagen también se adjunta para poder descargarla
+- Compatible con todos los clientes de correo modernos
+
+**Experiencia del usuario**:
+- ✅ La imagen se ve directamente en el email (más grande: max-height 400px)
+- ✅ También está adjunta para descargar si es necesario
+- ✅ Funciona sin conexión una vez descargado el email
+
+---
+
 ### 🎯 Objetivo
 Simplificar el proceso de moderación para usuarios super admin, permitiendo aprobar/rechazar usuarios e imágenes directamente desde el email, sin necesidad de acceder al panel de administración.
 

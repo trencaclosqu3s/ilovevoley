@@ -31,7 +31,7 @@ def get_admin_emails():
     return admin_emails
 
 
-def send_notification_email(subject, template_name, context, recipient_list=None, attachments=None):
+def send_notification_email(subject, template_name, context, recipient_list=None, attachments=None, embedded_images=None):
     """
     Envía email de notificación usando template HTML
     
@@ -42,6 +42,7 @@ def send_notification_email(subject, template_name, context, recipient_list=None
         recipient_list (list, optional): Lista de destinatarios. Si no se proporciona, 
                                          se envía a todos los superusers
         attachments (list, optional): Lista de tuplas (filename, content, mimetype) o rutas de archivos
+        embedded_images (dict, optional): Diccionario de imágenes embebidas {cid: filepath}
     
     Returns:
         bool: True si el email se envió correctamente, False en caso contrario
@@ -61,8 +62,10 @@ def send_notification_email(subject, template_name, context, recipient_list=None
         html_message = render_to_string(template_name, context)
         plain_message = strip_tags(html_message)
         
-        # Si hay adjuntos, usar EmailMultiAlternatives
-        if attachments:
+        # Si hay adjuntos o imágenes embebidas, usar EmailMultiAlternatives
+        if attachments or embedded_images:
+            from email.mime.image import MIMEImage
+            
             email = EmailMultiAlternatives(
                 subject=subject,
                 body=plain_message,
@@ -71,14 +74,26 @@ def send_notification_email(subject, template_name, context, recipient_list=None
             )
             email.attach_alternative(html_message, "text/html")
             
-            # Procesar adjuntos
-            for attachment in attachments:
-                if isinstance(attachment, tuple) and len(attachment) == 3:
-                    # Formato: (filename, content, mimetype)
-                    email.attach(*attachment)
-                elif isinstance(attachment, str) and os.path.exists(attachment):
-                    # Formato: ruta de archivo
-                    email.attach_file(attachment)
+            # Procesar imágenes embebidas (con Content-ID)
+            if embedded_images:
+                for cid, image_path in embedded_images.items():
+                    if os.path.exists(image_path):
+                        with open(image_path, 'rb') as img_file:
+                            img_data = img_file.read()
+                            img = MIMEImage(img_data)
+                            img.add_header('Content-ID', f'<{cid}>')
+                            img.add_header('Content-Disposition', 'inline', filename=os.path.basename(image_path))
+                            email.attach(img)
+            
+            # Procesar adjuntos normales
+            if attachments:
+                for attachment in attachments:
+                    if isinstance(attachment, tuple) and len(attachment) == 3:
+                        # Formato: (filename, content, mimetype)
+                        email.attach(*attachment)
+                    elif isinstance(attachment, str) and os.path.exists(attachment):
+                        # Formato: ruta de archivo
+                        email.attach_file(attachment)
             
             email.send(fail_silently=False)
         else:

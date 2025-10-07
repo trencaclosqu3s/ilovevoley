@@ -121,11 +121,14 @@
         </a>
     </div>
 
-    {% if image_url %}
+    {% if image_cid %}
     <div class="alert">
         <h4 style="margin-top: 0;">🖼️ Vista previa de la imagen</h4>
         <p style="text-align: center;">
-            <img src="{{ image_url }}" alt="{{ image.title }}" style="max-width: 100%; max-height: 300px; border-radius: 5px; border: 1px solid #ddd;">
+            <img src="cid:{{ image_cid }}" alt="{{ image.title }}" style="max-width: 100%; max-height: 400px; border-radius: 5px; border: 1px solid #ddd;">
+        </p>
+        <p style="text-align: center; color: #7f8c8d; font-size: 13px; margin-top: 10px;">
+            <em>La imagen también está adjunta al email para que puedas descargarla si lo necesitas.</em>
         </p>
     </div>
     {% endif %}
