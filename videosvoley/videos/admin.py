@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.db.models import Count
 from django_celery_beat.models import PeriodicTask, IntervalSchedule, CrontabSchedule
-from django_celery_beat.admin import PeriodicTaskForm
+from django_celery_beat.admin import PeriodicTaskAdmin as BasePeriodicTaskAdmin
 from .models import Video, Category, League, Team, Match, ScrapingEndpoint, Standing, Club, Image
 from .forms import MatchAdminForm
 
@@ -500,91 +500,60 @@ except admin.sites.NotRegistered:
     pass
 
 @admin.register(PeriodicTask)
-class CustomPeriodicTaskAdmin(admin.ModelAdmin):
+class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
     """
     Admin personalizado para tareas periódicas de Celery.
+    Hereda del admin original de django-celery-beat para mantener toda la funcionalidad.
     
     Permite configurar tareas de scraping automático y otras tareas periódicas.
     """
-    form = PeriodicTaskForm  # Usar el formulario de django-celery-beat para detectar tareas
     
-    list_display = (
-        'name', 
-        'task', 
-        'enabled', 
-        'interval_display', 
-        'crontab_display',
-        'last_run_at',
-        'total_run_count'
-    )
-    list_filter = ('enabled', 'task', 'last_run_at')
-    search_fields = ('name', 'task', 'description')
-    readonly_fields = ('last_run_at', 'total_run_count', 'date_changed')
+    # Añadir campos personalizados a la lista existente
+    list_display = BasePeriodicTaskAdmin.list_display + ('total_run_count',)
     
-    fieldsets = (
-        ('Información Básica', {
-            'fields': ('name', 'task', 'enabled', 'description'),
-            'description': 'En "Task (registered)" puedes elegir de las tareas disponibles '
-                          'o escribir el nombre completo de una tarea personalizada.'
-        }),
-        ('Programación', {
-            'fields': ('interval', 'crontab', 'solar', 'clocked'),
-            'description': 'Elige UNA forma de programación: Interval (cada X tiempo), '
-                          'Crontab (horarios específicos), Solar, o Clocked (una sola vez).'
-        }),
-        ('Argumentos', {
-            'fields': ('args', 'kwargs'),
-            'classes': ('collapse',),
-            'description': '<strong>Argumentos para las tareas de scraping:</strong><br><br>'
-                          '<strong>scrape_all_leagues:</strong><br>'
-                          '{"delay": 2.0, "category_filter": "senior", "round_number": 1}<br><br>'
-                          '<strong>scrape_league:</strong><br>'
-                          '{"league_id": "12345", "round_number": 1}<br><br>'
-                          '<strong>scrape_clubs:</strong><br>'
-                          '{"match_teams": true, "delay": 1.0}<br><br>'
-                          '<em>Nota: Los argumentos deben estar en formato JSON válido.</em>'
-        }),
-        ('Configuración Avanzada', {
-            'fields': ('queue', 'exchange', 'routing_key', 'priority', 'expires', 'expire_seconds'),
-            'classes': ('collapse',)
-        }),
-        ('Límites', {
-            'fields': ('one_off', 'start_time', 'last_run_at', 'total_run_count'),
-            'classes': ('collapse',)
-        }),
-        ('Metadata', {
-            'fields': ('date_changed',),
-            'classes': ('collapse',)
-        })
-    )
+    # Mantener los fieldsets del original pero agregar descripciones útiles
+    def get_fieldsets(self, request, obj=None):
+        """Personalizar fieldsets con ayuda contextual"""
+        fieldsets = super().get_fieldsets(request, obj)
+        
+        # Modificar fieldsets para agregar descripciones
+        custom_fieldsets = []
+        for name, opts in fieldsets:
+            new_opts = opts.copy()
+            
+            # Agregar descripciones útiles
+            if name is None or name == 'Información Básica' or 'name' in opts.get('fields', []):
+                if 'description' not in new_opts:
+                    new_opts['description'] = (
+                        '<strong>Tareas disponibles:</strong><br>'
+                        '• scrape_all_leagues - Scrapea todas las ligas activas<br>'
+                        '• scrape_league - Scrapea una liga específica<br>'
+                        '• scrape_clubs - Scrapea clubes y asocia equipos<br><br>'
+                        'Selecciona la tarea del desplegable "Task (registered)".'
+                    )
+            
+            if 'args' in opts.get('fields', []) or 'kwargs' in opts.get('fields', []):
+                new_opts['description'] = (
+                    '<strong>Ejemplos de argumentos (kwargs):</strong><br><br>'
+                    '<strong>scrape_all_leagues:</strong><br>'
+                    '<code>{"delay": 2.0, "category_filter": "senior", "round_number": 1}</code><br><br>'
+                    '<strong>scrape_league:</strong><br>'
+                    '<code>{"league_id": "12345", "round_number": 1}</code><br><br>'
+                    '<strong>scrape_clubs:</strong><br>'
+                    '<code>{"match_teams": true, "delay": 1.0}</code><br><br>'
+                    '<em>Nota: Los argumentos deben estar en formato JSON válido.</em>'
+                )
+            
+            custom_fieldsets.append((name, new_opts))
+        
+        return custom_fieldsets
     
-    actions = ['enable_tasks', 'disable_tasks', 'run_tasks_now']
-    
-    def interval_display(self, obj):
-        """Muestra el intervalo de forma legible"""
-        if obj.interval:
-            return str(obj.interval)
-        return '-'
-    interval_display.short_description = 'Intervalo'
-    
-    def crontab_display(self, obj):
-        """Muestra el crontab de forma legible"""
-        if obj.crontab:
-            return str(obj.crontab)
-        return '-'
-    crontab_display.short_description = 'Crontab'
-    
-    def enable_tasks(self, request, queryset):
-        """Habilita las tareas seleccionadas"""
-        updated = queryset.update(enabled=True)
-        self.message_user(request, f'{updated} tarea(s) habilitada(s) correctamente.')
-    enable_tasks.short_description = "Habilitar tareas seleccionadas"
-    
-    def disable_tasks(self, request, queryset):
-        """Deshabilita las tareas seleccionadas"""
-        updated = queryset.update(enabled=False)
-        self.message_user(request, f'{updated} tarea(s) deshabilitada(s) correctamente.')
-    disable_tasks.short_description = "Deshabilitar tareas seleccionadas"
+    # Mantener las acciones del original y agregar las nuestras
+    def get_actions(self, request):
+        """Agregar acciones personalizadas a las existentes"""
+        actions = super().get_actions(request)
+        actions['run_tasks_now'] = (self.run_tasks_now, 'run_tasks_now', "Ejecutar tareas ahora")
+        return actions
     
     def run_tasks_now(self, request, queryset):
         """Ejecuta las tareas seleccionadas inmediatamente"""
