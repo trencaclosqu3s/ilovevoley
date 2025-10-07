@@ -30,4 +30,7 @@ urlpatterns = [
     # URLs AJAX
     path('ajax/matches-by-category/', views.ajax_matches_by_category, name='ajax_matches_by_category'),
     path('ajax/teams-by-league-category/', views.ajax_teams_by_league_category, name='ajax_teams_by_league_category'),
+    
+    # Página institucional
+    path('quienes-somos/', views.about, name='about'),
 ]

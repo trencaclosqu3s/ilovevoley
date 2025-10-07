@@ -37,19 +37,35 @@ class Video(models.Model):
         return self.title
 
     def get_embed_url(self):
-        """Convierte URL de YouTube normal en URL de embed"""
+        """Convierte URL de YouTube normal en URL de embed con privacidad mejorada"""
         patterns = [
             r'(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)',
             r'youtube\.com\/embed\/([^&\n?#]+)',
+            r'youtube\.com\/live\/([^&\n?#]+)',  # Patrón para livestreams
         ]
 
         for pattern in patterns:
             match = re.search(pattern, self.youtube_url)
             if match:
                 video_id = match.group(1)
-                return f'https://www.youtube-nocookie.com/embed/{video_id}?rel=0&modestbranding=1&fs=1'
+                # Parámetros para máxima privacidad:
+                # - rel=0: no mostrar vídeos relacionados
+                # - modestbranding=1: minimizar branding de YouTube
+                # - fs=1: permitir pantalla completa
+                # - enablejsapi=0: deshabilitar API de JavaScript
+                return f'https://www.youtube-nocookie.com/embed/{video_id}?rel=0&modestbranding=1&fs=1&enablejsapi=0'
 
         return self.youtube_url
+    
+    def is_livestream(self):
+        """Detecta si es un livestream de YouTube"""
+        return 'youtube.com/live/' in self.youtube_url or '/live/' in self.youtube_url
+    
+    def get_video_type(self):
+        """Devuelve el tipo de vídeo para mostrar mensajes apropiados"""
+        if self.is_livestream():
+            return 'livestream'
+        return 'video'
 
 
 class Comment(models.Model):

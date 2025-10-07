@@ -834,3 +834,8 @@ def match_images(request, match_id):
     }
     
     return render(request, 'videos/match_images.html', context)
+
+
+def about(request):
+    """Vista de la página Quiénes somos"""
+    return render(request, 'videos/about.html')
