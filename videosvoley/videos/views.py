@@ -109,7 +109,7 @@ def video_create(request):
             video.created_by = request.user
             video.save()
             messages.success(request, 'Vídeo añadido correctamente')
-            return redirect('video_list')
+            return redirect('videos:video_list')
     else:
         form = VideoForm()
 
