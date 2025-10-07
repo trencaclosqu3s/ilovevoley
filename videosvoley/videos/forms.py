@@ -179,7 +179,7 @@ class ImageUploadForm(forms.ModelForm):
     
     class Meta:
         model = Image
-        fields = ['image', 'title', 'description', 'image_type', 'tags', 'match']
+        fields = ['image', 'title', 'description', 'image_type', 'categories', 'tags', 'match']
         widgets = {
             'image': forms.FileInput(attrs={
                 'class': 'hidden',
@@ -200,6 +200,9 @@ class ImageUploadForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'id': 'id_image_type'
             }),
+            'categories': forms.CheckboxSelectMultiple(attrs={
+                'class': 'space-y-2'
+            }),
             'tags': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'placeholder': 'Ej: gol, victoria, senior, entrenamiento (separadas por comas)',
@@ -215,6 +218,7 @@ class ImageUploadForm(forms.ModelForm):
             'title': 'Título',
             'description': 'Descripción',
             'image_type': 'Tipo de imagen',
+            'categories': 'Categorías',
             'tags': 'Etiquetas',
             'match': 'Partido (opcional)',
         }
@@ -224,8 +228,13 @@ class ImageUploadForm(forms.ModelForm):
         
         # Hacer campos opcionales
         self.fields['description'].required = False
+        self.fields['categories'].required = False
         self.fields['tags'].required = False
         self.fields['match'].required = False
+        
+        # Configurar queryset de categorías activas
+        self.fields['categories'].queryset = Category.objects.filter(is_active=True).order_by('name')
+        self.fields['categories'].help_text = 'Selecciona una o más categorías (opcional si se vincula un partido)'
         
         # Filtrar partidos del club
         self._setup_match_queryset()

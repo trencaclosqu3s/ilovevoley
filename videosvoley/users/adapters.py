@@ -84,3 +84,18 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
                     user.username = username
         
         return user
+    
+    def save_user(self, request, sociallogin, form=None):
+        """
+        Guardar el usuario con información adicional del formulario de signup
+        """
+        user = super().save_user(request, sociallogin, form)
+        
+        # Si hay un formulario con parent_info, guardarlo
+        if form and hasattr(form, 'cleaned_data'):
+            parent_info = form.cleaned_data.get('parent_info', '')
+            if parent_info:
+                user.parent_info = parent_info
+                user.save()
+        
+        return user

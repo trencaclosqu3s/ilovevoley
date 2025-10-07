@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Editar Perfil - Vídeos Voley{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-3xl">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Editar Perfil</h1>
+                <p class="text-gray-600">Actualiza tu información personal y preferencias</p>
+            </div>
+            <a href="{% url 'profile' %}" class="text-csj-purple hover:text-csj-purple-dark font-semibold">
+                ← Volver al Perfil
+            </a>
+        </div>
+    </div>
+
+    <!-- Formulario -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="p-4 bg-red-100 text-red-800 rounded-lg">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <!-- Usuario -->
+            <div>
+                <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.username.label }}
+                </label>
+                {{ form.username }}
+                {% if form.username.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Email (readonly) -->
+            <div>
+                <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.email.label }}
+                </label>
+                {{ form.email }}
+                {% if form.email.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-xs text-gray-500">El email no se puede modificar una vez creada la cuenta</p>
+            </div>
+
+            <!-- Nombre -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.first_name.label }}
+                    </label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.first_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Apellidos -->
+                <div>
+                    <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.last_name.label }}
+                    </label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.last_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Información Familiar -->
+            <div>
+                <label for="{{ form.parent_info.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.parent_info.label }}
+                </label>
+                {{ form.parent_info }}
+                {% if form.parent_info.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.parent_info.errors.0 }}</p>
+                {% endif %}
+                {% if form.parent_info.help_text %}
+                    <p class="mt-1 text-xs text-gray-500">{{ form.parent_info.help_text }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Categorías de Interés -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-3">
+                    {{ form.preferred_categories.label }}
+                </label>
+                <div class="space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200 max-h-60 overflow-y-auto">
+                    {% for choice in form.preferred_categories %}
+                        <div class="flex items-center">
+                            {{ choice.tag }}
+                            <label for="{{ choice.id_for_label }}" class="ml-2 block text-sm text-gray-700 cursor-pointer">
+                                {{ choice.choice_label }}
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% if form.preferred_categories.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.preferred_categories.errors.0 }}</p>
+                {% endif %}
+                {% if form.preferred_categories.help_text %}
+                    <p class="mt-1 text-xs text-gray-500">{{ form.preferred_categories.help_text }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Nota informativa -->
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            Las categorías de interés te permiten personalizar el contenido que ves, pero no limitan tu acceso a otras categorías.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                <a href="{% url 'profile' %}" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-semibold transition">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-6 py-3 bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+

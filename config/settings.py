@@ -89,6 +89,9 @@ SOCIALACCOUNT_STORE_TOKENS = True
 ACCOUNT_ADAPTER = 'videosvoley.users.adapters.CustomAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'videosvoley.users.adapters.CustomSocialAccountAdapter'
 
+# Formulario personalizado de registro
+ACCOUNT_SIGNUP_FORM_CLASS = 'videosvoley.users.forms.CustomSignupForm'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

@@ -129,7 +129,10 @@
                             <a href="{% url 'videos:league_list' %}" class="text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium">Ligas</a>
                         </div>
                         <div class="border-l border-gray-300 h-6"></div>
-                        <span class="text-sm text-gray-600 hidden lg:inline">Hola, {{ user.username }}</span>
+                        <a href="{% url 'profile' %}" class="text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium">
+                            <span class="hidden lg:inline">👤 {{ user.username }}</span>
+                            <span class="lg:hidden">👤 Perfil</span>
+                        </a>
                         <a href="{% url 'account_logout' %}" class="text-sm lg:text-base text-csj-purple hover:text-csj-purple-dark font-semibold transition">Salir</a>
                     {% else %}
                         <a href="{% url 'account_login' %}" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-3 lg:px-4 py-2 rounded-lg font-semibold transition text-sm lg:text-base">Entrar</a>
@@ -173,6 +176,10 @@
                     <a href="{% url 'videos:image_gallery' %}" class="flex items-center px-4 py-4 text-gray-700 hover:bg-gray-50 transition touch-manipulation">
                         <span class="text-lg mr-3">📸</span>
                         <span class="font-medium">Galería</span>
+                    </a>
+                    <a href="{% url 'profile' %}" class="flex items-center px-4 py-4 text-gray-700 hover:bg-gray-50 transition touch-manipulation">
+                        <span class="text-lg mr-3">👤</span>
+                        <span class="font-medium">Mi Perfil</span>
                     </a>
                     {% if can_add %}
                         <div class="border-t border-gray-100 mt-2 pt-2">
@@ -463,5 +470,8 @@
             }
         }
     </script>
+    
+    <!-- Scripts adicionales de páginas específicas -->
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
