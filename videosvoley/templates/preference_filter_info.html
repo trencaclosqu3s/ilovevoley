@@ -1,0 +1,36 @@
+{% if has_preferences and not show_all and not selected_category %}
+<div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg mb-4">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center">
+            <svg class="h-5 w-5 text-blue-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p class="text-sm text-blue-700">
+                Mostrando contenido de tus categorías preferidas. 
+            </p>
+        </div>
+        <a href="?show_all=1" class="ml-4 text-sm font-medium text-blue-600 hover:text-blue-800 underline whitespace-nowrap">
+            Ver todo
+        </a>
+    </div>
+</div>
+{% elif show_all and has_preferences %}
+<div class="bg-gray-50 border-l-4 border-gray-400 p-4 rounded-lg mb-4">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center">
+            <svg class="h-5 w-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+            <p class="text-sm text-gray-700">
+                Mostrando todo el contenido disponible.
+            </p>
+        </div>
+        <a href="?" class="ml-4 text-sm font-medium text-csj-purple hover:text-csj-purple-dark underline whitespace-nowrap">
+            Ver mis preferencias
+        </a>
+    </div>
+</div>
+{% endif %}
+
+

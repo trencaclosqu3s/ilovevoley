@@ -3,6 +3,10 @@
 
 {% block title %}Galería de Imágenes{% endblock %}
 
+{% block extra_js %}
+<script src="{% static 'js/auto_filters.js' %}"></script>
+{% endblock %}
+
 {% block content %}
 <div class="bg-white rounded-lg shadow-sm p-6">
     <div class="flex justify-between items-center mb-6">
@@ -15,36 +19,97 @@
         </a>
     </div>
 
-    <!-- Filtros -->
+    <!-- Filtros con aplicación automática -->
     <div class="bg-gray-50 rounded-lg p-4 mb-6">
-        <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
                 {{ filter_form.search.label_tag }}
-                {{ filter_form.search }}
+                <input type="text" 
+                       name="search" 
+                       id="id_search"
+                       value="{{ filter_form.search.value|default:'' }}"
+                       placeholder="Buscar por título, descripción o etiquetas..."
+                       class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
             </div>
             <div>
                 {{ filter_form.category.label_tag }}
-                {{ filter_form.category }}
+                <select name="category" 
+                        id="id_category"
+                        class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    <option value="">Todas las categorías</option>
+                    {% for cat in filter_form.fields.category.queryset %}
+                        <option value="{{ cat.id }}" {% if filter_form.category.value == cat.id|stringformat:"s" %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                    {% endfor %}
+                </select>
             </div>
             <div>
                 {{ filter_form.year.label_tag }}
-                {{ filter_form.year }}
+                <select name="year" 
+                        id="id_year"
+                        class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    <option value="">Todos los años</option>
+                    {% for year_choice in filter_form.fields.year.choices %}
+                        {% if year_choice.0 %}
+                            <option value="{{ year_choice.0 }}" {% if filter_form.year.value == year_choice.0|stringformat:"s" %}selected{% endif %}>
+                                {{ year_choice.1 }}
+                            </option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
             </div>
             {% if user.is_staff %}
             <div>
                 {{ filter_form.status.label_tag }}
-                {{ filter_form.status }}
+                <select name="status" 
+                        id="id_status"
+                        class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    <option value="">Todos los estados</option>
+                    {% for status_choice in filter_form.fields.status.choices %}
+                        {% if status_choice.0 %}
+                            <option value="{{ status_choice.0 }}" {% if filter_form.status.value == status_choice.0 %}selected{% endif %}>
+                                {{ status_choice.1 }}
+                            </option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
             </div>
             {% endif %}
             <div class="flex items-end">
-                <button type="submit" class="bg-csj-purple text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200 mr-2">
-                    <i class="fas fa-search mr-1"></i>Filtrar
-                </button>
-                <a href="{% url 'videos:image_gallery' %}" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors duration-200">
-                    <i class="fas fa-times mr-1"></i>Limpiar
+                <a href="{% url 'videos:image_gallery' %}" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors duration-200 w-full text-center">
+                    <i class="fas fa-times mr-1"></i>Limpiar filtros
                 </a>
             </div>
-        </form>
+        </div>
+        
+        <!-- Banner de preferencias -->
+        {% if has_preferences and not show_all and not filter_form.category.value %}
+            <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center text-sm text-blue-800">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>Mostrando solo tus categorías preferidas</span>
+                </div>
+                <a href="?show_all=1" class="text-sm font-medium text-blue-600 hover:text-blue-800">
+                    Ver todas
+                </a>
+            </div>
+        {% elif show_all %}
+            <div class="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center text-sm text-gray-700">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                    <span>Mostrando todas las categorías</span>
+                </div>
+                <a href="?" class="text-sm font-medium text-gray-600 hover:text-gray-800">
+                    Filtrar por preferencias
+                </a>
+            </div>
+        {% endif %}
     </div>
 
     <!-- Grid de Imágenes -->
@@ -83,9 +148,14 @@
                             </div>
                         {% endif %}
                         
-                        {% if image.category %}
+                        {% if image.categories.exists %}
                             <div class="text-sm text-gray-600 mb-2">
-                                <i class="fas fa-tag mr-1"></i>{{ image.category.name }}
+                                <i class="fas fa-tag mr-1"></i>
+                                {% for category in image.categories.all %}
+                                    <span class="inline-block bg-csj-purple bg-opacity-10 text-csj-purple px-2 py-0.5 rounded text-xs mr-1">
+                                        {{ category.name }}
+                                    </span>
+                                {% endfor %}
                             </div>
                         {% endif %}
                         

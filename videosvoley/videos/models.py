@@ -327,13 +327,11 @@ class Image(models.Model):
         related_name='images',
         help_text='Partido al que pertenece la imagen (opcional)'
     )
-    category = models.ForeignKey(
-        Category, 
-        on_delete=models.SET_NULL, 
-        null=True, 
+    categories = models.ManyToManyField(
+        Category,
         blank=True,
         related_name='images',
-        help_text='Se asigna automáticamente desde el partido'
+        help_text='Categorías asociadas a la imagen. Se asigna automáticamente desde el partido o manualmente'
     )
     year = models.IntegerField(help_text='Año de la temporada')
     
@@ -377,7 +375,6 @@ class Image(models.Model):
         indexes = [
             models.Index(fields=['status']),
             models.Index(fields=['match']),
-            models.Index(fields=['category']),
             models.Index(fields=['year']),
             models.Index(fields=['upload_date']),
             models.Index(fields=['image_type']),
@@ -389,10 +386,11 @@ class Image(models.Model):
         return f'{self.title} ({self.get_image_type_display()})'
 
     def save(self, *args, **kwargs):
-        # Auto-asignar categoría y año desde el partido si está vinculado
+        # Determinar si es una creación nueva
+        is_new = self.pk is None
+        
+        # Auto-asignar año desde el partido si está vinculado
         if self.match:
-            if self.match.league and self.match.league.category:
-                self.category = self.match.league.category
             # Extraer año de la fecha del partido o temporada
             if hasattr(self.match, 'match_date') and self.match.match_date:
                 self.year = self.match.match_date.year
@@ -414,6 +412,16 @@ class Image(models.Model):
                 self.year = timezone.now().year
         
         super().save(*args, **kwargs)
+        
+        # Después de guardar, asignar categorías desde el partido si es nueva y no tiene categorías
+        if is_new and self.match and not self.categories.exists():
+            if self.match.league and self.match.league.category:
+                self.categories.add(self.match.league.category)
+            # También agregar categorías de los equipos si las tienen
+            if self.match.home_team and self.match.home_team.category:
+                self.categories.add(self.match.home_team.category)
+            if self.match.away_team and self.match.away_team.category:
+                self.categories.add(self.match.away_team.category)
 
     @property
     def is_approved(self):
@@ -447,6 +455,15 @@ class Image(models.Model):
     def tags_display(self):
         """Devuelve etiquetas formateadas para mostrar"""
         return ', '.join(self.all_tags)
+    
+    @property
+    def categories_display(self):
+        """Devuelve las categorías formateadas para mostrar"""
+        return ', '.join([cat.name for cat in self.categories.all()])
+    
+    def get_category_list(self):
+        """Devuelve lista de categorías"""
+        return list(self.categories.all())
     
     def add_auto_tags(self, tags_list):
         """Agrega etiquetas automáticas sin duplicar"""

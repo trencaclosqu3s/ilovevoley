@@ -347,20 +347,21 @@ class StandingAdmin(admin.ModelAdmin):
 
 @admin.register(Image)
 class ImageAdmin(admin.ModelAdmin):
-    list_display = ('thumbnail_preview', 'title', 'match', 'category', 'status', 'uploaded_by', 'upload_date', 'moderated_by')
-    list_filter = ('status', 'category', 'year', 'upload_date', 'match__league')
+    list_display = ('thumbnail_preview', 'title', 'match', 'categories_display_admin', 'status', 'uploaded_by', 'upload_date', 'moderated_by')
+    list_filter = ('status', 'categories', 'year', 'upload_date', 'match__league')
     search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name')
     readonly_fields = ('upload_date', 'thumbnail_preview', 'vision_api_details', 'moderation_date')
     date_hierarchy = 'upload_date'
     actions = ['approve_images', 'reject_images', 'check_with_vision_api']
+    filter_horizontal = ('categories',)
     
     fieldsets = (
         ('Imagen', {
-            'fields': ('thumbnail_preview', 'image', 'title', 'description')
+            'fields': ('thumbnail_preview', 'image', 'title', 'description', 'image_type', 'tags')
         }),
         ('Asociación', {
-            'fields': ('match', 'category', 'year'),
-            'description': 'Categoría y año se asignan automáticamente desde el partido'
+            'fields': ('match', 'categories', 'year'),
+            'description': 'Categorías y año se asignan automáticamente desde el partido, pero puedes modificarlas'
         }),
         ('Moderación', {
             'fields': ('status', 'moderated_by', 'moderation_date', 'moderation_notes')
@@ -386,12 +387,20 @@ class ImageAdmin(admin.ModelAdmin):
         return '-'
     thumbnail_preview.short_description = 'Preview'
     
+    def categories_display_admin(self, obj):
+        """Muestra las categorías de forma legible"""
+        cats = obj.categories.all()
+        if cats:
+            return ', '.join([cat.name for cat in cats])
+        return '-'
+    categories_display_admin.short_description = 'Categorías'
+    
     def get_queryset(self, request):
-        """Optimizar consultas con select_related"""
+        """Optimizar consultas con select_related y prefetch_related"""
         return super().get_queryset(request).select_related(
             'match__home_team', 'match__away_team', 'match__league',
-            'category', 'uploaded_by', 'moderated_by'
-        )
+            'uploaded_by', 'moderated_by'
+        ).prefetch_related('categories')
     
     def approve_images(self, request, queryset):
         """Acción masiva para aprobar imágenes"""

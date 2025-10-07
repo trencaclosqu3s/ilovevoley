@@ -32,6 +32,12 @@ def video_list(request):
     league_filter = request.GET.get('league')
     team_filter = request.GET.get('team')
     search_query = request.GET.get('search', '').strip()
+    show_all = request.GET.get('show_all', '0') == '1'
+    
+    # Filtrar por categorías preferidas del usuario si no se especifica otra cosa
+    if not category_filter and not show_all and request.user.preferred_categories.exists():
+        user_categories = request.user.preferred_categories.all()
+        videos = videos.filter(category__in=user_categories)
     
     # Aplicar filtro de categoría
     if category_filter:
@@ -86,7 +92,9 @@ def video_list(request):
         'selected_league': league_filter,
         'selected_team': team_filter,
         'search_query': search_query,
-        'can_add': can_add
+        'can_add': can_add,
+        'show_all': show_all,
+        'has_preferences': request.user.preferred_categories.exists(),
     })
 
 
@@ -141,9 +149,26 @@ def video_detail(request, video_id):
 def league_list(request):
     """Vista para mostrar todas las ligas disponibles"""
     leagues = League.objects.filter(is_active=True).prefetch_related('matches__videos')
+    categories = Category.objects.filter(is_active=True).order_by('name')
+    
+    # Variable para controlar si mostrar todo el contenido
+    show_all = request.GET.get('show_all', '0') == '1'
+    category_filter = request.GET.get('category')
+    
+    # Aplicar filtro de categoría específica
+    if category_filter:
+        leagues = leagues.filter(category_id=category_filter)
+    # Filtrar por categorías preferidas del usuario si no se especifica otra cosa
+    elif not show_all and request.user.preferred_categories.exists():
+        user_categories = request.user.preferred_categories.all()
+        leagues = leagues.filter(category__in=user_categories)
     
     return render(request, 'videos/league_list.html', {
-        'leagues': leagues
+        'leagues': leagues,
+        'categories': categories,
+        'selected_category': category_filter,
+        'show_all': show_all,
+        'has_preferences': request.user.preferred_categories.exists(),
     })
 
 
@@ -210,6 +235,7 @@ def calendar_view(request):
     
     # Obtener filtros
     show_all_teams = request.GET.get('all_teams', '0') == '1'
+    show_all = request.GET.get('show_all', '0') == '1'
     league_filter = request.GET.get('league')
     category_filter = request.GET.get('category')
     
@@ -232,6 +258,10 @@ def calendar_view(request):
     # Aplicar filtro de categoría
     if category_filter:
         matches = matches.filter(league__category_id=category_filter)
+    # Si no hay filtro de categoría, aplicar preferencias del usuario
+    elif not show_all and request.user.preferred_categories.exists():
+        user_categories = request.user.preferred_categories.all()
+        matches = matches.filter(league__category__in=user_categories)
     
     # Obtener datos para filtros
     leagues = League.objects.filter(is_active=True).order_by('name')
@@ -309,6 +339,7 @@ def calendar_view(request):
         'selected_league': league_filter,
         'selected_category': category_filter,
         'show_all_teams': show_all_teams,
+        'show_all': show_all,
         'club_team_name': CLUB_TEAM_NAME,
         'current_month': start_date,
         'prev_month': prev_month,
@@ -318,6 +349,7 @@ def calendar_view(request):
         'calendar_weeks': calendar_weeks,
         'view_mode': view_mode,
         'month_name': month_names_es[month],
+        'has_preferences': request.user.preferred_categories.exists(),
     })
 
 
@@ -328,6 +360,7 @@ def standings_view(request):
     # Obtener filtros
     league_filter = request.GET.get('league')
     category_filter = request.GET.get('category')
+    show_all = request.GET.get('show_all', '0') == '1'
     
     # Configuración del club
     CLUB_TEAM_NAME = 'SANT JOSEP'
@@ -344,6 +377,10 @@ def standings_view(request):
     # Aplicar filtro de categoría
     if category_filter:
         standings = standings.filter(league__category_id=category_filter)
+    # Si no hay filtro de categoría, aplicar preferencias del usuario
+    elif not show_all and request.user.preferred_categories.exists():
+        user_categories = request.user.preferred_categories.all()
+        standings = standings.filter(league__category__in=user_categories)
     
     # Agrupar por liga
     standings_by_league = {}
@@ -367,6 +404,8 @@ def standings_view(request):
         'selected_league': league_filter,
         'selected_category': category_filter,
         'club_team_name': CLUB_TEAM_NAME,
+        'show_all': show_all,
+        'has_preferences': request.user.preferred_categories.exists(),
     })
 
 
@@ -465,8 +504,11 @@ def image_gallery(request):
     """Vista de galería de imágenes con filtros"""
     images = Image.objects.select_related(
         'match__home_team', 'match__away_team', 'match__league', 
-        'category', 'uploaded_by'
-    ).filter(status='approved').order_by('-upload_date')
+        'uploaded_by'
+    ).prefetch_related('categories').filter(status='approved').order_by('-upload_date')
+    
+    # Variable para controlar si mostrar todo el contenido
+    show_all = request.GET.get('show_all', '0') == '1'
     
     # Aplicar filtros
     filter_form = ImageFilterForm(request.GET)
@@ -510,13 +552,22 @@ def image_gallery(request):
             images = images.filter(match__isnull=True)
         
         if category:
-            images = images.filter(category=category)
+            images = images.filter(categories=category)
+        elif not show_all and request.user.preferred_categories.exists():
+            # Filtrar por preferencias solo si no hay filtro de categoría específico
+            user_categories = request.user.preferred_categories.all()
+            images = images.filter(categories__in=user_categories)
             
         if year:
             images = images.filter(year=year)
             
         if status_filter:
             images = images.filter(status=status_filter)
+    else:
+        # Si no hay filtros válidos, aplicar preferencias por defecto
+        if not show_all and request.user.preferred_categories.exists():
+            user_categories = request.user.preferred_categories.all()
+            images = images.filter(categories__in=user_categories)
     
     # Paginación
     paginator = Paginator(images, 12)
@@ -561,6 +612,8 @@ def image_gallery(request):
         'images_without_match': images_without_match,
         'popular_tags': popular_tags,
         'current_filters': request.GET.dict(),
+        'show_all': show_all,
+        'has_preferences': request.user.preferred_categories.exists(),
     }
     
     return render(request, 'videos/image_gallery.html', context)
@@ -651,8 +704,8 @@ def image_detail(request, image_id):
     image = get_object_or_404(
         Image.objects.select_related(
             'match__home_team', 'match__away_team', 'match__league',
-            'category', 'uploaded_by', 'moderated_by'
-        ),
+            'uploaded_by', 'moderated_by'
+        ).prefetch_related('categories'),
         id=image_id
     )
     
@@ -681,8 +734,8 @@ def image_moderation(request):
     """Vista de moderación para admins"""
     images = Image.objects.select_related(
         'match__home_team', 'match__away_team', 'match__league',
-        'category', 'uploaded_by'
-    ).filter(status='pending').order_by('upload_date')
+        'uploaded_by'
+    ).prefetch_related('categories').filter(status='pending').order_by('upload_date')
     
     # Paginación
     paginator = Paginator(images, 20)

@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Editar Perfil - Vídeos Voley{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-3xl">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Editar Perfil</h1>
+                <p class="text-gray-600">Actualiza tu información personal y preferencias</p>
+            </div>
+            <a href="{% url 'profile' %}" class="text-csj-purple hover:text-csj-purple-dark font-semibold">
+                ← Volver al Perfil
+            </a>
+        </div>
+    </div>
+
+    <!-- Formulario -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="p-4 bg-red-100 text-red-800 rounded-lg">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <!-- Avatar / Foto de Perfil -->
+            <div class="flex items-center space-x-6 pb-6 border-b border-gray-200">
+                <div class="flex-shrink-0">
+                    {% if user.avatar %}
+                        <img id="avatar-preview" src="{{ user.avatar.url }}" alt="{{ user.username }}" class="w-24 h-24 rounded-full object-cover border-4 border-gray-200">
+                    {% else %}
+                        <div id="avatar-preview" class="w-24 h-24 rounded-full bg-csj-purple flex items-center justify-center text-white text-4xl font-bold border-4 border-gray-200">
+                            {{ user.username|first|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.avatar.label }}
+                    </label>
+                    {{ form.avatar }}
+                    <label for="{{ form.avatar.id_for_label }}" class="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-csj-purple transition">
+                        <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Subir imagen
+                    </label>
+                    {% if form.avatar.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.avatar.errors.0 }}</p>
+                    {% endif %}
+                    {% if form.avatar.help_text %}
+                        <p class="mt-1 text-xs text-gray-500">{{ form.avatar.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Usuario -->
+            <div>
+                <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.username.label }}
+                </label>
+                {{ form.username }}
+                {% if form.username.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Email (readonly) -->
+            <div>
+                <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.email.label }}
+                </label>
+                {{ form.email }}
+                {% if form.email.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-xs text-gray-500">El email no se puede modificar una vez creada la cuenta</p>
+            </div>
+
+            <!-- Nombre -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.first_name.label }}
+                    </label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.first_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Apellidos -->
+                <div>
+                    <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.last_name.label }}
+                    </label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.last_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Información Familiar -->
+            <div>
+                <label for="{{ form.parent_info.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.parent_info.label }}
+                </label>
+                {{ form.parent_info }}
+                {% if form.parent_info.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.parent_info.errors.0 }}</p>
+                {% endif %}
+                {% if form.parent_info.help_text %}
+                    <p class="mt-1 text-xs text-gray-500">{{ form.parent_info.help_text }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Categorías de Interés -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-3">
+                    {{ form.preferred_categories.label }}
+                </label>
+                <div class="space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200 max-h-60 overflow-y-auto">
+                    {% for choice in form.preferred_categories %}
+                        <div class="flex items-center">
+                            {{ choice.tag }}
+                            <label for="{{ choice.id_for_label }}" class="ml-2 block text-sm text-gray-700 cursor-pointer">
+                                {{ choice.choice_label }}
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% if form.preferred_categories.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.preferred_categories.errors.0 }}</p>
+                {% endif %}
+                {% if form.preferred_categories.help_text %}
+                    <p class="mt-1 text-xs text-gray-500">{{ form.preferred_categories.help_text }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Nota informativa -->
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            Las categorías de interés te permiten personalizar el contenido que ves, pero no limitan tu acceso a otras categorías.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                <a href="{% url 'profile' %}" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-semibold transition">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-6 py-3 bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Previsualización de avatar
+    document.getElementById('{{ form.avatar.id_for_label }}').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewContainer = document.getElementById('avatar-preview');
+                // Si es una imagen, reemplazar con img
+                if (previewContainer.tagName === 'DIV') {
+                    const img = document.createElement('img');
+                    img.id = 'avatar-preview';
+                    img.src = e.target.result;
+                    img.alt = 'Vista previa';
+                    img.className = 'w-24 h-24 rounded-full object-cover border-4 border-gray-200';
+                    previewContainer.parentNode.replaceChild(img, previewContainer);
+                } else {
+                    previewContainer.src = e.target.result;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
+
+{% endblock %}
+
+

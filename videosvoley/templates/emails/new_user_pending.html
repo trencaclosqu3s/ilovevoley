@@ -25,6 +25,16 @@
             <td>{{ user.get_full_name|default:"No proporcionado" }}</td>
         </tr>
         <tr>
+            <th>Información Familiar:</th>
+            <td>
+                {% if user.parent_info %}
+                    <strong style="color: #e67e22;">{{ user.parent_info }}</strong>
+                {% else %}
+                    <span style="color: #95a5a6; font-style: italic;">No proporcionado</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
             <th>Fecha de registro:</th>
             <td>{{ user.date_joined|date:"d/m/Y H:i" }}</td>
         </tr>

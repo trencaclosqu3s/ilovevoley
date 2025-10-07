@@ -22,19 +22,24 @@ reject_users.short_description = "❌ Rechazar usuarios seleccionados"
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ['username', 'email', 'first_name', 'last_name', 'approval_status', 'is_staff', 'date_joined']
-    list_filter = ['is_approved', 'is_staff', 'is_superuser', 'is_active', 'date_joined']
-    search_fields = ['username', 'email', 'first_name', 'last_name']
+    list_display = ['username', 'email', 'first_name', 'last_name', 'parent_info_short', 'approval_status', 'is_staff', 'date_joined']
+    list_filter = ['is_approved', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'preferred_categories']
+    search_fields = ['username', 'email', 'first_name', 'last_name', 'parent_info']
+    filter_horizontal = ['preferred_categories']
     
     actions = [approve_users, reject_users]
     
-    # Añadir is_approved a los fieldsets
+    # Añadir is_approved y parent_info a los fieldsets
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Aprobación', {'fields': ('is_approved',)}),
+        ('Información Familiar', {'fields': ('parent_info',)}),
+        ('Preferencias', {'fields': ('preferred_categories',)}),
         ('Información adicional', {'fields': ('avatar',)}),
     )
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
         ('Aprobación', {'fields': ('is_approved',)}),
+        ('Información Familiar', {'fields': ('parent_info',)}),
+        ('Preferencias', {'fields': ('preferred_categories',)}),
         ('Información adicional', {'fields': ('avatar',)}),
     )
     
@@ -51,3 +56,16 @@ class UserAdmin(BaseUserAdmin):
     
     approval_status.short_description = 'Estado de Aprobación'
     approval_status.admin_order_field = 'is_approved'
+    
+    def parent_info_short(self, obj):
+        """Muestra información familiar resumida"""
+        if obj.parent_info:
+            # Limitar a 50 caracteres
+            info = obj.parent_info[:50]
+            if len(obj.parent_info) > 50:
+                info += '...'
+            return info
+        return format_html('<span style="color: gray; font-style: italic;">No especificado</span>')
+    
+    parent_info_short.short_description = 'Información Familiar'
+    parent_info_short.admin_order_field = 'parent_info'

@@ -1,0 +1,139 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Completar Registro - Vídeos Voley{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-md">
+    <div class="bg-white rounded-lg shadow-lg p-6 sm:p-8 border-t-4 border-csj-purple">
+        <!-- Logo del club -->
+        <div class="text-center mb-6">
+            {% load static %}
+            <img src="{% static 'images/cvsantjosep.jpg' %}" alt="CV Sant Josep" class="w-24 h-24 mx-auto mb-4 rounded-full shadow-md">
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Completar Registro</h2>
+            <p class="mt-2 text-sm text-gray-600">
+                {% if account %}
+                Estás registrándote con <strong>{{ account }}</strong>
+                {% else %}
+                Completa tu información de registro
+                {% endif %}
+            </p>
+        </div>
+        
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="p-4 bg-red-100 text-red-800 rounded-lg">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+            
+            {% if form.username %}
+            <div>
+                <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre de Usuario
+                </label>
+                <input type="text" 
+                       name="{{ form.username.name }}" 
+                       id="{{ form.username.id_for_label }}" 
+                       value="{{ form.username.value|default:'' }}"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                       placeholder="Tu nombre de usuario" 
+                       required>
+                {% if form.username.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>
+                {% endif %}
+                {% if form.username.help_text %}
+                    <p class="mt-1 text-xs text-gray-500">{{ form.username.help_text }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if form.email %}
+            <div>
+                <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                </label>
+                <input type="email" 
+                       name="{{ form.email.name }}" 
+                       id="{{ form.email.id_for_label }}"
+                       value="{{ form.email.value|default:'' }}"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                       placeholder="tu@email.com" 
+                       {% if form.email.value %}readonly{% endif %}
+                       required>
+                {% if form.email.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <!-- Campo parent_info para registro con Google -->
+            {% if form.parent_info %}
+            <div>
+                <label for="{{ form.parent_info.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    Información Familiar <span class="text-red-500">*</span>
+                </label>
+                <textarea name="{{ form.parent_info.name }}" 
+                          id="{{ form.parent_info.id_for_label }}"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                          rows="3"
+                          placeholder="Ejemplo: Madre/Padre/etc de Pepito Pérez del equipo Infantil"
+                          required>{{ form.parent_info.value|default:'' }}</textarea>
+                {% if form.parent_info.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.parent_info.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-xs text-gray-500">Indica de qué niño/a eres padre/familiar para verificar tu acceso</p>
+            </div>
+            {% endif %}
+            
+            <!-- Renderizar cualquier otro campo que pueda haber -->
+            {% for field in form %}
+                {% if field.name != 'username' and field.name != 'email' and field.name != 'parent_info' %}
+                <div>
+                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ field.label }}
+                    </label>
+                    {% if field.field.widget.input_type == 'checkbox' %}
+                        <div class="flex items-center">
+                            <input type="checkbox" 
+                                   name="{{ field.name }}" 
+                                   id="{{ field.id_for_label }}"
+                                   class="h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded">
+                            <label for="{{ field.id_for_label }}" class="ml-2 block text-sm text-gray-700">
+                                {{ field.label }}
+                            </label>
+                        </div>
+                    {% else %}
+                        {{ field }}
+                    {% endif %}
+                    {% if field.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ field.errors.0 }}</p>
+                    {% endif %}
+                    {% if field.help_text %}
+                        <p class="mt-1 text-xs text-gray-500">{{ field.help_text }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+            
+            <div class="bg-yellow-50 border-l-4 border-csj-yellow p-4 rounded">
+                <p class="text-sm text-gray-700">
+                    ℹ️ Tu cuenta debe ser aprobada por un administrador antes de poder acceder al contenido.
+                </p>
+            </div>
+            
+            <button type="submit" class="w-full bg-csj-purple hover:bg-csj-purple-dark text-white py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation">
+                Completar Registro
+            </button>
+        </form>
+        
+        <div class="mt-6 text-center">
+            <p class="text-sm text-gray-600">
+                ¿Ya tienes cuenta? 
+                <a href="{% url 'account_login' %}" class="text-csj-purple hover:text-csj-purple-dark font-semibold">Inicia sesión</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
