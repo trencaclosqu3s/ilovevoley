@@ -3,45 +3,10 @@ from django.dispatch import receiver
 from allauth.account.signals import user_signed_up
 from allauth.socialaccount.signals import social_account_added
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from django.conf import settings
-from django.utils.html import strip_tags
+from videosvoley.core.email_utils import send_notification_email
 
 User = get_user_model()
-
-
-def send_notification_email(subject, template_name, context, recipient_list=None):
-    """
-    Envía email de notificación usando template HTML
-    """
-    if not settings.NOTIFICATION_EMAIL_ENABLED:
-        return False
-    
-    if not recipient_list:
-        recipient_list = settings.ADMIN_EMAIL_LIST
-    
-    if not recipient_list or not settings.EMAIL_HOST_USER:
-        print(f"Email no enviado: {subject} - No hay destinatarios o configuración de email")
-        return False
-    
-    try:
-        html_message = render_to_string(template_name, context)
-        plain_message = strip_tags(html_message)
-        
-        send_mail(
-            subject=subject,
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=recipient_list,
-            html_message=html_message,
-            fail_silently=False,
-        )
-        print(f"Email enviado: {subject} a {', '.join(recipient_list)}")
-        return True
-    except Exception as e:
-        print(f"Error enviando email: {subject} - {str(e)}")
-        return False
 
 
 @receiver(user_signed_up)

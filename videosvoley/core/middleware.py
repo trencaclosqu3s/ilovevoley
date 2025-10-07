@@ -7,6 +7,7 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.core.cache import cache
+from .email_utils import get_admin_emails
 
 
 logger = logging.getLogger(__name__)
@@ -82,7 +83,8 @@ def send_404_daily_report():
     if not settings.EMAIL_NOTIFICATIONS.get('error_404_daily', False):
         return False
     
-    if not settings.NOTIFICATION_EMAIL_ENABLED or not settings.ADMIN_EMAIL_LIST:
+    admin_emails = get_admin_emails()
+    if not settings.NOTIFICATION_EMAIL_ENABLED or not admin_emails:
         return False
     
     try:
@@ -125,7 +127,7 @@ def send_404_daily_report():
             subject=f'Reporte diario de errores 404 - {yesterday.strftime("%d/%m/%Y")}',
             message=plain_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=settings.ADMIN_EMAIL_LIST,
+            recipient_list=admin_emails,
             html_message=html_message,
             fail_silently=False,
         )
@@ -146,6 +148,10 @@ def send_404_immediate_alert(request, threshold=10):
         return False
     
     try:
+        admin_emails = get_admin_emails()
+        if not admin_emails:
+            return False
+            
         # Contar errores en la última hora
         cache_key = f"404_count_{datetime.now().strftime('%Y%m%d_%H')}"
         current_count = cache.get(cache_key, 0) + 1
@@ -167,7 +173,7 @@ def send_404_immediate_alert(request, threshold=10):
                 subject=f'Alerta: {current_count} errores 404 en la última hora',
                 message=plain_message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=settings.ADMIN_EMAIL_LIST,
+                recipient_list=admin_emails,
                 html_message=html_message,
                 fail_silently=False,
             )

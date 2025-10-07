@@ -1,43 +1,8 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from django.conf import settings
-from django.utils.html import strip_tags
 from .models import Image
-
-
-def send_notification_email(subject, template_name, context, recipient_list=None):
-    """
-    Envía email de notificación usando template HTML
-    """
-    if not settings.NOTIFICATION_EMAIL_ENABLED:
-        return False
-    
-    if not recipient_list:
-        recipient_list = settings.ADMIN_EMAIL_LIST
-    
-    if not recipient_list or not settings.EMAIL_HOST_USER:
-        print(f"Email no enviado: {subject} - No hay destinatarios o configuración de email")
-        return False
-    
-    try:
-        html_message = render_to_string(template_name, context)
-        plain_message = strip_tags(html_message)
-        
-        send_mail(
-            subject=subject,
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=recipient_list,
-            html_message=html_message,
-            fail_silently=False,
-        )
-        print(f"Email enviado: {subject} a {', '.join(recipient_list)}")
-        return True
-    except Exception as e:
-        print(f"Error enviando email: {subject} - {str(e)}")
-        return False
+from videosvoley.core.email_utils import send_notification_email
 
 
 @receiver(post_save, sender=Image)

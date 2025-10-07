@@ -6,6 +6,7 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from videosvoley.videos.models import Image, Category, Match
 from videosvoley.core.middleware import send_404_daily_report
+from videosvoley.core.email_utils import get_admin_emails
 import random
 
 User = get_user_model()
@@ -62,6 +63,9 @@ class Command(BaseCommand):
             self.style.WARNING('📧 Verificando configuración de email...')
         )
 
+        # Obtener emails de admins
+        admin_emails = get_admin_emails()
+        
         # Verificar variables básicas
         config_items = [
             ('EMAIL_BACKEND', settings.EMAIL_BACKEND),
@@ -71,7 +75,7 @@ class Command(BaseCommand):
             ('EMAIL_HOST_USER', settings.EMAIL_HOST_USER),
             ('DEFAULT_FROM_EMAIL', settings.DEFAULT_FROM_EMAIL),
             ('NOTIFICATION_EMAIL_ENABLED', settings.NOTIFICATION_EMAIL_ENABLED),
-            ('ADMIN_EMAIL_LIST', ', '.join(settings.ADMIN_EMAIL_LIST) if settings.ADMIN_EMAIL_LIST else 'No configurado'),
+            ('ADMIN_EMAILS (superusers)', ', '.join(admin_emails) if admin_emails else 'No hay superusers con email'),
         ]
 
         for key, value in config_items:
@@ -89,14 +93,14 @@ class Command(BaseCommand):
             self.stdout.write(f"  {status} {key}")
 
         # Probar envío básico
-        if settings.NOTIFICATION_EMAIL_ENABLED and settings.ADMIN_EMAIL_LIST:
+        if settings.NOTIFICATION_EMAIL_ENABLED and admin_emails:
             self.stdout.write("\n📤 Probando envío de email básico...")
             try:
                 send_mail(
                     subject='[PRUEBA] Sistema de notificaciones',
                     message='Este es un email de prueba del sistema de notificaciones.',
                     from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=settings.ADMIN_EMAIL_LIST,
+                    recipient_list=admin_emails,
                     fail_silently=False,
                 )
                 self.stdout.write(
@@ -108,7 +112,7 @@ class Command(BaseCommand):
                 )
         else:
             self.stdout.write(
-                self.style.WARNING("  ⚠️ Email no configurado o deshabilitado, saltando prueba de envío")
+                self.style.WARNING("  ⚠️ Email no configurado o no hay superusers con email")
             )
 
     def test_user_notifications(self, test_email=None):
@@ -146,7 +150,7 @@ class Command(BaseCommand):
             html_message = render_to_string('emails/new_user_pending.html', context)
             plain_message = strip_tags(html_message)
             
-            recipient_list = [test_email] if test_email else settings.ADMIN_EMAIL_LIST
+            recipient_list = [test_email] if test_email else get_admin_emails()
             
             send_mail(
                 subject='[PRUEBA] Nuevo usuario pendiente de aprobación',
@@ -235,7 +239,7 @@ class Command(BaseCommand):
             html_message = render_to_string('emails/image_pending.html', context)
             plain_message = strip_tags(html_message)
             
-            recipient_list = [test_email] if test_email else settings.ADMIN_EMAIL_LIST
+            recipient_list = [test_email] if test_email else get_admin_emails()
             
             send_mail(
                 subject='[PRUEBA] Nueva imagen pendiente de moderación',
@@ -319,7 +323,7 @@ class Command(BaseCommand):
                 subject='[PRUEBA] Reporte diario de errores 404',
                 message=plain_message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=settings.ADMIN_EMAIL_LIST,
+                recipient_list=get_admin_emails(),
                 html_message=html_message,
                 fail_silently=False,
             )
@@ -345,7 +349,7 @@ class Command(BaseCommand):
                 subject='[PRUEBA] Alerta: 15 errores 404 en la última hora',
                 message=plain_message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=settings.ADMIN_EMAIL_LIST,
+                recipient_list=get_admin_emails(),
                 html_message=html_message,
                 fail_silently=False,
             )

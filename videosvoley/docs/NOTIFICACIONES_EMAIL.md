@@ -34,7 +34,13 @@ DEFAULT_FROM_EMAIL=tu-email@gmail.com
 
 # Sistema de notificaciones
 NOTIFICATION_EMAIL_ENABLED=True
-ADMIN_EMAIL_LIST=admin1@example.com,admin2@example.com
+
+# ADMIN_EMAIL_LIST ya NO es necesario - Los emails se envían automáticamente 
+# a todos los usuarios superuser que tengan email configurado en la base de datos.
+# Esto hace el sistema más dinámico y evita tener que mantener listas manuales.
+
+# (OPCIONAL) Solo si quieres un fallback cuando no hay superusers con email:
+# ADMIN_EMAIL_LIST=admin1@example.com,admin2@example.com
 
 # Configuración específica (True/False)
 EMAIL_NOTIFY_NEW_USER=True
@@ -119,6 +125,27 @@ send_mail(
 
 ## 🎯 Uso del Sistema
 
+### ⚡ Sistema Dinámico de Destinatarios
+
+**¡IMPORTANTE!** Los emails a administradores se envían automáticamente a todos los **usuarios superuser** que tengan email configurado en la base de datos.
+
+**Ventajas:**
+- ✅ No necesitas mantener listas manuales de emails
+- ✅ Cuando añades/quitas admins, los emails se actualizan automáticamente
+- ✅ Gestión centralizada desde el panel de Django Admin
+
+**Para recibir emails de notificaciones:**
+1. El usuario debe ser **superuser** (`is_superuser=True`)
+2. El usuario debe tener un **email configurado** en su perfil
+
+**Comprobar superusers con email:**
+```bash
+docker-compose exec web python manage.py shell
+>>> from django.contrib.auth import get_user_model
+>>> User = get_user_model()
+>>> User.objects.filter(is_superuser=True, email__isnull=False).exclude(email='').values('username', 'email')
+```
+
 ### Activación/Desactivación
 
 - **Global**: `NOTIFICATION_EMAIL_ENABLED=True/False`
@@ -126,11 +153,11 @@ send_mail(
 
 ### Triggers Automáticos
 
-1. **Usuario se registra** → Email a admins
+1. **Usuario se registra** → Email a todos los superusers
 2. **Admin aprueba usuario** → Email al usuario
-3. **Usuario sube imagen** → Email a admins
+3. **Usuario sube imagen** → Email a todos los superusers
 4. **Admin modera imagen** → Email al usuario
-5. **10+ errores 404 en 1 hora** → Alerta inmediata
+5. **10+ errores 404 en 1 hora** → Alerta inmediata a superusers
 6. **Reporte diario 404** → Cron job (configurar por separado)
 
 ## 📋 Configuración de Reporte Diario 404
@@ -186,7 +213,7 @@ Edita `base_email.html` para cambiar:
    - Contraseña de aplicación incorrecta (Gmail)
    - Puerto bloqueado por firewall
    - `NOTIFICATION_EMAIL_ENABLED=False`
-   - Lista de emails admin vacía
+   - No hay superusers con email configurado
 
 ### Email va a spam
 
