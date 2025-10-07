@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+    'django_celery_beat',  # Para gestionar tareas periódicas desde el admin
 
     # Local apps
     'videosvoley.videos',

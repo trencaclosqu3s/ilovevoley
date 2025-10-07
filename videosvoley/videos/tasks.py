@@ -1,0 +1,421 @@
+"""
+Tareas de Celery para scraping automático de datos de voleibol.
+
+Estas tareas pueden ejecutarse manualmente desde código o configurarse
+como tareas periódicas desde el admin de Django (django-celery-beat).
+"""
+
+import logging
+import time
+from celery import shared_task
+from django.core.mail import mail_admins
+from django.conf import settings
+
+from videosvoley.videos.models import League, Club, Team
+from videosvoley.videos.scraping import FederationScraper
+
+logger = logging.getLogger(__name__)
+
+
+@shared_task(name='scrape_all_leagues', bind=True)
+def scrape_all_leagues_task(self, round_number=None, category_filter=None, delay=2.0):
+    """
+    Ejecuta scraping de todas las ligas activas.
+    
+    Args:
+        round_number: Jornada específica (opcional)
+        category_filter: Filtrar solo ligas de una categoría específica (opcional)
+        delay: Tiempo de espera entre ligas en segundos (default: 2.0)
+    
+    Returns:
+        dict: Estadísticas del scraping realizado
+    """
+    logger.info(f"Iniciando tarea de scraping de todas las ligas activas")
+    
+    # Obtener ligas activas
+    leagues = League.objects.filter(is_active=True).select_related('category')
+    
+    # Filtrar por categoría si se especifica
+    if category_filter:
+        leagues = leagues.filter(category__name__icontains=category_filter)
+    
+    if not leagues.exists():
+        error_msg = f'No se encontraron ligas activas'
+        if category_filter:
+            error_msg += f" de categoría '{category_filter}'"
+        logger.warning(error_msg)
+        return {'status': 'error', 'message': error_msg}
+    
+    total_results = {
+        'status': 'success',
+        'leagues_processed': 0,
+        'leagues_success': 0,
+        'leagues_errors': 0,
+        'total_teams': 0,
+        'total_matches': 0,
+        'total_standings': 0,
+        'errors': []
+    }
+    
+    for i, league in enumerate(leagues):
+        category_name = league.category.name if league.category else 'Sin categoría'
+        logger.info(f'[{i+1}/{leagues.count()}] Procesando {league.name} ({category_name})')
+        
+        try:
+            scraper = FederationScraper(league)
+            results = scraper.scrape_all_endpoints(round=round_number)
+            
+            # Procesar resultados
+            league_success = True
+            league_stats = {'teams': 0, 'matches': 0, 'standings': 0}
+            
+            for endpoint_type, data in results.items():
+                if 'error' in data:
+                    logger.error(f'{league.name} - {endpoint_type}: {data["error"]}')
+                    league_success = False
+                    total_results['errors'].append({
+                        'league': league.name,
+                        'endpoint': endpoint_type,
+                        'error': data['error']
+                    })
+                else:
+                    teams_count = len(data.get('teams', []))
+                    standings_count = len(data.get('standings', []))
+                    matches_count = len(data.get('matches', []))
+                    
+                    league_stats['teams'] += teams_count
+                    league_stats['matches'] += matches_count
+                    league_stats['standings'] += standings_count
+            
+            # Actualizar estadísticas totales
+            total_results['leagues_processed'] += 1
+            if league_success:
+                total_results['leagues_success'] += 1
+                logger.info(
+                    f'{league.name}: {league_stats["teams"]} equipos, '
+                    f'{league_stats["matches"]} partidos, '
+                    f'{league_stats["standings"]} clasificaciones'
+                )
+            else:
+                total_results['leagues_errors'] += 1
+            
+            total_results['total_teams'] += league_stats['teams']
+            total_results['total_matches'] += league_stats['matches']
+            total_results['total_standings'] += league_stats['standings']
+            
+            # Rate limiting entre ligas
+            if i < leagues.count() - 1:
+                time.sleep(delay)
+        
+        except Exception as e:
+            total_results['leagues_errors'] += 1
+            total_results['leagues_processed'] += 1
+            error_msg = f'Error crítico en {league.name}: {str(e)}'
+            logger.error(error_msg, exc_info=True)
+            total_results['errors'].append({
+                'league': league.name,
+                'endpoint': 'general',
+                'error': str(e)
+            })
+    
+    # Log resumen final
+    logger.info(
+        f"Scraping completado - Procesadas: {total_results['leagues_processed']}, "
+        f"Exitosas: {total_results['leagues_success']}, "
+        f"Con errores: {total_results['leagues_errors']}"
+    )
+    
+    # Enviar email a admins si hay errores y las notificaciones están habilitadas
+    if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
+        subject = f"[VideosVoley] Errores en scraping automático de ligas"
+        message = f"""
+        Se han detectado errores durante el scraping automático de ligas:
+        
+        - Ligas procesadas: {total_results['leagues_processed']}
+        - Ligas exitosas: {total_results['leagues_success']}
+        - Ligas con errores: {total_results['leagues_errors']}
+        
+        Datos obtenidos:
+        - Equipos: {total_results['total_teams']}
+        - Partidos: {total_results['total_matches']}
+        - Clasificaciones: {total_results['total_standings']}
+        
+        Errores detectados:
+        {chr(10).join([f"- {e['league']} ({e['endpoint']}): {e['error']}" for e in total_results['errors'][:10]])}
+        """
+        
+        try:
+            mail_admins(subject, message, fail_silently=True)
+        except Exception as e:
+            logger.error(f"Error enviando email de notificación: {e}")
+    
+    return total_results
+
+
+@shared_task(name='scrape_league', bind=True)
+def scrape_league_task(self, league_id, round_number=None):
+    """
+    Ejecuta scraping de una liga específica.
+    
+    Args:
+        league_id: ID de la federación de la liga a scrapear
+        round_number: Jornada específica (opcional)
+    
+    Returns:
+        dict: Resultados del scraping
+    """
+    logger.info(f"Iniciando scraping de liga con ID: {league_id}")
+    
+    try:
+        league = League.objects.get(federation_id=league_id, is_active=True)
+    except League.DoesNotExist:
+        error_msg = f'Liga con ID {league_id} no encontrada o inactiva'
+        logger.error(error_msg)
+        return {'status': 'error', 'message': error_msg}
+    
+    logger.info(f'Scrapeando liga: {league.name}')
+    
+    scraper = FederationScraper(league)
+    
+    try:
+        results = scraper.scrape_all_endpoints(round=round_number)
+        
+        # Procesar resultados
+        summary = {
+            'status': 'success',
+            'league': league.name,
+            'league_id': league_id,
+            'endpoints': {},
+            'errors': []
+        }
+        
+        for endpoint_type, data in results.items():
+            if 'error' in data:
+                logger.error(f'{endpoint_type}: {data["error"]}')
+                summary['endpoints'][endpoint_type] = {'status': 'error', 'error': data['error']}
+                summary['errors'].append({'endpoint': endpoint_type, 'error': data['error']})
+            else:
+                teams_count = len(data.get('teams', []))
+                standings_count = len(data.get('standings', []))
+                matches_count = len(data.get('matches', []))
+                
+                summary['endpoints'][endpoint_type] = {
+                    'status': 'success',
+                    'teams': teams_count,
+                    'standings': standings_count,
+                    'matches': matches_count
+                }
+                
+                logger.info(
+                    f'{endpoint_type}: {teams_count} equipos, '
+                    f'{standings_count} clasificaciones, '
+                    f'{matches_count} partidos'
+                )
+        
+        if summary['errors']:
+            summary['status'] = 'partial_success'
+        
+        logger.info(f'Scraping completado para {league.name}')
+        return summary
+    
+    except Exception as e:
+        error_msg = f'Error durante scraping: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return {
+            'status': 'error',
+            'league': league.name,
+            'league_id': league_id,
+            'message': error_msg
+        }
+
+
+@shared_task(name='scrape_clubs', bind=True)
+def scrape_clubs_task(self, match_teams=True, delay=1.0):
+    """
+    Ejecuta scraping de clubes desde voleibolib.net.
+    
+    Args:
+        match_teams: Si es True, ejecuta matching automático de equipos con clubes
+        delay: Delay entre requests en segundos (default: 1.0)
+    
+    Returns:
+        dict: Estadísticas del scraping realizado
+    """
+    import requests
+    from difflib import SequenceMatcher
+    import unicodedata
+    import re
+    
+    logger.info("Iniciando scraping de clubes desde voleibolib.net")
+    
+    def clean_string(value):
+        """Limpia una cadena de texto"""
+        if not value or value == 'null':
+            return ''
+        return str(value).strip()
+    
+    def clean_url(value):
+        """Limpia y valida una URL"""
+        if not value or value == 'null' or not str(value).strip():
+            return ''
+        url = str(value).strip()
+        if url and not url.startswith(('http://', 'https://')):
+            url = f'https://{url}'
+        return url
+    
+    def normalize_name(name):
+        """Normaliza un nombre para comparación"""
+        if not name:
+            return ''
+        # Quitar acentos
+        normalized = unicodedata.normalize('NFD', name)
+        normalized = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
+        # Convertir a mayúsculas y limpiar
+        normalized = normalized.upper().strip()
+        # Quitar caracteres especiales y espacios extra
+        normalized = re.sub(r'[^\w\s]', ' ', normalized)
+        normalized = ' '.join(normalized.split())
+        return normalized
+    
+    def find_best_club_match(team, clubs):
+        """Encuentra la mejor coincidencia entre un equipo y los clubes"""
+        team_normalized = normalize_name(team.name)
+        best_match = None
+        best_similarity = 0
+        
+        for club in clubs:
+            club_normalized = normalize_name(club.official_name)
+            
+            # Comparar nombre completo
+            similarity = SequenceMatcher(None, team_normalized, club_normalized).ratio()
+            
+            # Comparar palabras clave
+            team_words = set(team_normalized.split())
+            club_words = set(club_normalized.split())
+            
+            common_words = team_words.intersection(club_words)
+            if common_words:
+                stopwords = {'club', 'volei', 'voley', 'voleibol', 'cv', 'esportiu', 'deportivo'}
+                meaningful_common = common_words - stopwords
+                
+                if meaningful_common:
+                    word_similarity = len(meaningful_common) / max(len(team_words), len(club_words))
+                    similarity = max(similarity, word_similarity)
+            
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_match = (club, similarity)
+        
+        return best_match if best_similarity > 0.3 else None
+    
+    try:
+        # 1. Obtener lista de clubes
+        url = 'https://www.voleibolib.net/JSON/get_clubes.asp'
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        clubs_data = response.json().get('items', [])
+        
+        logger.info(f'Encontrados {len(clubs_data)} clubes')
+        
+        created_count = 0
+        updated_count = 0
+        errors = []
+        
+        # 2. Procesar cada club
+        for club_basic in clubs_data:
+            club_id = club_basic['ID']
+            club_name = club_basic['Nombre']
+            
+            try:
+                # Obtener detalles del club
+                detail_url = f'https://www.voleibolib.net/JSON/get_datos_club.asp?id={club_id}'
+                detail_response = requests.get(detail_url, timeout=30)
+                detail_response.raise_for_status()
+                detail_data = detail_response.json()
+                
+                items = detail_data.get('items', [])
+                if items:
+                    club_data = items[0]
+                    
+                    # Crear o actualizar club
+                    club, created = Club.objects.update_or_create(
+                        federation_id=str(club_id),
+                        defaults={
+                            'official_name': clean_string(club_data.get('Nombre', '')),
+                            'president': clean_string(club_data.get('Presidente', '')),
+                            'address': clean_string(club_data.get('Direccion', '')),
+                            'phone': clean_string(club_data.get('telefono', '')),
+                            'email': clean_string(club_data.get('mail', '')),
+                            'venue_name': clean_string(club_data.get('campo', '')),
+                            'venue_address': clean_string(club_data.get('direccion_campo', '')),
+                            'province': clean_string(club_data.get('provincia', '')),
+                            'instagram': clean_url(club_data.get('instagram', '')),
+                            'facebook': clean_url(club_data.get('facebook', '')),
+                            'twitter': clean_url(club_data.get('twitter', '')),
+                            'website': clean_url(club_data.get('url', '')),
+                            'logo_url': f'https://voleibolib.federatio.com/fichas/clubes/{club_id}.jpg'
+                        }
+                    )
+                    
+                    if created:
+                        created_count += 1
+                        logger.info(f'Creado: {club.official_name}')
+                    else:
+                        updated_count += 1
+                        logger.info(f'Actualizado: {club.official_name}')
+                
+                time.sleep(delay)
+            
+            except Exception as e:
+                error_msg = f'Error procesando club {club_name} (ID: {club_id}): {str(e)}'
+                logger.error(error_msg)
+                errors.append(error_msg)
+        
+        # 3. Matching con equipos existentes
+        matched_count = 0
+        if match_teams:
+            logger.info("Iniciando matching de equipos con clubes")
+            teams_without_club = Team.objects.filter(club__isnull=True)
+            clubs = Club.objects.all()
+            
+            for team in teams_without_club:
+                best_match = find_best_club_match(team, clubs)
+                
+                if best_match:
+                    club, similarity = best_match
+                    if similarity > 0.55:  # Umbral de confianza
+                        team.club = club
+                        if not team.sponsor_name:
+                            team.sponsor_name = team.name
+                        team.save()
+                        
+                        matched_count += 1
+                        logger.info(
+                            f'Matched: {team.name} → {club.official_name} '
+                            f'(confianza: {similarity:.2f})'
+                        )
+        
+        summary = {
+            'status': 'success',
+            'clubs_created': created_count,
+            'clubs_updated': updated_count,
+            'teams_matched': matched_count,
+            'errors': errors
+        }
+        
+        logger.info(
+            f"Scraping de clubes completado - "
+            f"Creados: {created_count}, Actualizados: {updated_count}, "
+            f"Equipos asociados: {matched_count}"
+        )
+        
+        return summary
+    
+    except Exception as e:
+        error_msg = f'Error durante scraping de clubes: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return {
+            'status': 'error',
+            'message': error_msg
+        }
+

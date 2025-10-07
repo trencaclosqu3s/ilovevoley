@@ -10,6 +10,11 @@ services:
     ports:
       - "5432:5432"
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   web:
     build: .
     command: python manage.py runserver 0.0.0.0:8000
@@ -20,10 +25,44 @@ services:
     environment:
       - DEBUG=True
       - DATABASE_URL=postgresql://volleyuser:volleypass@db:5432/volleyvideos
+      - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=change-me-in-production
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
     depends_on:
       - db
+      - redis
+
+  celery:
+    build: .
+    command: celery -A config worker -l info
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=postgresql://volleyuser:volleypass@db:5432/volleyvideos
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=change-me-in-production
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
+    depends_on:
+      - db
+      - redis
+      - web
+
+  celery-beat:
+    build: .
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=postgresql://volleyuser:volleypass@db:5432/volleyvideos
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=change-me-in-production
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
+    depends_on:
+      - db
+      - redis
+      - web
 
 volumes:
   postgres_data:

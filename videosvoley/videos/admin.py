@@ -4,6 +4,7 @@ from django.utils.safestring import mark_safe
 from django.utils import timezone
 from django.conf import settings
 from django.db.models import Count
+from django_celery_beat.models import PeriodicTask, IntervalSchedule, CrontabSchedule
 from .models import Video, Category, League, Team, Match, ScrapingEndpoint, Standing, Club, Image
 from .forms import MatchAdminForm
 
@@ -485,3 +486,132 @@ class ImageAdmin(admin.ModelAdmin):
                 obj.moderation_date = timezone.now()
         
         super().save_model(request, obj, form, change)
+
+
+# =============================================================================
+# Configuración de Celery Beat (Tareas Periódicas)
+# =============================================================================
+
+# Desregistrar el admin por defecto de django-celery-beat
+try:
+    admin.site.unregister(PeriodicTask)
+except admin.sites.NotRegistered:
+    pass
+
+@admin.register(PeriodicTask)
+class CustomPeriodicTaskAdmin(admin.ModelAdmin):
+    """
+    Admin personalizado para tareas periódicas de Celery.
+    
+    Permite configurar tareas de scraping automático y otras tareas periódicas.
+    """
+    list_display = (
+        'name', 
+        'task', 
+        'enabled', 
+        'interval_display', 
+        'crontab_display',
+        'last_run_at',
+        'total_run_count'
+    )
+    list_filter = ('enabled', 'task', 'last_run_at')
+    search_fields = ('name', 'task', 'description')
+    readonly_fields = ('last_run_at', 'total_run_count', 'date_changed')
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('name', 'task', 'enabled', 'description')
+        }),
+        ('Programación', {
+            'fields': ('interval', 'crontab', 'solar', 'clocked'),
+            'description': 'Elige UNA forma de programación: Interval (cada X tiempo), '
+                          'Crontab (horarios específicos), Solar, o Clocked (una sola vez).'
+        }),
+        ('Argumentos', {
+            'fields': ('args', 'kwargs'),
+            'classes': ('collapse',),
+            'description': 'Argumentos para la tarea en formato JSON. '
+                          'Ejemplos:<br>'
+                          'args: [] o ["valor1", "valor2"]<br>'
+                          'kwargs: {} o {"round_number": 1, "category_filter": "senior"}'
+        }),
+        ('Configuración Avanzada', {
+            'fields': ('queue', 'exchange', 'routing_key', 'priority', 'expires', 'expire_seconds'),
+            'classes': ('collapse',)
+        }),
+        ('Límites', {
+            'fields': ('one_off', 'start_time', 'last_run_at', 'total_run_count'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('date_changed',),
+            'classes': ('collapse',)
+        })
+    )
+    
+    actions = ['enable_tasks', 'disable_tasks', 'run_tasks_now']
+    
+    def interval_display(self, obj):
+        """Muestra el intervalo de forma legible"""
+        if obj.interval:
+            return str(obj.interval)
+        return '-'
+    interval_display.short_description = 'Intervalo'
+    
+    def crontab_display(self, obj):
+        """Muestra el crontab de forma legible"""
+        if obj.crontab:
+            return str(obj.crontab)
+        return '-'
+    crontab_display.short_description = 'Crontab'
+    
+    def enable_tasks(self, request, queryset):
+        """Habilita las tareas seleccionadas"""
+        updated = queryset.update(enabled=True)
+        self.message_user(request, f'{updated} tarea(s) habilitada(s) correctamente.')
+    enable_tasks.short_description = "Habilitar tareas seleccionadas"
+    
+    def disable_tasks(self, request, queryset):
+        """Deshabilita las tareas seleccionadas"""
+        updated = queryset.update(enabled=False)
+        self.message_user(request, f'{updated} tarea(s) deshabilitada(s) correctamente.')
+    disable_tasks.short_description = "Deshabilitar tareas seleccionadas"
+    
+    def run_tasks_now(self, request, queryset):
+        """Ejecuta las tareas seleccionadas inmediatamente"""
+        from videosvoley.videos.tasks import scrape_all_leagues_task, scrape_league_task, scrape_clubs_task
+        
+        count = 0
+        for task in queryset:
+            try:
+                # Mapear nombres de tareas a funciones
+                task_map = {
+                    'scrape_all_leagues': scrape_all_leagues_task,
+                    'scrape_league': scrape_league_task,
+                    'scrape_clubs': scrape_clubs_task,
+                }
+                
+                if task.task in task_map:
+                    # Ejecutar tarea de forma asíncrona
+                    import json
+                    args = json.loads(task.args) if task.args else []
+                    kwargs = json.loads(task.kwargs) if task.kwargs else {}
+                    
+                    task_map[task.task].apply_async(args=args, kwargs=kwargs)
+                    count += 1
+                else:
+                    self.message_user(
+                        request, 
+                        f'Tarea "{task.task}" no reconocida para ejecución manual',
+                        level='WARNING'
+                    )
+            except Exception as e:
+                self.message_user(
+                    request, 
+                    f'Error ejecutando tarea "{task.name}": {e}',
+                    level='ERROR'
+                )
+        
+        if count > 0:
+            self.message_user(request, f'{count} tarea(s) enviada(s) a la cola de ejecución.')
+    run_tasks_now.short_description = "Ejecutar tareas ahora"
