@@ -396,3 +396,4 @@ docker compose -f docker-compose.dev.yml exec redis redis-cli -n 0 KEYS "celery*
 - [Documentación de django-celery-beat](https://django-celery-beat.readthedocs.io/)
 - [Sintaxis de Crontab](https://crontab.guru/)
 
+
