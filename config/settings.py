@@ -97,7 +97,7 @@ SOCIALACCOUNT_PROVIDERS = {
         'SCOPE': [
             'profile',
             'email',
-            'https://www.googleapis.com/auth/calendar',
+            # 'https://www.googleapis.com/auth/calendar',  # Comentado temporalmente para evitar 403
         ],
         'AUTH_PARAMS': {
             'access_type': 'offline',
