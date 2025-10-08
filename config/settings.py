@@ -53,7 +53,7 @@ INSTALLED_APPS = [
     'django_celery_beat',  # Para gestionar tareas periódicas desde el admin
 
     # Local apps
-    'videosvoley.core',
+    'videosvoley.core.apps.CoreConfig',
     'videosvoley.videos',
     'videosvoley.users',
 ]
@@ -101,7 +101,7 @@ SOCIALACCOUNT_PROVIDERS = {
         ],
         'AUTH_PARAMS': {
             'access_type': 'offline',
-            'approval_prompt': 'force'
+            'prompt': 'consent'
         }
     }
 }

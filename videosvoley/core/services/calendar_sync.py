@@ -44,13 +44,24 @@ class GoogleCalendarService:
                 logger.warning(f"No Google token found for user {self.user.username}")
                 return None
             
+            # Check if we have refresh token
+            if not token.token_secret:
+                logger.warning(f"No refresh token found for user {self.user.username}. User needs to reconnect with Calendar permissions.")
+                # Auto-disable calendar sync to prevent spam
+                self.user.calendar_sync_enabled = False
+                self.user.save()
+                return None
+            
+            # Get client credentials from SocialApp
+            social_app = token.app
+            
             # Create credentials object
             creds = Credentials(
                 token=token.token,
                 refresh_token=token.token_secret,
                 token_uri='https://oauth2.googleapis.com/token',
-                client_id=settings.SOCIALACCOUNT_PROVIDERS.get('google', {}).get('APP', {}).get('client_id'),
-                client_secret=settings.SOCIALACCOUNT_PROVIDERS.get('google', {}).get('APP', {}).get('secret'),
+                client_id=social_app.client_id,
+                client_secret=social_app.secret,
                 scopes=['https://www.googleapis.com/auth/calendar']
             )
             
@@ -63,8 +74,12 @@ class GoogleCalendarService:
                     if creds.expiry:
                         token.expires_at = creds.expiry
                     token.save()
+                    logger.info(f"Successfully refreshed token for user {self.user.username}")
                 except Exception as e:
                     logger.error(f"Failed to refresh token for user {self.user.username}: {e}")
+                    # Auto-disable calendar sync if refresh fails
+                    self.user.calendar_sync_enabled = False
+                    self.user.save()
                     return None
             
             return creds
