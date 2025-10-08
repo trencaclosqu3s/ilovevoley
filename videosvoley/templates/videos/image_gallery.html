@@ -26,9 +26,51 @@
                 <span id="activeFiltersCount" class="ml-1 hidden px-1.5 py-0.5 bg-white text-csj-purple rounded-full text-xs font-bold"></span>
             </button>
             
-            <a href="{% url 'videos:image_upload' %}" class="bg-csj-purple text-white px-4 py-2 rounded-lg hover:bg-csj-purple-dark transition text-sm whitespace-nowrap">
-                <i class="fas fa-plus mr-2"></i><span class="hidden sm:inline">Subir </span>Imagen
-            </a>
+            <!-- Menú desplegable de subida -->
+            <div class="relative">
+                <button id="upload-menu-btn"
+                        class="bg-csj-purple text-white px-4 py-2 rounded-lg hover:bg-csj-purple-dark transition text-sm whitespace-nowrap flex items-center">
+                    <i class="fas fa-plus mr-2"></i>
+                    <span class="hidden sm:inline">Subir Imagen</span>
+                    <i class="fas fa-chevron-down ml-2 text-xs"></i>
+                </button>
+                
+                <div id="upload-menu"
+                     class="hidden absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                    <div class="py-1">
+                        <a href="{% url 'videos:image_upload' %}" 
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            <i class="fas fa-image mr-2 text-csj-purple"></i>
+                            Subir una imagen
+                        </a>
+                        <a href="{% url 'videos:image_bulk_upload' %}" 
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            <i class="fas fa-images mr-2 text-csj-purple"></i>
+                            Subir múltiples imágenes
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+            // Menú desplegable de subida
+            document.addEventListener('DOMContentLoaded', function() {
+                const menuBtn = document.getElementById('upload-menu-btn');
+                const menu = document.getElementById('upload-menu');
+                
+                menuBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    menu.classList.toggle('hidden');
+                });
+                
+                // Cerrar al hacer clic fuera
+                document.addEventListener('click', function(e) {
+                    if (!menu.contains(e.target) && !menuBtn.contains(e.target)) {
+                        menu.classList.add('hidden');
+                    }
+                });
+            });
+            </script>
         </div>
     </div>
 </div>

@@ -19,6 +19,7 @@ urlpatterns = [
     # URLs de imágenes
     path('imagenes/', views.image_gallery, name='image_gallery'),
     path('imagenes/subir/', views.image_upload, name='image_upload'),
+    path('imagenes/subir-multiples/', views.image_bulk_upload, name='image_bulk_upload'),
     path('imagenes/<int:image_id>/', views.image_detail, name='image_detail'),
     path('partidos/<int:match_id>/imagenes/', views.match_images, name='match_images'),
     

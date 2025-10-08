@@ -776,6 +776,172 @@ def image_upload(request):
 
 @login_required
 @user_passes_test(user_is_approved, login_url='/pending-approval/')
+def image_bulk_upload(request):
+    """Vista para subir múltiples imágenes a la vez"""
+    if request.method == 'POST':
+        uploaded_files = request.FILES.getlist('images')
+        
+        if not uploaded_files:
+            messages.error(request, 'No se seleccionaron imágenes.')
+            return redirect('videos:image_bulk_upload')
+        
+        # Datos compartidos para todas las imágenes
+        shared_data = {
+            'uploaded_by': request.user,
+            'image_type': request.POST.get('image_type', 'other'),
+            'year': request.POST.get('year', timezone.now().year),
+        }
+        
+        # Match y categorías opcionales compartidos
+        match_id = request.POST.get('match')
+        if match_id:
+            try:
+                shared_data['match'] = Match.objects.get(id=match_id)
+            except Match.DoesNotExist:
+                pass
+        
+        # Etiquetas compartidas
+        shared_tags = request.POST.get('tags', '').strip()
+        
+        # Procesar cada imagen
+        success_count = 0
+        errors = []
+        
+        for idx, uploaded_file in enumerate(uploaded_files):
+            try:
+                # Procesar imagen (convertir HEIC si es necesario)
+                from .utils import process_uploaded_image
+                
+                processed_file, original_ext, was_converted = process_uploaded_image(uploaded_file)
+                
+                # Obtener título y descripción individual
+                title = request.POST.get(f'title_{idx}', uploaded_file.name.rsplit('.', 1)[0])
+                description = request.POST.get(f'description_{idx}', '')
+                
+                # Validar archivo procesado
+                if not processed_file.content_type.startswith('image/'):
+                    errors.append(f'{uploaded_file.name}: No es una imagen válida')
+                    continue
+                
+                if processed_file.size > 10 * 1024 * 1024:  # 10MB
+                    errors.append(f'{uploaded_file.name}: Archivo demasiado grande (máx 10MB)')
+                    continue
+                
+                # Crear imagen
+                image = Image(
+                    image=processed_file,
+                    title=title,
+                    description=description,
+                    tags=shared_tags,
+                    original_format=original_ext.lstrip('.'),
+                    was_converted=was_converted,
+                    **shared_data
+                )
+                
+                if was_converted:
+                    logger.info(f"Imagen {uploaded_file.name} convertida de {original_ext} a JPEG")
+                
+                # Procesar con Google Vision API si está habilitado
+                if getattr(settings, 'GOOGLE_VISION_ENABLED', False):
+                    try:
+                        from .utils import check_image_with_vision_api, process_vision_tags_for_volleyball
+                        
+                        vision_result = check_image_with_vision_api(image.image, extract_labels=True, extract_text=True)
+                        
+                        image.vision_api_checked = True
+                        image.vision_api_safe = vision_result.get('safe', False)
+                        image.vision_api_details = vision_result
+                        
+                        # Procesar etiquetas automáticas
+                        detected_labels = vision_result.get('labels', [])
+                        detected_text = vision_result.get('text', '')
+                        
+                        if detected_labels or detected_text:
+                            auto_tags = process_vision_tags_for_volleyball(detected_labels, detected_text)
+                            image.auto_tags = auto_tags
+                        
+                        # Auto-aprobar si es segura
+                        if (vision_result.get('safe', False) and 
+                            vision_result.get('details', {}).get('api_response_ok', False) and
+                            getattr(settings, 'AUTO_MODERATION_ENABLED', False)):
+                            image.status = 'approved'
+                            image.moderated_by = request.user
+                            image.moderation_date = timezone.now()
+                            image.moderation_notes = 'Auto-aprobada por Google Vision API'
+                            
+                    except Exception as e:
+                        logger.error(f"Error en Vision API para {uploaded_file.name}: {str(e)}")
+                        image.vision_api_checked = False
+                        image.vision_api_safe = False
+                        image.vision_api_details = {'error': str(e), 'api_response_ok': False}
+                
+                # Guardar imagen
+                image.save()
+                
+                # Asignar categorías si hay match
+                if 'match' in shared_data and shared_data['match']:
+                    match = shared_data['match']
+                    # Asignar categorías de los equipos del partido
+                    categories_to_add = []
+                    if match.home_team and match.home_team.category:
+                        categories_to_add.append(match.home_team.category)
+                    if match.away_team and match.away_team.category:
+                        categories_to_add.append(match.away_team.category)
+                    if match.league and match.league.category:
+                        categories_to_add.append(match.league.category)
+                    
+                    if categories_to_add:
+                        image.categories.set(categories_to_add)
+                
+                success_count += 1
+                logger.info(f"Imagen subida exitosamente: {title} por {request.user.username}")
+                
+            except Exception as e:
+                logger.error(f"Error procesando {uploaded_file.name}: {str(e)}")
+                errors.append(f'{uploaded_file.name}: {str(e)}')
+        
+        # Mensajes de resultado
+        if success_count > 0:
+            messages.success(request, f'✅ {success_count} imagen(es) subida(s) correctamente.')
+        
+        if errors:
+            for error in errors[:5]:  # Mostrar máximo 5 errores
+                messages.warning(request, error)
+            if len(errors) > 5:
+                messages.warning(request, f'... y {len(errors) - 5} error(es) más.')
+        
+        if success_count > 0:
+            return redirect('videos:image_gallery')
+        else:
+            return redirect('videos:image_bulk_upload')
+    
+    # GET request
+    # Obtener partidos recientes para sugerir
+    recent_matches = Match.objects.select_related(
+        'home_team', 'away_team', 'league'
+    ).filter(
+        Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
+    ).order_by('-match_date')[:10]
+    
+    # Obtener categorías activas
+    categories = Category.objects.filter(is_active=True).order_by('name')
+    
+    # Tipos de imagen
+    image_types = Image.IMAGE_TYPES
+    
+    context = {
+        'recent_matches': recent_matches,
+        'categories': categories,
+        'image_types': image_types,
+        'current_year': timezone.now().year,
+    }
+    
+    return render(request, 'videos/image_bulk_upload.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
 def image_detail(request, image_id):
     """Vista de detalle de imagen"""
     image = get_object_or_404(
