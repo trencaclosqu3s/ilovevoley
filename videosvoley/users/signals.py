@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, m2m_changed
 from django.dispatch import receiver
 from allauth.account.signals import user_signed_up
 from allauth.socialaccount.signals import social_account_added
@@ -108,3 +108,42 @@ def track_user_approval_changes(sender, instance, **kwargs):
     """
     if hasattr(instance, '_old_is_approved'):
         del instance._old_is_approved
+
+
+# Calendar sync signals
+@receiver(post_save, sender=User)
+def calendar_sync_enabled_handler(sender, instance, created, **kwargs):
+    """
+    Trigger calendar sync when user enables calendar sync
+    """
+    if not created and instance.calendar_sync_enabled:
+        # Check if calendar sync was just enabled
+        if hasattr(instance, '_old_calendar_sync_enabled') and not instance._old_calendar_sync_enabled:
+            if instance.can_sync_calendar():
+                from videosvoley.core.tasks.calendar_tasks import sync_user_calendar
+                # Delay the task slightly to ensure transaction is committed
+                sync_user_calendar.apply_async(args=[instance.id, True], countdown=5)
+                print(f"Calendar sync enabled for user {instance.username}, queuing sync task")
+
+
+@receiver(m2m_changed, sender=User.preferred_categories.through)
+def preferred_categories_changed_handler(sender, instance, action, pk_set, **kwargs):
+    """
+    Trigger calendar sync when user's preferred categories change
+    """
+    if action == 'post_add' or action == 'post_remove':
+        if instance.calendar_sync_enabled and instance.has_google_calendar_permissions():
+            from videosvoley.core.tasks.calendar_tasks import sync_user_calendar
+            # Delay the task to ensure transaction is committed
+            sync_user_calendar.apply_async(args=[instance.id, True], countdown=10)
+            print(f"Preferred categories changed for user {instance.username}, queuing calendar sync")
+
+
+# Add tracking for calendar sync changes
+@receiver(post_save, sender=User)
+def track_calendar_sync_changes(sender, instance, **kwargs):
+    """
+    Track changes in calendar sync settings
+    """
+    if hasattr(instance, '_old_calendar_sync_enabled'):
+        del instance._old_calendar_sync_enabled

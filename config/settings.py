@@ -91,6 +91,26 @@ ACCOUNT_EMAIL_VERIFICATION = 'none'  # No requerir verificación de email
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Permitir login automático si el email coincide
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # Conectar automáticamente si el email existe
 
+# Configuración de Google Calendar API
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+            'https://www.googleapis.com/auth/calendar',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'offline',
+            'approval_prompt': 'force'
+        }
+    }
+}
+
+# Google Calendar API Configuration
+GOOGLE_CALENDAR_ENABLED = env_config('GOOGLE_CALENDAR_ENABLED', default=True, cast=bool)
+GOOGLE_CALENDAR_NAME = env_config('GOOGLE_CALENDAR_NAME', default='VideosVoley - Partidos')
+GOOGLE_CALENDAR_TIMEZONE = env_config('GOOGLE_CALENDAR_TIMEZONE', default='Europe/Madrid')
+
 # Adapters personalizados para suprimir mensajes
 ACCOUNT_ADAPTER = 'videosvoley.users.adapters.CustomAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'videosvoley.users.adapters.CustomSocialAccountAdapter'
@@ -248,6 +268,15 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+
+# Celery Beat Configuration (Periodic Tasks)
+CELERY_BEAT_SCHEDULE = {
+    'daily-calendar-sync': {
+        'task': 'videosvoley.core.tasks.calendar_tasks.daily_calendar_sync',
+        'schedule': 3600.0 * 24,  # Run daily (24 hours)
+        'options': {'expire_seconds': 3600 * 2}  # Expire after 2 hours if not executed
+    },
+}
 
 # Admin URL Configuration
 # En producción (DEBUG=False) usa la URL cifrada del .env

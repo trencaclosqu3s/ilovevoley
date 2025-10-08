@@ -51,7 +51,7 @@ class UserProfileForm(forms.ModelForm):
     
     class Meta:
         model = User
-        fields = ['avatar', 'username', 'email', 'first_name', 'last_name', 'parent_info', 'preferred_categories']
+        fields = ['avatar', 'username', 'email', 'first_name', 'last_name', 'parent_info', 'preferred_categories', 'calendar_sync_enabled', 'google_calendar_id']
         widgets = {
             'avatar': forms.FileInput(attrs={
                 'class': 'hidden',
@@ -64,6 +64,13 @@ class UserProfileForm(forms.ModelForm):
             }),
             'preferred_categories': forms.CheckboxSelectMultiple(attrs={
                 'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'
+            }),
+            'calendar_sync_enabled': forms.CheckboxInput(attrs={
+                'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'
+            }),
+            'google_calendar_id': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'placeholder': 'Deja vacío para usar calendar principal'
             }),
             'username': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
@@ -85,12 +92,16 @@ class UserProfileForm(forms.ModelForm):
             'first_name': 'Nombre',
             'last_name': 'Apellidos',
             'parent_info': 'Información Familiar',
-            'preferred_categories': 'Categorías de Interés'
+            'preferred_categories': 'Categorías de Interés',
+            'calendar_sync_enabled': 'Sincronizar con Google Calendar',
+            'google_calendar_id': 'ID del Calendar de Google (opcional)'
         }
         help_texts = {
             'avatar': 'Sube una imagen para tu perfil (opcional)',
             'parent_info': 'Indica de qué niño/a eres padre/familiar',
-            'preferred_categories': 'Selecciona las categorías de contenido que te interesan'
+            'preferred_categories': 'Selecciona las categorías de contenido que te interesan',
+            'calendar_sync_enabled': 'Sincronizar automáticamente los partidos de tus categorías preferidas con Google Calendar',
+            'google_calendar_id': 'ID del calendar específico donde sincronizar eventos. Deja vacío para usar el calendar principal'
         }
 
     def __init__(self, *args, **kwargs):
@@ -98,4 +109,13 @@ class UserProfileForm(forms.ModelForm):
         # Hacer que el email no sea editable una vez creado
         if self.instance and self.instance.pk:
             self.fields['email'].widget.attrs['readonly'] = True
+            
+        # Mostrar campos de calendar solo si el usuario tiene conexión con Google
+        if self.instance and self.instance.pk:
+            if not self.instance.has_google_calendar_permissions():
+                # Deshabilitar campos de calendar si no tiene permisos
+                self.fields['calendar_sync_enabled'].widget.attrs['disabled'] = True
+                self.fields['google_calendar_id'].widget.attrs['disabled'] = True
+                self.fields['calendar_sync_enabled'].help_text = 'Necesitas iniciar sesión con Google para habilitar esta función'
+                self.fields['google_calendar_id'].help_text = 'Necesitas permisos de Google Calendar para usar esta función'
 
