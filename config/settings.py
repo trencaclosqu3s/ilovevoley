@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'django_celery_beat',  # Para gestionar tareas periódicas desde el admin
 
     # Local apps
+    'videosvoley.core',
     'videosvoley.videos',
     'videosvoley.users',
 ]

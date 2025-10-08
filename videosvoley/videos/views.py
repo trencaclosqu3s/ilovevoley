@@ -10,8 +10,12 @@ from unidecode import unidecode
 from datetime import datetime, timedelta
 import calendar
 from django.utils import timezone
+import logging
 from .models import Video, Comment, Category, League, Match, Team, Standing, Image
 from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 
 def user_is_approved(user):
@@ -633,7 +637,10 @@ def image_upload(request):
             if getattr(settings, 'GOOGLE_VISION_ENABLED', False):
                 try:
                     from .utils import check_image_with_vision_api, process_vision_tags_for_volleyball
+                    
+                    logger.info(f"Procesando imagen con Google Vision API para usuario {request.user.username}")
                     vision_result = check_image_with_vision_api(image.image, extract_labels=True, extract_text=True)
+                    
                     image.vision_api_checked = True
                     image.vision_api_safe = vision_result.get('safe', False)
                     image.vision_api_details = vision_result
@@ -646,6 +653,7 @@ def image_upload(request):
                         auto_tags = process_vision_tags_for_volleyball(detected_labels, detected_text)
                         # Establecer las etiquetas automáticas directamente
                         image.auto_tags = auto_tags
+                        logger.info(f"Etiquetas detectadas: {auto_tags}")
                     
                     # Auto-aprobar SOLO si es segura, la API funcionó correctamente y la moderación automática está habilitada
                     if (vision_result.get('safe', False) and 
@@ -655,12 +663,52 @@ def image_upload(request):
                         image.moderated_by = request.user
                         image.moderation_date = timezone.now()
                         image.moderation_notes = 'Auto-aprobada por Google Vision API'
+                        logger.info(f"Imagen auto-aprobada para usuario {request.user.username}")
+                    else:
+                        logger.info(f"Imagen requiere moderación manual (safe={vision_result.get('safe')}, auto_mod={getattr(settings, 'AUTO_MODERATION_ENABLED', False)})")
+                        
                 except Exception as e:
-                    # Log error y marcar como que requiere revisión manual
-                    print(f"Error en Vision API: {e}")
+                    # Log error detallado y marcar como que requiere revisión manual
+                    logger.error(
+                        f"Error en Vision API al procesar imagen para usuario {request.user.username}: {str(e)}", 
+                        exc_info=True,
+                        extra={
+                            'user': request.user.username,
+                            'image_title': image.title if hasattr(image, 'title') else 'N/A'
+                        }
+                    )
+                    
                     image.vision_api_checked = False
                     image.vision_api_safe = False
-                    image.vision_api_details = {'error': str(e), 'api_response_ok': False}
+                    image.vision_api_details = {
+                        'error': str(e), 
+                        'api_response_ok': False,
+                        'error_type': type(e).__name__
+                    }
+                    
+                    # En desarrollo, mostrar el error al usuario
+                    if settings.DEBUG:
+                        messages.warning(
+                            request, 
+                            f'Error al procesar con Vision API: {str(e)}. La imagen quedará pendiente de moderación manual.'
+                        )
+                    
+                    # En producción, enviar notificación a admins si está configurado
+                    if not settings.DEBUG and settings.NOTIFICATION_EMAIL_ENABLED:
+                        try:
+                            from videosvoley.core.email_utils import send_notification_email
+                            send_notification_email(
+                                subject='Error en Google Vision API',
+                                template_name='emails/vision_api_error.html',
+                                context={
+                                    'error': str(e),
+                                    'user': request.user,
+                                    'image_title': image.title if hasattr(image, 'title') else 'N/A',
+                                },
+                                recipient_list=settings.ADMIN_EMAIL_LIST
+                            )
+                        except Exception as email_error:
+                            logger.error(f"Error al enviar notificación de error de Vision API: {email_error}")
             
             image.save()
             
