@@ -1,9 +1,10 @@
 #!/bin/bash
-# Script de diagnóstico rápido para producción
+# Script de diagnóstico rápido para producción (Docker)
 # Ejecutar con: bash check_config.sh
 
 echo "=========================================="
 echo "  Diagnóstico Rápido - VideosVoley"
+echo "  (Docker Compose)"
 echo "=========================================="
 echo ""
 
@@ -13,23 +14,53 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Detectar si usa docker-compose o docker compose
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+else
+    DOCKER_COMPOSE="docker compose"
+fi
+
+# Función para ejecutar comandos Django en Docker
+run_django() {
+    $DOCKER_COMPOSE exec -T web python manage.py "$@"
+}
+
 # 1. Verificar que estamos en el directorio correcto
-if [ ! -f "manage.py" ]; then
-    echo -e "${RED}✗ Error: No se encuentra manage.py${NC}"
+if [ ! -f "docker-compose.yml" ]; then
+    echo -e "${RED}✗ Error: No se encuentra docker-compose.yml${NC}"
     echo "  Ejecuta este script desde el directorio raíz del proyecto"
     exit 1
 fi
-echo -e "${GREEN}✓ Directorio correcto${NC}"
+echo -e "${GREEN}✓ Directorio correcto (Docker)${NC}"
 
-# 2. Verificar archivo .env
+# 2. Verificar que Docker está corriendo
+if ! docker info > /dev/null 2>&1; then
+    echo -e "${RED}✗ Error: Docker no está corriendo${NC}"
+    echo "  Inicia Docker y vuelve a intentar"
+    exit 1
+fi
+echo -e "${GREEN}✓ Docker está corriendo${NC}"
+
+# 3. Verificar que los contenedores están activos
+if ! $DOCKER_COMPOSE ps | grep -q "web.*running\|web.*Up"; then
+    echo -e "${RED}✗ Error: El contenedor 'web' no está corriendo${NC}"
+    echo "  Inicia los contenedores con: $DOCKER_COMPOSE up -d"
+    exit 1
+fi
+echo -e "${GREEN}✓ Contenedores activos${NC}"
+
+# 4. Verificar archivo .env
+echo ""
+echo "Archivo .env:"
+echo "-------------"
 if [ ! -f ".env" ]; then
     echo -e "${YELLOW}⚠ Advertencia: No se encuentra archivo .env${NC}"
-    echo "  Copia .env.example a .env y configúralo"
+    echo "  Copia env.production.example a .env y configúralo"
 else
     echo -e "${GREEN}✓ Archivo .env existe${NC}"
     
     # Verificar variables críticas
-    echo ""
     echo "Variables de entorno críticas:"
     echo "-------------------------------"
     
@@ -99,49 +130,54 @@ else
     echo "  Crear con: mkdir -p media"
 fi
 
-# 4. Verificar base de datos
+# 6. Verificar base de datos
 echo ""
 echo "Base de Datos:"
 echo "--------------"
-if python manage.py showmigrations --plan > /dev/null 2>&1; then
+if run_django showmigrations --plan > /dev/null 2>&1; then
     echo -e "${GREEN}✓ Conexión a base de datos: OK${NC}"
     
     # Verificar migraciones pendientes
-    PENDING=$(python manage.py showmigrations --plan | grep "\[ \]" | wc -l)
+    PENDING=$(run_django showmigrations --plan | grep "\[ \]" | wc -l)
     if [ "$PENDING" -eq 0 ]; then
         echo -e "${GREEN}✓ Todas las migraciones aplicadas${NC}"
     else
         echo -e "${YELLOW}⚠ Hay $PENDING migraciones pendientes${NC}"
-        echo "  Aplicar con: python manage.py migrate"
+        echo "  Aplicar con: $DOCKER_COMPOSE exec web python manage.py migrate"
     fi
 else
     echo -e "${RED}✗ Error de conexión a base de datos${NC}"
 fi
 
-# 5. Ejecutar checks de Django
+# 7. Ejecutar checks de Django
 echo ""
 echo "Django System Checks:"
 echo "---------------------"
-if python manage.py check > /dev/null 2>&1; then
+if run_django check > /dev/null 2>&1; then
     echo -e "${GREEN}✓ Sin errores en system checks${NC}"
 else
     echo -e "${RED}✗ Hay errores en system checks${NC}"
-    echo "  Ver detalles con: python manage.py check"
+    echo "  Ver detalles con: $DOCKER_COMPOSE exec web python manage.py check"
 fi
 
-# 6. Comando de diagnóstico personalizado
+# 8. Comando de diagnóstico personalizado
 echo ""
 echo "=========================================="
 echo "  Ejecutando diagnóstico detallado..."
 echo "=========================================="
 echo ""
 
-python manage.py check_production_config
+run_django check_production_config
 
 echo ""
 echo "=========================================="
 echo "  Diagnóstico completado"
 echo "=========================================="
+echo ""
+echo "Comandos útiles de Docker:"
+echo "  - Ver logs: $DOCKER_COMPOSE logs -f web"
+echo "  - Reiniciar: $DOCKER_COMPOSE restart web"
+echo "  - Shell Django: $DOCKER_COMPOSE exec web python manage.py shell"
 echo ""
 echo "Para más información, consulta:"
 echo "  - SOLUCION_RAPIDA.md (pasos inmediatos)"

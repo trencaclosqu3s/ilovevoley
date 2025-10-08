@@ -238,5 +238,3 @@ class Command(BaseCommand):
             self.stdout.write('\n  Revisa los mensajes anteriores para más detalles.')
         
         self.stdout.write('')
-        
-        return errors  # Exit code
