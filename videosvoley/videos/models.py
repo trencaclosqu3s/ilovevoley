@@ -310,11 +310,22 @@ class Image(models.Model):
     
     image = models.ImageField(
         upload_to=image_upload_path,
-        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp'])],
-        help_text='Formatos permitidos: JPG, PNG, WebP. Tamaño máximo: 10MB'
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'])],
+        help_text='Formatos permitidos: JPG, PNG, WebP, HEIC. Tamaño máximo: 10MB'
     )
     title = models.CharField(max_length=200, help_text='Título descriptivo de la imagen')
     description = models.TextField(blank=True, help_text='Descripción opcional')
+    
+    # Campos para tracking de conversión de formato
+    original_format = models.CharField(
+        max_length=10,
+        blank=True,
+        help_text='Formato original del archivo (ej: heic, jpg)'
+    )
+    was_converted = models.BooleanField(
+        default=False,
+        help_text='Indica si la imagen fue convertida desde otro formato'
+    )
     
     # Tipo y etiquetas
     image_type = models.CharField(

@@ -338,3 +338,169 @@ def optimize_image_for_web(image_file, max_width=1920, quality=85):
     except Exception as e:
         print(f"Error optimizando imagen: {e}")
         return None
+
+
+def convert_heic_to_jpeg(heic_file):
+    """
+    Convierte una imagen HEIC a JPEG manteniendo metadatos EXIF
+    
+    Args:
+        heic_file: Archivo HEIC (UploadedFile o path)
+        
+    Returns:
+        BytesIO: Imagen convertida a JPEG
+    """
+    try:
+        from PIL import Image
+        from pillow_heif import register_heif_opener
+        from io import BytesIO
+        
+        # Registrar el opener de HEIF en Pillow
+        register_heif_opener()
+        
+        # Abrir imagen HEIC
+        if hasattr(heic_file, 'file'):
+            img = Image.open(heic_file.file)
+        elif hasattr(heic_file, 'read'):
+            img = Image.open(heic_file)
+        else:
+            img = Image.open(heic_file)
+        
+        # Convertir a RGB si es necesario
+        if img.mode in ('RGBA', 'LA', 'P'):
+            # Crear fondo blanco para transparencias
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'RGBA' or img.mode == 'LA':
+                background.paste(img, mask=img.split()[-1])  # Usar canal alpha como máscara
+            else:
+                background.paste(img)
+            img = background
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Guardar como JPEG en memoria
+        output = BytesIO()
+        
+        # Intentar preservar EXIF
+        exif_data = img.info.get('exif', None)
+        if exif_data:
+            img.save(output, format='JPEG', quality=95, exif=exif_data, optimize=True)
+        else:
+            img.save(output, format='JPEG', quality=95, optimize=True)
+        
+        output.seek(0)
+        return output
+        
+    except ImportError:
+        raise Exception("pillow-heif no está instalado. Ejecuta: pip install pillow-heif")
+    except Exception as e:
+        raise Exception(f"Error convirtiendo HEIC a JPEG: {str(e)}")
+
+
+def extract_frame_from_live_photo(video_file):
+    """
+    Extrae el frame principal de un video de Live Photo
+    
+    Args:
+        video_file: Archivo de video MOV/MP4
+        
+    Returns:
+        BytesIO: Frame extraído como JPEG
+    """
+    try:
+        from PIL import Image
+        from io import BytesIO
+        import tempfile
+        import os
+        
+        # Guardar temporalmente el video
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mov') as tmp:
+            if hasattr(video_file, 'read'):
+                tmp.write(video_file.read())
+            else:
+                with open(video_file, 'rb') as f:
+                    tmp.write(f.read())
+            tmp_path = tmp.name
+        
+        try:
+            # Usar ffmpeg o moviepy para extraer frame
+            # Por ahora, retornar None para indicar que no se pudo procesar
+            # TODO: Implementar con opencv-python o moviepy si se necesita
+            return None
+        finally:
+            # Limpiar archivo temporal
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+                
+    except Exception as e:
+        print(f"Error extrayendo frame de Live Photo: {str(e)}")
+        return None
+
+
+def process_uploaded_image(uploaded_file):
+    """
+    Procesa una imagen subida, convirtiendo HEIC si es necesario
+    
+    Args:
+        uploaded_file: Django UploadedFile
+        
+    Returns:
+        tuple: (processed_file, original_extension, was_converted)
+    """
+    from django.core.files.uploadedfile import InMemoryUploadedFile
+    import os
+    
+    # Obtener extensión original
+    original_name = uploaded_file.name
+    original_ext = os.path.splitext(original_name)[1].lower()
+    
+    # Si es HEIC, convertir a JPEG
+    if original_ext in ['.heic', '.heif']:
+        try:
+            jpeg_data = convert_heic_to_jpeg(uploaded_file)
+            
+            # Crear nuevo UploadedFile con el JPEG
+            new_name = os.path.splitext(original_name)[0] + '.jpg'
+            converted_file = InMemoryUploadedFile(
+                jpeg_data,
+                field_name=uploaded_file.field_name,
+                name=new_name,
+                content_type='image/jpeg',
+                size=jpeg_data.getbuffer().nbytes,
+                charset=None
+            )
+            
+            return converted_file, original_ext, True
+            
+        except Exception as e:
+            raise Exception(f"No se pudo convertir HEIC: {str(e)}")
+    
+    # Si no es HEIC, retornar tal cual
+    return uploaded_file, original_ext, False
+
+
+def is_live_photo_video(filename):
+    """
+    Detecta si un archivo es el componente de video de una Live Photo
+    
+    Live Photos de iPhone tienen nombres como:
+    - IMG_1234.HEIC (foto)
+    - IMG_1234.MOV (video)
+    
+    Args:
+        filename: Nombre del archivo
+        
+    Returns:
+        bool: True si parece ser un video de Live Photo
+    """
+    import os
+    name, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    
+    # Videos de Live Photo suelen ser MOV o MP4
+    if ext not in ['.mov', '.mp4']:
+        return False
+    
+    # Suelen tener nombres como IMG_XXXX o similar
+    # Esta es una detección heurística, puede mejorarse
+    return name.upper().startswith('IMG_') or name.upper().startswith('DSC_')

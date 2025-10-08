@@ -184,7 +184,7 @@ class ImageUploadForm(forms.ModelForm):
             'image': forms.FileInput(attrs={
                 'class': 'hidden',
                 'id': 'image-input',
-                'accept': 'image/jpeg,image/jpg,image/png,image/webp',
+                'accept': 'image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif',
                 'multiple': False
             }),
             'title': forms.TextInput(attrs={
@@ -276,8 +276,8 @@ class ImageUploadForm(forms.ModelForm):
                 raise forms.ValidationError('El archivo es demasiado grande. Tamaño máximo: 10MB')
             
             # Validar tipo de archivo
-            if not image.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                raise forms.ValidationError('Formato no válido. Use JPG, PNG o WebP')
+            if not image.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif')):
+                raise forms.ValidationError('Formato no válido. Use JPG, PNG, WebP o HEIC')
         
         return image
     

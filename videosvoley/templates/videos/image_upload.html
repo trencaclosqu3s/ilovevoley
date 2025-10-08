@@ -24,7 +24,7 @@
                     <div id="drop-zone-content">
                         <i class="fas fa-cloud-upload-alt text-gray-400 text-4xl mb-4"></i>
                         <p class="text-gray-600 mb-2">Arrastra tu imagen aquí o haz clic para seleccionar</p>
-                        <p class="text-sm text-gray-500">Formatos: JPG, PNG, WebP • Máximo 10MB</p>
+                        <p class="text-sm text-gray-500">Formatos: JPG, PNG, WebP, HEIC • Máximo 10MB</p>
                     </div>
                     
                     <div id="image-preview" class="hidden">
@@ -218,9 +218,16 @@ imageInput.addEventListener('change', (e) => {
 
 function handleFileSelect(file) {
     // Validar tipo de archivo
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-        alert('Formato no válido. Use JPG, PNG o WebP');
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
+    
+    // Validar por MIME type o extensión (HEIC a veces no tiene MIME correcto)
+    const fileName = file.name.toLowerCase();
+    const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+    const hasValidType = validTypes.includes(file.type);
+    
+    if (!hasValidType && !hasValidExtension) {
+        alert('Formato no válido. Use JPG, PNG, WebP o HEIC');
         return;
     }
     

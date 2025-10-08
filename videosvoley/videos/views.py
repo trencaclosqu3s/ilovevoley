@@ -633,6 +633,35 @@ def image_upload(request):
             image = form.save(commit=False)
             image.uploaded_by = request.user
             
+            # Procesar imagen (convertir HEIC si es necesario)
+            try:
+                from .utils import process_uploaded_image
+                
+                uploaded_file = request.FILES.get('image')
+                if uploaded_file:
+                    processed_file, original_ext, was_converted = process_uploaded_image(uploaded_file)
+                    
+                    # Actualizar el archivo en la instancia
+                    image.image = processed_file
+                    image.original_format = original_ext.lstrip('.')
+                    image.was_converted = was_converted
+                    
+                    if was_converted:
+                        logger.info(f"Imagen convertida de {original_ext} a JPEG para usuario {request.user.username}")
+                        
+            except Exception as e:
+                logger.error(f"Error procesando imagen: {str(e)}")
+                messages.error(request, f'Error al procesar la imagen: {str(e)}')
+                return render(request, 'videos/image_upload.html', {
+                    'form': form,
+                    'recent_matches': Match.objects.select_related(
+                        'home_team', 'away_team', 'league'
+                    ).filter(
+                        Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) | 
+                        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
+                    ).order_by('-match_date')[:10]
+                })
+            
             # Procesar con Google Vision API si está habilitado
             if getattr(settings, 'GOOGLE_VISION_ENABLED', False):
                 try:

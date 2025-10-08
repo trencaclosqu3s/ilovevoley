@@ -349,17 +349,17 @@ class StandingAdmin(admin.ModelAdmin):
 
 @admin.register(Image)
 class ImageAdmin(admin.ModelAdmin):
-    list_display = ('thumbnail_preview', 'title', 'match', 'categories_display_admin', 'status', 'uploaded_by', 'upload_date', 'moderated_by')
-    list_filter = ('status', 'categories', 'year', 'upload_date', 'match__league')
+    list_display = ('thumbnail_preview', 'title', 'match', 'categories_display_admin', 'status', 'uploaded_by', 'upload_date', 'moderated_by', 'original_format', 'was_converted')
+    list_filter = ('status', 'categories', 'year', 'upload_date', 'match__league', 'was_converted', 'original_format')
     search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name')
-    readonly_fields = ('upload_date', 'thumbnail_preview', 'vision_api_details', 'moderation_date')
+    readonly_fields = ('upload_date', 'thumbnail_preview', 'vision_api_details', 'moderation_date', 'original_format', 'was_converted')
     date_hierarchy = 'upload_date'
     actions = ['approve_images', 'reject_images', 'check_with_vision_api']
     filter_horizontal = ('categories',)
     
     fieldsets = (
         ('Imagen', {
-            'fields': ('thumbnail_preview', 'image', 'title', 'description', 'image_type', 'tags')
+            'fields': ('thumbnail_preview', 'image', 'title', 'description', 'image_type', 'tags', 'original_format', 'was_converted')
         }),
         ('Asociación', {
             'fields': ('match', 'categories', 'year'),
