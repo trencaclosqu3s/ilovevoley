@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 - Error del árbitro | Vídeos Voley</title>
+    <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'csj-purple': '#9B7FBF',
+                        'csj-yellow': '#F4D47C',
+                        'csj-purple-dark': '#7B5FA0',
+                        'csj-yellow-dark': '#E5C05A',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes whistle {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
+        .whistle-shake {
+            animation: whistle 0.5s ease-in-out infinite;
+        }
+        
+        .ascii-art {
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+            white-space: pre;
+            font-size: 0.65rem;
+        }
+        
+        @media (min-width: 640px) {
+            .ascii-art {
+                font-size: 0.75rem;
+            }
+        }
+        
+        @media (min-width: 768px) {
+            .ascii-art {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-red-50 via-yellow-50 to-red-100 min-h-screen flex items-center justify-center px-4">
+    <div class="max-w-3xl w-full">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 md:p-12 border-t-4 border-red-500">
+            <!-- Emoji animado -->
+            <div class="text-center mb-6 whistle-shake">
+                <span class="text-6xl sm:text-7xl md:text-8xl">🔴</span>
+            </div>
+            
+            <!-- Arte ASCII de tarjeta roja -->
+            <div class="bg-red-50 rounded-lg p-4 mb-6 overflow-x-auto">
+                <div class="ascii-art text-red-600 text-center">
+    ╔═══════════════╗
+    ║               ║
+    ║               ║
+    ║               ║
+    ║   TARJETA     ║
+    ║               ║
+    ║     ROJA      ║
+    ║               ║
+    ║      🏐       ║
+    ║               ║
+    ║   ERROR 500   ║
+    ║               ║
+    ╚═══════════════╝
+                </div>
+            </div>
+            
+            <!-- Título del error -->
+            <div class="text-center mb-6">
+                <h1 class="text-5xl sm:text-6xl font-bold text-red-500 mb-2">500</h1>
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">¡El árbitro pita falta!</h2>
+                <p class="text-lg text-gray-600">Hemos tocado la red en el servidor 🤦‍♂️</p>
+            </div>
+            
+            <!-- Mensaje divertido -->
+            <div class="bg-red-100 border-l-4 border-red-500 rounded-lg p-4 mb-8">
+                <p class="text-gray-700 text-center italic">
+                    "¡Rotación incorrecta! Algo salió mal en nuestro lado de la cancha..."
+                </p>
+            </div>
+            
+            <!-- Información útil -->
+            <div class="bg-gray-50 rounded-lg p-6 mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">¿Qué ha pasado?</h3>
+                <ul class="space-y-2 text-gray-600">
+                    <li class="flex items-start">
+                        <span class="text-red-500 mr-2">•</span>
+                        <span>Nuestro servidor ha cometido un error técnico</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-red-500 mr-2">•</span>
+                        <span>El equipo técnico ha sido notificado automáticamente</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-red-500 mr-2">•</span>
+                        <span>Estamos trabajando para solucionar el problema</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-red-500 mr-2">•</span>
+                        <span>Intenta volver a cargar la página en unos momentos</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Botones de acción -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{% url 'videos:video_list' %}" 
+                   class="bg-csj-purple hover:bg-csj-purple-dark text-white font-bold py-3 px-8 rounded-lg transition-colors text-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                    🏠 Volver a Inicio
+                </a>
+                <button onclick="window.location.reload()" 
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-8 rounded-lg transition-colors text-center shadow hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
+                    🔄 Reintentar
+                </button>
+            </div>
+            
+            <!-- Footer divertido -->
+            <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+                <p class="text-sm text-gray-500">
+                    <span class="font-semibold text-red-500">Tiempo muerto técnico:</span> 
+                    El entrenador está dando indicaciones al equipo 📋
+                </p>
+            </div>
+        </div>
+        
+        <!-- Logo/Branding -->
+        <div class="text-center mt-6">
+            <p class="text-sm text-gray-600">
+                Una producción del <span class="font-bold text-csj-purple">CV Sant Josep Obrer</span>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
