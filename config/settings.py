@@ -86,6 +86,10 @@ ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 SOCIALACCOUNT_QUERY_EMAIL = True
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_STORE_TOKENS = True
+SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-crear cuenta si no existe
+ACCOUNT_EMAIL_VERIFICATION = 'none'  # No requerir verificación de email
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Permitir login automático si el email coincide
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # Conectar automáticamente si el email existe
 
 # Adapters personalizados para suprimir mensajes
 ACCOUNT_ADAPTER = 'videosvoley.users.adapters.CustomAccountAdapter'
