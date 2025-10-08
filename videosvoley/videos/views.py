@@ -878,20 +878,30 @@ def image_bulk_upload(request):
                 # Guardar imagen
                 image.save()
                 
-                # Asignar categorías si hay match
+                # Asignar categorías
+                categories_to_add = []
+                
+                # Prioridad 1: Si hay match, usar categorías del partido
                 if 'match' in shared_data and shared_data['match']:
                     match = shared_data['match']
-                    # Asignar categorías de los equipos del partido
-                    categories_to_add = []
                     if match.home_team and match.home_team.category:
                         categories_to_add.append(match.home_team.category)
                     if match.away_team and match.away_team.category:
                         categories_to_add.append(match.away_team.category)
                     if match.league and match.league.category:
                         categories_to_add.append(match.league.category)
-                    
-                    if categories_to_add:
-                        image.categories.set(categories_to_add)
+                
+                # Prioridad 2: Si no hay match, usar categorías seleccionadas manualmente
+                if not categories_to_add:
+                    category_ids = request.POST.getlist('categories')
+                    if category_ids:
+                        categories_to_add = Category.objects.filter(id__in=category_ids)
+                
+                # Asignar categorías (eliminar duplicados)
+                if categories_to_add:
+                    # Convertir a set para eliminar duplicados, luego a list
+                    unique_categories = list(set(categories_to_add))
+                    image.categories.set(unique_categories)
                 
                 success_count += 1
                 logger.info(f"Imagen subida exitosamente: {title} por {request.user.username}")
