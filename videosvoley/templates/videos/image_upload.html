@@ -83,11 +83,15 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">
                     {{ form.categories.label }}
                 </label>
-                <div class="space-y-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p class="text-xs text-gray-500 mb-3">
+                    Si seleccionas un partido, las categorías se asignarán automáticamente. 
+                    Si no, puedes seleccionar manualmente las categorías aquí.
+                </p>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     {% for checkbox in form.categories %}
-                        <label class="flex items-center cursor-pointer hover:bg-white p-2 rounded transition">
+                        <label class="flex items-center space-x-2 cursor-pointer hover:bg-white p-2 rounded transition">
                             {{ checkbox.tag }}
-                            <span class="ml-2 text-sm text-gray-700">{{ checkbox.choice_label }}</span>
+                            <span class="text-sm text-gray-700">{{ checkbox.choice_label }}</span>
                         </label>
                     {% endfor %}
                 </div>
@@ -299,12 +303,39 @@ document.getElementById('id_image_type').addEventListener('change', function() {
     }
 });
 
+// Lógica de categorías: deshabilitar si hay partido seleccionado
+const matchSelect = document.getElementById('id_match');
+const categoryCheckboxes = document.querySelectorAll('input[name="categories"]');
+
+function updateCategoriesState() {
+    const hasMatch = matchSelect.value !== '';
+    
+    categoryCheckboxes.forEach(checkbox => {
+        if (hasMatch) {
+            checkbox.disabled = true;
+            checkbox.checked = false;
+            checkbox.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.remove('cursor-pointer');
+        } else {
+            checkbox.disabled = false;
+            checkbox.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.add('cursor-pointer');
+        }
+    });
+}
+
+// Actualizar estado al cambiar partido
+matchSelect.addEventListener('change', updateCategoriesState);
+
 // Inicializar al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     const imageTypeSelect = document.getElementById('id_image_type');
     if (imageTypeSelect) {
         imageTypeSelect.dispatchEvent(new Event('change'));
     }
+    
+    // Estado inicial de categorías
+    updateCategoriesState();
 });
 </script>
 {% endblock %}

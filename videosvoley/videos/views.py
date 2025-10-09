@@ -560,7 +560,7 @@ def image_gallery(request):
         elif not show_all and request.user.preferred_categories.exists():
             # Filtrar por preferencias solo si no hay filtro de categoría específico
             user_categories = request.user.preferred_categories.all()
-            images = images.filter(categories__in=user_categories)
+            images = images.filter(categories__in=user_categories).distinct()
             
         if year:
             images = images.filter(year=year)
@@ -571,7 +571,7 @@ def image_gallery(request):
         # Si no hay filtros válidos, aplicar preferencias por defecto
         if not show_all and request.user.preferred_categories.exists():
             user_categories = request.user.preferred_categories.all()
-            images = images.filter(categories__in=user_categories)
+            images = images.filter(categories__in=user_categories).distinct()
     
     # Paginación
     paginator = Paginator(images, 12)

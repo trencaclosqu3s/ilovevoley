@@ -229,34 +229,53 @@
 
         <!-- Paginación -->
         {% if page_obj.has_other_pages %}
-            <div class="flex justify-center mt-8">
-                <nav class="flex space-x-2">
+            <div class="flex justify-center mt-8 mb-4">
+                <nav class="flex items-center space-x-2">
+                    <!-- Botón anterior -->
                     {% if page_obj.has_previous %}
-                        <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1" 
-                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                            <i class="fas fa-angle-double-left"></i>
-                        </a>
                         <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}" 
-                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                            <i class="fas fa-angle-left"></i>
+                           class="px-3 py-2 text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                            ← Anterior
                         </a>
+                    {% else %}
+                        <span class="px-3 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed">
+                            ← Anterior
+                        </span>
                     {% endif %}
 
-                    <span class="px-3 py-2 text-sm font-medium text-white bg-csj-purple border border-csj-purple rounded-md">
-                        {{ page_obj.number }}
-                    </span>
+                    <!-- Páginas numeradas -->
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <!-- Página actual -->
+                            <span class="px-4 py-2 text-sm font-medium text-white bg-csj-purple border border-csj-purple rounded-md">
+                                {{ num }}
+                            </span>
+                        {% else %}
+                            <!-- Páginas no activas -->
+                            <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}" 
+                               class="px-4 py-2 text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                                {{ num }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
 
+                    <!-- Botón siguiente -->
                     {% if page_obj.has_next %}
                         <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}" 
-                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                            <i class="fas fa-angle-right"></i>
+                           class="px-3 py-2 text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                            Siguiente →
                         </a>
-                        <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}" 
-                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                            <i class="fas fa-angle-double-right"></i>
-                        </a>
+                    {% else %}
+                        <span class="px-3 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed">
+                            Siguiente →
+                        </span>
                     {% endif %}
                 </nav>
+            </div>
+            
+            <!-- Info de paginación -->
+            <div class="text-center text-sm text-gray-500 mb-4">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} imágenes totales)
             </div>
         {% endif %}
     {% else %}
