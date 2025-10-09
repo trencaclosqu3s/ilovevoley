@@ -55,16 +55,16 @@ class UserMatchesFeed(ICalFeed):
         start_date = timezone.now() - timedelta(days=30)
         end_date = timezone.now() + timedelta(days=365)
         
-        # Filtrar partidos por categorías preferidas
+        # Filtrar partidos por categorías preferidas (a través de league__category)
         matches = Match.objects.filter(
-            category__in=categories,
+            league__category__in=categories,
             match_date__gte=start_date,
             match_date__lte=end_date
         ).select_related(
             'home_team',
             'away_team',
-            'category',
-            'league'
+            'league',
+            'league__category'
         ).order_by('match_date')
         
         return matches
@@ -76,7 +76,8 @@ class UserMatchesFeed(ICalFeed):
     def item_title(self, item):
         """Título del evento"""
         # Incluir categoría en el título para mejor visibilidad
-        title = f'🏐 [{item.category.name}] {item.home_team.name} vs {item.away_team.name}'
+        category_name = item.league.category.name if item.league.category else 'Sin Categoría'
+        title = f'🏐 [{category_name}] {item.home_team.name} vs {item.away_team.name}'
         
         # Marcar como PROVISIONAL si la hora es 00:00 (indica que no está confirmada)
         if item.match_date.hour == 0 and item.match_date.minute == 0:
@@ -93,10 +94,10 @@ class UserMatchesFeed(ICalFeed):
             description_parts.append('⚠️ HORARIO PROVISIONAL - Pendiente de confirmación')
             description_parts.append('')
         
-        description_parts.extend([
-            f'Liga: {item.league.name}',
-            f'Categoría: {item.category.name}',
-        ])
+        description_parts.append(f'Liga: {item.league.name}')
+        
+        if item.league.category:
+            description_parts.append(f'Categoría: {item.league.category.name}')
         
         if item.round_number:
             description_parts.append(f'Jornada: {item.round_number}')
