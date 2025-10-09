@@ -18,10 +18,10 @@ def request_calendar_permissions(request):
     
     if not google_account:
         messages.error(request, 'Primero debes conectar tu cuenta de Google.')
-        return redirect('account_social_connections')
+        return redirect('socialaccount_connections')
     
     # Redirigir a OAuth con parámetro calendar=true para solicitar permisos de Calendar
-    oauth_url = reverse('google_oauth2_login') + '?calendar=true'
+    oauth_url = reverse('google_login') + '?calendar=true'
     return redirect(oauth_url)
 
 
@@ -51,14 +51,14 @@ def calendar_settings(request):
     
     has_calendar_perms = False
     if google_account:
-        token = SocialToken.objects.filter(
-            account=google_account,
-            app__provider='google'
-        ).first()
-        
-        # Verificar si el token incluye scope de Calendar
-        # (esto es aproximado, la verificación real sería más compleja)
-        has_calendar_perms = bool(token and token.token_secret)
+        # Probar directamente si el usuario puede acceder a Calendar
+        from videosvoley.core.services.calendar_sync import get_calendar_service
+        try:
+            calendar_service = get_calendar_service(request.user)
+            if calendar_service:
+                has_calendar_perms = calendar_service.test_connection()
+        except Exception:
+            has_calendar_perms = False
     
     context = {
         'has_google': has_google,

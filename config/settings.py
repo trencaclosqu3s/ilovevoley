@@ -92,19 +92,26 @@ SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Permitir login automático si el em
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # Conectar automáticamente si el email existe
 
 # Configuración de Google Calendar API
+# Scopes básicos para todos los usuarios
+GOOGLE_BASIC_SCOPES = [
+    'profile',
+    'email',
+]
+
+# Scope adicional para Calendar (solo para usuarios específicos)
+GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar'
+
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
-        'SCOPE': [
-            'profile',
-            'email',
-            # 'https://www.googleapis.com/auth/calendar',  # Comentado temporalmente para evitar 403
-        ],
+        'SCOPE': GOOGLE_BASIC_SCOPES,  # Solo scopes básicos por defecto
         'AUTH_PARAMS': {
             'access_type': 'offline',
             'prompt': 'consent'
         }
     }
 }
+
+# Configurar adaptador personalizado para Calendar (se configurará más abajo)
 
 # Google Calendar API Configuration
 GOOGLE_CALENDAR_ENABLED = env_config('GOOGLE_CALENDAR_ENABLED', default=True, cast=bool)

@@ -1,5 +1,6 @@
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from videosvoley.core.adapters import GoogleCalendarSocialAccountAdapter
 
 
 class CustomAccountAdapter(DefaultAccountAdapter):
@@ -26,7 +27,7 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         super().add_message(request, level, message_template, message_context, extra_tags, message)
 
 
-class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
+class CustomSocialAccountAdapter(GoogleCalendarSocialAccountAdapter):
     def add_message(self, request, level, message_template=None, message_context=None, extra_tags="", message=None):
         """
         Suprimir mensajes automáticos de login/logout para cuentas sociales
