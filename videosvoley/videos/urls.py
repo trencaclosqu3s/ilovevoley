@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .calendar_feed import UserMatchesFeed
 
 app_name = 'videos'
 
@@ -34,4 +35,7 @@ urlpatterns = [
     
     # Página institucional
     path('quienes-somos/', views.about, name='about'),
+    
+    # Calendar subscription feed (ICS)
+    path('calendario/suscripcion/<str:token>/', UserMatchesFeed(), name='calendar_feed'),
 ]

@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Configuración de Google Calendar{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">📅 Google Calendar</h1>
+            <p class="text-xl text-gray-600">Sincroniza automáticamente los partidos con tu calendario</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            
+            <!-- Card Header -->
+            <div class="bg-gradient-to-r from-csj-purple to-csj-purple-dark text-white p-6">
+                <div class="flex items-center">
+                    <div class="text-3xl mr-4">🔗</div>
+                    <div>
+                        <h2 class="text-2xl font-semibold">Estado de conexión</h2>
+                        <p class="text-purple-100">Conecta tus partidos favoritos con Google Calendar</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Body -->
+            <div class="p-6">
+                
+                <!-- Status Grid -->
+                <div class="grid md:grid-cols-2 gap-6 mb-8">
+                    <!-- Google Account Status -->
+                    <div class="flex items-center p-4 bg-gray-50 rounded-lg">
+                        <div class="flex-shrink-0 mr-4">
+                            {% if has_google %}
+                                <div class="w-4 h-4 bg-green-500 rounded-full"></div>
+                            {% else %}
+                                <div class="w-4 h-4 bg-red-500 rounded-full"></div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Cuenta Google</h3>
+                            <p class="text-sm text-gray-600">
+                                {% if has_google %}✅ Conectada{% else %}❌ No conectada{% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Calendar Permissions Status -->
+                    <div class="flex items-center p-4 bg-gray-50 rounded-lg">
+                        <div class="flex-shrink-0 mr-4">
+                            {% if has_calendar_perms %}
+                                <div class="w-4 h-4 bg-green-500 rounded-full"></div>
+                            {% elif has_google %}
+                                <div class="w-4 h-4 bg-yellow-500 rounded-full"></div>
+                            {% else %}
+                                <div class="w-4 h-4 bg-red-500 rounded-full"></div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Permisos Calendar</h3>
+                            <p class="text-sm text-gray-600">
+                                {% if has_calendar_perms %}✅ Concedidos{% elif has_google %}⚠️ Pendientes{% else %}❌ No disponibles{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Sections -->
+                {% if not has_google %}
+                    <!-- Connect Google Account -->
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                        <div class="flex items-start">
+                            <div class="text-2xl mr-4">🔗</div>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Conecta tu cuenta de Google</h3>
+                                <p class="text-gray-700 mb-4">Para usar la sincronización de Calendar, primero necesitas conectar tu cuenta de Google.</p>
+                                <a href="{% url 'socialaccount_connections' %}" 
+                                   class="inline-flex items-center px-6 py-3 bg-csj-purple text-white font-semibold rounded-lg hover:bg-csj-purple-dark transition-colors">
+                                    <span class="mr-2">🔗</span>
+                                    Conectar cuenta Google
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                {% elif not has_calendar_perms %}
+                    <!-- Authorize Calendar -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start">
+                            <div class="text-2xl mr-4">📅</div>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Autorizar permisos de Calendar</h3>
+                                <p class="text-gray-700 mb-4">Tu cuenta Google está conectada. Ahora necesitas autorizar el acceso específico a tu calendario.</p>
+                                <a href="{% url 'core:request_calendar_permissions' %}" 
+                                   class="inline-flex items-center px-6 py-3 bg-csj-yellow text-gray-900 font-semibold rounded-lg hover:bg-csj-yellow-dark transition-colors">
+                                    <span class="mr-2">🗓️</span>
+                                    Autorizar acceso a Calendar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Info Card -->
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <h4 class="font-semibold text-gray-900 mb-3">ℹ️ ¿Qué permisos solicita?</h4>
+                        <ul class="space-y-2">
+                            <li class="flex items-center text-gray-700">
+                                <span class="text-green-500 mr-2">✓</span>
+                                Crear eventos de partidos en tu calendario
+                            </li>
+                            <li class="flex items-center text-gray-700">
+                                <span class="text-green-500 mr-2">✓</span>
+                                Actualizar horarios cuando cambien
+                            </li>
+                            <li class="flex items-center text-gray-700">
+                                <span class="text-green-500 mr-2">✓</span>
+                                Solo partidos de tus categorías favoritas
+                            </li>
+                            <li class="flex items-center text-gray-700">
+                                <span class="text-green-500 mr-2">🛡️</span>
+                                Puedes revocar en cualquier momento
+                            </li>
+                        </ul>
+                    </div>
+                    
+                {% else %}
+                    <!-- Calendar Connected -->
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+                        <div class="flex items-start">
+                            <div class="text-2xl mr-4">✅</div>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Google Calendar conectado</h3>
+                                <p class="text-gray-700 mb-4">Tu cuenta tiene los permisos necesarios para sincronizar con Google Calendar.</p>
+                                
+                                <form method="post" action="{% url 'core:calendar_settings' %}" class="mb-4">
+                                    {% csrf_token %}
+                                    <div class="flex items-center mb-4">
+                                        <input type="checkbox" id="calendar_sync" name="calendar_sync" 
+                                               {% if calendar_sync_enabled %}checked{% endif %}
+                                               class="w-4 h-4 text-csj-purple bg-gray-100 border-gray-300 rounded focus:ring-csj-purple focus:ring-2">
+                                        <label for="calendar_sync" class="ml-2 text-sm font-medium text-gray-900">
+                                            Activar sincronización automática
+                                        </label>
+                                    </div>
+                                    
+                                    {% if calendar_sync_enabled %}
+                                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                            <h6 class="font-semibold text-gray-900 mb-2">🔄 Sincronización activa</h6>
+                                            <ul class="text-sm text-gray-700 space-y-1">
+                                                <li>• Los partidos de tus categorías favoritas se añaden automáticamente</li>
+                                                <li>• Se sincroniza una vez al día</li>
+                                                <li>• Los cambios en fechas/horarios se actualizan automáticamente</li>
+                                            </ul>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <button type="submit" 
+                                            class="px-6 py-2 bg-csj-purple text-white font-semibold rounded-lg hover:bg-csj-purple-dark transition-colors">
+                                        Guardar configuración
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <a href="{% url 'socialaccount_connections' %}" 
+                           class="flex items-center justify-center px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                            <span class="mr-2">🔗</span>
+                            Gestionar conexiones
+                        </a>
+                        <button onclick="syncNow()" 
+                                class="flex items-center justify-center px-4 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
+                            <span class="mr-2">🔄</span>
+                            Sincronizar ahora
+                        </button>
+                        <button onclick="revokePermissions()" 
+                                class="flex items-center justify-center px-4 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
+                            <span class="mr-2">🚫</span>
+                            Revocar permisos
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Back Button -->
+        <div class="text-center mt-8">
+            <a href="/accounts/profile/" 
+               class="inline-flex items-center px-6 py-3 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                <span class="mr-2">←</span>
+                Volver al perfil
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function syncNow() {
+    alert('🔄 Sincronización manual próximamente disponible');
+}
+
+function revokePermissions() {
+    if (confirm('¿Estás seguro de que quieres revocar los permisos de Calendar?')) {
+        alert('🚫 Funcionalidad de revocación próximamente disponible');
+    }
+}
+</script>
+{% endblock %}

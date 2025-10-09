@@ -53,7 +53,7 @@ INSTALLED_APPS = [
     'django_celery_beat',  # Para gestionar tareas periódicas desde el admin
 
     # Local apps
-    'videosvoley.core',
+    'videosvoley.core.apps.CoreConfig',
     'videosvoley.videos',
     'videosvoley.users',
 ]
@@ -90,6 +90,33 @@ SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-crear cuenta si no existe
 ACCOUNT_EMAIL_VERIFICATION = 'none'  # No requerir verificación de email
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Permitir login automático si el email coincide
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # Conectar automáticamente si el email existe
+
+# Configuración de Google Calendar API
+# Scopes básicos para todos los usuarios
+GOOGLE_BASIC_SCOPES = [
+    'profile',
+    'email',
+]
+
+# Scope adicional para Calendar (solo para usuarios específicos)
+GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar'
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': GOOGLE_BASIC_SCOPES,  # Solo scopes básicos por defecto
+        'AUTH_PARAMS': {
+            'access_type': 'offline',
+            'prompt': 'consent'
+        }
+    }
+}
+
+# Configurar adaptador personalizado para Calendar (se configurará más abajo)
+
+# Google Calendar API Configuration
+GOOGLE_CALENDAR_ENABLED = env_config('GOOGLE_CALENDAR_ENABLED', default=True, cast=bool)
+GOOGLE_CALENDAR_NAME = env_config('GOOGLE_CALENDAR_NAME', default='VideosVoley - Partidos')
+GOOGLE_CALENDAR_TIMEZONE = env_config('GOOGLE_CALENDAR_TIMEZONE', default='Europe/Madrid')
 
 # Adapters personalizados para suprimir mensajes
 ACCOUNT_ADAPTER = 'videosvoley.users.adapters.CustomAccountAdapter'
@@ -248,6 +275,15 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+
+# Celery Beat Configuration (Periodic Tasks)
+CELERY_BEAT_SCHEDULE = {
+    'daily-calendar-sync': {
+        'task': 'videosvoley.core.tasks.calendar_tasks.daily_calendar_sync',
+        'schedule': 3600.0 * 24,  # Run daily (24 hours)
+        'options': {'expire_seconds': 3600 * 2}  # Expire after 2 hours if not executed
+    },
+}
 
 # Admin URL Configuration
 # En producción (DEBUG=False) usa la URL cifrada del .env

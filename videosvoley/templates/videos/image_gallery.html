@@ -229,34 +229,53 @@
 
         <!-- Paginación -->
         {% if page_obj.has_other_pages %}
-            <div class="flex justify-center mt-8">
-                <nav class="flex space-x-2">
+            <div class="flex justify-center mt-8 mb-4">
+                <nav class="flex items-center space-x-2">
+                    <!-- Botón anterior -->
                     {% if page_obj.has_previous %}
-                        <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1" 
-                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                            <i class="fas fa-angle-double-left"></i>
-                        </a>
                         <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}" 
-                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                            <i class="fas fa-angle-left"></i>
+                           class="px-3 py-2 text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                            ← Anterior
                         </a>
+                    {% else %}
+                        <span class="px-3 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed">
+                            ← Anterior
+                        </span>
                     {% endif %}
 
-                    <span class="px-3 py-2 text-sm font-medium text-white bg-csj-purple border border-csj-purple rounded-md">
-                        {{ page_obj.number }}
-                    </span>
+                    <!-- Páginas numeradas -->
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <!-- Página actual -->
+                            <span class="px-4 py-2 text-sm font-medium text-white bg-csj-purple border border-csj-purple rounded-md">
+                                {{ num }}
+                            </span>
+                        {% else %}
+                            <!-- Páginas no activas -->
+                            <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}" 
+                               class="px-4 py-2 text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                                {{ num }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
 
+                    <!-- Botón siguiente -->
                     {% if page_obj.has_next %}
                         <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}" 
-                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                            <i class="fas fa-angle-right"></i>
+                           class="px-3 py-2 text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                            Siguiente →
                         </a>
-                        <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}" 
-                           class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                            <i class="fas fa-angle-double-right"></i>
-                        </a>
+                    {% else %}
+                        <span class="px-3 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed">
+                            Siguiente →
+                        </span>
                     {% endif %}
                 </nav>
+            </div>
+            
+            <!-- Info de paginación -->
+            <div class="text-center text-sm text-gray-500 mb-4">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} imágenes totales)
             </div>
         {% endif %}
     {% else %}
@@ -273,12 +292,12 @@
 
 <!-- Lightbox Modal -->
 <div id="lightbox" class="fixed inset-0 bg-black bg-opacity-75 hidden z-50 flex items-center justify-center p-4">
-    <div class="relative max-w-4xl max-h-full">
-        <button onclick="closeLightbox()" class="absolute top-4 right-4 text-white text-2xl z-10 hover:text-gray-300">
-            <i class="fas fa-times"></i>
+    <div class="lightbox-container relative w-full h-full flex items-center justify-center">
+        <button onclick="closeLightbox()" class="absolute top-4 right-4 bg-white hover:bg-gray-100 text-gray-900 rounded-full w-10 h-10 flex items-center justify-center z-10 transition-all duration-200 hover:scale-110 shadow-lg font-bold text-2xl leading-none">
+            ×
         </button>
-        <img id="lightbox-image" src="" alt="" class="max-w-full max-h-full object-contain">
-        <div class="absolute bottom-4 left-4 right-4 text-white bg-black bg-opacity-50 rounded p-3">
+        <img id="lightbox-image" src="" alt="" class="max-w-full max-h-[90vh] object-contain">
+        <div class="absolute bottom-4 left-4 right-4 text-white bg-black bg-opacity-50 rounded p-3 max-w-4xl mx-auto">
             <h3 id="lightbox-title" class="font-semibold mb-2"></h3>
             <div class="flex justify-between">
                 <span id="lightbox-info"></span>
@@ -311,7 +330,8 @@ document.addEventListener('keydown', function(e) {
 
 // Cerrar clickeando fuera de la imagen
 document.getElementById('lightbox').addEventListener('click', function(e) {
-    if (e.target === this) {
+    // Cerrar si se hace clic en el fondo negro (lightbox) o en el contenedor
+    if (e.target.id === 'lightbox' || e.target.classList.contains('lightbox-container')) {
         closeLightbox();
     }
 });

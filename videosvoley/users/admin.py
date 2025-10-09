@@ -22,8 +22,8 @@ reject_users.short_description = "❌ Rechazar usuarios seleccionados"
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ['username', 'email', 'first_name', 'last_name', 'parent_info_short', 'approval_status', 'is_staff', 'date_joined']
-    list_filter = ['is_approved', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'preferred_categories']
+    list_display = ['username', 'email', 'first_name', 'last_name', 'parent_info_short', 'approval_status', 'calendar_sync_status', 'is_staff', 'date_joined']
+    list_filter = ['is_approved', 'calendar_sync_enabled', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'preferred_categories']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'parent_info']
     filter_horizontal = ['preferred_categories']
     
@@ -34,12 +34,14 @@ class UserAdmin(BaseUserAdmin):
         ('Aprobación', {'fields': ('is_approved',)}),
         ('Información Familiar', {'fields': ('parent_info',)}),
         ('Preferencias', {'fields': ('preferred_categories',)}),
+        ('Google Calendar', {'fields': ('calendar_sync_enabled', 'google_calendar_id', 'calendar_last_sync')}),
         ('Información adicional', {'fields': ('avatar',)}),
     )
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
         ('Aprobación', {'fields': ('is_approved',)}),
         ('Información Familiar', {'fields': ('parent_info',)}),
         ('Preferencias', {'fields': ('preferred_categories',)}),
+        ('Google Calendar', {'fields': ('calendar_sync_enabled', 'google_calendar_id')}),
         ('Información adicional', {'fields': ('avatar',)}),
     )
     
@@ -69,3 +71,29 @@ class UserAdmin(BaseUserAdmin):
     
     parent_info_short.short_description = 'Información Familiar'
     parent_info_short.admin_order_field = 'parent_info'
+    
+    def calendar_sync_status(self, obj):
+        """Muestra el estado de sincronización con Google Calendar"""
+        if obj.calendar_sync_enabled:
+            if obj.has_google_calendar_permissions():
+                if obj.calendar_last_sync:
+                    return format_html(
+                        '<span style="color: green; font-weight: bold;">📅 Activo</span><br>'
+                        '<small style="color: gray;">Últ: {}</small>',
+                        obj.calendar_last_sync.strftime('%d/%m %H:%M')
+                    )
+                else:
+                    return format_html(
+                        '<span style="color: orange; font-weight: bold;">📅 Pendiente</span>'
+                    )
+            else:
+                return format_html(
+                    '<span style="color: red; font-weight: bold;">📅 Sin permisos</span>'
+                )
+        else:
+            return format_html(
+                '<span style="color: gray;">❌ Deshabilitado</span>'
+            )
+    
+    calendar_sync_status.short_description = 'Google Calendar'
+    calendar_sync_status.admin_order_field = 'calendar_sync_enabled'
