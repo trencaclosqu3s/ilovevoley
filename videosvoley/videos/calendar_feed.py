@@ -3,6 +3,8 @@ from django.http import Http404
 from django.utils import timezone
 from django_ical.views import ICalFeed
 from django.urls import reverse
+from django.conf import settings
+from django.db.models import Q
 from videosvoley.videos.models import Match
 from videosvoley.users.models import User
 from datetime import timedelta, datetime, time
@@ -55,11 +57,20 @@ class UserMatchesFeed(ICalFeed):
         start_date = timezone.now() - timedelta(days=30)
         end_date = timezone.now() + timedelta(days=365)
         
-        # Filtrar partidos por categorías preferidas (a través de league__category)
+        # Obtener el nombre del club
+        club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+        
+        # Filtrar partidos por:
+        # 1. Categorías preferidas del usuario
+        # 2. Solo partidos donde juega nuestro club (local o visitante)
+        # 3. Rango de fechas
         matches = Match.objects.filter(
             league__category__in=categories,
             match_date__gte=start_date,
             match_date__lte=end_date
+        ).filter(
+            Q(home_team__name__icontains=club_team_name) |
+            Q(away_team__name__icontains=club_team_name)
         ).select_related(
             'home_team',
             'away_team',
