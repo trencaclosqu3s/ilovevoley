@@ -227,7 +227,6 @@ class MatchesParser(BaseParser):
             'home_score': home_score,
             'away_score': away_score,
             'status': status,
-            'federation_id': f"{self.league.federation_id}_{home_team}_{away_team}_{match_datetime.strftime('%Y%m%d')}"
         }
 
 
@@ -344,7 +343,6 @@ class CalendarParser(BaseParser):
             'home_score': None,  # No hay resultados en calendario
             'away_score': None,  # No hay resultados en calendario
             'status': 'scheduled',
-            'federation_id': f"{self.league.federation_id}_{home_team.replace(' ', '_')}_{away_team.replace(' ', '_')}_{match_datetime.strftime('%Y%m%d')}"
         }
 
 
@@ -449,7 +447,7 @@ class FederationScraper:
     
     @transaction.atomic
     def update_matches(self, matches_data: List[Dict[str, Any]], team_objects: Dict[str, Team]):
-        """Actualiza partidos en la base de datos"""
+        """Actualiza partidos en la base de datos evitando duplicados"""
         from datetime import timedelta
         
         for match_data in matches_data:
@@ -475,19 +473,15 @@ class FederationScraper:
                     continue
             
             match_date = match_data.get('match_date')
-            federation_id = match_data.get('federation_id')
             
-            # Primero intentar buscar por federation_id si existe
+            # ESTRATEGIA DE BÚSQUEDA PARA EVITAR DUPLICADOS:
+            # 1. Buscar por liga + equipos + fecha (mismo día) - criterio principal
+            # 2. Si no existe, crear nuevo partido
+            # 3. Si existe, hacer merge inteligente de datos
+            
             existing_match = None
-            if federation_id:
-                try:
-                    existing_match = Match.objects.get(federation_id=federation_id)
-                except Match.DoesNotExist:
-                    pass
-            
-            # Si no existe por federation_id, buscar por liga + equipos + fecha (mismo día)
-            if not existing_match and match_date:
-                # Buscar partidos en el mismo día entre los mismos equipos
+            if match_date:
+                # Buscar partidos en el mismo día entre los mismos equipos en la misma liga
                 date_start = match_date.replace(hour=0, minute=0, second=0, microsecond=0)
                 date_end = date_start + timedelta(days=1)
                 
@@ -500,25 +494,49 @@ class FederationScraper:
                 ).first()
                 
                 if existing_match:
-                    logger.info(f"Found existing match by teams+date: {home_team} vs {away_team} on {match_date.date()}")
+                    logger.info(f"Found existing match: {home_team.name} vs {away_team.name} on {match_date.date()}")
             
-            # Crear o actualizar el partido
+            # Crear o actualizar el partido con merge inteligente
             if existing_match:
-                # Actualizar partido existente
-                for key, value in match_data.items():
-                    # Solo actualizar si el valor no es None o si estamos actualizando desde resultados
-                    if value is not None:
-                        setattr(existing_match, key, value)
+                # MERGE INTELIGENTE: Actualizar solo campos que:
+                # 1. Tienen valor en los nuevos datos (no None y no vacío)
+                # 2. O están vacíos/None en el partido existente
+                updated_fields = []
                 
-                # Asegurarse de que los datos básicos estén correctos
-                existing_match.league = self.league
-                existing_match.home_team = home_team
-                existing_match.away_team = away_team
+                for key, new_value in match_data.items():
+                    current_value = getattr(existing_match, key, None)
+                    
+                    # Determinar si debemos actualizar el campo
+                    should_update = False
+                    
+                    # Si el valor actual está vacío y el nuevo tiene contenido
+                    if self._is_empty_value(current_value) and not self._is_empty_value(new_value):
+                        should_update = True
+                    # Si el nuevo valor tiene más información (ej: hora específica vs 00:00)
+                    elif key == 'match_date' and new_value and current_value:
+                        # Actualizar si la nueva fecha tiene hora específica y la actual no
+                        if new_value.hour != 0 and current_value.hour == 0:
+                            should_update = True
+                    # Si tenemos nuevos resultados y el partido estaba sin resultados
+                    elif key in ['home_score', 'away_score', 'status'] and new_value is not None:
+                        if key == 'status' and new_value == 'finished' and current_value != 'finished':
+                            should_update = True
+                        elif key in ['home_score', 'away_score'] and current_value is None:
+                            should_update = True
+                    # Para otros campos, actualizar si el nuevo valor no está vacío
+                    elif not self._is_empty_value(new_value) and new_value != current_value:
+                        should_update = True
+                    
+                    if should_update:
+                        setattr(existing_match, key, new_value)
+                        updated_fields.append(key)
                 
-                existing_match.save()
-                logger.info(f"Updated existing match: {existing_match}")
-                match = existing_match
-                created = False
+                if updated_fields:
+                    existing_match.save()
+                    logger.info(f"Updated match fields: {', '.join(updated_fields)} for {existing_match}")
+                else:
+                    logger.debug(f"No updates needed for match: {existing_match}")
+                    
             else:
                 # Crear nuevo partido
                 match = Match.objects.create(
@@ -528,7 +546,14 @@ class FederationScraper:
                     **match_data
                 )
                 logger.info(f"Created new match: {match}")
-                created = True
+    
+    def _is_empty_value(self, value) -> bool:
+        """Determina si un valor está vacío o es None"""
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip() == '':
+            return True
+        return False
     
     def _find_similar_team(self, team_name: str) -> Optional[Team]:
         """Busca equipos similares en la base de datos"""
@@ -545,6 +570,113 @@ class FederationScraper:
                 return team
         
         return None
+    
+    def get_max_rounds(self) -> int:
+        """
+        Determina el número máximo de jornadas para la liga.
+        Usa la jornada más alta de la BD con un margen de seguridad.
+        """
+        # Intentar obtener de la base de datos
+        from django.db.models import Max
+        max_round = Match.objects.filter(league=self.league).aggregate(Max('round_number'))['round_number__max']
+        
+        if max_round and max_round > 0:
+            # Agregar un margen de seguridad pequeño (puede haber más jornadas)
+            result = max_round + 3
+            logger.debug(f"Max rounds from DB: {max_round}, using {result} with safety margin")
+            return result
+        
+        # Si no hay datos en BD, usar un valor por defecto razonable
+        # Las ligas típicas tienen entre 18-30 jornadas
+        logger.debug(f"No matches in DB, using default max rounds: 26")
+        return 26  # Valor por defecto más conservador
+    
+    def scrape_all_results_rounds(self, delay: float = 1.0) -> Dict[str, Any]:
+        """
+        Scrapea todas las jornadas de resultados disponibles.
+        Itera desde la jornada 1 hasta que no encuentre más datos.
+        
+        Args:
+            delay: Tiempo de espera entre jornadas en segundos
+            
+        Returns:
+            Dict con estadísticas del scraping
+        """
+        results_endpoint = self.league.endpoints.filter(
+            endpoint_type='results',
+            is_active=True
+        ).first()
+        
+        if not results_endpoint:
+            logger.warning(f"No results endpoint found for {self.league.name}")
+            return {'error': 'No results endpoint configured'}
+        
+        max_rounds = self.get_max_rounds()
+        total_matches = 0
+        rounds_processed = 0
+        rounds_with_data = 0
+        all_teams = {}
+        
+        logger.info(f"Starting results scraping for {self.league.name}, checking up to {max_rounds} rounds")
+        
+        for round_num in range(1, max_rounds + 1):
+            try:
+                logger.info(f"Scraping round {round_num}/{max_rounds} for {self.league.name}")
+                
+                # Scrapear esta jornada específica
+                data = self.scrape_endpoint(results_endpoint, round=round_num)
+                
+                if 'error' in data:
+                    logger.warning(f"Error in round {round_num}: {data['error']}")
+                    continue
+                
+                # Si no hay partidos, podría ser que esta jornada no existe aún
+                if not data.get('matches'):
+                    logger.debug(f"No matches found in round {round_num}")
+                    # Si llevamos 3 jornadas consecutivas sin datos, probablemente terminamos
+                    if rounds_processed - rounds_with_data >= 3:
+                        logger.info(f"No data in 3 consecutive rounds, stopping at round {round_num}")
+                        break
+                    rounds_processed += 1
+                    continue
+                
+                rounds_with_data += 1
+                rounds_processed += 1
+                
+                # Actualizar equipos si los hay
+                if 'teams' in data:
+                    new_teams = self.update_teams(data['teams'])
+                    all_teams.update(new_teams)
+                
+                # Actualizar partidos
+                if 'matches' in data:
+                    matches_count = len(data['matches'])
+                    self.update_matches(data['matches'], all_teams)
+                    total_matches += matches_count
+                    logger.info(f"Round {round_num}: {matches_count} matches processed")
+                
+                # Rate limiting entre jornadas
+                if round_num < max_rounds:
+                    time.sleep(delay)
+                    
+            except Exception as e:
+                logger.error(f"Error scraping round {round_num}: {e}", exc_info=True)
+                rounds_processed += 1
+                continue
+        
+        result_summary = {
+            'status': 'success',
+            'rounds_processed': rounds_processed,
+            'rounds_with_data': rounds_with_data,
+            'total_matches': total_matches,
+        }
+        
+        logger.info(
+            f"Completed results scraping for {self.league.name}: "
+            f"{rounds_with_data} rounds with data, {total_matches} total matches"
+        )
+        
+        return result_summary
     
     def scrape_all_endpoints(self, **kwargs) -> Dict[str, Any]:
         """Ejecuta scraping de todos los endpoints activos de la liga"""
