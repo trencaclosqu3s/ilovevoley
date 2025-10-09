@@ -58,14 +58,14 @@ class UserMatchesFeed(ICalFeed):
         # Filtrar partidos por categorías preferidas
         matches = Match.objects.filter(
             category__in=categories,
-            date__gte=start_date,
-            date__lte=end_date
+            match_date__gte=start_date,
+            match_date__lte=end_date
         ).select_related(
             'home_team',
             'away_team',
             'category',
             'league'
-        ).order_by('date', 'time')
+        ).order_by('match_date')
         
         return matches
     
@@ -75,22 +75,36 @@ class UserMatchesFeed(ICalFeed):
     
     def item_title(self, item):
         """Título del evento"""
-        return f'[VOLEIBOL] {item.home_team.name} vs {item.away_team.name}'
+        # Incluir categoría en el título para mejor visibilidad
+        title = f'🏐 [{item.category.name}] {item.home_team.name} vs {item.away_team.name}'
+        
+        # Marcar como PROVISIONAL si la hora es 00:00 (indica que no está confirmada)
+        if item.match_date.hour == 0 and item.match_date.minute == 0:
+            title = f'{title} [PROVISIONAL]'
+        
+        return title
     
     def item_description(self, item):
         """Descripción del evento"""
-        description_parts = [
+        description_parts = []
+        
+        # Advertencia si es provisional
+        if item.match_date.hour == 0 and item.match_date.minute == 0:
+            description_parts.append('⚠️ HORARIO PROVISIONAL - Pendiente de confirmación')
+            description_parts.append('')
+        
+        description_parts.extend([
             f'Liga: {item.league.name}',
             f'Categoría: {item.category.name}',
-        ]
+        ])
         
-        if item.round_name:
-            description_parts.append(f'Jornada: {item.round_name}')
+        if item.round_number:
+            description_parts.append(f'Jornada: {item.round_number}')
         
-        if item.result:
-            description_parts.append(f'Resultado: {item.result}')
+        if item.home_score is not None and item.away_score is not None:
+            description_parts.append(f'Resultado: {item.home_score} - {item.away_score}')
         
-        # Agregar enlace al partido en la web (usa dominio relativo por ahora)
+        # Agregar enlace al partido en la web
         try:
             match_url = reverse("videos:match_detail", args=[item.id])
             description_parts.append(f'\nVer más información en la web')
@@ -101,15 +115,13 @@ class UserMatchesFeed(ICalFeed):
     
     def item_start_datetime(self, item):
         """Fecha y hora de inicio del evento"""
-        if item.time:
-            # Combinar fecha y hora
-            dt = datetime.combine(item.date, item.time)
-            # Hacer timezone-aware
-            return timezone.make_aware(dt, timezone.get_current_timezone())
-        else:
-            # Si no hay hora, usar las 18:00 como default
-            dt = datetime.combine(item.date, time(18, 0))
-            return timezone.make_aware(dt, timezone.get_current_timezone())
+        # Si la hora es 00:00, considerarlo como provisional y poner a las 09:00
+        # para que aparezca al inicio del día y sea más visible
+        if item.match_date.hour == 0 and item.match_date.minute == 0:
+            provisional_time = item.match_date.replace(hour=9, minute=0)
+            return provisional_time
+        
+        return item.match_date
     
     def item_end_datetime(self, item):
         """Fecha y hora de fin del evento (2 horas después del inicio)"""

@@ -75,8 +75,13 @@ class Command(BaseCommand):
             },
             {
                 'endpoint_type': 'results',
-                'url_pattern': 'JSON/get_resultados.asp?id={league_id}&f={round}',
+                'url_pattern': 'JSON/get_resultados.asp?id={league_id}&jor={round}',
                 'parser_type': 'match_results'
+            },
+            {
+                'endpoint_type': 'calendar',
+                'url_pattern': 'JSON/get_calendario.asp?id={league_id}',
+                'parser_type': 'match_calendar'
             }
         ]
 

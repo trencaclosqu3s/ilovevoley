@@ -283,7 +283,7 @@ def scrape_calendar_task(self, league_id=None, delay=2.0):
                 scraper = FederationScraper(league)
                 
                 # Buscar endpoint de calendario
-                calendar_endpoint = league.scraping_endpoints.filter(
+                calendar_endpoint = league.endpoints.filter(
                     endpoint_type='calendar',
                     is_active=True
                 ).first()
@@ -385,11 +385,13 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
     
     Si se proporciona league_id, scrapea solo esa liga.
     Si no se proporciona, scrapea los resultados de todas las ligas activas.
+    Si se proporciona round_number, scrapea solo esa jornada (legacy).
+    Si no se proporciona round_number, scrapea TODAS las jornadas automáticamente.
     
     Args:
         league_id: ID de la federación de la liga (opcional)
-        round_number: Jornada específica a scrapear (opcional)
-        delay: Tiempo de espera entre ligas en segundos (default: 2.0)
+        round_number: Jornada específica a scrapear (opcional, si no se provee scrapea todas)
+        delay: Tiempo de espera entre jornadas/ligas en segundos (default: 2.0)
     
     Returns:
         dict: Estadísticas del scraping realizado
@@ -422,6 +424,7 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
             'leagues_success': 0,
             'leagues_errors': 0,
             'total_matches': 0,
+            'total_rounds': 0,
             'errors': []
         }
         
@@ -433,7 +436,7 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
                 scraper = FederationScraper(league)
                 
                 # Buscar endpoint de resultados
-                results_endpoint = league.scraping_endpoints.filter(
+                results_endpoint = league.endpoints.filter(
                     endpoint_type='results',
                     is_active=True
                 ).first()
@@ -448,34 +451,54 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
                     })
                     continue
                 
-                # Ejecutar scraping de resultados
-                kwargs = {}
-                if round_number:
-                    kwargs['round'] = round_number
+                # NUEVO: Si no se especifica round_number, scrapear TODAS las jornadas
+                if round_number is None:
+                    logger.info(f'{league.name}: Scraping ALL rounds automatically')
+                    result = scraper.scrape_all_results_rounds(delay=delay)
+                    
+                    if 'error' in result:
+                        logger.error(f'{league.name} - Error: {result["error"]}')
+                        total_results['leagues_errors'] += 1
+                        total_results['errors'].append({
+                            'league': league.name,
+                            'error': result['error']
+                        })
+                    else:
+                        matches_count = result.get('total_matches', 0)
+                        rounds_count = result.get('rounds_with_data', 0)
+                        total_results['total_matches'] += matches_count
+                        total_results['total_rounds'] += rounds_count
+                        total_results['leagues_success'] += 1
+                        logger.info(f'{league.name}: {matches_count} matches from {rounds_count} rounds')
                 
-                result = scraper.scrape_endpoint(results_endpoint, **kwargs)
-                
-                if 'error' in result:
-                    logger.error(f'{league.name} - Error: {result["error"]}')
-                    total_results['leagues_errors'] += 1
-                    total_results['errors'].append({
-                        'league': league.name,
-                        'error': result['error']
-                    })
                 else:
-                    # Actualizar equipos si los hay
-                    all_teams = {}
-                    if 'teams' in result:
-                        all_teams = scraper.update_teams(result['teams'])
+                    # LEGACY: Scrapear una jornada específica
+                    logger.info(f'{league.name}: Scraping specific round {round_number}')
+                    kwargs = {'round': round_number}
+                    result = scraper.scrape_endpoint(results_endpoint, **kwargs)
                     
-                    # Actualizar partidos en la base de datos
-                    if 'matches' in result:
-                        scraper.update_matches(result['matches'], all_teams)
-                    
-                    matches_count = len(result.get('matches', []))
-                    total_results['total_matches'] += matches_count
-                    total_results['leagues_success'] += 1
-                    logger.info(f'{league.name}: {matches_count} resultados guardados')
+                    if 'error' in result:
+                        logger.error(f'{league.name} - Error: {result["error"]}')
+                        total_results['leagues_errors'] += 1
+                        total_results['errors'].append({
+                            'league': league.name,
+                            'error': result['error']
+                        })
+                    else:
+                        # Actualizar equipos si los hay
+                        all_teams = {}
+                        if 'teams' in result:
+                            all_teams = scraper.update_teams(result['teams'])
+                        
+                        # Actualizar partidos en la base de datos
+                        if 'matches' in result:
+                            scraper.update_matches(result['matches'], all_teams)
+                        
+                        matches_count = len(result.get('matches', []))
+                        total_results['total_matches'] += matches_count
+                        total_results['total_rounds'] += 1
+                        total_results['leagues_success'] += 1
+                        logger.info(f'{league.name}: {matches_count} matches from round {round_number}')
                 
                 total_results['leagues_processed'] += 1
                 
@@ -497,7 +520,9 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
         logger.info(
             f"Scraping de resultados completado - Procesadas: {total_results['leagues_processed']}, "
             f"Exitosas: {total_results['leagues_success']}, "
-            f"Con errores: {total_results['leagues_errors']}"
+            f"Con errores: {total_results['leagues_errors']}, "
+            f"Jornadas: {total_results['total_rounds']}, "
+            f"Partidos: {total_results['total_matches']}"
         )
         
         # Enviar email a admins si hay errores y las notificaciones están habilitadas
@@ -509,6 +534,7 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
             - Ligas procesadas: {total_results['leagues_processed']}
             - Ligas exitosas: {total_results['leagues_success']}
             - Ligas con errores: {total_results['leagues_errors']}
+            - Jornadas procesadas: {total_results['total_rounds']}
             
             Partidos encontrados: {total_results['total_matches']}
             
