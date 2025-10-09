@@ -145,6 +145,7 @@
             </div>
 
             <!-- Google Calendar Sync -->
+            {% comment "TEMPORALMENTE COMENTADO - Descomentar cuando esté configurado" %}
             <div class="border-t border-gray-200 pt-6">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Sincronización con Google Calendar</h3>
                 
@@ -225,6 +226,7 @@
                     </div>
                 </div>
             </div>
+            {% endcomment %}
 
             <!-- Nota informativa sobre categorías -->
             <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
@@ -280,6 +282,8 @@
     });
 
     // Mostrar/ocultar opciones de calendar sync
+    // TEMPORALMENTE COMENTADO - Descomentar cuando esté configurado
+    /*
     document.getElementById('{{ form.calendar_sync_enabled.id_for_label }}').addEventListener('change', function(event) {
         const calendarOptions = document.getElementById('calendar-options');
         if (event.target.checked) {
@@ -288,6 +292,7 @@
             calendarOptions.style.display = 'none';
         }
     });
+    */
 </script>
 
 {% endblock %}
