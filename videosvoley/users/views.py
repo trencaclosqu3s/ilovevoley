@@ -1,6 +1,9 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.http import JsonResponse
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 from .forms import UserProfileForm, ParentInfoForm
 from .signals import send_new_user_notification
 
@@ -70,3 +73,53 @@ def profile_edit(request):
     return render(request, 'users/profile_edit.html', {
         'form': form
     })
+
+
+@login_required
+@require_POST
+def get_calendar_token(request):
+    """Vista AJAX para generar y obtener el token de calendario del usuario"""
+    try:
+        # Generar el token si no existe
+        token = request.user.get_or_create_calendar_token()
+        
+        # Construir la URL completa
+        calendar_path = reverse('videos:calendar_feed', args=[token])
+        calendar_url = request.build_absolute_uri(calendar_path)
+        
+        return JsonResponse({
+            'success': True,
+            'calendar_url': calendar_url,
+            'token': token
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_POST
+def regenerate_calendar_token(request):
+    """Vista AJAX para regenerar el token de calendario del usuario"""
+    try:
+        # Forzar la regeneración del token
+        import secrets
+        request.user.calendar_token = secrets.token_urlsafe(32)
+        request.user.save(update_fields=['calendar_token'])
+        
+        # Construir la URL completa con el nuevo token
+        calendar_path = reverse('videos:calendar_feed', args=[request.user.calendar_token])
+        calendar_url = request.build_absolute_uri(calendar_path)
+        
+        return JsonResponse({
+            'success': True,
+            'calendar_url': calendar_url,
+            'token': request.user.calendar_token
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

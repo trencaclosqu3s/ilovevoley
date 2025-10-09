@@ -19,3 +19,4 @@ google-api-python-client==2.109.0
 django-storages==1.14.4
 gunicorn==21.2.0
 redis==5.0.1
+django-ical==1.9.2

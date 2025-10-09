@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+import secrets
 
 
 class User(AbstractUser):
@@ -39,9 +40,26 @@ class User(AbstractUser):
         verbose_name='ID del Calendar de Google',
         help_text='ID del calendar específico donde sincronizar eventos (opcional, usa calendar principal si está vacío)'
     )
+    
+    # Calendar subscription token (for .ics feed)
+    calendar_token = models.CharField(
+        max_length=64,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name='Token de Suscripción al Calendario',
+        help_text='Token único para suscribirse al calendario de partidos vía .ics'
+    )
 
     def __str__(self):
         return self.username
+    
+    def get_or_create_calendar_token(self):
+        """Genera un token de calendario si no existe y lo retorna"""
+        if not self.calendar_token:
+            self.calendar_token = secrets.token_urlsafe(32)
+            self.save(update_fields=['calendar_token'])
+        return self.calendar_token
     
     def has_google_calendar_permissions(self):
         """Verifica si el usuario tiene permisos para acceder a Google Calendar"""
