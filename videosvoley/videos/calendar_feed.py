@@ -16,7 +16,7 @@ class UserMatchesFeed(ICalFeed):
     Genera un archivo .ics que se puede suscribir desde cualquier aplicación de calendario.
     """
     
-    product_id = '-//VideosVoley//Calendario de Partidos//ES'
+    product_id = '-//I Love Voley//Calendario de Partidos//ES'
     timezone = 'Europe/Madrid'
     file_name = 'partidos.ics'
     
@@ -32,7 +32,7 @@ class UserMatchesFeed(ICalFeed):
     
     def title(self, obj):
         """Título del calendario"""
-        return f'VideosVoley - Partidos de {obj.username}'
+        return f'I Love Voley - Partidos de {obj.username}'
     
     def description(self, obj):
         """Descripción del calendario"""

@@ -116,7 +116,7 @@ def send_404_daily_report():
             'total_errors': total_errors,
             'unique_urls': unique_urls,
             'top_errors': top_errors,
-            'site_name': 'VideosVoley',
+            'site_name': 'I Love Voley',
         }
         
         # Enviar email
@@ -162,7 +162,7 @@ def send_404_immediate_alert(request, threshold=10):
             context = {
                 'count': current_count,
                 'hour': datetime.now().strftime('%H:00'),
-                'site_name': 'VideosVoley',
+                'site_name': 'I Love Voley',
                 'last_url': request.get_full_path(),
             }
             

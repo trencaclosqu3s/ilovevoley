@@ -1,6 +1,6 @@
 # 📧 Sistema de Notificaciones por Email
 
-Este documento explica cómo configurar y usar el sistema de notificaciones por email implementado en VideosVoley.
+Este documento explica cómo configurar y usar el sistema de notificaciones por email implementado en I Love Voley.
 
 ## ✨ Funcionalidades Implementadas
 

@@ -159,4 +159,4 @@ Este email se añadirá a la lista si no hay superusers disponibles.
 ---
 
 **Fecha del cambio**: Octubre 2025  
-**Implementado por**: Sistema de mejora continua VideosVoley
+**Implementado por**: Sistema de mejora continua I Love Voley

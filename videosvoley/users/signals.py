@@ -24,7 +24,7 @@ def send_new_user_notification(user, request, is_oauth=False):
     
     context = {
         'user': user,
-        'site_name': 'VideosVoley',
+        'site_name': 'I Love Voley',
         'admin_url': f'{request.build_absolute_uri("/admin/users/user/")}{user.id}/change/',
         'is_oauth': is_oauth,
         'approve_url': request.build_absolute_uri(f'/moderate/user/{approve_token}/'),
@@ -89,11 +89,11 @@ def user_approved_handler(sender, instance, created, **kwargs):
             if settings.EMAIL_NOTIFICATIONS.get('user_approved', True) and instance.email:
                 context = {
                     'user': instance,
-                    'site_name': 'VideosVoley',
+                    'site_name': 'I Love Voley',
                     'site_url': 'http://localhost:8000',  # Configurar según dominio
                 }
                 send_notification_email(
-                    subject='Tu cuenta ha sido aprobada en VideosVoley',
+                    subject='Tu cuenta ha sido aprobada en I Love Voley',
                     template_name='emails/user_approved.html',
                     context=context,
                     recipient_list=[instance.email]

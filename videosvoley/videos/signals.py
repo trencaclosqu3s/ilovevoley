@@ -38,7 +38,7 @@ def image_uploaded_handler(sender, instance, created, **kwargs):
             context = {
                 'image': instance,
                 'user': instance.uploaded_by,
-                'site_name': 'VideosVoley',
+                'site_name': 'I Love Voley',
                 'admin_url': f'/admin/videos/image/{instance.id}/change/',
                 'image_cid': 'pending_image' if embedded_images else None,  # CID para usar en el template
                 'approve_url': f'/moderate/image/{approve_token}/',
@@ -68,7 +68,7 @@ def image_moderated_handler(sender, instance, created, **kwargs):
                 context = {
                     'image': instance,
                     'user': instance.uploaded_by,
-                    'site_name': 'VideosVoley',
+                    'site_name': 'I Love Voley',
                     'is_approved': instance.status == 'approved',
                     'moderation_notes': instance.moderation_notes,
                 }

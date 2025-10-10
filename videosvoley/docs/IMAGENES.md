@@ -1,4 +1,4 @@
-# Sistema de Gestión de Imágenes - VideosVoley
+# Sistema de Gestión de Imágenes - I Love Voley
 
 ## Descripción General
 

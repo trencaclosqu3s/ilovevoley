@@ -36,7 +36,7 @@ print(f"Site ID: {site.id}, Domain: {site.domain}, Name: {site.name}")
 # Si el dominio no es correcto, actualizarlo:
 site = Site.objects.get(id=1)
 site.domain = 'tu-dominio-produccion.com'  # Sin https://
-site.name = 'VideosVoley'
+site.name = 'I Love Voley'
 site.save()
 ```
 
@@ -165,7 +165,7 @@ python manage.py shell
 from django.contrib.sites.models import Site
 site = Site.objects.get(id=1)
 site.domain = 'tu-dominio-produccion.com'
-site.name = 'VideosVoley'
+site.name = 'I Love Voley'
 site.save()
 ```
 
