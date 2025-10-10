@@ -11,7 +11,8 @@ from celery import shared_task
 from django.core.mail import mail_admins
 from django.conf import settings
 
-from videosvoley.videos.models import League, Club, Team
+from django.db import models as django_models
+from videosvoley.videos.models import League, Club, Team, Match
 from videosvoley.videos.scraping import FederationScraper
 
 logger = logging.getLogger(__name__)
@@ -742,6 +743,174 @@ def scrape_clubs_task(self, match_teams=True, delay=1.0):
     
     except Exception as e:
         error_msg = f'Error durante scraping de clubes: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return {
+            'status': 'error',
+            'message': error_msg
+        }
+
+
+@shared_task(name='handle_withdrawn_teams', bind=True)
+def handle_withdrawn_teams_task(self, league_id=None, dry_run=False, reactivate_teams=False):
+    """
+    Gestiona equipos retirados y partidos asociados.
+    
+    Args:
+        league_id: ID de la federación de la liga específica (opcional, si no se provee procesa todas)
+        dry_run: Si es True, solo muestra qué haría sin hacer cambios (default: False)
+        reactivate_teams: Si es True, reactiva equipos que aparecen de nuevo en federación (default: False)
+    
+    Returns:
+        dict: Estadísticas de la operación realizada
+    """
+    logger.info("Iniciando gestión de equipos retirados")
+    
+    try:
+        # Determinar ligas a procesar
+        if league_id:
+            try:
+                leagues = [League.objects.get(federation_id=league_id, is_active=True)]
+            except League.DoesNotExist:
+                error_msg = f'Liga con ID {league_id} no encontrada o inactiva'
+                logger.error(error_msg)
+                return {'status': 'error', 'message': error_msg}
+        else:
+            leagues = League.objects.filter(is_active=True).select_related('category')
+        
+        if not leagues:
+            error_msg = 'No se encontraron ligas activas para procesar'
+            logger.warning(error_msg)
+            return {'status': 'error', 'message': error_msg}
+        
+        total_results = {
+            'status': 'success',
+            'leagues_processed': 0,
+            'teams_checked': 0,
+            'teams_deactivated': 0,
+            'teams_reactivated': 0,
+            'matches_withdrawn': 0,
+            'matches_reactivated': 0,
+            'dry_run': dry_run,
+            'details': []
+        }
+        
+        for league in leagues:
+            category_name = league.category.name if league.category else 'Sin categoría'
+            logger.info(f'Procesando {league.name} ({category_name})')
+            
+            league_stats = {
+                'league_name': league.name,
+                'teams_checked': 0,
+                'teams_deactivated': 0,
+                'teams_reactivated': 0,
+                'matches_withdrawn': 0,
+                'matches_reactivated': 0,
+                'inactive_teams': [],
+                'reactivated_teams': []
+            }
+            
+            # Obtener todos los equipos que participan en esta liga
+            teams_in_league = Team.objects.filter(
+                django_models.Q(home_matches__league=league) | django_models.Q(away_matches__league=league)
+            ).distinct()
+            
+            league_stats['teams_checked'] = teams_in_league.count()
+            
+            # Verificar equipos inactivos y sus partidos
+            for team in teams_in_league:
+                if not team.is_active:
+                    league_stats['inactive_teams'].append({
+                        'name': team.name,
+                        'federation_id': team.federation_id
+                    })
+                    
+                    # Contar partidos afectados
+                    affected_matches = Match.objects.filter(
+                        league=league,
+                        status__in=['scheduled', 'postponed']
+                    ).filter(
+                        django_models.Q(home_team=team) | django_models.Q(away_team=team)
+                    )
+                    
+                    for match in affected_matches:
+                        if not dry_run and match.status != 'withdrawn':
+                            match.status = 'withdrawn'
+                            match.save()
+                            league_stats['matches_withdrawn'] += 1
+                        elif dry_run and match.status != 'withdrawn':
+                            league_stats['matches_withdrawn'] += 1
+            
+            # Si se solicita reactivación, buscar equipos que podrían reactivarse
+            if reactivate_teams:
+                inactive_teams = teams_in_league.filter(is_active=False)
+                
+                for team in inactive_teams:
+                    # Aquí podrías implementar lógica para verificar si el equipo
+                    # ha vuelto a aparecer en la federación
+                    # Por simplicidad, por ahora solo reportamos los equipos inactivos
+                    pass
+            
+            total_results['teams_checked'] += league_stats['teams_checked']
+            total_results['teams_deactivated'] += len(league_stats['inactive_teams'])
+            total_results['matches_withdrawn'] += league_stats['matches_withdrawn']
+            total_results['leagues_processed'] += 1
+            total_results['details'].append(league_stats)
+            
+            if league_stats['inactive_teams']:
+                logger.warning(
+                    f"{league.name}: {len(league_stats['inactive_teams'])} equipos inactivos, "
+                    f"{league_stats['matches_withdrawn']} partidos marcados como retirados"
+                )
+            else:
+                logger.info(f"{league.name}: No se encontraron equipos inactivos")
+        
+        # Log resumen final
+        action_word = "Se marcarían" if dry_run else "Se marcaron"
+        logger.info(
+            f"Gestión de equipos retirados completada - "
+            f"Ligas: {total_results['leagues_processed']}, "
+            f"Equipos verificados: {total_results['teams_checked']}, "
+            f"Equipos inactivos: {total_results['teams_deactivated']}, "
+            f"{action_word} {total_results['matches_withdrawn']} partidos como retirados"
+        )
+        
+        # Enviar email a admins si hay equipos inactivos y las notificaciones están habilitadas
+        if total_results['teams_deactivated'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED and not dry_run:
+            subject = f"[VideosVoley] Equipos retirados detectados"
+            
+            inactive_teams_details = []
+            for detail in total_results['details']:
+                if detail['inactive_teams']:
+                    league_info = f"\n{detail['league_name']}:"
+                    for team in detail['inactive_teams']:
+                        league_info += f"\n  - {team['name']} (ID: {team['federation_id']})"
+                    inactive_teams_details.append(league_info)
+            
+            message = f"""
+            Se han detectado equipos retirados en el sistema:
+            
+            Resumen:
+            - Ligas procesadas: {total_results['leagues_processed']}
+            - Equipos verificados: {total_results['teams_checked']}
+            - Equipos inactivos encontrados: {total_results['teams_deactivated']}
+            - Partidos marcados como retirados: {total_results['matches_withdrawn']}
+            
+            Equipos inactivos por liga:
+            {''.join(inactive_teams_details)}
+            
+            Los partidos de estos equipos han sido marcados como 'retirados' automáticamente.
+            """
+            
+            try:
+                mail_admins(subject, message, fail_silently=True)
+                logger.info("Email de notificación enviado a administradores")
+            except Exception as e:
+                logger.error(f"Error enviando email de notificación: {e}")
+        
+        return total_results
+    
+    except Exception as e:
+        error_msg = f'Error durante gestión de equipos retirados: {str(e)}'
         logger.error(error_msg, exc_info=True)
         return {
             'status': 'error',

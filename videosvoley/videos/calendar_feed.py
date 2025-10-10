@@ -127,10 +127,10 @@ class UserMatchesFeed(ICalFeed):
     
     def item_start_datetime(self, item):
         """Fecha y hora de inicio del evento"""
-        import pytz
-        madrid_tz = pytz.timezone('Europe/Madrid')
+        from zoneinfo import ZoneInfo
         
-        # Convertir de UTC a hora local de Madrid
+        # Convertir de UTC a hora local de Madrid usando zoneinfo (Python 3.9+)
+        madrid_tz = ZoneInfo('Europe/Madrid')
         match_time_local = item.match_date.astimezone(madrid_tz)
         
         # Si la hora local es 00:00, considerarlo como provisional y poner a las 09:00

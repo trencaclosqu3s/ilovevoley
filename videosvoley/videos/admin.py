@@ -149,15 +149,15 @@ class ClubAdmin(admin.ModelAdmin):
 
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'club_name', 'sponsor_name', 'federation_id', 'logo_preview')
-    list_filter = ('category', 'club', 'created_at')
+    list_display = ('name', 'category', 'club_name', 'sponsor_name', 'federation_id', 'is_active', 'logo_preview')
+    list_filter = ('is_active', 'category', 'club', 'created_at')
     search_fields = ('name', 'federation_id', 'sponsor_name', 'club__official_name', 'category__name')
     readonly_fields = ('created_at', 'display_logo')
     autocomplete_fields = ('club', 'category')
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('name', 'federation_id', 'club', 'category')
+            'fields': ('name', 'federation_id', 'club', 'category', 'is_active')
         }),
         ('Patrocinio', {
             'fields': ('sponsor_name',),
@@ -173,7 +173,7 @@ class TeamAdmin(admin.ModelAdmin):
         })
     )
     
-    actions = ['match_to_clubs']
+    actions = ['match_to_clubs', 'activate_teams', 'deactivate_teams']
     
     def club_name(self, obj):
         """Muestra el nombre del club asociado"""
@@ -221,6 +221,25 @@ class TeamAdmin(admin.ModelAdmin):
             self.message_user(request, f'Error durante matching: {e}', level='ERROR')
     
     match_to_clubs.short_description = "Hacer matching automático con clubes"
+    
+    def activate_teams(self, request, queryset):
+        """Acción para activar equipos seleccionados"""
+        updated = queryset.filter(is_active=False).update(is_active=True)
+        if updated:
+            self.message_user(request, f'{updated} equipo(s) activado(s) correctamente.')
+        else:
+            self.message_user(request, 'Todos los equipos seleccionados ya estaban activos.')
+    activate_teams.short_description = "Activar equipos seleccionados"
+    
+    def deactivate_teams(self, request, queryset):
+        """Acción para desactivar equipos seleccionados"""
+        updated = queryset.filter(is_active=True).update(is_active=False)
+        if updated:
+            self.message_user(request, f'{updated} equipo(s) desactivado(s) correctamente.')
+            self.message_user(request, 'Los partidos de estos equipos se marcarán como retirados en el próximo scraping.', level='WARNING')
+        else:
+            self.message_user(request, 'Todos los equipos seleccionados ya estaban inactivos.')
+    deactivate_teams.short_description = "Desactivar equipos seleccionados"
 
 
 class ScrapingEndpointInline(admin.TabularInline):
@@ -279,12 +298,13 @@ class ScrapingEndpointAdmin(admin.ModelAdmin):
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
     form = MatchAdminForm
-    list_display = ('home_team', 'away_team', 'match_date', 'venue', 'status', 'result_display', 'league_category')
-    list_filter = ('status', 'league', 'league__category', 'match_date')
+    list_display = ('home_team', 'away_team', 'match_date', 'venue', 'status', 'result_display', 'league_category', 'teams_active_status')
+    list_filter = ('status', 'league', 'league__category', 'match_date', 'home_team__is_active', 'away_team__is_active')
     search_fields = ('home_team__name', 'away_team__name', 'venue', 'city', 'league__name')
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'match_date'
     inlines = [ImageInline]
+    actions = ['mark_as_withdrawn', 'mark_as_scheduled']
     fieldsets = (
         ('Configuración de Filtrado', {
             'fields': ('filter_by_category',),
@@ -313,10 +333,45 @@ class MatchAdmin(admin.ModelAdmin):
         return obj.league.category.name if obj.league and obj.league.category else '-'
     league_category.short_description = 'Categoría'
     
+    def teams_active_status(self, obj):
+        """Muestra el estado activo de los equipos"""
+        home_status = "✓" if obj.home_team.is_active else "✗"
+        away_status = "✓" if obj.away_team.is_active else "✗"
+        
+        if not obj.home_team.is_active or not obj.away_team.is_active:
+            return format_html(
+                '<span style="color: red;">{} / {}</span>',
+                home_status, away_status
+            )
+        else:
+            return format_html(
+                '<span style="color: green;">{} / {}</span>',
+                home_status, away_status
+            )
+    teams_active_status.short_description = 'Equipos Activos (L/V)'
+    
     def get_search_results(self, request, queryset, search_term):
         """Mejora la búsqueda para autocomplete en VideoAdmin"""
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
         return queryset, use_distinct
+    
+    def mark_as_withdrawn(self, request, queryset):
+        """Acción para marcar partidos como retirados"""
+        updated = queryset.filter(status__in=['scheduled', 'postponed']).update(status='withdrawn')
+        if updated:
+            self.message_user(request, f'{updated} partido(s) marcado(s) como retirado(s).')
+        else:
+            self.message_user(request, 'No se pueden marcar como retirados partidos que ya están finalizados o en progreso.')
+    mark_as_withdrawn.short_description = "Marcar como retirados (equipos fuera de liga)"
+    
+    def mark_as_scheduled(self, request, queryset):
+        """Acción para reactivar partidos marcados como retirados"""
+        updated = queryset.filter(status='withdrawn').update(status='scheduled')
+        if updated:
+            self.message_user(request, f'{updated} partido(s) reactivado(s) como programado(s).')
+        else:
+            self.message_user(request, 'No hay partidos retirados seleccionados para reactivar.')
+    mark_as_scheduled.short_description = "Reactivar partidos retirados como programados"
 
 
 @admin.register(Standing)
@@ -530,7 +585,8 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
                         '• scrape_league - Scrapea una liga específica<br>'
                         '• scrape_calendar - Scrapea el calendario de partidos programados<br>'
                         '• scrape_results - Scrapea los resultados de partidos jugados<br>'
-                        '• scrape_clubs - Scrapea clubes y asocia equipos<br><br>'
+                        '• scrape_clubs - Scrapea clubes y asocia equipos<br>'
+                        '• handle_withdrawn_teams - Gestiona equipos retirados y marca partidos como retirados<br><br>'
                         'Selecciona la tarea del desplegable "Task (registered)".'
                     )
             
@@ -547,6 +603,8 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
                     '<code>{"league_id": "12345", "round_number": 5, "delay": 2.0}</code> (todos opcionales)<br><br>'
                     '<strong>scrape_clubs:</strong><br>'
                     '<code>{"match_teams": true, "delay": 1.0}</code><br><br>'
+                    '<strong>handle_withdrawn_teams:</strong><br>'
+                    '<code>{"league_id": "12345", "dry_run": false, "reactivate_teams": false}</code> (todos opcionales)<br><br>'
                     '<em>Nota: Los argumentos deben estar en formato JSON válido.</em>'
                 )
             
@@ -568,7 +626,8 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
             scrape_league_task, 
             scrape_calendar_task,
             scrape_results_task,
-            scrape_clubs_task
+            scrape_clubs_task,
+            handle_withdrawn_teams_task
         )
         
         count = 0
@@ -581,6 +640,7 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
                     'scrape_calendar': scrape_calendar_task,
                     'scrape_results': scrape_results_task,
                     'scrape_clubs': scrape_clubs_task,
+                    'handle_withdrawn_teams': handle_withdrawn_teams_task,
                 }
                 
                 if task.task in task_map:
