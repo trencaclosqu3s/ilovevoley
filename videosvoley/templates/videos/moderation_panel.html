@@ -107,12 +107,19 @@
                         </div>
                     </div>
                     
-                    <!-- Botón de aprobación -->
-                    <button 
-                        onclick="approveUser({{ user.id }}, this)"
-                        class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
-                        ✅ Aprobar Usuario
-                    </button>
+                    <!-- Botones de moderación -->
+                    <div class="flex space-x-3">
+                        <button 
+                            onclick="approveUser({{ user.id }}, this)"
+                            class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            ✅ Aprobar
+                        </button>
+                        <button 
+                            onclick="rejectUser({{ user.id }}, this)"
+                            class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            ❌ Rechazar
+                        </button>
+                    </div>
                 </div>
             </div>
             {% endfor %}

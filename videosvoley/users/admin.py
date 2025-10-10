@@ -6,18 +6,18 @@ from .models import User
 
 def approve_users(modeladmin, request, queryset):
     """Acción para aprobar usuarios seleccionados"""
-    count = queryset.update(is_approved=True)
+    count = queryset.update(is_approved=True, is_active=True)
     modeladmin.message_user(request, f'{count} usuario(s) aprobado(s) correctamente.')
 
 
 def reject_users(modeladmin, request, queryset):
-    """Acción para rechazar usuarios seleccionados"""
-    count = queryset.update(is_approved=False)
-    modeladmin.message_user(request, f'{count} usuario(s) rechazado(s) correctamente.')
+    """Acción para rechazar usuarios seleccionados (desactiva la cuenta)"""
+    count = queryset.filter(is_approved=False).update(is_active=False)
+    modeladmin.message_user(request, f'{count} usuario(s) rechazado(s) correctamente. Sus cuentas han sido desactivadas.')
 
 
 approve_users.short_description = "✅ Aprobar usuarios seleccionados"
-reject_users.short_description = "❌ Rechazar usuarios seleccionados"
+reject_users.short_description = "❌ Rechazar usuarios seleccionados (desactiva cuenta)"
 
 
 @admin.register(User)
@@ -51,9 +51,13 @@ class UserAdmin(BaseUserAdmin):
             return format_html(
                 '<span style="color: green; font-weight: bold;">✅ Aprobado</span>'
             )
+        elif not obj.is_active and not obj.is_approved:
+            return format_html(
+                '<span style="color: #e74c3c; font-weight: bold;">❌ Rechazado</span>'
+            )
         else:
             return format_html(
-                '<span style="color: red; font-weight: bold;">⏳ Pendiente</span>'
+                '<span style="color: orange; font-weight: bold;">⏳ Pendiente</span>'
             )
     
     approval_status.short_description = 'Estado de Aprobación'

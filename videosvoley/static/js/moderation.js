@@ -13,6 +13,7 @@ class ModerationSystem {
         this.apiUrls = {
             counts: '/videos/api/moderation/counts/',
             approveUser: '/videos/api/users/{id}/approve/',
+            rejectUser: '/videos/api/users/{id}/reject/',
             moderateImage: '/videos/api/images/{id}/moderate/'
         };
     }
@@ -111,9 +112,16 @@ class ModerationSystem {
             return;
         }
         
-        // Deshabilitar botón mientras se procesa
-        const originalText = buttonElement.textContent;
-        buttonElement.disabled = true;
+        // Deshabilitar todos los botones del card
+        const userCard = buttonElement.closest('.user-card');
+        const allButtons = userCard?.querySelectorAll('button') || [buttonElement];
+        const originalTexts = new Map();
+        
+        allButtons.forEach(btn => {
+            originalTexts.set(btn, btn.textContent);
+            btn.disabled = true;
+        });
+        
         buttonElement.textContent = 'Aprobando...';
         
         try {
@@ -136,7 +144,6 @@ class ModerationSystem {
                 this.showToast('success', data.message);
                 
                 // Remover el card del usuario con animación
-                const userCard = buttonElement.closest('.user-card');
                 if (userCard) {
                     userCard.style.opacity = '0.5';
                     userCard.style.transform = 'scale(0.95)';
@@ -152,9 +159,71 @@ class ModerationSystem {
             console.error('Error aprobando usuario:', error);
             this.showToast('error', error.message || 'Error de conexión');
             
-            // Restaurar botón
-            buttonElement.disabled = false;
-            buttonElement.textContent = originalText;
+            // Restaurar botones
+            allButtons.forEach(btn => {
+                btn.disabled = false;
+                btn.textContent = originalTexts.get(btn);
+            });
+        }
+    }
+    
+    async rejectUser(userId, buttonElement) {
+        if (!confirm('¿Estás segura de que quieres RECHAZAR este usuario?\n\nEsta acción desactivará la cuenta del usuario.')) {
+            return;
+        }
+        
+        // Deshabilitar todos los botones del card
+        const userCard = buttonElement.closest('.user-card');
+        const allButtons = userCard?.querySelectorAll('button') || [buttonElement];
+        const originalTexts = new Map();
+        
+        allButtons.forEach(btn => {
+            originalTexts.set(btn, btn.textContent);
+            btn.disabled = true;
+        });
+        
+        buttonElement.textContent = 'Rechazando...';
+        
+        try {
+            // Crear FormData para enviar como POST
+            const formData = new FormData();
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+            if (csrfToken) {
+                formData.append('csrfmiddlewaretoken', csrfToken);
+            }
+            
+            const url = this.apiUrls.rejectUser.replace('{id}', userId);
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showToast('success', data.message);
+                
+                // Remover el card del usuario con animación
+                if (userCard) {
+                    userCard.style.opacity = '0.5';
+                    userCard.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        userCard.remove();
+                        this.updateModerationCounts();
+                    }, 500);
+                }
+            } else {
+                throw new Error(data.error || 'Error al rechazar usuario');
+            }
+        } catch (error) {
+            console.error('Error rechazando usuario:', error);
+            this.showToast('error', error.message || 'Error de conexión');
+            
+            // Restaurar botones
+            allButtons.forEach(btn => {
+                btn.disabled = false;
+                btn.textContent = originalTexts.get(btn);
+            });
         }
     }
     
@@ -290,6 +359,14 @@ function approveUser(userId, buttonElement) {
     }
 }
 
+function rejectUser(userId, buttonElement) {
+    if (globalModerationSystem) {
+        globalModerationSystem.rejectUser(userId, buttonElement);
+    } else {
+        console.error('Sistema de moderación no inicializado');
+    }
+}
+
 function moderateImage(imageId, action, buttonElement) {
     if (globalModerationSystem) {
         globalModerationSystem.moderateImage(imageId, action, buttonElement);
@@ -313,7 +390,8 @@ if (typeof module !== 'undefined' && module.exports) {
         ModerationSystem, 
         initModerationSystem, 
         updateModerationCounts, 
-        approveUser, 
+        approveUser,
+        rejectUser, 
         moderateImage 
     };
 }

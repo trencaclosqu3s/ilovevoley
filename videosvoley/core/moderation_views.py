@@ -113,14 +113,27 @@ def moderate_user(request, token):
         })
     
     elif action == 'reject':
-        # En vez de eliminar, podemos desactivar
+        # En vez de eliminar, desactivar el usuario (is_active=False, is_approved=False)
         user.is_active = False
         user.save()
+        
+        # Enviar email de rechazo al usuario
+        if user.email:
+            context = {
+                'user': user,
+                'site_name': 'I Love Voley',
+            }
+            send_notification_email(
+                subject='Actualización de tu solicitud en I Love Voley',
+                template_name='emails/user_rejected.html',
+                context=context,
+                recipient_list=[user.email]
+            )
         
         return render(request, 'moderation_result.html', {
             'success': True,
             'action': 'rechazado',
-            'message': f'El usuario {user.username} ha sido rechazado. Su cuenta ha sido desactivada.',
+            'message': f'El usuario {user.username} ha sido rechazado. Su cuenta ha sido desactivada y se le ha enviado un email de notificación.',
             'item_type': 'usuario',
             'user': user
         })

@@ -37,6 +37,7 @@ urlpatterns = [
     path('moderacion/', views.moderation_panel, name='moderation_panel'),
     path('api/moderation/counts/', views.moderation_counts_api, name='moderation_counts_api'),
     path('api/users/<int:user_id>/approve/', views.approve_user_api, name='approve_user_api'),
+    path('api/users/<int:user_id>/reject/', views.reject_user_api, name='reject_user_api'),
     path('api/images/<int:image_id>/moderate/', views.moderate_image_api, name='moderate_image_api'),
     
     # Página institucional

@@ -1162,7 +1162,8 @@ def approve_user_api(request, user_id):
     try:
         user = User.objects.get(id=user_id, is_approved=False)
         user.is_approved = True
-        user.save(update_fields=['is_approved'])
+        user.is_active = True  # Asegurarse de que el usuario esté activo al aprobar
+        user.save(update_fields=['is_approved', 'is_active'])
         
         # Enviar email de confirmación si está configurado
         if getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
@@ -1190,6 +1191,56 @@ def approve_user_api(request, user_id):
         }, status=404)
     except Exception as e:
         logger.error(f"Error aprobando usuario {user_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser, login_url='/')
+@require_POST
+def reject_user_api(request, user_id):
+    """API para rechazar un usuario vía AJAX"""
+    from django.contrib.auth import get_user_model
+    
+    User = get_user_model()
+    
+    try:
+        user = User.objects.get(id=user_id, is_approved=False)
+        # Rechazar = desactivar el usuario y mantener is_approved en False
+        user.is_active = False
+        user.save(update_fields=['is_active'])
+        
+        # Enviar email de rechazo si está configurado
+        if getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
+            try:
+                from videosvoley.core.email_utils import send_notification_email
+                send_notification_email(
+                    subject=f'Actualización de tu solicitud en I Love Voley',
+                    template_name='emails/user_rejected.html',
+                    context={
+                        'user': user,
+                        'site_name': 'I Love Voley',
+                    },
+                    recipient_list=[user.email] if user.email else []
+                )
+            except Exception as e:
+                logger.warning(f"Error enviando email de rechazo: {e}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Usuario {user.username} rechazado correctamente',
+            'user_name': user.username
+        })
+        
+    except User.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Usuario no encontrado o ya procesado'
+        }, status=404)
+    except Exception as e:
+        logger.error(f"Error rechazando usuario {user_id}: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': 'Error interno del servidor'
