@@ -1,5 +1,5 @@
 """
-Google Calendar synchronization service for VideosVoley matches.
+Google Calendar synchronization service for I Love Voley matches.
 """
 import logging
 from datetime import datetime, timedelta
@@ -173,7 +173,7 @@ class GoogleCalendarService:
             },
             'location': f"{match.venue}, {match.city}" if match.venue and match.city else (match.venue or match.city or ""),
             'source': {
-                'title': 'VideosVoley',
+                'title': 'I Love Voley',
                 'url': f"{getattr(settings, 'SITE_URL', '')}/videos/partidos/{match.id}/" if hasattr(settings, 'SITE_URL') else ""
             },
             'extendedProperties': {

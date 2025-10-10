@@ -16,8 +16,8 @@ Cuando se intenta hacer login con Google, puede aparecer el error `Error 400: re
 
 2. **Agregar URIs de redirección autorizados:**
    ```
-   https://volleyvideos.duckdns.org/accounts/google/login/callback/
-   http://volleyvideos.duckdns.org/accounts/google/login/callback/
+   https://ilovevoley.es/accounts/google/login/callback/
+   http://ilovevoley.es/accounts/google/login/callback/
    http://localhost:8000/accounts/google/login/callback/
    http://127.0.0.1:8000/accounts/google/login/callback/
    ```
@@ -25,13 +25,13 @@ Cuando se intenta hacer login con Google, puede aparecer el error `Error 400: re
 3. **Configurar el Site en Django Admin:**
    - Acceder a `/admin/sites/site/1/change/`
    - Configurar:
-     - **Domain name**: `volleyvideos.duckdns.org`
+     - **Domain name**: `ilovevoley.es`
      - **Display name**: `Vídeos Voley CV Sant Josep`
 
 4. **Variables de entorno necesarias:**
    ```bash
-   ALLOWED_HOSTS=volleyvideos.duckdns.org,localhost,127.0.0.1
-   CSRF_TRUSTED_ORIGINS=https://volleyvideos.duckdns.org,http://volleyvideos.duckdns.org
+   ALLOWED_HOSTS=ilovevoley.es,localhost,127.0.0.1
+   CSRF_TRUSTED_ORIGINS=https://ilovevoley.es,http://ilovevoley.es
    ```
 
 ---
@@ -151,7 +151,7 @@ Para producción, se recomienda usar **HTTPS** en lugar de HTTP:
 El sistema está protegido contra ataques CSRF:
 
 ```python
-CSRF_TRUSTED_ORIGINS = ['https://volleyvideos.duckdns.org']
+CSRF_TRUSTED_ORIGINS = ['https://ilovevoley.es']
 ```
 
 Asegurar que este dominio coincida con el dominio de producción.

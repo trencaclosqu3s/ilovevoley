@@ -119,7 +119,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Google Calendar API Configuration
 GOOGLE_CALENDAR_ENABLED = env_config('GOOGLE_CALENDAR_ENABLED', default=True, cast=bool)
-GOOGLE_CALENDAR_NAME = env_config('GOOGLE_CALENDAR_NAME', default='VideosVoley - Partidos')
+GOOGLE_CALENDAR_NAME = env_config('GOOGLE_CALENDAR_NAME', default='I Love Voley - Partidos')
 GOOGLE_CALENDAR_TIMEZONE = env_config('GOOGLE_CALENDAR_TIMEZONE', default='Europe/Madrid')
 
 # Adapters personalizados para suprimir mensajes

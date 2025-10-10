@@ -94,11 +94,11 @@ def moderate_user(request, token):
         if user.email:
             context = {
                 'user': user,
-                'site_name': 'VideosVoley',
+                'site_name': 'I Love Voley',
                 'site_url': request.build_absolute_uri('/'),
             }
             send_notification_email(
-                subject='Tu cuenta ha sido aprobada en VideosVoley',
+                subject='Tu cuenta ha sido aprobada en I Love Voley',
                 template_name='emails/user_approved.html',
                 context=context,
                 recipient_list=[user.email]
@@ -174,7 +174,7 @@ def moderate_image(request, token):
             context = {
                 'image': image,
                 'user': image.uploaded_by,
-                'site_name': 'VideosVoley',
+                'site_name': 'I Love Voley',
                 'is_approved': True,
                 'moderation_notes': image.moderation_notes,
             }
@@ -205,7 +205,7 @@ def moderate_image(request, token):
             context = {
                 'image': image,
                 'user': image.uploaded_by,
-                'site_name': 'VideosVoley',
+                'site_name': 'I Love Voley',
                 'is_approved': False,
                 'moderation_notes': image.moderation_notes,
             }

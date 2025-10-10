@@ -74,7 +74,7 @@ class Command(BaseCommand):
         
         context = {
             'user': test_user,
-            'site_name': 'VideosVoley',
+            'site_name': 'I Love Voley',
             'admin_url': f'{base_url}/admin/users/user/{test_user.id}/change/',
             'approve_url': f'{base_url}/moderate/user/{approve_token}/',
             'reject_url': f'{base_url}/moderate/user/{reject_token}/',
@@ -144,7 +144,7 @@ class Command(BaseCommand):
         context = {
             'image': test_image,
             'user': test_image.uploaded_by,
-            'site_name': 'VideosVoley',
+            'site_name': 'I Love Voley',
             'admin_url': f'{base_url}/admin/videos/image/{test_image.id}/change/',
             'image_cid': 'pending_image' if embedded_images else None,
             'approve_url': f'{base_url}/moderate/image/{approve_token}/',

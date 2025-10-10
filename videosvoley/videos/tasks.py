@@ -127,7 +127,7 @@ def scrape_all_leagues_task(self, round_number=None, category_filter=None, delay
     
     # Enviar email a admins si hay errores y las notificaciones están habilitadas
     if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
-        subject = f"[VideosVoley] Errores en scraping automático de ligas"
+        subject = f"[I Love Voley] Errores en scraping automático de ligas"
         message = f"""
         Se han detectado errores durante el scraping automático de ligas:
         
@@ -348,7 +348,7 @@ def scrape_calendar_task(self, league_id=None, delay=2.0):
         
         # Enviar email a admins si hay errores y las notificaciones están habilitadas
         if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
-            subject = f"[VideosVoley] Errores en scraping automático de calendario"
+            subject = f"[I Love Voley] Errores en scraping automático de calendario"
             message = f"""
             Se han detectado errores durante el scraping automático del calendario:
             
@@ -527,7 +527,7 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
         
         # Enviar email a admins si hay errores y las notificaciones están habilitadas
         if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
-            subject = f"[VideosVoley] Errores en scraping automático de resultados"
+            subject = f"[I Love Voley] Errores en scraping automático de resultados"
             message = f"""
             Se han detectado errores durante el scraping automático de resultados:
             

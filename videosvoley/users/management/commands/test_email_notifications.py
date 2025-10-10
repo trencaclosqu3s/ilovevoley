@@ -142,7 +142,7 @@ class Command(BaseCommand):
             self.stdout.write("  📧 Probando notificación de usuario pendiente...")
             context = {
                 'user': test_user,
-                'site_name': 'VideosVoley (PRUEBA)',
+                'site_name': 'I Love Voley (PRUEBA)',
                 'admin_url': f'/admin/users/user/{test_user.id}/change/',
                 'is_oauth': False,
             }
@@ -170,7 +170,7 @@ class Command(BaseCommand):
                 self.stdout.write("  📧 Probando notificación de usuario aprobado...")
                 context = {
                     'user': test_user,
-                    'site_name': 'VideosVoley (PRUEBA)',
+                    'site_name': 'I Love Voley (PRUEBA)',
                     'site_url': 'http://localhost:8000',
                 }
                 
@@ -231,7 +231,7 @@ class Command(BaseCommand):
                     'id': 999,
                 },
                 'user': test_user,
-                'site_name': 'VideosVoley (PRUEBA)',
+                'site_name': 'I Love Voley (PRUEBA)',
                 'admin_url': '/admin/videos/image/999/change/',
                 'image_url': 'https://via.placeholder.com/400x300?text=Imagen+de+Prueba',
             }
@@ -304,7 +304,7 @@ class Command(BaseCommand):
                 'date': '01/01/2024',
                 'total_errors': 25,
                 'unique_urls': 8,
-                'site_name': 'VideosVoley (PRUEBA)',
+                'site_name': 'I Love Voley (PRUEBA)',
                 'top_errors': [
                     ('/videos/antiguo-link/', [
                         {'timestamp': '01/01/2024 10:15:30', 'method': 'GET', 'ip': '192.168.1.100', 'user': 'usuario1'},
@@ -338,7 +338,7 @@ class Command(BaseCommand):
             context = {
                 'count': 15,
                 'hour': '14:00',
-                'site_name': 'VideosVoley (PRUEBA)',
+                'site_name': 'I Love Voley (PRUEBA)',
                 'last_url': '/videos/no-encontrado/',
             }
             

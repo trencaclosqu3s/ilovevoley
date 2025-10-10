@@ -1,10 +1,10 @@
-# VideosVoley
+# I Love Voley
 
 Una aplicación web Django para la gestión integral de contenido de vídeos de voleibol con capacidades avanzadas de scraping de datos de federaciones.
 
 ## Descripción
 
-VideosVoley es una plataforma completa que permite:
+I Love Voley es una plataforma completa que permite:
 
 - **Gestión de Vídeos**: Subir, organizar y gestionar vídeos de voleibol con integración de YouTube
 - **Gestión de Imágenes**: Sistema avanzado de imágenes con etiquetado automático y moderación inteligente
