@@ -111,7 +111,11 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# Configurar adaptador personalizado para Calendar (se configurará más abajo)
+# Forzar HTTPS solo en producción
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if DEBUG else 'https'
+
+# Header de proxy SSL (necesario para que Django detecte HTTPS detrás de nginx)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Google Calendar API Configuration
 GOOGLE_CALENDAR_ENABLED = env_config('GOOGLE_CALENDAR_ENABLED', default=True, cast=bool)
