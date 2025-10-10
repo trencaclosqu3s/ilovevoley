@@ -64,6 +64,7 @@ class UserMatchesFeed(ICalFeed):
         # 1. Categorías preferidas del usuario
         # 2. Solo partidos donde juega nuestro club (local o visitante)
         # 3. Rango de fechas
+        # 4. Excluir partidos con estado 'withdrawn' (equipo retirado de la liga)
         matches = Match.objects.filter(
             league__category__in=categories,
             match_date__gte=start_date,
@@ -71,6 +72,8 @@ class UserMatchesFeed(ICalFeed):
         ).filter(
             Q(home_team__name__icontains=club_team_name) |
             Q(away_team__name__icontains=club_team_name)
+        ).exclude(
+            status='withdrawn'  # No mostrar partidos de equipos retirados
         ).select_related(
             'home_team',
             'away_team',
@@ -88,7 +91,13 @@ class UserMatchesFeed(ICalFeed):
         """Título del evento"""
         # Incluir categoría en el título para mejor visibilidad
         category_name = item.league.category.name if item.league.category else 'Sin Categoría'
-        title = f'🏐 [{category_name}] {item.home_team.name} vs {item.away_team.name}'
+        
+        # Prefijo para partidos cancelados
+        prefix = ''
+        if item.status == 'cancelled':
+            prefix = '❌ CANCELADO - '
+        
+        title = f'{prefix}🏐 [{category_name}] {item.home_team.name} vs {item.away_team.name}'
         
         # Marcar como PROVISIONAL si la hora es 00:00 (indica que no está confirmada)
         if item.match_date.hour == 0 and item.match_date.minute == 0:
@@ -99,6 +108,11 @@ class UserMatchesFeed(ICalFeed):
     def item_description(self, item):
         """Descripción del evento"""
         description_parts = []
+        
+        # Advertencia si está cancelado
+        if item.status == 'cancelled':
+            description_parts.append('❌ PARTIDO CANCELADO')
+            description_parts.append('')
         
         # Advertencia si es provisional
         if item.match_date.hour == 0 and item.match_date.minute == 0:
