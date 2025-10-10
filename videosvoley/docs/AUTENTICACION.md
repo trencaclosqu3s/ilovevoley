@@ -26,7 +26,7 @@ Cuando se intenta hacer login con Google, puede aparecer el error `Error 400: re
    - Acceder a `/admin/sites/site/1/change/`
    - Configurar:
      - **Domain name**: `ilovevoley.es`
-     - **Display name**: `Vídeos Voley CV Sant Josep`
+     - **Display name**: `I Love Voley CV Sant Josep`
 
 4. **Variables de entorno necesarias:**
    ```bash
