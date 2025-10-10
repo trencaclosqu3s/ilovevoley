@@ -149,6 +149,7 @@ class Team(models.Model):
     sponsor_name = models.CharField(max_length=200, blank=True, help_text='Nombre con patrocinador si aplica')
     logo_url = models.URLField(blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams', help_text='Categoría asignada automáticamente durante el scraping')
+    is_active = models.BooleanField(default=True, help_text='Indica si el equipo sigue activo en las competiciones')
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -172,6 +173,7 @@ class Match(models.Model):
         ('finished', 'Finalizado'),
         ('postponed', 'Aplazado'),
         ('cancelled', 'Cancelado'),
+        ('withdrawn', 'Retirado (equipo fuera de liga)'),
     ]
     
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='matches')
