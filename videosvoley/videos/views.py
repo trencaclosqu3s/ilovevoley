@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.contrib.postgres.search import TrigramSimilarity
 from django.http import JsonResponse
 from django.conf import settings
+from django.views.decorators.http import require_POST
 from unidecode import unidecode
 from datetime import datetime, timedelta
 import calendar
@@ -1092,3 +1093,150 @@ def match_images(request, match_id):
 def about(request):
     """Vista de la página Quiénes somos"""
     return render(request, 'videos/about.html')
+
+
+# ===============================
+# VISTAS DE NOTIFICACIONES Y MODERACIÓN
+# ===============================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser, login_url='/')
+def moderation_counts_api(request):
+    """API para obtener contadores de elementos pendientes de moderación"""
+    from django.contrib.auth import get_user_model
+    
+    User = get_user_model()
+    
+    # Contar usuarios pendientes de aprobación
+    pending_users_count = User.objects.filter(is_approved=False).count()
+    
+    # Contar imágenes pendientes de moderación
+    pending_images_count = Image.objects.filter(status='pending').count()
+    
+    # Total de elementos pendientes
+    total_pending = pending_users_count + pending_images_count
+    
+    return JsonResponse({
+        'success': True,
+        'pending_users': pending_users_count,
+        'pending_images': pending_images_count,
+        'total_pending': total_pending
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser, login_url='/')
+def moderation_panel(request):
+    """Panel de moderación simplificado para superusers"""
+    from django.contrib.auth import get_user_model
+    
+    User = get_user_model()
+    
+    # Obtener usuarios pendientes de aprobación
+    pending_users = User.objects.filter(is_approved=False).order_by('date_joined')
+    
+    # Obtener imágenes pendientes de moderación
+    pending_images = Image.objects.filter(status='pending').select_related(
+        'uploaded_by', 'match__home_team', 'match__away_team', 'match__league'
+    ).prefetch_related('categories').order_by('upload_date')
+    
+    context = {
+        'pending_users': pending_users,
+        'pending_images': pending_images,
+        'pending_users_count': pending_users.count(),
+        'pending_images_count': pending_images.count(),
+    }
+    
+    return render(request, 'videos/moderation_panel.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser, login_url='/')
+@require_POST
+def approve_user_api(request, user_id):
+    """API para aprobar un usuario vía AJAX"""
+    from django.contrib.auth import get_user_model
+    
+    User = get_user_model()
+    
+    try:
+        user = User.objects.get(id=user_id, is_approved=False)
+        user.is_approved = True
+        user.save(update_fields=['is_approved'])
+        
+        # Enviar email de confirmación si está configurado
+        if getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
+            try:
+                from videosvoley.core.email_utils import send_notification_email
+                send_notification_email(
+                    subject=f'Usuario aprobado - {user.username}',
+                    template_name='emails/user_approved.html',
+                    context={'user': user},
+                    recipient_list=[user.email] if user.email else []
+                )
+            except Exception as e:
+                logger.warning(f"Error enviando email de aprobación: {e}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Usuario {user.username} aprobado correctamente',
+            'user_name': user.username
+        })
+        
+    except User.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Usuario no encontrado o ya aprobado'
+        }, status=404)
+    except Exception as e:
+        logger.error(f"Error aprobando usuario {user_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser, login_url='/')
+@require_POST
+def moderate_image_api(request, image_id):
+    """API para moderar una imagen vía AJAX"""
+    try:
+        image = Image.objects.get(id=image_id, status='pending')
+        action = request.POST.get('action')  # 'approve' o 'reject'
+        notes = request.POST.get('notes', '')
+        
+        if action not in ['approve', 'reject']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Acción no válida'
+            }, status=400)
+        
+        # Usar el método existente de moderación
+        approved = (action == 'approve')
+        image.moderate(
+            moderator=request.user,
+            approved=approved,
+            notes=notes
+        )
+        
+        action_text = 'aprobada' if approved else 'rechazada'
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Imagen "{image.title}" {action_text} correctamente',
+            'image_title': image.title,
+            'action': action
+        })
+        
+    except Image.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Imagen no encontrada o ya moderada'
+        }, status=404)
+    except Exception as e:
+        logger.error(f"Error moderando imagen {image_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }, status=500)

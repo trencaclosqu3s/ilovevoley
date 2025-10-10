@@ -33,6 +33,12 @@ urlpatterns = [
     path('ajax/matches-by-category/', views.ajax_matches_by_category, name='ajax_matches_by_category'),
     path('ajax/teams-by-league-category/', views.ajax_teams_by_league_category, name='ajax_teams_by_league_category'),
     
+    # URLs de moderación y notificaciones (solo superuser)
+    path('moderacion/', views.moderation_panel, name='moderation_panel'),
+    path('api/moderation/counts/', views.moderation_counts_api, name='moderation_counts_api'),
+    path('api/users/<int:user_id>/approve/', views.approve_user_api, name='approve_user_api'),
+    path('api/images/<int:image_id>/moderate/', views.moderate_image_api, name='moderate_image_api'),
+    
     # Página institucional
     path('quienes-somos/', views.about, name='about'),
     

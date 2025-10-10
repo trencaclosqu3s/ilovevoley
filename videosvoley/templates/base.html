@@ -132,6 +132,12 @@
                         {% if user.is_staff or user.is_superuser %}
                             <a href="{% url 'admin:index' %}" class="text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium">⚙️ Administración</a>
                         {% endif %}
+                        {% if user.is_superuser %}
+                            <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell" class="relative text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium">
+                                🔔 Moderación
+                                <span id="moderation-counter" class="absolute -top-2 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                            </a>
+                        {% endif %}
                         <a href="{% url 'profile' %}" class="text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium">
                             <span class="hidden lg:inline">👤 {{ user.username }}</span>
                             <span class="lg:hidden">👤 Perfil</span>
@@ -202,6 +208,13 @@
                                 <span class="text-lg mr-3">⚙️</span>
                                 <span>Administración</span>
                             </a>
+                            {% if user.is_superuser %}
+                                <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell-mobile" class="flex items-center px-4 py-4 text-csj-purple hover:bg-gray-50 font-semibold transition touch-manipulation relative">
+                                    <span class="text-lg mr-3">🔔</span>
+                                    <span>Moderación</span>
+                                    <span id="moderation-counter-mobile" class="ml-auto bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                                </a>
+                            {% endif %}
                         </div>
                     {% endif %}
                     <div class="border-t border-gray-100 mt-2 pt-2">
@@ -606,7 +619,14 @@
             `;
             widget.innerHTML = fallbackHTML;
         }
+
     </script>
+    
+    <!-- Cargar scripts de moderación solo para superusers -->
+    {% if user.is_superuser %}
+    {% load static %}
+    <script src="{% static 'js/moderation.js' %}"></script>
+    {% endif %}
     
     <!-- Scripts adicionales de páginas específicas -->
     {% block extra_js %}{% endblock %}
