@@ -18,6 +18,11 @@ urlpatterns = [
     path('clasificacion/', views.standings_view, name='standings_view'),
     path('calendario/amistoso/nuevo/', views.friendly_match_create, name='friendly_match_create'),
     
+    # URLs de plantillas
+    path('equipos/', views.team_list, name='team_list'),
+    path('equipos/<int:team_id>/plantilla/', views.team_roster, name='team_roster'),
+    path('plantillas/', views.roster_overview, name='roster_overview'),
+    
     # URLs de imágenes
     path('imagenes/', views.image_gallery, name='image_gallery'),
     path('imagenes/subir/', views.image_upload, name='image_upload'),

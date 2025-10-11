@@ -244,9 +244,9 @@ CLUB_TEAM_NAME = 'SANT JOSEP'  # Nombre del equipo principal para filtrar videos
 CLUB_TEAM_NAMES = {
     'default': 'SANT JOSEP',
     'senior': ['SANT JOSEP', 'CV SANT JOSEP'],
-    'cadete': ['SANT JOSEP CADETE', 'CV SANT JOSEP CADETE'],
-    'infantil': ['SANT JOSEP INFANTIL', 'CV SANT JOSEP INFANTIL'],
-    'juvenil': ['SANT JOSEP JUVENIL', 'CV SANT JOSEP JUVENIL'],
+    'cadete': ['SANT JOSEP', 'CV SANT JOSEP'],
+    'infantil': ['SANT JOSEP', 'CV SANT JOSEP'],
+    'juvenil': ['SANT JOSEP', 'CV SANT JOSEP'],
 }
 
 # Email configuration

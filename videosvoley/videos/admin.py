@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db.models import Count
 from django_celery_beat.models import PeriodicTask, IntervalSchedule, CrontabSchedule
 from django_celery_beat.admin import PeriodicTaskAdmin as BasePeriodicTaskAdmin
-from .models import Video, Category, League, Team, Match, ScrapingEndpoint, Standing, Club, Image
+from .models import Video, Category, League, Team, Match, ScrapingEndpoint, Standing, Club, Image, Player, Staff
 from .forms import MatchAdminForm
 
 
@@ -147,13 +147,28 @@ class ClubAdmin(admin.ModelAdmin):
     sync_selected_clubs.short_description = "Sincronizar datos de clubes seleccionados"
 
 
+class PlayerInline(admin.TabularInline):
+    model = Player
+    extra = 0
+    fields = ('first_name', 'last_name', 'jersey_number', 'position', 'is_active')
+    readonly_fields = ('created_at',)
+
+
+class StaffInline(admin.TabularInline):
+    model = Staff
+    extra = 0
+    fields = ('first_name', 'last_name', 'role', 'is_active')
+    readonly_fields = ('created_at',)
+
+
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'club_name', 'sponsor_name', 'federation_id', 'is_active', 'logo_preview')
+    list_display = ('name', 'category', 'club_name', 'sponsor_name', 'federation_id', 'is_active', 'logo_preview', 'players_count', 'staff_count')
     list_filter = ('is_active', 'category', 'club', 'created_at')
     search_fields = ('name', 'federation_id', 'sponsor_name', 'club__official_name', 'category__name')
-    readonly_fields = ('created_at', 'display_logo')
+    readonly_fields = ('created_at', 'display_logo', 'players_count', 'staff_count')
     autocomplete_fields = ('club', 'category')
+    inlines = [PlayerInline, StaffInline]
     
     fieldsets = (
         ('Información Básica', {
@@ -179,6 +194,16 @@ class TeamAdmin(admin.ModelAdmin):
         """Muestra el nombre del club asociado"""
         return obj.club.official_name if obj.club else '-'
     club_name.short_description = 'Club'
+    
+    def players_count(self, obj):
+        """Muestra el número de jugadores activos"""
+        return obj.players.filter(is_active=True).count()
+    players_count.short_description = 'Jugadores'
+    
+    def staff_count(self, obj):
+        """Muestra el número de miembros del staff activos"""
+        return obj.staff.filter(is_active=True).count()
+    staff_count.short_description = 'Staff'
     
     def logo_preview(self, obj):
         """Muestra preview del logo del equipo o club"""
@@ -716,3 +741,142 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
         
         if count > 0:
             self.message_user(request, f'{count} tarea(s) enviada(s) a la cola de ejecución.')
+
+
+# =============================================================================
+# Admin para Plantillas (Players y Staff)
+# =============================================================================
+
+@admin.register(Player)
+class PlayerAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'team', 'position', 'age_display', 'is_active', 'photo_preview')
+    list_filter = ('team', 'team__category', 'position', 'is_active', 'created_at')
+    search_fields = ('first_name', 'last_name', 'jersey_number', 'team__name')
+    readonly_fields = ('age_display', 'created_at', 'updated_at', 'photo_preview')
+    autocomplete_fields = ('team', 'user')
+    actions = ['activate_players', 'deactivate_players']
+    
+    fieldsets = (
+        ('Información Personal', {
+            'fields': ('first_name', 'last_name', 'birth_date', 'age_display')
+        }),
+        ('Equipo y Posición', {
+            'fields': ('team', 'jersey_number', 'position')
+        }),
+        ('Foto', {
+            'fields': ('photo', 'photo_preview'),
+            'classes': ('collapse',)
+        }),
+        ('Usuario Vinculado', {
+            'fields': ('user',),
+            'classes': ('collapse',),
+            'description': 'Opcional: vincular con un usuario de la plataforma'
+        }),
+        ('Estado', {
+            'fields': ('is_active', 'notes')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def age_display(self, obj):
+        """Muestra la edad del jugador"""
+        if obj.age is not None:
+            return f"{obj.age} años"
+        return "No especificada"
+    age_display.short_description = 'Edad'
+    
+    def photo_preview(self, obj):
+        """Muestra preview de la foto"""
+        if obj.photo:
+            return format_html(
+                '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />',
+                obj.photo.url
+            )
+        return 'Sin foto'
+    photo_preview.short_description = 'Preview'
+    
+    def activate_players(self, request, queryset):
+        """Activar jugadores seleccionados"""
+        updated = queryset.filter(is_active=False).update(is_active=True)
+        self.message_user(request, f'{updated} jugador(es) activado(s).')
+    activate_players.short_description = "Activar jugadores seleccionados"
+    
+    def deactivate_players(self, request, queryset):
+        """Desactivar jugadores seleccionados"""
+        updated = queryset.filter(is_active=True).update(is_active=False)
+        self.message_user(request, f'{updated} jugador(es) desactivado(s).')
+    deactivate_players.short_description = "Desactivar jugadores seleccionados"
+
+
+@admin.register(Staff)
+class StaffAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'team', 'role', 'is_active', 'contact_info', 'photo_preview')
+    list_filter = ('team', 'team__category', 'role', 'is_active', 'created_at')
+    search_fields = ('first_name', 'last_name', 'team__name', 'email', 'phone')
+    readonly_fields = ('created_at', 'updated_at', 'photo_preview')
+    autocomplete_fields = ('team', 'user')
+    actions = ['activate_staff', 'deactivate_staff']
+    
+    fieldsets = (
+        ('Información Personal', {
+            'fields': ('first_name', 'last_name')
+        }),
+        ('Equipo y Rol', {
+            'fields': ('team', 'role')
+        }),
+        ('Contacto', {
+            'fields': ('phone', 'email'),
+            'classes': ('collapse',)
+        }),
+        ('Foto', {
+            'fields': ('photo', 'photo_preview'),
+            'classes': ('collapse',)
+        }),
+        ('Usuario Vinculado', {
+            'fields': ('user',),
+            'classes': ('collapse',),
+            'description': 'Opcional: vincular con un usuario de la plataforma'
+        }),
+        ('Estado', {
+            'fields': ('is_active', 'notes')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def contact_info(self, obj):
+        """Muestra información de contacto"""
+        contact_parts = []
+        if obj.phone:
+            contact_parts.append(f"📞 {obj.phone}")
+        if obj.email:
+            contact_parts.append(f"✉️ {obj.email}")
+        return " | ".join(contact_parts) if contact_parts else "Sin contacto"
+    contact_info.short_description = 'Contacto'
+    
+    def photo_preview(self, obj):
+        """Muestra preview de la foto"""
+        if obj.photo:
+            return format_html(
+                '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />',
+                obj.photo.url
+            )
+        return 'Sin foto'
+    photo_preview.short_description = 'Preview'
+    
+    def activate_staff(self, request, queryset):
+        """Activar miembros del staff seleccionados"""
+        updated = queryset.filter(is_active=False).update(is_active=True)
+        self.message_user(request, f'{updated} miembro(s) del staff activado(s).')
+    activate_staff.short_description = "Activar miembros del staff seleccionados"
+    
+    def deactivate_staff(self, request, queryset):
+        """Desactivar miembros del staff seleccionados"""
+        updated = queryset.filter(is_active=True).update(is_active=False)
+        self.message_user(request, f'{updated} miembro(s) del staff desactivado(s).')
+    deactivate_staff.short_description = "Desactivar miembros del staff seleccionados"

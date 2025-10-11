@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 import calendar
 from django.utils import timezone
 import logging
-from .models import Video, Comment, Category, League, Match, Team, Standing, Image
+from .models import Video, Comment, Category, League, Match, Team, Standing, Image, Player, Staff
 from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm
 
 # Configurar logger
@@ -1512,3 +1512,254 @@ def ajax_register_team(request):
             'success': False,
             'error': 'Error interno del servidor'
         }, status=500)
+
+
+
+# ===============================
+# VISTAS DE PLANTILLAS (PLAYERS Y STAFF)  
+# ===============================
+
+@login_required
+@user_passes_test(user_is_approved, login_url="/pending-approval/")
+def team_list(request):
+    """Lista de equipos del club con información de plantillas"""
+    # Configuración del club
+    club_team_names = getattr(settings, "CLUB_TEAM_NAMES", {})
+    default_club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
+    
+    # Obtener categorías del usuario para filtrar
+    user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
+    
+    # Query base para equipos del club
+    teams_query = Team.objects.select_related("category", "club").prefetch_related(
+        "players", "staff"
+    ).filter(is_active=True)
+    
+    # Filtrar equipos del club usando configuración
+    if club_team_names:
+        # Usar CLUB_TEAM_NAMES por categoría
+        q_objects = Q()
+        for category_name, team_name in club_team_names.items():
+            q_objects |= Q(category__name__icontains=category_name, name__icontains=team_name)
+        teams_query = teams_query.filter(q_objects)
+    else:
+        # Usar CLUB_TEAM_NAME por defecto
+        teams_query = teams_query.filter(name__icontains=default_club_name)
+    
+    # Filtrar por categorías preferidas del usuario
+    category_filter = request.GET.get("category")
+    show_all = request.GET.get("show_all", "0") == "1"
+    
+    if not show_all and not category_filter:
+        teams_query = teams_query.filter(category__in=user_categories)
+    elif category_filter:
+        teams_query = teams_query.filter(category_id=category_filter)
+    
+    # Ordenar por categoría y nombre
+    teams = teams_query.order_by("category__name", "name")
+    
+    # Añadir contadores de plantilla
+    for team in teams:
+        team.active_players_count = team.players.filter(is_active=True).count()
+        team.active_staff_count = team.staff.filter(is_active=True).count()
+    
+    # Obtener categorías para el filtro
+    categories = Category.objects.filter(is_active=True).order_by("name")
+    
+    context = {
+        "teams": teams,
+        "categories": categories,
+        "selected_category": category_filter,
+        "show_all": show_all,
+        "user_categories": user_categories,
+    }
+    
+    return render(request, "videos/team_list.html", context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url="/pending-approval/")
+def team_roster(request, team_id):
+    """Vista de plantilla de un equipo específico"""
+    team = get_object_or_404(
+        Team.objects.select_related("category", "club"),
+        id=team_id
+    )
+    
+    # Verificar que sea un equipo del club
+    club_team_names = getattr(settings, "CLUB_TEAM_NAMES", {})
+    default_club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
+    
+    is_club_team = False
+    if club_team_names:
+        for category_name, team_names in club_team_names.items():
+            if team.category and category_name.lower() in team.category.name.lower():
+                if isinstance(team_names, list):
+                    for team_name in team_names:
+                        if team_name.lower() in team.name.lower():
+                            is_club_team = True
+                            break
+                else:
+                    if team_names.lower() in team.name.lower():
+                        is_club_team = True
+                        break
+            if is_club_team:
+                break
+    else:
+        is_club_team = default_club_name.lower() in team.name.lower()
+    
+    if not is_club_team:
+        messages.error(request, "Este equipo no pertenece al club.")
+        return redirect("videos:team_list")
+    
+    # Obtener jugadores activos ordenados por número de dorsal
+    players = team.players.filter(is_active=True).order_by("jersey_number", "last_name", "first_name")
+    
+    # Obtener staff activo ordenado por rol
+    staff = team.staff.filter(is_active=True).order_by("role", "last_name", "first_name")
+    
+    # Filtros opcionales
+    position_filter = request.GET.get("position")
+    if position_filter:
+        players = players.filter(position=position_filter)
+    
+    role_filter = request.GET.get("role")
+    if role_filter:
+        staff = staff.filter(role=role_filter)
+    
+    # Estadísticas de la plantilla
+    stats = {
+        "total_players": players.count(),
+        "total_staff": staff.count(),
+        "players_with_jersey": 0,
+        "positions_covered": 0,
+        "positions_distribution": {},
+        "roles_distribution": {},
+    }
+    
+    # Contar jugadores con dorsal asignado
+    stats["players_with_jersey"] = players.filter(jersey_number__isnull=False).count()
+    
+    # Contar posiciones cubiertas (que tienen al menos un jugador)
+    positions_with_players = set()
+    for player in players:
+        if player.position:
+            positions_with_players.add(player.position)
+    stats["positions_covered"] = len(positions_with_players)
+    
+    # Distribución por posiciones
+    for player in players:
+        pos = player.get_position_display() if player.position else "Sin asignar"
+        stats["positions_distribution"][pos] = stats["positions_distribution"].get(pos, 0) + 1
+    
+    # Distribución por roles del staff
+    for member in staff:
+        role = member.get_role_display()
+        stats["roles_distribution"][role] = stats["roles_distribution"].get(role, 0) + 1
+    
+    # Opciones para filtros
+    position_choices = Player.POSITION_CHOICES
+    role_choices = Staff.STAFF_ROLES
+    
+    context = {
+        "team": team,
+        "players": players,
+        "staff": staff,
+        "stats": stats,
+        "position_choices": position_choices,
+        "role_choices": role_choices,
+        "selected_position": position_filter,
+        "selected_role": role_filter,
+    }
+    
+    return render(request, "videos/team_roster.html", context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url="/pending-approval/")
+def roster_overview(request):
+    """Vista general de todas las plantillas del club"""
+    # Configuración del club
+    club_team_names = getattr(settings, "CLUB_TEAM_NAMES", {})
+    default_club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
+    
+    # Obtener categorías del usuario para filtrar
+    user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
+    
+    # Query base para equipos del club
+    teams_query = Team.objects.select_related("category", "club").prefetch_related(
+        "players__user", "staff__user"
+    ).filter(is_active=True)
+    
+    # Filtrar equipos del club
+    if club_team_names:
+        q_objects = Q()
+        for category_name, team_names in club_team_names.items():
+            if isinstance(team_names, list):
+                for team_name in team_names:
+                    q_objects |= Q(category__name__icontains=category_name, name__icontains=team_name)
+            else:
+                q_objects |= Q(category__name__icontains=category_name, name__icontains=team_names)
+        teams_query = teams_query.filter(q_objects)
+    else:
+        teams_query = teams_query.filter(name__icontains=default_club_name)
+    
+    # Filtrar por categorías preferidas del usuario
+    category_filter = request.GET.get("category")
+    show_all = request.GET.get("show_all", "0") == "1"
+    
+    if not show_all and not category_filter:
+        teams_query = teams_query.filter(category__in=user_categories)
+    elif category_filter:
+        teams_query = teams_query.filter(category_id=category_filter)
+    
+    teams = teams_query.order_by("category__name", "name")
+    
+    # Estadísticas generales
+    total_stats = {
+        "total_teams": teams.count(),
+        "total_players": 0,
+        "total_staff": 0,
+        "teams_with_good_roster": 0,  # Equipos con 8+ jugadores (buen número para rotaciones)
+        "categories_summary": {},
+    }
+    
+    for team in teams:
+        active_players = team.players.filter(is_active=True)
+        active_staff = team.staff.filter(is_active=True)
+        
+        team.active_players_count = active_players.count()
+        team.active_staff_count = active_staff.count()
+        team.has_good_roster = team.active_players_count >= 8  # Suficientes para rotaciones
+        
+        total_stats["total_players"] += team.active_players_count
+        total_stats["total_staff"] += team.active_staff_count
+        
+        if team.has_good_roster:
+            total_stats["teams_with_good_roster"] += 1
+        
+        # Estadísticas por categoría
+        cat_name = team.category.name if team.category else "Sin categoría"
+        if cat_name not in total_stats["categories_summary"]:
+            total_stats["categories_summary"][cat_name] = {
+                "teams": 0, "players": 0, "staff": 0
+            }
+        
+        total_stats["categories_summary"][cat_name]["teams"] += 1
+        total_stats["categories_summary"][cat_name]["players"] += team.active_players_count
+        total_stats["categories_summary"][cat_name]["staff"] += team.active_staff_count
+    
+    # Obtener categorías para el filtro
+    categories = Category.objects.filter(is_active=True).order_by("name")
+    
+    context = {
+        "teams": teams,
+        "total_stats": total_stats,
+        "categories": categories,
+        "selected_category": category_filter,
+        "show_all": show_all,
+        "user_categories": user_categories,
+    }
+    
+    return render(request, "videos/roster_overview.html", context)
+
