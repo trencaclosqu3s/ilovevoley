@@ -130,17 +130,27 @@
                         </div>
                         <div class="border-l border-gray-300 h-6"></div>
                         {% if user.is_staff or user.is_superuser %}
-                            <a href="{% url 'admin:index' %}" class="text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium">⚙️ Administración</a>
-                        {% endif %}
-                        {% if user.is_superuser %}
-                            <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell" class="relative text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium">
-                                🔔 Moderación
-                                <span id="moderation-counter" class="absolute -top-2 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                            <a href="{% url 'admin:index' %}" class="text-gray-600 hover:text-csj-purple transition" title="Administración">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
                             </a>
                         {% endif %}
-                        <a href="{% url 'profile' %}" class="text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium">
-                            <span class="hidden lg:inline">👤 {{ user.username }}</span>
-                            <span class="lg:hidden">👤 Perfil</span>
+                        {% if user.is_superuser %}
+                            <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell" class="text-gray-600 hover:text-csj-purple transition relative inline-flex" title="Moderación">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                </svg>
+                                <span id="moderation-counter" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden font-semibold" style="font-size: 10px;">0</span>
+                            </a>
+                        {% endif %}
+                        <a href="{% url 'profile' %}" class="text-sm lg:text-base text-gray-600 hover:text-csj-purple transition font-medium flex items-center gap-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            <span class="hidden lg:inline">{{ user.username }}</span>
+                            <span class="lg:hidden">Perfil</span>
                         </a>
                         <a href="{% url 'account_logout' %}" class="text-sm lg:text-base text-csj-purple hover:text-csj-purple-dark font-semibold transition">Salir</a>
                     {% else %}
@@ -187,7 +197,9 @@
                         <span class="font-medium">Galería</span>
                     </a>
                     <a href="{% url 'profile' %}" class="flex items-center px-4 py-4 text-gray-700 hover:bg-gray-50 transition touch-manipulation">
-                        <span class="text-lg mr-3">👤</span>
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
                         <span class="font-medium">Mi Perfil</span>
                     </a>
                     {% if can_add %}
@@ -205,14 +217,21 @@
                     {% if user.is_staff or user.is_superuser %}
                         <div class="border-t border-gray-100 mt-2 pt-2">
                             <a href="{% url 'admin:index' %}" class="flex items-center px-4 py-4 text-csj-purple hover:bg-gray-50 font-semibold transition touch-manipulation">
-                                <span class="text-lg mr-3">⚙️</span>
+                                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
                                 <span>Administración</span>
                             </a>
                             {% if user.is_superuser %}
-                                <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell-mobile" class="flex items-center px-4 py-4 text-csj-purple hover:bg-gray-50 font-semibold transition touch-manipulation relative">
-                                    <span class="text-lg mr-3">🔔</span>
+                                <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell-mobile" class="flex items-center px-4 py-4 text-csj-purple hover:bg-gray-50 font-semibold transition touch-manipulation">
+                                    <span class="relative inline-flex mr-3">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                        </svg>
+                                        <span id="moderation-counter-mobile" class="absolute -top-1 -right-1.5 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center hidden font-semibold" style="font-size: 10px;">0</span>
+                                    </span>
                                     <span>Moderación</span>
-                                    <span id="moderation-counter-mobile" class="ml-auto bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
                                 </a>
                             {% endif %}
                         </div>
