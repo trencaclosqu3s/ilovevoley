@@ -90,6 +90,7 @@ class VideoForm(forms.ModelForm):
         now = timezone.now()
         
         # Filtrar: partidos del pasado + el próximo partido futuro
+        # (withdrawn excluidos automáticamente por el manager)
         # 1. Obtener todos los partidos del pasado
         past_matches = Match.objects.select_related(
             'home_team', 'away_team', 'home_team__category', 'away_team__category', 
@@ -288,6 +289,7 @@ class ImageUploadForm(forms.ModelForm):
         now = timezone.now()
         
         # Filtrar: partidos del pasado + el próximo partido futuro
+        # (withdrawn excluidos automáticamente por el manager)
         # 1. Obtener todos los partidos del pasado
         past_matches = Match.objects.select_related(
             'home_team', 'away_team', 'league'

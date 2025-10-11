@@ -246,7 +246,7 @@ def calendar_view(request):
     league_filter = request.GET.get('league')
     category_filter = request.GET.get('category')
     
-    # Consulta base de partidos
+    # Consulta base de partidos (withdrawn excluidos automáticamente por el manager)
     matches = Match.objects.select_related(
         'home_team', 'away_team', 'league', 'league__category'
     ).order_by('match_date')
@@ -873,6 +873,7 @@ def image_upload(request):
     now = timezone.now()
     
     # Partidos del pasado (últimos 10)
+    # (withdrawn excluidos automáticamente por el manager)
     past_matches = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
@@ -1061,6 +1062,7 @@ def image_bulk_upload(request):
     now = timezone.now()
     
     # Partidos del pasado (últimos 10)
+    # (withdrawn excluidos automáticamente por el manager)
     past_matches = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]

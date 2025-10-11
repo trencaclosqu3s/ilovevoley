@@ -74,9 +74,7 @@ class UserMatchesFeed(ICalFeed):
             Q(away_team__name__icontains=club_team_name) |
             Q(home_team_text__icontains=club_team_name) |  # Buscar en texto también
             Q(away_team_text__icontains=club_team_name)
-        ).exclude(
-            status='withdrawn'  # No mostrar partidos de equipos retirados
-        ).select_related(
+        ).select_related(  # withdrawn excluidos automáticamente por el manager
             'home_team',
             'away_team',
             'league',

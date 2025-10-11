@@ -166,6 +166,17 @@ class Team(models.Model):
         return self.logo_url or (self.club.logo_federation_url if self.club else None)
 
 
+class MatchManager(models.Manager):
+    """Manager personalizado que excluye partidos withdrawn por defecto"""
+    def get_queryset(self):
+        return super().get_queryset().exclude(status='withdrawn')
+
+
+class MatchAllManager(models.Manager):
+    """Manager que incluye TODOS los partidos, incluyendo withdrawn"""
+    pass
+
+
 class Match(models.Model):
     MATCH_STATES = [
         ('scheduled', 'Programado'),
@@ -205,6 +216,10 @@ class Match(models.Model):
     federation_id = models.CharField(max_length=200, unique=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Managers
+    objects = MatchManager()  # Manager por defecto: excluye withdrawn
+    all_objects = MatchAllManager()  # Manager completo: incluye withdrawn
     
     class Meta:
         ordering = ['match_date']

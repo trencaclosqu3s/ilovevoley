@@ -305,6 +305,10 @@ class MatchAdmin(admin.ModelAdmin):
     date_hierarchy = 'match_date'
     inlines = [ImageInline]
     actions = ['mark_as_withdrawn', 'mark_as_scheduled']
+    
+    def get_queryset(self, request):
+        """Usar all_objects en el admin para ver todos los partidos, incluyendo withdrawn"""
+        return Match.all_objects.get_queryset()
     fieldsets = (
         ('Configuración de Filtrado', {
             'fields': ('filter_by_category',),
