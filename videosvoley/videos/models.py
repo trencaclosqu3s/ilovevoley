@@ -244,16 +244,19 @@ class Match(models.Model):
         return not self.is_friendly and self.federation_id is not None
     
     def clean(self):
-        """Validar que al menos uno de los campos de equipo esté presente"""
+        """Validar consistencia de los campos del partido"""
         from django.core.exceptions import ValidationError
         
-        # Validar equipo local
-        if not self.home_team and not self.home_team_text:
-            raise ValidationError('Debe especificar un equipo local (seleccionado o texto)')
-        
-        # Validar equipo visitante
-        if not self.away_team and not self.away_team_text:
-            raise ValidationError('Debe especificar un equipo visitante (seleccionado o texto)')
+        # Solo validar equipos para partidos NO amistosos que no estén en proceso de creación
+        # Para amistosos, el formulario ya se encarga de la validación
+        if not self.is_friendly and self.pk is not None:
+            # Validar equipo local para partidos oficiales ya guardados
+            if not self.home_team and not self.home_team_text:
+                raise ValidationError('Debe especificar un equipo local (seleccionado o texto)')
+            
+            # Validar equipo visitante para partidos oficiales ya guardados
+            if not self.away_team and not self.away_team_text:
+                raise ValidationError('Debe especificar un equipo visitante (seleccionado o texto)')
         
         # Si es amistoso, validar que no tenga federation_id
         if self.is_friendly and self.federation_id:

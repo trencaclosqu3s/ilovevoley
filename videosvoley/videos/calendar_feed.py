@@ -103,7 +103,7 @@ class UserMatchesFeed(ICalFeed):
         
         # Añadir indicador de amistoso
         if item.is_friendly:
-            title = f'⚽ {title} [AMISTOSO]'
+            title = f'🏐 {title} [AMISTOSO]'
         
         # Marcar como PROVISIONAL si la hora es 00:00 (indica que no está confirmada)
         if item.match_date.hour == 0 and item.match_date.minute == 0:

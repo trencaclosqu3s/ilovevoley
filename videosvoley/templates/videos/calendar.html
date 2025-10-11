@@ -304,12 +304,12 @@
                                             </div>
                                         </div>
                                         
-                                        <!-- Indicador de amistoso -->
-                                        {% if match.is_friendly %}
-                                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
-                                                ⚽ Amistoso
-                                            </span>
-                                        {% endif %}
+                        <!-- Indicador de amistoso -->
+                        {% if match.is_friendly %}
+                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
+                                🏐 Amistoso
+                            </span>
+                        {% endif %}
                                         
                                         <!-- Resultado si está disponible -->
                                         {% if match.is_finished %}
@@ -469,7 +469,7 @@ function showDayMatches(day, monthName, year) {
                     <div class="flex-1">
                         <div class="flex items-center space-x-2 mb-2">
                             <span class="text-sm text-gray-600">${match.time}</span>
-                            ${match.is_friendly ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">⚽ Amistoso</span>' : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">J${match.round_number}</span>`}
+                            ${match.is_friendly ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">🏐 Amistoso</span>' : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">J${match.round_number}</span>`}
                             ${match.category ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">${match.category}</span>` : ''}
                         </div>
                         <div class="font-semibold text-gray-900 mb-1 flex items-center gap-2">

@@ -30,7 +30,7 @@ Se ha implementado con éxito el sistema de partidos amistosos para VideosVoley.
 - ✅ `friendly_match_form.html`: Formulario con autocompletado
 - ✅ `calendar.html`: 
   - Botón verde "Añadir Amistoso" (visible solo para staff/VideoManagers)
-  - Badge verde "⚽ Amistoso" en partidos amistosos
+  - Badge verde "🏐 Amistoso" en partidos amistosos
   - Indicador verde en vista calendario
 - ✅ `match_detail.html`: Badge de amistoso en detalle del partido
 - ✅ Todos los templates actualizados para usar `home_team_display` y `away_team_display`
@@ -42,7 +42,7 @@ Se ha implementado con éxito el sistema de partidos amistosos para VideosVoley.
 #### 5. **Admin de Django** ✅
 - ✅ Actualizado `MatchAdmin`:
   - Filtro por `is_friendly`
-  - Display de tipo de partido (⚽ Amistoso / 🏆 Oficial / ❓ Otro)
+  - Display de tipo de partido (🏐 Amistoso / 🏆 Oficial / ❓ Otro)
   - Fieldsets reorganizados para incluir campos de texto
   - Manejo de equipos opcionales en `teams_active_status`
 
@@ -74,7 +74,7 @@ Se ha implementado con éxito el sistema de partidos amistosos para VideosVoley.
    - Equipos de nuestra liga → seleccionar de BD
 
 #### Visualización:
-- Badge verde "⚽ Amistoso" en todos los listados
+- Badge verde "🏐 Amistoso" en todos los listados
 - Borde verde en vista calendario
 - Sincroniza con Google Calendar
 - Aparece en feeds ICS con marcador [AMISTOSO]

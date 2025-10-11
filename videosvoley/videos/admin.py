@@ -341,7 +341,7 @@ class MatchAdmin(admin.ModelAdmin):
     def match_type_display(self, obj):
         """Muestra el tipo de partido"""
         if obj.is_friendly:
-            return '⚽ Amistoso'
+            return '🏐 Amistoso'
         elif obj.federation_id:
             return '🏆 Oficial'
         return '❓ Otro'

@@ -66,7 +66,9 @@ def video_list(request):
             Q(title__icontains=search_query) |
             Q(description__icontains=search_query) |
             Q(match__home_team__name__icontains=search_query) |
-            Q(match__away_team__name__icontains=search_query)
+            Q(match__away_team__name__icontains=search_query) |
+            Q(match__home_team_text__icontains=search_query) |
+            Q(match__away_team_text__icontains=search_query)
         )
     
     # Paginación
@@ -253,7 +255,9 @@ def calendar_view(request):
     if not show_all_teams:
         matches = matches.filter(
             Q(home_team__name__icontains=CLUB_TEAM_NAME) | 
-            Q(away_team__name__icontains=CLUB_TEAM_NAME)
+            Q(away_team__name__icontains=CLUB_TEAM_NAME) |
+            Q(home_team_text__icontains=CLUB_TEAM_NAME) |
+            Q(away_team_text__icontains=CLUB_TEAM_NAME)
         )
     
     # Aplicar filtro de liga
@@ -364,6 +368,9 @@ def calendar_view(request):
 def friendly_match_create(request):
     """Vista para crear un partido amistoso"""
     if request.method == 'POST':
+        # Debug: ver qué datos estamos recibiendo
+        logger.debug(f"POST data received: {request.POST}")
+        
         form = FriendlyMatchForm(request.POST)
         if form.is_valid():
             match = form.save()
@@ -373,10 +380,14 @@ def friendly_match_create(request):
             )
             return redirect('videos:calendar_view')
         else:
-            # Mostrar errores
+            # Mostrar errores con más detalle
+            logger.error(f"Form errors: {form.errors}")
             for field, errors in form.errors.items():
                 for error in errors:
-                    messages.error(request, f'{error}')
+                    if field == '__all__':
+                        messages.error(request, f'{error}')
+                    else:
+                        messages.error(request, f'{field}: {error}')
     else:
         form = FriendlyMatchForm()
     
@@ -492,8 +503,12 @@ def ajax_matches_by_category(request):
     club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
     
     # Construir query base para equipos del club
-    club_query = (Q(home_team__name__icontains=club_team_name) | 
-                 Q(away_team__name__icontains=club_team_name))
+    club_query = (
+        Q(home_team__name__icontains=club_team_name) | 
+        Q(away_team__name__icontains=club_team_name) |
+        Q(home_team_text__icontains=club_team_name) |
+        Q(away_team_text__icontains=club_team_name)
+    )
     
     # Si hay categoría específica, filtrar por equipos de esa categoría
     if category_id and category_id != '':
@@ -728,7 +743,9 @@ def image_upload(request):
                 # Preparar recent_matches con la misma lógica
                 club_query = (
                     Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-                    Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
+                    Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+                    Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+                    Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
                 )
                 now = timezone.now()
                 past_matches = Match.objects.select_related(
@@ -848,7 +865,9 @@ def image_upload(request):
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
     club_query = (
         Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
+        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+        Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+        Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
     )
     
     now = timezone.now()
@@ -1034,7 +1053,9 @@ def image_bulk_upload(request):
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
     club_query = (
         Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
+        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+        Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+        Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
     )
     
     now = timezone.now()

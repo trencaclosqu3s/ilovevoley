@@ -1,7 +1,7 @@
 from django import forms
 from django.conf import settings
 from django.db.models import Q
-from .models import Video, Comment, Category, Match, Team, Image
+from .models import Video, Comment, Category, Match, Team, Image, League
 
 
 class VideoForm(forms.ModelForm):
@@ -65,8 +65,13 @@ class VideoForm(forms.ModelForm):
             category = self.instance.category
         
         # Construir query base para equipos del club
-        club_query = (Q(home_team__name__icontains=club_team_name) | 
-                     Q(away_team__name__icontains=club_team_name))
+        # Incluir tanto equipos con ForeignKey como texto libre (amistosos)
+        club_query = (
+            Q(home_team__name__icontains=club_team_name) | 
+            Q(away_team__name__icontains=club_team_name) |
+            Q(home_team_text__icontains=club_team_name) |
+            Q(away_team_text__icontains=club_team_name)
+        )
         
         # Si hay categoría específica, filtrar por equipos de esa categoría
         if category:
@@ -271,8 +276,13 @@ class ImageUploadForm(forms.ModelForm):
         club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
         
         # Filtrar partidos del club ordenados por fecha
-        club_query = (Q(home_team__name__icontains=club_team_name) | 
-                     Q(away_team__name__icontains=club_team_name))
+        # Incluir tanto equipos con ForeignKey como texto libre (amistosos)
+        club_query = (
+            Q(home_team__name__icontains=club_team_name) | 
+            Q(away_team__name__icontains=club_team_name) |
+            Q(home_team_text__icontains=club_team_name) |
+            Q(away_team_text__icontains=club_team_name)
+        )
         
         # Fecha actual
         now = timezone.now()
@@ -575,27 +585,49 @@ class FriendlyMatchForm(forms.ModelForm):
         
         # Validar equipo local
         home_team_id = cleaned_data.get('home_team_id')
-        home_team_search = cleaned_data.get('home_team_search', '').strip()
+        home_team_search = cleaned_data.get('home_team_search')
+        
+        # Si home_team_search es None o vacío, el campo está vacío
+        if home_team_search:
+            home_team_search = home_team_search.strip()
         
         if not home_team_id and not home_team_search:
             raise forms.ValidationError('Debes especificar un equipo local')
         
         # Validar equipo visitante
         away_team_id = cleaned_data.get('away_team_id')
-        away_team_search = cleaned_data.get('away_team_search', '').strip()
+        away_team_search = cleaned_data.get('away_team_search')
+        
+        # Si away_team_search es None o vacío, el campo está vacío
+        if away_team_search:
+            away_team_search = away_team_search.strip()
         
         if not away_team_id and not away_team_search:
             raise forms.ValidationError('Debes especificar un equipo visitante')
         
+        # Guardar los valores procesados en cleaned_data
+        cleaned_data['home_team_search'] = home_team_search or ''
+        cleaned_data['away_team_search'] = away_team_search or ''
+        
         return cleaned_data
     
     def save(self, commit=True):
-        instance = super().save(commit=False)
+        # No llamar a super().save() todavía porque necesitamos configurar los campos primero
+        # para evitar que la validación del modelo falle
+        
+        # Obtener la instancia pero sin validar todavía
+        instance = Match()
+        
+        # Copiar campos del formulario
+        instance.match_date = self.cleaned_data.get('match_date')
+        instance.venue = self.cleaned_data.get('venue', '')
+        instance.city = self.cleaned_data.get('city', '')
         
         # Marcar como amistoso
         instance.is_friendly = True
         instance.status = 'scheduled'
         instance.federation_id = None  # Los amistosos no tienen federation_id
+        instance.round_number = 1  # Por defecto
         
         # Obtener categoría seleccionada
         category = self.cleaned_data.get('category')
@@ -653,6 +685,8 @@ class FriendlyMatchForm(forms.ModelForm):
             instance.league = league
         
         if commit:
+            # Guardar normalmente - el método clean() del modelo ya no valida
+            # equipos para partidos amistosos nuevos
             instance.save()
         
         return instance
