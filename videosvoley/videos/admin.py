@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db.models import Count
 from django_celery_beat.models import PeriodicTask, IntervalSchedule, CrontabSchedule
 from django_celery_beat.admin import PeriodicTaskAdmin as BasePeriodicTaskAdmin
-from .models import Video, Category, League, Team, Match, ScrapingEndpoint, Standing, Club, Image, Player, Staff
+from .models import Video, Category, League, Team, Match, ScrapingEndpoint, Standing, Club, Image, Player, Staff, Person, PlayerRole, StaffRole
 from .forms import MatchAdminForm
 
 
@@ -880,3 +880,168 @@ class StaffAdmin(admin.ModelAdmin):
         updated = queryset.filter(is_active=True).update(is_active=False)
         self.message_user(request, f'{updated} miembro(s) del staff desactivado(s).')
     deactivate_staff.short_description = "Desactivar miembros del staff seleccionados"
+
+
+# =============================================================================
+# NUEVA ESTRUCTURA: PERSON-ROLE ADMIN
+# =============================================================================
+
+class PlayerRoleInline(admin.TabularInline):
+    """Inline para roles de jugador en la vista de Person"""
+    model = PlayerRole
+    extra = 0
+    fields = ('team', 'jersey_number', 'position', 'is_active', 'notes')
+    readonly_fields = ('created_at',)
+    autocomplete_fields = ('team',)
+
+
+class StaffRoleInline(admin.TabularInline):
+    """Inline para roles de staff en la vista de Person"""
+    model = StaffRole
+    extra = 0
+    fields = ('team', 'role', 'is_active', 'notes')
+    readonly_fields = ('created_at',)
+    autocomplete_fields = ('team',)
+
+
+@admin.register(Person)
+class PersonAdmin(admin.ModelAdmin):
+    """Admin para el modelo Person"""
+    list_display = ('__str__', 'age_display', 'contact_info', 'is_active', 'photo_preview', 'active_teams_count')
+    list_filter = ('is_active', 'created_at', 'birth_date')
+    search_fields = ('first_name', 'last_name', 'email', 'phone')
+    readonly_fields = ('age_display', 'created_at', 'updated_at', 'photo_preview')
+    autocomplete_fields = ('user',)
+    actions = ['activate_people', 'deactivate_people']
+    inlines = [PlayerRoleInline, StaffRoleInline]
+    
+    fieldsets = (
+        ('Información Personal', {
+            'fields': ('first_name', 'last_name', 'birth_date', 'age_display')
+        }),
+        ('Contacto', {
+            'fields': ('email', 'phone'),
+            'classes': ('collapse',)
+        }),
+        ('Foto', {
+            'fields': ('photo', 'photo_preview'),
+            'classes': ('collapse',)
+        }),
+        ('Usuario Vinculado', {
+            'fields': ('user',),
+            'classes': ('collapse',),
+            'description': 'Opcional: vincular con un usuario de la plataforma'
+        }),
+        ('Estado', {
+            'fields': ('is_active', 'notes')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+
+    def photo_preview(self, obj):
+        """Muestra preview de la foto"""
+        if obj.photo:
+            return format_html(
+                '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />',
+                obj.photo.url
+            )
+        return 'Sin foto'
+    photo_preview.short_description = 'Preview'
+
+    def active_teams_count(self, obj):
+        """Cuenta de equipos activos donde participa"""
+        return obj.get_all_active_teams().count()
+    active_teams_count.short_description = 'Equipos Activos'
+
+    def activate_people(self, request, queryset):
+        """Activar personas seleccionadas"""
+        updated = queryset.filter(is_active=False).update(is_active=True)
+        self.message_user(request, f'{updated} persona(s) activada(s).')
+    activate_people.short_description = "Activar personas seleccionadas"
+    
+    def deactivate_people(self, request, queryset):
+        """Desactivar personas seleccionadas"""
+        updated = queryset.filter(is_active=True).update(is_active=False)
+        self.message_user(request, f'{updated} persona(s) desactivada(s).')
+    deactivate_people.short_description = "Desactivar personas seleccionadas"
+
+
+@admin.register(PlayerRole)
+class PlayerRoleAdmin(admin.ModelAdmin):
+    """Admin para el modelo PlayerRole"""
+    list_display = ('person', 'team', 'jersey_number', 'display_position', 'is_active', 'created_at')
+    list_filter = ('team', 'team__category', 'position', 'is_active', 'created_at')
+    search_fields = ('person__first_name', 'person__last_name', 'team__name', 'jersey_number')
+    readonly_fields = ('created_at', 'updated_at')
+    autocomplete_fields = ('person', 'team')
+    actions = ['activate_roles', 'deactivate_roles']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('person', 'team')
+        }),
+        ('Detalles del Jugador', {
+            'fields': ('jersey_number', 'position')
+        }),
+        ('Estado', {
+            'fields': ('is_active', 'notes')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+
+    def activate_roles(self, request, queryset):
+        """Activar roles seleccionados"""
+        updated = queryset.filter(is_active=False).update(is_active=True)
+        self.message_user(request, f'{updated} rol(es) de jugador activado(s).')
+    activate_roles.short_description = "Activar roles seleccionados"
+    
+    def deactivate_roles(self, request, queryset):
+        """Desactivar roles seleccionados"""
+        updated = queryset.filter(is_active=True).update(is_active=False)
+        self.message_user(request, f'{updated} rol(es) de jugador desactivado(s).')
+    deactivate_roles.short_description = "Desactivar roles seleccionados"
+
+
+@admin.register(StaffRole)
+class StaffRoleAdmin(admin.ModelAdmin):
+    """Admin para el modelo StaffRole"""
+    list_display = ('person', 'team', 'display_role', 'is_active', 'created_at')
+    list_filter = ('team', 'team__category', 'role', 'is_active', 'created_at')
+    search_fields = ('person__first_name', 'person__last_name', 'team__name')
+    readonly_fields = ('created_at', 'updated_at')
+    autocomplete_fields = ('person', 'team')
+    actions = ['activate_roles', 'deactivate_roles']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('person', 'team')
+        }),
+        ('Detalles del Staff', {
+            'fields': ('role',)
+        }),
+        ('Estado', {
+            'fields': ('is_active', 'notes')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+
+    def activate_roles(self, request, queryset):
+        """Activar roles seleccionados"""
+        updated = queryset.filter(is_active=False).update(is_active=True)
+        self.message_user(request, f'{updated} rol(es) de staff activado(s).')
+    activate_roles.short_description = "Activar roles seleccionados"
+    
+    def deactivate_roles(self, request, queryset):
+        """Desactivar roles seleccionados"""
+        updated = queryset.filter(is_active=True).update(is_active=False)
+        self.message_user(request, f'{updated} rol(es) de staff desactivado(s).')
+    deactivate_roles.short_description = "Desactivar roles seleccionados"
