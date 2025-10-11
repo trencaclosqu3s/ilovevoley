@@ -653,14 +653,29 @@ def image_upload(request):
             except Exception as e:
                 logger.error(f"Error procesando imagen: {str(e)}")
                 messages.error(request, f'Error al procesar la imagen: {str(e)}')
+                
+                # Preparar recent_matches con la misma lógica
+                club_query = (
+                    Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+                    Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
+                )
+                now = timezone.now()
+                past_matches = Match.objects.select_related(
+                    'home_team', 'away_team', 'league'
+                ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
+                next_match = Match.objects.select_related(
+                    'home_team', 'away_team', 'league'
+                ).filter(club_query, match_date__gte=now).order_by('match_date').first()
+                
+                if next_match:
+                    recent_matches = list(past_matches) + [next_match]
+                    recent_matches.sort(key=lambda x: x.match_date, reverse=True)
+                else:
+                    recent_matches = list(past_matches)
+                
                 return render(request, 'videos/image_upload.html', {
                     'form': form,
-                    'recent_matches': Match.objects.select_related(
-                        'home_team', 'away_team', 'league'
-                    ).filter(
-                        Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) | 
-                        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
-                    ).order_by('-match_date')[:10]
+                    'recent_matches': recent_matches
                 })
             
             # Procesar con Google Vision API si está habilitado
@@ -759,13 +774,31 @@ def image_upload(request):
     else:
         form = ImageUploadForm()
     
-    # Obtener partidos recientes para sugerir
-    recent_matches = Match.objects.select_related(
-        'home_team', 'away_team', 'league'
-    ).filter(
+    # Obtener partidos recientes para sugerir (solo pasados + el próximo)
+    club_query = (
         Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
         Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
-    ).order_by('-match_date')[:10]
+    )
+    
+    now = timezone.now()
+    
+    # Partidos del pasado (últimos 10)
+    past_matches = Match.objects.select_related(
+        'home_team', 'away_team', 'league'
+    ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
+    
+    # Próximo partido futuro (solo uno)
+    next_match = Match.objects.select_related(
+        'home_team', 'away_team', 'league'
+    ).filter(club_query, match_date__gte=now).order_by('match_date').first()
+    
+    # Combinar ambos querysets
+    if next_match:
+        # Convertir a lista para combinar y ordenar
+        recent_matches = list(past_matches) + [next_match]
+        recent_matches.sort(key=lambda x: x.match_date, reverse=True)
+    else:
+        recent_matches = list(past_matches)
     
     context = {
         'form': form,
@@ -927,13 +960,31 @@ def image_bulk_upload(request):
             return redirect('videos:image_bulk_upload')
     
     # GET request
-    # Obtener partidos recientes para sugerir
-    recent_matches = Match.objects.select_related(
-        'home_team', 'away_team', 'league'
-    ).filter(
+    # Obtener partidos recientes para sugerir (solo pasados + el próximo)
+    club_query = (
         Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
         Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
-    ).order_by('-match_date')[:10]
+    )
+    
+    now = timezone.now()
+    
+    # Partidos del pasado (últimos 10)
+    past_matches = Match.objects.select_related(
+        'home_team', 'away_team', 'league'
+    ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
+    
+    # Próximo partido futuro (solo uno)
+    next_match = Match.objects.select_related(
+        'home_team', 'away_team', 'league'
+    ).filter(club_query, match_date__gte=now).order_by('match_date').first()
+    
+    # Combinar ambos querysets
+    if next_match:
+        # Convertir a lista para combinar y ordenar
+        recent_matches = list(past_matches) + [next_match]
+        recent_matches.sort(key=lambda x: x.match_date, reverse=True)
+    else:
+        recent_matches = list(past_matches)
     
     # Obtener categorías activas
     categories = Category.objects.filter(is_active=True).order_by('name')

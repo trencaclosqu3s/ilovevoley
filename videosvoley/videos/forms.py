@@ -47,6 +47,9 @@ class VideoForm(forms.ModelForm):
         
     def _setup_match_queryset(self):
         """Configura el queryset de partidos basado en categoría y equipos del club"""
+        from django.utils import timezone
+        from django.db.models import Q
+        
         # Obtener configuración de equipos del club
         club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
         
@@ -78,10 +81,29 @@ class VideoForm(forms.ModelForm):
             # Sin categoría específica, mostrar todos los partidos del club
             final_query = club_query
         
-        self.fields['match'].queryset = Match.objects.select_related(
+        # Fecha actual
+        now = timezone.now()
+        
+        # Filtrar: partidos del pasado + el próximo partido futuro
+        # 1. Obtener todos los partidos del pasado
+        past_matches = Match.objects.select_related(
             'home_team', 'away_team', 'home_team__category', 'away_team__category', 
             'league', 'league__category'
-        ).filter(final_query).order_by('-match_date')
+        ).filter(final_query, match_date__lt=now)
+        
+        # 2. Obtener el próximo partido futuro (solo uno)
+        next_match = Match.objects.select_related(
+            'home_team', 'away_team', 'home_team__category', 'away_team__category', 
+            'league', 'league__category'
+        ).filter(final_query, match_date__gte=now).order_by('match_date').first()
+        
+        # 3. Combinar: partidos pasados + próximo partido (si existe)
+        if next_match:
+            # Usar union de querysets
+            self.fields['match'].queryset = (past_matches | Match.objects.filter(id=next_match.id)).order_by('-match_date')
+        else:
+            # Solo partidos pasados
+            self.fields['match'].queryset = past_matches.order_by('-match_date')
         
         # Actualizar label basado en contexto
         if category:
@@ -244,15 +266,35 @@ class ImageUploadForm(forms.ModelForm):
         
     def _setup_match_queryset(self):
         """Configura el queryset de partidos basado en equipos del club"""
+        from django.utils import timezone
+        
         club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
         
         # Filtrar partidos del club ordenados por fecha
         club_query = (Q(home_team__name__icontains=club_team_name) | 
                      Q(away_team__name__icontains=club_team_name))
         
-        self.fields['match'].queryset = Match.objects.select_related(
+        # Fecha actual
+        now = timezone.now()
+        
+        # Filtrar: partidos del pasado + el próximo partido futuro
+        # 1. Obtener todos los partidos del pasado
+        past_matches = Match.objects.select_related(
             'home_team', 'away_team', 'league'
-        ).filter(club_query).order_by('-match_date')
+        ).filter(club_query, match_date__lt=now)
+        
+        # 2. Obtener el próximo partido futuro (solo uno)
+        next_match = Match.objects.select_related(
+            'home_team', 'away_team', 'league'
+        ).filter(club_query, match_date__gte=now).order_by('match_date').first()
+        
+        # 3. Combinar: partidos pasados + próximo partido (si existe)
+        if next_match:
+            # Usar union de querysets
+            self.fields['match'].queryset = (past_matches | Match.objects.filter(id=next_match.id)).order_by('-match_date')
+        else:
+            # Solo partidos pasados
+            self.fields['match'].queryset = past_matches.order_by('-match_date')
         
         self.fields['match'].empty_label = "Seleccionar partido (opcional)"
     
