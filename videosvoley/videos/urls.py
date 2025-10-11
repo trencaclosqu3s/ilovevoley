@@ -16,6 +16,7 @@ urlpatterns = [
     path('partidos/<int:match_id>/', views.match_detail, name='match_detail'),
     path('calendario/', views.calendar_view, name='calendar_view'),
     path('clasificacion/', views.standings_view, name='standings_view'),
+    path('calendario/amistoso/nuevo/', views.friendly_match_create, name='friendly_match_create'),
     
     # URLs de imágenes
     path('imagenes/', views.image_gallery, name='image_gallery'),
@@ -32,6 +33,7 @@ urlpatterns = [
     # URLs AJAX
     path('ajax/matches-by-category/', views.ajax_matches_by_category, name='ajax_matches_by_category'),
     path('ajax/teams-by-league-category/', views.ajax_teams_by_league_category, name='ajax_teams_by_league_category'),
+    path('ajax/search-teams/', views.ajax_search_teams, name='ajax_search_teams'),
     
     # URLs de moderación y notificaciones (solo superuser)
     path('moderacion/', views.moderation_panel, name='moderation_panel'),

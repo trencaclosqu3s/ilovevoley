@@ -66,12 +66,14 @@ class UserMatchesFeed(ICalFeed):
         # 3. Rango de fechas
         # 4. Excluir partidos con estado 'withdrawn' (equipo retirado de la liga)
         matches = Match.objects.filter(
-            league__category__in=categories,
+            Q(league__category__in=categories) | Q(is_friendly=True),  # Incluir amistosos
             match_date__gte=start_date,
             match_date__lte=end_date
         ).filter(
             Q(home_team__name__icontains=club_team_name) |
-            Q(away_team__name__icontains=club_team_name)
+            Q(away_team__name__icontains=club_team_name) |
+            Q(home_team_text__icontains=club_team_name) |  # Buscar en texto también
+            Q(away_team_text__icontains=club_team_name)
         ).exclude(
             status='withdrawn'  # No mostrar partidos de equipos retirados
         ).select_related(
@@ -97,7 +99,11 @@ class UserMatchesFeed(ICalFeed):
         if item.status == 'cancelled':
             prefix = '❌ CANCELADO - '
         
-        title = f'{prefix}🏐 [{category_name}] {item.home_team.name} vs {item.away_team.name}'
+        title = f'{prefix}🏐 [{category_name}] {item.home_team_display} vs {item.away_team_display}'
+        
+        # Añadir indicador de amistoso
+        if item.is_friendly:
+            title = f'⚽ {title} [AMISTOSO]'
         
         # Marcar como PROVISIONAL si la hora es 00:00 (indica que no está confirmada)
         if item.match_date.hour == 0 and item.match_date.minute == 0:

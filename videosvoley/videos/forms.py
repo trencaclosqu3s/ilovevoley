@@ -473,3 +473,186 @@ class ImageFilterForm(forms.Form):
         }),
         label='Estado'
     )
+
+
+class FriendlyMatchForm(forms.ModelForm):
+    """Formulario para crear partidos amistosos desde el calendario"""
+    
+    # Campo para seleccionar categoría (requerido)
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.filter(is_active=True),
+        required=True,
+        label='Categoría',
+        help_text='Selecciona la categoría del partido',
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'id': 'id_category'
+        })
+    )
+    
+    # Campo de búsqueda para equipo local (con autocompletado)
+    home_team_search = forms.CharField(
+        required=False,
+        label='Equipo Local (buscar)',
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'placeholder': 'Busca un equipo existente o escribe el nombre...',
+            'id': 'id_home_team_search',
+            'autocomplete': 'off'
+        }),
+        help_text='Comienza a escribir para buscar equipos existentes'
+    )
+    
+    # Campo oculto para el ID del equipo local seleccionado
+    home_team_id = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'id': 'id_home_team_id'})
+    )
+    
+    # Campo de búsqueda para equipo visitante (con autocompletado)
+    away_team_search = forms.CharField(
+        required=False,
+        label='Equipo Visitante (buscar)',
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'placeholder': 'Busca un equipo existente o escribe el nombre...',
+            'id': 'id_away_team_search',
+            'autocomplete': 'off'
+        }),
+        help_text='Comienza a escribir para buscar equipos existentes'
+    )
+    
+    # Campo oculto para el ID del equipo visitante seleccionado
+    away_team_id = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'id': 'id_away_team_id'})
+    )
+    
+    class Meta:
+        model = Match
+        fields = ['match_date', 'venue', 'city']
+        widgets = {
+            'match_date': forms.DateTimeInput(attrs={
+                'type': 'datetime-local',
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            }),
+            'venue': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'placeholder': 'Ej: Polideportivo Municipal'
+            }),
+            'city': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'placeholder': 'Ej: Palma'
+            }),
+        }
+        labels = {
+            'match_date': 'Fecha y Hora',
+            'venue': 'Instalación',
+            'city': 'Ciudad',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['venue'].required = False
+        self.fields['city'].required = False
+        
+        # Pre-rellenar campos de búsqueda si estamos editando
+        if self.instance and self.instance.pk:
+            if self.instance.home_team:
+                self.fields['home_team_search'].initial = self.instance.home_team.name
+                self.fields['home_team_id'].initial = self.instance.home_team.id
+            elif self.instance.home_team_text:
+                self.fields['home_team_search'].initial = self.instance.home_team_text
+            
+            if self.instance.away_team:
+                self.fields['away_team_search'].initial = self.instance.away_team.name
+                self.fields['away_team_id'].initial = self.instance.away_team.id
+            elif self.instance.away_team_text:
+                self.fields['away_team_search'].initial = self.instance.away_team_text
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        # Validar equipo local
+        home_team_id = cleaned_data.get('home_team_id')
+        home_team_search = cleaned_data.get('home_team_search', '').strip()
+        
+        if not home_team_id and not home_team_search:
+            raise forms.ValidationError('Debes especificar un equipo local')
+        
+        # Validar equipo visitante
+        away_team_id = cleaned_data.get('away_team_id')
+        away_team_search = cleaned_data.get('away_team_search', '').strip()
+        
+        if not away_team_id and not away_team_search:
+            raise forms.ValidationError('Debes especificar un equipo visitante')
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Marcar como amistoso
+        instance.is_friendly = True
+        instance.status = 'scheduled'
+        instance.federation_id = None  # Los amistosos no tienen federation_id
+        
+        # Obtener categoría seleccionada
+        category = self.cleaned_data.get('category')
+        
+        # Procesar equipo local
+        home_team_id = self.cleaned_data.get('home_team_id')
+        home_team_search = self.cleaned_data.get('home_team_search', '').strip()
+        
+        if home_team_id:
+            # Equipo existente seleccionado
+            try:
+                instance.home_team = Team.objects.get(id=home_team_id)
+                instance.home_team_text = ''
+            except Team.DoesNotExist:
+                instance.home_team = None
+                instance.home_team_text = home_team_search
+        else:
+            # Texto libre
+            instance.home_team = None
+            instance.home_team_text = home_team_search
+        
+        # Procesar equipo visitante
+        away_team_id = self.cleaned_data.get('away_team_id')
+        away_team_search = self.cleaned_data.get('away_team_search', '').strip()
+        
+        if away_team_id:
+            # Equipo existente seleccionado
+            try:
+                instance.away_team = Team.objects.get(id=away_team_id)
+                instance.away_team_text = ''
+            except Team.DoesNotExist:
+                instance.away_team = None
+                instance.away_team_text = away_team_search
+        else:
+            # Texto libre
+            instance.away_team = None
+            instance.away_team_text = away_team_search
+        
+        # Crear o buscar liga de amistosos para esta categoría
+        if category:
+            from django.utils import timezone
+            current_season = f"{timezone.now().year}-{timezone.now().year + 1}"
+            
+            # Buscar o crear liga de amistosos
+            league, created = League.objects.get_or_create(
+                name=f"Amistosos - {category.name}",
+                season=current_season,
+                category=category,
+                defaults={
+                    'federation_id': f"friendly-{category.id}-{current_season}",
+                    'competition_type': 'friendly',
+                    'is_active': True,
+                }
+            )
+            instance.league = league
+        
+        if commit:
+            instance.save()
+        
+        return instance

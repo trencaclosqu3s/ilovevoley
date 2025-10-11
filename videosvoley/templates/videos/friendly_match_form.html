@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Crear Partido Amistoso - Vídeos del Equipo{% endblock %}
+
+{% block extra_css %}
+<style>
+    .autocomplete-results {
+        position: absolute;
+        z-index: 1000;
+        width: 100%;
+        max-height: 300px;
+        overflow-y: auto;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-top: none;
+        border-radius: 0 0 0.5rem 0.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .autocomplete-item {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        transition: background-color 0.15s;
+    }
+    
+    .autocomplete-item:hover,
+    .autocomplete-item.selected {
+        background-color: #f3e8ff;
+    }
+    
+    .autocomplete-item-name {
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .autocomplete-item-detail {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+    
+    .selected-team-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background-color: #7c3aed;
+        color: white;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+    }
+    
+    .selected-team-badge button {
+        margin-left: 0.5rem;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        width: 1.5rem;
+        height: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-lg p-6 border-t-4 border-csj-purple">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">⚽ Crear Partido Amistoso</h1>
+        <p class="text-gray-600">
+            Añade un partido amistoso al calendario. Puedes buscar equipos existentes o escribir el nombre libremente.
+        </p>
+    </div>
+
+    <!-- Formulario -->
+    <form method="post" class="bg-white rounded-lg shadow-lg p-6 space-y-6">
+        {% csrf_token %}
+        
+        <!-- Categoría -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                {{ form.category.label }} <span class="text-red-500">*</span>
+            </label>
+            {{ form.category }}
+            <p class="text-sm text-gray-500 mt-1">{{ form.category.help_text }}</p>
+            {% if form.category.errors %}
+                <p class="text-sm text-red-600 mt-1">{{ form.category.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Fecha y Hora -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                {{ form.match_date.label }} <span class="text-red-500">*</span>
+            </label>
+            {{ form.match_date }}
+            {% if form.match_date.errors %}
+                <p class="text-sm text-red-600 mt-1">{{ form.match_date.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Equipo Local -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                {{ form.home_team_search.label }} <span class="text-red-500">*</span>
+            </label>
+            <div class="relative" id="home-team-autocomplete">
+                {{ form.home_team_search }}
+                {{ form.home_team_id }}
+                <div id="home-team-results" class="autocomplete-results hidden"></div>
+            </div>
+            <div id="home-team-selected"></div>
+            <p class="text-sm text-gray-500 mt-1">{{ form.home_team_search.help_text }}</p>
+            {% if form.home_team_search.errors %}
+                <p class="text-sm text-red-600 mt-1">{{ form.home_team_search.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Equipo Visitante -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                {{ form.away_team_search.label }} <span class="text-red-500">*</span>
+            </label>
+            <div class="relative" id="away-team-autocomplete">
+                {{ form.away_team_search }}
+                {{ form.away_team_id }}
+                <div id="away-team-results" class="autocomplete-results hidden"></div>
+            </div>
+            <div id="away-team-selected"></div>
+            <p class="text-sm text-gray-500 mt-1">{{ form.away_team_search.help_text }}</p>
+            {% if form.away_team_search.errors %}
+                <p class="text-sm text-red-600 mt-1">{{ form.away_team_search.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Ubicación -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.venue.label }}
+                </label>
+                {{ form.venue }}
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.city.label }}
+                </label>
+                {{ form.city }}
+            </div>
+        </div>
+        
+        <!-- Botones -->
+        <div class="flex justify-end space-x-4 pt-4 border-t">
+            <a href="{% url 'videos:calendar_view' %}" 
+               class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                Cancelar
+            </a>
+            <button type="submit" 
+                    class="px-6 py-2 bg-csj-purple text-white rounded-lg hover:bg-csj-purple-dark transition">
+                Crear Partido Amistoso
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Sistema de autocompletado para equipos
+class TeamAutocomplete {
+    constructor(searchInputId, resultsId, selectedId, hiddenInputId) {
+        this.searchInput = document.getElementById(searchInputId);
+        this.resultsDiv = document.getElementById(resultsId);
+        this.selectedDiv = document.getElementById(selectedId);
+        this.hiddenInput = document.getElementById(hiddenInputId);
+        this.categorySelect = document.getElementById('id_category');
+        
+        this.selectedTeamId = null;
+        this.selectedTeamName = null;
+        this.debounceTimer = null;
+        
+        this.init();
+    }
+    
+    init() {
+        // Event listener para búsqueda
+        this.searchInput.addEventListener('input', () => {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => this.search(), 300);
+        });
+        
+        // Event listener para ocultar resultados al hacer clic fuera
+        document.addEventListener('click', (e) => {
+            if (!this.searchInput.contains(e.target) && !this.resultsDiv.contains(e.target)) {
+                this.hideResults();
+            }
+        });
+        
+        // Event listener para categoría
+        if (this.categorySelect) {
+            this.categorySelect.addEventListener('change', () => {
+                if (this.searchInput.value.trim().length >= 2) {
+                    this.search();
+                }
+            });
+        }
+    }
+    
+    async search() {
+        const query = this.searchInput.value.trim();
+        
+        if (query.length < 2) {
+            this.hideResults();
+            return;
+        }
+        
+        const categoryId = this.categorySelect ? this.categorySelect.value : '';
+        
+        try {
+            const response = await fetch(`{% url 'videos:ajax_search_teams' %}?q=${encodeURIComponent(query)}&category_id=${categoryId}`);
+            const data = await response.json();
+            
+            this.displayResults(data.teams);
+        } catch (error) {
+            console.error('Error buscando equipos:', error);
+        }
+    }
+    
+    displayResults(teams) {
+        if (teams.length === 0) {
+            this.resultsDiv.innerHTML = '<div class="autocomplete-item">No se encontraron equipos. Puedes escribir el nombre libremente.</div>';
+            this.resultsDiv.classList.remove('hidden');
+            return;
+        }
+        
+        this.resultsDiv.innerHTML = teams.map(team => `
+            <div class="autocomplete-item" data-team-id="${team.id}" data-team-name="${team.name}">
+                <div class="autocomplete-item-name">${team.name}</div>
+                <div class="autocomplete-item-detail">${team.display}</div>
+            </div>
+        `).join('');
+        
+        // Event listeners para seleccionar
+        this.resultsDiv.querySelectorAll('.autocomplete-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const teamId = item.dataset.teamId;
+                const teamName = item.dataset.teamName;
+                if (teamId) {
+                    this.selectTeam(teamId, teamName);
+                }
+            });
+        });
+        
+        this.resultsDiv.classList.remove('hidden');
+    }
+    
+    selectTeam(teamId, teamName) {
+        this.selectedTeamId = teamId;
+        this.selectedTeamName = teamName;
+        
+        // Actualizar campos
+        this.searchInput.value = teamName;
+        this.hiddenInput.value = teamId;
+        
+        // Mostrar badge de selección
+        this.selectedDiv.innerHTML = `
+            <div class="selected-team-badge">
+                <span>✓ Equipo seleccionado: ${teamName}</span>
+                <button type="button" onclick="this.parentElement.parentElement.innerHTML=''; document.getElementById('${this.hiddenInput.id}').value='';">
+                    ✕
+                </button>
+            </div>
+        `;
+        
+        this.hideResults();
+    }
+    
+    hideResults() {
+        this.resultsDiv.classList.add('hidden');
+    }
+}
+
+// Inicializar autocompletado cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    new TeamAutocomplete(
+        'id_home_team_search',
+        'home-team-results',
+        'home-team-selected',
+        'id_home_team_id'
+    );
+    
+    new TeamAutocomplete(
+        'id_away_team_search',
+        'away-team-results',
+        'away-team-selected',
+        'id_away_team_id'
+    );
+});
+</script>
+{% endblock %}

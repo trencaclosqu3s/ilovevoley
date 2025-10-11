@@ -176,9 +176,25 @@ class Match(models.Model):
         ('withdrawn', 'Retirado (equipo fuera de liga)'),
     ]
     
-    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='matches')
-    home_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='home_matches')
-    away_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='away_matches')
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='matches', null=True, blank=True)
+    home_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='home_matches', null=True, blank=True)
+    away_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='away_matches', null=True, blank=True)
+    
+    # Campos para partidos amistosos con equipos no registrados
+    home_team_text = models.CharField(
+        max_length=200, 
+        blank=True, 
+        help_text='Nombre del equipo local para partidos amistosos sin equipo en BD'
+    )
+    away_team_text = models.CharField(
+        max_length=200, 
+        blank=True, 
+        help_text='Nombre del equipo visitante para partidos amistosos sin equipo en BD'
+    )
+    is_friendly = models.BooleanField(
+        default=False,
+        help_text='Indica si es un partido amistoso creado manualmente'
+    )
     match_date = models.DateTimeField()
     venue = models.CharField(max_length=200, blank=True)
     city = models.CharField(max_length=100, blank=True)
@@ -196,7 +212,7 @@ class Match(models.Model):
         verbose_name_plural = 'Partidos'
 
     def __str__(self):
-        return f'{self.home_team} vs {self.away_team} - {self.match_date.strftime("%d/%m/%Y")}'
+        return f'{self.home_team_display} vs {self.away_team_display} - {self.match_date.strftime("%d/%m/%Y")}'
 
     @property
     def is_finished(self):
@@ -207,6 +223,45 @@ class Match(models.Model):
         if self.home_score is not None and self.away_score is not None:
             return f'{self.home_score} - {self.away_score}'
         return 'Sin resultado'
+    
+    @property
+    def home_team_display(self):
+        """Retorna el nombre del equipo local (Team o texto)"""
+        if self.home_team:
+            return self.home_team.name
+        return self.home_team_text or 'Equipo Local'
+
+    @property
+    def away_team_display(self):
+        """Retorna el nombre del equipo visitante (Team o texto)"""
+        if self.away_team:
+            return self.away_team.name
+        return self.away_team_text or 'Equipo Visitante'
+
+    @property
+    def is_official(self):
+        """Indica si es un partido oficial (scrapeado)"""
+        return not self.is_friendly and self.federation_id is not None
+    
+    def clean(self):
+        """Validar que al menos uno de los campos de equipo esté presente"""
+        from django.core.exceptions import ValidationError
+        
+        # Validar equipo local
+        if not self.home_team and not self.home_team_text:
+            raise ValidationError('Debe especificar un equipo local (seleccionado o texto)')
+        
+        # Validar equipo visitante
+        if not self.away_team and not self.away_team_text:
+            raise ValidationError('Debe especificar un equipo visitante (seleccionado o texto)')
+        
+        # Si es amistoso, validar que no tenga federation_id
+        if self.is_friendly and self.federation_id:
+            raise ValidationError('Los partidos amistosos no deben tener federation_id')
+        
+        # Si tiene federation_id, no debe ser amistoso
+        if self.federation_id and self.is_friendly:
+            self.is_friendly = False  # Auto-corregir
 
 
 class ScrapingEndpoint(models.Model):

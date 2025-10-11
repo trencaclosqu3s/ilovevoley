@@ -298,8 +298,8 @@ class ScrapingEndpointAdmin(admin.ModelAdmin):
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
     form = MatchAdminForm
-    list_display = ('home_team', 'away_team', 'match_date', 'venue', 'status', 'result_display', 'league_category', 'teams_active_status')
-    list_filter = ('status', 'league', 'league__category', 'match_date', 'home_team__is_active', 'away_team__is_active')
+    list_display = ('__str__', 'match_date', 'venue', 'status', 'result_display', 'league_category', 'match_type_display', 'teams_active_status')
+    list_filter = ('is_friendly', 'status', 'league', 'league__category', 'match_date', 'home_team__is_active', 'away_team__is_active')
     search_fields = ('home_team__name', 'away_team__name', 'venue', 'city', 'league__name')
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'match_date'
@@ -310,8 +310,13 @@ class MatchAdmin(admin.ModelAdmin):
             'fields': ('filter_by_category',),
             'description': 'Controla qué equipos se muestran en los campos de selección'
         }),
+        ('Tipo de Partido', {
+            'fields': ('is_friendly',),
+            'description': 'Marca como amistoso si se crea manualmente'
+        }),
         ('Partido', {
-            'fields': ('league', 'home_team', 'away_team', 'match_date')
+            'fields': ('league', 'home_team', 'home_team_text', 'away_team', 'away_team_text', 'match_date'),
+            'description': 'Para partidos amistosos, puedes usar campos de texto si el equipo no existe en BD'
         }),
         ('Ubicación', {
             'fields': ('venue', 'city')
@@ -333,8 +338,21 @@ class MatchAdmin(admin.ModelAdmin):
         return obj.league.category.name if obj.league and obj.league.category else '-'
     league_category.short_description = 'Categoría'
     
+    def match_type_display(self, obj):
+        """Muestra el tipo de partido"""
+        if obj.is_friendly:
+            return '⚽ Amistoso'
+        elif obj.federation_id:
+            return '🏆 Oficial'
+        return '❓ Otro'
+    match_type_display.short_description = 'Tipo'
+    
     def teams_active_status(self, obj):
         """Muestra el estado activo de los equipos"""
+        # Para partidos amistosos con texto, no hay estado
+        if not obj.home_team or not obj.away_team:
+            return '-'
+        
         home_status = "✓" if obj.home_team.is_active else "✗"
         away_status = "✓" if obj.away_team.is_active else "✗"
         

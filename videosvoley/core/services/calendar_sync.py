@@ -127,7 +127,7 @@ class GoogleCalendarService:
         """Convert a Match object to Google Calendar event format."""
         
         # Crear título del evento
-        title = f"[VOLEIBOL] {match.home_team.name} vs {match.away_team.name}"
+        title = f"[VOLEIBOL] {match.home_team_display} vs {match.away_team_display}"
         if match.league:
             title += f" - {match.league.name}"
         

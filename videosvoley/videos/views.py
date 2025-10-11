@@ -13,7 +13,7 @@ import calendar
 from django.utils import timezone
 import logging
 from .models import Video, Comment, Category, League, Match, Team, Standing, Image
-from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm
+from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -356,6 +356,77 @@ def calendar_view(request):
         'month_name': month_names_es[month],
         'has_preferences': request.user.preferred_categories.exists(),
     })
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@user_passes_test(lambda u: u.is_staff or u.groups.filter(name='VideoManagers').exists(), login_url='/')
+def friendly_match_create(request):
+    """Vista para crear un partido amistoso"""
+    if request.method == 'POST':
+        form = FriendlyMatchForm(request.POST)
+        if form.is_valid():
+            match = form.save()
+            messages.success(
+                request, 
+                f'Partido amistoso creado: {match.home_team_display} vs {match.away_team_display}'
+            )
+            return redirect('videos:calendar_view')
+        else:
+            # Mostrar errores
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{error}')
+    else:
+        form = FriendlyMatchForm()
+    
+    return render(request, 'videos/friendly_match_form.html', {
+        'form': form,
+    })
+
+
+@login_required
+def ajax_search_teams(request):
+    """Vista AJAX para buscar equipos con autocompletado inteligente"""
+    from django.http import JsonResponse
+    
+    query = request.GET.get('q', '').strip()
+    category_id = request.GET.get('category_id', '').strip()
+    
+    if len(query) < 2:
+        return JsonResponse({'teams': []})
+    
+    # Buscar equipos existentes
+    teams_query = Team.objects.filter(name__icontains=query)
+    
+    # Filtrar por categoría si se especifica
+    if category_id:
+        try:
+            category = Category.objects.get(id=category_id)
+            teams_query = teams_query.filter(category=category)
+        except Category.DoesNotExist:
+            pass
+    
+    # Limitar a 10 resultados
+    teams = teams_query.order_by('name')[:10]
+    
+    # Formatear respuesta
+    teams_data = []
+    for team in teams:
+        display_name = team.name
+        if team.category:
+            display_name += f" ({team.category.name})"
+        if team.club:
+            display_name += f" - {team.club.official_name}"
+        
+        teams_data.append({
+            'id': team.id,
+            'name': team.name,
+            'display': display_name,
+            'category': team.category.name if team.category else None,
+        })
+    
+    return JsonResponse({'teams': teams_data})
 
 
 @login_required
