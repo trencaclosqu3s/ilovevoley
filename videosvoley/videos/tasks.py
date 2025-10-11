@@ -917,3 +917,272 @@ def handle_withdrawn_teams_task(self, league_id=None, dry_run=False, reactivate_
             'message': error_msg
         }
 
+
+@shared_task(name='scrape_teams', bind=False)
+def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
+    """
+    Ejecuta scraping de equipos de una liga específica y los asigna a una categoría.
+    
+    Args:
+        league_id: ID de la federación de la liga de donde extraer equipos
+        category_name: Nombre de la categoría a asignar a los equipos
+        dry_run: Si es True, simula la operación sin guardar cambios (default: False)
+        delay: Tiempo de espera entre requests en segundos (default: 1.0)
+    
+    Returns:
+        dict: Estadísticas del scraping realizado
+    """
+    from videosvoley.videos.models import Category
+    
+    logger.info(f"Iniciando scraping de equipos - Liga ID: {league_id}, Categoría: {category_name}")
+    
+    try:
+        # Buscar o crear la categoría
+        category = None
+        category_created = False
+        
+        try:
+            category = Category.objects.get(name=category_name)
+            logger.info(f'Usando categoría existente: {category.name}')
+        except Category.DoesNotExist:
+            if dry_run:
+                logger.info(f'[DRY RUN] Se crearía la categoría: {category_name}')
+            else:
+                category = Category.objects.create(
+                    name=category_name,
+                    description=f'Categoría creada automáticamente durante scraping de equipos',
+                    is_active=True
+                )
+                category_created = True
+                logger.info(f'Categoría creada: {category.name}')
+        
+        # Verificar si ya existe una liga con ese federation_id
+        existing_league = League.objects.filter(federation_id=league_id).first()
+        
+        if existing_league:
+            logger.info(f'Liga encontrada: {existing_league.name}')
+            # Usar la categoría de la liga existente si coincide
+            if existing_league.category and existing_league.category.name != category_name:
+                logger.warning(
+                    f'ADVERTENCIA: La liga existente tiene categoría "{existing_league.category.name}" '
+                    f'pero se especificó "{category_name}". Se usará la especificada.'
+                )
+        else:
+            logger.info(f'No se encontró liga con ID {league_id}. Se usará solo para scraping.')
+        
+        # Si existe una liga, usar esa; si no, crear una temporal
+        if existing_league:
+            # Usar liga existente
+            scraper_league = existing_league
+            logger.info(f'Usando liga existente: {scraper_league.name}')
+        else:
+            # Para equipos de ligas no registradas, usar la lógica del comando directo
+            # Reutilizar la lógica del comando scrape_teams
+            from django.core.management.base import CommandError
+            from videosvoley.videos.management.commands.scrape_teams import Command as ScrapeTeamsCommand
+            
+            # Crear instancia del comando y ejecutar
+            command = ScrapeTeamsCommand()
+            
+            # Simular argumentos del comando
+            options = {
+                'league_id': league_id,
+                'category': category_name,
+                'verbose': True,
+                'dry_run': dry_run
+            }
+            
+            try:
+                # Capturar output del comando
+                import io
+                from contextlib import redirect_stdout, redirect_stderr
+                
+                stdout_capture = io.StringIO()
+                stderr_capture = io.StringIO()
+                
+                with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
+                    command.handle(**options)
+                
+                # El comando maneja toda la lógica, solo devolvemos un resumen
+                summary = {
+                    'status': 'success',
+                    'league_id': league_id,
+                    'category_name': category_name,
+                    'category_created': category_created,
+                    'dry_run': dry_run,
+                    'message': 'Scraping completado usando comando directo',
+                    'command_output': stdout_capture.getvalue(),
+                    'command_errors': stderr_capture.getvalue()
+                }
+                
+                logger.info(f"Scraping de equipos completado usando comando directo")
+                return summary
+                
+            except CommandError as e:
+                logger.error(f"Error en comando de scraping: {e}")
+                return {
+                    'status': 'error',
+                    'league_id': league_id,
+                    'category_name': category_name,
+                    'message': str(e)
+                }
+        
+        logger.info(f'Iniciando scraping de equipos usando liga: {scraper_league.name}')
+        if dry_run:
+            logger.info('[MODO DRY RUN - No se guardarán cambios]')
+        
+        scraper = FederationScraper(scraper_league)
+        
+        # Rate limiting inicial
+        time.sleep(delay)
+        
+        results = scraper.scrape_all_endpoints()
+        
+        summary = {
+            'status': 'success',
+            'league_id': league_id,
+            'category_name': category_name,
+            'category_created': category_created,
+            'dry_run': dry_run,
+            'teams_processed': 0,
+            'teams_created': 0,
+            'teams_updated': 0,
+            'endpoints_processed': 0,
+            'endpoints_success': 0,
+            'endpoints_errors': 0,
+            'errors': []
+        }
+        
+        # Procesar todos los endpoints que contengan equipos
+        for endpoint_type, data in results.items():
+            summary['endpoints_processed'] += 1
+            
+            if 'error' in data:
+                logger.error(f'{endpoint_type}: Error - {data["error"]}')
+                summary['endpoints_errors'] += 1
+                summary['errors'].append({
+                    'endpoint': endpoint_type,
+                    'error': data['error']
+                })
+                continue
+            
+            summary['endpoints_success'] += 1
+            teams_data = data.get('teams', [])
+            
+            if not teams_data:
+                logger.info(f'{endpoint_type}: No se encontraron equipos')
+                continue
+            
+            logger.info(f'=== Procesando equipos de {endpoint_type} ===')
+            
+            for team_data in teams_data:
+                summary['teams_processed'] += 1
+                team_name = team_data.get('name', '').strip()
+                team_federation_id = team_data.get('federation_id', '')
+                
+                if not team_name:
+                    logger.warning(f'Equipo sin nombre válido encontrado: {team_data}')
+                    continue
+                
+                logger.info(f'Procesando: {team_name}')
+                
+                if dry_run:
+                    # En modo dry run, solo mostrar lo que se haría
+                    existing = Team.objects.filter(federation_id=team_federation_id).first() if team_federation_id else None
+                    if existing:
+                        logger.info(f'  [DRY RUN] Se actualizaría: {existing.name} -> categoría {category_name}')
+                        summary['teams_updated'] += 1
+                    else:
+                        logger.info(f'  [DRY RUN] Se crearía: {team_name} con categoría {category_name}')
+                        summary['teams_created'] += 1
+                    continue
+                
+                # Buscar equipo existente por federation_id
+                existing_team = None
+                if team_federation_id:
+                    existing_team = Team.objects.filter(federation_id=team_federation_id).first()
+                
+                if existing_team:
+                    # Actualizar equipo existente
+                    updated = False
+                    if existing_team.category != category:
+                        existing_team.category = category
+                        updated = True
+                    if existing_team.name != team_name:
+                        existing_team.name = team_name
+                        updated = True
+                    
+                    if updated:
+                        existing_team.save()
+                        summary['teams_updated'] += 1
+                        logger.info(f'  ✓ Actualizado: {existing_team.name}')
+                    else:
+                        logger.info(f'  - Sin cambios: {existing_team.name}')
+                else:
+                    # Crear nuevo equipo
+                    new_team = Team.objects.create(
+                        name=team_name,
+                        federation_id=team_federation_id,
+                        category=category,
+                        is_active=True
+                    )
+                    summary['teams_created'] += 1
+                    logger.info(f'  ✓ Creado: {new_team.name}')
+                
+                # Rate limiting entre equipos
+                time.sleep(delay * 0.1)  # Delay más corto entre equipos
+        
+        # Si hay errores en todos los endpoints, marcar como error parcial
+        if summary['endpoints_errors'] > 0 and summary['endpoints_success'] == 0:
+            summary['status'] = 'error'
+        elif summary['endpoints_errors'] > 0:
+            summary['status'] = 'partial_success'
+        
+        # Log resumen final
+        action_word = "Se procesarían" if dry_run else "Se procesaron"
+        logger.info(
+            f"Scraping de equipos completado - "
+            f"Endpoints: {summary['endpoints_success']}/{summary['endpoints_processed']} exitosos, "
+            f"{action_word} {summary['teams_processed']} equipos: "
+            f"{summary['teams_created']} creados, {summary['teams_updated']} actualizados"
+        )
+        
+        # Enviar email a admins si hay errores y las notificaciones están habilitadas
+        if summary['endpoints_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED and not dry_run:
+            subject = f"[VideosVoley] Errores en scraping automático de equipos"
+            message = f"""
+            Se han detectado errores durante el scraping automático de equipos:
+            
+            Liga ID: {league_id}
+            Categoría: {category_name}
+            
+            - Endpoints procesados: {summary['endpoints_processed']}
+            - Endpoints exitosos: {summary['endpoints_success']}
+            - Endpoints con errores: {summary['endpoints_errors']}
+            
+            Equipos procesados: {summary['teams_processed']}
+            - Equipos creados: {summary['teams_created']}
+            - Equipos actualizados: {summary['teams_updated']}
+            
+            Errores detectados:
+            {chr(10).join([f"- {e['endpoint']}: {e['error']}" for e in summary['errors']])}
+            """
+            
+            try:
+                mail_admins(subject, message, fail_silently=True)
+                logger.info("Email de notificación enviado a administradores")
+            except Exception as e:
+                logger.error(f"Error enviando email de notificación: {e}")
+        
+        return summary
+    
+    except Exception as e:
+        error_msg = f'Error durante scraping de equipos: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return {
+            'status': 'error',
+            'league_id': league_id,
+            'category_name': category_name,
+            'message': error_msg
+        }
+

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ match.home_team.name }} vs {{ match.away_team.name }} - Vídeos del Equipo{% endblock %}
+{% block title %}{{ match.home_team_display }} vs {{ match.away_team_display }} - Vídeos del Equipo{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -11,14 +11,19 @@
                 <!-- Equipos enfrentados -->
                 <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mb-3">
                     <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">
-                        <span class="{% if 'SANT JOSEP' in match.home_team.name %}text-csj-purple{% endif %}">
-                            {{ match.home_team.name }}
+                        <span class="{% if 'SANT JOSEP' in match.home_team_display %}text-csj-purple{% endif %}">
+                            {{ match.home_team_display }}
                         </span>
                         <span class="text-gray-500 mx-2">vs</span>
-                        <span class="{% if 'SANT JOSEP' in match.away_team.name %}text-csj-purple{% endif %}">
-                            {{ match.away_team.name }}
+                        <span class="{% if 'SANT JOSEP' in match.away_team_display %}text-csj-purple{% endif %}">
+                            {{ match.away_team_display }}
                         </span>
                     </h1>
+                    {% if match.is_friendly %}
+                        <span class="inline-flex items-center px-3 py-1 text-sm font-medium text-green-700 bg-green-100 rounded-full mt-2 sm:mt-0">
+                            🏐 Amistoso
+                        </span>
+                    {% endif %}
                     
                     <!-- Resultado si está disponible -->
                     {% if match.is_finished %}

@@ -523,7 +523,8 @@ class FederationScraper:
                     home_team=home_team,
                     away_team=away_team,
                     match_date__gte=date_start,
-                    match_date__lt=date_end
+                    match_date__lt=date_end,
+                    is_friendly=False  # Solo actualizar partidos oficiales, no amistosos
                 ).first()
                 
                 if existing_match:
@@ -588,7 +589,8 @@ class FederationScraper:
         # Encontrar partidos en esta liga que involucran equipos inactivos
         withdrawn_matches = Match.objects.filter(
             league=self.league,
-            status__in=['scheduled', 'postponed']  # Solo marcar partidos que aún no han comenzado
+            status__in=['scheduled', 'postponed'],  # Solo marcar partidos que aún no han comenzado
+            is_friendly=False  # No marcar amistosos como retirados
         ).filter(
             models.Q(home_team__is_active=False) | models.Q(away_team__is_active=False)
         )

@@ -154,13 +154,13 @@
                                 <div class="flex items-center space-x-3 mb-2">
                                     <div class="flex items-center space-x-2">
                                         <span class="font-semibold text-lg text-gray-800 
-                                            {% if 'SANT JOSEP' in match.home_team.name %}text-csj-purple{% endif %}">
-                                            {{ match.home_team.name }}
+                                            {% if 'SANT JOSEP' in match.home_team_display %}text-csj-purple{% endif %}">
+                                            {{ match.home_team_display }}
                                         </span>
                                         <span class="text-gray-500">vs</span>
                                         <span class="font-semibold text-lg text-gray-800 
-                                            {% if 'SANT JOSEP' in match.away_team.name %}text-csj-purple{% endif %}">
-                                            {{ match.away_team.name }}
+                                            {% if 'SANT JOSEP' in match.away_team_display %}text-csj-purple{% endif %}">
+                                            {{ match.away_team_display }}
                                         </span>
                                     </div>
                                     

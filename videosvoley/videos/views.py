@@ -13,7 +13,7 @@ import calendar
 from django.utils import timezone
 import logging
 from .models import Video, Comment, Category, League, Match, Team, Standing, Image
-from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm
+from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -66,7 +66,9 @@ def video_list(request):
             Q(title__icontains=search_query) |
             Q(description__icontains=search_query) |
             Q(match__home_team__name__icontains=search_query) |
-            Q(match__away_team__name__icontains=search_query)
+            Q(match__away_team__name__icontains=search_query) |
+            Q(match__home_team_text__icontains=search_query) |
+            Q(match__away_team_text__icontains=search_query)
         )
     
     # Paginación
@@ -244,7 +246,7 @@ def calendar_view(request):
     league_filter = request.GET.get('league')
     category_filter = request.GET.get('category')
     
-    # Consulta base de partidos
+    # Consulta base de partidos (withdrawn excluidos automáticamente por el manager)
     matches = Match.objects.select_related(
         'home_team', 'away_team', 'league', 'league__category'
     ).order_by('match_date')
@@ -253,7 +255,9 @@ def calendar_view(request):
     if not show_all_teams:
         matches = matches.filter(
             Q(home_team__name__icontains=CLUB_TEAM_NAME) | 
-            Q(away_team__name__icontains=CLUB_TEAM_NAME)
+            Q(away_team__name__icontains=CLUB_TEAM_NAME) |
+            Q(home_team_text__icontains=CLUB_TEAM_NAME) |
+            Q(away_team_text__icontains=CLUB_TEAM_NAME)
         )
     
     # Aplicar filtro de liga
@@ -360,6 +364,84 @@ def calendar_view(request):
 
 @login_required
 @user_passes_test(user_is_approved, login_url='/pending-approval/')
+@user_passes_test(lambda u: u.is_staff or u.groups.filter(name='VideoManagers').exists(), login_url='/')
+def friendly_match_create(request):
+    """Vista para crear un partido amistoso"""
+    if request.method == 'POST':
+        # Debug: ver qué datos estamos recibiendo
+        logger.debug(f"POST data received: {request.POST}")
+        
+        form = FriendlyMatchForm(request.POST)
+        if form.is_valid():
+            match = form.save()
+            messages.success(
+                request, 
+                f'Partido amistoso creado: {match.home_team_display} vs {match.away_team_display}'
+            )
+            return redirect('videos:calendar_view')
+        else:
+            # Mostrar errores con más detalle
+            logger.error(f"Form errors: {form.errors}")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    if field == '__all__':
+                        messages.error(request, f'{error}')
+                    else:
+                        messages.error(request, f'{field}: {error}')
+    else:
+        form = FriendlyMatchForm()
+    
+    return render(request, 'videos/friendly_match_form.html', {
+        'form': form,
+    })
+
+
+@login_required
+def ajax_search_teams(request):
+    """Vista AJAX para buscar equipos con autocompletado inteligente"""
+    from django.http import JsonResponse
+    
+    query = request.GET.get('q', '').strip()
+    category_id = request.GET.get('category_id', '').strip()
+    
+    if len(query) < 2:
+        return JsonResponse({'teams': []})
+    
+    # Buscar equipos existentes
+    teams_query = Team.objects.filter(name__icontains=query)
+    
+    # Filtrar por categoría si se especifica
+    if category_id:
+        try:
+            category = Category.objects.get(id=category_id)
+            teams_query = teams_query.filter(category=category)
+        except Category.DoesNotExist:
+            pass
+    
+    # Limitar a 10 resultados
+    teams = teams_query.order_by('name')[:10]
+    
+    # Formatear respuesta
+    teams_data = []
+    for team in teams:
+        display_name = team.name
+        if team.category:
+            display_name += f" ({team.category.name})"
+        if team.club:
+            display_name += f" - {team.club.official_name}"
+        
+        teams_data.append({
+            'id': team.id,
+            'name': team.name,
+            'display': display_name,
+            'category': team.category.name if team.category else None,
+        })
+    
+    return JsonResponse({'teams': teams_data})
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
 def standings_view(request):
     """Vista de clasificación de las ligas"""
     # Obtener filtros
@@ -421,8 +503,12 @@ def ajax_matches_by_category(request):
     club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
     
     # Construir query base para equipos del club
-    club_query = (Q(home_team__name__icontains=club_team_name) | 
-                 Q(away_team__name__icontains=club_team_name))
+    club_query = (
+        Q(home_team__name__icontains=club_team_name) | 
+        Q(away_team__name__icontains=club_team_name) |
+        Q(home_team_text__icontains=club_team_name) |
+        Q(away_team_text__icontains=club_team_name)
+    )
     
     # Si hay categoría específica, filtrar por equipos de esa categoría
     if category_id and category_id != '':
@@ -657,7 +743,9 @@ def image_upload(request):
                 # Preparar recent_matches con la misma lógica
                 club_query = (
                     Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-                    Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
+                    Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+                    Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+                    Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
                 )
                 now = timezone.now()
                 past_matches = Match.objects.select_related(
@@ -777,12 +865,15 @@ def image_upload(request):
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
     club_query = (
         Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
+        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+        Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+        Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
     )
     
     now = timezone.now()
     
     # Partidos del pasado (últimos 10)
+    # (withdrawn excluidos automáticamente por el manager)
     past_matches = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
@@ -963,12 +1054,15 @@ def image_bulk_upload(request):
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
     club_query = (
         Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
+        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+        Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
+        Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
     )
     
     now = timezone.now()
     
     # Partidos del pasado (últimos 10)
+    # (withdrawn excluidos automáticamente por el manager)
     past_matches = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
@@ -1338,6 +1432,82 @@ def moderate_image_api(request, image_id):
         }, status=404)
     except Exception as e:
         logger.error(f"Error moderando imagen {image_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def ajax_register_team(request):
+    """Vista AJAX para registrar un nuevo equipo desde el formulario de amistosos"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    
+    try:
+        team_name = request.POST.get('name', '').strip()
+        category_id = request.POST.get('category_id', '').strip()
+        club_id = request.POST.get('club_id', '').strip()
+        
+        if not team_name:
+            return JsonResponse({'success': False, 'error': 'El nombre del equipo es requerido'})
+        
+        if not category_id:
+            return JsonResponse({'success': False, 'error': 'La categoría es requerida'})
+        
+        # Validar categoría
+        try:
+            category = Category.objects.get(id=category_id, is_active=True)
+        except Category.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Categoría no válida'})
+        
+        # Validar club si se proporciona
+        club = None
+        if club_id:
+            try:
+                from .models import Club
+                club = Club.objects.get(id=club_id)
+            except Club.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Club no válido'})
+        
+        # Verificar si ya existe un equipo con el mismo nombre en la misma categoría
+        existing_team = Team.objects.filter(name__iexact=team_name, category=category).first()
+        if existing_team:
+            return JsonResponse({
+                'success': False, 
+                'error': f'Ya existe un equipo llamado "{team_name}" en la categoría {category.name}',
+                'existing_team': {
+                    'id': existing_team.id,
+                    'name': existing_team.name,
+                    'club': existing_team.club.official_name if existing_team.club else None
+                }
+            })
+        
+        # Crear nuevo equipo
+        new_team = Team.objects.create(
+            name=team_name,
+            category=category,
+            club=club,
+            is_active=True
+        )
+        
+        logger.info(f"Equipo registrado: {new_team.name} ({category.name}) por usuario {request.user.username}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Equipo "{team_name}" registrado correctamente en {category.name}',
+            'team': {
+                'id': new_team.id,
+                'name': new_team.name,
+                'category': category.name,
+                'club': club.official_name if club else None,
+                'display': f"{new_team.name} ({category.name})" + (f" - {club.official_name}" if club else "")
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error registrando equipo: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': 'Error interno del servidor'
