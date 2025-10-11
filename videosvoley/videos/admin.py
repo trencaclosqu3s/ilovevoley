@@ -168,7 +168,8 @@ class TeamAdmin(admin.ModelAdmin):
     search_fields = ('name', 'federation_id', 'sponsor_name', 'club__official_name', 'category__name')
     readonly_fields = ('created_at', 'display_logo', 'players_count', 'staff_count')
     autocomplete_fields = ('club', 'category')
-    inlines = [PlayerInline, StaffInline]
+    # inlines = [PlayerInline, StaffInline]  # DESACTIVADO - usar Person con roles
+    # Para gestionar plantillas usar PersonAdmin con PlayerRoleInline y StaffRoleInline
     
     fieldsets = (
         ('Información Básica', {
@@ -196,13 +197,13 @@ class TeamAdmin(admin.ModelAdmin):
     club_name.short_description = 'Club'
     
     def players_count(self, obj):
-        """Muestra el número de jugadores activos"""
-        return obj.players.filter(is_active=True).count()
+        """Muestra el número de jugadores activos usando nueva estructura Person-Role"""
+        return obj.player_roles.filter(is_active=True).count()
     players_count.short_description = 'Jugadores'
     
     def staff_count(self, obj):
-        """Muestra el número de miembros del staff activos"""
-        return obj.staff.filter(is_active=True).count()
+        """Muestra el número de miembros del staff activos usando nueva estructura Person-Role"""
+        return obj.staff_roles.filter(is_active=True).count()
     staff_count.short_description = 'Staff'
     
     def logo_preview(self, obj):
@@ -747,7 +748,7 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
 # Admin para Plantillas (Players y Staff)
 # =============================================================================
 
-@admin.register(Player)
+# @admin.register(Player) - DESACTIVADO - USAR PersonAdmin y PlayerRoleAdmin
 class PlayerAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'team', 'position', 'age_display', 'is_active', 'photo_preview')
     list_filter = ('team', 'team__category', 'position', 'is_active', 'created_at')
@@ -811,7 +812,7 @@ class PlayerAdmin(admin.ModelAdmin):
     deactivate_players.short_description = "Desactivar jugadores seleccionados"
 
 
-@admin.register(Staff)
+# @admin.register(Staff) - DESACTIVADO - USAR PersonAdmin y StaffRoleAdmin
 class StaffAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'team', 'role', 'is_active', 'contact_info', 'photo_preview')
     list_filter = ('team', 'team__category', 'role', 'is_active', 'created_at')
