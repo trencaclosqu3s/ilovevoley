@@ -1523,28 +1523,16 @@ def ajax_register_team(request):
 @user_passes_test(user_is_approved, login_url="/pending-approval/")
 def team_list(request):
     """Lista de equipos del club con información de plantillas"""
-    # Configuración del club
-    club_team_names = getattr(settings, "CLUB_TEAM_NAMES", {})
-    default_club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
+    # Configuración del club - usar solo CLUB_TEAM_NAME para máxima flexibilidad
+    club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
     
     # Obtener categorías del usuario para filtrar
     user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
     
-    # Query base para equipos del club
+    # Query base para equipos del club - filtrar por nombre que contenga CLUB_TEAM_NAME
     teams_query = Team.objects.select_related("category", "club").prefetch_related(
         "players", "staff"
-    ).filter(is_active=True)
-    
-    # Filtrar equipos del club usando configuración
-    if club_team_names:
-        # Usar CLUB_TEAM_NAMES por categoría
-        q_objects = Q()
-        for category_name, team_name in club_team_names.items():
-            q_objects |= Q(category__name__icontains=category_name, name__icontains=team_name)
-        teams_query = teams_query.filter(q_objects)
-    else:
-        # Usar CLUB_TEAM_NAME por defecto
-        teams_query = teams_query.filter(name__icontains=default_club_name)
+    ).filter(is_active=True, name__icontains=club_name)
     
     # Filtrar por categorías preferidas del usuario
     category_filter = request.GET.get("category")
@@ -1558,10 +1546,10 @@ def team_list(request):
     # Ordenar por categoría y nombre
     teams = teams_query.order_by("category__name", "name")
     
-    # Añadir contadores de plantilla
+    # Añadir contadores de plantilla usando nueva estructura Person-Role
     for team in teams:
-        team.active_players_count = team.players.filter(is_active=True).count()
-        team.active_staff_count = team.staff.filter(is_active=True).count()
+        team.active_players_count = team.player_roles.filter(is_active=True).count()
+        team.active_staff_count = team.staff_roles.filter(is_active=True).count()
     
     # Obtener categorías para el filtro
     categories = Category.objects.filter(is_active=True).order_by("name")
@@ -1586,51 +1574,34 @@ def team_roster(request, team_id):
         id=team_id
     )
     
-    # Verificar que sea un equipo del club
-    club_team_names = getattr(settings, "CLUB_TEAM_NAMES", {})
-    default_club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
+    # Verificar que sea un equipo del club - usar solo CLUB_TEAM_NAME
+    club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
     
-    is_club_team = False
-    if club_team_names:
-        for category_name, team_names in club_team_names.items():
-            if team.category and category_name.lower() in team.category.name.lower():
-                if isinstance(team_names, list):
-                    for team_name in team_names:
-                        if team_name.lower() in team.name.lower():
-                            is_club_team = True
-                            break
-                else:
-                    if team_names.lower() in team.name.lower():
-                        is_club_team = True
-                        break
-            if is_club_team:
-                break
-    else:
-        is_club_team = default_club_name.lower() in team.name.lower()
+    is_club_team = club_name.lower() in team.name.lower()
     
     if not is_club_team:
         messages.error(request, "Este equipo no pertenece al club.")
         return redirect("videos:team_list")
     
-    # Obtener jugadores activos ordenados por número de dorsal
-    players = team.players.filter(is_active=True).order_by("jersey_number", "last_name", "first_name")
+    # Obtener jugadores activos ordenados por número de dorsal usando nueva estructura
+    player_roles = team.player_roles.filter(is_active=True).select_related('person').order_by("jersey_number", "person__last_name", "person__first_name")
     
-    # Obtener staff activo ordenado por rol
-    staff = team.staff.filter(is_active=True).order_by("role", "last_name", "first_name")
+    # Obtener staff activo ordenado por rol usando nueva estructura
+    staff_roles = team.staff_roles.filter(is_active=True).select_related('person').order_by("role", "person__last_name", "person__first_name")
     
     # Filtros opcionales
     position_filter = request.GET.get("position")
     if position_filter:
-        players = players.filter(position=position_filter)
+        player_roles = player_roles.filter(position=position_filter)
     
     role_filter = request.GET.get("role")
     if role_filter:
-        staff = staff.filter(role=role_filter)
+        staff_roles = staff_roles.filter(role=role_filter)
     
-    # Estadísticas de la plantilla
+    # Estadísticas de la plantilla usando nueva estructura
     stats = {
-        "total_players": players.count(),
-        "total_staff": staff.count(),
+        "total_players": player_roles.count(),
+        "total_staff": staff_roles.count(),
         "players_with_jersey": 0,
         "positions_covered": 0,
         "positions_distribution": {},
@@ -1638,33 +1609,34 @@ def team_roster(request, team_id):
     }
     
     # Contar jugadores con dorsal asignado
-    stats["players_with_jersey"] = players.filter(jersey_number__isnull=False).count()
+    stats["players_with_jersey"] = player_roles.filter(jersey_number__isnull=False).count()
     
     # Contar posiciones cubiertas (que tienen al menos un jugador)
     positions_with_players = set()
-    for player in players:
-        if player.position:
-            positions_with_players.add(player.position)
+    for player_role in player_roles:
+        if player_role.position:
+            positions_with_players.add(player_role.position)
     stats["positions_covered"] = len(positions_with_players)
     
     # Distribución por posiciones
-    for player in players:
-        pos = player.get_position_display() if player.position else "Sin asignar"
+    for player_role in player_roles:
+        pos = player_role.get_position_display() if player_role.position else "Sin asignar"
         stats["positions_distribution"][pos] = stats["positions_distribution"].get(pos, 0) + 1
     
     # Distribución por roles del staff
-    for member in staff:
-        role = member.get_role_display()
+    for staff_role in staff_roles:
+        role = staff_role.get_role_display()
         stats["roles_distribution"][role] = stats["roles_distribution"].get(role, 0) + 1
     
-    # Opciones para filtros
-    position_choices = Player.POSITION_CHOICES
-    role_choices = Staff.STAFF_ROLES
+    # Opciones para filtros - usar las opciones de los nuevos modelos
+    from .models import PlayerRole, StaffRole
+    position_choices = PlayerRole.POSITION_CHOICES
+    role_choices = StaffRole.STAFF_ROLES
     
     context = {
         "team": team,
-        "players": players,
-        "staff": staff,
+        "player_roles": player_roles,
+        "staff_roles": staff_roles,
         "stats": stats,
         "position_choices": position_choices,
         "role_choices": role_choices,
@@ -1679,30 +1651,16 @@ def team_roster(request, team_id):
 @user_passes_test(user_is_approved, login_url="/pending-approval/")
 def roster_overview(request):
     """Vista general de todas las plantillas del club"""
-    # Configuración del club
-    club_team_names = getattr(settings, "CLUB_TEAM_NAMES", {})
-    default_club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
+    # Configuración del club - usar solo CLUB_TEAM_NAME para máxima flexibilidad
+    club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
     
     # Obtener categorías del usuario para filtrar
     user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
     
-    # Query base para equipos del club
+    # Query base para equipos del club - filtrar por nombre que contenga CLUB_TEAM_NAME
     teams_query = Team.objects.select_related("category", "club").prefetch_related(
         "players__user", "staff__user"
-    ).filter(is_active=True)
-    
-    # Filtrar equipos del club
-    if club_team_names:
-        q_objects = Q()
-        for category_name, team_names in club_team_names.items():
-            if isinstance(team_names, list):
-                for team_name in team_names:
-                    q_objects |= Q(category__name__icontains=category_name, name__icontains=team_name)
-            else:
-                q_objects |= Q(category__name__icontains=category_name, name__icontains=team_names)
-        teams_query = teams_query.filter(q_objects)
-    else:
-        teams_query = teams_query.filter(name__icontains=default_club_name)
+    ).filter(is_active=True, name__icontains=club_name)
     
     # Filtrar por categorías preferidas del usuario
     category_filter = request.GET.get("category")
@@ -1725,11 +1683,12 @@ def roster_overview(request):
     }
     
     for team in teams:
-        active_players = team.players.filter(is_active=True)
-        active_staff = team.staff.filter(is_active=True)
+        # Usar nueva estructura Person-Role
+        active_player_roles = team.player_roles.filter(is_active=True)
+        active_staff_roles = team.staff_roles.filter(is_active=True)
         
-        team.active_players_count = active_players.count()
-        team.active_staff_count = active_staff.count()
+        team.active_players_count = active_player_roles.count()
+        team.active_staff_count = active_staff_roles.count()
         team.has_good_roster = team.active_players_count >= 8  # Suficientes para rotaciones
         
         total_stats["total_players"] += team.active_players_count

@@ -238,16 +238,7 @@ GOOGLE_APPLICATION_CREDENTIALS = env_config('GOOGLE_APPLICATION_CREDENTIALS', de
 AUTO_MODERATION_ENABLED = env_config('AUTO_MODERATION_ENABLED', default=False, cast=bool)
 
 # Configuración específica del club
-CLUB_TEAM_NAME = 'SANT JOSEP'  # Nombre del equipo principal para filtrar videos
-
-# Configuración multi-equipo por categoría
-CLUB_TEAM_NAMES = {
-    'default': 'SANT JOSEP',
-    'senior': ['SANT JOSEP', 'CV SANT JOSEP'],
-    'cadete': ['SANT JOSEP', 'CV SANT JOSEP'],
-    'infantil': ['SANT JOSEP', 'CV SANT JOSEP'],
-    'juvenil': ['SANT JOSEP', 'CV SANT JOSEP'],
-}
+CLUB_TEAM_NAME = 'SANT JOSEP'  # Nombre del equipo principal para filtrar videos y equipos del club
 
 # Email configuration
 EMAIL_BACKEND = env_config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
