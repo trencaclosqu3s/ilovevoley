@@ -4,6 +4,9 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_POST
+from django.core.files.base import ContentFile
+import base64
+import uuid
 from .forms import UserProfileForm, ParentInfoForm
 from .signals import send_new_user_notification
 
@@ -61,6 +64,32 @@ def profile_edit(request):
     """Vista para editar el perfil del usuario"""
     if request.method == 'POST':
         form = UserProfileForm(request.POST, request.FILES, instance=request.user)
+        
+        # Procesar imagen recortada si está presente
+        cropped_avatar_data = request.POST.get('cropped_avatar_data')
+        if cropped_avatar_data and cropped_avatar_data.startswith('data:image'):
+            try:
+                # Extraer datos base64
+                format_str, imgstr = cropped_avatar_data.split(';base64,')
+                ext = format_str.split('/')[-1]
+                
+                # Decodificar imagen
+                data = base64.b64decode(imgstr)
+                
+                # Crear archivo
+                filename = f"avatar_{request.user.id}_{uuid.uuid4().hex[:8]}.{ext}"
+                avatar_file = ContentFile(data, name=filename)
+                
+                # Asignar al usuario antes de validar el form
+                request.user.avatar = avatar_file
+                
+                # Recrear form con la nueva imagen
+                form = UserProfileForm(request.POST, request.FILES, instance=request.user)
+                
+            except Exception as e:
+                messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
+                return render(request, 'users/profile_edit.html', {'form': form})
+        
         if form.is_valid():
             form.save()
             messages.success(request, 'Tu perfil ha sido actualizado correctamente.')

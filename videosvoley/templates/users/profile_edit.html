@@ -45,6 +45,7 @@
                         {{ form.avatar.label }}
                     </label>
                     {{ form.avatar }}
+                    <input type="hidden" id="cropped-avatar" name="cropped_avatar_data" />
                     <label for="{{ form.avatar.id_for_label }}" class="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-csj-purple transition">
                         <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
@@ -57,6 +58,36 @@
                     {% if form.avatar.help_text %}
                         <p class="mt-1 text-xs text-gray-500">{{ form.avatar.help_text }}</p>
                     {% endif %}
+                </div>
+            </div>
+
+            <!-- Modal para recorte de imagen -->
+            <div id="crop-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+                <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">Recortar Imagen de Perfil</h3>
+                        <p class="text-sm text-gray-600 mt-1">Ajusta la imagen para que se vea perfecta en tu perfil</p>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="crop-container">
+                            <img id="crop-image" src="" alt="Imagen a recortar" style="max-width: 100%; max-height: 400px;">
+                        </div>
+                    </div>
+                    
+                    <div class="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+                        <button type="button" id="cancel-crop" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition">
+                            Cancelar
+                        </button>
+                        <div class="space-x-3">
+                            <button type="button" id="reset-crop" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition">
+                                Reiniciar
+                            </button>
+                            <button type="button" id="apply-crop" class="px-4 py-2 bg-csj-purple hover:bg-csj-purple-dark text-white font-medium rounded-lg transition">
+                                Aplicar Recorte
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -257,27 +288,192 @@
     </div>
 </div>
 
+<!-- Cargar Cropper.js -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
+<style>
+    /* Estilos adicionales para el modal de recorte */
+    .crop-container {
+        max-width: 100%;
+        max-height: 400px;
+        margin: 0 auto;
+    }
+    
+    #crop-image {
+        max-width: 100%;
+        max-height: 400px;
+        border-radius: 8px;
+    }
+    
+    /* Personalizar los controles del cropper */
+    .cropper-crop-box {
+        border: 2px solid #8B5CF6 !important;
+    }
+    
+    .cropper-view-box {
+        outline: 1px solid rgba(139, 92, 246, 0.75) !important;
+    }
+    
+    .cropper-face {
+        background-color: rgba(139, 92, 246, 0.1) !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+        #crop-modal .max-w-2xl {
+            max-width: 95vw !important;
+        }
+        
+        .crop-container {
+            max-height: 300px;
+        }
+        
+        #crop-image {
+            max-height: 300px;
+        }
+    }
+</style>
+
 <script>
-    // Previsualización de avatar
+    let cropper = null;
+    let currentFile = null;
+    
+    // Manejar selección de archivo
     document.getElementById('{{ form.avatar.id_for_label }}').addEventListener('change', function(event) {
         const file = event.target.files[0];
         if (file) {
+            // Validar que es una imagen
+            if (!file.type.startsWith('image/')) {
+                alert('Por favor selecciona un archivo de imagen válido.');
+                return;
+            }
+            
+            currentFile = file;
             const reader = new FileReader();
             reader.onload = function(e) {
-                const previewContainer = document.getElementById('avatar-preview');
-                // Si es una imagen, reemplazar con img
-                if (previewContainer.tagName === 'DIV') {
-                    const img = document.createElement('img');
-                    img.id = 'avatar-preview';
-                    img.src = e.target.result;
-                    img.alt = 'Vista previa';
-                    img.className = 'w-24 h-24 rounded-full object-cover border-4 border-gray-200';
-                    previewContainer.parentNode.replaceChild(img, previewContainer);
-                } else {
-                    previewContainer.src = e.target.result;
-                }
+                // Mostrar modal de recorte
+                showCropModal(e.target.result);
             };
             reader.readAsDataURL(file);
+        }
+    });
+    
+    function showCropModal(imageSrc) {
+        const modal = document.getElementById('crop-modal');
+        const cropImage = document.getElementById('crop-image');
+        
+        // Destruir cropper anterior si existe
+        if (cropper) {
+            cropper.destroy();
+        }
+        
+        // Configurar imagen
+        cropImage.src = imageSrc;
+        
+        // Mostrar modal
+        modal.classList.remove('hidden');
+        
+        // Inicializar cropper después de que la imagen se cargue
+        cropImage.onload = function() {
+            cropper = new Cropper(cropImage, {
+                aspectRatio: 1, // Proporción cuadrada para avatar
+                viewMode: 2, // Restringir el recorte al canvas
+                dragMode: 'move',
+                autoCropArea: 0.8,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false,
+                minCanvasWidth: 200,
+                minCanvasHeight: 200,
+                minCropBoxWidth: 100,
+                minCropBoxHeight: 100
+            });
+        };
+    }
+    
+    // Botón cancelar
+    document.getElementById('cancel-crop').addEventListener('click', function() {
+        closeCropModal();
+        // Limpiar el input file
+        document.getElementById('{{ form.avatar.id_for_label }}').value = '';
+    });
+    
+    // Botón reiniciar
+    document.getElementById('reset-crop').addEventListener('click', function() {
+        if (cropper) {
+            cropper.reset();
+        }
+    });
+    
+    // Botón aplicar recorte
+    document.getElementById('apply-crop').addEventListener('click', function() {
+        if (cropper) {
+            // Obtener datos del recorte
+            const canvas = cropper.getCroppedCanvas({
+                width: 300, // Tamaño del avatar final
+                height: 300,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high'
+            });
+            
+            // Convertir a blob y actualizar preview
+            canvas.toBlob(function(blob) {
+                // Crear URL para preview
+                const previewUrl = URL.createObjectURL(blob);
+                updateAvatarPreview(previewUrl);
+                
+                // Guardar datos del recorte en base64 para enviar al servidor
+                const base64Data = canvas.toDataURL('image/jpeg', 0.9);
+                document.getElementById('cropped-avatar').value = base64Data;
+                
+                closeCropModal();
+            }, 'image/jpeg', 0.9);
+        }
+    });
+    
+    function updateAvatarPreview(imageSrc) {
+        const previewContainer = document.getElementById('avatar-preview');
+        
+        // Si es un div (avatar por defecto), reemplazar con img
+        if (previewContainer.tagName === 'DIV') {
+            const img = document.createElement('img');
+            img.id = 'avatar-preview';
+            img.src = imageSrc;
+            img.alt = 'Vista previa';
+            img.className = 'w-24 h-24 rounded-full object-cover border-4 border-gray-200';
+            previewContainer.parentNode.replaceChild(img, previewContainer);
+        } else {
+            previewContainer.src = imageSrc;
+        }
+    }
+    
+    function closeCropModal() {
+        const modal = document.getElementById('crop-modal');
+        modal.classList.add('hidden');
+        
+        // Destruir cropper
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+    }
+    
+    // Cerrar modal al hacer clic fuera
+    document.getElementById('crop-modal').addEventListener('click', function(event) {
+        if (event.target === this) {
+            document.getElementById('cancel-crop').click();
+        }
+    });
+    
+    // Cerrar modal con tecla Escape
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && !document.getElementById('crop-modal').classList.contains('hidden')) {
+            document.getElementById('cancel-crop').click();
         }
     });
 
