@@ -540,6 +540,47 @@ class FriendlyMatchForm(forms.ModelForm):
         widget=forms.HiddenInput(attrs={'id': 'id_away_team_id'})
     )
     
+    # Campos para registrar equipos nuevos
+    register_home_team = forms.BooleanField(
+        required=False,
+        label='Registrar equipo local para futuros partidos',
+        widget=forms.CheckboxInput(attrs={
+            'class': 'rounded border-gray-300 text-csj-purple focus:ring-csj-purple',
+            'id': 'id_register_home_team'
+        })
+    )
+    
+    home_team_club = forms.ModelChoiceField(
+        required=False,
+        queryset=None,  # Se configurará en __init__
+        label='Club del equipo local',
+        empty_label='Seleccionar club (opcional)',
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'id': 'id_home_team_club'
+        })
+    )
+    
+    register_away_team = forms.BooleanField(
+        required=False,
+        label='Registrar equipo visitante para futuros partidos',
+        widget=forms.CheckboxInput(attrs={
+            'class': 'rounded border-gray-300 text-csj-purple focus:ring-csj-purple',
+            'id': 'id_register_away_team'
+        })
+    )
+    
+    away_team_club = forms.ModelChoiceField(
+        required=False,
+        queryset=None,  # Se configurará en __init__
+        label='Club del equipo visitante',
+        empty_label='Seleccionar club (opcional)',
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'id': 'id_away_team_club'
+        })
+    )
+    
     class Meta:
         model = Match
         fields = ['match_date', 'venue', 'city']
@@ -568,17 +609,26 @@ class FriendlyMatchForm(forms.ModelForm):
         self.fields['venue'].required = False
         self.fields['city'].required = False
         
+        # Configurar querysets para clubs
+        from .models import Club
+        self.fields['home_team_club'].queryset = Club.objects.all().order_by('official_name')
+        self.fields['away_team_club'].queryset = Club.objects.all().order_by('official_name')
+        
         # Pre-rellenar campos de búsqueda si estamos editando
         if self.instance and self.instance.pk:
             if self.instance.home_team:
                 self.fields['home_team_search'].initial = self.instance.home_team.name
                 self.fields['home_team_id'].initial = self.instance.home_team.id
+                if self.instance.home_team.club:
+                    self.fields['home_team_club'].initial = self.instance.home_team.club
             elif self.instance.home_team_text:
                 self.fields['home_team_search'].initial = self.instance.home_team_text
             
             if self.instance.away_team:
                 self.fields['away_team_search'].initial = self.instance.away_team.name
                 self.fields['away_team_id'].initial = self.instance.away_team.id
+                if self.instance.away_team.club:
+                    self.fields['away_team_club'].initial = self.instance.away_team.club
             elif self.instance.away_team_text:
                 self.fields['away_team_search'].initial = self.instance.away_team_text
     
@@ -637,6 +687,8 @@ class FriendlyMatchForm(forms.ModelForm):
         # Procesar equipo local
         home_team_id = self.cleaned_data.get('home_team_id')
         home_team_search = self.cleaned_data.get('home_team_search', '').strip()
+        register_home_team = self.cleaned_data.get('register_home_team', False)
+        home_team_club = self.cleaned_data.get('home_team_club')
         
         if home_team_id:
             # Equipo existente seleccionado
@@ -647,13 +699,27 @@ class FriendlyMatchForm(forms.ModelForm):
                 instance.home_team = None
                 instance.home_team_text = home_team_search
         else:
-            # Texto libre
-            instance.home_team = None
-            instance.home_team_text = home_team_search
+            # Texto libre - verificar si hay que registrar como nuevo equipo
+            if register_home_team and home_team_search and category:
+                # Crear nuevo equipo
+                new_team = Team.objects.create(
+                    name=home_team_search,
+                    category=category,
+                    club=home_team_club,
+                    is_active=True
+                )
+                instance.home_team = new_team
+                instance.home_team_text = ''
+            else:
+                # Solo texto libre
+                instance.home_team = None
+                instance.home_team_text = home_team_search
         
         # Procesar equipo visitante
         away_team_id = self.cleaned_data.get('away_team_id')
         away_team_search = self.cleaned_data.get('away_team_search', '').strip()
+        register_away_team = self.cleaned_data.get('register_away_team', False)
+        away_team_club = self.cleaned_data.get('away_team_club')
         
         if away_team_id:
             # Equipo existente seleccionado
@@ -664,9 +730,21 @@ class FriendlyMatchForm(forms.ModelForm):
                 instance.away_team = None
                 instance.away_team_text = away_team_search
         else:
-            # Texto libre
-            instance.away_team = None
-            instance.away_team_text = away_team_search
+            # Texto libre - verificar si hay que registrar como nuevo equipo
+            if register_away_team and away_team_search and category:
+                # Crear nuevo equipo
+                new_team = Team.objects.create(
+                    name=away_team_search,
+                    category=category,
+                    club=away_team_club,
+                    is_active=True
+                )
+                instance.away_team = new_team
+                instance.away_team_text = ''
+            else:
+                # Solo texto libre
+                instance.away_team = None
+                instance.away_team_text = away_team_search
         
         # Crear o buscar liga de amistosos para esta categoría
         if category:

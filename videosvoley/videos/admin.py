@@ -608,6 +608,7 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
                         '• scrape_calendar - Scrapea el calendario de partidos programados<br>'
                         '• scrape_results - Scrapea los resultados de partidos jugados<br>'
                         '• scrape_clubs - Scrapea clubes y asocia equipos<br>'
+                        '• scrape_teams - Scrapea solo equipos de una liga específica<br>'
                         '• handle_withdrawn_teams - Gestiona equipos retirados y marca partidos como retirados<br><br>'
                         'Selecciona la tarea del desplegable "Task (registered)".'
                     )
@@ -625,6 +626,13 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
                     '<code>{"league_id": "12345", "round_number": 5, "delay": 2.0}</code> (todos opcionales)<br><br>'
                     '<strong>scrape_clubs:</strong><br>'
                     '<code>{"match_teams": true, "delay": 1.0}</code><br><br>'
+                    '<strong>scrape_teams:</strong><br>'
+                    '<code>{"league_id": "7950", "category_name": "Senior", "dry_run": false, "delay": 1.0}</code><br>'
+                    '<strong>Ejemplos específicos:</strong><br>'
+                    '• <code>{"league_id": "8123", "category_name": "Juvenil"}</code> - Scrapea equipos juveniles<br>'
+                    '• <code>{"league_id": "9456", "category_name": "Senior", "dry_run": true}</code> - Test sin guardar<br>'
+                    '• <code>{"league_id": "7890", "category_name": "Cadete", "delay": 2.0}</code> - Con delay<br>'
+                    '<em>league_id: ID federación, category_name: categoría a asignar (ambos requeridos)</em><br><br>'
                     '<strong>handle_withdrawn_teams:</strong><br>'
                     '<code>{"league_id": "12345", "dry_run": false, "reactivate_teams": false}</code> (todos opcionales)<br><br>'
                     '<em>Nota: Los argumentos deben estar en formato JSON válido.</em>'
@@ -636,19 +644,38 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
     
     # Mantener las acciones del original y agregar las nuestras
     def get_actions(self, request):
-        """Agregar acciones personalizadas a las existentes"""
+        """Mantener las acciones del admin original y agregar solo las nuestras"""
         actions = super().get_actions(request)
-        actions['run_tasks_now'] = (self.run_tasks_now, 'run_tasks_now', "Ejecutar tareas ahora")
+        
+        # Eliminar acciones duplicadas de django-celery-beat si existen
+        duplicated_actions = ['run_selected_tasks', 'run_tasks']
+        for action in duplicated_actions:
+            if action in actions:
+                del actions[action]
+        
+        # Agregar nuestra acción personalizada con función wrapper
+        def run_tasks_action(modeladmin, request, queryset):
+            return modeladmin.run_tasks_now(request, queryset)
+        
+        actions['run_tasks_now'] = (
+            run_tasks_action,
+            'run_tasks_now',
+            'Ejecutar tareas seleccionadas ahora'
+        )
         return actions
     
     def run_tasks_now(self, request, queryset):
         """Ejecuta las tareas seleccionadas inmediatamente"""
+        if not queryset:
+            self.message_user(request, 'No se seleccionaron tareas.')
+            return
         from videosvoley.videos.tasks import (
             scrape_all_leagues_task, 
             scrape_league_task, 
             scrape_calendar_task,
             scrape_results_task,
             scrape_clubs_task,
+            scrape_teams_task,
             handle_withdrawn_teams_task
         )
         
@@ -662,6 +689,7 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
                     'scrape_calendar': scrape_calendar_task,
                     'scrape_results': scrape_results_task,
                     'scrape_clubs': scrape_clubs_task,
+                    'scrape_teams': scrape_teams_task,
                     'handle_withdrawn_teams': handle_withdrawn_teams_task,
                 }
                 
@@ -688,4 +716,3 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
         
         if count > 0:
             self.message_user(request, f'{count} tarea(s) enviada(s) a la cola de ejecución.')
-    run_tasks_now.short_description = "Ejecutar tareas ahora"

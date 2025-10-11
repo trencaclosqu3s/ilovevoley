@@ -1436,3 +1436,79 @@ def moderate_image_api(request, image_id):
             'success': False,
             'error': 'Error interno del servidor'
         }, status=500)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def ajax_register_team(request):
+    """Vista AJAX para registrar un nuevo equipo desde el formulario de amistosos"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    
+    try:
+        team_name = request.POST.get('name', '').strip()
+        category_id = request.POST.get('category_id', '').strip()
+        club_id = request.POST.get('club_id', '').strip()
+        
+        if not team_name:
+            return JsonResponse({'success': False, 'error': 'El nombre del equipo es requerido'})
+        
+        if not category_id:
+            return JsonResponse({'success': False, 'error': 'La categoría es requerida'})
+        
+        # Validar categoría
+        try:
+            category = Category.objects.get(id=category_id, is_active=True)
+        except Category.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Categoría no válida'})
+        
+        # Validar club si se proporciona
+        club = None
+        if club_id:
+            try:
+                from .models import Club
+                club = Club.objects.get(id=club_id)
+            except Club.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Club no válido'})
+        
+        # Verificar si ya existe un equipo con el mismo nombre en la misma categoría
+        existing_team = Team.objects.filter(name__iexact=team_name, category=category).first()
+        if existing_team:
+            return JsonResponse({
+                'success': False, 
+                'error': f'Ya existe un equipo llamado "{team_name}" en la categoría {category.name}',
+                'existing_team': {
+                    'id': existing_team.id,
+                    'name': existing_team.name,
+                    'club': existing_team.club.official_name if existing_team.club else None
+                }
+            })
+        
+        # Crear nuevo equipo
+        new_team = Team.objects.create(
+            name=team_name,
+            category=category,
+            club=club,
+            is_active=True
+        )
+        
+        logger.info(f"Equipo registrado: {new_team.name} ({category.name}) por usuario {request.user.username}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Equipo "{team_name}" registrado correctamente en {category.name}',
+            'team': {
+                'id': new_team.id,
+                'name': new_team.name,
+                'category': category.name,
+                'club': club.official_name if club else None,
+                'display': f"{new_team.name} ({category.name})" + (f" - {club.official_name}" if club else "")
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error registrando equipo: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }, status=500)

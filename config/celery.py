@@ -14,7 +14,7 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
-# Force Django setup and import calendar tasks
+# Force Django setup and import all tasks
 django.setup()
 try:
     from videosvoley.core.tasks.calendar_tasks import (
@@ -25,6 +25,19 @@ try:
     )
 except ImportError as e:
     print(f"Warning: Could not import calendar tasks: {e}")
+
+try:
+    from videosvoley.videos.tasks import (
+        scrape_all_leagues_task,
+        scrape_league_task,
+        scrape_calendar_task,
+        scrape_results_task,
+        scrape_clubs_task,
+        scrape_teams_task,
+        handle_withdrawn_teams_task
+    )
+except ImportError as e:
+    print(f"Warning: Could not import video tasks: {e}")
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):

@@ -116,6 +116,24 @@
             {% if form.home_team_search.errors %}
                 <p class="text-sm text-red-600 mt-1">{{ form.home_team_search.errors.0 }}</p>
             {% endif %}
+            
+            <!-- Opción de registrar equipo local -->
+            <div class="mt-3 p-3 bg-gray-50 rounded-lg" id="home-team-register-section" style="display: none;">
+                <div class="flex items-center mb-2">
+                    {{ form.register_home_team }}
+                    <label for="{{ form.register_home_team.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
+                        {{ form.register_home_team.label }}
+                    </label>
+                </div>
+                <div id="home-team-register-fields" style="display: none;">
+                    <div class="mt-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ form.home_team_club.label }}
+                        </label>
+                        {{ form.home_team_club }}
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- Equipo Visitante -->
@@ -133,6 +151,24 @@
             {% if form.away_team_search.errors %}
                 <p class="text-sm text-red-600 mt-1">{{ form.away_team_search.errors.0 }}</p>
             {% endif %}
+            
+            <!-- Opción de registrar equipo visitante -->
+            <div class="mt-3 p-3 bg-gray-50 rounded-lg" id="away-team-register-section" style="display: none;">
+                <div class="flex items-center mb-2">
+                    {{ form.register_away_team }}
+                    <label for="{{ form.register_away_team.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
+                        {{ form.register_away_team.label }}
+                    </label>
+                </div>
+                <div id="away-team-register-fields" style="display: none;">
+                    <div class="mt-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ form.away_team_club.label }}
+                        </label>
+                        {{ form.away_team_club }}
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- Ubicación -->
@@ -180,6 +216,9 @@ class TeamAutocomplete {
         this.selectedTeamName = null;
         this.debounceTimer = null;
         
+        // Inicializar estado de selección
+        this.searchInput.dataset.hasSelection = 'false';
+        
         this.init();
     }
     
@@ -193,6 +232,8 @@ class TeamAutocomplete {
                 this.selectedDiv.innerHTML = '';
                 this.selectedTeamId = null;
                 this.selectedTeamName = null;
+                this.searchInput.dataset.hasSelection = 'false';
+                this.searchInput.dispatchEvent(new Event('teamCleared'));
             }
             
             clearTimeout(this.debounceTimer);
@@ -272,17 +313,43 @@ class TeamAutocomplete {
         this.searchInput.value = teamName;
         this.hiddenInput.value = teamId;
         
+        // Marcar que hay un equipo seleccionado
+        this.searchInput.dataset.hasSelection = 'true';
+        
+        // Emitir evento personalizado
+        this.searchInput.dispatchEvent(new Event('teamSelected'));
+        
         // Mostrar badge de selección
+        const clearButtonId = `clear-${this.hiddenInput.id}`;
         this.selectedDiv.innerHTML = `
             <div class="selected-team-badge">
                 <span>✓ Equipo seleccionado: ${teamName}</span>
-                <button type="button" onclick="this.parentElement.parentElement.innerHTML=''; document.getElementById('${this.hiddenInput.id}').value='';">
+                <button type="button" id="${clearButtonId}">
                     ✕
                 </button>
             </div>
         `;
         
+        // Agregar event listener al botón de limpiar
+        document.getElementById(clearButtonId).addEventListener('click', () => {
+            this.clearSelection();
+        });
+        
         this.hideResults();
+    }
+    
+    clearSelection() {
+        this.selectedTeamId = null;
+        this.selectedTeamName = null;
+        this.searchInput.value = '';
+        this.hiddenInput.value = '';
+        this.selectedDiv.innerHTML = '';
+        
+        // Marcar que no hay equipo seleccionado
+        this.searchInput.dataset.hasSelection = 'false';
+        
+        // Emitir evento personalizado
+        this.searchInput.dispatchEvent(new Event('teamCleared'));
     }
     
     hideResults() {
@@ -304,6 +371,70 @@ document.addEventListener('DOMContentLoaded', function() {
         'away-team-results',
         'away-team-selected',
         'id_away_team_id'
+    );
+    
+    // Lógica para mostrar/ocultar secciones de registro de equipos
+    function toggleTeamRegisterSection(searchInputId, registerSectionId, registerFieldsId, registerCheckboxId) {
+        const searchInput = document.getElementById(searchInputId);
+        const registerSection = document.getElementById(registerSectionId);
+        const registerFields = document.getElementById(registerFieldsId);
+        const registerCheckbox = document.getElementById(registerCheckboxId);
+        
+        function checkShowRegisterSection() {
+            const hasText = searchInput.value.trim().length > 0;
+            const hasSelectedTeam = searchInput.dataset.hasSelection === 'true';
+            
+            // Mostrar sección de registro si hay texto pero no hay equipo seleccionado
+            if (hasText && !hasSelectedTeam) {
+                registerSection.style.display = 'block';
+            } else {
+                registerSection.style.display = 'none';
+                registerCheckbox.checked = false;
+                registerFields.style.display = 'none';
+            }
+        }
+        
+        function toggleRegisterFields() {
+            if (registerCheckbox.checked) {
+                registerFields.style.display = 'block';
+            } else {
+                registerFields.style.display = 'none';
+            }
+        }
+        
+        searchInput.addEventListener('input', checkShowRegisterSection);
+        registerCheckbox.addEventListener('change', toggleRegisterFields);
+        
+        // Marcar cuando se selecciona un equipo desde el autocomplete
+        const originalSelectTeam = window.TeamAutocomplete?.prototype?.selectTeam;
+        if (originalSelectTeam) {
+            // Interceptar cuando se selecciona un equipo
+            searchInput.addEventListener('teamSelected', () => {
+                searchInput.dataset.hasSelection = 'true';
+                checkShowRegisterSection();
+            });
+            
+            // Cuando se limpia el campo
+            searchInput.addEventListener('teamCleared', () => {
+                searchInput.dataset.hasSelection = 'false';
+                checkShowRegisterSection();
+            });
+        }
+    }
+    
+    // Aplicar lógica a ambos equipos
+    toggleTeamRegisterSection(
+        'id_home_team_search',
+        'home-team-register-section',
+        'home-team-register-fields',
+        'id_register_home_team'
+    );
+    
+    toggleTeamRegisterSection(
+        'id_away_team_search',
+        'away-team-register-section',
+        'away-team-register-fields',
+        'id_register_away_team'
     );
 });
 </script>
