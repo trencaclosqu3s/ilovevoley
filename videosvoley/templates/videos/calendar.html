@@ -10,50 +10,56 @@
 {% block content %}
 <div class="space-y-6">
     <!-- Header con título y navegación de meses - STICKY EN MÓVIL -->
-    <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple sticky top-0 z-30 lg:static">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark sticky top-0 z-30 lg:static">
+        <!-- Primera línea: Título y descripción -->
+        <div class="mb-4">
+            <h1 class="text-xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100 mb-1 sm:mb-2">📅 Calendario de Partidos</h1>
+            <p class="text-xs sm:text-base text-gray-600 dark:text-gray-300">
+                {% if show_all_teams %}
+                    Mostrando todos los equipos
+                {% else %}
+                    Mostrando partidos de {{ club_team_name }}
+                {% endif %}
+            </p>
+        </div>
+        
+        <!-- Segunda línea: Controles y navegación -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-            <div class="flex-1 min-w-0">
-                <h1 class="text-xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">📅 Calendario de Partidos</h1>
-                <p class="text-xs sm:text-base text-gray-600">
-                    {% if show_all_teams %}
-                        Mostrando todos los equipos
-                    {% else %}
-                        Mostrando partidos de {{ club_team_name }}
-                    {% endif %}
-                </p>
-            </div>
-            
-            <!-- Navegación y controles -->
-            <div class="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+            <!-- Grupo izquierdo: Botón amistoso y filtros -->
+            <div class="flex items-center gap-2 sm:gap-3">
                 <!-- Botón para crear partido amistoso (solo staff/VideoManagers) -->
                 {% if user.is_staff or user.groups.all|length > 0 %}
                 <a href="{% url 'videos:friendly_match_create' %}" 
-                   class="hidden lg:flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   class="flex items-center px-3 sm:px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition text-sm font-medium">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
-                    Añadir Amistoso
+                    <span class="hidden sm:inline">Añadir Amistoso</span>
+                    <span class="sm:hidden">Amistoso</span>
                 </a>
                 {% endif %}
                 
                 <!-- Botón de filtros (solo móvil) -->
                 <button onclick="toggleFilters()" 
-                        class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark transition touch-manipulation">
+                        class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple dark:bg-csj-purple-dark text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark dark:hover:bg-csj-purple transition touch-manipulation">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                     </svg>
                     Filtros
-                    <span id="activeFiltersCount" class="ml-1 hidden px-1.5 py-0.5 bg-white text-csj-purple rounded-full text-xs font-bold"></span>
+                    <span id="activeFiltersCount" class="ml-1 hidden px-1.5 py-0.5 bg-white dark:bg-gray-700 text-csj-purple dark:text-csj-yellow rounded-full text-xs font-bold"></span>
                 </button>
-                
+            </div>
+            
+            <!-- Grupo derecho: Toggle de vista y navegación de meses -->
+            <div class="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
                 <!-- Toggle de vista -->
-                <div class="flex bg-gray-100 rounded-lg p-1">
+                <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                     <a href="?view=list{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&year={{ year }}&month={{ month }}"
-                       class="px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition {% if view_mode == 'list' %}bg-white text-csj-purple shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
+                       class="px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition {% if view_mode == 'list' %}bg-white dark:bg-gray-600 text-csj-purple dark:text-csj-yellow shadow-sm{% else %}text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100{% endif %}">
                         📋 <span class="hidden sm:inline">Lista</span>
                     </a>
                     <a href="?view=calendar{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&year={{ year }}&month={{ month }}"
-                       class="px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition {% if view_mode == 'calendar' %}bg-white text-csj-purple shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
+                       class="px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition {% if view_mode == 'calendar' %}bg-white dark:bg-gray-600 text-csj-purple dark:text-csj-yellow shadow-sm{% else %}text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100{% endif %}">
                         📅 <span class="hidden sm:inline">Calendario</span>
                     </a>
                 </div>
@@ -61,17 +67,17 @@
                 <!-- Navegación de meses -->
                 <div class="flex items-center space-x-1">
                     <a href="?year={{ prev_month.year }}&month={{ prev_month.month }}{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&view={{ view_mode }}"
-                       class="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition touch-manipulation">
+                       class="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition touch-manipulation">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                         </svg>
                     </a>
-                    <h2 class="text-xs sm:text-lg font-semibold text-gray-700 px-1 sm:px-4">
+                    <h2 class="text-xs sm:text-lg font-semibold text-gray-700 dark:text-gray-200 px-1 sm:px-4">
                         <span class="hidden sm:inline">{{ month_name }} {{ year }}</span>
                         <span class="sm:hidden">{{ month_name|slice:":3" }} '{{ year|slice:"2:" }}</span>
                     </h2>
                     <a href="?year={{ next_month.year }}&month={{ next_month.month }}{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&view={{ view_mode }}"
-                       class="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition touch-manipulation">
+                       class="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition touch-manipulation">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                         </svg>
@@ -82,12 +88,12 @@
     </div>
 
     <!-- Filtros con aplicación automática - COLAPSABLES EN MÓVIL -->
-    <div id="filtersSection" class="bg-white rounded-lg shadow-lg p-6 hidden lg:block">
+    <div id="filtersSection" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hidden lg:block">
         <div class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 <!-- Filtro de Categoría -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoría</label>
                     <select name="category" 
                             class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                         <option value="">Todas las categorías</option>
@@ -101,7 +107,7 @@
 
                 <!-- Filtro de Liga -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Liga</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Liga</label>
                     <select name="league" 
                             class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                         <option value="">Todas las ligas</option>
@@ -115,38 +121,38 @@
 
                 <!-- Toggle equipos -->
                 <div class="flex items-end">
-                    <label class="flex items-center cursor-pointer touch-manipulation px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition w-full">
+                    <label class="flex items-center cursor-pointer touch-manipulation px-3 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition w-full">
                         <input type="checkbox" name="all_teams" value="1" 
                                {% if show_all_teams %}checked{% endif %}
                                class="auto-filter w-5 h-5 text-csj-purple border-gray-300 rounded focus:ring-csj-purple">
-                        <span class="ml-2 text-sm font-medium text-gray-700">Todos los equipos</span>
+                        <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Todos los equipos</span>
                     </label>
                 </div>
             </div>
             
             <!-- Banner de preferencias -->
             {% if has_preferences and not show_all and not selected_category %}
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
-                    <div class="flex items-center text-sm text-blue-800">
+                <div class="bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center justify-between">
+                    <div class="flex items-center text-sm text-blue-800 dark:text-blue-200">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         <span>Mostrando solo tus categorías preferidas</span>
                     </div>
-                    <a href="?show_all=1&year={{ year }}&month={{ month }}&view={{ view_mode }}" class="text-sm font-medium text-blue-600 hover:text-blue-800">
+                    <a href="?show_all=1&year={{ year }}&month={{ month }}&view={{ view_mode }}" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
                         Ver todas
                     </a>
                 </div>
             {% elif show_all %}
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
-                    <div class="flex items-center text-sm text-gray-700">
+                <div class="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 flex items-center justify-between">
+                    <div class="flex items-center text-sm text-gray-700 dark:text-gray-300">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                         </svg>
                         <span>Mostrando todas las categorías</span>
                     </div>
-                    <a href="?year={{ year }}&month={{ month }}&view={{ view_mode }}" class="text-sm font-medium text-gray-600 hover:text-gray-800">
+                    <a href="?year={{ year }}&month={{ month }}&view={{ view_mode }}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300">
                         Filtrar por preferencias
                     </a>
                 </div>
@@ -155,40 +161,40 @@
     </div>
 
     <!-- Vista Lista o Calendario -->
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
         {% if view_mode == 'calendar' %}
             <!-- Vista Calendario -->
             <div class="p-4 sm:p-6">
                 <!-- Encabezados de días de la semana -->
                 <div class="grid grid-cols-7 gap-1 mb-2">
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500">L</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500">M</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500">X</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500">J</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500">V</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500">S</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500">D</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">L</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">M</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">X</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">J</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">V</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">S</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">D</div>
                 </div>
                 
                 <!-- Grid del calendario -->
-                <div class="grid grid-cols-7 gap-1 border border-gray-200 rounded-lg overflow-hidden">
+                <div class="grid grid-cols-7 gap-1 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                     {% for week in calendar_weeks %}
                         {% for day_info in week %}
-                            <div class="relative h-20 sm:h-24 lg:h-28 border-r border-b border-gray-100 
+                            <div class="relative h-20 sm:h-24 lg:h-28 border-r border-b border-gray-100 dark:border-gray-700 
                                 {% if day_info.is_current_month %}
-                                    {% if day_info.is_today %}bg-csj-yellow bg-opacity-20 
-                                    {% elif day_info.match_count > 0 %}bg-blue-50 hover:bg-blue-100 
-                                    {% else %}bg-white hover:bg-gray-50{% endif %}
-                                {% else %}bg-gray-50{% endif %} 
+                                    {% if day_info.is_today %}bg-csj-yellow dark:bg-csj-yellow-dark bg-opacity-20 dark:bg-opacity-30 
+                                    {% elif day_info.match_count > 0 %}bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30 hover:bg-blue-100 dark:hover:bg-blue-800 dark:hover:bg-opacity-40 
+                                    {% else %}bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700{% endif %}
+                                {% else %}bg-gray-50 dark:bg-gray-900{% endif %} 
                                 transition cursor-pointer" 
                                 {% if day_info.matches %}onclick="showDayMatches({{ day_info.day }}, '{{ month_name }}', {{ year }})"{% endif %}>
                                 
                                 <!-- Número del día -->
                                 {% if day_info.day %}
                                     <div class="absolute top-1 left-1 text-xs sm:text-sm 
-                                        {% if day_info.is_today %}font-bold text-csj-purple
-                                        {% elif day_info.is_current_month %}text-gray-900
-                                        {% else %}text-gray-400{% endif %}">
+                                        {% if day_info.is_today %}font-bold text-csj-purple dark:text-csj-yellow
+                                        {% elif day_info.is_current_month %}text-gray-900 dark:text-gray-100
+                                        {% else %}text-gray-400 dark:text-gray-600{% endif %}">
                                         {{ day_info.day }}
                                     </div>
                                 {% endif %}
@@ -209,10 +215,10 @@
                                                 </div>
                                             {% endfor %}
                                             {% if day_info.match_count > 3 %}
-                                                <div class="text-xs text-gray-600">+{{ day_info.match_count|add:"-3" }}</div>
+                                                <div class="text-xs text-gray-600 dark:text-gray-400">+{{ day_info.match_count|add:"-3" }}</div>
                                             {% endif %}
                                         </div>
-                                        <div class="text-xs text-gray-600 mt-1 hidden sm:block">
+                                        <div class="text-xs text-gray-600 dark:text-gray-400 mt-1 hidden sm:block">
                                             {{ day_info.match_count }} partido{{ day_info.match_count|pluralize }}
                                         </div>
                                     </div>
@@ -223,9 +229,9 @@
                 </div>
                 
                 <!-- Leyenda -->
-                <div class="flex flex-wrap items-center gap-4 mt-4 text-xs sm:text-sm text-gray-600">
+                <div class="flex flex-wrap items-center gap-4 mt-4 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                     <div class="flex items-center space-x-2">
-                        <div class="w-3 h-3 rounded-full bg-csj-purple"></div>
+                        <div class="w-3 h-3 rounded-full bg-csj-purple dark:bg-csj-yellow"></div>
                         <span>{{ club_team_name }}</span>
                     </div>
                     <div class="flex items-center space-x-2">
@@ -233,7 +239,7 @@
                         <span>Otros equipos</span>
                     </div>
                     <div class="flex items-center space-x-2">
-                        <div class="w-3 h-3 bg-csj-yellow bg-opacity-50 rounded"></div>
+                        <div class="w-3 h-3 bg-csj-yellow dark:bg-csj-yellow-dark bg-opacity-50 rounded"></div>
                         <span>Hoy</span>
                     </div>
                 </div>
@@ -242,15 +248,15 @@
         {% else %}
             <!-- Vista Lista -->
             {% if matches %}
-                <div class="divide-y divide-gray-200">
+                <div class="divide-y divide-gray-200 dark:divide-gray-700">
                     {% for match in matches %}
-                        <div class="p-3 sm:p-4 hover:bg-gray-50 transition">
+                        <div class="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 sm:gap-4">
                                 <!-- Información del partido -->
                                 <div class="flex-1">
                                     <div class="flex flex-wrap items-center gap-2 mb-2">
                                         <!-- Fecha y hora -->
-                                        <div class="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
+                                        <div class="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                                             <svg class="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                             </svg>
@@ -264,13 +270,13 @@
                                         </div>
                                         
                                         <!-- Jornada -->
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
                                             J{{ match.round_number }}
                                         </span>
                                         
                                         <!-- Categoría -->
                                         {% if match.league.category %}
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-csj-purple bg-opacity-20 text-csj-purple-dark">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-csj-purple bg-opacity-20 dark:bg-csj-purple-dark dark:bg-opacity-30 text-csj-purple-dark dark:text-csj-yellow">
                                                 {{ match.league.category.name }}
                                             </span>
                                         {% endif %}
@@ -285,20 +291,20 @@
                                                          class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
                                                          onerror="this.style.display='none'">
                                                 {% endif %}
-                                                <span class="font-semibold text-sm sm:text-base text-gray-800 
-                                                    {% if club_team_name in match.home_team_display %}text-csj-purple{% endif %} break-words">
+                                                <span class="font-semibold text-sm sm:text-base text-gray-800 dark:text-gray-100 
+                                                    {% if club_team_name in match.home_team_display %}text-csj-purple dark:text-csj-yellow{% endif %} break-words">
                                                     {{ match.home_team_display }}
                                                 </span>
                                             </div>
-                                            <span class="text-gray-500 text-xs sm:text-sm self-center sm:self-auto">vs</span>
+                                            <span class="text-gray-500 dark:text-gray-400 text-xs sm:text-sm self-center sm:self-auto">vs</span>
                                             <div class="flex items-center space-x-2">
                                                 {% if match.away_team and match.away_team.display_logo %}
                                                     <img src="{{ match.away_team.display_logo }}" alt="{{ match.away_team_display }}" 
                                                          class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
                                                          onerror="this.style.display='none'">
                                                 {% endif %}
-                                                <span class="font-semibold text-sm sm:text-base text-gray-800 
-                                                    {% if club_team_name in match.away_team_display %}text-csj-purple{% endif %} break-words">
+                                                <span class="font-semibold text-sm sm:text-base text-gray-800 dark:text-gray-100 
+                                                    {% if club_team_name in match.away_team_display %}text-csj-purple dark:text-csj-yellow{% endif %} break-words">
                                                     {{ match.away_team_display }}
                                                 </span>
                                             </div>
@@ -306,22 +312,22 @@
                                         
                         <!-- Indicador de amistoso -->
                         {% if match.is_friendly %}
-                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
+                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 dark:text-green-200 bg-green-100 dark:bg-green-900 rounded-full">
                                 🏐 Amistoso
                             </span>
                         {% endif %}
                                         
                                         <!-- Resultado si está disponible -->
                                         {% if match.is_finished %}
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                                                 {{ match.result_display }}
                                             </span>
                                         {% endif %}
                                     </div>
 
                                     <!-- Liga y ubicación -->
-                                    <div class="flex flex-wrap items-center gap-1 sm:gap-2 mt-2 text-xs sm:text-sm text-gray-600">
-                                        <span class="bg-gray-100 px-2 py-1 rounded text-xs">{{ match.league.name }}</span>
+                                    <div class="flex flex-wrap items-center gap-1 sm:gap-2 mt-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                        <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">{{ match.league.name }}</span>
                                         {% if match.venue %}
                                             <span class="text-xs">📍 
                                                 <span class="hidden sm:inline">{{ match.venue }}{% if match.city %} - {{ match.city }}{% endif %}</span>
@@ -335,14 +341,14 @@
                                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2 w-full sm:w-auto">
                                     <!-- Indicador de videos -->
                                     {% if match.videos.exists %}
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-csj-yellow bg-opacity-30 text-csj-yellow-dark">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-csj-yellow dark:bg-csj-yellow-dark bg-opacity-30 dark:bg-opacity-40 text-csj-yellow-dark dark:text-csj-yellow">
                                             📹 {{ match.videos.count }} video{{ match.videos.count|pluralize }}
                                         </span>
                                     {% endif %}
                                     
                                     <!-- Enlace al detalle -->
                                     <a href="{% url 'videos:match_detail' match.id %}" 
-                                       class="inline-flex items-center justify-center px-3 py-2 border border-csj-purple text-xs sm:text-sm font-medium rounded-md text-csj-purple hover:bg-csj-purple hover:text-white transition touch-manipulation w-full sm:w-auto">
+                                       class="inline-flex items-center justify-center px-3 py-2 border border-csj-purple dark:border-csj-yellow text-xs sm:text-sm font-medium rounded-md text-csj-purple dark:text-csj-yellow hover:bg-csj-purple dark:hover:bg-csj-yellow hover:text-white dark:hover:text-gray-900 transition touch-manipulation w-full sm:w-auto">
                                         <span class="hidden sm:inline">Ver detalles</span>
                                         <span class="sm:hidden">Detalles</span>
                                     </a>
@@ -357,8 +363,8 @@
                     <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">No hay partidos programados</h3>
-                    <p class="mt-1 text-sm text-gray-500">
+                    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No hay partidos programados</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         No se encontraron partidos para 
                         {% if show_all_teams %}
                             el mes de {{ month_name }} {{ year }}
@@ -372,19 +378,19 @@
     </div>
 
     <!-- Enlaces rápidos -->
-    <div class="bg-white rounded-lg shadow-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">Enlaces relacionados</h3>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Enlaces relacionados</h3>
         <div class="flex flex-wrap gap-3">
             <a href="{% url 'videos:standings_view' %}" 
-               class="inline-flex items-center px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-semibold transition">
+               class="inline-flex items-center px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 dark:text-gray-900 rounded-lg font-semibold transition">
                 🏆 Ver clasificación
             </a>
             <a href="{% url 'videos:league_list' %}" 
-               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold transition">
+               class="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold transition">
                 📋 Ver ligas
             </a>
             <a href="{% url 'videos:video_list' %}" 
-               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold transition">
+               class="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold transition">
                 🎬 Ver videos
             </a>
         </div>
@@ -392,12 +398,12 @@
 </div>
 
 <!-- Modal para mostrar partidos del día -->
-<div id="dayMatchesModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
-        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+<div id="dayMatchesModal" class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
+        <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
             <div class="flex justify-between items-center">
-                <h3 id="modalTitle" class="text-lg font-semibold text-gray-900"></h3>
-                <button onclick="closeDayMatches()" class="text-gray-400 hover:text-gray-600">
+                <h3 id="modalTitle" class="text-lg font-semibold text-gray-900 dark:text-gray-100"></h3>
+                <button onclick="closeDayMatches()" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
