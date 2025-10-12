@@ -498,7 +498,7 @@ def ajax_add_match_result(request, match_id):
         return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
     
     # Verificar que el partido no tenga resultado ya
-    if match.is_finished:
+    if match.is_finished and match.home_score is not None and match.away_score is not None:
         return JsonResponse({'success': False, 'error': 'Este partido ya tiene resultado'}, status=400)
     
     # Verificar que el partido ya haya pasado o sea hoy
