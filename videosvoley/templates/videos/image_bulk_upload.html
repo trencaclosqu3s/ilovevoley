@@ -104,7 +104,7 @@
                             <option value="">Seleccionar partido (opcional)</option>
                             {% for match in recent_matches %}
                                 <option value="{{ match.id }}">
-                                    {{ match.home_team.name }} vs {{ match.away_team.name }} - {{ match.match_date|date:"d/m/Y" }}
+                                    {{ match.home_team_display }} vs {{ match.away_team_display }} - {{ match.match_date|date:"d/m/Y" }}
                                 </option>
                             {% endfor %}
                         </select>
