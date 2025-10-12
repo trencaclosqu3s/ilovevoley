@@ -202,7 +202,7 @@
                             <div class="text-sm text-gray-600 mb-2">
                                 <i class="fas fa-calendar-alt mr-1"></i>
                                 <a href="{% url 'videos:match_images' image.match.id %}" class="hover:text-csj-purple">
-                                    {{ image.match.home_team.name }} vs {{ image.match.away_team.name }}
+                                    {{ image.match.home_team_display }} vs {{ image.match.away_team_display }}
                                 </a>
                             </div>
                         {% endif %}
