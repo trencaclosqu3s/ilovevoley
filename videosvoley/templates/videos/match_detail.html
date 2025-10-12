@@ -6,119 +6,133 @@
 <div class="space-y-6">
     <!-- Header del partido -->
     <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple">
-        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div class="flex-1">
-                <!-- Equipos enfrentados -->
-                <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mb-3">
-                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">
-                        <span class="{% if 'SANT JOSEP' in match.home_team_display %}text-csj-purple{% endif %}">
-                            {{ match.home_team_display }}
-                        </span>
-                        <span class="text-gray-500 mx-2">vs</span>
-                        <span class="{% if 'SANT JOSEP' in match.away_team_display %}text-csj-purple{% endif %}">
-                            {{ match.away_team_display }}
-                        </span>
-                    </h1>
-                    
-                    <!-- Resultado si está disponible -->
-                    {% if match.is_finished %}
-                        <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-2 sm:mt-0">
-                            {{ match.result_display }}
-                        </div>
-                    {% elif user.is_staff or user.groups.all|length > 0 %}
-                        {% if match.match_date.date <= today %}
-                            <button onclick="openResultModal({{ match.id }}, '{{ match.home_team_display|escapejs }}', '{{ match.away_team_display|escapejs }}')" 
-                                    class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 hover:bg-orange-200 transition mt-2 sm:mt-0">
-                                📝 Agregar resultado
-                            </button>
-                        {% else %}
-                            <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 mt-2 sm:mt-0">
-                                {{ match.get_status_display }}
-                            </div>
-                        {% endif %}
-                    {% else %}
-                        <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 mt-2 sm:mt-0">
-                            {{ match.get_status_display }}
-                        </div>
-                    {% endif %}
-                </div>
-
-                <!-- Información del partido -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-sm text-gray-600">
-                    <!-- Fecha y hora -->
-                    <div class="flex items-center space-x-2">
-                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <div>
-                            <div class="font-medium">{{ match.match_date|date:"d/m/Y" }}</div>
-                            {% if match.match_date.time.hour != 0 or match.match_date.time.minute != 0 %}
-                                <div class="text-xs">{{ match.match_date|date:"H:i" }}</div>
-                            {% else %}
-                                <div class="text-xs text-orange-600 font-medium">Provisional</div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Liga -->
-                    <div class="flex items-center space-x-2">
-                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                        </svg>
-                        <div>
-                            <div class="font-medium">{{ match.league.name }}</div>
-                            {% if match.league.category %}
-                                <div class="text-xs">{{ match.league.category.name }}</div>
-                            {% endif %}
-                            {% if match.is_friendly %}
-                                <div class="text-xs">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-700 bg-green-100">
-                                        🏐 Amistoso
-                                    </span>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Ubicación -->
-                    {% if match.venue %}
-                        <div class="flex items-center space-x-2">
-                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
-                            <div>
-                                <div class="font-medium">{{ match.venue }}</div>
-                                {% if match.city %}
-                                    <div class="text-xs">{{ match.city }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    {% endif %}
-
-                    <!-- Jornada -->
-                    <div class="flex items-center space-x-2">
-                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
-                        </svg>
-                        <div>
-                            <div class="font-medium">Jornada {{ match.round_number }}</div>
-                            <div class="text-xs">{{ match.league.season }}</div>
-                        </div>
-                    </div>
+        <div class="space-y-4">
+            <!-- Primera línea: Equipos enfrentados -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">
+                    <span class="{% if 'SANT JOSEP' in match.home_team_display %}text-csj-purple{% endif %}">
+                        {{ match.home_team_display }}
+                    </span>
+                    <span class="text-gray-500 mx-2">vs</span>
+                    <span class="{% if 'SANT JOSEP' in match.away_team_display %}text-csj-purple{% endif %}">
+                        {{ match.away_team_display }}
+                    </span>
+                </h1>
+                
+                <!-- Enlaces rápidos -->
+                <div class="flex flex-wrap gap-2 sm:gap-3">
+                    <a href="{% url 'videos:calendar_view' %}"
+                       class="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
+                        📅 Calendario
+                    </a>
+                    <a href="{% url 'videos:league_detail' match.league.id %}" 
+                       class="inline-flex items-center px-3 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
+                        📋 Liga
+                    </a>
                 </div>
             </div>
 
-            <!-- Enlaces rápidos -->
-            <div class="flex flex-wrap gap-2 sm:gap-3">
-                <a href="{% url 'videos:calendar_view' %}"
-                   class="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
-                    📅 Calendario
-                </a>
-                <a href="{% url 'videos:league_detail' match.league.id %}" 
-                   class="inline-flex items-center px-3 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
-                    📋 Liga
-                </a>
+            <!-- Segunda línea: Badges de información -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Fecha y hora -->
+                <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    {{ match.match_date|date:"d/m/Y" }}
+                    {% if match.match_date.time.hour != 0 or match.match_date.time.minute != 0 %}
+                        {{ match.match_date|date:"H:i" }}
+                    {% else %}
+                        <span class="text-orange-600 ml-1">Provisional</span>
+                    {% endif %}
+                </div>
+
+                <!-- Jornada -->
+                <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                    </svg>
+                    J{{ match.round_number }}
+                </div>
+
+                <!-- Categoría -->
+                {% if match.league.category %}
+                    <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple bg-opacity-20 dark:bg-csj-purple-dark dark:bg-opacity-30 text-csj-purple-dark dark:text-csj-yellow">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                        {{ match.league.category.name }}
+                    </div>
+                {% endif %}
+
+                <!-- Indicador de amistoso -->
+                {% if match.is_friendly %}
+                    <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-green-700 dark:text-green-200 bg-green-100 dark:bg-green-900">
+                        🏐 Amistoso
+                    </div>
+                {% endif %}
+
+                <!-- Resultado o botón -->
+                {% if match.is_finished %}
+                    <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        {{ match.result_display }}
+                    </div>
+                {% elif user.is_staff or user.groups.all|length > 0 %}
+                    {% if match.match_date.date <= today %}
+                        <button onclick="openResultModal({{ match.id }}, '{{ match.home_team_display|escapejs }}', '{{ match.away_team_display|escapejs }}')" 
+                                class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 hover:bg-orange-200 dark:hover:bg-orange-800 transition">
+                            📝 Agregar resultado
+                        </button>
+                    {% else %}
+                        <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                            {{ match.get_status_display }}
+                        </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+
+            <!-- Tercera línea: Información detallada -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600 dark:text-gray-400">
+                <!-- Liga -->
+                <div class="flex items-center space-x-2">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                    <div>
+                        <div class="font-medium text-gray-800 dark:text-gray-200">{{ match.league.name }}</div>
+                        <div class="text-xs">{{ match.league.season }}</div>
+                    </div>
+                </div>
+
+                <!-- Ubicación -->
+                {% if match.venue %}
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        <div>
+                            <div class="font-medium text-gray-800 dark:text-gray-200">{{ match.venue }}</div>
+                            {% if match.city %}
+                                <div class="text-xs">{{ match.city }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Estado del partido -->
+                <div class="flex items-center space-x-2">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <div>
+                        <div class="font-medium text-gray-800 dark:text-gray-200">Estado</div>
+                        <div class="text-xs">{{ match.get_status_display }}</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
