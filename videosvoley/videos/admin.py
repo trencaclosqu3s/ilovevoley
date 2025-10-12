@@ -908,7 +908,7 @@ class StaffRoleInline(admin.TabularInline):
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
     """Admin para el modelo Person"""
-    list_display = ('__str__', 'age_display', 'contact_info', 'is_active', 'photo_preview', 'active_teams_count')
+    list_display = ('__str__', 'age_display', 'contact_info', 'parents_info', 'is_active', 'photo_preview', 'active_teams_count')
     list_filter = ('is_active', 'created_at', 'birth_date')
     search_fields = ('first_name', 'last_name', 'email', 'phone')
     readonly_fields = ('age_display', 'created_at', 'updated_at', 'photo_preview')
@@ -956,6 +956,21 @@ class PersonAdmin(admin.ModelAdmin):
         """Cuenta de equipos activos donde participa"""
         return obj.get_all_active_teams().count()
     active_teams_count.short_description = 'Equipos Activos'
+    
+    def parents_info(self, obj):
+        """Muestra información sobre los padres que pueden editar esta ficha"""
+        parents = obj.parents.all()
+        if parents.exists():
+            parent_names = [parent.get_full_name() or parent.username for parent in parents]
+            return format_html(
+                '<span style="color: #27ae60; font-weight: bold;">👨‍👩‍👧‍👦 {} padre{}</span><br><small style="color: gray;">{}</small>',
+                parents.count(),
+                's' if parents.count() != 1 else '',
+                ', '.join(parent_names)
+            )
+        return format_html('<span style="color: gray;">—</span>')
+    parents_info.short_description = 'Padres'
+    parents_info.admin_order_field = 'parents__count'
 
     def activate_people(self, request, queryset):
         """Activar personas seleccionadas"""

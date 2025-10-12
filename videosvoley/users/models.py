@@ -50,6 +50,15 @@ class User(AbstractUser):
         verbose_name='Token de Suscripción al Calendario',
         help_text='Token único para suscribirse al calendario de partidos vía .ics'
     )
+    
+    # Relación con fichas de hijos (para padres)
+    children = models.ManyToManyField(
+        'videos.Person',
+        blank=True,
+        related_name='parents',
+        verbose_name='Hijos',
+        help_text='Fichas de los hijos que puedes editar'
+    )
 
     def __str__(self):
         return self.username
@@ -86,3 +95,19 @@ class User(AbstractUser):
             self.has_google_calendar_permissions() and
             self.preferred_categories.exists()
         )
+    
+    def can_edit_person(self, person):
+        """Verifica si el usuario puede editar una ficha específica"""
+        # El propio usuario puede editar su ficha si está vinculada
+        if person.user == self:
+            return True
+        
+        # Los padres pueden editar las fichas de sus hijos
+        if person in self.children.all():
+            return True
+            
+        # Los administradores pueden editar cualquier ficha
+        if self.is_staff:
+            return True
+            
+        return False

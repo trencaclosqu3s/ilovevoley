@@ -53,6 +53,13 @@
                                     </svg>
                                     Usuario vinculado
                                 </span>
+                            {% elif person in request.user.children.all %}
+                                <span class="flex items-center text-blue-600 dark:text-blue-400">
+                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Tu hijo
+                                </span>
                             {% endif %}
                         </div>
                     </div>
@@ -89,6 +96,23 @@
                                 <a href="tel:{{ person.phone }}" class="hover:text-csj-purple dark:hover:text-csj-yellow transition">{{ person.phone }}</a>
                             </div>
                         {% endif %}
+                    </div>
+                {% endif %}
+                
+                <!-- Información de padres -->
+                {% if person.parents.exists %}
+                    <div class="mt-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded">
+                        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">👨‍👩‍👧‍👦 Padres que pueden editar esta ficha</h3>
+                        <div class="space-y-1">
+                            {% for parent in person.parents.all %}
+                                <div class="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                                    <svg class="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    {{ parent.get_full_name|default:parent.username }}
+                                </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 {% endif %}
                 

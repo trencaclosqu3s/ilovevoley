@@ -908,8 +908,8 @@ class Person(models.Model):
 
     class Meta:
         ordering = ['last_name', 'first_name']
-        verbose_name = 'Persona'
-        verbose_name_plural = 'Personas'
+        verbose_name = 'Ficha'
+        verbose_name_plural = 'Fichas'
         indexes = [
             models.Index(fields=['last_name', 'first_name']),
             models.Index(fields=['is_active']),

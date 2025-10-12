@@ -22,24 +22,24 @@ reject_users.short_description = "❌ Rechazar usuarios seleccionados (desactiva
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ['username', 'email', 'first_name', 'last_name', 'parent_info_short', 'approval_status', 'calendar_sync_status', 'is_staff', 'date_joined']
+    list_display = ['username', 'email', 'first_name', 'last_name', 'parent_info_short', 'children_count', 'approval_status', 'calendar_sync_status', 'is_staff', 'date_joined']
     list_filter = ['is_approved', 'calendar_sync_enabled', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'preferred_categories']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'parent_info']
-    filter_horizontal = ['preferred_categories']
+    filter_horizontal = ['preferred_categories', 'children']
     
     actions = [approve_users, reject_users]
     
     # Añadir is_approved y parent_info a los fieldsets
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Aprobación', {'fields': ('is_approved',)}),
-        ('Información Familiar', {'fields': ('parent_info',)}),
+        ('Información Familiar', {'fields': ('parent_info', 'children')}),
         ('Preferencias', {'fields': ('preferred_categories',)}),
         ('Google Calendar', {'fields': ('calendar_sync_enabled', 'google_calendar_id', 'calendar_last_sync')}),
         ('Información adicional', {'fields': ('avatar',)}),
     )
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
         ('Aprobación', {'fields': ('is_approved',)}),
-        ('Información Familiar', {'fields': ('parent_info',)}),
+        ('Información Familiar', {'fields': ('parent_info', 'children')}),
         ('Preferencias', {'fields': ('preferred_categories',)}),
         ('Google Calendar', {'fields': ('calendar_sync_enabled', 'google_calendar_id')}),
         ('Información adicional', {'fields': ('avatar',)}),
@@ -101,3 +101,17 @@ class UserAdmin(BaseUserAdmin):
     
     calendar_sync_status.short_description = 'Google Calendar'
     calendar_sync_status.admin_order_field = 'calendar_sync_enabled'
+    
+    def children_count(self, obj):
+        """Muestra el número de hijos que puede editar este usuario"""
+        count = obj.children.count()
+        if count > 0:
+            return format_html(
+                '<span style="color: #27ae60; font-weight: bold;">👨‍👩‍👧‍👦 {} hijo{}</span>',
+                count,
+                's' if count != 1 else ''
+            )
+        return format_html('<span style="color: gray;">—</span>')
+    
+    children_count.short_description = 'Hijos'
+    children_count.admin_order_field = 'children__count'

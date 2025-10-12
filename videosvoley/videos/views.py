@@ -1888,12 +1888,7 @@ def person_detail(request, person_id):
     staff_roles = person.staff_roles.select_related('team__category').order_by('-is_active', 'team__name')
     
     # Verificar permisos de edición
-    can_edit = (
-        request.user.is_staff or 
-        request.user == person.user or
-        # Agregar lógica adicional: padres, tutores, etc.
-        False
-    )
+    can_edit = request.user.can_edit_person(person)
     
     context = {
         'person': person,
@@ -1968,10 +1963,7 @@ def person_edit(request, person_id):
     person = get_object_or_404(Person, id=person_id)
     
     # Verificar permisos
-    can_edit = (
-        request.user.is_staff or 
-        request.user == person.user
-    )
+    can_edit = request.user.can_edit_person(person)
     
     if not can_edit:
         messages.error(request, 'No tienes permisos para editar esta persona.')
