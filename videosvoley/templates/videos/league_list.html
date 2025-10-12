@@ -47,6 +47,30 @@
                 </select>
             </div>
             
+            <!-- Filtro de partidos amistosos -->
+            <div class="flex items-end">
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" 
+                           name="show_friendly" 
+                           value="1" 
+                           {% if show_friendly %}checked{% endif %}
+                           class="auto-filter w-4 h-4 text-csj-purple border-gray-300 rounded focus:ring-csj-purple">
+                    <span class="text-sm font-medium text-gray-700">Mostrar partidos amistosos</span>
+                </label>
+            </div>
+            
+            <!-- Filtro de ligas pasadas -->
+            <div class="flex items-end">
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" 
+                           name="show_past" 
+                           value="1" 
+                           {% if show_past %}checked{% endif %}
+                           class="auto-filter w-4 h-4 text-csj-purple border-gray-300 rounded focus:ring-csj-purple">
+                    <span class="text-sm font-medium text-gray-700">Ver ligas pasadas</span>
+                </label>
+            </div>
+            
             <!-- Banner de preferencias -->
             {% if has_preferences and not show_all and not selected_category %}
                 <div class="flex items-end">
@@ -79,12 +103,19 @@
             {% for league in leagues %}
                 <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
                     <!-- Header de la liga -->
-                    <div class="bg-gradient-to-r from-csj-purple to-csj-purple-dark p-4 sm:p-6">
+                    <div class="bg-gradient-to-r from-csj-purple to-csj-purple-dark p-4 sm:p-6 {% if league.is_past_league %}opacity-75{% endif %}">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
-                                <h2 class="text-lg sm:text-xl font-bold text-white mb-2 line-clamp-2">
-                                    {{ league.name }}
-                                </h2>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <h2 class="text-lg sm:text-xl font-bold text-white line-clamp-2">
+                                        {{ league.name }}
+                                    </h2>
+                                    {% if league.is_past_league %}
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-500 text-white">
+                                            📅 Finalizada
+                                        </span>
+                                    {% endif %}
+                                </div>
                                 <div class="flex flex-wrap items-center gap-2">
                                     {% if league.category %}
                                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
@@ -165,9 +196,11 @@
                         </div>
                     </div>
 
-                    <!-- Próximo partido de Sant Josep -->
+                    <!-- Próximos partidos de Sant Josep -->
+                    {% comment %}Primero mostrar partidos oficiales{% endcomment %}
                     {% for match in league.matches.all %}
-                        {% if 'SANT JOSEP' in match.home_team_display or 'SANT JOSEP' in match.away_team_display %}
+                        {% if not match.is_friendly %}
+                            {% if 'SANT JOSEP' in match.home_team_display or 'SANT JOSEP' in match.away_team_display %}
                             {% if match.status == 'scheduled' %}
                                 <div class="bg-csj-yellow bg-opacity-20 px-4 py-3 border-t border-csj-yellow border-opacity-30">
                                     <div class="flex items-center justify-between">
@@ -191,11 +224,48 @@
                                         </div>
                                     </div>
                                 </div>
-                                {% comment %}Solo mostrar el primer partido encontrado{% endcomment %}
+                                {% comment %}Solo mostrar el primer partido oficial encontrado{% endcomment %}
                                 {% for dummy in league.matches.all %}{% endfor %}
+                            {% endif %}
                             {% endif %}
                         {% endif %}
                     {% endfor %}
+                    
+                    {% comment %}Luego mostrar partidos amistosos si están habilitados{% endcomment %}
+                    {% if show_friendly %}
+                        {% for match in league.matches.all %}
+                            {% if match.is_friendly %}
+                                {% if 'SANT JOSEP' in match.home_team_display or 'SANT JOSEP' in match.away_team_display %}
+                                {% if match.status == 'scheduled' %}
+                                    <div class="bg-blue-50 bg-opacity-20 px-4 py-3 border-t border-blue-200 border-opacity-30">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <div class="text-xs font-medium text-blue-700">Partido amistoso</div>
+                                                <div class="text-sm font-semibold text-gray-900">
+                                                    {% if 'SANT JOSEP' in match.home_team_display %}
+                                                        {{ match.home_team_display }} vs {{ match.away_team_display }}
+                                                    {% else %}
+                                                        {{ match.away_team_display }} vs {{ match.home_team_display }}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-xs text-gray-600">{{ match.match_date|date:"d/m" }}</div>
+                                                {% if match.match_date.time.hour != 0 or match.match_date.time.minute != 0 %}
+                                                    <div class="text-xs text-gray-600">{{ match.match_date|date:"H:i" }}</div>
+                                                {% else %}
+                                                    <div class="text-xs text-orange-600">Provisional</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% comment %}Solo mostrar el primer partido amistoso encontrado{% endcomment %}
+                                    {% for dummy in league.matches.all %}{% endfor %}
+                                {% endif %}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>

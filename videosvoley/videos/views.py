@@ -164,6 +164,8 @@ def league_list(request):
     # Variable para controlar si mostrar todo el contenido
     show_all = request.GET.get('show_all', '0') == '1'
     category_filter = request.GET.get('category')
+    show_friendly = request.GET.get('show_friendly', '0') == '1'  # Filtro para partidos amistosos
+    show_past = request.GET.get('show_past', '0') == '1'  # Filtro para ligas pasadas
     
     # Aplicar filtro de categoría específica
     if category_filter:
@@ -173,11 +175,38 @@ def league_list(request):
         user_categories = request.user.preferred_categories.all()
         leagues = leagues.filter(category__in=user_categories)
     
+    # Filtrar partidos amistosos si no se quiere mostrar
+    if not show_friendly:
+        # Excluir ligas de partidos amistosos
+        leagues = leagues.exclude(competition_type='friendly')
+    
+    # Filtrar ligas pasadas si no se quiere mostrar
+    if not show_past:
+        # Solo mostrar ligas con partidos pendientes
+        from django.utils import timezone
+        now = timezone.now()
+        leagues = leagues.filter(
+            matches__status__in=['scheduled', 'in_progress'],
+            matches__match_date__gte=now
+        ).distinct()
+    
+    # Ordenar: ligas oficiales primero, luego amistosas, y por nombre dentro de cada tipo
+    from django.db.models import Case, When, Value, CharField
+    leagues = leagues.annotate(
+        sort_priority=Case(
+            When(competition_type='friendly', then=Value(2)),
+            default=Value(1),
+            output_field=CharField(),
+        )
+    ).order_by('sort_priority', 'name')
+    
     return render(request, 'videos/league_list.html', {
         'leagues': leagues,
         'categories': categories,
         'selected_category': category_filter,
         'show_all': show_all,
+        'show_friendly': show_friendly,
+        'show_past': show_past,
         'has_preferences': request.user.preferred_categories.exists(),
     })
 

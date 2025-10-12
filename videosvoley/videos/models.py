@@ -109,6 +109,21 @@ class League(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.season})'
+    
+    @property
+    def has_pending_matches(self):
+        """Indica si la liga tiene partidos pendientes (programados o en curso)"""
+        from django.utils import timezone
+        now = timezone.now()
+        return self.matches.filter(
+            status__in=['scheduled', 'in_progress'],
+            match_date__gte=now
+        ).exists()
+    
+    @property
+    def is_past_league(self):
+        """Indica si la liga es del pasado (sin partidos pendientes)"""
+        return not self.has_pending_matches
 
 
 class Club(models.Model):
