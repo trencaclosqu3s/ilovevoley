@@ -915,6 +915,60 @@ class PlayerRoleForm(forms.ModelForm):
             self.fields['team'].queryset = self.fields['team'].queryset.exclude(id__in=active_team_ids)
 
 
+class MatchResultForm(forms.ModelForm):
+    """Formulario simple para agregar resultado de partido"""
+    
+    class Meta:
+        model = Match
+        fields = ['home_score', 'away_score']
+        widgets = {
+            'home_score': forms.NumberInput(attrs={
+                'class': 'w-20 px-3 py-2 border border-gray-300 rounded-lg text-center text-lg font-semibold',
+                'min': '0',
+                'max': '99',
+                'placeholder': '0'
+            }),
+            'away_score': forms.NumberInput(attrs={
+                'class': 'w-20 px-3 py-2 border border-gray-300 rounded-lg text-center text-lg font-semibold',
+                'min': '0',
+                'max': '99',
+                'placeholder': '0'
+            }),
+        }
+        labels = {
+            'home_score': 'Local',
+            'away_score': 'Visitante',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Hacer que los campos sean requeridos
+        self.fields['home_score'].required = True
+        self.fields['away_score'].required = True
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        home_score = cleaned_data.get('home_score')
+        away_score = cleaned_data.get('away_score')
+        
+        if home_score is not None and away_score is not None:
+            if home_score < 0 or away_score < 0:
+                raise forms.ValidationError('Los marcadores no pueden ser negativos.')
+            
+            if home_score == away_score:
+                raise forms.ValidationError('En voleibol no puede haber empate. Revisa los marcadores.')
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        match = super().save(commit=False)
+        # Marcar el partido como finalizado cuando se guarda el resultado
+        match.status = 'finished'
+        if commit:
+            match.save()
+        return match
+
+
 class StaffRoleForm(forms.ModelForm):
     """Formulario para crear y editar roles de staff"""
     

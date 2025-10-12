@@ -16,7 +16,7 @@ import base64
 import uuid
 from django.core.files.base import ContentFile
 from .models import Video, Comment, Category, League, Match, Team, Standing, Image, Player, Staff, Person, PlayerRole, StaffRole
-from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm, PersonForm, PlayerRoleForm, StaffRoleForm
+from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm, PersonForm, PlayerRoleForm, StaffRoleForm, MatchResultForm
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -267,7 +267,8 @@ def match_detail(request, match_id):
     
     return render(request, 'videos/match_detail.html', {
         'match': match,
-        'videos': videos
+        'videos': videos,
+        'today': timezone.now().date()
     })
 
 
@@ -397,6 +398,7 @@ def calendar_view(request):
         'view_mode': view_mode,
         'month_name': month_names_es[month],
         'has_preferences': request.user.preferred_categories.exists(),
+        'today': timezone.now().date(),
     })
 
 
@@ -476,6 +478,65 @@ def ajax_search_teams(request):
         })
     
     return JsonResponse({'teams': teams_data})
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@user_passes_test(lambda u: u.is_staff or u.groups.filter(name='VideoManagers').exists(), login_url='/')
+def ajax_add_match_result(request, match_id):
+    """Vista AJAX para agregar resultado de partido"""
+    from django.http import JsonResponse
+    from django.views.decorators.csrf import csrf_exempt
+    import json
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    
+    try:
+        match = Match.objects.get(id=match_id)
+    except Match.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
+    
+    # Verificar que el partido no tenga resultado ya
+    if match.is_finished:
+        return JsonResponse({'success': False, 'error': 'Este partido ya tiene resultado'}, status=400)
+    
+    # Verificar que el partido ya haya pasado o sea hoy
+    if match.match_date.date() > timezone.now().date():
+        return JsonResponse({'success': False, 'error': 'No se puede agregar resultado a un partido futuro'}, status=400)
+    
+    # Parsear datos JSON
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Datos inválidos'}, status=400)
+    
+    # Crear formulario con los datos
+    form = MatchResultForm(data, instance=match)
+    
+    if form.is_valid():
+        try:
+            match = form.save()
+            return JsonResponse({
+                'success': True, 
+                'message': f'Resultado guardado: {match.result_display}',
+                'result_display': match.result_display,
+                'home_score': match.home_score,
+                'away_score': match.away_score
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': f'Error al guardar: {str(e)}'}, status=500)
+    else:
+        # Recopilar errores del formulario
+        errors = {}
+        for field, field_errors in form.errors.items():
+            errors[field] = field_errors[0] if field_errors else 'Error desconocido'
+        
+        return JsonResponse({
+            'success': False, 
+            'error': 'Datos inválidos',
+            'errors': errors
+        }, status=400)
 
 
 @login_required

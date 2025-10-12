@@ -280,6 +280,13 @@
                                                 {{ match.league.category.name }}
                                             </span>
                                         {% endif %}
+                                        
+                                        <!-- Indicador de amistoso -->
+                                        {% if match.is_friendly %}
+                                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 dark:text-green-200 bg-green-100 dark:bg-green-900 rounded-full">
+                                                🏐 Amistoso
+                                            </span>
+                                        {% endif %}
                                     </div>
 
                                     <!-- Equipos -->
@@ -310,18 +317,22 @@
                                             </div>
                                         </div>
                                         
-                        <!-- Indicador de amistoso -->
-                        {% if match.is_friendly %}
-                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 dark:text-green-200 bg-green-100 dark:bg-green-900 rounded-full">
-                                🏐 Amistoso
-                            </span>
-                        {% endif %}
-                                        
                                         <!-- Resultado si está disponible -->
                                         {% if match.is_finished %}
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                                                 {{ match.result_display }}
                                             </span>
+                                        {% elif user.is_staff or user.groups.all|length > 0 %}
+                                            {% if match.match_date.date >= today %}
+                                                <button onclick="openResultModal({{ match.id }}, '{{ match.home_team_display|escapejs }}', '{{ match.away_team_display|escapejs }}')" 
+                                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 hover:bg-orange-200 dark:hover:bg-orange-800 transition">
+                                                    📝 Agregar resultado
+                                                </button>
+                                            {% else %}
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                                    {{ match.get_status_display }}
+                                                </span>
+                                            {% endif %}
                                         {% endif %}
                                     </div>
 
@@ -412,6 +423,66 @@
         </div>
         <div id="modalContent" class="p-6">
             <!-- Los partidos se cargarán aquí -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar resultado -->
+<div id="resultModal" class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Agregar Resultado</h3>
+                <button onclick="closeResultModal()" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="p-6">
+            <div class="text-center mb-6">
+                <div id="resultMatchInfo" class="text-lg font-semibold text-gray-800 dark:text-gray-200"></div>
+                <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Introduce el marcador final</div>
+            </div>
+            
+            <form id="resultForm" class="space-y-6">
+                <div class="flex items-center justify-center space-x-8">
+                    <!-- Equipo Local -->
+                    <div class="text-center">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" id="homeTeamLabel">Local</label>
+                        <input type="number" id="homeScore" name="home_score" min="0" max="99" 
+                               class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
+                               placeholder="0" required>
+                    </div>
+                    
+                    <!-- Separador -->
+                    <div class="text-2xl font-bold text-gray-500 dark:text-gray-400">-</div>
+                    
+                    <!-- Equipo Visitante -->
+                    <div class="text-center">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" id="awayTeamLabel">Visitante</label>
+                        <input type="number" id="awayScore" name="away_score" min="0" max="99" 
+                               class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
+                               placeholder="0" required>
+                    </div>
+                </div>
+                
+                <!-- Mensaje de error -->
+                <div id="resultError" class="hidden text-sm text-red-600 dark:text-red-400 text-center"></div>
+                
+                <!-- Botones -->
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeResultModal()" 
+                            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-csj-purple-dark transition">
+                        Guardar Resultado
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -570,6 +641,155 @@ function updateActiveFiltersCount() {
 // Inicializar al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     updateActiveFiltersCount();
+    
+    // Configurar formulario de resultado
+    const resultForm = document.getElementById('resultForm');
+    if (resultForm) {
+        resultForm.addEventListener('submit', handleResultSubmit);
+    }
+});
+
+// Variables globales para el modal de resultado
+let currentMatchId = null;
+
+// Abrir modal de resultado
+function openResultModal(matchId, homeTeam, awayTeam) {
+    currentMatchId = matchId;
+    
+    // Actualizar información del partido
+    document.getElementById('resultMatchInfo').textContent = `${homeTeam} vs ${awayTeam}`;
+    document.getElementById('homeTeamLabel').textContent = homeTeam;
+    document.getElementById('awayTeamLabel').textContent = awayTeam;
+    
+    // Limpiar formulario
+    document.getElementById('homeScore').value = '';
+    document.getElementById('awayScore').value = '';
+    document.getElementById('resultError').classList.add('hidden');
+    
+    // Mostrar modal
+    document.getElementById('resultModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    
+    // Enfocar primer campo
+    document.getElementById('homeScore').focus();
+}
+
+// Cerrar modal de resultado
+function closeResultModal() {
+    document.getElementById('resultModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    currentMatchId = null;
+}
+
+// Manejar envío del formulario de resultado
+async function handleResultSubmit(e) {
+    e.preventDefault();
+    
+    const homeScore = document.getElementById('homeScore').value;
+    const awayScore = document.getElementById('awayScore').value;
+    const errorDiv = document.getElementById('resultError');
+    
+    // Validación básica
+    if (!homeScore || !awayScore) {
+        showResultError('Por favor, introduce ambos marcadores');
+        return;
+    }
+    
+    if (homeScore < 0 || awayScore < 0) {
+        showResultError('Los marcadores no pueden ser negativos');
+        return;
+    }
+    
+    if (homeScore == awayScore) {
+        showResultError('En voleibol no puede haber empate');
+        return;
+    }
+    
+    // Enviar datos
+    try {
+        const response = await fetch(`/videos/ajax/partidos/${currentMatchId}/resultado/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                home_score: parseInt(homeScore),
+                away_score: parseInt(awayScore)
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Mostrar mensaje de éxito
+            showResultSuccess(data.message);
+            
+            // Cerrar modal
+            closeResultModal();
+            
+            // Recargar página para mostrar el resultado
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showResultError(data.error || 'Error al guardar el resultado');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showResultError('Error de conexión. Inténtalo de nuevo.');
+    }
+}
+
+// Mostrar error en el modal
+function showResultError(message) {
+    const errorDiv = document.getElementById('resultError');
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
+}
+
+// Mostrar mensaje de éxito
+function showResultSuccess(message) {
+    // Crear notificación temporal
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Remover después de 3 segundos
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Obtener cookie CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('resultModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeResultModal();
+    }
+});
+
+// Cerrar modal con ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeResultModal();
+    }
 });
 </script>
 {% endblock %}
