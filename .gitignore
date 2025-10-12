@@ -354,3 +354,5 @@ certbot/
 certbot/
 postgres/
 redis/
+reloadDDBB.sh
+dump/

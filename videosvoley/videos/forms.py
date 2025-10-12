@@ -147,10 +147,7 @@ class MatchAdminForm(forms.ModelForm):
     class Meta:
         model = Match
         fields = '__all__'
-        widgets = {
-            'match_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-        }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
