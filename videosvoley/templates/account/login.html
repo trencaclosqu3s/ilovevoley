@@ -45,12 +45,19 @@
                 {% endif %}
             </div>
             
-            <div class="flex items-center">
-                <input type="checkbox" name="{{ form.remember.name }}" id="{{ form.remember.id_for_label }}"
-                       class="h-4 w-4 text-blue-600 focus:ring-csj-purple border-gray-300 rounded">
-                <label for="{{ form.remember.id_for_label }}" class="ml-2 block text-sm text-gray-700">
-                    Recordarme
-                </label>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <input type="checkbox" name="{{ form.remember.name }}" id="{{ form.remember.id_for_label }}"
+                           class="h-4 w-4 text-blue-600 focus:ring-csj-purple border-gray-300 rounded">
+                    <label for="{{ form.remember.id_for_label }}" class="ml-2 block text-sm text-gray-700">
+                        Recordarme
+                    </label>
+                </div>
+                <div class="text-sm">
+                    <a href="{% url 'account_reset_password' %}" class="text-csj-purple hover:text-csj-purple-dark font-medium">
+                        ¿Olvidaste tu contraseña?
+                    </a>
+                </div>
             </div>
             
             <button type="submit" class="w-full bg-csj-purple hover:bg-csj-purple-dark text-white py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation">

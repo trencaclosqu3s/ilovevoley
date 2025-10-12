@@ -247,8 +247,8 @@ EMAIL_PORT = env_config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = env_config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = env_config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env_config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = env_config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
-SERVER_EMAIL = env_config('SERVER_EMAIL', default=EMAIL_HOST_USER)
+DEFAULT_FROM_EMAIL = env_config('DEFAULT_FROM_EMAIL', default='Admin I Love Voley <josealbertomartin@gmail.com>')
+SERVER_EMAIL = env_config('SERVER_EMAIL', default='Admin I Love Voley <josealbertomartin@gmail.com>')
 
 # Notificaciones
 NOTIFICATION_EMAIL_ENABLED = env_config('NOTIFICATION_EMAIL_ENABLED', default=False, cast=bool)
