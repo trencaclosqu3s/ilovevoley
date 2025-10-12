@@ -201,6 +201,11 @@ def league_detail(request, league_id):
     if round_filter:
         matches = matches.filter(round_number=round_filter)
     
+    # Filtro de solo partidos con videos
+    with_videos = request.GET.get('with_videos')
+    if with_videos:
+        matches = matches.filter(videos__isnull=False).distinct()
+    
     # Obtener jornadas disponibles
     available_rounds = matches.values_list('round_number', flat=True).distinct().order_by('round_number')
     
@@ -214,7 +219,8 @@ def league_detail(request, league_id):
         'page_obj': page_obj,
         'standings': standings,
         'available_rounds': available_rounds,
-        'selected_round': round_filter
+        'selected_round': round_filter,
+        'with_videos': with_videos
     })
 
 
@@ -540,7 +546,7 @@ def ajax_matches_by_category(request):
     for match in matches:
         matches_data.append({
             'id': match.id,
-            'text': f"{match.home_team.name} vs {match.away_team.name} - {match.match_date.strftime('%d/%m/%Y')} ({match.league.name})"
+            'text': f"{match.home_team_display} vs {match.away_team_display} - {match.match_date.strftime('%d/%m/%Y')} ({match.league.name})"
         })
     
     return JsonResponse({

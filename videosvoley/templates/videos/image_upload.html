@@ -142,9 +142,9 @@
                         <div class="space-y-1">
                             {% for match in recent_matches|slice:":5" %}
                                 <button type="button" 
-                                        onclick="selectMatch({{ match.id }}, '{{ match.home_team.name|escapejs }} vs {{ match.away_team.name|escapejs }}')"
+                                        onclick="selectMatch({{ match.id }}, '{{ match.home_team_display|escapejs }} vs {{ match.away_team_display|escapejs }}')"
                                         class="block w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded border">
-                                    <strong>{{ match.home_team.name }} vs {{ match.away_team.name }}</strong>
+                                    <strong>{{ match.home_team_display }} vs {{ match.away_team_display }}</strong>
                                     <br>
                                     <span class="text-gray-600">{{ match.match_date|date:"d/m/Y" }} • {{ match.league.name }}</span>
                                 </button>

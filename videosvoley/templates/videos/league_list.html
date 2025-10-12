@@ -167,17 +167,17 @@
 
                     <!-- Próximo partido de Sant Josep -->
                     {% for match in league.matches.all %}
-                        {% if 'SANT JOSEP' in match.home_team.name or 'SANT JOSEP' in match.away_team.name %}
+                        {% if 'SANT JOSEP' in match.home_team_display or 'SANT JOSEP' in match.away_team_display %}
                             {% if match.status == 'scheduled' %}
                                 <div class="bg-csj-yellow bg-opacity-20 px-4 py-3 border-t border-csj-yellow border-opacity-30">
                                     <div class="flex items-center justify-between">
                                         <div>
                                             <div class="text-xs font-medium text-csj-purple-dark">Próximo partido</div>
                                             <div class="text-sm font-semibold text-gray-900">
-                                                {% if 'SANT JOSEP' in match.home_team.name %}
-                                                    {{ match.home_team.name }} vs {{ match.away_team.name }}
+                                                {% if 'SANT JOSEP' in match.home_team_display %}
+                                                    {{ match.home_team_display }} vs {{ match.away_team_display }}
                                                 {% else %}
-                                                    {{ match.away_team.name }} vs {{ match.home_team.name }}
+                                                    {{ match.away_team_display }} vs {{ match.home_team_display }}
                                                 {% endif %}
                                             </div>
                                         </div>
