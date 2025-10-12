@@ -72,6 +72,24 @@
         </div>
     </div>
 
+    <!-- Toggle de vista global -->
+    <div class="flex justify-end mb-6">
+        <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <button id="grid-view" class="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm">
+                <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                </svg>
+                Tarjetas
+            </button>
+            <button id="list-view" class="px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
+                <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                </svg>
+                Lista
+            </button>
+        </div>
+    </div>
+
     <!-- Sección de Jugadores -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-6">
         <div class="border-l-4 border-csj-purple dark:border-csj-yellow pl-4 mb-6">
@@ -92,8 +110,8 @@
                 {% endfor %}
             </div>
 
-            <!-- Grid de jugadores -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <!-- Vista Grid de jugadores -->
+            <div id="players-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {% for player_role in player_roles %}
                     <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow border border-gray-200 dark:border-gray-600 relative">
                         <!-- Marca visual "Tú" en la card del usuario conectado -->
@@ -144,6 +162,72 @@
                     </div>
                 {% endfor %}
             </div>
+
+            <!-- Vista Lista de jugadores -->
+            <div id="players-list" class="hidden overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Foto</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nombre</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dorsal</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Posición</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Edad</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for player_role in player_roles %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        {% if player_role.person.photo %}
+                                            <img src="{{ player_role.person.photo.url }}" alt="{{ player_role.person.full_name }}" 
+                                                 class="w-10 h-10 object-cover rounded-full border-2 border-white shadow-md">
+                                        {% else %}
+                                            <div class="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center">
+                                                <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                                                </svg>
+                                            </div>
+                                        {% endif %}
+                                        {% if player_role.person.user == request.user %}
+                                            <span class="ml-2 bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium">
+                                                ⭐ Tú
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ player_role.person.full_name }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if player_role.jersey_number %}
+                                        <span class="text-lg font-bold text-csj-purple dark:text-csj-yellow">#{{ player_role.jersey_number }}</span>
+                                    {% else %}
+                                        <span class="text-sm text-gray-400 dark:text-gray-500">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if player_role.position %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-csj-purple dark:bg-csj-purple-dark text-white">
+                                            {{ player_role.display_position }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-sm text-gray-400 dark:text-gray-500">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                    {% if player_role.person.age %}
+                                        {{ player_role.person.age }} años
+                                    {% else %}
+                                        <span class="text-gray-400 dark:text-gray-500">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         {% else %}
             <div class="text-center py-8">
                 <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
@@ -185,8 +269,8 @@
                 {% endfor %}
             </div>
 
-            <!-- Grid de staff -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Vista Grid de staff -->
+            <div id="staff-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {% for staff_role in staff_roles %}
                     <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow border border-gray-200 dark:border-gray-600 relative">
                         <!-- Marca visual "Tú" en la card del usuario conectado -->
@@ -238,6 +322,68 @@
                         </div>
                     </div>
                 {% endfor %}
+            </div>
+
+            <!-- Vista Lista de staff -->
+            <div id="staff-list" class="hidden overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Foto</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nombre</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Rol</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Teléfono</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for staff_role in staff_roles %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        {% if staff_role.person.photo %}
+                                            <img src="{{ staff_role.person.photo.url }}" alt="{{ staff_role.person.full_name }}" 
+                                                 class="w-10 h-10 object-cover rounded-full border-2 border-white shadow-md">
+                                        {% else %}
+                                            <div class="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center">
+                                                <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                                                </svg>
+                                            </div>
+                                        {% endif %}
+                                        {% if staff_role.person.user == request.user %}
+                                            <span class="ml-2 bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium">
+                                                ⭐ Tú
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ staff_role.person.full_name }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-csj-yellow text-gray-800 dark:text-gray-900">
+                                        {{ staff_role.display_role }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                    {% if staff_role.person.phone %}
+                                        {{ staff_role.person.phone }}
+                                    {% else %}
+                                        <span class="text-gray-400 dark:text-gray-500">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                    {% if staff_role.person.email %}
+                                        {{ staff_role.person.email }}
+                                    {% else %}
+                                        <span class="text-gray-400 dark:text-gray-500">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         {% else %}
             <div class="text-center py-8">
@@ -303,4 +449,67 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const gridViewBtn = document.getElementById('grid-view');
+    const listViewBtn = document.getElementById('list-view');
+    const playersGrid = document.getElementById('players-grid');
+    const playersList = document.getElementById('players-list');
+    const staffGrid = document.getElementById('staff-grid');
+    const staffList = document.getElementById('staff-list');
+
+    // Función para cambiar a vista grid
+    function showGridView() {
+        // Mostrar grids
+        if (playersGrid) playersGrid.classList.remove('hidden');
+        if (staffGrid) staffGrid.classList.remove('hidden');
+        
+        // Ocultar listas
+        if (playersList) playersList.classList.add('hidden');
+        if (staffList) staffList.classList.add('hidden');
+        
+        // Actualizar botones
+        gridViewBtn.classList.add('bg-white', 'dark:bg-gray-600', 'text-gray-900', 'dark:text-gray-100', 'shadow-sm');
+        gridViewBtn.classList.remove('text-gray-500', 'dark:text-gray-400');
+        listViewBtn.classList.remove('bg-white', 'dark:bg-gray-600', 'text-gray-900', 'dark:text-gray-100', 'shadow-sm');
+        listViewBtn.classList.add('text-gray-500', 'dark:text-gray-400');
+        
+        // Guardar preferencia
+        localStorage.setItem('roster-view', 'grid');
+    }
+
+    // Función para cambiar a vista lista
+    function showListView() {
+        // Ocultar grids
+        if (playersGrid) playersGrid.classList.add('hidden');
+        if (staffGrid) staffGrid.classList.add('hidden');
+        
+        // Mostrar listas
+        if (playersList) playersList.classList.remove('hidden');
+        if (staffList) staffList.classList.remove('hidden');
+        
+        // Actualizar botones
+        listViewBtn.classList.add('bg-white', 'dark:bg-gray-600', 'text-gray-900', 'dark:text-gray-100', 'shadow-sm');
+        listViewBtn.classList.remove('text-gray-500', 'dark:text-gray-400');
+        gridViewBtn.classList.remove('bg-white', 'dark:bg-gray-600', 'text-gray-900', 'dark:text-gray-100', 'shadow-sm');
+        gridViewBtn.classList.add('text-gray-500', 'dark:text-gray-400');
+        
+        // Guardar preferencia
+        localStorage.setItem('roster-view', 'list');
+    }
+
+    // Event listeners
+    gridViewBtn.addEventListener('click', showGridView);
+    listViewBtn.addEventListener('click', showListView);
+
+    // Cargar preferencia guardada
+    const savedView = localStorage.getItem('roster-view');
+    if (savedView === 'list') {
+        showListView();
+    } else {
+        showGridView();
+    }
+});
+</script>
 {% endblock %}
