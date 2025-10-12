@@ -1,6 +1,10 @@
 {% extends '../base.html' %}
 {% load static %}
 
+{% block extra_js %}
+<script src="{% static 'js/auto_filters.js' %}"></script>
+{% endblock %}
+
 {% block title %}Personas del Club - I Love Voley{% endblock %}
 
 {% block content %}
@@ -30,25 +34,22 @@
                        name="search" 
                        value="{{ search }}"
                        placeholder="Buscar por nombre o email..."
-                       class="w-full px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white">
+                       class="auto-filter w-full px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white">
             </div>
             
             <!-- Tipo de rol -->
             <div>
-                <select name="role_type" class="w-full px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white">
+                <select name="role_type" class="auto-filter w-full px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white">
                     <option value="">Todos los roles</option>
                     <option value="player" {% if role_type == 'player' %}selected{% endif %}>Solo Jugadores</option>
                     <option value="staff" {% if role_type == 'staff' %}selected{% endif %}>Solo Staff</option>
                 </select>
             </div>
             
-            <!-- Botones -->
+            <!-- Botón limpiar -->
             <div class="flex gap-2">
-                <button type="submit" class="flex-1 bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-4 py-2 rounded-lg font-medium transition">
-                    Buscar
-                </button>
-                <a href="{% url 'videos:person_list' %}" class="px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition">
-                    Limpiar
+                <a href="{% url 'videos:person_list' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition">
+                    Limpiar filtros
                 </a>
             </div>
         </form>
