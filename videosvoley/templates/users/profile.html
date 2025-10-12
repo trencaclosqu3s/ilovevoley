@@ -18,7 +18,7 @@
             <div class="flex items-center -mt-12 mb-6">
                 <div class="bg-white rounded-full p-2 shadow-lg">
                     {% if user.avatar %}
-                        <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="w-20 h-20 rounded-full">
+                        <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="w-20 h-20 rounded-full object-cover">
                     {% else %}
                         <div class="w-20 h-20 rounded-full bg-csj-purple flex items-center justify-center text-white text-3xl font-bold">
                             {{ user.username|first|upper }}

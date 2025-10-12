@@ -65,7 +65,7 @@
                                 </label>
                                 <p class="text-gray-500">o arrastra y suelta aquí</p>
                             </div>
-                            <p class="text-xs text-gray-500 mt-2">JPG, PNG, WebP hasta 5MB</p>
+                            <p class="text-xs text-gray-500 mt-2">JPG, PNG, WebP, HEIC hasta 5MB</p>
                         </div>
                         
                         {% if form.avatar.errors %}
@@ -423,9 +423,16 @@
     });
     
     function handleFile(file) {
-        // Validar que es una imagen
-        if (!file.type.startsWith('image/')) {
-            alert('Por favor selecciona un archivo de imagen válido.');
+        // Validar que es una imagen o HEIC
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
+        
+        const fileName = file.name.toLowerCase();
+        const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+        const hasValidType = validTypes.includes(file.type);
+        
+        if (!hasValidType && !hasValidExtension) {
+            alert('Formato no válido. Use JPG, PNG, WebP o HEIC');
             return;
         }
         

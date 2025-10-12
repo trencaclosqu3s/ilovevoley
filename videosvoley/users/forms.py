@@ -55,7 +55,7 @@ class UserProfileForm(forms.ModelForm):
         widgets = {
             'avatar': forms.FileInput(attrs={
                 'class': 'hidden',
-                'accept': 'image/*'
+                'accept': 'image/*,image/heic,image/heif'
             }),
             'parent_info': forms.Textarea(attrs={
                 'rows': 3,
@@ -118,4 +118,17 @@ class UserProfileForm(forms.ModelForm):
                 self.fields['google_calendar_id'].widget.attrs['disabled'] = True
                 self.fields['calendar_sync_enabled'].help_text = 'Necesitas iniciar sesión con Google para habilitar esta función'
                 self.fields['google_calendar_id'].help_text = 'Necesitas permisos de Google Calendar para usar esta función'
+
+    def clean_avatar(self):
+        avatar = self.cleaned_data.get('avatar')
+        if avatar:
+            # Validar tamaño (5MB máximo)
+            if avatar.size > 5 * 1024 * 1024:
+                raise forms.ValidationError('El archivo es demasiado grande. Tamaño máximo: 5MB')
+            
+            # Validar tipo de archivo
+            if not avatar.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif')):
+                raise forms.ValidationError('Formato no válido. Use JPG, PNG, WebP o HEIC')
+        
+        return avatar
 
