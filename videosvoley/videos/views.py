@@ -12,8 +12,11 @@ from datetime import datetime, timedelta
 import calendar
 from django.utils import timezone
 import logging
-from .models import Video, Comment, Category, League, Match, Team, Standing, Image, Player, Staff
-from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm
+import base64
+import uuid
+from django.core.files.base import ContentFile
+from .models import Video, Comment, Category, League, Match, Team, Standing, Image, Player, Staff, Person, PlayerRole, StaffRole
+from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm, PersonForm, PlayerRoleForm, StaffRoleForm
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -1721,4 +1724,396 @@ def roster_overview(request):
     }
     
     return render(request, "videos/roster_overview.html", context)
+
+
+# =============================================================================
+# VISTAS PARA GESTIÓN DE PERSONAS (Person-Role)
+# =============================================================================
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def person_list(request):
+    """Vista de listado de personas del club"""
+    # Obtener todas las personas activas con sus roles
+    people = Person.objects.filter(is_active=True).prefetch_related(
+        'player_roles__team__category',
+        'staff_roles__team__category'
+    ).order_by('last_name', 'first_name')
+    
+    # Filtros
+    search = request.GET.get('search', '').strip()
+    role_type = request.GET.get('role_type', '')  # 'player', 'staff', o ''
+    
+    if search:
+        people = people.filter(
+            Q(first_name__icontains=search) |
+            Q(last_name__icontains=search) |
+            Q(email__icontains=search)
+        )
+    
+    if role_type == 'player':
+        people = people.filter(player_roles__is_active=True).distinct()
+    elif role_type == 'staff':
+        people = people.filter(staff_roles__is_active=True).distinct()
+    
+    # Paginación
+    paginator = Paginator(people, 24)  # 24 personas por página
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Enriquecer con info de roles
+    for person in page_obj:
+        person.active_player_roles = person.get_player_roles()
+        person.active_staff_roles = person.get_staff_roles()
+    
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+        'role_type': role_type,
+    }
+    
+    return render(request, 'videos/person_list.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def person_detail(request, person_id):
+    """Vista de detalle de una persona"""
+    person = get_object_or_404(
+        Person.objects.prefetch_related(
+            'player_roles__team__category',
+            'staff_roles__team__category'
+        ),
+        id=person_id
+    )
+    
+    # Obtener roles activos e inactivos
+    player_roles = person.player_roles.select_related('team__category').order_by('-is_active', 'team__name')
+    staff_roles = person.staff_roles.select_related('team__category').order_by('-is_active', 'team__name')
+    
+    # Verificar permisos de edición
+    can_edit = (
+        request.user.is_staff or 
+        request.user == person.user or
+        # Agregar lógica adicional: padres, tutores, etc.
+        False
+    )
+    
+    context = {
+        'person': person,
+        'player_roles': player_roles,
+        'staff_roles': staff_roles,
+        'can_edit': can_edit,
+    }
+    
+    return render(request, 'videos/person_detail.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def person_create(request):
+    """Vista para crear una nueva persona"""
+    if request.method == 'POST':
+        form = PersonForm(request.POST, request.FILES)
+        
+        # Procesar imagen recortada si está presente
+        cropped_photo_data = request.POST.get('cropped_photo_data')
+        if cropped_photo_data and cropped_photo_data.startswith('data:image'):
+            try:
+                # Extraer datos base64
+                format_str, imgstr = cropped_photo_data.split(';base64,')
+                ext = format_str.split('/')[-1]
+                
+                # Decodificar imagen
+                data = base64.b64decode(imgstr)
+                
+                # Crear archivo temporal
+                filename = f"person_{uuid.uuid4().hex[:8]}.{ext}"
+                photo_file = ContentFile(data, name=filename)
+                
+                # Crear una instancia temporal para asignar la foto
+                if form.is_valid():
+                    person = form.save(commit=False)
+                    person.photo = photo_file
+                    
+                    # Si el usuario no tiene un person vinculado, vincular este
+                    if not hasattr(request.user, 'person'):
+                        person.user = request.user
+                    
+                    person.save()
+                    messages.success(request, f'¡Persona creada exitosamente! Ahora puedes agregar roles de jugador o staff.')
+                    return redirect('videos:person_detail', person_id=person.id)
+                
+            except Exception as e:
+                logger.error(f'Error al procesar la imagen recortada: {str(e)}')
+                messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
+                return render(request, 'videos/person_form.html', {
+                    'form': form,
+                    'title': 'Agregar Nueva Persona',
+                    'submit_text': 'Crear Persona',
+                })
+        elif form.is_valid():
+            person = form.save(commit=False)
+            # Si el usuario no tiene un person vinculado, vincular este
+            if not hasattr(request.user, 'person'):
+                person.user = request.user
+            person.save()
+            
+            messages.success(request, f'¡Persona creada exitosamente! Ahora puedes agregar roles de jugador o staff.')
+            return redirect('videos:person_detail', person_id=person.id)
+    else:
+        form = PersonForm()
+    
+    context = {
+        'form': form,
+        'title': 'Agregar Nueva Persona',
+        'submit_text': 'Crear Persona',
+    }
+    
+    return render(request, 'videos/person_form.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def person_edit(request, person_id):
+    """Vista para editar una persona existente"""
+    person = get_object_or_404(Person, id=person_id)
+    
+    # Verificar permisos
+    can_edit = (
+        request.user.is_staff or 
+        request.user == person.user
+    )
+    
+    if not can_edit:
+        messages.error(request, 'No tienes permisos para editar esta persona.')
+        return redirect('videos:person_detail', person_id=person.id)
+    
+    if request.method == 'POST':
+        form = PersonForm(request.POST, request.FILES, instance=person)
+        
+        # Procesar imagen recortada si está presente
+        cropped_photo_data = request.POST.get('cropped_photo_data')
+        if cropped_photo_data and cropped_photo_data.startswith('data:image'):
+            try:
+                # Extraer datos base64
+                format_str, imgstr = cropped_photo_data.split(';base64,')
+                ext = format_str.split('/')[-1]
+                
+                # Decodificar imagen
+                data = base64.b64decode(imgstr)
+                
+                # Crear archivo
+                filename = f"person_{person.id}_{uuid.uuid4().hex[:8]}.{ext}"
+                photo_file = ContentFile(data, name=filename)
+                
+                # Asignar al person antes de validar el form
+                person.photo = photo_file
+                
+                # Recrear form con la nueva imagen
+                form = PersonForm(request.POST, request.FILES, instance=person)
+                
+            except Exception as e:
+                logger.error(f'Error al procesar la imagen recortada: {str(e)}')
+                messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
+                return render(request, 'videos/person_form.html', {
+                    'form': form,
+                    'person': person,
+                    'title': f'Editar {person.full_name}',
+                    'submit_text': 'Guardar Cambios',
+                })
+        
+        if form.is_valid():
+            form.save()
+            messages.success(request, '¡Información actualizada correctamente!')
+            return redirect('videos:person_detail', person_id=person.id)
+        else:
+            messages.error(request, 'Por favor corrige los errores en el formulario.')
+    else:
+        form = PersonForm(instance=person)
+    
+    context = {
+        'form': form,
+        'person': person,
+        'title': f'Editar {person.full_name}',
+        'submit_text': 'Guardar Cambios',
+    }
+    
+    return render(request, 'videos/person_form.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def player_role_create(request, person_id):
+    """Vista para agregar un rol de jugador a una persona"""
+    person = get_object_or_404(Person, id=person_id)
+    
+    # Verificar permisos
+    can_edit = request.user.is_staff or request.user == person.user
+    if not can_edit:
+        messages.error(request, 'No tienes permisos para agregar roles a esta persona.')
+        return redirect('videos:person_detail', person_id=person.id)
+    
+    if request.method == 'POST':
+        form = PlayerRoleForm(request.POST, person=person)
+        if form.is_valid():
+            player_role = form.save(commit=False)
+            player_role.person = person
+            player_role.save()
+            messages.success(request, f'¡Rol de jugador agregado en {player_role.team.name}!')
+            return redirect('videos:person_detail', person_id=person.id)
+    else:
+        form = PlayerRoleForm(person=person)
+    
+    context = {
+        'form': form,
+        'person': person,
+        'title': f'Agregar Rol de Jugador - {person.full_name}',
+        'submit_text': 'Agregar Rol',
+        'role_type': 'player',
+    }
+    
+    return render(request, 'videos/role_form.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def staff_role_create(request, person_id):
+    """Vista para agregar un rol de staff a una persona"""
+    person = get_object_or_404(Person, id=person_id)
+    
+    # Verificar permisos
+    can_edit = request.user.is_staff or request.user == person.user
+    if not can_edit:
+        messages.error(request, 'No tienes permisos para agregar roles a esta persona.')
+        return redirect('videos:person_detail', person_id=person.id)
+    
+    if request.method == 'POST':
+        form = StaffRoleForm(request.POST, person=person)
+        if form.is_valid():
+            staff_role = form.save(commit=False)
+            staff_role.person = person
+            staff_role.save()
+            messages.success(request, f'¡Rol de staff agregado en {staff_role.team.name}!')
+            return redirect('videos:person_detail', person_id=person.id)
+    else:
+        form = StaffRoleForm(person=person)
+    
+    context = {
+        'form': form,
+        'person': person,
+        'title': f'Agregar Rol de Staff - {person.full_name}',
+        'submit_text': 'Agregar Rol',
+        'role_type': 'staff',
+    }
+    
+    return render(request, 'videos/role_form.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def player_role_edit(request, role_id):
+    """Vista para editar un rol de jugador"""
+    player_role = get_object_or_404(PlayerRole.objects.select_related('person', 'team'), id=role_id)
+    
+    # Verificar permisos
+    can_edit = request.user.is_staff or request.user == player_role.person.user
+    if not can_edit:
+        messages.error(request, 'No tienes permisos para editar este rol.')
+        return redirect('videos:person_detail', person_id=player_role.person.id)
+    
+    if request.method == 'POST':
+        form = PlayerRoleForm(request.POST, instance=player_role, person=player_role.person)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '¡Rol actualizado correctamente!')
+            return redirect('videos:person_detail', person_id=player_role.person.id)
+    else:
+        form = PlayerRoleForm(instance=player_role, person=player_role.person)
+    
+    context = {
+        'form': form,
+        'person': player_role.person,
+        'player_role': player_role,
+        'title': f'Editar Rol de Jugador - {player_role.person.full_name}',
+        'submit_text': 'Guardar Cambios',
+        'role_type': 'player',
+    }
+    
+    return render(request, 'videos/role_form.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def staff_role_edit(request, role_id):
+    """Vista para editar un rol de staff"""
+    staff_role = get_object_or_404(StaffRole.objects.select_related('person', 'team'), id=role_id)
+    
+    # Verificar permisos
+    can_edit = request.user.is_staff or request.user == staff_role.person.user
+    if not can_edit:
+        messages.error(request, 'No tienes permisos para editar este rol.')
+        return redirect('videos:person_detail', person_id=staff_role.person.id)
+    
+    if request.method == 'POST':
+        form = StaffRoleForm(request.POST, instance=staff_role, person=staff_role.person)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '¡Rol actualizado correctamente!')
+            return redirect('videos:person_detail', person_id=staff_role.person.id)
+    else:
+        form = StaffRoleForm(instance=staff_role, person=staff_role.person)
+    
+    context = {
+        'form': form,
+        'person': staff_role.person,
+        'staff_role': staff_role,
+        'title': f'Editar Rol de Staff - {staff_role.person.full_name}',
+        'submit_text': 'Guardar Cambios',
+        'role_type': 'staff',
+    }
+    
+    return render(request, 'videos/role_form.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@require_POST
+def player_role_toggle_active(request, role_id):
+    """Vista AJAX para activar/desactivar rol de jugador"""
+    player_role = get_object_or_404(PlayerRole, id=role_id)
+    
+    # Verificar permisos
+    can_edit = request.user.is_staff or request.user == player_role.person.user
+    if not can_edit:
+        return JsonResponse({'success': False, 'error': 'Sin permisos'}, status=403)
+    
+    player_role.is_active = not player_role.is_active
+    player_role.save()
+    
+    status = 'activado' if player_role.is_active else 'desactivado'
+    messages.success(request, f'Rol de jugador {status} correctamente.')
+    
+    return JsonResponse({'success': True, 'is_active': player_role.is_active})
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@require_POST
+def staff_role_toggle_active(request, role_id):
+    """Vista AJAX para activar/desactivar rol de staff"""
+    staff_role = get_object_or_404(StaffRole, id=role_id)
+    
+    # Verificar permisos
+    can_edit = request.user.is_staff or request.user == staff_role.person.user
+    if not can_edit:
+        return JsonResponse({'success': False, 'error': 'Sin permisos'}, status=403)
+    
+    staff_role.is_active = not staff_role.is_active
+    staff_role.save()
+    
+    status = 'activado' if staff_role.is_active else 'desactivado'
+    messages.success(request, f'Rol de staff {status} correctamente.')
+    
+    return JsonResponse({'success': True, 'is_active': staff_role.is_active})
 
