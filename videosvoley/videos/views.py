@@ -1816,49 +1816,41 @@ def person_create(request):
     if request.method == 'POST':
         form = PersonForm(request.POST, request.FILES)
         
-        # Procesar imagen recortada si está presente
-        cropped_photo_data = request.POST.get('cropped_photo_data')
-        if cropped_photo_data and cropped_photo_data.startswith('data:image'):
-            try:
-                # Extraer datos base64
-                format_str, imgstr = cropped_photo_data.split(';base64,')
-                ext = format_str.split('/')[-1]
-                
-                # Decodificar imagen
-                data = base64.b64decode(imgstr)
-                
-                # Crear archivo temporal
-                filename = f"person_{uuid.uuid4().hex[:8]}.{ext}"
-                photo_file = ContentFile(data, name=filename)
-                
-                # Crear una instancia temporal para asignar la foto
-                if form.is_valid():
-                    person = form.save(commit=False)
+        if form.is_valid():
+            person = form.save(commit=False)
+            
+            # Procesar imagen recortada si está presente
+            cropped_photo_data = request.POST.get('cropped_photo_data')
+            if cropped_photo_data and cropped_photo_data.startswith('data:image'):
+                try:
+                    # Extraer datos base64
+                    format_str, imgstr = cropped_photo_data.split(';base64,')
+                    ext = format_str.split('/')[-1]
+                    
+                    # Decodificar imagen
+                    data = base64.b64decode(imgstr)
+                    
+                    # Crear archivo temporal
+                    filename = f"person_{uuid.uuid4().hex[:8]}.{ext}"
+                    photo_file = ContentFile(data, name=filename)
+                    
+                    # Asignar la foto recortada
                     person.photo = photo_file
                     
-                    # Si el usuario no tiene un person vinculado, vincular este
-                    if not hasattr(request.user, 'person'):
-                        person.user = request.user
-                    
-                    person.save()
-                    messages.success(request, f'¡Persona creada exitosamente! Ahora puedes agregar roles de jugador o staff.')
-                    return redirect('videos:person_detail', person_id=person.id)
-                
-            except Exception as e:
-                logger.error(f'Error al procesar la imagen recortada: {str(e)}')
-                messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
-                return render(request, 'videos/person_form.html', {
-                    'form': form,
-                    'title': 'Agregar Nueva Persona',
-                    'submit_text': 'Crear Persona',
-                })
-        elif form.is_valid():
-            person = form.save(commit=False)
+                except Exception as e:
+                    logger.error(f'Error al procesar la imagen recortada: {str(e)}')
+                    messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
+                    return render(request, 'videos/person_form.html', {
+                        'form': form,
+                        'title': 'Agregar Nueva Persona',
+                        'submit_text': 'Crear Persona',
+                    })
+            
             # Si el usuario no tiene un person vinculado, vincular este
             if not hasattr(request.user, 'person'):
                 person.user = request.user
-            person.save()
             
+            person.save()
             messages.success(request, f'¡Persona creada exitosamente! Ahora puedes agregar roles de jugador o staff.')
             return redirect('videos:person_detail', person_id=person.id)
     else:
@@ -1892,38 +1884,35 @@ def person_edit(request, person_id):
     if request.method == 'POST':
         form = PersonForm(request.POST, request.FILES, instance=person)
         
-        # Procesar imagen recortada si está presente
-        cropped_photo_data = request.POST.get('cropped_photo_data')
-        if cropped_photo_data and cropped_photo_data.startswith('data:image'):
-            try:
-                # Extraer datos base64
-                format_str, imgstr = cropped_photo_data.split(';base64,')
-                ext = format_str.split('/')[-1]
-                
-                # Decodificar imagen
-                data = base64.b64decode(imgstr)
-                
-                # Crear archivo
-                filename = f"person_{person.id}_{uuid.uuid4().hex[:8]}.{ext}"
-                photo_file = ContentFile(data, name=filename)
-                
-                # Asignar al person antes de validar el form
-                person.photo = photo_file
-                
-                # Recrear form con la nueva imagen
-                form = PersonForm(request.POST, request.FILES, instance=person)
-                
-            except Exception as e:
-                logger.error(f'Error al procesar la imagen recortada: {str(e)}')
-                messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
-                return render(request, 'videos/person_form.html', {
-                    'form': form,
-                    'person': person,
-                    'title': f'Editar {person.full_name}',
-                    'submit_text': 'Guardar Cambios',
-                })
-        
         if form.is_valid():
+            # Procesar imagen recortada si está presente
+            cropped_photo_data = request.POST.get('cropped_photo_data')
+            if cropped_photo_data and cropped_photo_data.startswith('data:image'):
+                try:
+                    # Extraer datos base64
+                    format_str, imgstr = cropped_photo_data.split(';base64,')
+                    ext = format_str.split('/')[-1]
+                    
+                    # Decodificar imagen
+                    data = base64.b64decode(imgstr)
+                    
+                    # Crear archivo
+                    filename = f"person_{person.id}_{uuid.uuid4().hex[:8]}.{ext}"
+                    photo_file = ContentFile(data, name=filename)
+                    
+                    # Asignar la imagen recortada al person
+                    person.photo = photo_file
+                    
+                except Exception as e:
+                    logger.error(f'Error al procesar la imagen recortada: {str(e)}')
+                    messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
+                    return render(request, 'videos/person_form.html', {
+                        'form': form,
+                        'person': person,
+                        'title': f'Editar {person.full_name}',
+                        'submit_text': 'Guardar Cambios',
+                    })
+            
             form.save()
             messages.success(request, '¡Información actualizada correctamente!')
             return redirect('videos:person_detail', person_id=person.id)
