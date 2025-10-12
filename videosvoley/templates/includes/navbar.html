@@ -1,0 +1,363 @@
+<nav class="bg-white dark:bg-gray-800 shadow-lg border-b-4 border-csj-purple dark:border-csj-purple-dark">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+            <!-- Logo y título (responsive) -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <span class="text-2xl sm:text-3xl">🏐</span>
+                <div>
+                    <a href="{% url 'videos:video_list' %}" class="text-lg sm:text-xl font-bold text-csj-purple dark:text-csj-yellow">
+                        <span class="hidden sm:inline">I Love Voley</span>
+                        <span class="sm:hidden">Vídeos</span>
+                    </a>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Plataforma comunitaria - CV Sant Josep Obrer</p>
+                </div>
+            </div>
+            
+            <!-- Menú desktop -->
+            <div class="hidden md:flex items-center space-x-3 lg:space-x-4">
+                {% if user.is_authenticated %}
+                    <!-- Botón de Dark Mode -->
+                    <button id="theme-toggle-desktop" 
+                            class="text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                            title="Cambiar tema">
+                        <!-- Icono Sol (visible en modo oscuro) -->
+                        <svg id="theme-toggle-light-icon-desktop" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path>
+                        </svg>
+                        <!-- Icono Luna (visible en modo claro) -->
+                        <svg id="theme-toggle-dark-icon-desktop" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                        </svg>
+                    </button>
+                    
+                    <!-- Dropdown Multimedia -->
+                    <div class="relative group" data-dropdown="multimedia">
+                        <button class="text-sm lg:text-base text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition font-medium flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" data-dropdown-toggle="multimedia">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 0h10a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z"></path>
+                            </svg>
+                            Multimedia
+                            <svg class="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div class="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50" data-dropdown-menu="multimedia">
+                            <div class="py-2">
+                                <a href="{% url 'videos:video_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                    <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Videos
+                                </a>
+                                <a href="{% url 'videos:image_gallery' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                    <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Galería
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Dropdown Competición -->
+                    <div class="relative group" data-dropdown="competicion">
+                        <button class="text-sm lg:text-base text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition font-medium flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" data-dropdown-toggle="competicion">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                            </svg>
+                            Competición
+                            <svg class="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div class="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50" data-dropdown-menu="competicion">
+                            <div class="py-2">
+                                <a href="{% url 'videos:calendar_view' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                    <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Calendario
+                                </a>
+                                <a href="{% url 'videos:standings_view' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                    <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                                    </svg>
+                                    Clasificación
+                                </a>
+                                <a href="{% url 'videos:league_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                    <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2H9m4 0v2a2 2 0 01-2 2H9a2 2 0 01-2-2v-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2H9z"></path>
+                                    </svg>
+                                    Ligas
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Dropdown Equipo -->
+                    <div class="relative group" data-dropdown="equipo">
+                        <button class="text-sm lg:text-base text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition font-medium flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" data-dropdown-toggle="equipo">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                            Equipo
+                            <svg class="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div class="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50" data-dropdown-menu="equipo">
+                            <div class="py-2">
+                                <a href="{% url 'videos:roster_overview' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                    <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                    </svg>
+                                    Plantillas
+                                </a>
+                                <a href="{% url 'videos:person_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                    <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                    </svg>
+                                    Personas
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Enlaces de administración y perfil -->
+                    <div class="flex items-center space-x-2 lg:space-x-3">
+                        {% if user.is_staff or user.is_superuser %}
+                            <a href="{% url 'admin:index' %}" class="text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition" title="Administración">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </a>
+                        {% endif %}
+                        {% if user.is_superuser %}
+                            <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell" class="text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition relative inline-flex" title="Moderación">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                </svg>
+                                <span id="moderation-counter" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden font-semibold" style="font-size: 10px;">0</span>
+                            </a>
+                        {% endif %}
+                        <a href="{% url 'profile' %}" class="text-sm lg:text-base text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition font-medium flex items-center gap-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            <span class="hidden lg:inline">{{ user.username }}</span>
+                            <span class="lg:hidden">Perfil</span>
+                        </a>
+                        <a href="{% url 'account_logout' %}" class="text-sm lg:text-base text-csj-purple dark:text-csj-yellow hover:text-csj-purple-dark dark:hover:text-csj-yellow-dark font-semibold transition">Salir</a>
+                    </div>
+                {% else %}
+                    <a href="{% url 'account_login' %}" class="bg-csj-purple hover:bg-csj-purple-dark dark:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-3 lg:px-4 py-2 rounded-lg font-semibold transition text-sm lg:text-base">Entrar</a>
+                {% endif %}
+            </div>
+            
+            <!-- Botón menú móvil -->
+            <div class="md:hidden flex items-center">
+                <button id="mobile-menu-toggle" class="text-csj-purple hover:text-csj-purple-dark focus:outline-none p-3 touch-manipulation">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path id="menu-icon" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        <path id="close-icon" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" class="hidden"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Menú móvil (oculto por defecto) -->
+        <div id="mobile-menu" class="md:hidden hidden border-t border-gray-200 dark:border-gray-700 py-3">
+            {% if user.is_authenticated %}
+                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                    <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hola, {{ user.username }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">CV Sant Josep Obrer</p>
+                </div>
+                
+                <!-- Sección Multimedia -->
+                <div class="px-4 py-2">
+                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Multimedia</h3>
+                    <a href="{% url 'videos:video_list' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                        <span class="font-medium">Videos</span>
+                    </a>
+                    <a href="{% url 'videos:image_gallery' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span class="font-medium">Galería</span>
+                    </a>
+                </div>
+                
+                <!-- Sección Competición -->
+                <div class="px-4 py-2">
+                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Competición</h3>
+                    <a href="{% url 'videos:calendar_view' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span class="font-medium">Calendario</span>
+                    </a>
+                    <a href="{% url 'videos:standings_view' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                        </svg>
+                        <span class="font-medium">Clasificación</span>
+                    </a>
+                    <a href="{% url 'videos:league_list' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2H9m4 0v2a2 2 0 01-2 2H9a2 2 0 01-2-2v-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2H9z"></path>
+                        </svg>
+                        <span class="font-medium">Ligas</span>
+                    </a>
+                </div>
+                
+                <!-- Sección Equipo -->
+                <div class="px-4 py-2">
+                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Equipo</h3>
+                    <a href="{% url 'videos:roster_overview' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        <span class="font-medium">Plantillas</span>
+                    </a>
+                    <a href="{% url 'videos:person_list' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span class="font-medium">Personas</span>
+                    </a>
+                </div>
+                
+                <!-- Toggle Dark Mode para móvil -->
+                <button id="theme-toggle-mobile" 
+                        class="flex items-center px-4 py-4 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation w-full">
+                    <svg id="theme-toggle-light-icon-mobile" class="hidden w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path>
+                    </svg>
+                    <svg id="theme-toggle-dark-icon-mobile" class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                    </svg>
+                    <span class="font-medium">Modo <span id="theme-label-mobile">Oscuro</span></span>
+                </button>
+                
+                <a href="{% url 'profile' %}" class="flex items-center px-4 py-4 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                    <span class="font-medium">Mi Perfil</span>
+                </a>
+                
+                {% if can_add %}
+                    <div class="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
+                        <a href="{% url 'videos:video_create' %}" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            <span>Añadir Video</span>
+                        </a>
+                        <a href="{% url 'videos:image_upload' %}" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            <span>Subir Imagen</span>
+                        </a>
+                    </div>
+                {% endif %}
+                
+                {% if user.is_staff or user.is_superuser %}
+                    <div class="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
+                        <a href="{% url 'admin:index' %}" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <span>Administración</span>
+                        </a>
+                        {% if user.is_superuser %}
+                            <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell-mobile" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
+                                <span class="relative inline-flex mr-3">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                    </svg>
+                                    <span id="moderation-counter-mobile" class="absolute -top-1 -right-1.5 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center hidden font-semibold" style="font-size: 10px;">0</span>
+                                </span>
+                                <span>Moderación</span>
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                
+                <div class="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
+                    <a href="{% url 'account_logout' %}" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                        <span>Salir</span>
+                    </a>
+                </div>
+            {% else %}
+                <div class="px-4 py-3">
+                    <a href="{% url 'account_login' %}" class="block w-full text-center bg-csj-purple hover:bg-csj-purple-dark dark:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-4 py-4 rounded-lg font-semibold transition touch-manipulation">Entrar</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<script>
+// Dropdown functionality for navbar
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle dropdown toggles
+    const dropdownToggles = document.querySelectorAll('[data-dropdown-toggle]');
+    
+    dropdownToggles.forEach(toggle => {
+        const dropdownId = toggle.getAttribute('data-dropdown-toggle');
+        const dropdown = document.querySelector(`[data-dropdown="${dropdownId}"]`);
+        const menu = document.querySelector(`[data-dropdown-menu="${dropdownId}"]`);
+        
+        if (dropdown && menu) {
+            // Toggle dropdown on click (for mobile/touch devices)
+            toggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Close other dropdowns
+                document.querySelectorAll('[data-dropdown-menu]').forEach(otherMenu => {
+                    if (otherMenu !== menu) {
+                        otherMenu.classList.add('opacity-0', 'invisible');
+                        otherMenu.classList.remove('opacity-100', 'visible');
+                    }
+                });
+                
+                // Toggle current dropdown
+                if (menu.classList.contains('opacity-0')) {
+                    menu.classList.remove('opacity-0', 'invisible');
+                    menu.classList.add('opacity-100', 'visible');
+                } else {
+                    menu.classList.add('opacity-0', 'invisible');
+                    menu.classList.remove('opacity-100', 'visible');
+                }
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!dropdown.contains(e.target)) {
+                    menu.classList.add('opacity-0', 'invisible');
+                    menu.classList.remove('opacity-100', 'visible');
+                }
+            });
+            
+            // Close dropdown when pressing Escape
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    menu.classList.add('opacity-0', 'invisible');
+                    menu.classList.remove('opacity-100', 'visible');
+                }
+            });
+        }
+    });
+});
+</script>
