@@ -794,7 +794,7 @@ class PersonForm(forms.ModelForm):
             'birth_date': forms.DateInput(attrs={
                 'type': 'date',
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
-            }),
+            }, format='%Y-%m-%d'),
             'photo': forms.FileInput(attrs={
                 'class': 'hidden',
                 'id': 'person-photo-input',
@@ -811,7 +811,7 @@ class PersonForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
                 'rows': 3,
-                'placeholder': 'Información adicional (alergias, condiciones médicas, etc.)'
+                'placeholder': 'Algo que quieras que sepamos sobre esta persona...'
             }),
         }
         labels = {
@@ -821,14 +821,14 @@ class PersonForm(forms.ModelForm):
             'photo': 'Foto',
             'email': 'Email de Contacto',
             'phone': 'Teléfono',
-            'notes': 'Notas Adicionales',
+            'notes': 'Algo que quieras que sepamos',
         }
         help_texts = {
             'birth_date': 'Fecha de nacimiento (opcional)',
             'photo': 'Foto de perfil (opcional, formatos: JPG, PNG, WebP)',
             'email': 'Email de contacto (opcional)',
             'phone': 'Número de teléfono de contacto (opcional)',
-            'notes': 'Información adicional relevante (opcional)',
+            'notes': 'Información adicional que consideres relevante (opcional)',
         }
     
     def __init__(self, *args, **kwargs):
