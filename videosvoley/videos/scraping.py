@@ -992,10 +992,127 @@ class FederationScraper:
         if not json_match_id:
             return False
         
+        logger.debug(f"Intentando enriquecer partido JSON ID={json_match_id} para liga {league.name}")
+        
+        match = None
+        
+        # Primero intentar buscar por federation_id del JSON
         try:
             match = Match.objects.get(federation_id=json_match_id)
         except Match.DoesNotExist:
-            # Si no existe, no lo enriquecemos aquí
+            # Si no existe, buscar por otros criterios
+            # Extraer datos del partido del JSON
+            fecha_str = partido_data.get('FECHA', '')
+            hora_str = partido_data.get('HORA', '')
+            equipo_local = (partido_data.get('ELOCAL') or '').strip()
+            equipo_visitante = (partido_data.get('EVISITANTE') or '').strip()
+            club_local_id = str(partido_data.get('ID_CLUB_LOCAL', ''))
+            club_visitante_id = str(partido_data.get('ID_CLUB_VISITANTE', ''))
+            
+            if fecha_str and (equipo_local and equipo_visitante or (club_local_id and club_visitante_id)):
+                try:
+                    # Convertir fecha del formato DD/MM/YYYY a datetime
+                    from datetime import datetime
+                    fecha_obj = datetime.strptime(fecha_str, '%d/%m/%Y').date()
+                    
+                    # ESTRATEGIA 1: Buscar por IDs de clubes (más preciso)
+                    if club_local_id and club_visitante_id:
+                        from videosvoley.videos.models import Club
+                        
+                        # Buscar clubes por federation_id
+                        club_local = Club.objects.filter(federation_id=club_local_id).first()
+                        club_visitante = Club.objects.filter(federation_id=club_visitante_id).first()
+                        
+                        if club_local and club_visitante:
+                            # Buscar partido por fecha y clubes
+                            matches_fecha = Match.objects.filter(
+                                league=league,
+                                match_date__date=fecha_obj
+                            )
+                            
+                            for match_candidate in matches_fecha:
+                                # Verificar si los equipos pertenecen a los clubes correctos
+                                local_team = match_candidate.home_team
+                                visitante_team = match_candidate.away_team
+                                
+                                if (local_team and local_team.club == club_local and 
+                                    visitante_team and visitante_team.club == club_visitante):
+                                    match = match_candidate
+                                    logger.info(f"Partido encontrado por IDs de clubes: {match}")
+                                    break
+                                elif (local_team and local_team.club == club_visitante and 
+                                      visitante_team and visitante_team.club == club_local):
+                                    match = match_candidate
+                                    logger.info(f"Partido encontrado por IDs de clubes (orden invertido): {match}")
+                                    break
+                    
+                    # ESTRATEGIA 2: Si no se encontró por clubes, buscar por nombres (fallback)
+                    if not match and equipo_local and equipo_visitante:
+                        # Normalizar nombres para búsqueda más flexible
+                        def normalize_team_name(name):
+                            """Normaliza nombres de equipos para búsqueda flexible"""
+                            if not name:
+                                return ""
+                            # Convertir a mayúsculas y quitar acentos
+                            import unidecode
+                            normalized = unidecode.unidecode(name.upper())
+                            # Quitar caracteres especiales y espacios extra
+                            normalized = ''.join(c for c in normalized if c.isalnum() or c.isspace())
+                            normalized = ' '.join(normalized.split())
+                            return normalized
+                        
+                        equipo_local_norm = normalize_team_name(equipo_local)
+                        equipo_visitante_norm = normalize_team_name(equipo_visitante)
+                        logger.info(f"Nombres normalizados - JSON: local='{equipo_local_norm}', visitante='{equipo_visitante_norm}'")
+                        
+                        # Buscar partido por fecha, equipos y liga con búsqueda flexible
+                        matches_fecha = Match.objects.filter(
+                            league=league,
+                            match_date__date=fecha_obj
+                        )
+                        
+                        for match_candidate in matches_fecha:
+                            # Normalizar nombres de la BD
+                            local_bd = normalize_team_name(match_candidate.home_team_text or (match_candidate.home_team.name if match_candidate.home_team else ""))
+                            visitante_bd = normalize_team_name(match_candidate.away_team_text or (match_candidate.away_team.name if match_candidate.away_team else ""))
+                            logger.info(f"Nombres normalizados - BD: local='{local_bd}', visitante='{visitante_bd}'")
+                            
+                            # Verificar si coinciden (considerando que pueden estar en orden diferente)
+                            # Usar búsqueda de subcadenas más flexible
+                            def teams_match(team1_json, team2_json, team1_bd, team2_bd):
+                                """Verifica si dos equipos coinciden considerando subcadenas"""
+                                # Buscar coincidencias parciales
+                                match1 = (team1_json in team1_bd or team1_bd in team1_json) and \
+                                        (team2_json in team2_bd or team2_bd in team2_json)
+                                match2 = (team1_json in team2_bd or team2_bd in team1_json) and \
+                                        (team2_json in team1_bd or team1_bd in team2_json)
+                                return match1 or match2
+                            
+                            if teams_match(equipo_local_norm, equipo_visitante_norm, local_bd, visitante_bd):
+                                match = match_candidate
+                                logger.info(f"Partido encontrado por búsqueda flexible: {match}")
+                                break
+                        
+                except ValueError:
+                    # Error en formato de fecha
+                    pass
+        
+        if not match:
+            logger.info(f"No se encontró partido para enriquecer: ID={json_match_id}, fecha={fecha_str}, local={equipo_local}, visitante={equipo_visitante}")
+            # Buscar partidos similares para debug
+            if fecha_str and equipo_local and equipo_visitante:
+                try:
+                    from datetime import datetime
+                    fecha_obj = datetime.strptime(fecha_str, '%d/%m/%Y').date()
+                    matches_similares = Match.objects.filter(
+                        league=league,
+                        match_date__date=fecha_obj
+                    )
+                    logger.info(f"Partidos encontrados en la misma fecha: {matches_similares.count()}")
+                    for m in matches_similares[:3]:
+                        logger.info(f"  - {m}: local='{m.home_team_text or (m.home_team.name if m.home_team else 'N/A')}', visitante='{m.away_team_text or (m.away_team.name if m.away_team else 'N/A')}'")
+                except Exception as e:
+                    logger.info(f"Error buscando partidos similares: {e}")
             return False
         
         # Extraer datos de enriquecimiento

@@ -324,9 +324,9 @@ class ScrapingEndpointAdmin(admin.ModelAdmin):
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
     form = MatchAdminForm
-    list_display = ('__str__', 'match_date', 'venue', 'status', 'result_display', 'league_category', 'match_type_display', 'teams_active_status')
-    list_filter = ('is_friendly', 'status', 'league', 'league__category', 'match_date', 'home_team__is_active', 'away_team__is_active')
-    search_fields = ('home_team__name', 'away_team__name', 'venue', 'city', 'league__name')
+    list_display = ('__str__', 'match_date', 'venue', 'status', 'result_display', 'league_category', 'match_type_display', 'teams_active_status', 'referee_display')
+    list_filter = ('is_friendly', 'status', 'league', 'league__category', 'match_date', 'home_team__is_active', 'away_team__is_active', 'referee1', 'scorer')
+    search_fields = ('home_team__name', 'away_team__name', 'venue', 'city', 'league__name', 'referee1', 'referee2', 'scorer', 'timekeeper', 'delegate', 'field_address')
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'match_date'
     inlines = [ImageInline]
@@ -349,13 +349,23 @@ class MatchAdmin(admin.ModelAdmin):
             'description': 'Para partidos amistosos, puedes usar campos de texto si el equipo no existe en BD'
         }),
         ('Ubicación', {
-            'fields': ('venue', 'city')
+            'fields': ('venue', 'city', 'field_address')
         }),
         ('Resultado', {
             'fields': ('status', 'home_score', 'away_score')
         }),
+        ('Personal Oficial', {
+            'fields': ('referee1', 'referee2', 'scorer', 'timekeeper', 'delegate'),
+            'classes': ('collapse',),
+            'description': 'Personal técnico del partido (se llena automáticamente desde la federación)'
+        }),
+        ('Datos de la Federación', {
+            'fields': ('federation_id', 'federation_club_local_id', 'federation_club_away_id', 'acta_html'),
+            'classes': ('collapse',),
+            'description': 'IDs y enlaces de la federación (se llenan automáticamente)'
+        }),
         ('Metadata', {
-            'fields': ('round_number', 'federation_id', 'created_at', 'updated_at'),
+            'fields': ('round_number', 'created_at', 'updated_at'),
             'classes': ('collapse',)
         })
     )
@@ -397,6 +407,22 @@ class MatchAdmin(admin.ModelAdmin):
                 home_status, away_status
             )
     teams_active_status.short_description = 'Equipos Activos (L/V)'
+    
+    def referee_display(self, obj):
+        """Muestra información de árbitros"""
+        referees = []
+        if obj.referee1:
+            referees.append(f"1: {obj.referee1}")
+        if obj.referee2:
+            referees.append(f"2: {obj.referee2}")
+        
+        if referees:
+            return format_html(
+                '<div style="font-size: 11px; line-height: 1.2;">{}</div>',
+                '<br>'.join(referees)
+            )
+        return '-'
+    referee_display.short_description = 'Árbitros'
     
     def get_search_results(self, request, queryset, search_term):
         """Mejora la búsqueda para autocomplete en VideoAdmin"""
