@@ -506,15 +506,31 @@ class FederationScraper:
                     continue
             
             match_date = match_data.get('match_date')
+            round_number = match_data.get('round_number')
             
-            # ESTRATEGIA DE BÚSQUEDA PARA EVITAR DUPLICADOS:
-            # 1. Buscar por liga + equipos + fecha (mismo día) - criterio principal
-            # 2. Si no existe, crear nuevo partido
+            # ESTRATEGIA MEJORADA DE BÚSQUEDA PARA EVITAR DUPLICADOS:
+            # 1. Buscar por liga + equipos + jornada (criterio principal)
+            # 2. Si no existe, buscar por liga + equipos + fecha (mismo día) como fallback
             # 3. Si existe, hacer merge inteligente de datos
+            # 4. Si no existe, crear nuevo partido
             
             existing_match = None
-            if match_date:
-                # Buscar partidos en el mismo día entre los mismos equipos en la misma liga
+            
+            # PRIORIDAD 1: Buscar por jornada (más preciso para detectar cambios de fecha)
+            if round_number:
+                existing_match = Match.objects.filter(
+                    league=self.league,
+                    home_team=home_team,
+                    away_team=away_team,
+                    round_number=round_number,
+                    is_friendly=False  # Solo actualizar partidos oficiales, no amistosos
+                ).first()
+                
+                if existing_match:
+                    logger.info(f"Found existing match by round: {home_team.name} vs {away_team.name} in round {round_number}")
+            
+            # PRIORIDAD 2: Si no se encontró por jornada, buscar por fecha (fallback)
+            if not existing_match and match_date:
                 date_start = match_date.replace(hour=0, minute=0, second=0, microsecond=0)
                 date_end = date_start + timedelta(days=1)
                 
@@ -528,13 +544,14 @@ class FederationScraper:
                 ).first()
                 
                 if existing_match:
-                    logger.info(f"Found existing match: {home_team.name} vs {away_team.name} on {match_date.date()}")
+                    logger.info(f"Found existing match by date: {home_team.name} vs {away_team.name} on {match_date.date()}")
             
             # Crear o actualizar el partido con merge inteligente
             if existing_match:
                 # MERGE INTELIGENTE: Actualizar solo campos que:
                 # 1. Tienen valor en los nuevos datos (no None y no vacío)
                 # 2. O están vacíos/None en el partido existente
+                # 3. O representan información más específica (ej: hora específica vs 00:00)
                 updated_fields = []
                 
                 for key, new_value in match_data.items():
@@ -551,13 +568,16 @@ class FederationScraper:
                         # Actualizar si la nueva fecha tiene hora específica y la actual no
                         if new_value.hour != 0 and current_value.hour == 0:
                             should_update = True
+                        # O si la fecha es completamente diferente (cambio de día)
+                        elif new_value.date() != current_value.date():
+                            should_update = True
                     # Si tenemos nuevos resultados y el partido estaba sin resultados
                     elif key in ['home_score', 'away_score', 'status'] and new_value is not None:
                         if key == 'status' and new_value == 'finished' and current_value != 'finished':
                             should_update = True
                         elif key in ['home_score', 'away_score'] and current_value is None:
                             should_update = True
-                    # Para otros campos, actualizar si el nuevo valor no está vacío
+                    # Para otros campos, actualizar si el nuevo valor no está vacío y es diferente
                     elif not self._is_empty_value(new_value) and new_value != current_value:
                         should_update = True
                     
@@ -568,6 +588,9 @@ class FederationScraper:
                 if updated_fields:
                     existing_match.save()
                     logger.info(f"Updated match fields: {', '.join(updated_fields)} for {existing_match}")
+                    # Log específico para cambios de fecha
+                    if 'match_date' in updated_fields:
+                        logger.info(f"Match date updated from {current_value} to {new_value} for {existing_match}")
                 else:
                     logger.debug(f"No updates needed for match: {existing_match}")
                     
