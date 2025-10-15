@@ -1,6 +1,7 @@
 import requests
 import time
 import logging
+import json
 from datetime import datetime
 from bs4 import BeautifulSoup
 from typing import Dict, List, Optional, Any
@@ -346,6 +347,140 @@ class CalendarParser(BaseParser):
         }
 
 
+class JSONMatchesParser(BaseParser):
+    """Parser para el endpoint JSON de partidos de la federación"""
+    
+    def parse_content(self, content: str) -> Dict[str, Any]:
+        """Parsea el JSON de partidos de la federación"""
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing JSON: {e}")
+            return {'matches': [], 'teams': []}
+        
+        matches = []
+        teams = []
+        
+        # Navegar por la estructura jerárquica del JSON
+        for categoria in data.get('categorias', []):
+            categoria_name = categoria.get('nombre', '')
+            
+            for competicion in categoria.get('competiciones', []):
+                competicion_name = competicion.get('nombre', '')
+                
+                for fase in competicion.get('fases', []):
+                    fase_name = fase.get('nombre', '')
+                    
+                    for grupo in fase.get('grupos', []):
+                        grupo_name = grupo.get('nombre', '')
+                        grupo_id = grupo.get('id', '')
+                        
+                        # Procesar partidos del grupo
+                        for partido_data in grupo.get('partidos', []):
+                            match_data = self._parse_single_json_match(partido_data, grupo_id, categoria_name)
+                            if match_data:
+                                matches.append(match_data)
+                                
+                                # Extraer equipos para actualización
+                                if match_data.get('home_team'):
+                                    teams.append({
+                                        'name': match_data['home_team'],
+                                        'federation_id': f"{grupo_id}_{match_data['home_team'].replace(' ', '_').lower()}",
+                                        'federation_club_id': str(partido_data.get('ID_CLUB_LOCAL', ''))
+                                    })
+                                if match_data.get('away_team'):
+                                    teams.append({
+                                        'name': match_data['away_team'],
+                                        'federation_id': f"{grupo_id}_{match_data['away_team'].replace(' ', '_').lower()}",
+                                        'federation_club_id': str(partido_data.get('ID_CLUB_VISITANTE', ''))
+                                    })
+        
+        return {'matches': matches, 'teams': teams}
+    
+    def _parse_single_json_match(self, partido_data: Dict, grupo_id: str, categoria_name: str) -> Optional[Dict[str, Any]]:
+        """Parsea un partido individual del JSON"""
+        
+        # Extraer equipos
+        home_team = (partido_data.get('ELOCAL') or '').strip()
+        away_team = (partido_data.get('EVISITANTE') or '').strip()
+        
+        if not home_team or not away_team:
+            return None
+        
+        # Parsear fecha y hora
+        fecha_str = partido_data.get('FECHA', '')
+        hora_str = partido_data.get('HORA', '')
+        
+        if not fecha_str:
+            return None
+        
+        try:
+            # Formato: "24/10/2025" y "18:15"
+            if hora_str:
+                match_datetime = datetime.strptime(f"{fecha_str} {hora_str}", "%d/%m/%Y %H:%M")
+            else:
+                match_datetime = datetime.strptime(fecha_str, "%d/%m/%Y")
+            
+            match_datetime = timezone.make_aware(match_datetime)
+            
+        except ValueError as e:
+            logger.warning(f"Error parsing date {fecha_str} {hora_str}: {e}")
+            return None
+        
+        # Extraer resultados
+        home_score = partido_data.get('RESULTADO_LOCAL')
+        away_score = partido_data.get('RESULTADO_VISITANTE')
+        
+        # Determinar estado basado en resultados y acta
+        status = 'scheduled'
+        if home_score is not None and away_score is not None:
+            # Si hay resultados, el partido está finalizado
+            status = 'finished'
+        elif partido_data.get('acta_html'):
+            # Si hay acta pero no resultados, podría estar en progreso o finalizado sin score
+            status = 'finished'
+        
+        # Extraer información de árbitros y personal técnico
+        referee1 = (partido_data.get('arbitro1') or '').strip()
+        referee2 = (partido_data.get('arbitro2') or '').strip()
+        scorer = (partido_data.get('anotador') or '').strip()
+        timekeeper = (partido_data.get('cronometrador') or '').strip()
+        delegate = (partido_data.get('delegado') or '').strip()
+        
+        # Información del campo
+        field_name = (partido_data.get('Campo') or '').strip()
+        field_address = (partido_data.get('Direccion_Campo') or '').strip()
+        city = (partido_data.get('Municipio') or '').strip()
+        
+        # IDs de la federación
+        federation_club_local_id = str(partido_data.get('ID_CLUB_LOCAL', ''))
+        federation_club_away_id = str(partido_data.get('ID_CLUB_VISITANTE', ''))
+        
+        return {
+            'home_team': home_team,
+            'away_team': away_team,
+            'match_date': match_datetime,
+            'venue': field_name,
+            'city': city,
+            'round_number': 1,  # El JSON no incluye jornada, usar 1 por defecto
+            'home_score': home_score if home_score is not None else None,
+            'away_score': away_score if away_score is not None else None,
+            'status': status,
+            'referee1': referee1,
+            'referee2': referee2,
+            'scorer': scorer,
+            'timekeeper': timekeeper,
+            'delegate': delegate,
+            'field_address': field_address,
+            'federation_club_local_id': federation_club_local_id,
+            'federation_club_away_id': federation_club_away_id,
+            'federation_id': str(partido_data.get('ID', '')),
+            'acta_html': (partido_data.get('acta_html') or '').strip(),
+            'categoria': categoria_name,
+            'grupo_id': grupo_id,
+        }
+
+
 class FederationScraper:
     """Clase principal para manejar el scraping de la federación"""
     
@@ -355,6 +490,7 @@ class FederationScraper:
             'table_standings': StandingsParser(league),
             'match_results': MatchesParser(league),
             'match_calendar': CalendarParser(league),
+            'json_matches': JSONMatchesParser(league),
         }
     
     def scrape_endpoint(self, endpoint: ScrapingEndpoint, **kwargs) -> Dict[str, Any]:
@@ -555,6 +691,10 @@ class FederationScraper:
                 updated_fields = []
                 
                 for key, new_value in match_data.items():
+                    # Saltar campos que no existen en el modelo
+                    if not hasattr(existing_match, key):
+                        continue
+                        
                     current_value = getattr(existing_match, key, None)
                     
                     # Determinar si debemos actualizar el campo
@@ -577,6 +717,10 @@ class FederationScraper:
                             should_update = True
                         elif key in ['home_score', 'away_score'] and current_value is None:
                             should_update = True
+                    # Para campos de árbitros y personal técnico, actualizar si hay nueva información
+                    elif key in ['referee1', 'referee2', 'scorer', 'timekeeper', 'delegate', 'field_address']:
+                        if not self._is_empty_value(new_value) and new_value != current_value:
+                            should_update = True
                     # Para otros campos, actualizar si el nuevo valor no está vacío y es diferente
                     elif not self._is_empty_value(new_value) and new_value != current_value:
                         should_update = True
@@ -595,12 +739,17 @@ class FederationScraper:
                     logger.debug(f"No updates needed for match: {existing_match}")
                     
             else:
-                # Crear nuevo partido
+                # Crear nuevo partido - filtrar campos que no existen en el modelo
+                valid_match_data = {}
+                for key, value in match_data.items():
+                    if hasattr(Match, key):
+                        valid_match_data[key] = value
+                
                 match = Match.objects.create(
                     league=self.league,
                     home_team=home_team,
                     away_team=away_team,
-                    **match_data
+                    **valid_match_data
                 )
                 logger.info(f"Created new match: {match}")
         
@@ -770,6 +919,223 @@ class FederationScraper:
         )
         
         return result_summary
+    
+    def enrich_matches_with_json(self, json_url: str = "https://www.voleibolib.net/JSON/get_partidos_desglose_competiciones.asp") -> Dict[str, Any]:
+        """
+        Enriquece partidos existentes con información del endpoint JSON de la federación.
+        Este endpoint proporciona información adicional como árbitros, personal técnico, etc.
+        """
+        try:
+            logger.info(f"Enriching matches with JSON data from: {json_url}")
+            
+            # Obtener datos del JSON
+            response = requests.get(json_url, timeout=30)
+            response.raise_for_status()
+            
+            # Parsear JSON
+            json_data = json.loads(response.text)
+            
+            enriched_count = 0
+            new_matches_count = 0
+            
+            # Procesar cada categoría del JSON
+            for categoria in json_data.get('categorias', []):
+                categoria_name = categoria.get('nombre', '')
+                
+                # Buscar si tenemos una liga que coincida con esta categoría
+                matching_leagues = League.objects.filter(
+                    name__icontains=categoria_name.split()[0] if categoria_name else '',
+                    is_active=True
+                )
+                
+                for league in matching_leagues:
+                    logger.info(f"Processing JSON data for league: {league.name}")
+                    
+                    # Procesar partidos de esta liga
+                    for competicion in categoria.get('competiciones', []):
+                        for fase in competicion.get('fases', []):
+                            for grupo in fase.get('grupos', []):
+                                grupo_id = grupo.get('id', '')
+                                
+                                # Buscar si este grupo corresponde a nuestra liga
+                                if str(league.federation_id) == grupo_id:
+                                    for partido_data in grupo.get('partidos', []):
+                                        enriched = self._enrich_single_match(partido_data, league)
+                                        if enriched:
+                                            enriched_count += 1
+                                else:
+                                    # Si no coincide exactamente, intentar crear partidos nuevos
+                                    # solo si no existen ya
+                                    for partido_data in grupo.get('partidos', []):
+                                        created = self._create_match_from_json(partido_data, league)
+                                        if created:
+                                            new_matches_count += 1
+            
+            result = {
+                'status': 'success',
+                'enriched_matches': enriched_count,
+                'new_matches': new_matches_count,
+            }
+            
+            logger.info(f"JSON enrichment completed: {enriched_count} matches enriched, {new_matches_count} new matches created")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error enriching matches with JSON: {e}")
+            return {'error': str(e)}
+    
+    def _enrich_single_match(self, partido_data: Dict, league: League) -> bool:
+        """Enriquece un partido existente con datos del JSON"""
+        
+        # Buscar partido existente por federation_id del JSON
+        json_match_id = str(partido_data.get('ID', ''))
+        if not json_match_id:
+            return False
+        
+        try:
+            match = Match.objects.get(federation_id=json_match_id)
+        except Match.DoesNotExist:
+            # Si no existe, no lo enriquecemos aquí
+            return False
+        
+        # Extraer datos de enriquecimiento
+        referee1 = (partido_data.get('arbitro1') or '').strip()
+        referee2 = (partido_data.get('arbitro2') or '').strip()
+        scorer = (partido_data.get('anotador') or '').strip()
+        timekeeper = (partido_data.get('cronometrador') or '').strip()
+        delegate = (partido_data.get('delegado') or '').strip()
+        field_address = (partido_data.get('Direccion_Campo') or '').strip()
+        
+        # Actualizar campos si están vacíos o si hay nueva información
+        updated = False
+        
+        if referee1 and not match.referee1:
+            match.referee1 = referee1
+            updated = True
+        
+        if referee2 and not match.referee2:
+            match.referee2 = referee2
+            updated = True
+        
+        if scorer and not match.scorer:
+            match.scorer = scorer
+            updated = True
+        
+        if timekeeper and not match.timekeeper:
+            match.timekeeper = timekeeper
+            updated = True
+        
+        if delegate and not match.delegate:
+            match.delegate = delegate
+            updated = True
+        
+        if field_address and not match.field_address:
+            match.field_address = field_address
+            updated = True
+        
+        # Actualizar IDs de clubes de la federación
+        federation_club_local_id = str(partido_data.get('ID_CLUB_LOCAL', ''))
+        federation_club_away_id = str(partido_data.get('ID_CLUB_VISITANTE', ''))
+        
+        if federation_club_local_id and not match.federation_club_local_id:
+            match.federation_club_local_id = federation_club_local_id
+            updated = True
+        
+        if federation_club_away_id and not match.federation_club_away_id:
+            match.federation_club_away_id = federation_club_away_id
+            updated = True
+        
+        # Actualizar acta si está disponible
+        acta_html = (partido_data.get('acta_html') or '').strip()
+        if acta_html and not match.acta_html:
+            match.acta_html = acta_html
+            updated = True
+        
+        if updated:
+            match.save()
+            logger.debug(f"Enriched match: {match}")
+        
+        return updated
+    
+    def _create_match_from_json(self, partido_data: Dict, league: League) -> bool:
+        """Crea un partido nuevo desde datos JSON si no existe"""
+        
+        # Solo crear si no existe ya
+        json_match_id = str(partido_data.get('ID', ''))
+        if not json_match_id or Match.objects.filter(federation_id=json_match_id).exists():
+            return False
+        
+        # Extraer equipos
+        home_team_name = (partido_data.get('ELOCAL') or '').strip()
+        away_team_name = (partido_data.get('EVISITANTE') or '').strip()
+        
+        if not home_team_name or not away_team_name:
+            return False
+        
+        # Buscar equipos en la base de datos
+        home_team = self._find_team_by_name(home_team_name, league)
+        away_team = self._find_team_by_name(away_team_name, league)
+        
+        if not home_team or not away_team:
+            logger.debug(f"Teams not found for JSON match: {home_team_name} vs {away_team_name}")
+            return False
+        
+        # Parsear fecha
+        fecha_str = partido_data.get('FECHA', '')
+        hora_str = partido_data.get('HORA', '')
+        
+        if not fecha_str:
+            return False
+        
+        try:
+            if hora_str:
+                match_datetime = datetime.strptime(f"{fecha_str} {hora_str}", "%d/%m/%Y %H:%M")
+            else:
+                match_datetime = datetime.strptime(fecha_str, "%d/%m/%Y")
+            
+            match_datetime = timezone.make_aware(match_datetime)
+            
+        except ValueError:
+            return False
+        
+        # Crear partido
+        match = Match.objects.create(
+            league=league,
+            home_team=home_team,
+            away_team=away_team,
+            match_date=match_datetime,
+            venue=(partido_data.get('Campo') or '').strip(),
+            city=(partido_data.get('Municipio') or '').strip(),
+            referee1=(partido_data.get('arbitro1') or '').strip(),
+            referee2=(partido_data.get('arbitro2') or '').strip(),
+            scorer=(partido_data.get('anotador') or '').strip(),
+            timekeeper=(partido_data.get('cronometrador') or '').strip(),
+            delegate=(partido_data.get('delegado') or '').strip(),
+            field_address=(partido_data.get('Direccion_Campo') or '').strip(),
+            federation_club_local_id=str(partido_data.get('ID_CLUB_LOCAL', '')),
+            federation_club_away_id=str(partido_data.get('ID_CLUB_VISITANTE', '')),
+            federation_id=json_match_id,
+            acta_html=(partido_data.get('acta_html') or '').strip(),
+            status='scheduled'
+        )
+        
+        logger.info(f"Created new match from JSON: {match}")
+        return True
+    
+    def _find_team_by_name(self, team_name: str, league: League) -> Optional[Team]:
+        """Busca un equipo por nombre en la liga específica"""
+        # Buscar por nombre exacto
+        team = Team.objects.filter(name=team_name, category=league.category).first()
+        if team:
+            return team
+        
+        # Buscar por similitud
+        normalized_name = self._normalize_team_name(team_name)
+        for team in Team.objects.filter(category=league.category):
+            if self._normalize_team_name(team.name) == normalized_name:
+                return team
+        
+        return None
     
     def scrape_all_endpoints(self, **kwargs) -> Dict[str, Any]:
         """Ejecuta scraping de todos los endpoints activos de la liga"""

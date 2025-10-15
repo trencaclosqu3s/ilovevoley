@@ -132,6 +132,9 @@
                             {% if match.city %}
                                 <div class="text-xs">{{ match.city }}</div>
                             {% endif %}
+                            {% if match.field_address %}
+                                <div class="text-xs text-gray-500">{{ match.field_address }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 {% endif %}
@@ -147,6 +150,63 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Cuarta línea: Información de árbitros y personal técnico -->
+            {% if match.referee1 or match.referee2 or match.scorer or match.timekeeper or match.delegate or match.acta_html %}
+                <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Personal Oficial
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                        <!-- Árbitros -->
+                        {% if match.referee1 or match.referee2 %}
+                            <div class="space-y-1">
+                                <div class="font-medium text-gray-700 dark:text-gray-300">Árbitros</div>
+                                {% if match.referee1 %}
+                                    <div class="text-gray-600 dark:text-gray-400">• {{ match.referee1 }}</div>
+                                {% endif %}
+                                {% if match.referee2 %}
+                                    <div class="text-gray-600 dark:text-gray-400">• {{ match.referee2 }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Personal técnico -->
+                        {% if match.scorer or match.timekeeper or match.delegate %}
+                            <div class="space-y-1">
+                                <div class="font-medium text-gray-700 dark:text-gray-300">Personal Técnico</div>
+                                {% if match.scorer %}
+                                    <div class="text-gray-600 dark:text-gray-400">Anotador: {{ match.scorer }}</div>
+                                {% endif %}
+                                {% if match.timekeeper %}
+                                    <div class="text-gray-600 dark:text-gray-400">Cronometrador: {{ match.timekeeper }}</div>
+                                {% endif %}
+                                {% if match.delegate %}
+                                    <div class="text-gray-600 dark:text-gray-400">Delegado: {{ match.delegate }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Acta oficial -->
+                        {% if match.acta_html %}
+                            <div class="space-y-1">
+                                <div class="font-medium text-gray-700 dark:text-gray-300">Acta Oficial</div>
+                                <div class="text-gray-600 dark:text-gray-400">
+                                    <a href="https://www.voleibolib.net/actas/{{ match.acta_html }}" 
+                                       target="_blank" 
+                                       class="text-csj-purple hover:text-purple-700 underline">
+                                        Ver acta oficial
+                                    </a>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
         </div>
     </div>
 

@@ -232,6 +232,24 @@ class Match(models.Model):
     away_score = models.IntegerField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=MATCH_STATES, default='scheduled')
     federation_id = models.CharField(max_length=200, unique=True, null=True, blank=True)
+    
+    # Información de árbitros y personal técnico
+    referee1 = models.CharField(max_length=200, blank=True, verbose_name='Árbitro 1')
+    referee2 = models.CharField(max_length=200, blank=True, verbose_name='Árbitro 2')
+    scorer = models.CharField(max_length=200, blank=True, verbose_name='Anotador')
+    timekeeper = models.CharField(max_length=200, blank=True, verbose_name='Cronometrador')
+    delegate = models.CharField(max_length=200, blank=True, verbose_name='Delegado')
+    
+    # Información detallada del campo
+    field_address = models.CharField(max_length=500, blank=True, verbose_name='Dirección del Campo')
+    
+    # IDs de la federación para matching
+    federation_club_local_id = models.CharField(max_length=50, blank=True, verbose_name='ID Club Local (Federación)')
+    federation_club_away_id = models.CharField(max_length=50, blank=True, verbose_name='ID Club Visitante (Federación)')
+    
+    # Información de acta oficial
+    acta_html = models.CharField(max_length=200, blank=True, verbose_name='Acta HTML')
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
