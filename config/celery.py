@@ -34,7 +34,11 @@ try:
         scrape_results_task,
         scrape_clubs_task,
         scrape_teams_task,
-        handle_withdrawn_teams_task
+        handle_withdrawn_teams_task,
+        enrich_matches_json_task,
+        enrich_single_league_json_task,
+        scrape_and_enrich_all_task,
+        enrich_upcoming_matches_task
     )
 except ImportError as e:
     print(f"Warning: Could not import video tasks: {e}")

@@ -1165,14 +1165,28 @@ class FederationScraper:
         # Actualizar acta si está disponible
         acta_html = (partido_data.get('acta_html') or '').strip()
         if acta_html and not match.acta_html:
-            match.acta_html = acta_html
-            updated = True
+            # Construir URL completa del acta
+            partido_id = partido_data.get('ID')
+            if partido_id:
+                acta_url = f"https://voleibolib.federatio.com/actas/{partido_id}/{acta_html}"
+                match.acta_html = acta_url
+                updated = True
+                logger.debug(f"URL del acta construida: {acta_url}")
+            else:
+                logger.warning(f"No se pudo construir URL del acta: falta ID del partido")
         
         if updated:
             match.save()
             logger.debug(f"Enriched match: {match}")
         
         return updated
+    
+    def _build_acta_url(self, partido_data: Dict) -> str:
+        """Construye la URL completa del acta usando el ID del partido"""
+        acta_html = (partido_data.get('acta_html') or '').strip()
+        if acta_html and partido_data.get('ID'):
+            return f"https://voleibolib.federatio.com/actas/{partido_data.get('ID')}/{acta_html}"
+        return ''
     
     def _create_match_from_json(self, partido_data: Dict, league: League) -> bool:
         """Crea un partido nuevo desde datos JSON si no existe"""
@@ -1232,7 +1246,7 @@ class FederationScraper:
             federation_club_local_id=str(partido_data.get('ID_CLUB_LOCAL', '')),
             federation_club_away_id=str(partido_data.get('ID_CLUB_VISITANTE', '')),
             federation_id=json_match_id,
-            acta_html=(partido_data.get('acta_html') or '').strip(),
+            acta_html=self._build_acta_url(partido_data),
             status='scheduled'
         )
         
