@@ -261,11 +261,11 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                             </svg>
                                             <span class="font-medium">{{ match.match_date|date:"d/m/Y" }}</span>
-                                            {% if match.match_date.time.hour != 0 or match.match_date.time.minute != 0 %}
+                                            {% if match.match_date|date:"H:i" == "00:00" %}
+                                                <span class="text-orange-600 font-medium text-xs">Sin horario confirmado</span>
+                                            {% else %}
                                                 <span class="hidden sm:inline">{{ match.match_date|date:"H:i" }}</span>
                                                 <span class="sm:hidden">{{ match.match_date|date:"H:i" }}</span>
-                                            {% else %}
-                                                <span class="text-orange-600 font-medium text-xs">Provisional</span>
                                             {% endif %}
                                         </div>
                                         
@@ -537,7 +537,7 @@ window.calendarData = {
             id: {{ match.id }},
             day: {{ match.match_date.day }},
             date: '{{ match.match_date|date:"d/m/Y" }}',
-            time: '{% if match.match_date.time.hour != 0 or match.match_date.time.minute != 0 %}{{ match.match_date|date:"H:i" }}{% else %}Provisional{% endif %}',
+            time: '{% if match.match_date|date:"H:i" == "00:00" %}Sin horario confirmado{% else %}{{ match.match_date|date:"H:i" }}{% endif %}',
             home_team: '{{ match.home_team_display|escapejs }}',
             away_team: '{{ match.away_team_display|escapejs }}',
             home_team_logo: '{% if match.home_team and match.home_team.display_logo %}{{ match.home_team.display_logo|escapejs }}{% endif %}',
