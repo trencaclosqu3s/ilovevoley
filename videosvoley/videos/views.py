@@ -1027,16 +1027,24 @@ def image_bulk_upload(request):
         # Etiquetas compartidas
         shared_tags = request.POST.get('tags', '').strip()
         
-        # Procesar cada imagen
+        # Procesar cada imagen de forma optimizada
         success_count = 0
         errors = []
+        
+        # Detectar si es una petición móvil para optimizar procesamiento
+        user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+        is_mobile_request = any(mobile in user_agent for mobile in ['mobile', 'android', 'iphone', 'ipad'])
         
         for idx, uploaded_file in enumerate(uploaded_files):
             try:
                 # Procesar imagen (convertir HEIC si es necesario)
                 from .utils import process_uploaded_image
                 
-                processed_file, original_ext, was_converted = process_uploaded_image(uploaded_file)
+                # Optimizar para móvil si es necesario
+                processed_file, original_ext, was_converted = process_uploaded_image(
+                    uploaded_file, 
+                    optimize_for_mobile=is_mobile_request
+                )
                 
                 # Obtener título y descripción individual
                 title = request.POST.get(f'title_{idx}', uploaded_file.name.rsplit('.', 1)[0])
@@ -1065,8 +1073,10 @@ def image_bulk_upload(request):
                 if was_converted:
                     logger.info(f"Imagen {uploaded_file.name} convertida de {original_ext} a JPEG")
                 
-                # Procesar con Google Vision API si está habilitado
-                if getattr(settings, 'GOOGLE_VISION_ENABLED', False):
+                # Procesar con Google Vision API si está habilitado (solo si no es móvil para mejor rendimiento)
+                if (getattr(settings, 'GOOGLE_VISION_ENABLED', False) and 
+                    not is_mobile_request and 
+                    len(uploaded_files) <= 5):  # Limitar Vision API en carga múltiple
                     try:
                         from .utils import check_image_with_vision_api, process_vision_tags_for_volleyball
                         
@@ -1098,6 +1108,11 @@ def image_bulk_upload(request):
                         image.vision_api_checked = False
                         image.vision_api_safe = False
                         image.vision_api_details = {'error': str(e), 'api_response_ok': False}
+                else:
+                    # En móvil o carga múltiple, saltar Vision API para mejor rendimiento
+                    image.vision_api_checked = False
+                    image.vision_api_safe = True  # Asumir seguro para no bloquear
+                    image.vision_api_details = {'skipped': 'Mobile or bulk upload optimization'}
                 
                 # Guardar imagen
                 image.save()

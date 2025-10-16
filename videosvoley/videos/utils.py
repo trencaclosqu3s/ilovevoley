@@ -340,12 +340,14 @@ def optimize_image_for_web(image_file, max_width=1920, quality=85):
         return None
 
 
-def convert_heic_to_jpeg(heic_file):
+def convert_heic_to_jpeg(heic_file, max_size=2048, quality=85):
     """
-    Convierte una imagen HEIC a JPEG manteniendo metadatos EXIF
+    Convierte una imagen HEIC a JPEG de forma optimizada para móvil
     
     Args:
         heic_file: Archivo HEIC (UploadedFile o path)
+        max_size: Tamaño máximo de la imagen (por defecto 2048px)
+        quality: Calidad JPEG (por defecto 85)
         
     Returns:
         BytesIO: Imagen convertida a JPEG
@@ -366,6 +368,10 @@ def convert_heic_to_jpeg(heic_file):
         else:
             img = Image.open(heic_file)
         
+        # Redimensionar si es muy grande (optimización para móvil)
+        if max(img.size) > max_size:
+            img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+        
         # Convertir a RGB si es necesario
         if img.mode in ('RGBA', 'LA', 'P'):
             # Crear fondo blanco para transparencias
@@ -378,15 +384,15 @@ def convert_heic_to_jpeg(heic_file):
         elif img.mode != 'RGB':
             img = img.convert('RGB')
         
-        # Guardar como JPEG en memoria
+        # Guardar como JPEG en memoria con optimizaciones
         output = BytesIO()
         
-        # Intentar preservar EXIF
+        # Intentar preservar EXIF (solo si no es muy grande)
         exif_data = img.info.get('exif', None)
-        if exif_data:
-            img.save(output, format='JPEG', quality=95, exif=exif_data, optimize=True)
+        if exif_data and len(exif_data) < 65536:  # Limitar tamaño EXIF
+            img.save(output, format='JPEG', quality=quality, exif=exif_data, optimize=True, progressive=True)
         else:
-            img.save(output, format='JPEG', quality=95, optimize=True)
+            img.save(output, format='JPEG', quality=quality, optimize=True, progressive=True)
         
         output.seek(0)
         return output
@@ -437,12 +443,13 @@ def extract_frame_from_live_photo(video_file):
         return None
 
 
-def process_uploaded_image(uploaded_file):
+def process_uploaded_image(uploaded_file, optimize_for_mobile=True):
     """
-    Procesa una imagen subida, convirtiendo HEIC si es necesario
+    Procesa una imagen subida, convirtiendo HEIC si es necesario y optimizando para móvil
     
     Args:
         uploaded_file: Django UploadedFile
+        optimize_for_mobile: Si optimizar la imagen para dispositivos móviles
         
     Returns:
         tuple: (processed_file, original_extension, was_converted)
@@ -454,10 +461,14 @@ def process_uploaded_image(uploaded_file):
     original_name = uploaded_file.name
     original_ext = os.path.splitext(original_name)[1].lower()
     
-    # Si es HEIC, convertir a JPEG
+    # Si es HEIC, convertir a JPEG con optimizaciones
     if original_ext in ['.heic', '.heif']:
         try:
-            jpeg_data = convert_heic_to_jpeg(uploaded_file)
+            # Usar parámetros optimizados para móvil
+            max_size = 2048 if optimize_for_mobile else 4096
+            quality = 85 if optimize_for_mobile else 95
+            
+            jpeg_data = convert_heic_to_jpeg(uploaded_file, max_size=max_size, quality=quality)
             
             # Crear nuevo UploadedFile con el JPEG
             new_name = os.path.splitext(original_name)[0] + '.jpg'
