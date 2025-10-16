@@ -8,10 +8,10 @@
 {% endblock %}
 
 {% block content %}
-<div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple mb-6">
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<div class="bg-white rounded-lg shadow-lg p-3 sm:p-4 lg:p-6 border-t-4 border-csj-purple mb-4 sm:mb-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div class="flex-1 min-w-0">
-            <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Galería de Imágenes</h1>
+            <h1 class="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">Galería de Imágenes</h1>
             <p class="text-xs sm:text-sm text-gray-600 mt-1">{{ total_images }} imágenes totales{% if pending_images > 0 %} • {{ pending_images }} pendientes de moderación{% endif %}</p>
         </div>
         
@@ -76,9 +76,9 @@
 </div>
 
 <!-- Filtros con aplicación automática -->
-<div id="filtersSection" class="bg-white rounded-lg shadow-sm p-4 mb-6 hidden lg:block">
-    <div class="bg-gray-50 rounded-lg p-4">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+<div id="filtersSection" class="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-4 sm:mb-6 hidden lg:block">
+    <div class="bg-gray-50 rounded-lg p-3 sm:p-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
             <div>
                 {{ filter_form.search.label_tag }}
                 <input type="text" 
@@ -171,16 +171,17 @@
 </div>
 
 <!-- Grid de Imágenes -->
-<div class="bg-white rounded-lg shadow-sm p-6">
+<div class="bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6">
     {% if page_obj %}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
             {% for image in page_obj %}
                 <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
                     <div class="aspect-square relative">
                         <img src="{{ image.image.url }}" 
                              alt="{{ image.title }}" 
                              class="w-full h-full object-cover cursor-pointer"
-                             onclick="openLightbox('{{ image.image.url }}', '{{ image.title|escapejs }}', {{ image.id }})">
+                             onclick="openLightbox('{{ image.image.url }}', '{{ image.title|escapejs }}', {{ image.id }})"
+                             loading="lazy">
                         
                         <!-- Badge de estado (solo para admins) -->
                         {% if user.is_staff and image.status != 'approved' %}
@@ -195,11 +196,11 @@
                         {% endif %}
                     </div>
                     
-                    <div class="p-4">
-                        <h3 class="font-semibold text-gray-900 mb-2 truncate">{{ image.title }}</h3>
+                    <div class="p-3 sm:p-4">
+                        <h3 class="font-semibold text-gray-900 mb-2 truncate text-sm sm:text-base">{{ image.title }}</h3>
                         
                         {% if image.match %}
-                            <div class="text-sm text-gray-600 mb-2">
+                            <div class="text-xs sm:text-sm text-gray-600 mb-2">
                                 <i class="fas fa-calendar-alt mr-1"></i>
                                 <a href="{% url 'videos:match_images' image.match.id %}" class="hover:text-csj-purple">
                                     {{ image.match.home_team_display }} vs {{ image.match.away_team_display }}
@@ -208,10 +209,10 @@
                         {% endif %}
                         
                         {% if image.categories.exists %}
-                            <div class="text-sm text-gray-600 mb-2">
+                            <div class="text-xs sm:text-sm text-gray-600 mb-2">
                                 <i class="fas fa-tag mr-1"></i>
                                 {% for category in image.categories.all %}
-                                    <span class="inline-block bg-csj-purple bg-opacity-10 text-csj-purple px-2 py-0.5 rounded text-xs mr-1">
+                                    <span class="inline-block bg-csj-purple bg-opacity-10 text-csj-purple px-1.5 py-0.5 rounded text-xs mr-1">
                                         {{ category.name }}
                                     </span>
                                 {% endfor %}
@@ -229,16 +230,16 @@
 
         <!-- Paginación -->
         {% if page_obj.has_other_pages %}
-            <div class="flex justify-center mt-8 mb-4">
-                <nav class="flex items-center space-x-2">
+            <div class="flex justify-center mt-6 sm:mt-8 mb-4">
+                <nav class="flex items-center space-x-1 sm:space-x-2 flex-wrap justify-center">
                     <!-- Botón anterior -->
                     {% if page_obj.has_previous %}
                         <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}" 
-                           class="px-3 py-2 text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                           class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
                             ← Anterior
                         </a>
                     {% else %}
-                        <span class="px-3 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed">
+                        <span class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed">
                             ← Anterior
                         </span>
                     {% endif %}
@@ -247,13 +248,13 @@
                     {% for num in page_obj.paginator.page_range %}
                         {% if page_obj.number == num %}
                             <!-- Página actual -->
-                            <span class="px-4 py-2 text-sm font-medium text-white bg-csj-purple border border-csj-purple rounded-md">
+                            <span class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-csj-purple border border-csj-purple rounded-md">
                                 {{ num }}
                             </span>
                         {% else %}
                             <!-- Páginas no activas -->
                             <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}" 
-                               class="px-4 py-2 text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                               class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
                                 {{ num }}
                             </a>
                         {% endif %}
@@ -262,11 +263,11 @@
                     <!-- Botón siguiente -->
                     {% if page_obj.has_next %}
                         <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}" 
-                           class="px-3 py-2 text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                           class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
                             Siguiente →
                         </a>
                     {% else %}
-                        <span class="px-3 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed">
+                        <span class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed">
                             Siguiente →
                         </span>
                     {% endif %}
@@ -274,16 +275,16 @@
             </div>
             
             <!-- Info de paginación -->
-            <div class="text-center text-sm text-gray-500 mb-4">
+            <div class="text-center text-xs sm:text-sm text-gray-500 mb-4 px-2">
                 Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} imágenes totales)
             </div>
         {% endif %}
     {% else %}
-        <div class="text-center py-12">
-            <i class="fas fa-images text-gray-400 text-6xl mb-4"></i>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">No se encontraron imágenes</h3>
-            <p class="text-gray-600 mb-4">No hay imágenes que coincidan con los filtros seleccionados.</p>
-            <a href="{% url 'videos:image_upload' %}" class="bg-csj-purple text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200">
+        <div class="text-center py-8 sm:py-12 px-4">
+            <i class="fas fa-images text-gray-400 text-4xl sm:text-6xl mb-4"></i>
+            <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-2">No se encontraron imágenes</h3>
+            <p class="text-sm sm:text-base text-gray-600 mb-4">No hay imágenes que coincidan con los filtros seleccionados.</p>
+            <a href="{% url 'videos:image_upload' %}" class="bg-csj-purple text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm sm:text-base">
                 <i class="fas fa-plus mr-2"></i>Subir primera imagen
             </a>
         </div>
