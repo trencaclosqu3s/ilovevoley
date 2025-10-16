@@ -12,10 +12,36 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div class="flex-1 min-w-0 w-full sm:w-auto">
             <h1 class="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">Galería de Imágenes</h1>
-            <p class="text-xs sm:text-sm text-gray-600 mt-1">{{ total_images }} imágenes totales{% if pending_images > 0 %} • {{ pending_images }} pendientes de moderación{% endif %}</p>
+            <p class="text-xs sm:text-sm text-gray-600 mt-1">
+                {% if view_mode == 'albums' %}
+                    {{ total_albums }} álbumes • {{ total_single_images }} imágenes individuales{% if pending_images > 0 %} • {{ pending_images }} pendientes de moderación{% endif %}
+                {% else %}
+                    {{ total_images }} imágenes totales{% if pending_images > 0 %} • {{ pending_images }} pendientes de moderación{% endif %}
+                {% endif %}
+            </p>
         </div>
         
         <div class="flex items-center gap-2 w-full sm:w-auto">
+            <!-- Toggle de vista -->
+            <div class="flex bg-gray-100 rounded-lg p-1 flex-shrink-0">
+                <a href="{% url 'videos:image_gallery' %}" 
+                   class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors
+                          {% if view_mode == 'albums' %}bg-white text-csj-purple shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
+                    <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                    Álbumes
+                </a>
+                <a href="{% url 'videos:image_gallery_individual' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" 
+                   class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors
+                          {% if view_mode != 'albums' %}bg-white text-csj-purple shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
+                    <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                    </svg>
+                    Individual
+                </a>
+            </div>
+            
             <!-- Botón de filtros (solo móvil) -->
             <button onclick="toggleFilters()" 
                     class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark transition touch-manipulation flex-shrink-0">
@@ -214,57 +240,161 @@
 <div class="bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6">
     {% if page_obj %}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-            {% for image in page_obj %}
-                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
-                    <div class="aspect-square relative">
-                        <img src="{{ image.image.url }}" 
-                             alt="{{ image.title }}" 
-                             class="w-full h-full object-cover cursor-pointer"
-                             onclick="openLightbox('{{ image.image.url }}', '{{ image.title|escapejs }}', {{ image.id }})"
-                             loading="lazy">
-                        
-                        <!-- Badge de estado (solo para admins) -->
-                        {% if user.is_staff and image.status != 'approved' %}
-                            <span class="absolute top-2 right-2 px-2 py-1 text-xs font-semibold rounded-full
-                                {% if image.status == 'pending' %}bg-yellow-100 text-yellow-800
-                                {% elif image.status == 'rejected' %}bg-red-100 text-red-800
-                                {% endif %}">
-                                {% if image.status == 'pending' %}Pendiente
-                                {% elif image.status == 'rejected' %}Rechazada
+            {% for item in page_obj %}
+                {% if view_mode == 'albums' %}
+                    {% if item.type == 'album' %}
+                        <!-- Álbum de partido -->
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+                             onclick="window.location.href='{% url 'videos:match_images' item.match.id %}'">
+                            <div class="aspect-square relative">
+                                <!-- Mostrar hasta 4 miniaturas en grid 2x2 -->
+                                <div class="w-full h-full grid grid-cols-2 gap-0.5">
+                                    {% for image in item.images|slice:":4" %}
+                                        <div class="relative">
+                                            <img src="{{ image.image.url }}" 
+                                                 alt="{{ image.title }}" 
+                                                 class="w-full h-full object-cover">
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <!-- Overlay con contador si hay más de 4 imágenes -->
+                                {% if item.image_count > 4 %}
+                                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                                        <span class="text-white text-2xl font-bold">+{{ item.image_count|add:"-4" }}</span>
+                                    </div>
                                 {% endif %}
-                            </span>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="p-3 sm:p-4">
-                        <h3 class="font-semibold text-gray-900 mb-2 truncate text-sm sm:text-base">{{ image.title }}</h3>
-                        
-                        {% if image.match %}
-                            <div class="text-xs sm:text-sm text-gray-600 mb-2">
-                                <i class="fas fa-calendar-alt mr-1"></i>
-                                <a href="{% url 'videos:match_images' image.match.id %}" class="hover:text-csj-purple">
-                                    {{ image.match.home_team_display }} vs {{ image.match.away_team_display }}
-                                </a>
+                                
+                                <!-- Badge de álbum -->
+                                <div class="absolute top-2 left-2 bg-csj-purple text-white px-2 py-1 rounded-full text-xs font-semibold">
+                                    <i class="fas fa-images mr-1"></i>{{ item.image_count }}
+                                </div>
                             </div>
-                        {% endif %}
-                        
-                        {% if image.categories.exists %}
-                            <div class="text-xs sm:text-sm text-gray-600 mb-2">
-                                <i class="fas fa-tag mr-1"></i>
-                                {% for category in image.categories.all %}
-                                    <span class="inline-block bg-csj-purple bg-opacity-10 text-csj-purple px-1.5 py-0.5 rounded text-xs mr-1">
-                                        {{ category.name }}
+                            
+                            <div class="p-3 sm:p-4">
+                                <h3 class="font-semibold text-gray-900 mb-2 truncate text-sm sm:text-base">
+                                    {{ item.match.home_team_display }} vs {{ item.match.away_team_display }}
+                                </h3>
+                                
+                                <div class="text-xs sm:text-sm text-gray-600 mb-2">
+                                    <i class="fas fa-calendar-alt mr-1"></i>
+                                    {{ item.match.match_date|date:"d/m/Y" }}
+                                    {% if item.match.venue %}
+                                        <br><i class="fas fa-map-marker-alt mr-1"></i>{{ item.match.venue }}
+                                    {% endif %}
+                                </div>
+                                
+                                {% if item.match.league %}
+                                    <div class="text-xs sm:text-sm text-gray-600 mb-2">
+                                        <i class="fas fa-trophy mr-1"></i>
+                                        <span class="inline-block bg-csj-purple bg-opacity-10 text-csj-purple px-1.5 py-0.5 rounded text-xs">
+                                            {{ item.match.league.name }}
+                                        </span>
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="text-xs text-gray-500">
+                                    <i class="fas fa-images mr-1"></i>{{ item.image_count }} imagen{{ item.image_count|pluralize:"es" }}
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Imagen individual sin partido -->
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+                            <div class="aspect-square relative">
+                                <img src="{{ item.image.image.url }}" 
+                                     alt="{{ item.image.title }}" 
+                                     class="w-full h-full object-cover cursor-pointer"
+                                     onclick="openLightbox('{{ item.image.image.url }}', '{{ item.image.title|escapejs }}', {{ item.image.id }})"
+                                     loading="lazy">
+                                
+                                <!-- Badge de estado (solo para admins) -->
+                                {% if user.is_staff and item.image.status != 'approved' %}
+                                    <span class="absolute top-2 right-2 px-2 py-1 text-xs font-semibold rounded-full
+                                        {% if item.image.status == 'pending' %}bg-yellow-100 text-yellow-800
+                                        {% elif item.image.status == 'rejected' %}bg-red-100 text-red-800
+                                        {% endif %}">
+                                        {% if item.image.status == 'pending' %}Pendiente
+                                        {% elif item.image.status == 'rejected' %}Rechazada
+                                        {% endif %}
                                     </span>
-                                {% endfor %}
+                                {% endif %}
                             </div>
-                        {% endif %}
+                            
+                            <div class="p-3 sm:p-4">
+                                <h3 class="font-semibold text-gray-900 mb-2 truncate text-sm sm:text-base">{{ item.image.title }}</h3>
+                                
+                                {% if item.image.categories.exists %}
+                                    <div class="text-xs sm:text-sm text-gray-600 mb-2">
+                                        <i class="fas fa-tag mr-1"></i>
+                                        {% for category in item.image.categories.all %}
+                                            <span class="inline-block bg-csj-purple bg-opacity-10 text-csj-purple px-1.5 py-0.5 rounded text-xs mr-1">
+                                                {{ category.name }}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="flex justify-between items-center text-xs text-gray-500">
+                                    <span><i class="fas fa-user mr-1"></i>{{ item.image.uploaded_by.username }}</span>
+                                    <span>{{ item.image.upload_date|date:"d/m/Y" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <!-- Vista individual tradicional -->
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+                        <div class="aspect-square relative">
+                            <img src="{{ item.image.url }}" 
+                                 alt="{{ item.title }}" 
+                                 class="w-full h-full object-cover cursor-pointer"
+                                 onclick="openLightbox('{{ item.image.url }}', '{{ item.title|escapejs }}', {{ item.id }})"
+                                 loading="lazy">
+                            
+                            <!-- Badge de estado (solo para admins) -->
+                            {% if user.is_staff and item.status != 'approved' %}
+                                <span class="absolute top-2 right-2 px-2 py-1 text-xs font-semibold rounded-full
+                                    {% if item.status == 'pending' %}bg-yellow-100 text-yellow-800
+                                    {% elif item.status == 'rejected' %}bg-red-100 text-red-800
+                                    {% endif %}">
+                                    {% if item.status == 'pending' %}Pendiente
+                                    {% elif item.status == 'rejected' %}Rechazada
+                                    {% endif %}
+                                </span>
+                            {% endif %}
+                        </div>
                         
-                        <div class="flex justify-between items-center text-xs text-gray-500">
-                            <span><i class="fas fa-user mr-1"></i>{{ image.uploaded_by.username }}</span>
-                            <span>{{ image.upload_date|date:"d/m/Y" }}</span>
+                        <div class="p-3 sm:p-4">
+                            <h3 class="font-semibold text-gray-900 mb-2 truncate text-sm sm:text-base">{{ item.title }}</h3>
+                            
+                            {% if item.match %}
+                                <div class="text-xs sm:text-sm text-gray-600 mb-2">
+                                    <i class="fas fa-calendar-alt mr-1"></i>
+                                    <a href="{% url 'videos:match_images' item.match.id %}" class="hover:text-csj-purple">
+                                        {{ item.match.home_team_display }} vs {{ item.match.away_team_display }}
+                                    </a>
+                                </div>
+                            {% endif %}
+                            
+                            {% if item.categories.exists %}
+                                <div class="text-xs sm:text-sm text-gray-600 mb-2">
+                                    <i class="fas fa-tag mr-1"></i>
+                                    {% for category in item.categories.all %}
+                                        <span class="inline-block bg-csj-purple bg-opacity-10 text-csj-purple px-1.5 py-0.5 rounded text-xs mr-1">
+                                            {{ category.name }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            
+                            <div class="flex justify-between items-center text-xs text-gray-500">
+                                <span><i class="fas fa-user mr-1"></i>{{ item.uploaded_by.username }}</span>
+                                <span>{{ item.upload_date|date:"d/m/Y" }}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
+                {% endif %}
             {% endfor %}
         </div>
 
@@ -316,7 +446,11 @@
             
             <!-- Info de paginación -->
             <div class="text-center text-xs sm:text-sm text-gray-500 mb-4 px-2">
-                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} imágenes totales)
+                {% if view_mode == 'albums' %}
+                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} elementos totales)
+                {% else %}
+                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} imágenes totales)
+                {% endif %}
             </div>
         {% endif %}
     {% else %}

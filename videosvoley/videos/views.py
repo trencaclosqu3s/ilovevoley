@@ -804,6 +804,180 @@ def image_gallery(request):
         'current_filters': request.GET.dict(),
         'show_all': show_all,
         'has_preferences': request.user.preferred_categories.exists(),
+        'view_mode': 'individual',
+    }
+    
+    return render(request, 'videos/image_gallery.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def image_gallery_albums(request):
+    """Vista de galería de imágenes agrupadas por partido (álbumes)"""
+    from django.db.models import Count, Prefetch
+    
+    # Obtener imágenes con sus partidos relacionados
+    images = Image.objects.select_related(
+        'match__home_team', 'match__away_team', 'match__league', 
+        'uploaded_by'
+    ).prefetch_related('categories').filter(status='approved').order_by('-upload_date')
+    
+    # Variable para controlar si mostrar todo el contenido
+    show_all = request.GET.get('show_all', '0') == '1'
+    
+    # Aplicar filtros (reutilizar lógica de image_gallery)
+    filter_form = ImageFilterForm(request.GET)
+    if filter_form.is_valid():
+        search = filter_form.cleaned_data.get('search')
+        tags = filter_form.cleaned_data.get('tags')
+        image_type = filter_form.cleaned_data.get('image_type')
+        match_filter = filter_form.cleaned_data.get('match_filter')
+        category = filter_form.cleaned_data.get('category')
+        year = filter_form.cleaned_data.get('year')
+        status_filter = filter_form.cleaned_data.get('status')
+        
+        # Búsqueda general en título, descripción y etiquetas
+        if search:
+            images = images.filter(
+                Q(title__icontains=search) | 
+                Q(description__icontains=search) |
+                Q(tags__icontains=search)
+            )
+        
+        # Búsqueda específica por etiquetas (incluye auto_tags)
+        if tags:
+            tag_queries = Q()
+            for tag in tags.split(','):
+                tag = tag.strip()
+                if tag:
+                    tag_queries |= (
+                        Q(tags__icontains=tag) |
+                        Q(auto_tags__icontains=tag)
+                    )
+            images = images.filter(tag_queries)
+        
+        # Filtro por tipo de imagen
+        if image_type:
+            images = images.filter(image_type=image_type)
+        
+        # Filtro por partido vinculado
+        if match_filter == 'with_match':
+            images = images.filter(match__isnull=False)
+        elif match_filter == 'without_match':
+            images = images.filter(match__isnull=True)
+        
+        if category:
+            images = images.filter(categories=category)
+        elif not show_all and request.user.preferred_categories.exists():
+            # Filtrar por preferencias solo si no hay filtro de categoría específico
+            user_categories = request.user.preferred_categories.all()
+            images = images.filter(categories__in=user_categories).distinct()
+            
+        if year:
+            images = images.filter(year=year)
+            
+        if status_filter:
+            images = images.filter(status=status_filter)
+    else:
+        # Si no hay filtros válidos, aplicar preferencias por defecto
+        if not show_all and request.user.preferred_categories.exists():
+            user_categories = request.user.preferred_categories.all()
+            images = images.filter(categories__in=user_categories).distinct()
+    
+    # Agrupar imágenes por partido
+    albums = []
+    
+    # Obtener imágenes con partido
+    images_with_match = images.filter(match__isnull=False)
+    
+    # Agrupar por partido
+    match_groups = {}
+    for image in images_with_match:
+        match_id = image.match.id
+        if match_id not in match_groups:
+            match_groups[match_id] = {
+                'match': image.match,
+                'images': [],
+                'image_count': 0
+            }
+        match_groups[match_id]['images'].append(image)
+        match_groups[match_id]['image_count'] += 1
+    
+    # Convertir a lista y ordenar por fecha del partido
+    albums = list(match_groups.values())
+    albums.sort(key=lambda x: x['match'].match_date, reverse=True)
+    
+    # Obtener imágenes sin partido como imágenes individuales
+    images_without_match = list(images.filter(match__isnull=True))
+    
+    # Paginación para álbumes - mezclar álbumes e imágenes individuales
+    all_items = []
+    
+    # Agregar álbumes
+    for album in albums:
+        all_items.append({
+            'type': 'album',
+            'match': album['match'],
+            'images': album['images'],
+            'image_count': album['image_count']
+        })
+    
+    # Agregar imágenes individuales
+    for image in images_without_match:
+        all_items.append({
+            'type': 'single',
+            'image': image,
+            'image_count': 1
+        })
+    
+    # Ordenar por fecha (partidos primero, luego imágenes individuales)
+    all_items.sort(key=lambda x: x['match'].match_date if x['type'] == 'album' else x['image'].upload_date, reverse=True)
+    
+    paginator = Paginator(all_items, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Estadísticas para la vista
+    total_images = Image.objects.filter(status='approved').count()
+    pending_images = Image.objects.filter(status='pending').count()
+    total_albums = len(albums)
+    total_single_images = len(images_without_match)
+    
+    # Obtener etiquetas populares para sugerencias
+    popular_tags = []
+    try:
+        # Recopilar todas las etiquetas manuales
+        manual_tags = []
+        for image in Image.objects.filter(status='approved').exclude(tags=''):
+            manual_tags.extend([tag.strip().lower() for tag in image.tags.split(',') if tag.strip()])
+        
+        # Recopilar etiquetas automáticas
+        auto_tags = []
+        for image in Image.objects.filter(status='approved').exclude(auto_tags=[]):
+            if isinstance(image.auto_tags, list):
+                auto_tags.extend([tag.lower() for tag in image.auto_tags])
+        
+        # Combinar y contar frecuencias
+        from collections import Counter
+        all_tags = manual_tags + auto_tags
+        if all_tags:
+            tag_counts = Counter(all_tags)
+            popular_tags = [tag for tag, count in tag_counts.most_common(15)]
+    except Exception as e:
+        print(f"Error obteniendo etiquetas populares: {e}")
+    
+    context = {
+        'page_obj': page_obj,
+        'filter_form': filter_form,
+        'total_images': total_images,
+        'pending_images': pending_images,
+        'total_albums': total_albums,
+        'total_single_images': total_single_images,
+        'popular_tags': popular_tags,
+        'current_filters': request.GET.dict(),
+        'show_all': show_all,
+        'has_preferences': request.user.preferred_categories.exists(),
+        'view_mode': 'albums',
     }
     
     return render(request, 'videos/image_gallery.html', context)
@@ -959,7 +1133,17 @@ def image_upload(request):
                 for error in errors:
                     messages.error(request, f'{field}: {error}')
     else:
-        form = ImageUploadForm()
+        # Pre-cargar partido si se pasa en la URL
+        initial_data = {}
+        match_id = request.GET.get('match')
+        if match_id:
+            try:
+                match = Match.objects.get(id=match_id)
+                initial_data['match'] = match
+            except Match.DoesNotExist:
+                pass
+        
+        form = ImageUploadForm(initial=initial_data)
     
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
     club_query = (
@@ -1165,6 +1349,15 @@ def image_bulk_upload(request):
             return redirect('videos:image_bulk_upload')
     
     # GET request
+    # Pre-cargar partido si se pasa en la URL
+    selected_match = None
+    match_id = request.GET.get('match')
+    if match_id:
+        try:
+            selected_match = Match.objects.get(id=match_id)
+        except Match.DoesNotExist:
+            pass
+    
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
     club_query = (
         Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
@@ -1205,6 +1398,7 @@ def image_bulk_upload(request):
         'categories': categories,
         'image_types': image_types,
         'current_year': timezone.now().year,
+        'selected_match': selected_match,
     }
     
     return render(request, 'videos/image_bulk_upload.html', context)

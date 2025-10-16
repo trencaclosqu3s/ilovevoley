@@ -328,10 +328,36 @@
                 <p class="text-sm text-gray-500 mb-4">
                     Aún no se han subido imágenes para este enfrentamiento.
                 </p>
-                <a href="{% url 'videos:image_upload' %}?match={{ match.id }}" 
-                   class="inline-flex items-center px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
-                    <i class="fas fa-plus mr-2"></i>Subir primera imagen
-                </a>
+                <!-- Menú desplegable de subida -->
+                <div class="relative">
+                    <button id="upload-menu-btn-{{ match.id }}"
+                            class="inline-flex items-center px-2.5 py-1 bg-csj-purple text-white rounded-md hover:bg-purple-700 transition-colors duration-200 text-xs">
+                        <i class="fas fa-plus mr-1 text-xs"></i>Subir imagen
+                        <svg class="w-2.5 h-2.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    
+                    <div id="upload-menu-{{ match.id }}"
+                         class="hidden absolute mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                        <div class="py-1 min-w-full">
+                            <a href="{% url 'videos:image_upload' %}?match={{ match.id }}" 
+                               class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 whitespace-nowrap">
+                                <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                Subir una imagen
+                            </a>
+                            <a href="{% url 'videos:image_bulk_upload' %}?match={{ match.id }}" 
+                               class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 whitespace-nowrap">
+                                <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                                </svg>
+                                Subir múltiples imágenes
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         {% endif %}
     </div>
@@ -586,6 +612,57 @@ document.getElementById('resultModal').addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeResultModal();
+    }
+});
+
+// Menú desplegable de subida de imágenes
+document.addEventListener('DOMContentLoaded', function() {
+    const menuBtn = document.getElementById('upload-menu-btn-{{ match.id }}');
+    const menu = document.getElementById('upload-menu-{{ match.id }}');
+    
+    if (menuBtn && menu) {
+        function positionDropdown() {
+            if (menu.classList.contains('hidden')) return;
+            
+            const viewportWidth = window.innerWidth;
+            
+            // En móvil, usar ancho completo
+            if (viewportWidth < 640) {
+                menu.style.left = '0';
+                menu.style.right = '0';
+                menu.style.transform = 'none';
+                menu.style.width = 'calc(100vw - 2rem)';
+                menu.style.maxWidth = '320px';
+            } else {
+                // En desktop, centrar debajo del botón
+                menu.style.left = '50%';
+                menu.style.right = 'auto';
+                menu.style.transform = 'translateX(-50%)';
+                menu.style.width = '12rem'; // w-48
+            }
+        }
+        
+        menuBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            menu.classList.toggle('hidden');
+            
+            // Reposicionar después de mostrar
+            if (!menu.classList.contains('hidden')) {
+                requestAnimationFrame(() => {
+                    positionDropdown();
+                });
+            }
+        });
+        
+        // Reposicionar al redimensionar ventana
+        window.addEventListener('resize', positionDropdown);
+        
+        // Cerrar al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!menu.contains(e.target) && !menuBtn.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
     }
 });
 </script>

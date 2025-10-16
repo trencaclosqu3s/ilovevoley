@@ -24,7 +24,8 @@ urlpatterns = [
     path('plantillas/', views.roster_overview, name='roster_overview'),
     
     # URLs de imágenes
-    path('imagenes/', views.image_gallery, name='image_gallery'),
+    path('imagenes/', views.image_gallery_albums, name='image_gallery'),
+    path('imagenes/individual/', views.image_gallery, name='image_gallery_individual'),
     path('imagenes/subir/', views.image_upload, name='image_upload'),
     path('imagenes/subir-multiples/', views.image_bulk_upload, name='image_bulk_upload'),
     path('imagenes/<int:image_id>/', views.image_detail, name='image_detail'),
