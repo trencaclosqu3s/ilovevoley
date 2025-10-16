@@ -239,18 +239,18 @@
 <!-- Grid de Imágenes -->
 <div class="bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6">
     {% if page_obj %}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 w-full">
             {% for item in page_obj %}
                 {% if view_mode == 'albums' %}
                     {% if item.type == 'album' %}
                         <!-- Álbum de partido -->
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer w-full"
                              onclick="window.location.href='{% url 'videos:match_images' item.match.id %}'">
-                            <div class="aspect-square relative">
+                            <div class="aspect-square relative overflow-hidden">
                                 <!-- Mostrar hasta 4 miniaturas en grid 2x2 -->
-                                <div class="w-full h-full grid grid-cols-2 gap-0.5">
+                                <div class="w-full h-full grid grid-cols-2 gap-0.5 absolute inset-0">
                                     {% for image in item.images|slice:":4" %}
-                                        <div class="relative">
+                                        <div class="relative overflow-hidden">
                                             <img src="{{ image.image.url }}" 
                                                  alt="{{ image.title }}" 
                                                  class="w-full h-full object-cover">
@@ -260,13 +260,13 @@
                                 
                                 <!-- Overlay con contador si hay más de 4 imágenes -->
                                 {% if item.image_count > 4 %}
-                                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
                                         <span class="text-white text-2xl font-bold">+{{ item.image_count|add:"-4" }}</span>
                                     </div>
                                 {% endif %}
                                 
                                 <!-- Badge de álbum -->
-                                <div class="absolute top-2 left-2 bg-csj-purple text-white px-2 py-1 rounded-full text-xs font-semibold">
+                                <div class="absolute top-2 left-2 bg-csj-purple text-white px-2 py-1 rounded-full text-xs font-semibold z-20">
                                     <i class="fas fa-images mr-1"></i>{{ item.image_count }}
                                 </div>
                             </div>
