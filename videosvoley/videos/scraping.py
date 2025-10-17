@@ -963,13 +963,7 @@ class FederationScraper:
                                         enriched = self._enrich_single_match(partido_data, league)
                                         if enriched:
                                             enriched_count += 1
-                                else:
-                                    # Si no coincide exactamente, intentar crear partidos nuevos
-                                    # solo si no existen ya
-                                    for partido_data in grupo.get('partidos', []):
-                                        created = self._create_match_from_json(partido_data, league)
-                                        if created:
-                                            new_matches_count += 1
+                                # NO procesar otros grupos - solo el grupo específico de la liga
             
             result = {
                 'status': 'success',
@@ -1227,6 +1221,24 @@ class FederationScraper:
             match_datetime = timezone.make_aware(match_datetime)
             
         except ValueError:
+            return False
+        
+        # VERIFICAR DUPLICADOS: Buscar si ya existe un partido con los mismos equipos y fecha
+        from datetime import timedelta
+        date_start = match_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_end = date_start + timedelta(days=1)
+        
+        existing_match = Match.objects.filter(
+            league=league,
+            home_team=home_team,
+            away_team=away_team,
+            match_date__gte=date_start,
+            match_date__lt=date_end,
+            is_friendly=False  # Solo verificar partidos oficiales
+        ).first()
+        
+        if existing_match:
+            logger.info(f"Match already exists (by teams and date): {home_team.name} vs {away_team.name} on {match_datetime.date()}")
             return False
         
         # Crear partido
