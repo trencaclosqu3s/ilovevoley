@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
+from django.db import models
 from videosvoley.videos.models import Video, Image, Match, League, Standing
 from videosvoley.rag.models import Document
 from videosvoley.rag.services import get_rag_service
@@ -33,12 +34,18 @@ class Command(BaseCommand):
             action='store_true',
             help='Mostrar qué se indexaría sin hacer cambios'
         )
+        parser.add_argument(
+            '--incremental',
+            action='store_true',
+            help='Solo indexar elementos nuevos o modificados desde la última indexación'
+        )
 
     def handle(self, *args, **options):
         source_type = options['source_type']
         limit = options.get('limit')
         force = options['force']
         dry_run = options['dry_run']
+        incremental = options['incremental']
 
         if dry_run:
             self.stdout.write(
@@ -50,7 +57,7 @@ class Command(BaseCommand):
 
             if source_type in ['video', 'all']:
                 try:
-                    total_indexed += self._index_videos(limit, force, dry_run)
+                    total_indexed += self._index_videos(limit, force, dry_run, incremental)
                 except Exception as e:
                     self.stdout.write(
                         self.style.ERROR(f'Error indexando videos: {e}')
@@ -58,7 +65,7 @@ class Command(BaseCommand):
 
             if source_type in ['image', 'all']:
                 try:
-                    total_indexed += self._index_images(limit, force, dry_run)
+                    total_indexed += self._index_images(limit, force, dry_run, incremental)
                 except Exception as e:
                     self.stdout.write(
                         self.style.ERROR(f'Error indexando imágenes: {e}')
@@ -66,7 +73,7 @@ class Command(BaseCommand):
 
             if source_type in ['match', 'all']:
                 try:
-                    total_indexed += self._index_matches(limit, force, dry_run)
+                    total_indexed += self._index_matches(limit, force, dry_run, incremental)
                 except Exception as e:
                     self.stdout.write(
                         self.style.ERROR(f'Error indexando partidos: {e}')
@@ -74,7 +81,7 @@ class Command(BaseCommand):
 
             if source_type in ['league', 'all']:
                 try:
-                    total_indexed += self._index_leagues(limit, force, dry_run)
+                    total_indexed += self._index_leagues(limit, force, dry_run, incremental)
                 except Exception as e:
                     self.stdout.write(
                         self.style.ERROR(f'Error indexando ligas: {e}')
@@ -82,7 +89,7 @@ class Command(BaseCommand):
 
             if source_type in ['standing', 'all']:
                 try:
-                    total_indexed += self._index_standings(limit, force, dry_run)
+                    total_indexed += self._index_standings(limit, force, dry_run, incremental)
                 except Exception as e:
                     self.stdout.write(
                         self.style.ERROR(f'Error indexando clasificaciones: {e}')
@@ -100,7 +107,7 @@ class Command(BaseCommand):
                 self.style.ERROR(f'Error general durante la indexación: {e}')
             )
 
-    def _index_videos(self, limit, force, dry_run):
+    def _index_videos(self, limit, force, dry_run, incremental=False):
         """Indexar videos"""
         self.stdout.write('Indexando videos...')
         
@@ -170,7 +177,7 @@ class Command(BaseCommand):
         self.stdout.write(f'Videos procesados: {indexed}')
         return indexed
 
-    def _index_images(self, limit, force, dry_run):
+    def _index_images(self, limit, force, dry_run, incremental=False):
         """Indexar imágenes"""
         self.stdout.write('Indexando imágenes...')
         
@@ -244,18 +251,33 @@ class Command(BaseCommand):
         self.stdout.write(f'Imágenes procesadas: {indexed}')
         return indexed
 
-    def _index_matches(self, limit, force, dry_run):
+    def _index_matches(self, limit, force, dry_run, incremental=False):
         """Indexar partidos"""
         self.stdout.write('Indexando partidos...')
         
-        matches = Match.objects.all()
+        matches = Match.objects.all().order_by('-id')
+        
+        # Filtro incremental: solo partidos nuevos
+        if incremental and not force:
+            # Obtener el ID más alto de los documentos ya indexados
+            last_indexed = Document.objects.filter(
+                source_type='match', 
+                is_indexed=True
+            ).aggregate(max_id=models.Max('source_id'))['max_id']
+            
+            if last_indexed:
+                matches = matches.filter(id__gt=last_indexed)
+                self.stdout.write(f'Modo incremental: procesando partidos desde ID {last_indexed + 1}')
+            else:
+                self.stdout.write('Modo incremental: no hay partidos previamente indexados')
+        
         if limit:
             matches = matches[:limit]
 
         indexed = 0
         for match in matches:
             try:
-                if not force and Document.objects.filter(
+                if not force and not incremental and Document.objects.filter(
                     source_type='match', 
                     source_id=match.id, 
                     is_indexed=True
@@ -319,7 +341,7 @@ class Command(BaseCommand):
         self.stdout.write(f'Partidos procesados: {indexed}')
         return indexed
 
-    def _index_leagues(self, limit, force, dry_run):
+    def _index_leagues(self, limit, force, dry_run, incremental=False):
         """Indexar ligas"""
         self.stdout.write('Indexando ligas...')
         
@@ -465,7 +487,7 @@ class Command(BaseCommand):
         
         return " | ".join(content_parts)
 
-    def _index_standings(self, limit, force, dry_run):
+    def _index_standings(self, limit, force, dry_run, incremental=False):
         """Indexar clasificaciones"""
         self.stdout.write('Indexando clasificaciones...')
         

@@ -151,3 +151,53 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('\n¡Scraping completado exitosamente!'))
         else:
             self.stdout.write(self.style.WARNING('\nScraping completado con algunos errores.'))
+        
+        # Auto-reindexar RAG después del scraping si hay datos nuevos
+        # NOTA: Solo para comando manual. Si usas Celery, la reindexación se hace automáticamente
+        if total_results['total_matches'] > 0 or total_results['total_standings'] > 0:
+            self._reindex_rag_data(total_results, verbose)
+
+    def _reindex_rag_data(self, results, verbose):
+        """Reindexar datos RAG después del scraping"""
+        try:
+            self.stdout.write('\n' + '='*60)
+            self.stdout.write(self.style.SUCCESS('🔄 ACTUALIZANDO SISTEMA RAG'))
+            
+            # Importar aquí para evitar dependencias circulares
+            from django.core.management import call_command
+            
+            # Reindexar partidos (modo incremental)
+            if results['total_matches'] > 0:
+                self.stdout.write('📊 Reindexando partidos nuevos...')
+                try:
+                    call_command(
+                        'index_documents',
+                        '--source-type', 'match',
+                        '--incremental',
+                        verbosity=1 if verbose else 0
+                    )
+                    self.stdout.write(self.style.SUCCESS('  ✓ Partidos actualizados'))
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f'  ✗ Error indexando partidos: {e}'))
+            
+            # Reindexar clasificaciones (forzado completo)
+            if results['total_standings'] > 0:
+                self.stdout.write('🏆 Reindexando clasificaciones...')
+                try:
+                    call_command(
+                        'index_documents',
+                        '--source-type', 'standing',
+                        '--force',
+                        verbosity=1 if verbose else 0
+                    )
+                    self.stdout.write(self.style.SUCCESS('  ✓ Clasificaciones actualizadas'))
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f'  ✗ Error indexando clasificaciones: {e}'))
+            
+            self.stdout.write(self.style.SUCCESS('\n🎉 Sistema RAG actualizado automáticamente'))
+            
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'\n❌ Error actualizando RAG: {e}'))
+            if verbose:
+                import traceback
+                self.stdout.write(traceback.format_exc())
