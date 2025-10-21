@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'videosvoley.core.apps.CoreConfig',
     'videosvoley.videos',
     'videosvoley.users',
+    'videosvoley.rag',
 ]
 
 SITE_ID = 1
@@ -278,6 +279,11 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 3600.0 * 24,  # Run daily (24 hours)
         'options': {'expire_seconds': 3600 * 2}  # Expire after 2 hours if not executed
     },
+    'rag-incremental-reindex': {
+        'task': 'videosvoley.rag.tasks.incremental_reindex_task',
+        'schedule': 3600.0 * 6,  # Run every 6 hours
+        'options': {'expire_seconds': 3600}  # Expire after 1 hour if not executed
+    },
 }
 
 # Admin URL Configuration
@@ -324,5 +330,17 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        'rag': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
+
+# Configuración del sistema RAG
+OLLAMA_HOST = env_config('OLLAMA_HOST', default='http://192.168.0.16:11434')  # Cambia por tu IP del servidor
+CHROMA_COLLECTION_NAME = env_config('CHROMA_COLLECTION_NAME', default='videosvoley_docs')
+CHROMA_PERSIST_DIR = env_config('CHROMA_PERSIST_DIR', default=os.path.join(BASE_DIR, 'chroma_db'))
+EMBEDDING_MODEL = env_config('EMBEDDING_MODEL', default='sentence-transformers/all-MiniLM-L6-v2')
+DEFAULT_OLLAMA_MODEL = env_config('DEFAULT_OLLAMA_MODEL', default='phi3:mini')
