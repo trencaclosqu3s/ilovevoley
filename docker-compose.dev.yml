@@ -20,6 +20,7 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
+      - chroma_data:/app/chroma_db
     ports:
       - "8000:8000"
     environment:
@@ -28,6 +29,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=change-me-in-production
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
+      - OLLAMA_HOST=http://192.168.0.16:11434
     depends_on:
       - db
       - redis
@@ -66,3 +68,4 @@ services:
 
 volumes:
   postgres_data:
+  chroma_data:
