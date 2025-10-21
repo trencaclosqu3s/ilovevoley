@@ -126,12 +126,15 @@ class RAGService:
             # Generar embedding
             embedding = self.generate_embedding(content)
             
+            # Limpiar metadatos: ChromaDB no permite valores None
+            cleaned_metadata = {k: v for k, v in metadata.items() if v is not None}
+
             # Añadir a ChromaDB
             self.collection.add(
                 ids=[document_id],
                 embeddings=[embedding],
                 documents=[content],
-                metadatas=[metadata]
+                metadatas=[cleaned_metadata]
             )
             
             logger.info(f"Documento {document_id} añadido a ChromaDB")

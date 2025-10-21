@@ -15,7 +15,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--source-type',
             type=str,
-            choices=['video', 'image', 'match', 'league', 'standing', 'all'],
+            choices=['video', 'image', 'match', 'league', 'standing', 'manual', 'all'],
             default='all',
             help='Tipo de fuente a indexar (default: all)'
         )
@@ -93,6 +93,14 @@ class Command(BaseCommand):
                 except Exception as e:
                     self.stdout.write(
                         self.style.ERROR(f'Error indexando clasificaciones: {e}')
+                    )
+
+            if source_type in ['manual', 'all']:
+                try:
+                    total_indexed += self._index_manuals(limit, force, dry_run)
+                except Exception as e:
+                    self.stdout.write(
+                        self.style.ERROR(f'Error indexando documentos manuales: {e}')
                     )
 
             self.stdout.write(
@@ -413,6 +421,50 @@ class Command(BaseCommand):
                 continue
 
         self.stdout.write(f'Ligas procesadas: {indexed}')
+        return indexed
+
+    def _index_manuals(self, limit, force, dry_run, incremental=False):
+        """Indexar documentos manuales (por ejemplo, reglamentos) ya almacenados en BD"""
+        self.stdout.write('Indexando documentos manuales...')
+
+        manuals = Document.objects.filter(source_type='manual')
+        if not force:
+            manuals = manuals.filter(is_indexed=False)
+        if limit:
+            manuals = manuals[:limit]
+
+        indexed = 0
+        for doc in manuals:
+            metadata = {
+                'title': doc.title,
+                'source_type': doc.source_type,
+                'source_id': doc.source_id,
+                'created_at': doc.created_at.isoformat() if doc.created_at else None,
+                **(doc.metadata or {})
+            }
+
+            if dry_run:
+                self.stdout.write(f"  - Manual: {doc.title}")
+                indexed += 1
+                continue
+
+            rag_service = get_rag_service()
+            success = rag_service.add_document(
+                document_id=str(doc.id),
+                content=doc.content,
+                metadata=metadata
+            )
+
+            if success:
+                doc.is_indexed = True
+                doc.save()
+                indexed += 1
+            else:
+                self.stdout.write(
+                    self.style.ERROR(f'Error indexando manual {doc.id}')
+                )
+
+        self.stdout.write(f'Manuales procesados: {indexed}')
         return indexed
 
     def _create_video_content(self, video):
