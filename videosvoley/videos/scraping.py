@@ -505,6 +505,146 @@ class JSONMatchesParser(BaseParser):
         }
 
 
+class JSONResultsParser(BaseParser):
+    """Parser para el endpoint JSON de resultados de partidos (op=2)"""
+    
+    def parse_content(self, content: str) -> Dict[str, Any]:
+        """Parsea el JSON de resultados de partidos de la federación"""
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing JSON results: {e}")
+            return {'matches': [], 'teams': []}
+        
+        matches = []
+        teams = []
+        
+        # Navegar por la estructura jerárquica del JSON
+        for categoria in data.get('categorias', []):
+            categoria_name = categoria.get('nombre', '')
+            
+            for competicion in categoria.get('competiciones', []):
+                competicion_name = competicion.get('nombre', '')
+                
+                for fase in competicion.get('fases', []):
+                    fase_name = fase.get('nombre', '')
+                    
+                    for grupo in fase.get('grupos', []):
+                        grupo_name = grupo.get('nombre', '')
+                        grupo_id = grupo.get('id', '')
+                        
+                        # Procesar partidos del grupo
+                        for partido_data in grupo.get('partidos', []):
+                            match_data = self._parse_single_json_result(partido_data, grupo_id, categoria_name)
+                            if match_data:
+                                matches.append(match_data)
+                                
+                                # Extraer equipos para actualización
+                                if match_data.get('home_team'):
+                                    teams.append({
+                                        'name': match_data['home_team'],
+                                        'federation_id': f"{grupo_id}_{match_data['home_team'].replace(' ', '_').lower()}",
+                                        'federation_club_id': str(partido_data.get('ID_CLUB_LOCAL', ''))
+                                    })
+                                if match_data.get('away_team'):
+                                    teams.append({
+                                        'name': match_data['away_team'],
+                                        'federation_id': f"{grupo_id}_{match_data['away_team'].replace(' ', '_').lower()}",
+                                        'federation_club_id': str(partido_data.get('ID_CLUB_VISITANTE', ''))
+                                    })
+        
+        return {'matches': matches, 'teams': teams}
+    
+    def _parse_single_json_result(self, partido_data: Dict, grupo_id: str, categoria_name: str) -> Optional[Dict[str, Any]]:
+        """Parsea un partido individual del JSON de resultados"""
+        
+        # Extraer equipos
+        home_team = (partido_data.get('ELOCAL') or '').strip()
+        away_team = (partido_data.get('EVISITANTE') or '').strip()
+        
+        if not home_team or not away_team:
+            return None
+        
+        # Parsear fecha y hora
+        fecha_str = partido_data.get('FECHA', '')
+        hora_str = partido_data.get('HORA', '')
+        
+        if not fecha_str:
+            return None
+        
+        try:
+            # Formato: "24/10/2025" y "18:15"
+            if hora_str:
+                match_datetime = datetime.strptime(f"{fecha_str} {hora_str}", "%d/%m/%Y %H:%M")
+            else:
+                match_datetime = datetime.strptime(fecha_str, "%d/%m/%Y")
+            
+            match_datetime = timezone.make_aware(match_datetime)
+            
+        except ValueError as e:
+            logger.warning(f"Error parsing date {fecha_str} {hora_str}: {e}")
+            return None
+        
+        # Extraer resultados - estos son los datos clave del endpoint op=2
+        home_score = partido_data.get('RESULTADO_LOCAL')
+        away_score = partido_data.get('RESULTADO_VISITANTE')
+        
+        # Verificar que el partido tenga resultados válidos
+        if home_score is None or away_score is None:
+            logger.debug(f"Partido sin resultados completos: {home_team} vs {away_team}")
+            return None
+        
+        # Determinar estado basado en resultados
+        status = 'finished'  # Los partidos con op=2 siempre están finalizados
+        
+        # Extraer información de árbitros y personal técnico
+        referee1 = (partido_data.get('arbitro1') or '').strip()
+        referee2 = (partido_data.get('arbitro2') or '').strip()
+        scorer = (partido_data.get('anotador') or '').strip()
+        timekeeper = (partido_data.get('cronometrador') or '').strip()
+        delegate = (partido_data.get('delegado') or '').strip()
+        
+        # Información del campo
+        field_name = (partido_data.get('Campo') or '').strip()
+        field_address = (partido_data.get('Direccion_Campo') or '').strip()
+        city = (partido_data.get('Municipio') or '').strip()
+        
+        # IDs de la federación
+        federation_club_local_id = str(partido_data.get('ID_CLUB_LOCAL', ''))
+        federation_club_away_id = str(partido_data.get('ID_CLUB_VISITANTE', ''))
+        
+        # Información adicional específica de resultados
+        acta_html = (partido_data.get('acta_html') or '').strip()
+        comentario = (partido_data.get('COMENTARIO') or '').strip()
+        resultado_web = partido_data.get('RESULTADO_WEB', False)
+        
+        return {
+            'home_team': home_team,
+            'away_team': away_team,
+            'match_date': match_datetime,
+            'venue': field_name,
+            'city': city,
+            'round_number': 1,  # El JSON no incluye jornada, usar 1 por defecto
+            'home_score': home_score,
+            'away_score': away_score,
+            'status': status,
+            'referee1': referee1,
+            'referee2': referee2,
+            'scorer': scorer,
+            'timekeeper': timekeeper,
+            'delegate': delegate,
+            'field_address': field_address,
+            'federation_club_local_id': federation_club_local_id,
+            'federation_club_away_id': federation_club_away_id,
+            'federation_id': str(partido_data.get('ID', '')),
+            'acta_html': acta_html,
+            'comentario': comentario,
+            'resultado_web': resultado_web,
+            'categoria': categoria_name,
+            'grupo_id': grupo_id,
+        }
+
+
 class FederationScraper:
     """Clase principal para manejar el scraping de la federación"""
     
@@ -515,6 +655,7 @@ class FederationScraper:
             'match_results': MatchesParser(league),
             'match_calendar': CalendarParser(league),
             'json_matches': JSONMatchesParser(league),
+            'json_results': JSONResultsParser(league),
         }
     
     def scrape_endpoint(self, endpoint: ScrapingEndpoint, **kwargs) -> Dict[str, Any]:

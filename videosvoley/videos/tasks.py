@@ -1581,3 +1581,331 @@ def scrape_and_enrich_all_task(self, round_number=None, category_filter=None, de
     
     return combined_results
 
+
+@shared_task(name='scrape_json_results', bind=True)
+def scrape_json_results_task(self, league_id=None, category_filter=None, delay=1.0, create_endpoint=False):
+    """
+    Ejecuta scraping de resultados usando el endpoint JSON op=2.
+    Obtiene todos los datos de una vez y filtra solo por los grupos que tenemos en la BD.
+    
+    Args:
+        league_id: ID de la liga específica a procesar (opcional)
+        category_filter: Filtrar solo ligas de una categoría específica (opcional)
+        delay: Tiempo de espera entre requests en segundos (default: 1.0)
+        create_endpoint: Crear endpoint de resultados JSON si no existe (default: False)
+    
+    Returns:
+        dict: Estadísticas del scraping realizado
+    """
+    logger.info("Iniciando scraping de resultados JSON (op=2) - enfoque eficiente")
+    
+    try:
+        # Usar endpoint específico para resultados
+        json_url = "https://www.voleibolib.net/JSON/get_partidos_desglose_competiciones.asp?op=2&fini=&ffin="
+        
+        # Obtener ligas activas
+        leagues = League.objects.filter(is_active=True).select_related('category')
+        
+        # Filtrar por liga específica si se especifica
+        if league_id:
+            leagues = leagues.filter(id=league_id)
+        
+        # Filtrar por categoría si se especifica
+        if category_filter:
+            leagues = leagues.filter(category__name__icontains=category_filter)
+        
+        if not leagues.exists():
+            error_msg = f'No se encontraron ligas activas'
+            if league_id:
+                error_msg += f' con ID {league_id}'
+            if category_filter:
+                error_msg += f" de categoría '{category_filter}'"
+            logger.warning(error_msg)
+            return {'status': 'error', 'message': error_msg}
+        
+        # Obtener datos del JSON de una vez
+        import requests
+        import json
+        
+        response = requests.get(json_url, timeout=30)
+        response.raise_for_status()
+        json_data = json.loads(response.text)
+        
+        # Obtener IDs de grupos disponibles en el JSON
+        available_group_ids = set()
+        for categoria in json_data.get('categorias', []):
+            for competicion in categoria.get('competiciones', []):
+                for fase in competicion.get('fases', []):
+                    for grupo in fase.get('grupos', []):
+                        available_group_ids.add(grupo.get('id'))
+        
+        # Filtrar ligas que tienen datos en el JSON
+        leagues_with_data = []
+        for league in leagues:
+            if str(league.federation_id) in available_group_ids:
+                leagues_with_data.append(league)
+            else:
+                logger.info(f"Saltando {league.name} - No hay datos en el JSON (federation_id: {league.federation_id})")
+        
+        leagues = leagues_with_data
+        logger.info(f"Ligas con datos en JSON: {len(leagues)} de {League.objects.filter(is_active=True).count()}")
+        
+        if not leagues:
+            return {'status': 'success', 'message': 'No se encontraron ligas con datos en el JSON', 'leagues_processed': 0}
+        
+        total_results = {
+            'leagues_processed': 0,
+            'leagues_errors': 0,
+            'matches_created': 0,
+            'matches_updated': 0,
+            'teams_created': 0,
+            'errors': []
+        }
+        
+        # Crear mapeo de grupo_id a league para procesamiento eficiente
+        group_league_map = {}
+        for league in leagues:
+            group_league_map[str(league.federation_id)] = league
+        
+        # Procesar cada categoría del JSON
+        for categoria in json_data.get('categorias', []):
+            categoria_name = categoria.get('nombre', '')
+            
+            for competicion in categoria.get('competiciones', []):
+                competicion_name = competicion.get('nombre', '')
+                
+                for fase in competicion.get('fases', []):
+                    fase_name = fase.get('nombre', '')
+                    
+                    for grupo in fase.get('grupos', []):
+                        grupo_id = grupo.get('id', '')
+                        
+                        # Solo procesar grupos que tenemos en la BD
+                        if grupo_id not in group_league_map:
+                            continue
+                        
+                        league = group_league_map[grupo_id]
+                        logger.info(f'Procesando resultados de {league.name} (grupo: {grupo_id})')
+                        
+                        try:
+                            # Crear o buscar endpoint si es necesario
+                            results_endpoint = league.endpoints.filter(
+                                endpoint_type='json_results',
+                                is_active=True
+                            ).first()
+                            
+                            if not results_endpoint and create_endpoint:
+                                from videosvoley.videos.models import ScrapingEndpoint
+                                results_endpoint = ScrapingEndpoint.objects.create(
+                                    league=league,
+                                    endpoint_type='json_results',
+                                    url_pattern=json_url,
+                                    parser_type='json_results',
+                                    is_active=True
+                                )
+                                logger.info(f'Endpoint de resultados JSON creado para {league.name}')
+                            
+                            # Procesar partidos del grupo
+                            partidos = grupo.get('partidos', [])
+                            if partidos:
+                                logger.info(f'Encontrados {len(partidos)} partidos con resultados en {league.name}')
+                                
+                                # Procesar partidos
+                                matches_created, matches_updated = _process_json_matches_from_group(
+                                    league, partidos, categoria_name, grupo_id
+                                )
+                                
+                                total_results['matches_created'] += matches_created
+                                total_results['matches_updated'] += matches_updated
+                                
+                                logger.info(f'Procesados en {league.name}: Creados: {matches_created}, Actualizados: {matches_updated}')
+                            else:
+                                logger.info(f'No se encontraron partidos con resultados en {league.name}')
+                            
+                            total_results['leagues_processed'] += 1
+                            
+                        except Exception as e:
+                            error_msg = f'Error procesando {league.name}: {str(e)}'
+                            logger.error(error_msg, exc_info=True)
+                            
+                            total_results['leagues_errors'] += 1
+                            total_results['errors'].append({
+                                'league': league.name,
+                                'error': str(e)
+                            })
+        
+        # Enviar email de notificación si hay errores y está habilitado
+        if total_results['errors'] and getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
+            try:
+                subject = f'Errores en scraping de resultados JSON - {total_results["leagues_errors"]} ligas con problemas'
+                message = f'Se encontraron errores en {total_results["leagues_errors"]} de {total_results["leagues_processed"]} ligas procesadas.\n\n'
+                message += 'Errores detallados:\n'
+                for error in total_results['errors']:
+                    message += f'- {error["league"]}: {error["error"]}\n'
+                
+                mail_admins(subject, message)
+                logger.info('Email de notificación de errores enviado')
+            except Exception as e:
+                logger.error(f'Error enviando email de notificación: {e}')
+        
+        logger.info(f'Scraping de resultados JSON completado: {total_results["leagues_processed"]} ligas procesadas, {total_results["matches_created"]} partidos creados, {total_results["matches_updated"]} partidos actualizados')
+        
+        return {
+            'status': 'success',
+            'leagues_processed': total_results['leagues_processed'],
+            'leagues_errors': total_results['leagues_errors'],
+            'matches_created': total_results['matches_created'],
+            'matches_updated': total_results['matches_updated'],
+            'teams_created': total_results['teams_created'],
+            'errors': total_results['errors']
+        }
+        
+    except Exception as e:
+        error_msg = f'Error general en scraping de resultados JSON: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return {'status': 'error', 'message': error_msg}
+
+
+def _process_json_matches_from_group(league, partidos_data, categoria_name, grupo_id):
+    """Procesa los partidos encontrados en un grupo específico del JSON de resultados"""
+    from unidecode import unidecode
+    from datetime import datetime
+    from django.utils import timezone
+    
+    matches_created = 0
+    matches_updated = 0
+    
+    for partido_data in partidos_data:
+        try:
+            # Extraer equipos
+            home_team_name = (partido_data.get('ELOCAL') or '').strip()
+            away_team_name = (partido_data.get('EVISITANTE') or '').strip()
+            
+            if not home_team_name or not away_team_name:
+                continue
+            
+            # Parsear fecha y hora
+            fecha_str = partido_data.get('FECHA', '')
+            hora_str = partido_data.get('HORA', '')
+            
+            if not fecha_str:
+                continue
+            
+            try:
+                if hora_str:
+                    match_datetime = datetime.strptime(f"{fecha_str} {hora_str}", "%d/%m/%Y %H:%M")
+                else:
+                    match_datetime = datetime.strptime(fecha_str, "%d/%m/%Y")
+                
+                match_datetime = timezone.make_aware(match_datetime)
+            except ValueError:
+                continue
+            
+            # Extraer resultados - verificar que el partido tenga resultados válidos
+            home_score = partido_data.get('RESULTADO_LOCAL')
+            away_score = partido_data.get('RESULTADO_VISITANTE')
+            
+            if home_score is None or away_score is None:
+                continue
+            
+            # Buscar equipos
+            home_team = _find_team_by_name(home_team_name, league)
+            away_team = _find_team_by_name(away_team_name, league)
+            
+            if not home_team or not away_team:
+                logger.debug(f'Saltando partido: {home_team_name} vs {away_team_name} (equipos no encontrados)')
+                continue
+            
+            # Buscar partido existente
+            match = Match.objects.filter(
+                home_team=home_team,
+                away_team=away_team,
+                match_date=match_datetime
+            ).first()
+            
+            if match:
+                # Actualizar partido existente
+                match.home_score = home_score
+                match.away_score = away_score
+                match.status = 'finished'
+                match.venue = (partido_data.get('Campo') or '').strip()
+                match.city = (partido_data.get('Municipio') or '').strip()
+                match.referee1 = (partido_data.get('arbitro1') or '').strip()
+                match.referee2 = (partido_data.get('arbitro2') or '').strip()
+                match.scorer = (partido_data.get('anotador') or '').strip()
+                match.timekeeper = (partido_data.get('cronometrador') or '').strip()
+                match.delegate = (partido_data.get('delegado') or '').strip()
+                match.field_address = (partido_data.get('Direccion_Campo') or '').strip()
+                match.federation_id = str(partido_data.get('ID', ''))
+                match.acta_html = (partido_data.get('acta_html') or '').strip()
+                match.save()
+                matches_updated += 1
+                
+                logger.debug(f'Actualizado: {home_team.name} {match.home_score}-{match.away_score} {away_team.name}')
+            else:
+                # Crear nuevo partido
+                match = Match.objects.create(
+                    league=league,
+                    home_team=home_team,
+                    away_team=away_team,
+                    match_date=match_datetime,
+                    home_score=home_score,
+                    away_score=away_score,
+                    status='finished',
+                    venue=(partido_data.get('Campo') or '').strip(),
+                    city=(partido_data.get('Municipio') or '').strip(),
+                    referee1=(partido_data.get('arbitro1') or '').strip(),
+                    referee2=(partido_data.get('arbitro2') or '').strip(),
+                    scorer=(partido_data.get('anotador') or '').strip(),
+                    timekeeper=(partido_data.get('cronometrador') or '').strip(),
+                    delegate=(partido_data.get('delegado') or '').strip(),
+                    field_address=(partido_data.get('Direccion_Campo') or '').strip(),
+                    federation_id=str(partido_data.get('ID', '')),
+                    acta_html=(partido_data.get('acta_html') or '').strip(),
+                    round_number=1  # El JSON no incluye jornada
+                )
+                matches_created += 1
+                
+                logger.debug(f'Creado: {home_team.name} {match.home_score}-{match.away_score} {away_team.name}')
+                
+        except Exception as e:
+            logger.error(f'Error procesando partido {partido_data.get("ELOCAL", "Unknown")} vs {partido_data.get("EVISITANTE", "Unknown")}: {str(e)}')
+            continue
+    
+    return matches_created, matches_updated
+
+
+
+
+def _find_team_by_name(team_name: str, league) -> 'Team':
+    """Busca un equipo por nombre en la liga"""
+    from unidecode import unidecode
+    
+    if not team_name:
+        return None
+    
+    # Normalizar nombre para búsqueda
+    normalized_name = unidecode(team_name.upper())
+    normalized_name = ''.join(c for c in normalized_name if c.isalnum() or c.isspace())
+    normalized_name = ' '.join(normalized_name.split())
+    
+    # Buscar por nombre exacto primero
+    team = Team.objects.filter(
+        name__iexact=team_name,
+        category=league.category
+    ).first()
+    
+    if team:
+        return team
+    
+    # Buscar por nombre normalizado
+    for team in Team.objects.filter(category=league.category):
+        team_normalized = unidecode(team.name.upper())
+        team_normalized = ''.join(c for c in team_normalized if c.isalnum() or c.isspace())
+        team_normalized = ' '.join(team_normalized.split())
+        
+        if team_normalized == normalized_name:
+            return team
+    
+    return None
+

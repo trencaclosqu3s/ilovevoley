@@ -396,12 +396,15 @@ class ScrapingEndpoint(models.Model):
         ('standings', 'Clasificación'),
         ('results', 'Resultados'),
         ('calendar', 'Calendario'),
+        ('json_results', 'Resultados JSON'),
     ]
     
     PARSER_TYPES = [
         ('table_standings', 'Tabla de Clasificación'),
         ('match_results', 'Resultados de Partidos'),
         ('match_calendar', 'Calendario de Partidos'),
+        ('json_matches', 'Partidos JSON (próximos)'),
+        ('json_results', 'Resultados JSON (finalizados)'),
     ]
     
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='endpoints')
