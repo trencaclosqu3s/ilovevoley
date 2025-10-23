@@ -1586,7 +1586,7 @@ def scrape_and_enrich_all_task(self, round_number=None, category_filter=None, de
 def scrape_json_results_task(self, league_id=None, category_filter=None, delay=1.0, create_endpoint=False):
     """
     Ejecuta scraping de resultados usando el endpoint JSON op=2.
-    Obtiene todos los datos de una vez y filtra solo por los grupos que tenemos en la BD.
+    Usa el nuevo sistema unificado para máxima eficiencia.
     
     Args:
         league_id: ID de la liga específica a procesar (opcional)
@@ -1597,173 +1597,45 @@ def scrape_json_results_task(self, league_id=None, category_filter=None, delay=1
     Returns:
         dict: Estadísticas del scraping realizado
     """
-    logger.info("Iniciando scraping de resultados JSON (op=2) - enfoque eficiente")
+    # Usar la tarea genérica para procesar resultados
+    json_url = "https://www.voleibolib.net/JSON/get_partidos_desglose_competiciones.asp?op=2&fini=&ffin="
     
-    try:
-        # Usar endpoint específico para resultados
-        json_url = "https://www.voleibolib.net/JSON/get_partidos_desglose_competiciones.asp?op=2&fini=&ffin="
-        
-        # Obtener ligas activas
-        leagues = League.objects.filter(is_active=True).select_related('category')
-        
-        # Filtrar por liga específica si se especifica
-        if league_id:
-            leagues = leagues.filter(id=league_id)
-        
-        # Filtrar por categoría si se especifica
-        if category_filter:
-            leagues = leagues.filter(category__name__icontains=category_filter)
-        
-        if not leagues.exists():
-            error_msg = f'No se encontraron ligas activas'
-            if league_id:
-                error_msg += f' con ID {league_id}'
-            if category_filter:
-                error_msg += f" de categoría '{category_filter}'"
-            logger.warning(error_msg)
-            return {'status': 'error', 'message': error_msg}
-        
-        # Obtener datos del JSON de una vez
-        import requests
-        import json
-        
-        response = requests.get(json_url, timeout=30)
-        response.raise_for_status()
-        json_data = json.loads(response.text)
-        
-        # Obtener IDs de grupos disponibles en el JSON
-        available_group_ids = set()
-        for categoria in json_data.get('categorias', []):
-            for competicion in categoria.get('competiciones', []):
-                for fase in competicion.get('fases', []):
-                    for grupo in fase.get('grupos', []):
-                        available_group_ids.add(grupo.get('id'))
-        
-        # Filtrar ligas que tienen datos en el JSON
-        leagues_with_data = []
-        for league in leagues:
-            if str(league.federation_id) in available_group_ids:
-                leagues_with_data.append(league)
-            else:
-                logger.info(f"Saltando {league.name} - No hay datos en el JSON (federation_id: {league.federation_id})")
-        
-        leagues = leagues_with_data
-        logger.info(f"Ligas con datos en JSON: {len(leagues)} de {League.objects.filter(is_active=True).count()}")
-        
-        if not leagues:
-            return {'status': 'success', 'message': 'No se encontraron ligas con datos en el JSON', 'leagues_processed': 0}
-        
-        total_results = {
-            'leagues_processed': 0,
-            'leagues_errors': 0,
-            'matches_created': 0,
-            'matches_updated': 0,
-            'teams_created': 0,
-            'errors': []
-        }
-        
-        # Crear mapeo de grupo_id a league para procesamiento eficiente
-        group_league_map = {}
-        for league in leagues:
-            group_league_map[str(league.federation_id)] = league
-        
-        # Procesar cada categoría del JSON
-        for categoria in json_data.get('categorias', []):
-            categoria_name = categoria.get('nombre', '')
-            
-            for competicion in categoria.get('competiciones', []):
-                competicion_name = competicion.get('nombre', '')
-                
-                for fase in competicion.get('fases', []):
-                    fase_name = fase.get('nombre', '')
-                    
-                    for grupo in fase.get('grupos', []):
-                        grupo_id = grupo.get('id', '')
-                        
-                        # Solo procesar grupos que tenemos en la BD
-                        if grupo_id not in group_league_map:
-                            continue
-                        
-                        league = group_league_map[grupo_id]
-                        logger.info(f'Procesando resultados de {league.name} (grupo: {grupo_id})')
-                        
-                        try:
-                            # Crear o buscar endpoint si es necesario
-                            results_endpoint = league.endpoints.filter(
-                                endpoint_type='json_results',
-                                is_active=True
-                            ).first()
-                            
-                            if not results_endpoint and create_endpoint:
-                                from videosvoley.videos.models import ScrapingEndpoint
-                                results_endpoint = ScrapingEndpoint.objects.create(
-                                    league=league,
-                                    endpoint_type='json_results',
-                                    url_pattern=json_url,
-                                    parser_type='json_results',
-                                    is_active=True
-                                )
-                                logger.info(f'Endpoint de resultados JSON creado para {league.name}')
-                            
-                            # Procesar partidos del grupo
-                            partidos = grupo.get('partidos', [])
-                            if partidos:
-                                logger.info(f'Encontrados {len(partidos)} partidos con resultados en {league.name}')
-                                
-                                # Procesar partidos
-                                matches_created, matches_updated = _process_json_matches_from_group(
-                                    league, partidos, categoria_name, grupo_id
-                                )
-                                
-                                total_results['matches_created'] += matches_created
-                                total_results['matches_updated'] += matches_updated
-                                
-                                logger.info(f'Procesados en {league.name}: Creados: {matches_created}, Actualizados: {matches_updated}')
-                            else:
-                                logger.info(f'No se encontraron partidos con resultados en {league.name}')
-                            
-                            total_results['leagues_processed'] += 1
-                            
-                        except Exception as e:
-                            error_msg = f'Error procesando {league.name}: {str(e)}'
-                            logger.error(error_msg, exc_info=True)
-                            
-                            total_results['leagues_errors'] += 1
-                            total_results['errors'].append({
-                                'league': league.name,
-                                'error': str(e)
-                            })
-        
-        # Enviar email de notificación si hay errores y está habilitado
-        if total_results['errors'] and getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
-            try:
-                subject = f'Errores en scraping de resultados JSON - {total_results["leagues_errors"]} ligas con problemas'
-                message = f'Se encontraron errores en {total_results["leagues_errors"]} de {total_results["leagues_processed"]} ligas procesadas.\n\n'
-                message += 'Errores detallados:\n'
-                for error in total_results['errors']:
-                    message += f'- {error["league"]}: {error["error"]}\n'
-                
-                mail_admins(subject, message)
-                logger.info('Email de notificación de errores enviado')
-            except Exception as e:
-                logger.error(f'Error enviando email de notificación: {e}')
-        
-        logger.info(f'Scraping de resultados JSON completado: {total_results["leagues_processed"]} ligas procesadas, {total_results["matches_created"]} partidos creados, {total_results["matches_updated"]} partidos actualizados')
-        
-        return {
-            'status': 'success',
-            'leagues_processed': total_results['leagues_processed'],
-            'leagues_errors': total_results['leagues_errors'],
-            'matches_created': total_results['matches_created'],
-            'matches_updated': total_results['matches_updated'],
-            'teams_created': total_results['teams_created'],
-            'errors': total_results['errors']
-        }
-        
-    except Exception as e:
-        error_msg = f'Error general en scraping de resultados JSON: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {'status': 'error', 'message': error_msg}
+    return process_json_unified_task.delay(
+        json_url=json_url,
+        op_type='2',
+        league_id=league_id,
+        category_filter=category_filter,
+        delay=delay,
+        create_endpoint=create_endpoint
+    ).get()
+
+
+@shared_task(name='scrape_json_upcoming', bind=True)
+def scrape_json_upcoming_task(self, league_id=None, category_filter=None, delay=1.0, create_endpoint=False):
+    """
+    Ejecuta scraping de partidos próximos usando el endpoint JSON op=1.
+    Usa el nuevo sistema unificado para máxima eficiencia.
+    
+    Args:
+        league_id: ID de la liga específica a procesar (opcional)
+        category_filter: Filtrar solo ligas de una categoría específica (opcional)
+        delay: Tiempo de espera entre requests en segundos (default: 1.0)
+        create_endpoint: Crear endpoint de partidos próximos JSON si no existe (default: False)
+    
+    Returns:
+        dict: Estadísticas del scraping realizado
+    """
+    # Usar la tarea genérica para procesar partidos próximos
+    json_url = "https://www.voleibolib.net/JSON/get_partidos_desglose_competiciones.asp?op=1&fini=&ffin="
+    
+    return process_json_unified_task.delay(
+        json_url=json_url,
+        op_type='1',
+        league_id=league_id,
+        category_filter=category_filter,
+        delay=delay,
+        create_endpoint=create_endpoint
+    ).get()
 
 
 def _process_json_matches_from_group(league, partidos_data, categoria_name, grupo_id):
@@ -1883,6 +1755,109 @@ def _find_team_by_name(team_name: str, league) -> 'Team':
     
     if not team_name:
         return None
+
+
+@shared_task(name='process_json_unified', bind=True)
+def process_json_unified_task(self, json_url, op_type='1', league_id=None, category_filter=None, delay=1.0, create_endpoint=False):
+    """
+    Tarea genérica para procesar cualquier endpoint JSON de forma unificada.
+    
+    Args:
+        json_url: URL del endpoint JSON
+        op_type: Tipo de operación ('1' para próximos, '2' para resultados, etc.)
+        league_id: ID de la liga específica a procesar (opcional)
+        category_filter: Filtrar solo ligas de una categoría específica (opcional)
+        delay: Tiempo de espera entre requests en segundos (default: 1.0)
+        create_endpoint: Crear endpoint si no existe (default: False)
+    
+    Returns:
+        dict: Estadísticas del procesamiento realizado
+    """
+    logger.info(f"Iniciando procesamiento JSON unificado (op={op_type}) desde: {json_url}")
+    
+    try:
+        # Obtener ligas activas para validación
+        leagues = League.objects.filter(is_active=True).select_related('category')
+        
+        # Filtrar por liga específica si se especifica
+        if league_id:
+            leagues = leagues.filter(id=league_id)
+        
+        # Filtrar por categoría si se especifica
+        if category_filter:
+            leagues = leagues.filter(category__name__icontains=category_filter)
+        
+        if not leagues.exists():
+            error_msg = f'No se encontraron ligas activas'
+            if league_id:
+                error_msg += f' con ID {league_id}'
+            if category_filter:
+                error_msg += f" de categoría '{category_filter}'"
+            logger.warning(error_msg)
+            return {'status': 'error', 'message': error_msg}
+        
+        # Usar el sistema unificado para procesar el JSON
+        reference_league = leagues.first()
+        scraper = FederationScraper(reference_league)
+        
+        result = scraper.process_json_unified(
+            json_url=json_url,
+            op_type=op_type,
+            filter_by_db_leagues=True
+        )
+        
+        # Crear endpoints si es necesario
+        if create_endpoint and result.get('status') == 'success':
+            from videosvoley.videos.models import ScrapingEndpoint
+            
+            # Determinar el tipo de endpoint según op_type
+            if op_type == '1':
+                endpoint_type = 'json_matches'
+                parser_type = 'json_matches'
+            elif op_type == '2':
+                endpoint_type = 'json_results'
+                parser_type = 'json_results'
+            else:
+                endpoint_type = 'json_unified'
+                parser_type = 'json_unified'
+            
+            for league in leagues:
+                endpoint = league.endpoints.filter(
+                    endpoint_type=endpoint_type,
+                    is_active=True
+                ).first()
+                
+                if not endpoint:
+                    ScrapingEndpoint.objects.create(
+                        league=league,
+                        endpoint_type=endpoint_type,
+                        url_pattern=json_url,
+                        parser_type=parser_type,
+                        is_active=True,
+                        extra_params={'op_type': op_type}
+                    )
+                    logger.info(f'Endpoint {endpoint_type} creado para {league.name}')
+        
+        # Enviar email de notificación si hay errores y está habilitado
+        if result.get('errors') and getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
+            try:
+                subject = f'Errores en procesamiento JSON (op={op_type}) - {result.get("leagues_errors", 0)} ligas con problemas'
+                message = f'Se encontraron errores en {result.get("leagues_errors", 0)} de {result.get("leagues_processed", 0)} ligas procesadas.\n\n'
+                message += 'Errores detallados:\n'
+                for error in result.get('errors', []):
+                    message += f'- {error["league"]}: {error["error"]}\n'
+                
+                mail_admins(subject, message)
+                logger.info('Email de notificación de errores enviado')
+            except Exception as e:
+                logger.error(f'Error enviando email de notificación: {e}')
+        
+        return result
+        
+    except Exception as e:
+        error_msg = f'Error general en procesamiento JSON unificado: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return {'status': 'error', 'message': error_msg}
     
     # Normalizar nombre para búsqueda
     normalized_name = unidecode(team_name.upper())

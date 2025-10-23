@@ -405,6 +405,7 @@ class ScrapingEndpoint(models.Model):
         ('match_calendar', 'Calendario de Partidos'),
         ('json_matches', 'Partidos JSON (próximos)'),
         ('json_results', 'Resultados JSON (finalizados)'),
+        ('json_unified', 'JSON Unificado (configurable)'),
     ]
     
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='endpoints')
