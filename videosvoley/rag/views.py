@@ -32,7 +32,7 @@ def rag_chat(request):
     context = {
         'session': session,
         'messages': messages_list,
-        'available_models': ['phi3:mini', 'llama3.2', 'llama3.1', 'mistral', 'codellama']
+        'available_models': ['tinyllama', 'phi3:mini', 'llama3.2', 'llama3.1', 'mistral', 'codellama']
     }
     
     return render(request, 'rag/chat.html', context)
@@ -46,7 +46,7 @@ def send_message(request):
         data = json.loads(request.body)
         query = data.get('message', '').strip()
         session_id = data.get('session_id')
-        model = data.get('model', 'llama3.2')
+        model = data.get('model', 'phi3:mini')
         
         if not query:
             return JsonResponse({'error': 'El mensaje no puede estar vacío'}, status=400)
@@ -113,7 +113,7 @@ def chat_session_detail(request, session_id):
     context = {
         'session': session,
         'messages': messages_list,
-        'available_models': ['phi3:mini', 'llama3.2', 'llama3.1', 'mistral', 'codellama']
+        'available_models': ['tinyllama', 'phi3:mini', 'llama3.2', 'llama3.1', 'mistral', 'codellama']
     }
     
     return render(request, 'rag/chat.html', context)

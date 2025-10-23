@@ -32,7 +32,7 @@ def user_is_approved(user):
 def video_list(request):
     videos = Video.objects.select_related('category', 'created_by', 'match__home_team', 'match__away_team', 'match__league').prefetch_related('comments').all()
     categories = Category.objects.filter(is_active=True)
-    leagues = League.objects.filter(is_active=True)
+    leagues = League.objects.visible_in_app()
     teams = Team.objects.all()
     
     # Filtros
@@ -158,7 +158,7 @@ def video_detail(request, video_id):
 @user_passes_test(user_is_approved, login_url='/pending-approval/')
 def league_list(request):
     """Vista para mostrar todas las ligas disponibles"""
-    leagues = League.objects.filter(is_active=True).prefetch_related('matches__videos')
+    leagues = League.objects.visible_in_app().prefetch_related('matches__videos')
     categories = Category.objects.filter(is_active=True).order_by('name')
     
     # Variable para controlar si mostrar todo el contenido
@@ -312,7 +312,7 @@ def calendar_view(request):
         matches = matches.filter(league__category__in=user_categories)
     
     # Obtener datos para filtros
-    leagues = League.objects.filter(is_active=True).order_by('name')
+    leagues = League.objects.visible_in_app().order_by('name')
     categories = Category.objects.filter(is_active=True).order_by('name')
     
     # Obtener el mes actual o el solicitado
@@ -580,7 +580,7 @@ def standings_view(request):
         standings_by_league[league_name]['standings'].append(standing)
     
     # Obtener datos para filtros
-    leagues = League.objects.filter(is_active=True).order_by('name')
+    leagues = League.objects.visible_in_app().order_by('name')
     categories = Category.objects.filter(is_active=True).order_by('name')
     
     return render(request, 'videos/standings.html', {

@@ -153,11 +153,21 @@ class RAGService:
             # Generar embedding de la consulta mejorada
             query_embedding = self.generate_embedding(enhanced_query)
             
-            # Buscar en ChromaDB
-            results = self.collection.query(
-                query_embeddings=[query_embedding],
-                n_results=n_results * 2  # Obtener más resultados para filtrar
-            )
+            # Para consultas generales sobre voleibol, buscar específicamente en documentos manuales
+            query_lower = query.lower()
+            if any(term in query_lower for term in ['qué es', 'que es', 'definición', 'definicion', 'reglas', 'reglamento', 'altura', 'medidas', 'red']):
+                # Buscar solo en documentos de tipo manual (reglamentos)
+                results = self.collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=n_results * 3,  # Obtener más resultados
+                    where={"source_type": "manual"}  # Filtrar solo documentos manuales
+                )
+            else:
+                # Búsqueda normal para otras consultas
+                results = self.collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=n_results * 2  # Obtener más resultados para filtrar
+                )
             
             # Formatear y filtrar resultados
             documents = []
@@ -181,6 +191,10 @@ class RAGService:
     def _enhance_query_for_categories(self, query: str) -> str:
         """Mejorar la consulta para búsquedas de categorías específicas"""
         query_lower = query.lower()
+        
+        # Detectar consultas generales sobre voleibol (reglamento, reglas, etc.)
+        if any(term in query_lower for term in ['qué es', 'que es', 'definición', 'definicion', 'reglas', 'reglamento', 'altura', 'medidas', 'red', 'cancha', 'campo']):
+            return f"{query} reglamento voleibol reglas definición"
         
         # Detectar consultas sobre clasificación/standings
         if any(term in query_lower for term in ['clasificación', 'clasificacion', 'tabla', 'posición', 'posicion', 'puntos']):
@@ -210,6 +224,13 @@ class RAGService:
     def _filter_by_category(self, original_query: str, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Filtrar documentos por categoría específica mencionada en la consulta"""
         query_lower = original_query.lower()
+        
+        # Para consultas generales sobre voleibol, priorizar documentos de reglamento
+        if any(term in query_lower for term in ['qué es', 'que es', 'definición', 'definicion', 'reglas', 'reglamento', 'altura', 'medidas', 'red']):
+            # Priorizar documentos de tipo 'manual' (reglamentos)
+            manual_docs = [doc for doc in documents if doc.get('metadata', {}).get('source_type') == 'manual']
+            if manual_docs:
+                return manual_docs
         
         # Si se menciona una categoría específica, filtrar solo esos documentos
         if 'alevín' in query_lower or 'alevin' in query_lower:
@@ -244,7 +265,7 @@ class RAGService:
             # Preparar contexto
             context = "\n\n".join([doc['content'] for doc in context_documents])
             
-            # Crear prompt optimizado para phi3:mini
+            # Crear prompt optimizado
             prompt = f"""Eres un asistente especializado en voleibol y el sistema VideosVoley. 
 Responde la pregunta del usuario basándote en el contexto proporcionado.
 
@@ -255,54 +276,28 @@ Pregunta: {query}
 
 Respuesta:"""
             
-            # Generar respuesta con Ollama (con timeout thread-safe)
-            import threading
-            import time
-            
-            response_container = {'response': None, 'error': None}
-            
-            def ollama_request():
-                try:
-                    response_container['response'] = self.ollama_client.generate(
-                        model=model,
-                        prompt=prompt,
-                        options={
-                            'temperature': 0.7,
-                            'top_p': 0.9,
-                            'max_tokens': 1000
-                        }
-                    )
-                except Exception as e:
-                    response_container['error'] = e
-            
-            # Ejecutar request en un hilo separado con timeout
-            thread = threading.Thread(target=ollama_request)
-            thread.daemon = True
-            thread.start()
-            thread.join(timeout=30)  # 30 second timeout
-            
-            if thread.is_alive():
-                # Request timed out, provide fallback response
-                return self._create_fallback_response(query, context_documents)
-            
-            if response_container['error']:
-                # If it's a connection-related error, provide context summary
-                error_str = str(response_container['error']).lower()
-                if "connection" in error_str or "refused" in error_str or "timeout" in error_str:
-                    return self._create_fallback_response(query, context_documents)
-                else:
-                    raise response_container['error']
-            
-            if response_container['response']:
-                response = response_container['response']
+            # Generar respuesta con Ollama
+            response = self.ollama_client.generate(
+                model=model,
+                prompt=prompt,
+                options={
+                    'temperature': 0.7,
+                    'top_p': 0.9,
+                    'max_tokens': 2000
+                }
+            )
             
             return response['response']
             
         except Exception as e:
             logger.error(f"Error generando respuesta: {e}")
+            # Si es un error de memoria, usar fallback
+            error_str = str(e).lower()
+            if any(keyword in error_str for keyword in ["memory", "ram", "system memory", "out of memory"]):
+                return self._create_fallback_response(query, context_documents)
             return f"Lo siento, hubo un error generando la respuesta: {str(e)}"
     
-    def rag_query(self, query: str, n_results: int = 5, model: str = None) -> Dict[str, Any]:
+    def rag_query(self, query: str, n_results: int = 3, model: str = None) -> Dict[str, Any]:
         """Proceso completo RAG: búsqueda + generación"""
         try:
             # Buscar documentos relevantes
@@ -472,15 +467,110 @@ Respuesta:"""
                     logger.error(f"Error procesando fechas: {e}")
                     pass
         
-        # Respuesta genérica mejorada
-        response = "Basándome en la información disponible:\n\n"
-        for i, doc in enumerate(filtered_docs[:3], 1):
-            content_preview = doc['content'][:150] + "..." if len(doc['content']) > 150 else doc['content']
-            response += f"{i}. {content_preview}\n\n"
+        # Manejar consultas de información general
+        if not is_classification_query and not partidos_info:
+            # Intentar extraer información específica sobre medidas de redes
+            keywords = ['medidas', 'red', 'altura', 'categorías', 'masculinas', 'femeninas']
+            relevant_sentences = []
+            for doc in filtered_docs:
+                content = doc['content']
+                sentences = content.split('.') # Simple split by sentence
+                for sentence in sentences:
+                    if any(keyword in sentence.lower() for keyword in keywords) and query_lower in sentence.lower():
+                        relevant_sentences.append(sentence.strip())
+            
+            if relevant_sentences:
+                response = "Basándome en la información disponible, aquí tienes detalles relevantes:\n\n"
+                for sentence in relevant_sentences[:5]: # Limit to 5 relevant sentences
+                    response += f"- {sentence}.\n"
+                return response.strip()
+            
+            # Si no se encuentra información específica, proporcionar un resumen más coherente
+            response = "Basándome en la información disponible, aquí tienes un resumen de los documentos encontrados:\n\n"
+            for i, doc in enumerate(filtered_docs[:3], 1):
+                content_summary = ' '.join(doc['content'].split()[:50]) + "..." if len(doc['content'].split()) > 50 else doc['content']
+                response += f"{i}. {content_summary}\n\n"
+            
+            return response.strip()
         
-        return response.strip()
+        # Si no hay filtro específico o no se encuentran documentos, devolver todos
+        return filtered_docs
     
     def _create_classification_response(self, query_lower: str, filtered_docs: List[Dict[str, Any]]) -> str:
+        """Crear respuesta específica para consultas de clasificación"""
+        if not filtered_docs:
+            if 'infantil' in query_lower:
+                return "No encontré información sobre la clasificación de la liga infantil."
+            elif 'alevín' in query_lower:
+                return "No encontré información sobre la clasificación de la liga alevín."
+            elif 'cadete' in query_lower:
+                return "No encontré información sobre la clasificación de la liga cadete."
+            else:
+                return "No encontré información sobre clasificaciones."
+        
+        # Extraer información de clasificación
+        clasificaciones = []
+        for doc in filtered_docs:
+            content = doc['content']
+            if 'Clasificación Liga:' in content:
+                try:
+                    # Extraer datos de clasificación
+                    parts = content.split(' | ')
+                    liga = ""
+                    equipo = ""
+                    posicion = ""
+                    puntos = ""
+                    
+                    for part in parts:
+                        if part.startswith('Clasificación Liga: '):
+                            liga = part.replace('Clasificación Liga: ', '')
+                        elif part.startswith('Equipo: '):
+                            equipo = part.replace('Clasificación Liga: ', '')
+                        elif part.startswith('Posición: '):
+                            posicion = part.replace('Posición: ', '')
+                        elif part.startswith('Puntos totales: '):
+                            puntos = part.replace('Puntos totales: ', '')
+                    
+                    if liga and equipo and posicion:
+                        clasificaciones.append({
+                            'liga': liga,
+                            'equipo': equipo,
+                            'posicion': int(posicion) if posicion.isdigit() else 999,
+                            'puntos': puntos
+                        })
+                except:
+                    continue
+        
+        if not clasificaciones:
+            return "No pude procesar la información de clasificación encontrada."
+        
+        # Ordenar por posición
+        clasificaciones.sort(key=lambda x: x['posicion'])
+        
+        # Crear respuesta formateada
+        if 'infantil' in query_lower:
+            response = "📊 **Clasificación Liga Infantil:**\n\n"
+        elif 'alevín' in query_lower:
+            response = "📊 **Clasificación Liga Alevín:**\n\n"
+        elif 'cadete' in query_lower:
+            response = "📊 **Clasificación Liga Cadete:**\n\n"
+        else:
+            response = "📊 **Clasificación:**\n\n"
+        
+        for i, cls in enumerate(clasificaciones, 1):
+            # Usar emoji según la posición
+            if cls['posicion'] == 1:
+                emoji = "🥇"
+            elif cls['posicion'] == 2:
+                emoji = "🥈"
+            elif cls['posicion'] == 3:
+                emoji = "🥉"
+            else:
+                emoji = f"{cls['posicion']}."
+            
+            response += f"{emoji} **{cls['equipo']}** - {cls['puntos']} puntos\n"
+        
+        return response.strip()
         """Crear respuesta específica para consultas de clasificación"""
         if not filtered_docs:
             if 'infantil' in query_lower:

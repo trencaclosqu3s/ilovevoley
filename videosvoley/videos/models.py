@@ -84,6 +84,42 @@ class Comment(models.Model):
         return f'{self.user.username} - {self.content[:50]}...'
 
 
+class LeagueManager(models.Manager):
+    """Manager personalizado para League con métodos de filtrado"""
+
+    def visible_in_app(self):
+        """Ligas que deben mostrarse en la aplicación principal"""
+        return self.filter(
+            is_active=True,
+            visibility_type='main',
+            is_our_team_related=True
+        )
+
+    def reference_leagues(self):
+        """Ligas de referencia (solo admin)"""
+        return self.filter(
+            visibility_type__in=['reference', 'historical', 'external']
+        )
+
+    def historical_leagues(self):
+        """Ligas históricas"""
+        return self.filter(
+            visibility_type='historical',
+            is_historical=True
+        )
+
+    def external_leagues(self):
+        """Ligas externas (no relacionadas con nuestro equipo)"""
+        return self.filter(
+            visibility_type='external',
+            is_our_team_related=False
+        )
+
+    def all_for_admin(self):
+        """Todas las ligas para el admin"""
+        return self.all()
+
+
 class League(models.Model):
     COMPETITION_TYPES = [
         ('regular', 'Liga Regular'),
@@ -92,14 +128,37 @@ class League(models.Model):
         ('friendly', 'Amistoso'),
     ]
     
+    VISIBILITY_TYPES = [
+        ('main', 'Principal (mostrar en app)'),
+        ('reference', 'Referencia (solo admin)'),
+        ('historical', 'Histórica (solo admin)'),
+        ('external', 'Externa (solo admin)'),
+    ]
+    
     name = models.CharField(max_length=200)
     federation_id = models.CharField(max_length=200, unique=True)
     competition_type = models.CharField(max_length=20, choices=COMPETITION_TYPES, default='regular')
     season = models.CharField(max_length=20)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='leagues')
     is_active = models.BooleanField(default=True)
+    visibility_type = models.CharField(
+        max_length=20, 
+        choices=VISIBILITY_TYPES, 
+        default='main',
+        help_text='Controla dónde se muestra la liga: Principal (en la app), Referencia (solo admin), Histórica (datos antiguos), Externa (otras ligas)'
+    )
+    is_historical = models.BooleanField(
+        default=False,
+        help_text='Indica si es una liga de temporadas anteriores'
+    )
+    is_our_team_related = models.BooleanField(
+        default=True,
+        help_text='Indica si esta liga está relacionada con nuestro equipo'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     base_url = models.URLField(default='https://www.voleibolib.net')
+    
+    objects = LeagueManager()
     
     class Meta:
         ordering = ['-created_at']
@@ -119,6 +178,20 @@ class League(models.Model):
             status__in=['scheduled', 'in_progress'],
             match_date__gte=now
         ).exists()
+    
+    @property
+    def should_show_in_app(self):
+        """Indica si la liga debe mostrarse en la aplicación principal"""
+        return (
+            self.is_active and 
+            self.visibility_type == 'main' and 
+            self.is_our_team_related
+        )
+    
+    @property
+    def is_reference_league(self):
+        """Indica si es una liga de referencia (solo para admin)"""
+        return self.visibility_type in ['reference', 'historical', 'external']
     
     @property
     def is_past_league(self):

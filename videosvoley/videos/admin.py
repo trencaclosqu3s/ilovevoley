@@ -39,23 +39,106 @@ class VideoAdmin(admin.ModelAdmin):
 
 @admin.register(League)
 class LeagueAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'federation_id', 'competition_type', 'season', 'is_active')
-    list_filter = ('category', 'competition_type', 'is_active', 'season')
+    list_display = ('name', 'category', 'federation_id', 'competition_type', 'season', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'matches_count', 'created_at')
+    list_filter = ('category', 'competition_type', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'season')
     search_fields = ('name', 'federation_id', 'category__name')
     readonly_fields = ('created_at',)
     autocomplete_fields = ('category',)
+    list_editable = ('visibility_type', 'is_our_team_related', 'is_historical', 'is_active')
+    
     fieldsets = (
         ('Información Básica', {
-            'fields': ('name', 'federation_id', 'category', 'competition_type', 'season', 'is_active')
+            'fields': ('name', 'federation_id', 'category', 'competition_type', 'season')
         }),
-        ('Configuración', {
-            'fields': ('base_url',)
+        ('Configuración de Visibilidad', {
+            'fields': ('visibility_type', 'is_our_team_related', 'is_historical', 'is_active'),
+            'description': 'Controla dónde y cómo se muestra la liga en la aplicación'
         }),
-        ('Metadata', {
-            'fields': ('created_at',),
+        ('Configuración Técnica', {
+            'fields': ('base_url', 'created_at'),
             'classes': ('collapse',)
-        })
+        }),
     )
+    
+    def matches_count(self, obj):
+        """Muestra el número de partidos asociados"""
+        return obj.matches.count()
+    matches_count.short_description = 'Partidos'
+    
+    def get_queryset(self, request):
+        """Optimiza las consultas"""
+        return super().get_queryset(request).prefetch_related('matches', 'category')
+    
+    def get_list_display(self, request):
+        """Personaliza la lista según el usuario"""
+        list_display = list(super().get_list_display(request))
+        
+        # Si es superusuario, mostrar todos los campos
+        if request.user.is_superuser:
+            return list_display
+        
+        # Para otros usuarios, ocultar algunos campos técnicos
+        return [field for field in list_display if field not in ['base_url']]
+    
+    def get_list_filter(self, request):
+        """Personaliza los filtros según el usuario"""
+        list_filter = list(super().get_list_filter(request))
+        
+        # Agregar filtros específicos para gestión de ligas
+        if request.user.is_superuser:
+            list_filter.extend(['created_at'])
+        
+        return list_filter
+    
+    def get_actions(self, request):
+        """Personaliza las acciones disponibles"""
+        actions = list(super().get_actions(request))
+        
+        # Agregar acciones personalizadas para superusuarios
+        if request.user.is_superuser:
+            actions.extend(['mark_as_main', 'mark_as_reference', 'mark_as_historical', 'mark_as_external'])
+        
+        return actions
+    
+    def mark_as_main(self, request, queryset):
+        """Marca ligas como principales"""
+        updated = queryset.update(
+            visibility_type='main',
+            is_our_team_related=True,
+            is_historical=False
+        )
+        self.message_user(request, f'{updated} ligas marcadas como principales.')
+    mark_as_main.short_description = "Marcar como ligas principales"
+    
+    def mark_as_reference(self, request, queryset):
+        """Marca ligas como de referencia"""
+        updated = queryset.update(
+            visibility_type='reference',
+            is_our_team_related=True,
+            is_historical=False
+        )
+        self.message_user(request, f'{updated} ligas marcadas como de referencia.')
+    mark_as_reference.short_description = "Marcar como ligas de referencia"
+    
+    def mark_as_historical(self, request, queryset):
+        """Marca ligas como históricas"""
+        updated = queryset.update(
+            visibility_type='historical',
+            is_historical=True,
+            is_our_team_related=True
+        )
+        self.message_user(request, f'{updated} ligas marcadas como históricas.')
+    mark_as_historical.short_description = "Marcar como ligas históricas"
+    
+    def mark_as_external(self, request, queryset):
+        """Marca ligas como externas"""
+        updated = queryset.update(
+            visibility_type='external',
+            is_our_team_related=False,
+            is_historical=False
+        )
+        self.message_user(request, f'{updated} ligas marcadas como externas.')
+    mark_as_external.short_description = "Marcar como ligas externas"
     
     actions = ['scrape_selected_leagues']
     
