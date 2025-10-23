@@ -302,8 +302,32 @@ class CalendarParser(BaseParser):
             # Limpiar y normalizar el texto de fecha
             date_text = date_text.replace('\n', ' ').strip()
             
-            # Detectar si la fecha y hora están pegadas (ej: "18/10/202509:30")
+            # Detectar si es un resultado de partido (ej: "3 - 2", "0 - 3")
             import re
+            score_pattern = r'^(\d+)\s*-\s*(\d+)$'
+            score_match = re.match(score_pattern, date_text)
+            
+            if score_match:
+                # Es un resultado, no una fecha
+                home_score = int(score_match.group(1))
+                away_score = int(score_match.group(2))
+                
+                # Para resultados, buscar el partido existente y solo actualizar el resultado
+                # No crear un nuevo partido sin fecha
+                return {
+                    'home_team': home_team,
+                    'away_team': away_team,
+                    'match_date': None,  # No hay fecha en resultados
+                    'venue': '',
+                    'city': '',
+                    'round_number': round_number,
+                    'home_score': home_score,
+                    'away_score': away_score,
+                    'status': 'finished',
+                    'is_result_only': True,  # Marcar que es solo un resultado
+                }
+            
+            # Detectar si la fecha y hora están pegadas (ej: "18/10/202509:30")
             date_pattern = r'(\d{2}/\d{2}/\d{4})(\d{2}:\d{2})?'
             match = re.match(date_pattern, date_text)
             
@@ -643,6 +667,28 @@ class FederationScraper:
             
             match_date = match_data.get('match_date')
             round_number = match_data.get('round_number')
+            is_result_only = match_data.get('is_result_only', False)
+            
+            # Si es solo un resultado (sin fecha), buscar partido existente para actualizar
+            if is_result_only:
+                existing_match = Match.objects.filter(
+                    league=self.league,
+                    home_team=home_team,
+                    away_team=away_team,
+                    round_number=round_number,
+                    is_friendly=False
+                ).first()
+                
+                if existing_match:
+                    # Solo actualizar resultado y estado
+                    existing_match.home_score = match_data.get('home_score')
+                    existing_match.away_score = match_data.get('away_score')
+                    existing_match.status = match_data.get('status', 'finished')
+                    existing_match.save()
+                    logger.info(f"Updated result for existing match: {home_team.name} vs {away_team.name} - {match_data.get('home_score')}-{match_data.get('away_score')}")
+                else:
+                    logger.warning(f"Could not find existing match to update result: {home_team.name} vs {away_team.name}")
+                continue
             
             # ESTRATEGIA MEJORADA DE BÚSQUEDA PARA EVITAR DUPLICADOS:
             # 1. Buscar por liga + equipos + jornada (criterio principal)
