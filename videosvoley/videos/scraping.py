@@ -970,9 +970,14 @@ class FederationScraper:
         """
         Enriquece partidos existentes con información del endpoint JSON de la federación.
         Este endpoint proporciona información adicional como árbitros, personal técnico, etc.
+        OPTIMIZADO: Solo procesa grupos/ligas que tenemos en la base de datos.
         """
         try:
             logger.info(f"Enriching matches with JSON data from: {json_url}")
+            
+            # Obtener IDs de ligas que tenemos en la base de datos
+            db_league_ids = set(League.objects.filter(federation_id__isnull=False).values_list('federation_id', flat=True))
+            logger.info(f"Found {len(db_league_ids)} leagues in database: {sorted(db_league_ids)}")
             
             # Obtener datos del JSON
             response = requests.get(json_url, timeout=30)
@@ -983,67 +988,79 @@ class FederationScraper:
             
             enriched_count = 0
             new_matches_count = 0
+            processed_groups = 0
+            skipped_groups = 0
+            
+            # Recopilar todos los partidos de grupos que tenemos en la BD
+            all_matches = []
+            group_league_map = {}  # Mapeo grupo_id -> league
+            
+            # Primero, crear mapeo de grupo_id a league para evitar búsquedas repetidas
+            for grupo_id in db_league_ids:
+                league = League.objects.filter(federation_id=grupo_id, is_active=True).first()
+                if league:
+                    group_league_map[grupo_id] = league
+                    logger.debug(f"Mapped group {grupo_id} to league: {league.name}")
             
             # Procesar cada categoría del JSON
             for categoria in json_data.get('categorias', []):
                 categoria_name = categoria.get('nombre', '')
-                logger.info(f"Processing category: {categoria_name}")
+                logger.debug(f"Processing category: {categoria_name}")
                 
                 # Procesar partidos de esta categoría
                 for competicion in categoria.get('competiciones', []):
                     for fase in competicion.get('fases', []):
                         for grupo in fase.get('grupos', []):
-                            grupo_id = grupo.get('id', '')
+                            grupo_id = str(grupo.get('id', ''))
                             grupo_nombre = grupo.get('nombre', '')
                             
-                            logger.info(f"Processing group: {grupo_nombre} (ID: {grupo_id})")
-                            
-                            # Buscar la liga específica que corresponde a este grupo
-                            # Primero intentar por federation_id exacto
-                            league = League.objects.filter(
-                                federation_id=grupo_id,
-                                is_active=True
-                            ).first()
-                            
-                            if not league and grupo_nombre:
-                                # Si no se encuentra por federation_id, buscar por nombre que contenga el grupo
-                                # Esto es un fallback para casos donde el federation_id no coincida exactamente
-                                league = League.objects.filter(
-                                    name__icontains=grupo_nombre,
-                                    is_active=True
-                                ).first()
-                            
-                            if league:
-                                logger.info(f"Found matching league: {league.name} (federation_id: {league.federation_id})")
-                                
-                                # Procesar partidos de este grupo específico
-                                for partido_data in grupo.get('partidos', []):
-                                    # Verificar si el partido ya existe
-                                    json_match_id = str(partido_data.get('ID', ''))
-                                    match_exists = Match.objects.filter(federation_id=json_match_id).exists() if json_match_id else False
+                            # Solo procesar si tenemos esta liga en la BD
+                            if grupo_id in db_league_ids:
+                                league = group_league_map.get(grupo_id)
+                                if league:
+                                    logger.info(f"Processing group: {grupo_nombre} (ID: {grupo_id}) -> League: {league.name}")
+                                    processed_groups += 1
                                     
-                                    enriched = self._enrich_single_match(partido_data, league)
-                                    if enriched:
-                                        if match_exists:
-                                            enriched_count += 1
-                                        else:
-                                            new_matches_count += 1
+                                    # Recopilar partidos de este grupo
+                                    for partido_data in grupo.get('partidos', []):
+                                        # Añadir información de la liga al partido para facilitar el procesamiento
+                                        partido_data['_league'] = league
+                                        partido_data['_grupo_id'] = grupo_id
+                                        all_matches.append(partido_data)
+                                else:
+                                    logger.warning(f"League not found for group {grupo_nombre} (ID: {grupo_id})")
                             else:
-                                logger.warning(f"No league found for group {grupo_nombre} (ID: {grupo_id}) in category {categoria_name}")
-                                # Buscar ligas similares para debug
-                                similar_leagues = League.objects.filter(
-                                    name__icontains=categoria_name.split()[0] if categoria_name else '',
-                                    is_active=True
-                                )
-                                logger.info(f"Similar leagues found: {[l.name + ' (ID: ' + str(l.federation_id) + ')' for l in similar_leagues]}")
+                                logger.debug(f"Skipping group {grupo_nombre} (ID: {grupo_id}) - not in database")
+                                skipped_groups += 1
+            
+            logger.info(f"Collected {len(all_matches)} matches from {processed_groups} groups (skipped {skipped_groups} groups)")
+            
+            # Procesar todos los partidos recopilados
+            for partido_data in all_matches:
+                league = partido_data.pop('_league')
+                grupo_id = partido_data.pop('_grupo_id')
+                
+                # Verificar si el partido ya existe
+                json_match_id = str(partido_data.get('ID', ''))
+                match_exists = Match.objects.filter(federation_id=json_match_id).exists() if json_match_id else False
+                
+                enriched = self._enrich_single_match(partido_data, league)
+                if enriched:
+                    if match_exists:
+                        enriched_count += 1
+                    else:
+                        new_matches_count += 1
             
             result = {
                 'status': 'success',
                 'enriched_matches': enriched_count,
                 'new_matches': new_matches_count,
+                'processed_groups': processed_groups,
+                'skipped_groups': skipped_groups,
+                'total_matches_processed': len(all_matches)
             }
             
-            logger.info(f"JSON enrichment completed: {enriched_count} matches enriched, {new_matches_count} new matches created")
+            logger.info(f"JSON enrichment completed: {enriched_count} matches enriched, {new_matches_count} new matches created from {processed_groups} groups")
             return result
             
         except Exception as e:
