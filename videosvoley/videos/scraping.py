@@ -987,29 +987,55 @@ class FederationScraper:
             # Procesar cada categoría del JSON
             for categoria in json_data.get('categorias', []):
                 categoria_name = categoria.get('nombre', '')
+                logger.info(f"Processing category: {categoria_name}")
                 
-                # Buscar si tenemos una liga que coincida con esta categoría
-                matching_leagues = League.objects.filter(
-                    name__icontains=categoria_name.split()[0] if categoria_name else '',
-                    is_active=True
-                )
-                
-                for league in matching_leagues:
-                    logger.info(f"Processing JSON data for league: {league.name}")
-                    
-                    # Procesar partidos de esta liga
-                    for competicion in categoria.get('competiciones', []):
-                        for fase in competicion.get('fases', []):
-                            for grupo in fase.get('grupos', []):
-                                grupo_id = grupo.get('id', '')
+                # Procesar partidos de esta categoría
+                for competicion in categoria.get('competiciones', []):
+                    for fase in competicion.get('fases', []):
+                        for grupo in fase.get('grupos', []):
+                            grupo_id = grupo.get('id', '')
+                            grupo_nombre = grupo.get('nombre', '')
+                            
+                            logger.info(f"Processing group: {grupo_nombre} (ID: {grupo_id})")
+                            
+                            # Buscar la liga específica que corresponde a este grupo
+                            # Primero intentar por federation_id exacto
+                            league = League.objects.filter(
+                                federation_id=grupo_id,
+                                is_active=True
+                            ).first()
+                            
+                            if not league and grupo_nombre:
+                                # Si no se encuentra por federation_id, buscar por nombre que contenga el grupo
+                                # Esto es un fallback para casos donde el federation_id no coincida exactamente
+                                league = League.objects.filter(
+                                    name__icontains=grupo_nombre,
+                                    is_active=True
+                                ).first()
+                            
+                            if league:
+                                logger.info(f"Found matching league: {league.name} (federation_id: {league.federation_id})")
                                 
-                                # Buscar si este grupo corresponde a nuestra liga
-                                if str(league.federation_id) == grupo_id:
-                                    for partido_data in grupo.get('partidos', []):
-                                        enriched = self._enrich_single_match(partido_data, league)
-                                        if enriched:
+                                # Procesar partidos de este grupo específico
+                                for partido_data in grupo.get('partidos', []):
+                                    # Verificar si el partido ya existe
+                                    json_match_id = str(partido_data.get('ID', ''))
+                                    match_exists = Match.objects.filter(federation_id=json_match_id).exists() if json_match_id else False
+                                    
+                                    enriched = self._enrich_single_match(partido_data, league)
+                                    if enriched:
+                                        if match_exists:
                                             enriched_count += 1
-                                # NO procesar otros grupos - solo el grupo específico de la liga
+                                        else:
+                                            new_matches_count += 1
+                            else:
+                                logger.warning(f"No league found for group {grupo_nombre} (ID: {grupo_id}) in category {categoria_name}")
+                                # Buscar ligas similares para debug
+                                similar_leagues = League.objects.filter(
+                                    name__icontains=categoria_name.split()[0] if categoria_name else '',
+                                    is_active=True
+                                )
+                                logger.info(f"Similar leagues found: {[l.name + ' (ID: ' + str(l.federation_id) + ')' for l in similar_leagues]}")
             
             result = {
                 'status': 'success',
@@ -1139,6 +1165,16 @@ class FederationScraper:
         
         if not match:
             logger.info(f"No se encontró partido para enriquecer: ID={json_match_id}, fecha={fecha_str}, local={equipo_local}, visitante={equipo_visitante}")
+            
+            # Intentar crear un partido nuevo si no existe
+            try:
+                created = self._create_match_from_json(partido_data, league)
+                if created:
+                    logger.info(f"Created new match from JSON: ID={json_match_id}")
+                    return True
+            except Exception as e:
+                logger.error(f"Error creating new match from JSON: {e}")
+            
             # Buscar partidos similares para debug
             if fecha_str and equipo_local and equipo_visitante:
                 try:
@@ -1233,7 +1269,12 @@ class FederationScraper:
         
         # Solo crear si no existe ya
         json_match_id = str(partido_data.get('ID', ''))
-        if not json_match_id or Match.objects.filter(federation_id=json_match_id).exists():
+        if not json_match_id:
+            return False
+            
+        # Verificar si ya existe un partido con este federation_id
+        if Match.objects.filter(federation_id=json_match_id).exists():
+            logger.debug(f"Match with federation_id {json_match_id} already exists, skipping creation")
             return False
         
         # Extraer equipos
@@ -1325,6 +1366,18 @@ class FederationScraper:
                 return team
         
         return None
+    
+    def _normalize_team_name(self, name: str) -> str:
+        """Normaliza nombres de equipos para búsqueda flexible"""
+        if not name:
+            return ""
+        # Convertir a mayúsculas y quitar acentos
+        import unidecode
+        normalized = unidecode.unidecode(name.upper())
+        # Quitar caracteres especiales y espacios extra
+        normalized = ''.join(c for c in normalized if c.isalnum() or c.isspace())
+        normalized = ' '.join(normalized.split())
+        return normalized
     
     def scrape_all_endpoints(self, **kwargs) -> Dict[str, Any]:
         """Ejecuta scraping de todos los endpoints activos de la liga"""
