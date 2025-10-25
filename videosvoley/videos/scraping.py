@@ -13,6 +13,50 @@ from .models import League, Team, Match, Standing, ScrapingEndpoint
 logger = logging.getLogger(__name__)
 
 
+def validate_volleyball_score(home_score: int, away_score: int, league) -> bool:
+    """
+    Valida si un resultado de voleibol es válido según el formato de la liga.
+    
+    Args:
+        home_score: Puntos del equipo local
+        away_score: Puntos del equipo visitante
+        league: Objeto League con el formato de partido configurado
+    
+    Returns:
+        bool: True si el resultado es válido, False en caso contrario
+    """
+    # Resultados imposibles en cualquier formato
+    impossible_scores = [(0, 0), (1, 1), (2, 2)]
+    if (home_score, away_score) in impossible_scores:
+        logger.warning(f"Resultado imposible detectado: {home_score}-{away_score}")
+        return False
+    
+    if league.match_format == 'standard':
+        # 5 sets máximo, ganar 3
+        return (home_score == 3 and away_score < 3) or (away_score == 3 and home_score < 3)
+    
+    elif league.match_format == 'alevin_balear':
+        # 3 sets, jugar los 3 - resultados posibles: 3-0, 2-1, 1-2, 0-3
+        valid_alevin_scores = [
+            (3, 0), (2, 1), (1, 2), (0, 3)
+        ]
+        return (home_score, away_score) in valid_alevin_scores
+    
+    elif league.match_format == 'tournament_3sets':
+        # 3 sets máximo, ganar 2
+        return (home_score == 2 and away_score < 2) or (away_score == 2 and home_score < 2)
+    
+    elif league.match_format == 'custom':
+        # Usar valores personalizados
+        max_sets = league.custom_max_sets or 5
+        sets_to_win = league.custom_sets_to_win or 3
+        return (home_score == sets_to_win and away_score < sets_to_win) or \
+               (away_score == sets_to_win and home_score < sets_to_win)
+    
+    # Fallback para ligas sin formato definido (compatibilidad)
+    return (home_score == 3 and away_score < 3) or (away_score == 3 and home_score < 3)
+
+
 class ScrapingError(Exception):
     """Exception específica para errores de scraping"""
     pass
@@ -216,7 +260,18 @@ class MatchesParser(BaseParser):
         status = 'scheduled'
         if estado_div:
             if 'finalizado' in estado_div.get('id', '').lower():
-                status = 'finished' if home_score is not None else 'scheduled'
+                # Validar resultado antes de marcar como finalizado
+                if home_score is not None and away_score is not None:
+                    if validate_volleyball_score(home_score, away_score, self.league):
+                        status = 'finished'
+                    else:
+                        logger.warning(f"Partido marcado como finalizado pero con resultado inválido: {home_score}-{away_score}")
+                        # No marcar como finalizado si el resultado es inválido
+                        status = 'scheduled'
+                        home_score = None
+                        away_score = None
+                else:
+                    status = 'scheduled'
         
         return {
             'home_team': home_team,
@@ -311,6 +366,12 @@ class CalendarParser(BaseParser):
                 # Es un resultado, no una fecha
                 home_score = int(score_match.group(1))
                 away_score = int(score_match.group(2))
+                
+                # Validar resultado antes de procesarlo
+                if not validate_volleyball_score(home_score, away_score, self.league):
+                    logger.warning(f"Resultado inválido detectado en calendario: {home_score}-{away_score}")
+                    # No procesar resultados inválidos
+                    return None
                 
                 # Para resultados, buscar el partido existente y solo actualizar el resultado
                 # No crear un nuevo partido sin fecha
@@ -458,8 +519,15 @@ class JSONMatchesParser(BaseParser):
         # Determinar estado basado en resultados y acta
         status = 'scheduled'
         if home_score is not None and away_score is not None:
-            # Si hay resultados, el partido está finalizado
-            status = 'finished'
+            # Validar resultado antes de marcar como finalizado
+            if validate_volleyball_score(home_score, away_score, self.league):
+                status = 'finished'
+            else:
+                logger.warning(f"Resultado inválido en JSON: {home_score}-{away_score}")
+                # No marcar como finalizado si el resultado es inválido
+                status = 'scheduled'
+                home_score = None
+                away_score = None
         elif partido_data.get('acta_html'):
             # Si hay acta pero no resultados, podría estar en progreso o finalizado sin score
             status = 'finished'
@@ -599,12 +667,27 @@ class JSONUnifiedParser(BaseParser):
             if home_score is None or away_score is None:
                 logger.debug(f"Partido sin resultados completos: {home_team} vs {away_team}")
                 return None
-            status = 'finished'
+            
+            # Validar resultado antes de marcar como finalizado
+            if validate_volleyball_score(home_score, away_score, self.league):
+                status = 'finished'
+            else:
+                logger.warning(f"Resultado inválido en JSON unificado: {home_score}-{away_score}")
+                # No procesar resultados inválidos
+                return None
         else:  # Próximos (op=1) u otros
             # Los partidos próximos pueden no tener resultados
             status = 'scheduled'
             if home_score is not None and away_score is not None:
-                status = 'finished'
+                # Validar resultado antes de marcar como finalizado
+                if validate_volleyball_score(home_score, away_score, self.league):
+                    status = 'finished'
+                else:
+                    logger.warning(f"Resultado inválido en JSON unificado (próximos): {home_score}-{away_score}")
+                    # No marcar como finalizado si el resultado es inválido
+                    status = 'scheduled'
+                    home_score = None
+                    away_score = None
             elif partido_data.get('acta_html'):
                 status = 'finished'
         
@@ -864,15 +947,26 @@ class FederationScraper:
                     
                     logger.debug(f'Actualizado: {home_team.name} {match.home_score}-{match.away_score} {away_team.name}')
                 else:
+                    # Validar resultado antes de crear nuevo partido
+                    home_score = match_data['home_score']
+                    away_score = match_data['away_score']
+                    status = match_data['status']
+                    
+                    if home_score is not None and away_score is not None:
+                        if not validate_volleyball_score(home_score, away_score, league):
+                            logger.warning(f"Resultado inválido para nuevo partido: {home_team.name} vs {away_team.name} - {home_score}-{away_score}")
+                            # No crear partido con resultado inválido
+                            continue
+                    
                     # Crear nuevo partido
                     match = Match.objects.create(
                         league=league,
                         home_team=home_team,
                         away_team=away_team,
                         match_date=match_data['match_date'],
-                        home_score=match_data['home_score'],
-                        away_score=match_data['away_score'],
-                        status=match_data['status'],
+                        home_score=home_score,
+                        away_score=away_score,
+                        status=status,
                         venue=match_data.get('venue', ''),
                         city=match_data.get('city', ''),
                         referee1=match_data.get('referee1', ''),
@@ -1039,12 +1133,22 @@ class FederationScraper:
                 ).first()
                 
                 if existing_match:
-                    # Solo actualizar resultado y estado
-                    existing_match.home_score = match_data.get('home_score')
-                    existing_match.away_score = match_data.get('away_score')
-                    existing_match.status = match_data.get('status', 'finished')
-                    existing_match.save()
-                    logger.info(f"Updated result for existing match: {home_team.name} vs {away_team.name} - {match_data.get('home_score')}-{match_data.get('away_score')}")
+                    # Validar resultado antes de actualizar
+                    home_score = match_data.get('home_score')
+                    away_score = match_data.get('away_score')
+                    
+                    if home_score is not None and away_score is not None:
+                        if validate_volleyball_score(home_score, away_score, self.league):
+                            # Solo actualizar resultado y estado
+                            existing_match.home_score = home_score
+                            existing_match.away_score = away_score
+                            existing_match.status = match_data.get('status', 'finished')
+                            existing_match.save()
+                            logger.info(f"Updated result for existing match: {home_team.name} vs {away_team.name} - {home_score}-{away_score}")
+                        else:
+                            logger.warning(f"Resultado inválido para partido existente: {home_team.name} vs {away_team.name} - {home_score}-{away_score}")
+                    else:
+                        logger.warning(f"Partido existente sin resultados válidos: {home_team.name} vs {away_team.name}")
                 else:
                     logger.warning(f"Could not find existing match to update result: {home_team.name} vs {away_team.name}")
                 continue
@@ -1145,6 +1249,16 @@ class FederationScraper:
                     
             else:
                 # Crear nuevo partido - filtrar campos que no existen en el modelo
+                # Validar resultado antes de crear nuevo partido
+                home_score = match_data.get('home_score')
+                away_score = match_data.get('away_score')
+                
+                if home_score is not None and away_score is not None:
+                    if not validate_volleyball_score(home_score, away_score, self.league):
+                        logger.warning(f"Resultado inválido para nuevo partido: {home_team.name} vs {away_team.name} - {home_score}-{away_score}")
+                        # No crear partido con resultado inválido
+                        continue
+                
                 valid_match_data = {}
                 for key, value in match_data.items():
                     if hasattr(Match, key):
@@ -1704,12 +1818,24 @@ class FederationScraper:
             logger.info(f"Match already exists (by teams and date): {home_team.name} vs {away_team.name} on {match_datetime.date()}")
             return False
         
+        # Validar resultado antes de crear nuevo partido
+        home_score = partido_data.get('RESULTADO_LOCAL')
+        away_score = partido_data.get('RESULTADO_VISITANTE')
+        
+        if home_score is not None and away_score is not None:
+            if not validate_volleyball_score(home_score, away_score, league):
+                logger.warning(f"Resultado inválido para nuevo partido: {home_team.name} vs {away_team.name} - {home_score}-{away_score}")
+                # No crear partido con resultado inválido
+                return False
+        
         # Crear partido
         match = Match.objects.create(
             league=league,
             home_team=home_team,
             away_team=away_team,
             match_date=match_datetime,
+            home_score=home_score,
+            away_score=away_score,
             venue=(partido_data.get('Campo') or '').strip(),
             city=(partido_data.get('Municipio') or '').strip(),
             referee1=(partido_data.get('arbitro1') or '').strip(),

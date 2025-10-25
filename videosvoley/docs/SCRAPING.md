@@ -29,18 +29,46 @@ Este sistema permite obtener automáticamente datos de ligas de voleibol desde l
 ### 1. Usando Management Command (Recomendado)
 
 ```bash
+# Liga estándar (masculino/femenino - 5 sets, ganar 3)
 docker-compose exec web python manage.py setup_league \
   --name "Senior Masculino - Grupo 1" \
   --federation-id 7998 \
   --season "2024-25" \
   --competition-type regular \
   --base-url "https://www.voleibolib.net"
+
+# Liga alevín balear (3 sets, jugar los 3)
+docker-compose exec web python manage.py setup_league \
+  --name "Alevín Balear - Grupo 1" \
+  --federation-id 8000 \
+  --season "2024-25" \
+  --competition-type regular \
+  --match-format alevin_balear
+
+# Torneo especial 3 sets (ganar 2)
+docker-compose exec web python manage.py setup_league \
+  --name "Torneo 3 Sets" \
+  --federation-id 8001 \
+  --season "2024-25" \
+  --competition-type cup \
+  --match-format tournament_3sets
+
+# Formato personalizado
+docker-compose exec web python manage.py setup_league \
+  --name "Liga Personalizada" \
+  --federation-id 8002 \
+  --season "2024-25" \
+  --competition-type regular \
+  --match-format custom \
+  --custom-max-sets 4 \
+  --custom-sets-to-win 3
 ```
 
 **Después de crear la liga:**
 1. Ir a Django Admin → Ligas
 2. Vincular la liga a una **Categoría** (Senior, Cadete, Infantil, etc.)
-3. Esto permite filtrado inteligente en formularios de video
+3. Configurar el **Formato de Partidos** si no se hizo en el comando
+4. Esto permite filtrado inteligente en formularios de video y validación de resultados
 
 ### 2. Desde Django Admin
 
@@ -65,6 +93,72 @@ docker-compose exec web python manage.py setup_league \
    - Tipo de endpoint: Resultados
    - Patrón URL: `JSON/get_resultados.asp?id={league_id}&f={round}`
    - Tipo de parser: Resultados de Partidos
+
+## Validación de Resultados de Voleibol
+
+### Formatos de Partido Soportados
+
+El sistema incluye validación inteligente de resultados según el formato de la liga:
+
+#### **Estándar (Masculino/Femenino)**
+- **Formato**: 5 sets máximo, ganar 3
+- **Resultados válidos**: 3-0, 3-1, 3-2, 4-3, 5-3, etc.
+- **Resultados inválidos**: 0-0, 1-1, 2-2, 3-3, etc.
+
+#### **Alevín Balear**
+- **Formato**: 3 sets, jugar los 3 (obligatorio que jueguen todos los niños)
+- **Resultados válidos**: 3-0, 2-1, 1-2, 0-3
+- **Resultados inválidos**: Cualquier otro resultado
+
+#### **Torneo 3 Sets**
+- **Formato**: 3 sets máximo, ganar 2
+- **Resultados válidos**: 2-0, 2-1
+- **Resultados inválidos**: 0-0, 1-1, 2-2, 3-0, etc.
+
+#### **Personalizado**
+- **Formato**: Configurable por el usuario
+- **Parámetros**: `custom_max_sets` y `custom_sets_to_win`
+
+### Configuración en Django Admin
+
+1. Ir a **Ligas** → Seleccionar liga
+2. En la sección **"Formato de Partidos"**:
+   - **Formato de partido**: Seleccionar el formato apropiado
+   - **Máximo de sets**: Solo para formato personalizado
+   - **Sets necesarios para ganar**: Solo para formato personalizado
+
+### Comportamiento del Sistema
+
+- **Resultados inválidos**: Se rechazan automáticamente y se marcan como programados
+- **Logs de validación**: Se registran warnings para resultados inválidos
+- **Compatibilidad**: Las ligas existentes usan formato estándar por defecto
+
+### Limpieza de Datos Existentes
+
+```python
+# Ejecutar en Django shell para limpiar resultados inválidos existentes
+from videosvoley.videos.models import Match
+from videosvoley.videos.scraping import validate_volleyball_score
+from django.db import transaction
+
+# Buscar partidos con resultados inválidos
+invalid_matches = []
+for match in Match.objects.filter(home_score__isnull=False, away_score__isnull=False, status='finished'):
+    if not validate_volleyball_score(match.home_score, match.away_score, match.league):
+        invalid_matches.append(match)
+
+print(f"Se encontraron {len(invalid_matches)} partidos con resultados inválidos")
+
+# Corregir marcándolos como programados
+if input("¿Corregir? (y/N): ").lower() == 'y':
+    with transaction.atomic():
+        for match in invalid_matches:
+            match.home_score = None
+            match.away_score = None
+            match.status = 'scheduled'
+            match.save()
+        print(f"Se corrigieron {len(invalid_matches)} partidos")
+```
 
 ## Scraping de Clubes (NUEVO)
 

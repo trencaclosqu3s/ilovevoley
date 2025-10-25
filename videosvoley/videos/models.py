@@ -135,6 +135,13 @@ class League(models.Model):
         ('external', 'Externa (solo admin)'),
     ]
     
+    MATCH_FORMAT_CHOICES = [
+        ('standard', 'Estándar (5 sets, ganar 3)'),
+        ('alevin_balear', 'Alevín Balear (3 sets, jugar los 3)'),
+        ('tournament_3sets', 'Torneo 3 sets (ganar 2)'),
+        ('custom', 'Personalizado'),
+    ]
+    
     name = models.CharField(max_length=200)
     federation_id = models.CharField(max_length=200, unique=True)
     competition_type = models.CharField(max_length=20, choices=COMPETITION_TYPES, default='regular')
@@ -154,6 +161,22 @@ class League(models.Model):
     is_our_team_related = models.BooleanField(
         default=True,
         help_text='Indica si esta liga está relacionada con nuestro equipo'
+    )
+    match_format = models.CharField(
+        max_length=20,
+        choices=MATCH_FORMAT_CHOICES,
+        default='standard',
+        help_text='Formato de partido para esta liga'
+    )
+    custom_max_sets = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Máximo de sets (solo si formato es personalizado)'
+    )
+    custom_sets_to_win = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Sets necesarios para ganar (solo si formato es personalizado)'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     base_url = models.URLField(default='https://www.voleibolib.net')

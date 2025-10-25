@@ -39,8 +39,8 @@ class VideoAdmin(admin.ModelAdmin):
 
 @admin.register(League)
 class LeagueAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'federation_id', 'competition_type', 'season', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'matches_count', 'created_at')
-    list_filter = ('category', 'competition_type', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'season')
+    list_display = ('name', 'category', 'federation_id', 'competition_type', 'season', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'matches_count', 'created_at')
+    list_filter = ('category', 'competition_type', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'season')
     search_fields = ('name', 'federation_id', 'category__name')
     readonly_fields = ('created_at',)
     autocomplete_fields = ('category',)
@@ -49,6 +49,10 @@ class LeagueAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Información Básica', {
             'fields': ('name', 'federation_id', 'category', 'competition_type', 'season')
+        }),
+        ('Formato de Partidos', {
+            'fields': ('match_format', 'custom_max_sets', 'custom_sets_to_win'),
+            'description': 'Configuración del formato de partidos y validación de resultados'
         }),
         ('Configuración de Visibilidad', {
             'fields': ('visibility_type', 'is_our_team_related', 'is_historical', 'is_active'),

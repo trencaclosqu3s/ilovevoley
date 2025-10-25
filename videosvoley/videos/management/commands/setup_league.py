@@ -37,6 +37,23 @@ class Command(BaseCommand):
             default='https://www.voleibolib.net',
             help='URL base del sitio de la federación'
         )
+        parser.add_argument(
+            '--match-format',
+            type=str,
+            choices=['standard', 'alevin_balear', 'tournament_3sets', 'custom'],
+            default='standard',
+            help='Formato de partido para esta liga'
+        )
+        parser.add_argument(
+            '--custom-max-sets',
+            type=int,
+            help='Máximo de sets (solo si formato es personalizado)'
+        )
+        parser.add_argument(
+            '--custom-sets-to-win',
+            type=int,
+            help='Sets necesarios para ganar (solo si formato es personalizado)'
+        )
 
     def handle(self, *args, **options):
         name = options['name']
@@ -44,22 +61,40 @@ class Command(BaseCommand):
         season = options['season']
         competition_type = options['competition_type']
         base_url = options['base_url']
+        match_format = options['match_format']
+        custom_max_sets = options.get('custom_max_sets')
+        custom_sets_to_win = options.get('custom_sets_to_win')
 
+        # Validar parámetros personalizados
+        if match_format == 'custom':
+            if not custom_max_sets or not custom_sets_to_win:
+                self.stdout.write(
+                    self.style.ERROR('Para formato personalizado, debes especificar --custom-max-sets y --custom-sets-to-win')
+                )
+                return
+        
         # Crear o actualizar la liga
+        league_data = {
+            'name': name,
+            'competition_type': competition_type,
+            'base_url': base_url,
+            'match_format': match_format,
+            'is_active': True
+        }
+        
+        if match_format == 'custom':
+            league_data['custom_max_sets'] = custom_max_sets
+            league_data['custom_sets_to_win'] = custom_sets_to_win
+        
         league, created = League.objects.get_or_create(
             federation_id=federation_id,
             season=season,
-            defaults={
-                'name': name,
-                'competition_type': competition_type,
-                'base_url': base_url,
-                'is_active': True
-            }
+            defaults=league_data
         )
 
         if created:
             self.stdout.write(
-                self.style.SUCCESS(f'Liga creada: {league.name}')
+                self.style.SUCCESS(f'Liga creada: {league.name} (formato: {league.get_match_format_display()})')
             )
         else:
             self.stdout.write(
