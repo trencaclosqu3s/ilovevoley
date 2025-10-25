@@ -999,20 +999,47 @@ class FederationScraper:
         for team_data in teams_data:
             current_federation_ids.add(team_data['federation_id'])
             
-            team, created = Team.objects.get_or_create(
-                federation_id=team_data['federation_id'],
-                defaults={
-                    'name': team_data['name'],
-                    'category': self.league.category,  # Asignar categoría de la liga automáticamente
-                    'is_active': True
-                }
-            )
+            # Buscar equipo existente por federation_id primero
+            team = Team.objects.filter(federation_id=team_data['federation_id']).first()
+            
+            if not team:
+                # Si no existe por federation_id, buscar por nombre normalizado para evitar duplicados
+                from videosvoley.videos.utils import find_duplicate_team_by_name
+                duplicate_team = find_duplicate_team_by_name(
+                    team_data['name'], 
+                    category=self.league.category
+                )
+                
+                if duplicate_team:
+                    # Si encontramos un duplicado, actualizar su federation_id y usar ese equipo
+                    logger.info(f"Found duplicate team by name: '{team_data['name']}' -> '{duplicate_team.name}' (ID: {duplicate_team.id})")
+                    duplicate_team.federation_id = team_data['federation_id']
+                    duplicate_team.is_active = True
+                    duplicate_team.save()
+                    team = duplicate_team
+                    created = False
+                else:
+                    # Crear nuevo equipo
+                    team = Team.objects.create(
+                        name=team_data['name'],
+                        federation_id=team_data['federation_id'],
+                        category=self.league.category,
+                        is_active=True
+                    )
+                    created = True
+            else:
+                created = False
             
             # Actualizar nombre, categoría y estado si el equipo ya existía
             updated = False
             if not created and team.name != team_data['name']:
-                team.name = team_data['name']
-                updated = True
+                # Solo actualizar el nombre si no es un duplicado por nombre normalizado
+                from videosvoley.videos.utils import normalize_team_name
+                if normalize_team_name(team.name) != normalize_team_name(team_data['name']):
+                    team.name = team_data['name']
+                    updated = True
+                else:
+                    logger.info(f"Team name variation detected but keeping original: '{team.name}' vs '{team_data['name']}'")
             
             # Asignar/actualizar categoría si la liga tiene categoría y el equipo no la tiene o es diferente
             if self.league.category and team.category != self.league.category:
@@ -1607,15 +1634,8 @@ class FederationScraper:
                         # Normalizar nombres para búsqueda más flexible
                         def normalize_team_name(name):
                             """Normaliza nombres de equipos para búsqueda flexible"""
-                            if not name:
-                                return ""
-                            # Convertir a mayúsculas y quitar acentos
-                            import unidecode
-                            normalized = unidecode.unidecode(name.upper())
-                            # Quitar caracteres especiales y espacios extra
-                            normalized = ''.join(c for c in normalized if c.isalnum() or c.isspace())
-                            normalized = ' '.join(normalized.split())
-                            return normalized
+                            from videosvoley.videos.utils import normalize_team_name as normalize_team_name_util
+                            return normalize_team_name_util(name)
                         
                         equipo_local_norm = normalize_team_name(equipo_local)
                         equipo_visitante_norm = normalize_team_name(equipo_visitante)

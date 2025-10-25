@@ -241,22 +241,8 @@ class Command(BaseCommand):
 
     def normalize_name(self, name):
         """Normaliza un nombre para comparación"""
-        if not name:
-            return ''
-        
-        # Quitar acentos
-        normalized = unicodedata.normalize('NFD', name)
-        normalized = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
-        
-        # Convertir a mayúsculas y limpiar
-        normalized = normalized.upper().strip()
-        
-        # Quitar caracteres especiales y espacios extra
-        import re
-        normalized = re.sub(r'[^\w\s]', ' ', normalized)
-        normalized = ' '.join(normalized.split())
-        
-        return normalized
+        from videosvoley.videos.utils import normalize_team_name
+        return normalize_team_name(name)
 
     def clean_string(self, value):
         """Limpia una cadena de texto"""

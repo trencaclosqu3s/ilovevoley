@@ -178,8 +178,14 @@ class Command(BaseCommand):
                             existing_team.category = category
                             updated = True
                         if existing_team.name != team_name:
-                            existing_team.name = team_name
-                            updated = True
+                            # Solo actualizar el nombre si no es un duplicado por nombre normalizado
+                            from videosvoley.videos.utils import normalize_team_name
+                            if normalize_team_name(existing_team.name) != normalize_team_name(team_name):
+                                existing_team.name = team_name
+                                updated = True
+                            else:
+                                if verbose:
+                                    self.stdout.write(f'  - Variación de nombre detectada: "{existing_team.name}" vs "{team_name}"')
                         
                         if updated:
                             existing_team.save()
@@ -190,16 +196,29 @@ class Command(BaseCommand):
                             if verbose:
                                 self.stdout.write(f'  - Sin cambios: {existing_team.name}')
                     else:
-                        # Crear nuevo equipo
-                        new_team = Team.objects.create(
-                            name=team_name,
-                            federation_id=team_federation_id,
-                            category=category,
-                            is_active=True
-                        )
-                        teams_created += 1
-                        if verbose:
-                            self.stdout.write(f'  ✓ Creado: {new_team.name}')
+                        # Buscar duplicado por nombre normalizado antes de crear
+                        from videosvoley.videos.utils import find_duplicate_team_by_name
+                        duplicate_team = find_duplicate_team_by_name(team_name, category=category)
+                        
+                        if duplicate_team:
+                            # Actualizar el equipo duplicado con el nuevo federation_id
+                            duplicate_team.federation_id = team_federation_id
+                            duplicate_team.is_active = True
+                            duplicate_team.save()
+                            teams_updated += 1
+                            if verbose:
+                                self.stdout.write(f'  ✓ Duplicado encontrado y actualizado: "{duplicate_team.name}" (federation_id: {team_federation_id})')
+                        else:
+                            # Crear nuevo equipo
+                            new_team = Team.objects.create(
+                                name=team_name,
+                                federation_id=team_federation_id,
+                                category=category,
+                                is_active=True
+                            )
+                            teams_created += 1
+                            if verbose:
+                                self.stdout.write(f'  ✓ Creado: {new_team.name}')
 
             # Mostrar resumen
             self.stdout.write(f'\n=== RESUMEN ===')

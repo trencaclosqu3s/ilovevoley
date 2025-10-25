@@ -632,17 +632,8 @@ def scrape_clubs_task(self, match_teams=True, delay=1.0):
     
     def normalize_name(name):
         """Normaliza un nombre para comparación"""
-        if not name:
-            return ''
-        # Quitar acentos
-        normalized = unicodedata.normalize('NFD', name)
-        normalized = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
-        # Convertir a mayúsculas y limpiar
-        normalized = normalized.upper().strip()
-        # Quitar caracteres especiales y espacios extra
-        normalized = re.sub(r'[^\w\s]', ' ', normalized)
-        normalized = ' '.join(normalized.split())
-        return normalized
+        from videosvoley.videos.utils import normalize_team_name
+        return normalize_team_name(name)
     
     def find_best_club_match(team, clubs):
         """Encuentra la mejor coincidencia entre un equipo y los clubes"""
@@ -1146,8 +1137,13 @@ def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
                         existing_team.category = category
                         updated = True
                     if existing_team.name != team_name:
-                        existing_team.name = team_name
-                        updated = True
+                        # Solo actualizar el nombre si no es un duplicado por nombre normalizado
+                        from videosvoley.videos.utils import normalize_team_name
+                        if normalize_team_name(existing_team.name) != normalize_team_name(team_name):
+                            existing_team.name = team_name
+                            updated = True
+                        else:
+                            logger.info(f'  - Variación de nombre detectada: "{existing_team.name}" vs "{team_name}"')
                     
                     if updated:
                         existing_team.save()
@@ -1156,15 +1152,27 @@ def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
                     else:
                         logger.info(f'  - Sin cambios: {existing_team.name}')
                 else:
-                    # Crear nuevo equipo
-                    new_team = Team.objects.create(
-                        name=team_name,
-                        federation_id=team_federation_id,
-                        category=category,
-                        is_active=True
-                    )
-                    summary['teams_created'] += 1
-                    logger.info(f'  ✓ Creado: {new_team.name}')
+                    # Buscar duplicado por nombre normalizado antes de crear
+                    from videosvoley.videos.utils import find_duplicate_team_by_name
+                    duplicate_team = find_duplicate_team_by_name(team_name, category=category)
+                    
+                    if duplicate_team:
+                        # Actualizar el equipo duplicado con el nuevo federation_id
+                        duplicate_team.federation_id = team_federation_id
+                        duplicate_team.is_active = True
+                        duplicate_team.save()
+                        summary['teams_updated'] += 1
+                        logger.info(f'  ✓ Duplicado encontrado y actualizado: "{duplicate_team.name}" (federation_id: {team_federation_id})')
+                    else:
+                        # Crear nuevo equipo
+                        new_team = Team.objects.create(
+                            name=team_name,
+                            federation_id=team_federation_id,
+                            category=category,
+                            is_active=True
+                        )
+                        summary['teams_created'] += 1
+                        logger.info(f'  ✓ Creado: {new_team.name}')
                 
                 # Rate limiting entre equipos
                 time.sleep(delay * 0.1)  # Delay más corto entre equipos
