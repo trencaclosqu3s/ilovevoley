@@ -17,6 +17,7 @@ import uuid
 from django.core.files.base import ContentFile
 from .models import Video, Comment, Category, League, Match, Team, Standing, Image, Player, Staff, Person, PlayerRole, StaffRole
 from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm, PersonForm, PlayerRoleForm, StaffRoleForm, MatchResultForm
+from .utils import process_uploaded_image
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -995,8 +996,6 @@ def image_upload(request):
             
             # Procesar imagen (convertir HEIC si es necesario)
             try:
-                from .utils import process_uploaded_image
-                
                 uploaded_file = request.FILES.get('image')
                 if uploaded_file:
                     processed_file, original_ext, was_converted = process_uploaded_image(uploaded_file)
@@ -1221,9 +1220,6 @@ def image_bulk_upload(request):
         
         for idx, uploaded_file in enumerate(uploaded_files):
             try:
-                # Procesar imagen (convertir HEIC si es necesario)
-                from .utils import process_uploaded_image
-                
                 # Optimizar para móvil si es necesario
                 processed_file, original_ext, was_converted = process_uploaded_image(
                     uploaded_file, 
