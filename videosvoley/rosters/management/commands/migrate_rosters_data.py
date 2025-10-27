@@ -137,7 +137,8 @@ class Command(BaseCommand):
                     except NewPerson.DoesNotExist:
                         self.stdout.write(
                             self.style.WARNING(f'Persona no encontrada: {old_role.person.id}')
-                            continue
+                        )
+                        continue
                     
                     # Obtener nuevo equipo (temporal - apunta a videos.Team)
                     try:
@@ -146,6 +147,7 @@ class Command(BaseCommand):
                     except Team.DoesNotExist:
                         self.stdout.write(
                             self.style.WARNING(f'Equipo no encontrado: {old_role.team.id}')
+                        )
                         continue
                     
                     NewPlayerRole.objects.get_or_create(
@@ -190,6 +192,7 @@ class Command(BaseCommand):
                     except NewPerson.DoesNotExist:
                         self.stdout.write(
                             self.style.WARNING(f'Persona no encontrada: {old_role.person.id}')
+                        )
                         continue
                     
                     # Obtener nuevo equipo (temporal - apunta a videos.Team)
@@ -199,6 +202,7 @@ class Command(BaseCommand):
                     except Team.DoesNotExist:
                         self.stdout.write(
                             self.style.WARNING(f'Equipo no encontrado: {old_role.team.id}')
+                        )
                         continue
                     
                     NewStaffRole.objects.get_or_create(

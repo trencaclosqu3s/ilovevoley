@@ -18,11 +18,34 @@ def image_post_save(sender, instance, created, **kwargs):
     if created and instance.match:
         # Auto-asignar categorías desde el partido si es nueva imagen
         if not instance.categories.exists():
+            # Importar el modelo de categoría correcto
+            from .models import Category as ContentCategory
+            
             if instance.match.league and instance.match.league.category:
-                instance.categories.add(instance.match.league.category)
+                # Buscar la categoría correspondiente en el nuevo modelo
+                try:
+                    new_category = ContentCategory.objects.get(
+                        name=instance.match.league.category.name
+                    )
+                    instance.categories.add(new_category)
+                except ContentCategory.DoesNotExist:
+                    pass
             
             # También agregar categorías de los equipos si las tienen
             if instance.match.home_team and instance.match.home_team.category:
-                instance.categories.add(instance.match.home_team.category)
+                try:
+                    new_category = ContentCategory.objects.get(
+                        name=instance.match.home_team.category.name
+                    )
+                    instance.categories.add(new_category)
+                except ContentCategory.DoesNotExist:
+                    pass
+                    
             if instance.match.away_team and instance.match.away_team.category:
-                instance.categories.add(instance.match.away_team.category)
+                try:
+                    new_category = ContentCategory.objects.get(
+                        name=instance.match.away_team.category.name
+                    )
+                    instance.categories.add(new_category)
+                except ContentCategory.DoesNotExist:
+                    pass

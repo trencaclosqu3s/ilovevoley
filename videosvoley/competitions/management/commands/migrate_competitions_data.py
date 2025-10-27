@@ -94,25 +94,34 @@ class Command(BaseCommand):
                                 self.style.WARNING(f'Categoría no encontrada: {old_league.category.name}')
                             )
                     
-                    NewLeague.objects.get_or_create(
-                        id=old_league.id,  # Mantener mismo ID
-                        defaults={
-                            'name': old_league.name,
-                            'federation_id': old_league.federation_id,
-                            'competition_type': old_league.competition_type,
-                            'season': old_league.season,
-                            'category': new_category,
-                            'is_active': old_league.is_active,
-                            'visibility_type': old_league.visibility_type,
-                            'is_historical': old_league.is_historical,
-                            'is_our_team_related': old_league.is_our_team_related,
-                            'match_format': old_league.match_format,
-                            'custom_max_sets': old_league.custom_max_sets,
-                            'custom_sets_to_win': old_league.custom_sets_to_win,
-                            'base_url': old_league.base_url,
-                            'created_at': old_league.created_at,
-                        }
-                    )
+                    try:
+                        league, created = NewLeague.objects.update_or_create(
+                            id=old_league.id,  # Mantener mismo ID
+                            defaults={
+                                'name': old_league.name,
+                                'federation_id': old_league.federation_id,
+                                'competition_type': old_league.competition_type,
+                                'season': old_league.season,
+                                'category': new_category,
+                                'is_active': old_league.is_active,
+                                'visibility_type': old_league.visibility_type,
+                                'is_historical': old_league.is_historical,
+                                'is_our_team_related': old_league.is_our_team_related,
+                                'match_format': old_league.match_format,
+                                'custom_max_sets': old_league.custom_max_sets,
+                                'custom_sets_to_win': old_league.custom_sets_to_win,
+                                'base_url': old_league.base_url,
+                                'created_at': old_league.created_at,
+                            }
+                        )
+                        if created:
+                            self.stdout.write(f'Nueva liga creada: {league.name}')
+                        else:
+                            self.stdout.write(f'Liga actualizada: {league.name}')
+                    except Exception as e:
+                        self.stdout.write(
+                            self.style.ERROR(f'Error migrando liga {old_league.id}: {e}')
+                        )
                 self.stdout.write(f'Procesadas {min(i + batch_size, total)} ligas')
         
         self.stdout.write(
@@ -145,18 +154,27 @@ class Command(BaseCommand):
                         )
                         continue
                     
-                    NewScrapingEndpoint.objects.get_or_create(
-                        id=old_endpoint.id,  # Mantener mismo ID
-                        defaults={
-                            'league': new_league,
-                            'endpoint_type': old_endpoint.endpoint_type,
-                            'url_pattern': old_endpoint.url_pattern,
-                            'parser_type': old_endpoint.parser_type,
-                            'is_active': old_endpoint.is_active,
-                            'extra_params': old_endpoint.extra_params,
-                            'created_at': old_endpoint.created_at,
-                        }
-                    )
+                    try:
+                        endpoint, created = NewScrapingEndpoint.objects.update_or_create(
+                            id=old_endpoint.id,  # Mantener mismo ID
+                            defaults={
+                                'league': new_league,
+                                'endpoint_type': old_endpoint.endpoint_type,
+                                'url_pattern': old_endpoint.url_pattern,
+                                'parser_type': old_endpoint.parser_type,
+                                'is_active': old_endpoint.is_active,
+                                'extra_params': old_endpoint.extra_params,
+                                'created_at': old_endpoint.created_at,
+                            }
+                        )
+                        if created:
+                            self.stdout.write(f'Nuevo endpoint creado: {endpoint.id} - {endpoint.endpoint_type}')
+                        else:
+                            self.stdout.write(f'Endpoint actualizado: {endpoint.id} - {endpoint.endpoint_type}')
+                    except Exception as e:
+                        self.stdout.write(
+                            self.style.ERROR(f'Error creando endpoint {old_endpoint.id}: {e}')
+                        )
                 self.stdout.write(f'Procesados {min(i + batch_size, total)} endpoints')
         
         self.stdout.write(
@@ -167,14 +185,15 @@ class Command(BaseCommand):
         """Migrar partidos"""
         self.stdout.write('Migrando partidos...')
         
-        old_matches = OldMatch.objects.select_related('league', 'home_team', 'away_team').all()
+        # Usar MatchAllManager para incluir TODOS los partidos, incluyendo withdrawn
+        old_matches = OldMatch.all_objects.prefetch_related('league', 'home_team', 'away_team').all()
         total = old_matches.count()
         
         if total == 0:
             self.stdout.write('No hay partidos para migrar')
             return
         
-        self.stdout.write(f'Encontrados {total} partidos')
+        self.stdout.write(f'Encontrados {total} partidos (incluyendo withdrawn)')
         
         if not dry_run:
             for i in range(0, total, batch_size):
@@ -195,7 +214,8 @@ class Command(BaseCommand):
                     
                     if old_match.home_team:
                         try:
-                            from videosvoley.teams.models import Team
+                            # Usar el modelo Team original (videos.Team) para foreign keys temporales
+                            from videosvoley.videos.models import Team
                             new_home_team = Team.objects.get(id=old_match.home_team.id)
                         except Team.DoesNotExist:
                             self.stdout.write(
@@ -204,14 +224,15 @@ class Command(BaseCommand):
                     
                     if old_match.away_team:
                         try:
-                            from videosvoley.teams.models import Team
+                            # Usar el modelo Team original (videos.Team) para foreign keys temporales
+                            from videosvoley.videos.models import Team
                             new_away_team = Team.objects.get(id=old_match.away_team.id)
                         except Team.DoesNotExist:
                             self.stdout.write(
                                 self.style.WARNING(f'Equipo visitante no encontrado: {old_match.away_team.id}')
                             )
                     
-                    NewMatch.objects.get_or_create(
+                    NewMatch.objects.update_or_create(
                         id=old_match.id,  # Mantener mismo ID
                         defaults={
                             'league': new_league,
@@ -277,7 +298,8 @@ class Command(BaseCommand):
                     new_team = None
                     if old_standing.team:
                         try:
-                            from videosvoley.teams.models import Team
+                            # Usar el modelo Team original (videos.Team) para foreign keys temporales
+                            from videosvoley.videos.models import Team
                             new_team = Team.objects.get(id=old_standing.team.id)
                         except Team.DoesNotExist:
                             self.stdout.write(
@@ -285,8 +307,9 @@ class Command(BaseCommand):
                             )
                             continue
                     
-                    NewStanding.objects.get_or_create(
-                        id=old_standing.id,  # Mantener mismo ID
+                    NewStanding.objects.update_or_create(
+                        league=new_league,
+                        team=new_team,
                         defaults={
                             'league': new_league,
                             'team': new_team,

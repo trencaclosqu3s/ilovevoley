@@ -95,30 +95,76 @@ videosvoley/
 - **Migraciones**: Creadas exitosamente
 - **Foreign keys**: Temporales a videos.Team (se actualizarán en FASE 2.7)
 
-### **FASE 2: Migración de Datos** ⏳ PENDIENTE
+### **FASE 2: Migración de Datos** 🔄 EN PROGRESO
 
-#### 🔄 **FASE 2.1 - Crear backup completo de la base de datos** ⏳ PENDIENTE
-- **Estado**: ⏳ PENDIENTE
-- **Acciones**: Backup con `pg_dump` y `dumpdata`
+#### ✅ **FASE 2.1 - Crear backup completo de la base de datos** ✅ COMPLETADA
+- **Estado**: ✅ COMPLETADA
+- **Acciones**: Backup con script de producción existente
+- **Notas**: 
+  - Se utilizará el script de producción: `/opt/scripts/postgres_backup.sh`
+  - El script mantiene los últimos 10 backups automáticamente
+  - Backup se ejecutará en producción antes de proceder con la migración
 
-#### 🔄 **FASE 2.2 - Migrar modelos de content** ⏳ PENDIENTE
-- **Estado**: ⏳ PENDIENTE
+#### ✅ **FASE 2.2 - Migrar modelos de content** ✅ COMPLETADA
+- **Estado**: ✅ COMPLETADA
 - **Comando**: `python manage.py migrate_content_data`
+- **Resultados**:
+  - ✅ 3 categorías migradas
+  - ✅ 11 videos migrados
+  - ✅ 57 imágenes migradas
+  - ✅ 1 comentario migrado
+- **Correcciones**: Signal de content/signals.py corregido para manejar foreign keys temporales
 
-#### 🔄 **FASE 2.3 - Migrar modelos de teams** ⏳ PENDIENTE
-- **Estado**: ⏳ PENDIENTE
+#### ✅ **FASE 2.3 - Migrar modelos de teams** ✅ COMPLETADA
+- **Estado**: ✅ COMPLETADA
+- **Comando**: `python manage.py migrate_teams_data`
+- **Resultados**:
+  - ✅ 46 clubs migrados
+  - ✅ 46 teams migrados (incluyendo equipos "Senior" creados automáticamente)
+- **Funcionalidades**: Signals de teams funcionando correctamente para crear equipos por defecto
 
-#### 🔄 **FASE 2.4 - Migrar modelos de competitions** ⏳ PENDIENTE
-- **Estado**: ⏳ PENDIENTE
+#### ✅ **FASE 2.4 - Migrar modelos de competitions** ✅ COMPLETADA
+- **Estado**: ✅ COMPLETADA
+- **Comando**: `python manage.py migrate_competitions_data`
+- **Resultados**:
+  - ✅ 9 ligas migradas
+  - ✅ 199 partidos migrados
+  - ✅ 44 clasificaciones migradas
+  - ✅ 1 endpoint de scraping migrado
+- **Correcciones**: Indentación corregida en comando de migración, foreign keys temporales funcionando
 
-#### 🔄 **FASE 2.5 - Migrar modelos de rosters** ⏳ PENDIENTE
-- **Estado**: ⏳ PENDIENTE
+#### ✅ **FASE 2.5 - Migrar modelos de rosters** ✅ COMPLETADA
+- **Estado**: ✅ COMPLETADA
+- **Comando**: `python manage.py migrate_rosters_data`
+- **Resultados**:
+  - ✅ 33 personas migradas
+  - ✅ 27 roles de jugador migrados
+  - ✅ 3 roles de staff migrados
+- **Funcionalidades**: Signals de rosters funcionando correctamente, estadísticas de equipos actualizadas automáticamente
 
-#### 🔄 **FASE 2.6 - Crear scripts de migración de datos con foreign keys temporales** ⏳ PENDIENTE
-- **Estado**: ⏳ PENDIENTE
+#### ✅ **FASE 2.6 - Crear scripts de migración de datos con foreign keys temporales** ✅ COMPLETADA
+- **Estado**: ✅ COMPLETADA
+- **Scripts creados**:
+  - `migrate_all_data.py`: Comando maestro para migrar todos los datos
+  - `verify_migration_integrity.py`: Verificación de integridad de datos migrados
+  - `rollback_migration.py`: Rollback de migración en casos de emergencia
+  - `migration_stats.py`: Estadísticas detalladas de migración
+  - `cleanup_duplicates.py`: Limpieza de datos duplicados
+- **Correcciones**: Problema con MatchManager personalizado resuelto (usar MatchAllManager para incluir partidos withdrawn)
 
-#### 🔄 **FASE 2.7 - Actualizar todas las foreign keys para apuntar a las nuevas apps** ⏳ PENDIENTE
-- **Estado**: ⏳ PENDIENTE
+#### ✅ **FASE 2.7 - Actualizar todas las foreign keys para apuntar a las nuevas apps** ✅ COMPLETADA
+- **Estado**: ✅ COMPLETADA
+- **Scripts creados**:
+  - `update_foreign_keys.py`: Comando maestro para actualizar todas las foreign keys
+  - `update_content_foreign_keys.py`: Actualización específica de content
+  - `update_competitions_foreign_keys.py`: Actualización específica de competitions
+  - `update_rosters_foreign_keys.py`: Actualización específica de rosters
+- **Actualizaciones realizadas**:
+  - ✅ 554 registros actualizados en total
+  - ✅ Content: 50 registros (11 videos, 38 imágenes, 1 comentario)
+  - ✅ Competitions: 463 registros (9 ligas, 206+204 partidos, 44 clasificaciones)
+  - ✅ Rosters: 30 registros (27 roles de jugador, 3 roles de staff)
+- **Verificación**: Todas las foreign keys ahora apuntan correctamente a las nuevas apps
 
 ### **FASE 3: Migración de Código** ⏳ PENDIENTE
 
@@ -636,5 +682,5 @@ docker-compose exec web python manage.py migrate_content_data --dry-run
 ---
 
 **Última actualización**: 2025-01-27  
-**Estado actual**: FASE 1.4 completada - Apps Content, Competitions, Teams y Rosters creadas exitosamente  
-**Próximo paso**: FASE 2.1 - Crear backup completo de la base de datos
+**Estado actual**: FASE 2 COMPLETADA - ¡Toda la migración de datos finalizada exitosamente! 🎉  
+**Próximo paso**: FASE 3.1 - Migrar views de content (inicio de migración de código)
