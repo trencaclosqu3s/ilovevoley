@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
-from videosvoley.videos.models import Club, Team
+from videosvoley.teams.models import Club, Team
 import requests
 import logging
 import time

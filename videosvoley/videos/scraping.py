@@ -8,7 +8,8 @@ from typing import Dict, List, Optional, Any
 from django.utils import timezone
 from django.db import transaction, models
 from unidecode import unidecode
-from .models import League, Team, Match, Standing, ScrapingEndpoint
+from videosvoley.competitions.models import League, Match, Standing, ScrapingEndpoint
+from videosvoley.teams.models import Team
 
 logger = logging.getLogger(__name__)
 

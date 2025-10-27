@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
-from videosvoley.videos.models import League, ScrapingEndpoint
+from videosvoley.competitions.models import League, ScrapingEndpoint
 
 
 class Command(BaseCommand):

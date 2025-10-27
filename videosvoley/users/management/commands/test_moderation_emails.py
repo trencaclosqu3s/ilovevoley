@@ -3,7 +3,8 @@ Comando para probar emails de moderación con tokens de aprobación/rechazo
 """
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from videosvoley.videos.models import Image, Match
+from videosvoley.content.models import Image
+from videosvoley.competitions.models import Match
 from videosvoley.core.email_utils import send_notification_email
 from videosvoley.core.moderation_views import generate_moderation_token
 import os

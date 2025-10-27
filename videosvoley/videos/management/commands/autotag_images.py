@@ -4,7 +4,7 @@ Comando para auto-etiquetar imágenes existentes usando Google Vision API
 
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
-from videosvoley.videos.models import Image
+from videosvoley.content.models import Image
 from videosvoley.videos.utils import check_image_with_vision_api, process_vision_tags_for_volleyball
 import time
 

@@ -14,7 +14,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from videosvoley.videos.models import Match
+from videosvoley.competitions.models import Match
 
 logger = logging.getLogger(__name__)
 

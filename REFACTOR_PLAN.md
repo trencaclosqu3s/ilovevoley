@@ -490,8 +490,25 @@ videosvoley/
   - ✅ Todas las funcionalidades operativas
   - ✅ Compatibilidad hacia atrás mantenida
 
-#### 🔄 **FASE 4.4 - Actualizar todos los imports en el código** ⏳ PENDIENTE
-- **Estado**: ⏳ PENDIENTE
+#### ✅ **FASE 4.4 - Actualizar todos los imports en el código** ✅ COMPLETADA
+- **Estado**: ✅ COMPLETADA
+- **Archivos actualizados**:
+  - ✅ **Core services**: `calendar_sync.py`, `calendar_tasks.py`, `moderation_views.py`
+  - ✅ **Users**: `forms.py`, management commands de test
+  - ✅ **RAG**: `index_documents.py`, `rag_status.py`
+  - ✅ **Config**: `celery.py`
+  - ✅ **Competitions**: `admin.py`
+  - ✅ **Videos**: `scraping.py`, todos los management commands
+- **Imports actualizados**:
+  - ✅ `videosvoley.videos.models` → `videosvoley.content.models` (Video, Image, Category)
+  - ✅ `videosvoley.videos.models` → `videosvoley.competitions.models` (Match, League, Standing, ScrapingEndpoint)
+  - ✅ `videosvoley.videos.models` → `videosvoley.teams.models` (Team, Club)
+  - ✅ `videosvoley.videos.tasks` → `videosvoley.competitions.tasks`
+- **Verificación**:
+  - ✅ `manage.py check` pasa sin errores críticos
+  - ✅ Solo warnings esperados sobre namespaces duplicados
+  - ✅ Todos los imports funcionando correctamente
+  - ✅ Sistema funcionando sin errores
 
 ### **FASE 5: Limpieza** ⏳ PENDIENTE
 

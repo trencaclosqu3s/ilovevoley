@@ -4,7 +4,8 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-from videosvoley.videos.models import Image, Category, Match
+from videosvoley.content.models import Image, Category
+from videosvoley.competitions.models import Match
 from videosvoley.core.middleware import send_404_daily_report
 from videosvoley.core.email_utils import get_admin_emails
 import random

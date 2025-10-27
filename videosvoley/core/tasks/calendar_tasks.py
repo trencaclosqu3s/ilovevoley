@@ -11,7 +11,7 @@ from django.conf import settings
 from django.db import models
 
 from videosvoley.core.services.calendar_sync import get_calendar_service
-from videosvoley.videos.models import Match
+from videosvoley.competitions.models import Match
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

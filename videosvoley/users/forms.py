@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from videosvoley.videos.models import Category
+from videosvoley.content.models import Category
 
 User = get_user_model()
 

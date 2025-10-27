@@ -449,7 +449,7 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
         if not queryset:
             self.message_user(request, 'No se seleccionaron tareas.')
             return
-        from videosvoley.videos.tasks import (
+        from videosvoley.competitions.tasks import (
             scrape_all_leagues_task, 
             scrape_league_task, 
             scrape_calendar_task,

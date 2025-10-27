@@ -3,7 +3,7 @@ Comando para limpiar equipos duplicados basados en nombres normalizados
 """
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from videosvoley.videos.models import Team
+from videosvoley.teams.models import Team
 from videosvoley.videos.utils import normalize_team_name
 
 

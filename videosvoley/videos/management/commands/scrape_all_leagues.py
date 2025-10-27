@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
-from videosvoley.videos.models import League
+from videosvoley.competitions.models import League
 from videosvoley.videos.scraping import FederationScraper
 import logging
 import time

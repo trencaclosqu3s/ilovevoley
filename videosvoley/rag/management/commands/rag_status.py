@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db import models
-from videosvoley.videos.models import Video, Image, Match, League, Standing
+from videosvoley.content.models import Video, Image
+from videosvoley.competitions.models import Match, League, Standing
 from videosvoley.rag.models import Document
 from videosvoley.rag.services import get_rag_service
 from datetime import datetime, timedelta

@@ -5,7 +5,7 @@ a Europe/Madrid correctamente.
 """
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from videosvoley.videos.models import Match
+from videosvoley.competitions.models import Match
 from zoneinfo import ZoneInfo
 
 

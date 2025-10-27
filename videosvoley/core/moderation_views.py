@@ -7,7 +7,7 @@ from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
 from django.http import HttpResponseForbidden, HttpResponseBadRequest
 from django.conf import settings
 from django.utils import timezone
-from videosvoley.videos.models import Image
+from videosvoley.content.models import Image
 from videosvoley.core.email_utils import send_notification_email
 
 User = get_user_model()

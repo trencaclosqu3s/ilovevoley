@@ -27,7 +27,7 @@ except ImportError as e:
     print(f"Warning: Could not import calendar tasks: {e}")
 
 try:
-    from videosvoley.videos.tasks import (
+    from videosvoley.competitions.tasks import (
         scrape_all_leagues_task,
         scrape_league_task,
         scrape_calendar_task,
@@ -41,7 +41,7 @@ try:
         enrich_upcoming_matches_task
     )
 except ImportError as e:
-    print(f"Warning: Could not import video tasks: {e}")
+    print(f"Warning: Could not import competition tasks: {e}")
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
