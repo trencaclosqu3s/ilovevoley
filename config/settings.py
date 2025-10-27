@@ -55,6 +55,9 @@ INSTALLED_APPS = [
     # Local apps
     'videosvoley.core.apps.CoreConfig',
     'videosvoley.content.apps.ContentConfig',  # Nueva app para contenido
+    'videosvoley.competitions.apps.CompetitionsConfig',  # Nueva app para competiciones
+    'videosvoley.teams.apps.TeamsConfig',  # Nueva app para equipos y clubs
+    'videosvoley.rosters.apps.RostersConfig',  # Nueva app para plantillas y roles
     'videosvoley.videos',
     'videosvoley.users',
     'videosvoley.rag',
