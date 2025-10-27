@@ -371,8 +371,22 @@ videosvoley/
   - ⚠️ Errores de admin por referencias a modelos no registrados (pendiente)
   - ⚠️ Warnings de namespaces duplicados en URLs (no crítico)
 
-#### 🔄 **FASE 3.10 - Migrar tareas de Celery por app** ⏳ PENDIENTE
-- **Estado**: ⏳ PENDIENTE
+#### ✅ **FASE 3.10 - Migrar tareas de Celery por app** ✅ COMPLETADA
+- **Estado**: ✅ COMPLETADA
+- **Tareas migradas**:
+  - **Competitions**: `scrape_all_leagues_task`, `scrape_league_task`, `scrape_calendar_task`, `scrape_results_task`, `scrape_clubs_task`, `scrape_teams_task`, `handle_withdrawn_teams_task`
+  - **Content**: No hay tareas específicas de content
+  - **Teams**: No hay tareas específicas de teams  
+  - **Rosters**: No hay tareas específicas de rosters
+- **Archivos actualizados**:
+  - ✅ `videosvoley/competitions/tasks.py` creado con todas las tareas de scraping
+  - ✅ `videosvoley/videos/tasks.py` convertido en archivo de compatibilidad
+  - ✅ Imports actualizados para usar modelos de las nuevas apps
+  - ✅ Tareas distribuidas por funcionalidad específica
+- **Compatibilidad mantenida**:
+  - ✅ Tareas accesibles desde `videosvoley.videos.tasks` para compatibilidad
+  - ✅ Tareas accesibles desde `videosvoley.competitions.tasks` para nueva funcionalidad
+  - ✅ Todas las tareas funcionando correctamente
 
 ### **FASE 4: Configuración y Testing** ⏳ PENDIENTE
 
