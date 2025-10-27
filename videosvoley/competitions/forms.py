@@ -1,29 +1,259 @@
+"""
+Forms para la gestión de competiciones (ligas, partidos, clasificaciones).
+Migrados desde videos.forms para la nueva app competitions.
+"""
 from django import forms
-from django.utils import timezone
-from .models import League, Match, Standing, ScrapingEndpoint
+from django.conf import settings
+from django.db.models import Q
+from .models import League, Match, Standing
+
+# Importar modelos de otras apps
+from videosvoley.content.models import Category
+from videosvoley.teams.models import Team
+
+
+class MatchAdminForm(forms.ModelForm):
+    """Formulario personalizado para el admin de Match con filtrado por categoría"""
+    
+    filter_by_category = forms.BooleanField(
+        required=False, 
+        initial=True,
+        label='Filtrar equipos por categoría de la liga',
+        help_text='Desmarca para ver todos los equipos disponibles'
+    )
+    
+    class Meta:
+        model = Match
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Configurar filtrado por defecto
+        filter_by_category = True
+        league_category = None
+        
+        # Si estamos editando un match existente y tiene liga
+        if self.instance and self.instance.pk and self.instance.league:
+            league_category = self.instance.league.category
+            
+            # Verificar si se envió el formulario con el checkbox
+            if self.data and 'filter_by_category' in self.data:
+                filter_by_category = self.data.get('filter_by_category') == 'on'
+        
+        # Si hay datos POST sobre league, obtener la categoría de esa liga
+        elif self.data and 'league' in self.data and self.data['league']:
+            try:
+                league = League.objects.get(id=self.data['league'])
+                league_category = league.category
+                if self.data and 'filter_by_category' in self.data:
+                    filter_by_category = self.data.get('filter_by_category') == 'on'
+            except League.DoesNotExist:
+                pass
+        
+        # Aplicar filtrado de equipos
+        if filter_by_category and league_category:
+            # Filtrar equipos por la categoría de la liga
+            filtered_teams = Team.objects.filter(category=league_category).order_by('name')
+            self.fields['home_team'].queryset = filtered_teams
+            self.fields['away_team'].queryset = filtered_teams
+            
+            # Actualizar help text
+            self.fields['home_team'].help_text = f'Equipos de la categoría: {league_category.name}'
+            self.fields['away_team'].help_text = f'Equipos de la categoría: {league_category.name}'
+        else:
+            # Mostrar todos los equipos
+            self.fields['home_team'].queryset = Team.objects.all().order_by('name')
+            self.fields['away_team'].queryset = Team.objects.all().order_by('name')
+        
+        # Agregar clases CSS y atributos para JavaScript
+        self.fields['filter_by_category'].widget.attrs.update({
+            'id': 'id_filter_by_category'
+        })
+        
+        # Establecer valor inicial del checkbox
+        if 'filter_by_category' not in self.data:
+            self.fields['filter_by_category'].initial = True
+
+
+class FriendlyMatchForm(forms.ModelForm):
+    """Formulario para crear partidos amistosos desde el calendario"""
+    
+    # Campo para seleccionar categoría (requerido)
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.filter(is_active=True),
+        required=True,
+        label='Categoría',
+        help_text='Selecciona la categoría del partido',
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'id': 'id_category'
+        })
+    )
+    
+    class Meta:
+        model = Match
+        fields = ['home_team_text', 'away_team_text', 'match_date', 'venue']
+        widgets = {
+            'home_team_text': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'placeholder': 'Equipo local',
+                'id': 'id_home_team_text'
+            }),
+            'away_team_text': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'placeholder': 'Equipo visitante',
+                'id': 'id_away_team_text'
+            }),
+            'match_date': forms.DateTimeInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'type': 'datetime-local',
+                'id': 'id_match_date'
+            }),
+            'venue': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'placeholder': 'Polideportivo, pabellón, etc.',
+                'id': 'id_venue'
+            }),
+        }
+        labels = {
+            'home_team_text': 'Equipo Local',
+            'away_team_text': 'Equipo Visitante',
+            'match_date': 'Fecha y Hora',
+            'venue': 'Lugar',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Hacer campos opcionales
+        self.fields['venue'].required = False
+        self.fields['notes'].required = False
+        
+        # Configurar queryset de categorías activas
+        self.fields['category'].queryset = Category.objects.filter(is_active=True).order_by('name')
+
+    def clean(self):
+        """Validación global del formulario"""
+        cleaned_data = super().clean()
+        home_team_text = cleaned_data.get('home_team_text')
+        away_team_text = cleaned_data.get('away_team_text')
+        match_date = cleaned_data.get('match_date')
+        
+        # Validar que los equipos sean diferentes
+        if home_team_text and away_team_text and home_team_text.strip().lower() == away_team_text.strip().lower():
+            raise forms.ValidationError('Los equipos local y visitante deben ser diferentes')
+        
+        # Validar que la fecha no sea en el pasado (con margen de 1 hora)
+        if match_date:
+            from django.utils import timezone
+            now = timezone.now()
+            if match_date < now:
+                raise forms.ValidationError('La fecha del partido no puede ser en el pasado')
+        
+        return cleaned_data
+
+    def save(self, commit=True):
+        """Guardar el partido amistoso con configuración automática"""
+        match = super().save(commit=False)
+        
+        # Configurar como partido amistoso
+        match.competition_type = 'friendly'
+        match.status = 'scheduled'
+        
+        # Crear liga amistosa si no existe
+        if not match.league:
+            friendly_league, created = League.objects.get_or_create(
+                name='Partidos Amistosos',
+                defaults={
+                    'competition_type': 'friendly',
+                    'season': '2024-25',
+                    'is_active': True,
+                    'description': 'Partidos amistosos del club'
+                }
+            )
+            match.league = friendly_league
+        
+        if commit:
+            match.save()
+        
+        return match
+
+
+class MatchResultForm(forms.ModelForm):
+    """Formulario para agregar resultado de partido"""
+    
+    class Meta:
+        model = Match
+        fields = ['home_score', 'away_score', 'status']
+        widgets = {
+            'home_score': forms.NumberInput(attrs={
+                'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'min': '0',
+                'max': '99',
+                'placeholder': '0'
+            }),
+            'away_score': forms.NumberInput(attrs={
+                'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'min': '0',
+                'max': '99',
+                'placeholder': '0'
+            }),
+            'status': forms.Select(attrs={
+                'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+            }),
+        }
+        labels = {
+            'home_score': 'Goles Local',
+            'away_score': 'Goles Visitante',
+            'status': 'Estado',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Configurar opciones de estado
+        self.fields['status'].choices = [
+            ('finished', 'Finalizado'),
+            ('in_progress', 'En curso'),
+            ('scheduled', 'Programado'),
+            ('postponed', 'Aplazado'),
+            ('cancelled', 'Cancelado'),
+        ]
+
+    def clean(self):
+        """Validación global del formulario"""
+        cleaned_data = super().clean()
+        home_score = cleaned_data.get('home_score')
+        away_score = cleaned_data.get('away_score')
+        status = cleaned_data.get('status')
+        
+        # Si el partido está finalizado, validar que tenga resultado
+        if status == 'finished':
+            if home_score is None or away_score is None:
+                raise forms.ValidationError('Un partido finalizado debe tener resultado completo')
+            
+            # Validar que los goles sean números positivos
+            if home_score < 0 or away_score < 0:
+                raise forms.ValidationError('Los goles no pueden ser negativos')
+        
+        return cleaned_data
 
 
 class LeagueForm(forms.ModelForm):
     """Formulario para crear/editar ligas"""
+    
     class Meta:
         model = League
-        fields = [
-            'name', 'federation_id', 'competition_type', 'season', 'category',
-            'visibility_type', 'is_active', 'is_historical', 'is_our_team_related',
-            'match_format', 'custom_max_sets', 'custom_sets_to_win', 'base_url'
-        ]
+        fields = ['name', 'season', 'competition_type', 'category', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'placeholder': 'Nombre de la liga'
             }),
-            'federation_id': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'ID de la federación'
-            }),
             'season': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Ej: 2024-25'
+                'placeholder': '2024-25'
             }),
             'competition_type': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
@@ -31,249 +261,106 @@ class LeagueForm(forms.ModelForm):
             'category': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
             }),
-            'visibility_type': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
-            }),
-            'match_format': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
-            }),
-            'base_url': forms.URLInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'https://www.voleibolib.net'
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'w-4 h-4 text-csj-purple bg-gray-100 border-gray-300 rounded focus:ring-csj-purple focus:ring-2'
             }),
         }
         labels = {
-            'name': 'Nombre de la Liga',
-            'federation_id': 'ID de la Federación',
-            'competition_type': 'Tipo de Competición',
+            'name': 'Nombre',
             'season': 'Temporada',
+            'competition_type': 'Tipo de Competición',
             'category': 'Categoría',
-            'visibility_type': 'Tipo de Visibilidad',
             'is_active': 'Activa',
-            'is_historical': 'Histórica',
-            'is_our_team_related': 'Relacionada con Nuestro Equipo',
-            'match_format': 'Formato de Partido',
-            'custom_max_sets': 'Máximo de Sets (Personalizado)',
-            'custom_sets_to_win': 'Sets para Ganar (Personalizado)',
-            'base_url': 'URL Base',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Configurar queryset de categorías activas
+        self.fields['category'].queryset = Category.objects.filter(is_active=True).order_by('name')
 
-class MatchForm(forms.ModelForm):
-    """Formulario para crear/editar partidos"""
+
+class StandingForm(forms.ModelForm):
+    """Formulario para crear/editar clasificaciones"""
+    
     class Meta:
-        model = Match
-        fields = [
-            'league', 'home_team', 'away_team', 'home_team_text', 'away_team_text',
-            'is_friendly', 'match_date', 'venue', 'city', 'round_number',
-            'home_score', 'away_score', 'status', 'federation_id',
-            'referee1', 'referee2', 'scorer', 'timekeeper', 'delegate',
-            'field_address', 'federation_club_local_id', 'federation_club_away_id',
-            'acta_html'
-        ]
+        model = Standing
+        fields = ['team', 'position', 'played', 'won', 'lost', 'sets_for', 'sets_against', 'points_for', 'points_against', 'total_points']
         widgets = {
-            'match_date': forms.DateTimeInput(attrs={
-                'type': 'datetime-local',
+            'team': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
             }),
-            'venue': forms.TextInput(attrs={
+            'position': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Nombre del pabellón'
+                'min': '1'
             }),
-            'city': forms.TextInput(attrs={
+            'played': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Ciudad'
+                'min': '0'
             }),
-            'home_team_text': forms.TextInput(attrs={
+            'won': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Nombre del equipo local'
+                'min': '0'
             }),
-            'away_team_text': forms.TextInput(attrs={
+            'lost': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Nombre del equipo visitante'
+                'min': '0'
             }),
-            'home_score': forms.NumberInput(attrs={
+            'sets_for': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'min': 0
+                'min': '0'
             }),
-            'away_score': forms.NumberInput(attrs={
+            'sets_against': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'min': 0
+                'min': '0'
             }),
-            'round_number': forms.NumberInput(attrs={
+            'points_for': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'min': 1
+                'min': '0'
             }),
-            'field_address': forms.Textarea(attrs={
+            'points_against': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'rows': 3,
-                'placeholder': 'Dirección completa del campo'
+                'min': '0'
+            }),
+            'total_points': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'min': '0'
             }),
         }
         labels = {
-            'league': 'Liga',
-            'home_team': 'Equipo Local',
-            'away_team': 'Equipo Visitante',
-            'home_team_text': 'Equipo Local (Texto)',
-            'away_team_text': 'Equipo Visitante (Texto)',
-            'is_friendly': 'Partido Amistoso',
-            'match_date': 'Fecha y Hora',
-            'venue': 'Pabellón',
-            'city': 'Ciudad',
-            'round_number': 'Jornada',
-            'home_score': 'Puntos Local',
-            'away_score': 'Puntos Visitante',
-            'status': 'Estado',
-            'federation_id': 'ID de la Federación',
-            'referee1': 'Árbitro 1',
-            'referee2': 'Árbitro 2',
-            'scorer': 'Anotador',
-            'timekeeper': 'Cronometrador',
-            'delegate': 'Delegado',
-            'field_address': 'Dirección del Campo',
-            'federation_club_local_id': 'ID Club Local (Federación)',
-            'federation_club_away_id': 'ID Club Visitante (Federación)',
-            'acta_html': 'Acta HTML',
+            'team': 'Equipo',
+            'position': 'Posición',
+            'played': 'Partidos Jugados',
+            'won': 'Partidos Ganados',
+            'lost': 'Partidos Perdidos',
+            'sets_for': 'Sets a Favor',
+            'sets_against': 'Sets en Contra',
+            'points_for': 'Puntos a Favor',
+            'points_against': 'Puntos en Contra',
+            'total_points': 'Puntos Totales',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Filtrar ligas activas
-        self.fields['league'].queryset = League.objects.filter(is_active=True)
-        # Filtrar equipos activos (esto se actualizará cuando se cree la app teams)
-        # self.fields['home_team'].queryset = Team.objects.filter(is_active=True)
-        # self.fields['away_team'].queryset = Team.objects.filter(is_active=True)
+        
+        # Configurar queryset de equipos activos
+        self.fields['team'].queryset = Team.objects.filter(is_active=True).order_by('name')
 
-
-class FriendlyMatchForm(forms.ModelForm):
-    """Formulario específico para partidos amistosos"""
-    class Meta:
-        model = Match
-        fields = [
-            'home_team_text', 'away_team_text', 'match_date', 'venue', 'city',
-            'home_score', 'away_score', 'referee1', 'referee2', 'field_address'
-        ]
-        widgets = {
-            'home_team_text': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Nombre del equipo local',
-                'required': True
-            }),
-            'away_team_text': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Nombre del equipo visitante',
-                'required': True
-            }),
-            'match_date': forms.DateTimeInput(attrs={
-                'type': 'datetime-local',
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'required': True
-            }),
-            'venue': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Nombre del pabellón'
-            }),
-            'city': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Ciudad'
-            }),
-            'home_score': forms.NumberInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'min': 0
-            }),
-            'away_score': forms.NumberInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'min': 0
-            }),
-            'field_address': forms.Textarea(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'rows': 3,
-                'placeholder': 'Dirección completa del campo'
-            }),
-        }
-        labels = {
-            'home_team_text': 'Equipo Local',
-            'away_team_text': 'Equipo Visitante',
-            'match_date': 'Fecha y Hora',
-            'venue': 'Pabellón',
-            'city': 'Ciudad',
-            'home_score': 'Puntos Local',
-            'away_score': 'Puntos Visitante',
-            'referee1': 'Árbitro 1',
-            'referee2': 'Árbitro 2',
-            'field_address': 'Dirección del Campo',
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Establecer valores por defecto para partidos amistosos
-        self.fields['is_friendly'].initial = True
-        self.fields['status'].initial = 'scheduled'
-        self.fields['round_number'].initial = 1
-
-
-class ScrapingEndpointForm(forms.ModelForm):
-    """Formulario para crear/editar endpoints de scraping"""
-    class Meta:
-        model = ScrapingEndpoint
-        fields = ['league', 'endpoint_type', 'url_pattern', 'parser_type', 'is_active', 'extra_params']
-        widgets = {
-            'url_pattern': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Usar {league_id}, {round}, etc. para parámetros dinámicos'
-            }),
-            'extra_params': forms.Textarea(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'rows': 3,
-                'placeholder': 'Parámetros adicionales como JSON'
-            }),
-        }
-        labels = {
-            'league': 'Liga',
-            'endpoint_type': 'Tipo de Endpoint',
-            'url_pattern': 'Patrón de URL',
-            'parser_type': 'Tipo de Parser',
-            'is_active': 'Activo',
-            'extra_params': 'Parámetros Adicionales',
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Filtrar ligas activas
-        self.fields['league'].queryset = League.objects.filter(is_active=True)
-
-
-class MatchFilterForm(forms.Form):
-    """Formulario para filtrar partidos en el calendario"""
-    league = forms.ModelChoiceField(
-        queryset=League.objects.filter(is_active=True),
-        required=False,
-        empty_label="Todas las ligas",
-        widget=forms.Select(attrs={
-            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
-        })
-    )
-    
-    status = forms.ChoiceField(
-        choices=[('', 'Todos los estados')] + Match.MATCH_STATES,
-        required=False,
-        widget=forms.Select(attrs={
-            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
-        })
-    )
-    
-    date_from = forms.DateField(
-        required=False,
-        widget=forms.DateInput(attrs={
-            'type': 'date',
-            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
-        })
-    )
-    
-    date_to = forms.DateField(
-        required=False,
-        widget=forms.DateInput(attrs={
-            'type': 'date',
-            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
-        })
-    )
+    def clean(self):
+        """Validación global del formulario"""
+        cleaned_data = super().clean()
+        matches_played = cleaned_data.get('matches_played', 0)
+        matches_won = cleaned_data.get('matches_won', 0)
+        matches_drawn = cleaned_data.get('matches_drawn', 0)
+        matches_lost = cleaned_data.get('matches_lost', 0)
+        
+        # Validar que la suma de partidos ganados, empatados y perdidos sea igual a partidos jugados
+        if matches_played is not None and matches_won is not None and matches_drawn is not None and matches_lost is not None:
+            total_matches = matches_won + matches_drawn + matches_lost
+            if total_matches != matches_played:
+                raise forms.ValidationError(
+                    f'La suma de partidos ganados ({matches_won}), empatados ({matches_drawn}) y perdidos ({matches_lost}) '
+                    f'debe ser igual a los partidos jugados ({matches_played})'
+                )
+        
+        return cleaned_data

@@ -1,3 +1,6 @@
+"""
+Configuración de la app competitions.
+"""
 from django.apps import AppConfig
 
 
@@ -7,9 +10,5 @@ class CompetitionsConfig(AppConfig):
     verbose_name = 'Competiciones'
     
     def ready(self):
-        """Configuración cuando la app está lista"""
-        # Importar signals si los hay
-        try:
-            import videosvoley.competitions.signals
-        except ImportError:
-            pass
+        """Importar signals cuando la app esté lista"""
+        import videosvoley.competitions.signals

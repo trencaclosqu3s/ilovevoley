@@ -6,52 +6,36 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
+from django.utils import timezone
+from django.conf import settings
 from .models import Video, Comment, Category, Image
 
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'is_active', 'created_at']
-    list_filter = ['is_active', 'created_at']
-    search_fields = ['name', 'description']
-    ordering = ['name']
+    list_display = ('name', 'is_active', 'leagues_count', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('name', 'description')
+    readonly_fields = ('created_at',)
+    
+    def leagues_count(self, obj):
+        """Muestra el número de ligas asociadas"""
+        return obj.leagues.count()
+    leagues_count.short_description = 'Ligas'
+    
+    def get_search_results(self, request, queryset, search_term):
+        """Mejora la búsqueda para autocomplete"""
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        return queryset, use_distinct
 
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ['title', 'category', 'created_by', 'created_at', 'youtube_thumbnail']
-    list_filter = ['category', 'created_at', 'created_by']
-    search_fields = ['title', 'description', 'created_by__username']
-    readonly_fields = ['youtube_url_id', 'created_at', 'updated_at']
-    raw_id_fields = ['created_by', 'match']
-    
-    fieldsets = (
-        ('Información básica', {
-            'fields': ('title', 'youtube_url', 'youtube_url_id', 'description')
-        }),
-        ('Clasificación', {
-            'fields': ('category', 'match')
-        }),
-        ('Metadatos', {
-            'fields': ('created_by', 'created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def youtube_thumbnail(self, obj):
-        if obj.youtube_url_id:
-            thumbnail_url = f'https://img.youtube.com/vi/{obj.youtube_url_id}/mqdefault.jpg'
-            return format_html(
-                '<img src="{}" width="120" height="90" style="border-radius: 4px;">',
-                thumbnail_url
-            )
-        return '-'
-    youtube_thumbnail.short_description = 'Thumbnail'
-    
-    def save_model(self, request, obj, form, change):
-        if not change:  # Solo para nuevos videos
-            obj.created_by = request.user
-        super().save_model(request, obj, form, change)
+    list_display = ('title', 'category', 'match', 'created_by', 'created_at')
+    list_filter = ('category', 'match__league', 'created_at')
+    search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name')
+    readonly_fields = ('created_at',)
+    autocomplete_fields = ('match',)
 
 
 @admin.register(Comment)
@@ -69,61 +53,141 @@ class CommentAdmin(admin.ModelAdmin):
 
 @admin.register(Image)
 class ImageAdmin(admin.ModelAdmin):
-    list_display = ['title', 'image_preview', 'image_type', 'status', 'uploaded_by', 'upload_date']
-    list_filter = ['status', 'image_type', 'upload_date', 'uploaded_by']
-    search_fields = ['title', 'description', 'tags', 'uploaded_by__username']
-    readonly_fields = ['upload_date', 'moderation_date', 'vision_api_checked', 'vision_api_safe']
-    raw_id_fields = ['uploaded_by', 'moderated_by', 'match']
+    list_display = ('thumbnail_preview', 'title', 'match', 'categories_display_admin', 'status', 'uploaded_by', 'upload_date', 'moderated_by', 'original_format', 'was_converted')
+    list_filter = ('status', 'categories', 'year', 'upload_date', 'match__league', 'was_converted', 'original_format')
+    search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name')
+    readonly_fields = ('upload_date', 'thumbnail_preview', 'vision_api_details', 'moderation_date', 'original_format', 'was_converted')
+    date_hierarchy = 'upload_date'
+    actions = ['approve_images', 'reject_images', 'check_with_vision_api']
+    filter_horizontal = ('categories',)
     
     fieldsets = (
-        ('Información básica', {
-            'fields': ('image', 'title', 'description', 'image_type')
+        ('Imagen', {
+            'fields': ('thumbnail_preview', 'image', 'title', 'description', 'image_type', 'tags', 'original_format', 'was_converted')
         }),
-        ('Clasificación', {
-            'fields': ('categories', 'tags', 'auto_tags', 'match')
+        ('Asociación', {
+            'fields': ('match', 'categories', 'year'),
+            'description': 'Categorías y año se asignan automáticamente desde el partido, pero puedes modificarlas'
         }),
         ('Moderación', {
-            'fields': ('status', 'moderated_by', 'moderation_date', 'moderation_notes'),
-            'classes': ('collapse',)
+            'fields': ('status', 'moderated_by', 'moderation_date', 'moderation_notes')
         }),
         ('Google Vision API', {
             'fields': ('vision_api_checked', 'vision_api_safe', 'vision_api_details'),
-            'classes': ('collapse',)
+            'classes': ('collapse',),
+            'description': 'Información de verificación automática de contenido'
         }),
-        ('Metadatos', {
-            'fields': ('uploaded_by', 'upload_date', 'original_format', 'was_converted'),
+        ('Metadata', {
+            'fields': ('uploaded_by', 'upload_date'),
             'classes': ('collapse',)
-        }),
+        })
     )
     
-    def image_preview(self, obj):
+    def thumbnail_preview(self, obj):
+        """Muestra miniatura de la imagen"""
         if obj.image:
             return format_html(
-                '<img src="{}" width="80" height="80" style="border-radius: 4px; object-fit: cover;">',
+                '<img src="{}" width="80" height="80" style="object-fit: cover; border-radius: 4px;" />',
                 obj.image.url
             )
         return '-'
-    image_preview.short_description = 'Imagen'
+    thumbnail_preview.short_description = 'Preview'
     
-    def save_model(self, request, obj, form, change):
-        if not change:  # Solo para nuevas imágenes
-            obj.uploaded_by = request.user
-        super().save_model(request, obj, form, change)
+    def categories_display_admin(self, obj):
+        """Muestra las categorías de forma legible"""
+        cats = obj.categories.all()
+        if cats:
+            return ', '.join([cat.name for cat in cats])
+        return '-'
+    categories_display_admin.short_description = 'Categorías'
     
-    actions = ['approve_images', 'reject_images']
+    def get_queryset(self, request):
+        """Optimizar consultas con select_related y prefetch_related"""
+        return super().get_queryset(request).select_related(
+            'match__home_team', 'match__away_team', 'match__league',
+            'uploaded_by', 'moderated_by'
+        ).prefetch_related('categories')
     
     def approve_images(self, request, queryset):
+        """Acción masiva para aprobar imágenes"""
         updated = queryset.filter(status='pending').update(
             status='approved',
-            moderated_by=request.user
+            moderated_by=request.user,
+            moderation_date=timezone.now(),
+            moderation_notes='Aprobada masivamente desde admin'
         )
-        self.message_user(request, f'{updated} imágenes aprobadas.')
-    approve_images.short_description = 'Aprobar imágenes seleccionadas'
+        
+        if updated:
+            self.message_user(request, f'{updated} imagen(es) aprobada(s) correctamente.')
+        else:
+            self.message_user(request, 'No hay imágenes pendientes para aprobar.')
+    
+    approve_images.short_description = "Aprobar imágenes seleccionadas"
     
     def reject_images(self, request, queryset):
+        """Acción masiva para rechazar imágenes"""
         updated = queryset.filter(status='pending').update(
             status='rejected',
-            moderated_by=request.user
+            moderated_by=request.user,
+            moderation_date=timezone.now(),
+            moderation_notes='Rechazada masivamente desde admin'
         )
-        self.message_user(request, f'{updated} imágenes rechazadas.')
-    reject_images.short_description = 'Rechazar imágenes seleccionadas'
+        
+        if updated:
+            self.message_user(request, f'{updated} imagen(es) rechazada(s) correctamente.')
+        else:
+            self.message_user(request, 'No hay imágenes pendientes para rechazar.')
+    
+    reject_images.short_description = "Rechazar imágenes seleccionadas"
+    
+    def check_with_vision_api(self, request, queryset):
+        """Acción para verificar imágenes con Google Vision API"""
+        if not getattr(settings, 'GOOGLE_VISION_ENABLED', False):
+            self.message_user(request, 'Google Vision API no está habilitada.', level='WARNING')
+            return
+        
+        try:
+            from .utils import check_image_with_vision_api
+            checked_count = 0
+            unsafe_count = 0
+            
+            for image in queryset:
+                if not image.vision_api_checked:
+                    try:
+                        result = check_image_with_vision_api(image.image)
+                        image.vision_api_checked = True
+                        image.vision_api_safe = result.get('safe', True)
+                        image.vision_api_details = result
+                        
+                        if not result.get('safe', True):
+                            unsafe_count += 1
+                            # Auto-rechazar si no es segura
+                            image.status = 'rejected'
+                            image.moderated_by = request.user
+                            image.moderation_date = timezone.now()
+                            image.moderation_notes = 'Auto-rechazada por Google Vision API'
+                        
+                        image.save()
+                        checked_count += 1
+                        
+                    except Exception as e:
+                        self.message_user(request, f'Error verificando {image.title}: {e}', level='ERROR')
+            
+            if checked_count > 0:
+                self.message_user(request, f'{checked_count} imagen(es) verificada(s) con Vision API.')
+                if unsafe_count > 0:
+                    self.message_user(request, f'{unsafe_count} imagen(es) marcada(s) como insegura(s).', level='WARNING')
+            
+        except ImportError:
+            self.message_user(request, 'Utilidad de Vision API no disponible.', level='ERROR')
+    
+    check_with_vision_api.short_description = "Verificar con Google Vision API"
+    
+    def save_model(self, request, obj, form, change):
+        """Auto-asignar moderador en cambios de estado"""
+        if change and 'status' in form.changed_data:
+            if obj.status in ['approved', 'rejected'] and not obj.moderated_by:
+                obj.moderated_by = request.user
+                obj.moderation_date = timezone.now()
+        
+        super().save_model(request, obj, form, change)

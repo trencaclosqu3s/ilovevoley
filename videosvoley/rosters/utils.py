@@ -1,469 +1,334 @@
-import logging
-from typing import Dict, List, Optional, Tuple
-from django.utils import timezone
-from django.db.models import Q, Count, Avg
+"""
+Utilidades para la gestión de plantillas y personas.
+"""
+from django.db.models import Q, Count, F
 from .models import Person, PlayerRole, StaffRole
 
-logger = logging.getLogger(__name__)
 
-
-def get_roster_statistics(team) -> Dict:
+def get_person_stats(person):
     """
-    Obtiene estadísticas detalladas de la plantilla de un equipo
+    Obtiene estadísticas de una persona
     
     Args:
-        team: Team object
-    
+        person: Instancia de Person
+        
     Returns:
-        Diccionario con estadísticas de la plantilla
+        dict: Estadísticas de la persona
     """
-    try:
-        # Obtener roles activos
-        players = PlayerRole.objects.filter(team=team, is_active=True)
-        staff = StaffRole.objects.filter(team=team, is_active=True)
-        
-        # Estadísticas básicas
-        stats = {
-            'team_name': team.name,
-            'team_category': team.category.name if team.category else 'Sin categoría',
-            'total_players': players.count(),
-            'total_staff': staff.count(),
-            'total_people': players.count() + staff.count(),
-        }
-        
-        # Estadísticas de jugadores
-        players_with_jersey = players.filter(jersey_number__isnull=False)
-        positions = players.values_list('position', flat=True).distinct()
-        
-        stats['players'] = {
-            'with_jersey': players_with_jersey.count(),
-            'without_jersey': players.filter(jersey_number__isnull=True).count(),
-            'positions': list(positions),
-            'position_distribution': {
-                pos: players.filter(position=pos).count() 
-                for pos in positions
-            },
-            'jersey_numbers': list(players_with_jersey.values_list('jersey_number', flat=True)),
-        }
-        
-        # Estadísticas de staff
-        roles = staff.values_list('role', flat=True).distinct()
-        
-        stats['staff'] = {
-            'roles': list(roles),
-            'role_distribution': {
-                role: staff.filter(role=role).count() 
-                for role in roles
-            },
-            'coaches': staff.filter(role__in=['head_coach', 'assistant_coach']).count(),
-            'delegates': staff.filter(role='delegate').count(),
-        }
-        
-        # Estadísticas de edad
-        players_with_age = players.filter(person__birth_date__isnull=False)
-        if players_with_age.exists():
-            ages = [role.person.age for role in players_with_age if role.person.age is not None]
-            if ages:
-                stats['age'] = {
-                    'average': round(sum(ages) / len(ages), 1),
-                    'min': min(ages),
-                    'max': max(ages),
-                    'distribution': get_age_distribution(ages),
-                }
-        
-        return stats
-        
-    except Exception as e:
-        logger.error(f'Error getting roster statistics: {e}')
-        return {'error': str(e)}
-
-
-def get_age_distribution(ages: List[int]) -> Dict[str, int]:
-    """
-    Obtiene la distribución de edades por rangos
+    # Roles de la persona
+    player_roles = person.player_roles.filter(is_active=True)
+    staff_roles = person.staff_roles.filter(is_active=True)
     
-    Args:
-        ages: Lista de edades
+    # Equipos únicos
+    player_teams = set(player_roles.values_list('team__name', flat=True))
+    staff_teams = set(staff_roles.values_list('team__name', flat=True))
+    all_teams = player_teams.union(staff_teams)
     
-    Returns:
-        Diccionario con distribución por rangos
-    """
-    distribution = {
-        '5-12': 0,   # Infantil
-        '13-16': 0,  # Cadete
-        '17-19': 0,  # Juvenil
-        '20-35': 0,  # Senior
-        '36+': 0,    # Veterano
+    # Categorías únicas
+    player_categories = set(player_roles.values_list('team__category__name', flat=True))
+    staff_categories = set(staff_roles.values_list('team__category__name', flat=True))
+    all_categories = player_categories.union(staff_categories)
+    
+    return {
+        'total_teams': len(all_teams),
+        'total_categories': len(all_categories),
+        'player_roles': player_roles.count(),
+        'staff_roles': staff_roles.count(),
+        'active_roles': player_roles.count() + staff_roles.count(),
+        'teams': list(all_teams),
+        'categories': list(all_categories),
     }
-    
-    for age in ages:
-        if 5 <= age <= 12:
-            distribution['5-12'] += 1
-        elif 13 <= age <= 16:
-            distribution['13-16'] += 1
-        elif 17 <= age <= 19:
-            distribution['17-19'] += 1
-        elif 20 <= age <= 35:
-            distribution['20-35'] += 1
-        else:
-            distribution['36+'] += 1
-    
-    return distribution
 
 
-def get_person_statistics(person: Person) -> Dict:
+def get_team_roster_stats(team):
     """
-    Obtiene estadísticas detalladas de una persona
+    Obtiene estadísticas de plantilla de un equipo
     
     Args:
-        person: Person object
-    
+        team: Instancia de Team
+        
     Returns:
-        Diccionario con estadísticas de la persona
+        dict: Estadísticas de la plantilla
     """
-    try:
-        # Obtener roles activos
-        player_roles = person.get_player_roles()
-        staff_roles = person.get_staff_roles()
-        
-        # Estadísticas básicas
-        stats = {
-            'person_name': person.full_name,
-            'age': person.age,
-            'is_active': person.is_active,
-            'contact_info': person.contact_info,
-        }
-        
-        # Estadísticas de roles de jugador
-        stats['player_roles'] = {
-            'total_teams': player_roles.values('team').distinct().count(),
-            'positions': list(player_roles.values_list('position', flat=True).distinct()),
-            'jersey_numbers': list(player_roles.filter(jersey_number__isnull=False).values_list('jersey_number', flat=True)),
-            'teams': [
-                {
-                    'team_name': role.team.name,
-                    'position': role.display_position,
-                    'jersey_number': role.jersey_number,
-                }
-                for role in player_roles
-            ],
-        }
-        
-        # Estadísticas de roles de staff
-        stats['staff_roles'] = {
-            'total_teams': staff_roles.values('team').distinct().count(),
-            'roles': list(staff_roles.values_list('role', flat=True).distinct()),
-            'teams': [
-                {
-                    'team_name': role.team.name,
-                    'role': role.display_role,
-                }
-                for role in staff_roles
-            ],
-        }
-        
-        # Estadísticas generales
-        all_teams = person.get_all_active_teams()
-        stats['general'] = {
-            'total_teams': len(all_teams),
-            'teams': [team.name for team in all_teams],
-            'is_player': player_roles.exists(),
-            'is_staff': staff_roles.exists(),
-            'is_both': player_roles.exists() and staff_roles.exists(),
-        }
-        
-        return stats
-        
-    except Exception as e:
-        logger.error(f'Error getting person statistics: {e}')
-        return {'error': str(e)}
+    # Jugadores
+    players = team.player_roles.filter(is_active=True)
+    active_players = players.count()
+    
+    # Staff
+    staff = team.staff_roles.filter(is_active=True)
+    active_staff = staff.count()
+    
+    # Posiciones de jugadores
+    positions = players.values_list('position', flat=True).distinct()
+    positions_count = {}
+    for position in positions:
+        if position:
+            positions_count[position] = players.filter(position=position).count()
+    
+    # Roles de staff
+    roles = staff.values_list('role', flat=True).distinct()
+    roles_count = {}
+    for role in roles:
+        if role:
+            roles_count[role] = staff.filter(role=role).count()
+    
+    return {
+        'total_players': active_players,
+        'total_staff': active_staff,
+        'total_members': active_players + active_staff,
+        'positions_count': positions_count,
+        'roles_count': roles_count,
+        'unique_positions': len(positions_count),
+        'unique_roles': len(roles_count),
+    }
 
 
-def export_roster_data(team, format='json') -> str:
+def get_persons_by_team(team, role_type=None):
     """
-    Exporta datos de la plantilla de un equipo
+    Obtiene personas de un equipo específico
     
     Args:
-        team: Team object
-        format: Formato de exportación ('json', 'csv')
-    
+        team: Instancia de Team
+        role_type: 'player', 'staff', o None para ambos
+        
     Returns:
-        Datos exportados como string
+        QuerySet: Personas del equipo
     """
-    try:
-        # Obtener datos de la plantilla
-        players = PlayerRole.objects.filter(team=team, is_active=True).select_related('person')
-        staff = StaffRole.objects.filter(team=team, is_active=True).select_related('person')
-        
-        if format == 'json':
-            import json
-            data = {
-                'team': {
-                    'name': team.name,
-                    'category': team.category.name if team.category else 'Sin categoría',
-                    'club': team.club.official_name if team.club else 'Sin club',
-                },
-                'players': [
-                    {
-                        'name': role.person.full_name,
-                        'jersey_number': role.jersey_number,
-                        'position': role.display_position,
-                        'age': role.person.age,
-                        'email': role.person.email,
-                        'phone': role.person.phone,
-                    }
-                    for role in players
-                ],
-                'staff': [
-                    {
-                        'name': role.person.full_name,
-                        'role': role.display_role,
-                        'age': role.person.age,
-                        'email': role.person.email,
-                        'phone': role.person.phone,
-                    }
-                    for role in staff
-                ],
-                'exported_at': timezone.now().isoformat(),
-            }
-            return json.dumps(data, indent=2, ensure_ascii=False)
-        
-        elif format == 'csv':
-            import csv
-            import io
-            
-            output = io.StringIO()
-            writer = csv.writer(output)
-            
-            # Headers
-            writer.writerow(['Tipo', 'Nombre', 'Número', 'Posición/Rol', 'Edad', 'Email', 'Teléfono'])
-            
-            # Jugadores
-            for role in players:
-                writer.writerow([
-                    'Jugador',
-                    role.person.full_name,
-                    role.jersey_number or '',
-                    role.display_position,
-                    role.person.age or '',
-                    role.person.email or '',
-                    role.person.phone or '',
-                ])
-            
-            # Staff
-            for role in staff:
-                writer.writerow([
-                    'Staff',
-                    role.person.full_name,
-                    '',
-                    role.display_role,
-                    role.person.age or '',
-                    role.person.email or '',
-                    role.person.phone or '',
-                ])
-            
-            return output.getvalue()
-        
-        else:
-            raise ValueError(f'Formato no soportado: {format}')
-            
-    except Exception as e:
-        logger.error(f'Error exporting roster data: {e}')
-        return f'Error: {str(e)}'
+    if role_type == 'player':
+        return Person.objects.filter(player_roles__team=team, player_roles__is_active=True).distinct()
+    elif role_type == 'staff':
+        return Person.objects.filter(staff_roles__team=team, staff_roles__is_active=True).distinct()
+    else:  # both
+        return Person.objects.filter(
+            Q(player_roles__team=team, player_roles__is_active=True) |
+            Q(staff_roles__team=team, staff_roles__is_active=True)
+        ).distinct()
 
 
-def assign_jersey_numbers_automatically(team) -> int:
+def get_persons_by_category(category, role_type=None):
     """
-    Asigna números de dorsal automáticamente a jugadores sin número
+    Obtiene personas de una categoría específica
     
     Args:
-        team: Team object
-    
+        category: Instancia de Category
+        role_type: 'player', 'staff', o None para ambos
+        
     Returns:
-        Número de dorsales asignados
+        QuerySet: Personas de la categoría
     """
-    try:
-        # Obtener jugadores sin número de dorsal
-        players_without_jersey = PlayerRole.objects.filter(
-            team=team,
-            is_active=True,
-            jersey_number__isnull=True
-        ).order_by('person__last_name', 'person__first_name')
-        
-        # Obtener números ya asignados
-        assigned_numbers = set(PlayerRole.objects.filter(
-            team=team,
-            is_active=True,
-            jersey_number__isnull=False
-        ).values_list('jersey_number', flat=True))
-        
-        # Números disponibles (1-99)
-        available_numbers = set(range(1, 100)) - assigned_numbers
-        
-        assigned_count = 0
-        for player in players_without_jersey:
-            if available_numbers:
-                # Asignar el primer número disponible
-                jersey_number = min(available_numbers)
-                player.jersey_number = jersey_number
-                player.save()
-                available_numbers.remove(jersey_number)
-                assigned_count += 1
-                logger.info(f'Dorsal {jersey_number} asignado a {player.person.full_name}')
-        
-        logger.info(f'Dorsales asignados automáticamente: {assigned_count}')
-        return assigned_count
-        
-    except Exception as e:
-        logger.error(f'Error assigning jersey numbers automatically: {e}')
-        return 0
+    if role_type == 'player':
+        return Person.objects.filter(
+            player_roles__team__category=category,
+            player_roles__is_active=True
+        ).distinct()
+    elif role_type == 'staff':
+        return Person.objects.filter(
+            staff_roles__team__category=category,
+            staff_roles__is_active=True
+        ).distinct()
+    else:  # both
+        return Person.objects.filter(
+            Q(player_roles__team__category=category, player_roles__is_active=True) |
+            Q(staff_roles__team__category=category, staff_roles__is_active=True)
+        ).distinct()
 
 
-def get_roster_availability(team) -> Dict:
+def search_persons(query, team=None, role_type=None):
     """
-    Obtiene información de disponibilidad de la plantilla
+    Busca personas con filtros opcionales
     
     Args:
-        team: Team object
-    
+        query: Término de búsqueda
+        team: Filtro por equipo (opcional)
+        role_type: Filtro por tipo de rol (opcional)
+        
     Returns:
-        Diccionario con información de disponibilidad
+        QuerySet: Personas que coinciden con la búsqueda
     """
-    try:
-        # Obtener roles activos
-        players = PlayerRole.objects.filter(team=team, is_active=True)
-        staff = StaffRole.objects.filter(team=team, is_active=True)
-        
-        # Contar por posición
-        position_availability = {}
-        for position, display_name in PlayerRole.POSITION_CHOICES:
-            count = players.filter(position=position).count()
-            position_availability[display_name] = count
-        
-        # Contar por rol de staff
-        role_availability = {}
-        for role, display_name in StaffRole.STAFF_ROLES:
-            count = staff.filter(role=role).count()
-            role_availability[display_name] = count
-        
-        # Análisis de cobertura
-        coverage_analysis = {
-            'has_head_coach': staff.filter(role='head_coach').exists(),
-            'has_assistant_coach': staff.filter(role='assistant_coach').exists(),
-            'has_delegate': staff.filter(role='delegate').exists(),
-            'min_players_needed': 6,  # Mínimo para un partido
-            'current_players': players.count(),
-            'has_sufficient_players': players.count() >= 6,
-        }
-        
-        return {
-            'position_availability': position_availability,
-            'role_availability': role_availability,
-            'coverage_analysis': coverage_analysis,
-            'total_players': players.count(),
-            'total_staff': staff.count(),
-        }
-        
-    except Exception as e:
-        logger.error(f'Error getting roster availability: {e}')
-        return {'error': str(e)}
+    persons = Person.objects.filter(
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query) |
+        Q(email__icontains=query) |
+        Q(phone__icontains=query)
+    )
+    
+    if team:
+        persons = persons.filter(
+            Q(player_roles__team=team) | Q(staff_roles__team=team)
+        ).distinct()
+    
+    if role_type == 'player':
+        persons = persons.filter(player_roles__isnull=False).distinct()
+    elif role_type == 'staff':
+        persons = persons.filter(staff_roles__isnull=False).distinct()
+    
+    return persons.order_by('last_name', 'first_name')
 
 
-def search_persons_by_criteria(criteria: Dict) -> List[Person]:
+def get_person_teams(person):
     """
-    Busca personas por criterios específicos
+    Obtiene todos los equipos de una persona
     
     Args:
-        criteria: Diccionario con criterios de búsqueda
-    
+        person: Instancia de Person
+        
     Returns:
-        Lista de personas que cumplen los criterios
+        dict: Equipos agrupados por tipo de rol
     """
-    try:
-        queryset = Person.objects.all()
-        
-        # Filtro por nombre
-        if criteria.get('name'):
-            queryset = queryset.filter(
-                Q(first_name__icontains=criteria['name']) |
-                Q(last_name__icontains=criteria['name'])
-            )
-        
-        # Filtro por edad
-        if criteria.get('min_age') or criteria.get('max_age'):
-            from datetime import date, timedelta
-            
-            if criteria.get('min_age'):
-                max_birth_date = date.today() - timedelta(days=criteria['min_age'] * 365)
-                queryset = queryset.filter(birth_date__lte=max_birth_date)
-            
-            if criteria.get('max_age'):
-                min_birth_date = date.today() - timedelta(days=(criteria['max_age'] + 1) * 365)
-                queryset = queryset.filter(birth_date__gte=min_birth_date)
-        
-        # Filtro por rol
-        if criteria.get('role') == 'players':
-            queryset = queryset.filter(player_roles__isnull=False).distinct()
-        elif criteria.get('role') == 'staff':
-            queryset = queryset.filter(staff_roles__isnull=False).distinct()
-        
-        # Filtro por equipo
-        if criteria.get('team'):
-            queryset = queryset.filter(
-                Q(player_roles__team=criteria['team']) |
-                Q(staff_roles__team=criteria['team'])
-            ).distinct()
-        
-        # Filtro por posición (solo jugadores)
-        if criteria.get('position'):
-            queryset = queryset.filter(
-                player_roles__position=criteria['position']
-            ).distinct()
-        
-        # Filtro por activo
-        if criteria.get('is_active') is not None:
-            queryset = queryset.filter(is_active=criteria['is_active'])
-        
-        return list(queryset)
-        
-    except Exception as e:
-        logger.error(f'Error searching persons by criteria: {e}')
-        return []
+    player_teams = person.player_roles.filter(is_active=True).select_related('team', 'team__category')
+    staff_teams = person.staff_roles.filter(is_active=True).select_related('team', 'team__category')
+    
+    return {
+        'player_teams': player_teams,
+        'staff_teams': staff_teams,
+        'all_teams': list(player_teams) + list(staff_teams),
+    }
 
 
-def get_team_roster_summary(team) -> Dict:
+def get_team_roster_by_position(team):
     """
-    Obtiene un resumen de la plantilla del equipo
+    Obtiene la plantilla de un equipo organizada por posición
     
     Args:
-        team: Team object
+        team: Instancia de Team
+        
+    Returns:
+        dict: Plantilla organizada por posición
+    """
+    # Jugadores por posición
+    players_by_position = {}
+    for player in team.player_roles.filter(is_active=True).select_related('person').order_by('position', 'person__last_name'):
+        position = player.position or 'Sin posición'
+        if position not in players_by_position:
+            players_by_position[position] = []
+        players_by_position[position].append(player)
+    
+    # Staff por rol
+    staff_by_role = {}
+    for member in team.staff_roles.filter(is_active=True).select_related('person').order_by('role', 'person__last_name'):
+        role = member.role or 'Sin rol'
+        if role not in staff_by_role:
+            staff_by_role[role] = []
+        staff_by_role[role].append(member)
+    
+    return {
+        'players_by_position': players_by_position,
+        'staff_by_role': staff_by_role,
+        'total_players': sum(len(players) for players in players_by_position.values()),
+        'total_staff': sum(len(staff) for staff in staff_by_role.values()),
+    }
+
+
+def get_club_roster_stats(club):
+    """
+    Obtiene estadísticas de plantilla de un club
+    
+    Args:
+        club: Instancia de Club
+        
+    Returns:
+        dict: Estadísticas de la plantilla del club
+    """
+    # Obtener equipos del club
+    teams = club.teams.filter(is_active=True)
+    
+    # Estadísticas por equipo
+    team_stats = []
+    total_players = 0
+    total_staff = 0
+    
+    for team in teams:
+        stats = get_team_roster_stats(team)
+        team_stats.append({
+            'team': team,
+            'stats': stats
+        })
+        total_players += stats['total_players']
+        total_staff += stats['total_staff']
+    
+    # Personas únicas del club
+    unique_persons = Person.objects.filter(
+        Q(player_roles__team__club=club, player_roles__is_active=True) |
+        Q(staff_roles__team__club=club, staff_roles__is_active=True)
+    ).distinct().count()
+    
+    return {
+        'total_teams': teams.count(),
+        'total_players': total_players,
+        'total_staff': total_staff,
+        'total_members': total_players + total_staff,
+        'unique_persons': unique_persons,
+        'team_stats': team_stats,
+    }
+
+
+def get_person_roles_summary(person):
+    """
+    Obtiene un resumen de todos los roles de una persona
+    
+    Args:
+        person: Instancia de Person
+        
+    Returns:
+        dict: Resumen de roles
+    """
+    player_roles = person.player_roles.filter(is_active=True).select_related('team', 'team__category')
+    staff_roles = person.staff_roles.filter(is_active=True).select_related('team', 'team__category')
+    
+    # Agrupar por categoría
+    roles_by_category = {}
+    
+    for role in player_roles:
+        category = role.team.category.name if role.team.category else 'Sin categoría'
+        if category not in roles_by_category:
+            roles_by_category[category] = {'player': [], 'staff': []}
+        roles_by_category[category]['player'].append(role)
+    
+    for role in staff_roles:
+        category = role.team.category.name if role.team.category else 'Sin categoría'
+        if category not in roles_by_category:
+            roles_by_category[category] = {'player': [], 'staff': []}
+        roles_by_category[category]['staff'].append(role)
+    
+    return {
+        'roles_by_category': roles_by_category,
+        'total_player_roles': player_roles.count(),
+        'total_staff_roles': staff_roles.count(),
+        'total_roles': player_roles.count() + staff_roles.count(),
+        'categories': list(roles_by_category.keys()),
+    }
+
+
+def get_roster_statistics():
+    """
+    Obtiene estadísticas generales de todas las plantillas
     
     Returns:
-        Diccionario con resumen de la plantilla
+        dict: Estadísticas generales
     """
-    try:
-        players = PlayerRole.objects.filter(team=team, is_active=True)
-        staff = StaffRole.objects.filter(team=team, is_active=True)
-        
-        summary = {
-            'team_name': team.name,
-            'team_category': team.category.name if team.category else 'Sin categoría',
-            'total_people': players.count() + staff.count(),
-            'players': {
-                'count': players.count(),
-                'with_jersey': players.filter(jersey_number__isnull=False).count(),
-                'positions': list(players.values_list('position', flat=True).distinct()),
-            },
-            'staff': {
-                'count': staff.count(),
-                'roles': list(staff.values_list('role', flat=True).distinct()),
-                'has_head_coach': staff.filter(role='head_coach').exists(),
-            },
-            'last_updated': timezone.now().isoformat(),
-        }
-        
-        return summary
-        
-    except Exception as e:
-        logger.error(f'Error getting team roster summary: {e}')
-        return {'error': str(e)}
+    # Personas totales
+    total_persons = Person.objects.count()
+    
+    # Roles activos
+    active_player_roles = PlayerRole.objects.filter(is_active=True).count()
+    active_staff_roles = StaffRole.objects.filter(is_active=True).count()
+    
+    # Equipos con plantilla
+    teams_with_roster = Team.objects.filter(
+        Q(player_roles__isnull=False) | Q(staff_roles__isnull=False)
+    ).distinct().count()
+    
+    # Personas con múltiples roles
+    persons_with_multiple_roles = Person.objects.annotate(
+        role_count=Count('player_roles', filter=Q(player_roles__is_active=True)) +
+                   Count('staff_roles', filter=Q(staff_roles__is_active=True))
+    ).filter(role_count__gt=1).count()
+    
+    return {
+        'total_persons': total_persons,
+        'active_player_roles': active_player_roles,
+        'active_staff_roles': active_staff_roles,
+        'total_active_roles': active_player_roles + active_staff_roles,
+        'teams_with_roster': teams_with_roster,
+        'persons_with_multiple_roles': persons_with_multiple_roles,
+    }

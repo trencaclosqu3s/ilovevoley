@@ -1,16 +1,21 @@
+"""
+Forms para la gestión de plantillas y personas.
+Migrados desde videos.forms para la nueva app rosters.
+"""
 from django import forms
-from django.core.exceptions import ValidationError
+from django.db.models import Q
 from .models import Person, PlayerRole, StaffRole
+
+# Importar modelos de otras apps
+from videosvoley.teams.models import Team
 
 
 class PersonForm(forms.ModelForm):
     """Formulario para crear/editar personas"""
+    
     class Meta:
         model = Person
-        fields = [
-            'first_name', 'last_name', 'birth_date', 'photo', 'email', 
-            'phone', 'user', 'notes', 'is_active'
-        ]
+        fields = ['first_name', 'last_name', 'email', 'phone', 'birth_date', 'notes']
         widgets = {
             'first_name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
@@ -20,10 +25,6 @@ class PersonForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'placeholder': 'Apellidos'
             }),
-            'birth_date': forms.DateInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'type': 'date'
-            }),
             'email': forms.EmailInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'placeholder': 'email@ejemplo.com'
@@ -31,6 +32,10 @@ class PersonForm(forms.ModelForm):
             'phone': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'placeholder': 'Teléfono'
+            }),
+            'birth_date': forms.DateInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'type': 'date'
             }),
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
@@ -41,129 +46,147 @@ class PersonForm(forms.ModelForm):
         labels = {
             'first_name': 'Nombre',
             'last_name': 'Apellidos',
-            'birth_date': 'Fecha de Nacimiento',
-            'photo': 'Foto',
             'email': 'Email',
             'phone': 'Teléfono',
-            'user': 'Usuario Vinculado',
+            'birth_date': 'Fecha de Nacimiento',
             'notes': 'Notas',
-            'is_active': 'Activo',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Hacer campos opcionales
+        self.fields['email'].required = False
+        self.fields['phone'].required = False
+        self.fields['birth_date'].required = False
+        self.fields['notes'].required = False
+
     def clean(self):
+        """Validación global del formulario"""
         cleaned_data = super().clean()
         first_name = cleaned_data.get('first_name')
         last_name = cleaned_data.get('last_name')
-        birth_date = cleaned_data.get('birth_date')
+        email = cleaned_data.get('email')
         
-        # Validar que al menos nombre y apellido estén presentes
-        if not first_name or not last_name:
-            raise ValidationError('Nombre y apellidos son obligatorios.')
+        # Validar que no exista otra persona con el mismo nombre y apellido
+        if first_name and last_name:
+            existing_person = Person.objects.filter(
+                first_name__iexact=first_name,
+                last_name__iexact=last_name
+            ).exclude(pk=self.instance.pk if self.instance else None)
+            
+            if existing_person.exists():
+                raise forms.ValidationError(
+                    f'Ya existe una persona llamada "{first_name} {last_name}"'
+                )
         
-        # Validar edad mínima (opcional)
-        if birth_date:
-            from datetime import date
-            today = date.today()
-            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
-            if age < 5:
-                raise ValidationError('La edad mínima es 5 años.')
-            if age > 100:
-                raise ValidationError('La edad máxima es 100 años.')
+        # Validar email único si se proporciona
+        if email:
+            existing_person = Person.objects.filter(
+                email__iexact=email
+            ).exclude(pk=self.instance.pk if self.instance else None)
+            
+            if existing_person.exists():
+                raise forms.ValidationError(
+                    f'Ya existe una persona con el email "{email}"'
+                )
         
         return cleaned_data
 
 
 class PlayerRoleForm(forms.ModelForm):
     """Formulario para crear/editar roles de jugador"""
+    
     class Meta:
         model = PlayerRole
-        fields = [
-            'person', 'team', 'jersey_number', 'position', 
-            'is_active', 'notes'
-        ]
+        fields = ['team', 'position', 'jersey_number', 'is_active', 'notes']
         widgets = {
+            'team': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+            }),
+            'position': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'placeholder': 'Posición (ej: Colocador, Central, etc.)'
+            }),
             'jersey_number': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'min': '1',
                 'max': '99',
-                'placeholder': 'Número de dorsal (1-99)'
+                'placeholder': 'Número de camiseta'
             }),
-            'position': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'w-4 h-4 text-csj-purple bg-gray-100 border-gray-300 rounded focus:ring-csj-purple focus:ring-2'
             }),
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'rows': 2,
-                'placeholder': 'Notas sobre este rol'
+                'placeholder': 'Notas adicionales'
             }),
         }
         labels = {
-            'person': 'Persona',
             'team': 'Equipo',
-            'jersey_number': 'Número de Dorsal',
             'position': 'Posición',
+            'jersey_number': 'Número de Camiseta',
             'is_active': 'Activo',
             'notes': 'Notas',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Filtrar personas activas
-        self.fields['person'].queryset = Person.objects.filter(is_active=True).order_by('last_name', 'first_name')
-        # Filtrar equipos activos
-        self.fields['team'].queryset = self.fields['team'].queryset.filter(is_active=True).order_by('name')
+        
+        # Configurar queryset de equipos activos
+        self.fields['team'].queryset = Team.objects.filter(is_active=True).order_by('name')
+        
+        # Hacer campos opcionales
+        self.fields['position'].required = False
+        self.fields['jersey_number'].required = False
+        self.fields['notes'].required = False
 
     def clean(self):
+        """Validación global del formulario"""
         cleaned_data = super().clean()
-        person = cleaned_data.get('person')
         team = cleaned_data.get('team')
         jersey_number = cleaned_data.get('jersey_number')
-        is_active = cleaned_data.get('is_active', True)
         
-        # Validar que no haya duplicados de persona-equipo activos
-        if person and team and is_active:
-            existing = PlayerRole.objects.filter(
-                person=person,
+        # Validar que no exista otro jugador con el mismo número en el mismo equipo
+        if team and jersey_number:
+            existing_role = PlayerRole.objects.filter(
                 team=team,
-                is_active=True
-            ).exclude(pk=self.instance.pk)
+                jersey_number=jersey_number
+            ).exclude(pk=self.instance.pk if self.instance else None)
             
-            if existing.exists():
-                raise ValidationError(f'{person.full_name} ya tiene un rol activo en {team.name}.')
-        
-        # Validar número de dorsal único en el equipo
-        if jersey_number and team and is_active:
-            existing = PlayerRole.objects.filter(
-                team=team,
-                jersey_number=jersey_number,
-                is_active=True
-            ).exclude(pk=self.instance.pk)
-            
-            if existing.exists():
-                raise ValidationError(f'El número {jersey_number} ya está en uso en {team.name}.')
+            if existing_role.exists():
+                raise forms.ValidationError(
+                    f'Ya existe un jugador con el número {jersey_number} en el equipo {team.name}'
+                )
         
         return cleaned_data
 
 
 class StaffRoleForm(forms.ModelForm):
     """Formulario para crear/editar roles de staff"""
+    
     class Meta:
         model = StaffRole
-        fields = [
-            'person', 'team', 'role', 'is_active', 'notes'
-        ]
+        fields = ['team', 'role', 'is_active', 'notes']
         widgets = {
-            'role': forms.Select(attrs={
+            'team': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+            }),
+            'role': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'placeholder': 'Rol (ej: Entrenador, Fisioterapeuta, etc.)'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'w-4 h-4 text-csj-purple bg-gray-100 border-gray-300 rounded focus:ring-csj-purple focus:ring-2'
             }),
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'rows': 2,
-                'placeholder': 'Notas sobre este rol'
+                'placeholder': 'Notas adicionales'
             }),
         }
         labels = {
-            'person': 'Persona',
             'team': 'Equipo',
             'role': 'Rol',
             'is_active': 'Activo',
@@ -172,36 +195,19 @@ class StaffRoleForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Filtrar personas activas
-        self.fields['person'].queryset = Person.objects.filter(is_active=True).order_by('last_name', 'first_name')
-        # Filtrar equipos activos
-        self.fields['team'].queryset = self.fields['team'].queryset.filter(is_active=True).order_by('name')
-
-    def clean(self):
-        cleaned_data = super().clean()
-        person = cleaned_data.get('person')
-        team = cleaned_data.get('team')
-        role = cleaned_data.get('role')
-        is_active = cleaned_data.get('is_active', True)
         
-        # Validar que no haya duplicados de persona-equipo-rol activos
-        if person and team and role and is_active:
-            existing = StaffRole.objects.filter(
-                person=person,
-                team=team,
-                role=role,
-                is_active=True
-            ).exclude(pk=self.instance.pk)
-            
-            if existing.exists():
-                raise ValidationError(f'{person.full_name} ya tiene el rol de {self.get_role_display()} activo en {team.name}.')
+        # Configurar queryset de equipos activos
+        self.fields['team'].queryset = Team.objects.filter(is_active=True).order_by('name')
         
-        return cleaned_data
+        # Hacer campos opcionales
+        self.fields['role'].required = False
+        self.fields['notes'].required = False
 
 
-class PersonFilterForm(forms.Form):
-    """Formulario para filtrar personas"""
+class PersonSearchForm(forms.Form):
+    """Formulario de búsqueda de personas"""
     search = forms.CharField(
+        max_length=100,
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
@@ -212,7 +218,7 @@ class PersonFilterForm(forms.Form):
     role = forms.ChoiceField(
         choices=[
             ('', 'Todos los roles'),
-            ('players', 'Solo jugadores'),
+            ('player', 'Solo jugadores'),
             ('staff', 'Solo staff'),
         ],
         required=False,
@@ -221,105 +227,82 @@ class PersonFilterForm(forms.Form):
         })
     )
     
-    age_min = forms.IntegerField(
-        required=False,
-        min_value=5,
-        max_value=100,
-        widget=forms.NumberInput(attrs={
-            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-            'placeholder': 'Edad mínima'
-        })
-    )
-    
-    age_max = forms.IntegerField(
-        required=False,
-        min_value=5,
-        max_value=100,
-        widget=forms.NumberInput(attrs={
-            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-            'placeholder': 'Edad máxima'
-        })
-    )
-    
-    active_only = forms.BooleanField(
-        required=False,
-        widget=forms.CheckboxInput(attrs={
-            'class': 'w-4 h-4 text-csj-purple bg-gray-100 border-gray-300 rounded focus:ring-csj-purple focus:ring-2'
-        })
-    )
-    
-    has_roles = forms.BooleanField(
-        required=False,
-        widget=forms.CheckboxInput(attrs={
-            'class': 'w-4 h-4 text-csj-purple bg-gray-100 border-gray-300 rounded focus:ring-csj-purple focus:ring-2'
-        })
-    )
-
-    def clean(self):
-        cleaned_data = super().clean()
-        age_min = cleaned_data.get('age_min')
-        age_max = cleaned_data.get('age_max')
-        
-        if age_min and age_max and age_min > age_max:
-            raise ValidationError('La edad mínima no puede ser mayor que la edad máxima.')
-        
-        return cleaned_data
-
-
-class RosterFilterForm(forms.Form):
-    """Formulario para filtrar plantillas"""
     team = forms.ModelChoiceField(
-        queryset=None,  # Se establecerá en __init__
+        queryset=Team.objects.filter(is_active=True),
         required=False,
-        empty_label="Todos los equipos",
+        empty_label='Todos los equipos',
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
         })
     )
-    
-    position = forms.ChoiceField(
-        choices=[('', 'Todas las posiciones')] + PlayerRole.POSITION_CHOICES,
-        required=False,
-        widget=forms.Select(attrs={
-            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
-        })
-    )
-    
+
+
+class PersonFilterForm(forms.Form):
+    """Formulario de filtros para personas"""
     role = forms.ChoiceField(
-        choices=[('', 'Todos los roles')] + StaffRole.STAFF_ROLES,
+        choices=[
+            ('', 'Todos los roles'),
+            ('player', 'Solo jugadores'),
+            ('staff', 'Solo staff'),
+        ],
         required=False,
         widget=forms.Select(attrs={
-            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
-        })
-    )
-    
-    active_only = forms.BooleanField(
-        required=False,
-        widget=forms.CheckboxInput(attrs={
-            'class': 'w-4 h-4 text-csj-purple bg-gray-100 border-gray-300 rounded focus:ring-csj-purple focus:ring-2'
-        })
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Obtener equipos activos
-        from videosvoley.videos.models import Team
-        self.fields['team'].queryset = Team.objects.filter(is_active=True).order_by('name')
-
-
-class JerseyNumberForm(forms.Form):
-    """Formulario para asignar número de dorsal"""
-    jersey_number = forms.IntegerField(
-        min_value=1,
-        max_value=99,
-        widget=forms.NumberInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-            'placeholder': 'Número de dorsal (1-99)'
+            'id': 'id_role_filter'
         })
     )
     
-    def clean_jersey_number(self):
-        jersey_number = self.cleaned_data.get('jersey_number')
-        if jersey_number and (jersey_number < 1 or jersey_number > 99):
-            raise ValidationError('El número de dorsal debe estar entre 1 y 99.')
-        return jersey_number
+    team = forms.ModelChoiceField(
+        queryset=Team.objects.filter(is_active=True),
+        required=False,
+        empty_label='Todos los equipos',
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'id': 'id_team_filter'
+        })
+    )
+    
+    show_all = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'w-4 h-4 text-csj-purple bg-gray-100 border-gray-300 rounded focus:ring-csj-purple focus:ring-2',
+            'id': 'id_show_all'
+        })
+    )
+
+
+class QuickPersonForm(forms.Form):
+    """Formulario rápido para crear personas desde AJAX"""
+    first_name = forms.CharField(
+        max_length=50,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'placeholder': 'Nombre'
+        })
+    )
+    
+    last_name = forms.CharField(
+        max_length=50,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'placeholder': 'Apellidos'
+        })
+    )
+    
+    email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'placeholder': 'email@ejemplo.com'
+        })
+    )
+    
+    phone = forms.CharField(
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+            'placeholder': 'Teléfono'
+        })
+    )

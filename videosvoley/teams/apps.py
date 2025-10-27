@@ -1,3 +1,6 @@
+"""
+Configuración de la app teams.
+"""
 from django.apps import AppConfig
 
 
@@ -7,9 +10,5 @@ class TeamsConfig(AppConfig):
     verbose_name = 'Equipos y Clubs'
     
     def ready(self):
-        """Configuración cuando la app está lista"""
-        # Importar signals si los hay
-        try:
-            import videosvoley.teams.signals
-        except ImportError:
-            pass
+        """Importar signals cuando la app esté lista"""
+        import videosvoley.teams.signals

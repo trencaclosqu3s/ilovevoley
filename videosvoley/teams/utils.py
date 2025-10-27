@@ -1,339 +1,299 @@
-import requests
-import logging
-from typing import Dict, List, Optional
-from django.utils import timezone
-from .models import Club, Team
-
-logger = logging.getLogger(__name__)
+"""
+Utilidades para la gestión de equipos y clubs.
+"""
+from django.db.models import Q, Count, F
+from .models import Team, Club
 
 
-def fetch_club_logo_from_federation(club: Club) -> Optional[str]:
+def get_team_stats(team):
     """
-    Obtiene el logo de un club desde la federación
+    Obtiene estadísticas de un equipo
     
     Args:
-        club: Club object
-    
-    Returns:
-        URL del logo o None si no se encuentra
-    """
-    if not club.federation_id:
-        return None
-    
-    try:
-        logo_url = club.logo_federation_url
-        if logo_url:
-            # Verificar que la URL es accesible
-            response = requests.head(logo_url, timeout=10)
-            if response.status_code == 200:
-                return logo_url
-    except Exception as e:
-        logger.warning(f'Error fetching logo for club {club.official_name}: {e}')
-    
-    return None
-
-
-def update_club_logos():
-    """
-    Actualiza los logos de todos los clubs desde la federación
-    """
-    clubs = Club.objects.filter(logo_url__isnull=True)
-    updated_count = 0
-    
-    for club in clubs:
-        logo_url = fetch_club_logo_from_federation(club)
-        if logo_url:
-            club.logo_url = logo_url
-            club.save()
-            updated_count += 1
-            logger.info(f'Logo actualizado para {club.official_name}')
-    
-    logger.info(f'Logos actualizados: {updated_count} clubs')
-    return updated_count
-
-
-def match_teams_with_clubs():
-    """
-    Intenta hacer match automático entre equipos y clubs basado en nombres
-    """
-    teams_without_club = Team.objects.filter(club__isnull=True)
-    matched_count = 0
-    
-    for team in teams_without_club:
-        # Buscar club por similitud en el nombre
-        potential_clubs = find_potential_clubs_for_team(team)
+        team: Instancia de Team
         
-        if potential_clubs:
-            # Usar el primer match (se puede mejorar la lógica)
-            team.club = potential_clubs[0]
-            team.save()
-            matched_count += 1
-            logger.info(f'Equipo {team.name} emparejado con club {team.club.official_name}')
-    
-    logger.info(f'Equipos emparejados: {matched_count}')
-    return matched_count
-
-
-def find_potential_clubs_for_team(team: Team) -> List[Club]:
+    Returns:
+        dict: Estadísticas del equipo
     """
-    Encuentra clubs potenciales para un equipo basado en similitud de nombres
+    from videosvoley.competitions.models import Match
+    
+    # Partidos del equipo
+    matches = Match.objects.filter(
+        Q(home_team=team) | Q(away_team=team)
+    )
+    
+    total_matches = matches.count()
+    won_matches = matches.filter(
+        Q(home_team=team, home_score__gt=F('away_score')) |
+        Q(away_team=team, away_score__gt=F('home_score'))
+    ).count()
+    
+    drawn_matches = matches.filter(
+        Q(home_team=team, home_score=F('away_score')) |
+        Q(away_team=team, away_score=F('home_score'))
+    ).count()
+    
+    lost_matches = total_matches - won_matches - drawn_matches
+    
+    # Plantilla
+    total_players = team.player_roles.count()
+    total_staff = team.staff_roles.count()
+    
+    return {
+        'total_matches': total_matches,
+        'won_matches': won_matches,
+        'drawn_matches': drawn_matches,
+        'lost_matches': lost_matches,
+        'win_percentage': (won_matches / total_matches * 100) if total_matches > 0 else 0,
+        'total_players': total_players,
+        'total_staff': total_staff,
+    }
+
+
+def get_club_stats(club):
+    """
+    Obtiene estadísticas de un club
     
     Args:
-        team: Team object
-    
+        club: Instancia de Club
+        
     Returns:
-        Lista de clubs potenciales
+        dict: Estadísticas del club
     """
-    team_name = team.name.lower()
-    potential_clubs = []
+    # Equipos del club
+    teams = club.teams.filter(is_active=True)
+    total_teams = teams.count()
     
-    # Buscar clubs que contengan palabras del nombre del equipo
-    team_words = team_name.split()
+    # Plantilla total
+    total_players = 0
+    total_staff = 0
+    for team in teams:
+        total_players += team.player_roles.count()
+        total_staff += team.staff_roles.count()
     
-    for club in Club.objects.all():
-        club_name = club.official_name.lower()
-        
-        # Calcular similitud simple
-        common_words = sum(1 for word in team_words if word in club_name)
-        similarity = common_words / len(team_words) if team_words else 0
-        
-        if similarity > 0.3:  # Umbral de similitud
-            potential_clubs.append((club, similarity))
+    # Partidos del club
+    from videosvoley.competitions.models import Match
+    matches = Match.objects.filter(
+        Q(home_team__club=club) | Q(away_team__club=club)
+    )
     
-    # Ordenar por similitud
-    potential_clubs.sort(key=lambda x: x[1], reverse=True)
-    return [club for club, _ in potential_clubs[:3]]  # Top 3
+    total_matches = matches.count()
+    won_matches = matches.filter(
+        Q(home_team__club=club, home_score__gt=F('away_score')) |
+        Q(away_team__club=club, away_score__gt=F('home_score'))
+    ).count()
+    
+    return {
+        'total_teams': total_teams,
+        'total_players': total_players,
+        'total_staff': total_staff,
+        'total_matches': total_matches,
+        'won_matches': won_matches,
+        'win_percentage': (won_matches / total_matches * 100) if total_matches > 0 else 0,
+    }
 
 
-def get_team_statistics(team: Team) -> Dict:
+def get_teams_by_category(category):
     """
-    Obtiene estadísticas detalladas de un equipo
+    Obtiene equipos de una categoría específica
     
     Args:
-        team: Team object
-    
+        category: Instancia de Category
+        
     Returns:
-        Diccionario con estadísticas
+        QuerySet: Equipos de la categoría
     """
-    try:
-        from videosvoley.competitions.models import Match, Standing
-        
-        # Estadísticas básicas
-        stats = {
-            'team_name': team.name,
-            'club_name': team.club.official_name if team.club else 'Sin club',
-            'category': team.category.name if team.category else 'Sin categoría',
-            'is_active': team.is_active,
-            'created_at': team.created_at.isoformat(),
-        }
-        
-        # Estadísticas de partidos
-        matches = team.get_matches()
-        finished_matches = matches.filter(status='finished')
-        
-        stats['matches'] = {
-            'total': matches.count(),
-            'finished': finished_matches.count(),
-            'scheduled': matches.filter(status='scheduled').count(),
-            'in_progress': matches.filter(status='in_progress').count(),
-            'postponed': matches.filter(status='postponed').count(),
-            'cancelled': matches.filter(status='cancelled').count(),
-        }
-        
-        # Estadísticas de victorias/derrotas
-        wins = 0
-        losses = 0
-        
-        for match in finished_matches:
-            if match.home_score is not None and match.away_score is not None:
-                if match.home_team == team:
-                    if match.home_score > match.away_score:
-                        wins += 1
-                    else:
-                        losses += 1
-                else:  # away_team
-                    if match.away_score > match.home_score:
-                        wins += 1
-                    else:
-                        losses += 1
-        
-        stats['performance'] = {
-            'wins': wins,
-            'losses': losses,
-            'win_percentage': round((wins / (wins + losses)) * 100, 1) if (wins + losses) > 0 else 0,
-        }
-        
-        # Estadísticas de clasificación
-        standings = team.get_standings()
-        if standings.exists():
-            latest_standing = standings.first()
-            stats['current_standing'] = {
-                'position': latest_standing.position,
-                'league': latest_standing.league.name,
-                'points': latest_standing.total_points,
-                'played': latest_standing.played,
-            }
-        
-        return stats
-        
-    except Exception as e:
-        logger.error(f'Error getting team statistics: {e}')
-        return {'error': str(e)}
+    return Team.objects.filter(category=category, is_active=True).select_related('club')
 
 
-def get_club_statistics(club: Club) -> Dict:
+def get_teams_by_club(club):
     """
-    Obtiene estadísticas detalladas de un club
+    Obtiene equipos de un club específico
     
     Args:
-        club: Club object
-    
+        club: Instancia de Club
+        
     Returns:
-        Diccionario con estadísticas
+        QuerySet: Equipos del club
     """
-    try:
-        teams = club.teams.all()
-        active_teams = teams.filter(is_active=True)
-        
-        stats = {
-            'club_name': club.official_name,
-            'federation_id': club.federation_id,
-            'province': club.province,
-            'teams': {
-                'total': teams.count(),
-                'active': active_teams.count(),
-                'inactive': teams.filter(is_active=False).count(),
-            },
-            'created_at': club.created_at.isoformat(),
-        }
-        
-        # Estadísticas por categoría
-        categories = {}
-        for team in active_teams:
-            if team.category:
-                cat_name = team.category.name
-                if cat_name not in categories:
-                    categories[cat_name] = 0
-                categories[cat_name] += 1
-        
-        stats['teams_by_category'] = categories
-        
-        # Estadísticas de partidos de todos los equipos
-        total_matches = 0
-        finished_matches = 0
-        
-        for team in active_teams:
-            team_matches = team.get_matches()
-            total_matches += team_matches.count()
-            finished_matches += team_matches.filter(status='finished').count()
-        
-        stats['matches'] = {
-            'total': total_matches,
-            'finished': finished_matches,
-        }
-        
-        return stats
-        
-    except Exception as e:
-        logger.error(f'Error getting club statistics: {e}')
-        return {'error': str(e)}
+    return club.teams.filter(is_active=True).select_related('category')
 
 
-def export_teams_data(format='json') -> str:
+def get_clubs_by_province(province):
     """
-    Exporta datos de equipos en el formato especificado
+    Obtiene clubs de una provincia específica
     
     Args:
-        format: Formato de exportación ('json', 'csv')
-    
+        province: Nombre de la provincia
+        
     Returns:
-        Datos exportados como string
+        QuerySet: Clubs de la provincia
     """
-    try:
-        teams = Team.objects.select_related('club', 'category').all()
-        
-        if format == 'json':
-            import json
-            data = []
-            for team in teams:
-                data.append({
-                    'id': team.id,
-                    'name': team.name,
-                    'federation_id': team.federation_id,
-                    'club': team.club.official_name if team.club else None,
-                    'category': team.category.name if team.category else None,
-                    'is_active': team.is_active,
-                    'created_at': team.created_at.isoformat(),
-                })
-            return json.dumps(data, indent=2, ensure_ascii=False)
-        
-        elif format == 'csv':
-            import csv
-            import io
-            
-            output = io.StringIO()
-            writer = csv.writer(output)
-            
-            # Headers
-            writer.writerow(['ID', 'Nombre', 'ID Federación', 'Club', 'Categoría', 'Activo', 'Creado'])
-            
-            # Data
-            for team in teams:
-                writer.writerow([
-                    team.id,
-                    team.name,
-                    team.federation_id,
-                    team.club.official_name if team.club else '',
-                    team.category.name if team.category else '',
-                    'Sí' if team.is_active else 'No',
-                    team.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                ])
-            
-            return output.getvalue()
-        
-        else:
-            raise ValueError(f'Formato no soportado: {format}')
-            
-    except Exception as e:
-        logger.error(f'Error exporting teams data: {e}')
-        return f'Error: {str(e)}'
+    return Club.objects.filter(province__icontains=province, is_active=True)
 
 
-def import_teams_from_federation_data(federation_data: List[Dict]) -> int:
+def search_teams(query, category=None, club=None):
     """
-    Importa equipos desde datos de la federación
+    Busca equipos con filtros opcionales
     
     Args:
-        federation_data: Lista de diccionarios con datos de equipos
-    
+        query: Término de búsqueda
+        category: Filtro por categoría (opcional)
+        club: Filtro por club (opcional)
+        
     Returns:
-        Número de equipos importados
+        QuerySet: Equipos que coinciden con la búsqueda
     """
-    imported_count = 0
+    teams = Team.objects.filter(
+        Q(name__icontains=query) |
+        Q(club__official_name__icontains=query) |
+        Q(club__short_name__icontains=query)
+    ).filter(is_active=True)
     
-    try:
-        for team_data in federation_data:
-            # Crear o actualizar equipo
-            team, created = Team.objects.get_or_create(
-                federation_id=team_data.get('federation_id'),
-                defaults={
-                    'name': team_data.get('name', ''),
-                    'is_active': team_data.get('is_active', True),
-                }
-            )
-            
-            if created:
-                imported_count += 1
-                logger.info(f'Equipo importado: {team.name}')
-            
-            # Actualizar datos si el equipo ya existía
-            if not created and team_data.get('name') != team.name:
-                team.name = team_data.get('name', team.name)
-                team.is_active = team_data.get('is_active', team.is_active)
-                team.save()
-                logger.info(f'Equipo actualizado: {team.name}')
+    if category:
+        teams = teams.filter(category=category)
     
-    except Exception as e:
-        logger.error(f'Error importing teams: {e}')
+    if club:
+        teams = teams.filter(club=club)
     
-    return imported_count
+    return teams.select_related('category', 'club').order_by('name')
+
+
+def search_clubs(query):
+    """
+    Busca clubs por término de búsqueda
+    
+    Args:
+        query: Término de búsqueda
+        
+    Returns:
+        QuerySet: Clubs que coinciden con la búsqueda
+    """
+    return Club.objects.filter(
+        Q(official_name__icontains=query) |
+        Q(short_name__icontains=query) |
+        Q(city__icontains=query) |
+        Q(province__icontains=query)
+    ).filter(is_active=True).order_by('official_name')
+
+
+def get_team_roster(team):
+    """
+    Obtiene la plantilla completa de un equipo
+    
+    Args:
+        team: Instancia de Team
+        
+    Returns:
+        dict: Plantilla del equipo organizada por posición/rol
+    """
+    # Jugadores por posición
+    players_by_position = {}
+    for player in team.player_roles.select_related('person').order_by('position', 'person__last_name'):
+        position = player.position or 'Sin posición'
+        if position not in players_by_position:
+            players_by_position[position] = []
+        players_by_position[position].append(player)
+    
+    # Staff por rol
+    staff_by_role = {}
+    for member in team.staff_roles.select_related('person').order_by('role', 'person__last_name'):
+        role = member.role or 'Sin rol'
+        if role not in staff_by_role:
+            staff_by_role[role] = []
+        staff_by_role[role].append(member)
+    
+    return {
+        'players_by_position': players_by_position,
+        'staff_by_role': staff_by_role,
+        'total_players': sum(len(players) for players in players_by_position.values()),
+        'total_staff': sum(len(staff) for staff in staff_by_role.values()),
+    }
+
+
+def get_club_teams_by_category(club):
+    """
+    Obtiene equipos de un club agrupados por categoría
+    
+    Args:
+        club: Instancia de Club
+        
+    Returns:
+        dict: Equipos agrupados por categoría
+    """
+    teams = club.teams.filter(is_active=True).select_related('category')
+    
+    teams_by_category = {}
+    for team in teams:
+        category = team.category.name if team.category else 'Sin categoría'
+        if category not in teams_by_category:
+            teams_by_category[category] = []
+        teams_by_category[category].append(team)
+    
+    return teams_by_category
+
+
+def get_team_matches(team, limit=10):
+    """
+    Obtiene partidos recientes de un equipo
+    
+    Args:
+        team: Instancia de Team
+        limit: Número máximo de partidos
+        
+    Returns:
+        QuerySet: Partidos del equipo
+    """
+    from videosvoley.competitions.models import Match
+    
+    return Match.objects.filter(
+        Q(home_team=team) | Q(away_team=team)
+    ).select_related('home_team', 'away_team', 'league').order_by('-match_date')[:limit]
+
+
+def get_club_matches(club, limit=10):
+    """
+    Obtiene partidos recientes de un club
+    
+    Args:
+        club: Instancia de Club
+        limit: Número máximo de partidos
+        
+    Returns:
+        QuerySet: Partidos del club
+    """
+    from videosvoley.competitions.models import Match
+    
+    return Match.objects.filter(
+        Q(home_team__club=club) | Q(away_team__club=club)
+    ).select_related('home_team', 'away_team', 'league').order_by('-match_date')[:limit]
+
+
+def get_team_standings(team):
+    """
+    Obtiene clasificaciones de un equipo
+    
+    Args:
+        team: Instancia de Team
+        
+    Returns:
+        QuerySet: Clasificaciones del equipo
+    """
+    from videosvoley.competitions.models import Standing
+    
+    return Standing.objects.filter(team=team).select_related('league').order_by('league__name')
+
+
+def get_club_standings(club):
+    """
+    Obtiene clasificaciones de todos los equipos de un club
+    
+    Args:
+        club: Instancia de Club
+        
+    Returns:
+        QuerySet: Clasificaciones de los equipos del club
+    """
+    from videosvoley.competitions.models import Standing
+    
+    return Standing.objects.filter(team__club=club).select_related('team', 'league').order_by('league__name', 'position')

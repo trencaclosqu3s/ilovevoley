@@ -16,7 +16,11 @@ import base64
 import uuid
 from django.core.files.base import ContentFile
 from .models import Video, Comment, Category, League, Match, Team, Standing, Image, Player, Staff, Person, PlayerRole, StaffRole
-from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm, PersonForm, PlayerRoleForm, StaffRoleForm, MatchResultForm
+# Los forms han sido migrados a las nuevas apps
+# Importar desde las nuevas apps para compatibilidad
+from videosvoley.content.forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm
+from videosvoley.competitions.forms import FriendlyMatchForm, MatchResultForm
+from videosvoley.rosters.forms import PersonForm, PlayerRoleForm, StaffRoleForm
 from .utils import process_uploaded_image
 
 # Configurar logger

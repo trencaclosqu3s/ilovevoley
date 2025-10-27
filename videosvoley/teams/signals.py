@@ -1,129 +1,102 @@
-from django.db.models.signals import post_save, pre_save
+"""
+Signals para la app teams.
+Migrados desde videos.signals para la nueva app teams.
+"""
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.utils import timezone
+from django.conf import settings
 from .models import Team, Club
 
 
-@receiver(pre_save, sender=Team)
-def team_pre_save(sender, instance, **kwargs):
-    """Señales que se ejecutan antes de guardar un equipo"""
-    # Auto-asignar categoría si no se ha especificado
-    if not instance.category and instance.club:
-        # Intentar asignar categoría basada en el nombre del equipo
-        # Esto es una lógica básica - se puede mejorar
-        team_name_lower = instance.name.lower()
-        
-        if any(keyword in team_name_lower for keyword in ['senior', 'sénior', 'adulto']):
-            try:
-                from videosvoley.content.models import Category
-                category = Category.objects.filter(name__icontains='senior').first()
-                if category:
-                    instance.category = category
-            except:
-                pass
-        
-        elif any(keyword in team_name_lower for keyword in ['juvenil', 'joven']):
-            try:
-                from videosvoley.content.models import Category
-                category = Category.objects.filter(name__icontains='juvenil').first()
-                if category:
-                    instance.category = category
-            except:
-                pass
-        
-        elif any(keyword in team_name_lower for keyword in ['cadete', 'cadet']):
-            try:
-                from videosvoley.content.models import Category
-                category = Category.objects.filter(name__icontains='cadete').first()
-                if category:
-                    instance.category = category
-            except:
-                pass
-
-
 @receiver(post_save, sender=Team)
-def team_post_save(sender, instance, created, **kwargs):
-    """Señales que se ejecutan después de guardar un equipo"""
+def team_saved_handler(sender, instance, created, **kwargs):
+    """
+    Maneja la creación/actualización de equipos
+    """
     if created:
-        # Log de creación de equipo
-        print(f'Nuevo equipo creado: {instance.name} (Club: {instance.club})')
+        print(f"Nuevo equipo creado: {instance.name} ({instance.category.name if instance.category else 'Sin categoría'})")
         
-        # Si es nuestro equipo, actualizar configuración
-        if instance.is_our_team:
-            update_our_team_configuration(instance)
+        # Si el equipo tiene club, actualizar estadísticas del club
+        if instance.club:
+            update_club_stats(instance.club)
+    else:
+        print(f"Equipo actualizado: {instance.name}")
+        
+        # Si cambió el club, actualizar estadísticas de ambos clubs
+        if hasattr(instance, '_old_club_id'):
+            old_club_id = instance._old_club_id
+            if old_club_id and old_club_id != instance.club_id:
+                try:
+                    old_club = Club.objects.get(id=old_club_id)
+                    update_club_stats(old_club)
+                except Club.DoesNotExist:
+                    pass
+        
+        if instance.club:
+            update_club_stats(instance.club)
+
+
+@receiver(post_delete, sender=Team)
+def team_deleted_handler(sender, instance, **kwargs):
+    """
+    Maneja la eliminación de equipos
+    """
+    print(f"Equipo eliminado: {instance.name}")
+    
+    # Actualizar estadísticas del club si tenía uno
+    if instance.club:
+        update_club_stats(instance.club)
 
 
 @receiver(post_save, sender=Club)
-def club_post_save(sender, instance, created, **kwargs):
-    """Señales que se ejecutan después de guardar un club"""
+def club_saved_handler(sender, instance, created, **kwargs):
+    """
+    Maneja la creación/actualización de clubs
+    """
     if created:
-        # Log de creación de club
-        print(f'Nuevo club creado: {instance.official_name}')
-        
-        # Crear equipos por defecto si es necesario
-        create_default_teams_for_club(instance)
+        print(f"Nuevo club creado: {instance.official_name}")
+    else:
+        print(f"Club actualizado: {instance.official_name}")
 
 
-def update_our_team_configuration(team):
-    """Actualiza la configuración de nuestros equipos"""
+@receiver(post_delete, sender=Club)
+def club_deleted_handler(sender, instance, **kwargs):
+    """
+    Maneja la eliminación de clubs
+    """
+    print(f"Club eliminado: {instance.official_name}")
+
+
+def update_club_stats(club):
+    """
+    Actualiza las estadísticas de un club
+    """
     try:
-        from django.conf import settings
+        # Contar equipos activos del club
+        active_teams = club.teams.filter(is_active=True).count()
         
-        # Obtener configuración actual
-        club_team_names = getattr(settings, 'CLUB_TEAM_NAMES', {})
+        # Contar jugadores totales del club
+        total_players = 0
+        for team in club.teams.filter(is_active=True):
+            total_players += team.player_roles.count()
         
-        # Agregar nuevo equipo si no existe
-        if team.name not in club_team_names.values():
-            # En un entorno real, esto requeriría modificar settings.py
-            # Por ahora solo log
-            print(f'Equipo {team.name} debería agregarse a CLUB_TEAM_NAMES')
-            
+        # Contar staff total del club
+        total_staff = 0
+        for team in club.teams.filter(is_active=True):
+            total_staff += team.staff_roles.count()
+        
+        print(f"Club {club.official_name}: {active_teams} equipos, {total_players} jugadores, {total_staff} staff")
+        
     except Exception as e:
-        print(f'Error actualizando configuración de equipo: {e}')
+        print(f"Error actualizando estadísticas del club {club.official_name}: {e}")
 
 
-def create_default_teams_for_club(club):
-    """Crea equipos por defecto para un club nuevo"""
-    try:
-        # Solo crear si el club no tiene equipos
-        if club.teams.count() == 0:
-            # Crear equipo senior por defecto
-            Team.objects.create(
-                name=f"{club.official_name} Senior",
-                federation_id=f"{club.federation_id}_senior",
-                club=club,
-                is_active=True
-            )
-            
-            print(f'Equipo senior creado para {club.official_name}')
-            
-    except Exception as e:
-        print(f'Error creando equipos por defecto: {e}')
-
-
-@receiver(pre_save, sender=Club)
-def club_pre_save(sender, instance, **kwargs):
-    """Señales que se ejecutan antes de guardar un club"""
-    # Normalizar nombre del club
-    if instance.official_name:
-        instance.official_name = instance.official_name.strip().title()
-    
-    # Normalizar provincia
-    if instance.province:
-        instance.province = instance.province.strip().title()
-    
-    # Normalizar nombre del presidente
-    if instance.president:
-        instance.president = instance.president.strip().title()
-
-
-@receiver(pre_save, sender=Team)
-def team_pre_save_normalize(sender, instance, **kwargs):
-    """Normalizar datos del equipo antes de guardar"""
-    # Normalizar nombre del equipo
-    if instance.name:
-        instance.name = instance.name.strip()
-    
-    # Normalizar nombre del patrocinador
-    if instance.sponsor_name:
-        instance.sponsor_name = instance.sponsor_name.strip()
+# Hook para trackear cambios en club de equipo
+@receiver(post_save, sender=Team)
+def track_team_club_changes(sender, instance, **kwargs):
+    """
+    Trackea cambios en el club del equipo
+    """
+    # Clean up any tracking attributes
+    if hasattr(instance, '_old_club_id'):
+        del instance._old_club_id

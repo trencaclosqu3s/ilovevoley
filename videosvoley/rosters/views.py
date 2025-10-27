@@ -1,31 +1,53 @@
+"""
+Views para la gestión de plantillas y personas.
+Migradas desde videos.views para la nueva app rosters.
+"""
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q, Count
+from django.db.models import Q, Prefetch
 from django.http import JsonResponse
+from django.conf import settings
 from django.views.decorators.http import require_POST
 from django.utils import timezone
+from datetime import datetime, timedelta
 import logging
 
-from .models import Person, PlayerRole, StaffRole, PersonManager, PlayerRoleManager, StaffRoleManager
+from .models import Person, PlayerRole, StaffRole
+from .forms import PersonForm, PlayerRoleForm, StaffRoleForm
 
+# Importar modelos de otras apps
+from videosvoley.teams.models import Team, Club
+from videosvoley.content.models import Category
+
+# Configurar logger
 logger = logging.getLogger(__name__)
 
 
+def user_is_approved(user):
+    """Verifica si el usuario está aprobado para acceder al contenido"""
+    return user.is_approved
+
+
+def user_is_staff_or_manager(user):
+    """Verifica si el usuario es staff o manager para gestionar plantillas"""
+    return user.is_staff or user.groups.filter(name='VideoManagers').exists()
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
 def person_list(request):
-    """Lista de personas con filtros"""
-    persons = Person.objects.prefetch_related('player_roles', 'staff_roles').all()
+    """Vista para mostrar todas las personas registradas"""
+    persons = Person.objects.all().prefetch_related('player_roles__team', 'staff_roles__team')
     
     # Filtros
     search_query = request.GET.get('search', '').strip()
-    role_filter = request.GET.get('role', '')
-    age_min = request.GET.get('age_min')
-    age_max = request.GET.get('age_max')
-    active_only = request.GET.get('active_only', '0') == '1'
-    has_roles = request.GET.get('has_roles', '0') == '1'
+    role_filter = request.GET.get('role')
+    team_filter = request.GET.get('team')
+    show_all = request.GET.get('show_all', '0') == '1'
     
-    # Aplicar filtros
+    # Aplicar búsqueda
     if search_query:
         persons = persons.filter(
             Q(first_name__icontains=search_query) |
@@ -34,347 +56,454 @@ def person_list(request):
             Q(phone__icontains=search_query)
         )
     
-    if role_filter == 'players':
-        persons = persons.filter(player_roles__isnull=False).distinct()
-    elif role_filter == 'staff':
-        persons = persons.filter(staff_roles__isnull=False).distinct()
+    # Aplicar filtro de rol
+    if role_filter:
+        if role_filter == 'player':
+            persons = persons.filter(player_roles__isnull=False).distinct()
+        elif role_filter == 'staff':
+            persons = persons.filter(staff_roles__isnull=False).distinct()
     
-    if age_min:
-        try:
-            from datetime import date, timedelta
-            max_birth_date = date.today() - timedelta(days=int(age_min) * 365)
-            persons = persons.filter(birth_date__lte=max_birth_date)
-        except ValueError:
-            pass
-    
-    if age_max:
-        try:
-            from datetime import date, timedelta
-            min_birth_date = date.today() - timedelta(days=(int(age_max) + 1) * 365)
-            persons = persons.filter(birth_date__gte=min_birth_date)
-        except ValueError:
-            pass
-    
-    if active_only:
-        persons = persons.filter(is_active=True)
-    
-    if has_roles:
+    # Aplicar filtro de equipo
+    if team_filter:
         persons = persons.filter(
-            Q(player_roles__isnull=False) | Q(staff_roles__isnull=False)
+            Q(player_roles__team_id=team_filter) | Q(staff_roles__team_id=team_filter)
         ).distinct()
+    
+    # Ordenar por apellido y nombre
+    persons = persons.order_by('last_name', 'first_name')
     
     # Paginación
     paginator = Paginator(persons, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    context = {
+    # Obtener datos para filtros
+    teams = Team.objects.filter(is_active=True).order_by('name')
+    
+    return render(request, 'rosters/person_list.html', {
         'page_obj': page_obj,
-        'search_query': search_query,
-        'role_filter': role_filter,
-        'age_min': age_min,
-        'age_max': age_max,
-        'active_only': active_only,
-        'has_roles': has_roles,
-    }
-    
-    return render(request, 'rosters/person_list.html', context)
-
-
-def person_detail(request, person_id):
-    """Detalle de una persona con sus roles"""
-    person = get_object_or_404(Person, id=person_id)
-    
-    # Obtener roles de la persona
-    player_roles = person.get_player_roles()
-    staff_roles = person.get_staff_roles()
-    
-    # Obtener equipos donde participa
-    teams = person.get_all_active_teams()
-    
-    # Obtener resumen de roles
-    roles_summary = person.get_roles_summary()
-    
-    context = {
-        'person': person,
-        'player_roles': player_roles,
-        'staff_roles': staff_roles,
         'teams': teams,
-        'roles_summary': roles_summary,
-    }
-    
-    return render(request, 'rosters/person_detail.html', context)
-
-
-def team_roster(request, team_id):
-    """Plantilla de un equipo"""
-    from videosvoley.videos.models import Team
-    team = get_object_or_404(Team, id=team_id)
-    
-    # Obtener jugadores del equipo
-    players = PlayerRole.objects.filter(
-        team=team, 
-        is_active=True
-    ).select_related('person').order_by('jersey_number', 'person__last_name')
-    
-    # Obtener staff del equipo
-    staff = StaffRole.objects.filter(
-        team=team, 
-        is_active=True
-    ).select_related('person').order_by('role', 'person__last_name')
-    
-    # Estadísticas de la plantilla
-    roster_stats = {
-        'total_players': players.count(),
-        'total_staff': staff.count(),
-        'players_with_jersey': players.filter(jersey_number__isnull=False).count(),
-        'positions': players.values_list('position', flat=True).distinct(),
-        'roles': staff.values_list('role', flat=True).distinct(),
-    }
-    
-    context = {
-        'team': team,
-        'players': players,
-        'staff': staff,
-        'roster_stats': roster_stats,
-    }
-    
-    return render(request, 'rosters/team_roster.html', context)
-
-
-def roster_by_position(request, team_id):
-    """Plantilla de un equipo organizada por posición"""
-    from videosvoley.videos.models import Team
-    team = get_object_or_404(Team, id=team_id)
-    
-    # Obtener jugadores agrupados por posición
-    players_by_position = {}
-    for position, display_name in PlayerRole.POSITION_CHOICES:
-        players = PlayerRole.objects.filter(
-            team=team,
-            position=position,
-            is_active=True
-        ).select_related('person').order_by('jersey_number', 'person__last_name')
-        
-        if players.exists():
-            players_by_position[display_name] = players
-    
-    # Jugadores sin posición específica
-    players_without_position = PlayerRole.objects.filter(
-        team=team,
-        position='',
-        is_active=True
-    ).select_related('person').order_by('jersey_number', 'person__last_name')
-    
-    if players_without_position.exists():
-        players_by_position['Sin posición específica'] = players_without_position
-    
-    context = {
-        'team': team,
-        'players_by_position': players_by_position,
-    }
-    
-    return render(request, 'rosters/roster_by_position.html', context)
+        'search_query': search_query,
+        'selected_role': role_filter,
+        'selected_team': team_filter,
+        'show_all': show_all,
+    })
 
 
 @login_required
-def person_statistics(request, person_id):
-    """Estadísticas detalladas de una persona (AJAX)"""
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def person_detail(request, person_id):
+    """Vista detallada de una persona con sus roles"""
     person = get_object_or_404(Person, id=person_id)
     
-    try:
-        # Obtener roles de la persona
-        player_roles = person.get_player_roles()
-        staff_roles = person.get_staff_roles()
-        
-        # Estadísticas básicas
-        stats = {
-            'person_name': person.full_name,
-            'age': person.age,
-            'is_active': person.is_active,
-            'contact_info': person.contact_info,
-        }
-        
-        # Estadísticas de roles de jugador
-        player_stats = {
-            'total_teams': player_roles.values('team').distinct().count(),
-            'positions': list(player_roles.values_list('position', flat=True).distinct()),
-            'jersey_numbers': list(player_roles.filter(jersey_number__isnull=False).values_list('jersey_number', flat=True)),
-        }
-        
-        # Estadísticas de roles de staff
-        staff_stats = {
-            'total_teams': staff_roles.values('team').distinct().count(),
-            'roles': list(staff_roles.values_list('role', flat=True).distinct()),
-        }
-        
-        # Estadísticas por equipo
-        teams_stats = []
-        for team in person.get_all_active_teams():
-            team_player_roles = player_roles.filter(team=team)
-            team_staff_roles = staff_roles.filter(team=team)
-            
-            teams_stats.append({
-                'team_name': team.name,
-                'team_category': team.category.name if team.category else 'Sin categoría',
-                'player_roles': [
-                    {
-                        'position': role.display_position,
-                        'jersey_number': role.jersey_number,
-                    }
-                    for role in team_player_roles
-                ],
-                'staff_roles': [
-                    {
-                        'role': role.display_role,
-                    }
-                    for role in team_staff_roles
-                ],
-            })
-        
-        data = {
-            'success': True,
-            'stats': stats,
-            'player_stats': player_stats,
-            'staff_stats': staff_stats,
-            'teams_stats': teams_stats,
-        }
-        
-    except Exception as e:
-        logger.error(f'Error getting person statistics: {e}')
-        data = {
-            'success': False,
-            'error': str(e)
-        }
+    # Obtener roles de la persona
+    player_roles = person.player_roles.select_related('team', 'team__category').order_by('team__name')
+    staff_roles = person.staff_roles.select_related('team', 'team__category').order_by('team__name')
     
-    return JsonResponse(data)
+    # Estadísticas de la persona
+    total_teams = len(set(list(player_roles.values_list('team_id', flat=True)) + list(staff_roles.values_list('team_id', flat=True))))
+    active_roles = player_roles.filter(is_active=True).count() + staff_roles.filter(is_active=True).count()
+    
+    return render(request, 'rosters/person_detail.html', {
+        'person': person,
+        'player_roles': player_roles,
+        'staff_roles': staff_roles,
+        'total_teams': total_teams,
+        'active_roles': active_roles,
+    })
 
 
-def search_persons(request):
-    """Búsqueda de personas (AJAX)"""
+@login_required
+@user_passes_test(user_is_staff_or_manager, login_url='/')
+def person_create(request):
+    """Vista para crear una nueva persona"""
+    if request.method == 'POST':
+        form = PersonForm(request.POST)
+        if form.is_valid():
+            person = form.save()
+            messages.success(request, f'Persona "{person.get_full_name()}" creada correctamente')
+            return redirect('rosters:person_detail', person_id=person.id)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = PersonForm()
+    
+    return render(request, 'rosters/person_form.html', {
+        'form': form,
+        'title': 'Crear Nueva Persona',
+        'submit_text': 'Crear Persona',
+    })
+
+
+@login_required
+@user_passes_test(user_is_staff_or_manager, login_url='/')
+def person_edit(request, person_id):
+    """Vista para editar una persona existente"""
+    person = get_object_or_404(Person, id=person_id)
+    
+    if request.method == 'POST':
+        form = PersonForm(request.POST, instance=person)
+        if form.is_valid():
+            person = form.save()
+            messages.success(request, f'Persona "{person.get_full_name()}" actualizada correctamente')
+            return redirect('rosters:person_detail', person_id=person.id)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = PersonForm(instance=person)
+    
+    return render(request, 'rosters/person_form.html', {
+        'form': form,
+        'person': person,
+        'title': f'Editar {person.get_full_name()}',
+        'submit_text': 'Actualizar Persona',
+    })
+
+
+@login_required
+@user_passes_test(user_is_staff_or_manager, login_url='/')
+def player_role_create(request, person_id):
+    """Vista para crear un rol de jugador"""
+    person = get_object_or_404(Person, id=person_id)
+    
+    if request.method == 'POST':
+        form = PlayerRoleForm(request.POST)
+        if form.is_valid():
+            role = form.save(commit=False)
+            role.person = person
+            role.save()
+            messages.success(request, f'Rol de jugador creado para {person.get_full_name()}')
+            return redirect('rosters:person_detail', person_id=person.id)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = PlayerRoleForm()
+    
+    return render(request, 'rosters/role_form.html', {
+        'form': form,
+        'person': person,
+        'role_type': 'player',
+        'title': f'Crear Rol de Jugador - {person.get_full_name()}',
+        'submit_text': 'Crear Rol',
+    })
+
+
+@login_required
+@user_passes_test(user_is_staff_or_manager, login_url='/')
+def staff_role_create(request, person_id):
+    """Vista para crear un rol de staff"""
+    person = get_object_or_404(Person, id=person_id)
+    
+    if request.method == 'POST':
+        form = StaffRoleForm(request.POST)
+        if form.is_valid():
+            role = form.save(commit=False)
+            role.person = person
+            role.save()
+            messages.success(request, f'Rol de staff creado para {person.get_full_name()}')
+            return redirect('rosters:person_detail', person_id=person.id)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = StaffRoleForm()
+    
+    return render(request, 'rosters/role_form.html', {
+        'form': form,
+        'person': person,
+        'role_type': 'staff',
+        'title': f'Crear Rol de Staff - {person.get_full_name()}',
+        'submit_text': 'Crear Rol',
+    })
+
+
+@login_required
+@user_passes_test(user_is_staff_or_manager, login_url='/')
+def player_role_edit(request, role_id):
+    """Vista para editar un rol de jugador"""
+    role = get_object_or_404(PlayerRole, id=role_id)
+    
+    if request.method == 'POST':
+        form = PlayerRoleForm(request.POST, instance=role)
+        if form.is_valid():
+            role = form.save()
+            messages.success(request, f'Rol de jugador actualizado para {role.person.get_full_name()}')
+            return redirect('rosters:person_detail', person_id=role.person.id)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = PlayerRoleForm(instance=role)
+    
+    return render(request, 'rosters/role_form.html', {
+        'form': form,
+        'person': role.person,
+        'role': role,
+        'role_type': 'player',
+        'title': f'Editar Rol de Jugador - {role.person.get_full_name()}',
+        'submit_text': 'Actualizar Rol',
+    })
+
+
+@login_required
+@user_passes_test(user_is_staff_or_manager, login_url='/')
+def staff_role_edit(request, role_id):
+    """Vista para editar un rol de staff"""
+    role = get_object_or_404(StaffRole, id=role_id)
+    
+    if request.method == 'POST':
+        form = StaffRoleForm(request.POST, instance=role)
+        if form.is_valid():
+            role = form.save()
+            messages.success(request, f'Rol de staff actualizado para {role.person.get_full_name()}')
+            return redirect('rosters:person_detail', person_id=role.person.id)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = StaffRoleForm(instance=role)
+    
+    return render(request, 'rosters/role_form.html', {
+        'form': form,
+        'person': role.person,
+        'role': role,
+        'role_type': 'staff',
+        'title': f'Editar Rol de Staff - {role.person.get_full_name()}',
+        'submit_text': 'Actualizar Rol',
+    })
+
+
+@login_required
+@user_passes_test(user_is_staff_or_manager, login_url='/')
+@require_POST
+def player_role_toggle_active(request, role_id):
+    """Vista AJAX para activar/desactivar un rol de jugador"""
+    try:
+        role = PlayerRole.objects.get(id=role_id)
+        role.is_active = not role.is_active
+        role.save()
+        
+        status = 'activado' if role.is_active else 'desactivado'
+        return JsonResponse({
+            'success': True,
+            'message': f'Rol de jugador {status} correctamente',
+            'is_active': role.is_active
+        })
+    except PlayerRole.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Rol de jugador no encontrado'
+        }, status=404)
+    except Exception as e:
+        logger.error(f"Error toggling player role {role_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(user_is_staff_or_manager, login_url='/')
+@require_POST
+def staff_role_toggle_active(request, role_id):
+    """Vista AJAX para activar/desactivar un rol de staff"""
+    try:
+        role = StaffRole.objects.get(id=role_id)
+        role.is_active = not role.is_active
+        role.save()
+        
+        status = 'activado' if role.is_active else 'desactivado'
+        return JsonResponse({
+            'success': True,
+            'message': f'Rol de staff {status} correctamente',
+            'is_active': role.is_active
+        })
+    except StaffRole.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Rol de staff no encontrado'
+        }, status=404)
+    except Exception as e:
+        logger.error(f"Error toggling staff role {role_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def roster_overview(request):
+    """Vista general de todas las plantillas del club"""
+    # Configuración del club
+    CLUB_TEAM_NAME = 'SANT JOSEP'
+    
+    # Obtener equipos del club
+    teams = Team.objects.filter(
+        Q(name__icontains=CLUB_TEAM_NAME) | Q(club__official_name__icontains=CLUB_TEAM_NAME)
+    ).filter(is_active=True).select_related('category', 'club').prefetch_related('player_roles__person', 'staff_roles__person')
+    
+    # Agrupar por categoría
+    teams_by_category = {}
+    for team in teams:
+        category = team.category.name if team.category else 'Sin categoría'
+        if category not in teams_by_category:
+            teams_by_category[category] = []
+        teams_by_category[category].append(team)
+    
+    # Estadísticas generales
+    total_teams = teams.count()
+    total_players = sum(team.player_roles.count() for team in teams)
+    total_staff = sum(team.staff_roles.count() for team in teams)
+    
+    return render(request, 'rosters/roster_overview.html', {
+        'teams_by_category': teams_by_category,
+        'total_teams': total_teams,
+        'total_players': total_players,
+        'total_staff': total_staff,
+        'club_team_name': CLUB_TEAM_NAME,
+    })
+
+
+@login_required
+def ajax_search_persons(request):
+    """Vista AJAX para buscar personas con autocompletado"""
     query = request.GET.get('q', '').strip()
     
     if len(query) < 2:
         return JsonResponse({'persons': []})
     
-    persons = Person.objects.filter(
+    # Buscar personas existentes
+    persons_query = Person.objects.filter(
         Q(first_name__icontains=query) |
         Q(last_name__icontains=query) |
         Q(email__icontains=query)
-    ).select_related('user')[:10]
+    )
     
-    results = []
+    # Limitar a 10 resultados
+    persons = persons_query.order_by('last_name', 'first_name')[:10]
+    
+    # Formatear respuesta
+    persons_data = []
     for person in persons:
-        results.append({
+        persons_data.append({
             'id': person.id,
-            'name': person.full_name,
+            'name': person.get_full_name(),
             'email': person.email,
-            'age': person.age,
-            'is_active': person.is_active,
+            'phone': person.phone,
         })
     
-    return JsonResponse({'persons': results})
-
-
-def roster_export(request, team_id):
-    """Exportar plantilla de un equipo"""
-    from videosvoley.videos.models import Team
-    team = get_object_or_404(Team, id=team_id)
-    
-    # Obtener datos de la plantilla
-    players = PlayerRole.objects.filter(
-        team=team, 
-        is_active=True
-    ).select_related('person').order_by('jersey_number', 'person__last_name')
-    
-    staff = StaffRole.objects.filter(
-        team=team, 
-        is_active=True
-    ).select_related('person').order_by('role', 'person__last_name')
-    
-    # Preparar datos para exportación
-    export_data = {
-        'team': {
-            'name': team.name,
-            'category': team.category.name if team.category else 'Sin categoría',
-            'club': team.club.official_name if team.club else 'Sin club',
-        },
-        'players': [
-            {
-                'name': role.person.full_name,
-                'jersey_number': role.jersey_number,
-                'position': role.display_position,
-                'age': role.person.age,
-            }
-            for role in players
-        ],
-        'staff': [
-            {
-                'name': role.person.full_name,
-                'role': role.display_role,
-                'age': role.person.age,
-            }
-            for role in staff
-        ],
-        'exported_at': timezone.now().isoformat(),
-    }
-    
-    # Retornar como JSON (se puede extender para otros formatos)
-    return JsonResponse(export_data, json_dumps_params={'indent': 2})
+    return JsonResponse({'persons': persons_data})
 
 
 @login_required
-def assign_jersey_number(request, role_id):
-    """Asignar número de dorsal a un jugador (AJAX)"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Método no permitido'})
+def ajax_persons_by_team(request):
+    """Vista AJAX para obtener personas de un equipo específico"""
+    team_id = request.GET.get('team_id')
+    role_type = request.GET.get('role_type', 'all')  # 'player', 'staff', 'all'
+    
+    if not team_id:
+        return JsonResponse({'persons': []})
     
     try:
-        role = get_object_or_404(PlayerRole, id=role_id)
-        jersey_number = request.POST.get('jersey_number')
+        team = Team.objects.get(id=team_id)
         
-        if jersey_number:
-            jersey_number = int(jersey_number)
-            if 1 <= jersey_number <= 99:
-                # Verificar que el número no esté en uso
-                existing = PlayerRole.objects.filter(
-                    team=role.team,
-                    jersey_number=jersey_number,
-                    is_active=True
-                ).exclude(pk=role.pk)
-                
-                if existing.exists():
-                    return JsonResponse({
-                        'success': False, 
-                        'error': f'El número {jersey_number} ya está en uso en {role.team.name}'
-                    })
-                
-                role.jersey_number = jersey_number
-                role.save()
-                
-                return JsonResponse({
-                    'success': True,
-                    'jersey_number': jersey_number
+        if role_type == 'player':
+            roles = team.player_roles.select_related('person').filter(is_active=True)
+        elif role_type == 'staff':
+            roles = team.staff_roles.select_related('person').filter(is_active=True)
+        else:  # all
+            player_roles = team.player_roles.select_related('person').filter(is_active=True)
+            staff_roles = team.staff_roles.select_related('person').filter(is_active=True)
+            roles = list(player_roles) + list(staff_roles)
+        
+        # Formatear respuesta
+        persons_data = []
+        for role in roles:
+            if hasattr(role, 'person'):
+                person = role.person
+                persons_data.append({
+                    'id': person.id,
+                    'name': person.get_full_name(),
+                    'email': person.email,
+                    'phone': person.phone,
+                    'role_type': 'player' if hasattr(role, 'position') else 'staff',
+                    'position': getattr(role, 'position', None),
+                    'role': getattr(role, 'role', None),
                 })
-            else:
-                return JsonResponse({
-                    'success': False, 
-                    'error': 'El número de dorsal debe estar entre 1 y 99'
-                })
-        else:
+        
+        return JsonResponse({'persons': persons_data})
+        
+    except Team.DoesNotExist:
+        return JsonResponse({'persons': []})
+
+
+@login_required
+@user_passes_test(user_is_staff_or_manager, login_url='/')
+def ajax_create_person(request):
+    """Vista AJAX para crear una nueva persona"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    
+    try:
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        
+        if not first_name or not last_name:
+            return JsonResponse({'success': False, 'error': 'Nombre y apellido son requeridos'})
+        
+        # Verificar si ya existe una persona con el mismo nombre y apellido
+        existing_person = Person.objects.filter(
+            first_name__iexact=first_name,
+            last_name__iexact=last_name
+        ).first()
+        
+        if existing_person:
             return JsonResponse({
-                'success': False, 
-                'error': 'Número de dorsal requerido'
+                'success': False,
+                'error': f'Ya existe una persona llamada "{first_name} {last_name}"',
+                'existing_person': {
+                    'id': existing_person.id,
+                    'name': existing_person.get_full_name(),
+                    'email': existing_person.email
+                }
             })
-            
-    except ValueError:
+        
+        # Crear nueva persona
+        new_person = Person.objects.create(
+            first_name=first_name,
+            last_name=last_name,
+            email=email if email else None,
+            phone=phone if phone else None
+        )
+        
+        logger.info(f"Persona creada: {new_person.get_full_name()} por usuario {request.user.username}")
+        
         return JsonResponse({
-            'success': False, 
-            'error': 'Número de dorsal inválido'
+            'success': True,
+            'message': f'Persona "{new_person.get_full_name()}" creada correctamente',
+            'person': {
+                'id': new_person.id,
+                'name': new_person.get_full_name(),
+                'email': new_person.email,
+                'phone': new_person.phone,
+            }
         })
+        
     except Exception as e:
-        logger.error(f'Error assigning jersey number: {e}')
+        logger.error(f"Error creando persona: {str(e)}")
         return JsonResponse({
-            'success': False, 
-            'error': str(e)
-        })
+            'success': False,
+            'error': 'Error interno del servidor'
+        }, status=500)

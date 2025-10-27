@@ -1,338 +1,251 @@
-import requests
-from bs4 import BeautifulSoup
-import json
-import logging
-from typing import Dict, List, Optional
-from django.utils import timezone
-from .models import League, Match, Standing, ScrapingEndpoint
-
-logger = logging.getLogger(__name__)
+"""
+Utilidades para la gestión de competiciones.
+"""
+from django.db.models import F, Q
+from .models import Match, Standing
 
 
-def scrape_league_data(league: League, endpoint_type: str = 'standings') -> Dict:
+def update_league_standings(league):
     """
-    Scrapes data for a specific league and endpoint type
+    Actualiza las clasificaciones de una liga basándose en los partidos finalizados
     
     Args:
-        league: League object to scrape
-        endpoint_type: Type of data to scrape ('standings', 'results', 'calendar')
-    
-    Returns:
-        Dict with scraped data or error information
+        league: Instancia de League
     """
-    try:
-        # Get the appropriate endpoint
-        endpoint = league.endpoints.filter(
-            endpoint_type=endpoint_type,
-            is_active=True
-        ).first()
-        
-        if not endpoint:
-            return {'error': f'No active endpoint found for {endpoint_type}'}
-        
-        # Build the full URL
-        url = endpoint.get_full_url()
-        
-        # Make the request
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        
-        # Parse based on parser type
-        if endpoint.parser_type == 'table_standings':
-            return parse_table_standings(response.text, league)
-        elif endpoint.parser_type == 'match_results':
-            return parse_match_results(response.text, league)
-        elif endpoint.parser_type == 'match_calendar':
-            return parse_match_calendar(response.text, league)
-        elif endpoint.parser_type.startswith('json_'):
-            return parse_json_data(response.json(), league, endpoint.parser_type)
-        else:
-            return {'error': f'Unknown parser type: {endpoint.parser_type}'}
+    if not league:
+        return
+    
+    # Obtener todos los equipos que han jugado en la liga
+    teams_in_league = set()
+    
+    # Equipos con ForeignKey
+    home_teams = Match.objects.filter(
+        league=league,
+        status='finished',
+        home_team__isnull=False
+    ).values_list('home_team', flat=True).distinct()
+    
+    away_teams = Match.objects.filter(
+        league=league,
+        status='finished',
+        away_team__isnull=False
+    ).values_list('away_team', flat=True).distinct()
+    
+    teams_in_league.update(home_teams)
+    teams_in_league.update(away_teams)
+    
+    # Procesar cada equipo
+    for team_id in teams_in_league:
+        try:
+            from videosvoley.teams.models import Team
+            team = Team.objects.get(id=team_id)
             
-    except requests.RequestException as e:
-        logger.error(f'Request error scraping {league.name}: {e}')
-        return {'error': f'Request failed: {str(e)}'}
-    except Exception as e:
-        logger.error(f'Unexpected error scraping {league.name}: {e}')
-        return {'error': f'Unexpected error: {str(e)}'}
-
-
-def parse_table_standings(html_content: str, league: League) -> Dict:
-    """Parse HTML table standings"""
-    try:
-        soup = BeautifulSoup(html_content, 'html.parser')
-        tables = soup.find_all('table')
-        
-        if not tables:
-            return {'error': 'No tables found in HTML'}
-        
-        # Find the standings table (usually the first or largest table)
-        standings_table = tables[0]
-        rows = standings_table.find_all('tr')[1:]  # Skip header row
-        
-        standings_data = []
-        for row in rows:
-            cells = row.find_all(['td', 'th'])
-            if len(cells) >= 3:  # Minimum columns for standings
-                standings_data.append({
-                    'position': cells[0].get_text(strip=True),
-                    'team_name': cells[1].get_text(strip=True),
-                    'points': cells[-1].get_text(strip=True) if cells else '0',
-                    # Add more fields as needed
-                })
-        
-        return {
-            'success': True,
-            'data': standings_data,
-            'league_id': league.id,
-            'scraped_at': timezone.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f'Error parsing standings table: {e}')
-        return {'error': f'Failed to parse standings: {str(e)}'}
-
-
-def parse_match_results(html_content: str, league: League) -> Dict:
-    """Parse HTML match results"""
-    try:
-        soup = BeautifulSoup(html_content, 'html.parser')
-        matches = []
-        
-        # Look for match result patterns
-        # This is a simplified example - adjust based on actual HTML structure
-        match_elements = soup.find_all(['div', 'tr'], class_=lambda x: x and 'match' in x.lower())
-        
-        for element in match_elements:
-            match_data = extract_match_data(element)
-            if match_data:
-                matches.append(match_data)
-        
-        return {
-            'success': True,
-            'data': matches,
-            'league_id': league.id,
-            'scraped_at': timezone.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f'Error parsing match results: {e}')
-        return {'error': f'Failed to parse match results: {str(e)}'}
-
-
-def parse_match_calendar(html_content: str, league: League) -> Dict:
-    """Parse HTML match calendar"""
-    try:
-        soup = BeautifulSoup(html_content, 'html.parser')
-        matches = []
-        
-        # Look for calendar/match elements
-        # This is a simplified example - adjust based on actual HTML structure
-        match_elements = soup.find_all(['div', 'tr'], class_=lambda x: x and 'calendar' in x.lower())
-        
-        for element in match_elements:
-            match_data = extract_match_data(element)
-            if match_data:
-                matches.append(match_data)
-        
-        return {
-            'success': True,
-            'data': matches,
-            'league_id': league.id,
-            'scraped_at': timezone.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f'Error parsing match calendar: {e}')
-        return {'error': f'Failed to parse match calendar: {str(e)}'}
-
-
-def parse_json_data(json_data: Dict, league: League, parser_type: str) -> Dict:
-    """Parse JSON data from API endpoints"""
-    try:
-        matches = []
-        
-        if parser_type == 'json_matches':
-            # Parse upcoming matches
-            for match_item in json_data.get('matches', []):
-                match_data = {
-                    'home_team': match_item.get('home_team', ''),
-                    'away_team': match_item.get('away_team', ''),
-                    'match_date': match_item.get('date', ''),
-                    'venue': match_item.get('venue', ''),
-                    'status': 'scheduled'
-                }
-                matches.append(match_data)
-        
-        elif parser_type == 'json_results':
-            # Parse finished matches
-            for match_item in json_data.get('results', []):
-                match_data = {
-                    'home_team': match_item.get('home_team', ''),
-                    'away_team': match_item.get('away_team', ''),
-                    'home_score': match_item.get('home_score'),
-                    'away_score': match_item.get('away_score'),
-                    'match_date': match_item.get('date', ''),
-                    'status': 'finished'
-                }
-                matches.append(match_data)
-        
-        return {
-            'success': True,
-            'data': matches,
-            'league_id': league.id,
-            'scraped_at': timezone.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f'Error parsing JSON data: {e}')
-        return {'error': f'Failed to parse JSON data: {str(e)}'}
-
-
-def extract_match_data(element) -> Optional[Dict]:
-    """Extract match data from HTML element"""
-    try:
-        # This is a simplified example - adjust based on actual HTML structure
-        text = element.get_text(strip=True)
-        
-        # Look for patterns like "Team A vs Team B" or "Team A - Team B"
-        if ' vs ' in text or ' - ' in text:
-            separator = ' vs ' if ' vs ' in text else ' - '
-            teams = text.split(separator)
+            # Calcular estadísticas del equipo
+            stats = calculate_team_stats(team, league)
             
-            if len(teams) >= 2:
-                return {
-                    'home_team': teams[0].strip(),
-                    'away_team': teams[1].strip(),
-                    'raw_text': text
-                }
-        
-        return None
-        
-    except Exception as e:
-        logger.error(f'Error extracting match data: {e}')
-        return None
-
-
-def create_standings_from_data(league: League, standings_data: List[Dict]) -> int:
-    """
-    Create Standing objects from scraped data
-    
-    Args:
-        league: League object
-        standings_data: List of standings dictionaries
-    
-    Returns:
-        Number of standings created/updated
-    """
-    created_count = 0
-    
-    try:
-        for item in standings_data:
-            # Try to find existing team by name
-            # This will be updated when teams app is created
-            team_name = item.get('team_name', '')
-            if not team_name:
-                continue
-            
-            # For now, create a placeholder team or skip
-            # This will be properly implemented when teams app is ready
-            logger.warning(f'Standings creation skipped - teams app not ready: {team_name}')
-            continue
-            
-            # When teams app is ready, uncomment this:
-            # team, created = Team.objects.get_or_create(
-            #     name=team_name,
-            #     defaults={'federation_id': f'team_{team_name.lower().replace(" ", "_")}'}
-            # )
-            # 
-            # standing, created = Standing.objects.get_or_create(
-            #     league=league,
-            #     team=team,
-            #     defaults={
-            #         'position': int(item.get('position', 0)),
-            #         'total_points': int(item.get('points', 0))
-            #     }
-            # )
-            # 
-            # if created:
-            #     created_count += 1
-    
-    except Exception as e:
-        logger.error(f'Error creating standings: {e}')
-    
-    return created_count
-
-
-def create_matches_from_data(league: League, matches_data: List[Dict]) -> int:
-    """
-    Create Match objects from scraped data
-    
-    Args:
-        league: League object
-        matches_data: List of match dictionaries
-    
-    Returns:
-        Number of matches created/updated
-    """
-    created_count = 0
-    
-    try:
-        for item in matches_data:
-            # Extract match information
-            home_team_text = item.get('home_team', '')
-            away_team_text = item.get('away_team', '')
-            match_date_str = item.get('match_date', '')
-            
-            if not all([home_team_text, away_team_text, match_date_str]):
-                continue
-            
-            # Parse date
-            try:
-                # This is a simplified date parsing - adjust based on actual format
-                match_date = timezone.datetime.fromisoformat(match_date_str.replace('Z', '+00:00'))
-            except ValueError:
-                logger.warning(f'Could not parse date: {match_date_str}')
-                continue
-            
-            # Create or update match
-            match, created = Match.objects.get_or_create(
+            # Crear o actualizar clasificación
+            standing, created = Standing.objects.get_or_create(
                 league=league,
-                home_team_text=home_team_text,
-                away_team_text=away_team_text,
-                match_date=match_date,
-                defaults={
-                    'status': item.get('status', 'scheduled'),
-                    'venue': item.get('venue', ''),
-                    'home_score': item.get('home_score'),
-                    'away_score': item.get('away_score'),
-                    'is_friendly': False
-                }
+                team=team,
+                defaults=stats
             )
             
-            if created:
-                created_count += 1
-    
-    except Exception as e:
-        logger.error(f'Error creating matches: {e}')
-    
-    return created_count
+            if not created:
+                # Actualizar estadísticas existentes
+                for key, value in stats.items():
+                    setattr(standing, key, value)
+                standing.save()
+                
+        except Exception as e:
+            print(f"Error actualizando clasificación para equipo {team_id}: {e}")
 
 
-def get_league_statistics(league: League) -> Dict:
-    """Get statistics for a league"""
-    try:
-        matches = league.matches.all()
-        standings = league.standings.all()
+def calculate_team_stats(team, league):
+    """
+    Calcula las estadísticas de un equipo en una liga
+    
+    Args:
+        team: Instancia de Team
+        league: Instancia de League
         
-        return {
-            'total_matches': matches.count(),
-            'finished_matches': matches.filter(status='finished').count(),
-            'scheduled_matches': matches.filter(status='scheduled').count(),
-            'total_teams': standings.count(),
-            'last_updated': league.updated_at.isoformat() if hasattr(league, 'updated_at') else None
-        }
+    Returns:
+        dict: Estadísticas del equipo
+    """
+    # Partidos como local
+    home_matches = Match.objects.filter(
+        league=league,
+        home_team=team,
+        status='finished',
+        home_score__isnull=False,
+        away_score__isnull=False
+    )
+    
+    # Partidos como visitante
+    away_matches = Match.objects.filter(
+        league=league,
+        away_team=team,
+        status='finished',
+        home_score__isnull=False,
+        away_score__isnull=False
+    )
+    
+    # Calcular estadísticas
+    matches_played = home_matches.count() + away_matches.count()
+    matches_won = 0
+    matches_drawn = 0
+    matches_lost = 0
+    points_for = 0
+    points_against = 0
+    
+    # Procesar partidos como local
+    for match in home_matches:
+        points_for += match.home_score
+        points_against += match.away_score
         
-    except Exception as e:
-        logger.error(f'Error getting league statistics: {e}')
-        return {'error': str(e)}
+        if match.home_score > match.away_score:
+            matches_won += 1
+        elif match.home_score == match.away_score:
+            matches_drawn += 1
+        else:
+            matches_lost += 1
+    
+    # Procesar partidos como visitante
+    for match in away_matches:
+        points_for += match.away_score
+        points_against += match.home_score
+        
+        if match.away_score > match.home_score:
+            matches_won += 1
+        elif match.away_score == match.home_score:
+            matches_drawn += 1
+        else:
+            matches_lost += 1
+    
+    # Calcular puntos (3 por victoria, 1 por empate)
+    points = matches_won * 3 + matches_drawn
+    
+    return {
+        'matches_played': matches_played,
+        'matches_won': matches_won,
+        'matches_drawn': matches_drawn,
+        'matches_lost': matches_lost,
+        'points_for': points_for,
+        'points_against': points_against,
+        'points': points,
+    }
+
+
+def get_league_standings(league):
+    """
+    Obtiene las clasificaciones de una liga ordenadas por posición
+    
+    Args:
+        league: Instancia de League
+        
+    Returns:
+        QuerySet: Clasificaciones ordenadas
+    """
+    return Standing.objects.filter(league=league).order_by('position')
+
+
+def get_team_matches(team, league=None, status=None):
+    """
+    Obtiene los partidos de un equipo
+    
+    Args:
+        team: Instancia de Team
+        league: Instancia de League (opcional)
+        status: Estado del partido (opcional)
+        
+    Returns:
+        QuerySet: Partidos del equipo
+    """
+    matches = Match.objects.filter(
+        Q(home_team=team) | Q(away_team=team)
+    ).select_related('home_team', 'away_team', 'league')
+    
+    if league:
+        matches = matches.filter(league=league)
+    
+    if status:
+        matches = matches.filter(status=status)
+    
+    return matches.order_by('-match_date')
+
+
+def get_upcoming_matches(league=None, limit=10):
+    """
+    Obtiene los próximos partidos
+    
+    Args:
+        league: Instancia de League (opcional)
+        limit: Número máximo de partidos
+        
+    Returns:
+        QuerySet: Próximos partidos
+    """
+    from django.utils import timezone
+    
+    matches = Match.objects.filter(
+        match_date__gte=timezone.now(),
+        status__in=['scheduled', 'in_progress']
+    ).select_related('home_team', 'away_team', 'league')
+    
+    if league:
+        matches = matches.filter(league=league)
+    
+    return matches.order_by('match_date')[:limit]
+
+
+def get_recent_matches(league=None, limit=10):
+    """
+    Obtiene los partidos recientes
+    
+    Args:
+        league: Instancia de League (opcional)
+        limit: Número máximo de partidos
+        
+    Returns:
+        QuerySet: Partidos recientes
+    """
+    from django.utils import timezone
+    
+    matches = Match.objects.filter(
+        match_date__lt=timezone.now(),
+        status='finished'
+    ).select_related('home_team', 'away_team', 'league')
+    
+    if league:
+        matches = matches.filter(league=league)
+    
+    return matches.order_by('-match_date')[:limit]
+
+
+def get_league_stats(league):
+    """
+    Obtiene estadísticas generales de una liga
+    
+    Args:
+        league: Instancia de League
+        
+    Returns:
+        dict: Estadísticas de la liga
+    """
+    matches = Match.objects.filter(league=league)
+    
+    total_matches = matches.count()
+    finished_matches = matches.filter(status='finished').count()
+    scheduled_matches = matches.filter(status='scheduled').count()
+    
+    # Calcular goles totales
+    total_goals = 0
+    for match in matches.filter(status='finished', home_score__isnull=False, away_score__isnull=False):
+        total_goals += match.home_score + match.away_score
+    
+    return {
+        'total_matches': total_matches,
+        'finished_matches': finished_matches,
+        'scheduled_matches': scheduled_matches,
+        'total_goals': total_goals,
+        'average_goals_per_match': total_goals / finished_matches if finished_matches > 0 else 0,
+    }

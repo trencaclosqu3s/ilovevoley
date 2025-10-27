@@ -1,22 +1,34 @@
+"""
+URLs para la app rosters.
+Migradas desde videos.urls para la nueva app rosters.
+"""
 from django.urls import path
 from . import views
 
 app_name = 'rosters'
 
 urlpatterns = [
-    # URLs de personas
+    # Personas
     path('personas/', views.person_list, name='person_list'),
     path('personas/<int:person_id>/', views.person_detail, name='person_detail'),
-    path('personas/<int:person_id>/estadisticas/', views.person_statistics, name='person_statistics'),
+    path('personas/crear/', views.person_create, name='person_create'),
+    path('personas/<int:person_id>/editar/', views.person_edit, name='person_edit'),
     
-    # URLs de plantillas de equipos
-    path('equipos/<int:team_id>/plantilla/', views.team_roster, name='team_roster'),
-    path('equipos/<int:team_id>/plantilla/posiciones/', views.roster_by_position, name='roster_by_position'),
-    path('equipos/<int:team_id>/plantilla/exportar/', views.roster_export, name='roster_export'),
+    # Roles de jugador
+    path('personas/<int:person_id>/jugador/', views.player_role_create, name='player_role_create'),
+    path('roles/jugador/<int:role_id>/editar/', views.player_role_edit, name='player_role_edit'),
+    path('roles/jugador/<int:role_id>/toggle/', views.player_role_toggle_active, name='player_role_toggle_active'),
     
-    # URLs de búsqueda (AJAX)
-    path('buscar/personas/', views.search_persons, name='search_persons'),
+    # Roles de staff
+    path('personas/<int:person_id>/staff/', views.staff_role_create, name='staff_role_create'),
+    path('roles/staff/<int:role_id>/editar/', views.staff_role_edit, name='staff_role_edit'),
+    path('roles/staff/<int:role_id>/toggle/', views.staff_role_toggle_active, name='staff_role_toggle_active'),
     
-    # URLs de gestión (AJAX)
-    path('asignar-dorsal/<int:role_id>/', views.assign_jersey_number, name='assign_jersey_number'),
+    # Plantillas
+    path('plantillas/', views.roster_overview, name='roster_overview'),
+    
+    # APIs AJAX
+    path('api/personas/buscar/', views.ajax_search_persons, name='ajax_search_persons'),
+    path('api/personas/por-equipo/', views.ajax_persons_by_team, name='ajax_persons_by_team'),
+    path('api/personas/crear/', views.ajax_create_person, name='ajax_create_person'),
 ]
