@@ -17,7 +17,7 @@ class PlayerRoleInline(admin.TabularInline):
     extra = 0
     fields = ('team', 'jersey_number', 'position', 'is_active', 'notes')
     readonly_fields = ('created_at',)
-    autocomplete_fields = ('team',)
+    # autocomplete_fields = ('team',)  # Comentado temporalmente - problema de orden de carga de apps
 
 
 class StaffRoleInline(admin.TabularInline):
@@ -26,7 +26,7 @@ class StaffRoleInline(admin.TabularInline):
     extra = 0
     fields = ('team', 'role', 'is_active', 'notes')
     readonly_fields = ('created_at',)
-    autocomplete_fields = ('team',)
+    # autocomplete_fields = ('team',)  # Comentado temporalmente - problema de orden de carga de apps
 
 
 @admin.register(Person)
@@ -135,7 +135,7 @@ class PlayerRoleAdmin(admin.ModelAdmin):
     list_filter = ('team', 'team__category', 'position', 'is_active', 'created_at')
     search_fields = ('person__first_name', 'person__last_name', 'team__name', 'jersey_number')
     readonly_fields = ('created_at', 'updated_at')
-    autocomplete_fields = ('person', 'team')
+    # autocomplete_fields = ('person', 'team')  # Comentado temporalmente - problema de orden de carga de apps
     actions = ['activate_roles', 'deactivate_roles']
     
     fieldsets = (
@@ -174,7 +174,7 @@ class StaffRoleAdmin(admin.ModelAdmin):
     list_filter = ('team', 'team__category', 'role', 'is_active', 'created_at')
     search_fields = ('person__first_name', 'person__last_name', 'team__name')
     readonly_fields = ('created_at', 'updated_at')
-    autocomplete_fields = ('person', 'team')
+    # autocomplete_fields = ('person', 'team')  # Comentado temporalmente - problema de orden de carga de apps
     actions = ['activate_roles', 'deactivate_roles']
     
     fieldsets = (

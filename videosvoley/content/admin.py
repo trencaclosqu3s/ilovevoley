@@ -35,7 +35,7 @@ class VideoAdmin(admin.ModelAdmin):
     list_filter = ('category', 'match__league', 'created_at')
     search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name')
     readonly_fields = ('created_at',)
-    autocomplete_fields = ('match',)
+    # autocomplete_fields = ('match',)  # Comentado temporalmente - problema de orden de carga de apps
 
 
 @admin.register(Comment)

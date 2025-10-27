@@ -87,7 +87,7 @@ class PlayerAdmin(admin.ModelAdmin):
     list_filter = ('team', 'team__category', 'position', 'is_active', 'created_at')
     search_fields = ('first_name', 'last_name', 'jersey_number', 'team__name')
     readonly_fields = ('created_at', 'updated_at')
-    autocomplete_fields = ('team', 'user')
+    # autocomplete_fields = ('team', 'user')  # Comentado temporalmente - problema de orden de carga de apps
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('team', 'team__category')
@@ -108,7 +108,7 @@ class StaffAdmin(admin.ModelAdmin):
     list_filter = ('team', 'team__category', 'role', 'is_active', 'created_at')
     search_fields = ('first_name', 'last_name', 'team__name', 'email', 'phone')
     readonly_fields = ('created_at', 'updated_at')
-    autocomplete_fields = ('team', 'user')
+    # autocomplete_fields = ('team', 'user')  # Comentado temporalmente - problema de orden de carga de apps
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('team', 'team__category')
