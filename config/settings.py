@@ -54,6 +54,7 @@ INSTALLED_APPS = [
 
     # Local apps
     'videosvoley.core.apps.CoreConfig',
+    'videosvoley.content.apps.ContentConfig',  # Nueva app para contenido
     'videosvoley.videos',
     'videosvoley.users',
     'videosvoley.rag',
