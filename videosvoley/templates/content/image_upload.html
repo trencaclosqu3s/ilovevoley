@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Subir Imagen{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">Subir Nueva Imagen</h1>
+            <p class="text-gray-600 mt-1">Sube imágenes del club: partidos, celebraciones, entrenamientos y más</p>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" id="image-upload-form">
+            {% csrf_token %}
+            
+            <!-- Zona de Drag & Drop -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.image.label }}
+                </label>
+                
+                <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-csj-purple transition-colors duration-200 cursor-pointer">
+                    <div id="drop-zone-content">
+                        <i class="fas fa-cloud-upload-alt text-gray-400 text-4xl mb-4"></i>
+                        <p class="text-gray-600 mb-2">Arrastra tu imagen aquí o haz clic para seleccionar</p>
+                        <p class="text-sm text-gray-500">Formatos: JPG, PNG, WebP, HEIC • Máximo 10MB</p>
+                    </div>
+                    
+                    <div id="image-preview" class="hidden">
+                        <img id="preview-img" src="" alt="Preview" class="max-w-full h-48 object-contain mx-auto rounded">
+                        <p id="preview-filename" class="mt-2 text-sm text-gray-600"></p>
+                        <button type="button" onclick="clearPreview()" class="mt-2 text-red-500 hover:text-red-700 text-sm">
+                            <i class="fas fa-times mr-1"></i>Cambiar imagen
+                        </button>
+                    </div>
+                </div>
+                
+                {{ form.image }}
+                
+                {% if form.image.errors %}
+                    <div class="mt-2 text-red-600 text-sm">
+                        {% for error in form.image.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Título -->
+            <div class="mb-6">
+                <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.title.label }}
+                </label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                    <div class="mt-2 text-red-600 text-sm">
+                        {% for error in form.title.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Tipo de Imagen -->
+            <div class="mb-6">
+                <label for="{{ form.image_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.image_type.label }}
+                </label>
+                {{ form.image_type }}
+                {% if form.image_type.errors %}
+                    <div class="mt-2 text-red-600 text-sm">
+                        {% for error in form.image_type.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500">Selecciona el tipo que mejor describe tu imagen</p>
+            </div>
+
+            <!-- Categorías -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.categories.label }}
+                </label>
+                <p class="text-xs text-gray-500 mb-3">
+                    Si seleccionas un partido, las categorías se asignarán automáticamente. 
+                    Si no, puedes seleccionar manualmente las categorías aquí.
+                </p>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    {% for checkbox in form.categories %}
+                        <label class="flex items-center space-x-2 cursor-pointer hover:bg-white p-2 rounded transition">
+                            {{ checkbox.tag }}
+                            <span class="text-sm text-gray-700">{{ checkbox.choice_label }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+                {% if form.categories.errors %}
+                    <div class="mt-2 text-red-600 text-sm">
+                        {% for error in form.categories.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500">{{ form.categories.help_text }}</p>
+            </div>
+
+            <!-- Etiquetas -->
+            <div class="mb-6">
+                <label for="{{ form.tags.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.tags.label }}
+                </label>
+                {{ form.tags }}
+                {% if form.tags.errors %}
+                    <div class="mt-2 text-red-600 text-sm">
+                        {% for error in form.tags.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500">Palabras clave separadas por comas (ej: gol, victoria, senior)</p>
+            </div>
+
+            <!-- Partido -->
+            <div class="mb-6">
+                <label for="{{ form.match.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.match.label }}
+                </label>
+                {{ form.match }}
+                {% if form.match.errors %}
+                    <div class="mt-2 text-red-600 text-sm">
+                        {% for error in form.match.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <!-- Partidos recientes sugeridos -->
+                {% if recent_matches %}
+                    <div class="mt-3">
+                        <p class="text-sm text-gray-600 mb-2">Partidos recientes:</p>
+                        <div class="space-y-1">
+                            {% for match in recent_matches|slice:":5" %}
+                                <button type="button" 
+                                        onclick="selectMatch({{ match.id }}, '{{ match.home_team_display|escapejs }} vs {{ match.away_team_display|escapejs }}')"
+                                        class="block w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded border">
+                                    <strong>{{ match.home_team_display }} vs {{ match.away_team_display }}</strong>
+                                    <br>
+                                    <span class="text-gray-600">{{ match.match_date|date:"d/m/Y" }} • {{ match.league.name }}</span>
+                                </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Descripción -->
+            <div class="mb-6">
+                <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.description.label }}
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <div class="mt-2 text-red-600 text-sm">
+                        {% for error in form.description.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Botones -->
+            <div class="flex justify-between">
+                <a href="{% url 'videos:image_gallery' %}" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors duration-200">
+                    <i class="fas fa-arrow-left mr-2"></i>Volver
+                </a>
+                <button type="submit" class="bg-csj-purple text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200">
+                    <i class="fas fa-upload mr-2"></i>Subir Imagen
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Elementos del DOM
+const dropZone = document.getElementById('drop-zone');
+const imageInput = document.getElementById('image-input');
+const dropZoneContent = document.getElementById('drop-zone-content');
+const imagePreview = document.getElementById('image-preview');
+const previewImg = document.getElementById('preview-img');
+const previewFilename = document.getElementById('preview-filename');
+
+// Funciones de drag & drop
+dropZone.addEventListener('click', () => imageInput.click());
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('border-csj-purple', 'bg-purple-50');
+});
+
+dropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-csj-purple', 'bg-purple-50');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-csj-purple', 'bg-purple-50');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        handleFileSelect(files[0]);
+    }
+});
+
+imageInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+    }
+});
+
+function handleFileSelect(file) {
+    // Validar tipo de archivo
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
+    
+    // Validar por MIME type o extensión (HEIC a veces no tiene MIME correcto)
+    const fileName = file.name.toLowerCase();
+    const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+    const hasValidType = validTypes.includes(file.type);
+    
+    if (!hasValidType && !hasValidExtension) {
+        alert('Formato no válido. Use JPG, PNG, WebP o HEIC');
+        return;
+    }
+    
+    // Validar tamaño (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        alert('El archivo es demasiado grande. Máximo 10MB');
+        return;
+    }
+    
+    // Mostrar preview
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        previewImg.src = e.target.result;
+        previewFilename.textContent = file.name;
+        dropZoneContent.classList.add('hidden');
+        imagePreview.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+    
+    // Asignar archivo al input
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    imageInput.files = dataTransfer.files;
+}
+
+function clearPreview() {
+    dropZoneContent.classList.remove('hidden');
+    imagePreview.classList.add('hidden');
+    imageInput.value = '';
+}
+
+function selectMatch(matchId, matchName) {
+    document.getElementById('id_match').value = matchId;
+    
+    // Opcional: resaltar la selección
+    const buttons = document.querySelectorAll('button[onclick^="selectMatch"]');
+    buttons.forEach(btn => btn.classList.remove('bg-blue-100', 'border-blue-300'));
+    event.target.classList.add('bg-blue-100', 'border-blue-300');
+}
+
+// Auto-generar título basado en el partido seleccionado
+document.getElementById('id_match').addEventListener('change', function() {
+    const titleInput = document.getElementById('id_title');
+    if (!titleInput.value && this.selectedOptions[0] && this.selectedOptions[0].text !== 'Seleccionar partido (opcional)') {
+        const matchText = this.selectedOptions[0].text;
+        const today = new Date().toLocaleDateString('es-ES');
+        titleInput.value = `${matchText} - ${today}`;
+    }
+});
+
+// Lógica condicional para el campo de partido
+document.getElementById('id_image_type').addEventListener('change', function() {
+    const matchSection = document.getElementById('id_match').closest('.mb-6');
+    const matchLabel = matchSection.querySelector('label');
+    const helpText = matchSection.querySelector('.text-gray-600');
+    
+    if (this.value === 'match') {
+        matchLabel.innerHTML = '{{ form.match.label }} <span class="text-red-500">*</span>';
+        if (helpText) {
+            helpText.textContent = 'Se recomienda seleccionar el partido correspondiente';
+        }
+        matchSection.classList.remove('opacity-50');
+    } else {
+        matchLabel.textContent = '{{ form.match.label }}';
+        if (helpText) {
+            helpText.textContent = 'Opcional: vincula la imagen a un partido específico';
+        }
+        matchSection.classList.add('opacity-50');
+    }
+});
+
+// Lógica de categorías: deshabilitar si hay partido seleccionado
+const matchSelect = document.getElementById('id_match');
+const categoryCheckboxes = document.querySelectorAll('input[name="categories"]');
+
+function updateCategoriesState() {
+    const hasMatch = matchSelect.value !== '';
+    
+    categoryCheckboxes.forEach(checkbox => {
+        if (hasMatch) {
+            checkbox.disabled = true;
+            checkbox.checked = false;
+            checkbox.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.remove('cursor-pointer');
+        } else {
+            checkbox.disabled = false;
+            checkbox.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.add('cursor-pointer');
+        }
+    });
+}
+
+// Actualizar estado al cambiar partido
+matchSelect.addEventListener('change', updateCategoriesState);
+
+// Inicializar al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    const imageTypeSelect = document.getElementById('id_image_type');
+    if (imageTypeSelect) {
+        imageTypeSelect.dispatchEvent(new Event('change'));
+    }
+    
+    // Estado inicial de categorías
+    updateCategoriesState();
+});
+</script>
+{% endblock %}

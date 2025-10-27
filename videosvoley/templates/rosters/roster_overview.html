@@ -1,0 +1,253 @@
+{% extends '../base.html' %}
+{% load static %}
+
+{% block extra_js %}
+<script src="{% static 'js/auto_filters.js' %}"></script>
+{% endblock %}
+
+{% block title %}Vista General de Plantillas - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark mb-6">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-100">📋 Vista General de Plantillas</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Resumen completo de todos los equipos del club</p>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <a href="{% url 'videos:team_list' %}" class="bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 dark:text-gray-900 px-4 py-2 rounded-lg font-semibold transition text-sm whitespace-nowrap">
+                    👥 Ver Equipos
+                </a>
+                {% if user.is_staff %}
+                    <a href="{% url 'admin:videos_team_changelist' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition text-sm whitespace-nowrap">
+                        ⚙️ Admin
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard de Estadísticas -->
+    <div class="bg-gradient-to-r from-csj-purple to-csj-purple-dark dark:from-gray-700 dark:to-gray-800 rounded-lg p-4 sm:p-6 mb-6 text-white">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="text-center">
+                <div class="bg-white/20 rounded-lg p-3 sm:p-4 backdrop-blur-sm">
+                    <div class="text-2xl sm:text-3xl font-bold">{{ total_stats.total_teams }}</div>
+                    <div class="text-xs sm:text-sm opacity-90">Equipos Activos</div>
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="bg-white/20 rounded-lg p-3 sm:p-4 backdrop-blur-sm">
+                    <div class="text-2xl sm:text-3xl font-bold">{{ total_stats.total_players }}</div>
+                    <div class="text-xs sm:text-sm opacity-90">Jugadores Totales</div>
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="bg-white/20 rounded-lg p-3 sm:p-4 backdrop-blur-sm">
+                    <div class="text-2xl sm:text-3xl font-bold">{{ total_stats.total_staff }}</div>
+                    <div class="text-xs sm:text-sm opacity-90">Miembros del Staff</div>
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="bg-white/20 rounded-lg p-3 sm:p-4 backdrop-blur-sm">
+                    <div class="text-2xl sm:text-3xl font-bold">{{ total_stats.categories_summary|length }}</div>
+                    <div class="text-xs sm:text-sm opacity-90">Categorías</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-4 mb-6">
+        <form method="get" class="space-y-4 sm:space-y-0 sm:flex sm:gap-4 sm:items-end">
+            <!-- Filtro por categoría -->
+            <div class="flex-1">
+                <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtrar por Categoría</label>
+                <select name="category" id="category" class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    <option value="">Todas las categorías</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == selected_category %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            
+            <!-- Botón limpiar -->
+            <div class="flex gap-2">
+                <a href="{% url 'videos:roster_overview' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition">
+                    Limpiar filtros
+                </a>
+            </div>
+        </form>
+        
+        <!-- Mensaje de filtro aplicado -->
+        {% if not show_all and user_categories.exists %}
+            <div class="mt-4 bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center text-sm text-blue-800 dark:text-blue-200">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>Mostrando solo tus categorías preferidas</span>
+                </div>
+                <a href="?show_all=1" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                    Ver todas
+                </a>
+            </div>
+        {% elif show_all %}
+            <div class="mt-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                    <span>Mostrando todas las categorías</span>
+                </div>
+                <a href="?" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300">
+                    Filtrar por preferencias
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Resumen por Categorías -->
+    {% if total_stats.categories_summary %}
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">📊 Resumen por Categorías</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for category, data in total_stats.categories_summary.items %}
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-gray-200 dark:border-gray-700">
+                        <h4 class="font-semibold text-gray-800 dark:text-gray-200 mb-3">{{ category }}</h4>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div>
+                                <div class="text-lg font-bold text-csj-purple dark:text-csj-yellow">{{ data.teams }}</div>
+                                <div class="text-xs text-gray-600 dark:text-gray-400">Equipos</div>
+                            </div>
+                            <div>
+                                <div class="text-lg font-bold text-csj-yellow-dark dark:text-csj-yellow">{{ data.players }}</div>
+                                <div class="text-xs text-gray-600 dark:text-gray-400">Jugadores</div>
+                            </div>
+                            <div>
+                                <div class="text-lg font-bold text-orange-600 dark:text-orange-400">{{ data.staff }}</div>
+                                <div class="text-xs text-gray-600 dark:text-gray-400">Staff</div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Lista Detallada de Equipos -->
+    {% if teams %}
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">🏐 Equipos Detallados</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for team in teams %}
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <!-- Header del equipo -->
+                        <div class="p-4 border-b border-gray-100 dark:border-gray-700">
+                            <div class="flex items-center mb-3">
+                                <div class="mr-3">
+                                    {% if team.display_logo %}
+                                        <img src="{{ team.display_logo }}" alt="Logo {{ team.name }}" 
+                                             class="w-10 h-10 object-contain rounded border dark:border-gray-600">
+                                    {% else %}
+                                        <div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded border dark:border-gray-600 flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                            </svg>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-gray-800 dark:text-gray-200 text-sm leading-tight">{{ team.name }}</h4>
+                                    {% if team.category %}
+                                        <span class="inline-block bg-csj-purple dark:bg-csj-purple-dark text-white px-2 py-1 rounded text-xs font-medium mt-1">
+                                            {{ team.category.name }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Club info -->
+                            {% if team.club %}
+                                <div class="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                    🏢 {{ team.club.official_name }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Estadísticas -->
+                        <div class="p-4">
+                            <div class="grid grid-cols-2 gap-4 mb-4 text-center">
+                                <div>
+                                    <div class="text-xl font-bold text-csj-purple dark:text-csj-yellow">{{ team.active_players_count }}</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-400">Jugadores</div>
+                                </div>
+                                <div>
+                                    <div class="text-xl font-bold text-orange-600 dark:text-orange-400">{{ team.active_staff_count }}</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-400">Staff</div>
+                                </div>
+                            </div>
+
+
+                            <!-- Acciones -->
+                            <a href="{% url 'videos:team_roster' team.id %}" 
+                               class="block w-full bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white text-center py-2 rounded-lg font-medium transition text-sm">
+                                👁️ Ver Plantilla Completa
+                            </a>
+                            
+                            {% if team.active_players_count == 0 and team.active_staff_count == 0 %}
+                                <div class="text-center mt-2">
+                                    <span class="text-xs text-gray-500">
+                                        <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        Sin miembros registrados
+                                    </span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <!-- Estado vacío -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-8 text-center">
+            <div class="mb-4">
+                <svg class="w-16 h-16 text-gray-400 mx-auto" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">No hay equipos disponibles</h3>
+            <p class="text-gray-600 dark:text-gray-400 mb-4">
+                {% if selected_category %}
+                    No se encontraron equipos en la categoría seleccionada.
+                {% else %}
+                    No hay equipos del club registrados actualmente.
+                {% endif %}
+            </p>
+            <div class="flex gap-2 justify-center">
+                {% if selected_category %}
+                    <a href="{% url 'videos:roster_overview' %}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-4 py-2 rounded-lg font-medium transition">
+                        Ver todos los equipos
+                    </a>
+                {% endif %}
+                {% if user.is_staff %}
+                    <a href="{% url 'admin:videos_team_add' %}" class="bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 dark:text-gray-900 px-4 py-2 rounded-lg font-medium transition">
+                        ➕ Agregar Equipo
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+
+</div>
+{% endblock %}
