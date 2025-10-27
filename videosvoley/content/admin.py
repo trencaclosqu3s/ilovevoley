@@ -1,8 +1,12 @@
+"""
+Admin interface para la app content.
+Migrado desde videos.admin para la nueva app content.
+"""
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import Category, Video, Comment, Image
+from .models import Video, Comment, Category, Image
 
 
 @admin.register(Category)
@@ -15,55 +19,48 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ['title', 'category', 'match_link', 'created_by', 'created_at']
+    list_display = ['title', 'category', 'created_by', 'created_at', 'youtube_thumbnail']
     list_filter = ['category', 'created_at', 'created_by']
-    search_fields = ['title', 'description', 'youtube_url']
-    readonly_fields = ['created_at', 'embed_preview']
-    ordering = ['-created_at']
+    search_fields = ['title', 'description', 'created_by__username']
+    readonly_fields = ['youtube_url_id', 'created_at', 'updated_at']
+    raw_id_fields = ['created_by', 'match']
     
     fieldsets = (
-        ('Información Básica', {
-            'fields': ('title', 'youtube_url', 'description', 'category')
+        ('Información básica', {
+            'fields': ('title', 'youtube_url', 'youtube_url_id', 'description')
         }),
-        ('Partido', {
-            'fields': ('match',),
-            'classes': ('collapse',)
+        ('Clasificación', {
+            'fields': ('category', 'match')
         }),
         ('Metadatos', {
-            'fields': ('created_by', 'created_at'),
-            'classes': ('collapse',)
-        }),
-        ('Vista Previa', {
-            'fields': ('embed_preview',),
+            'fields': ('created_by', 'created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
     
-    def match_link(self, obj):
-        if obj.match:
-            url = reverse('admin:competitions_match_change', args=[obj.match.id])
-            return format_html('<a href="{}">{}</a>', url, obj.match)
-        return '-'
-    match_link.short_description = 'Partido'
-    
-    def embed_preview(self, obj):
-        if obj.youtube_url:
-            embed_url = obj.get_embed_url()
+    def youtube_thumbnail(self, obj):
+        if obj.youtube_url_id:
+            thumbnail_url = f'https://img.youtube.com/vi/{obj.youtube_url_id}/mqdefault.jpg'
             return format_html(
-                '<iframe width="560" height="315" src="{}" frameborder="0" allowfullscreen></iframe>',
-                embed_url
+                '<img src="{}" width="120" height="90" style="border-radius: 4px;">',
+                thumbnail_url
             )
-        return 'No hay URL de YouTube'
-    embed_preview.short_description = 'Vista Previa'
+        return '-'
+    youtube_thumbnail.short_description = 'Thumbnail'
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # Solo para nuevos videos
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ['user', 'video', 'content_preview', 'created_at']
+    list_display = ['video', 'user', 'content_preview', 'created_at']
     list_filter = ['created_at', 'video__category']
-    search_fields = ['user__username', 'content', 'video__title']
+    search_fields = ['content', 'user__username', 'video__title']
     readonly_fields = ['created_at']
-    ordering = ['-created_at']
+    raw_id_fields = ['video', 'user']
     
     def content_preview(self, obj):
         return obj.content[:50] + '...' if len(obj.content) > 50 else obj.content
@@ -72,29 +69,25 @@ class CommentAdmin(admin.ModelAdmin):
 
 @admin.register(Image)
 class ImageAdmin(admin.ModelAdmin):
-    list_display = ['title', 'image_preview', 'image_type', 'status', 'match_link', 'uploaded_by', 'upload_date']
-    list_filter = ['status', 'image_type', 'year', 'upload_date', 'uploaded_by']
-    search_fields = ['title', 'description', 'tags']
-    readonly_fields = ['upload_date', 'moderation_date', 'vision_api_details_display']
-    ordering = ['-upload_date']
+    list_display = ['title', 'image_preview', 'image_type', 'status', 'uploaded_by', 'upload_date']
+    list_filter = ['status', 'image_type', 'upload_date', 'uploaded_by']
+    search_fields = ['title', 'description', 'tags', 'uploaded_by__username']
+    readonly_fields = ['upload_date', 'moderation_date', 'vision_api_checked', 'vision_api_safe']
+    raw_id_fields = ['uploaded_by', 'moderated_by', 'match']
     
     fieldsets = (
-        ('Imagen', {
+        ('Información básica', {
             'fields': ('image', 'title', 'description', 'image_type')
         }),
-        ('Etiquetas', {
-            'fields': ('tags', 'auto_tags', 'all_tags_display'),
-            'classes': ('collapse',)
-        }),
-        ('Relaciones', {
-            'fields': ('match', 'categories', 'year'),
-            'classes': ('collapse',)
+        ('Clasificación', {
+            'fields': ('categories', 'tags', 'auto_tags', 'match')
         }),
         ('Moderación', {
             'fields': ('status', 'moderated_by', 'moderation_date', 'moderation_notes'),
+            'classes': ('collapse',)
         }),
         ('Google Vision API', {
-            'fields': ('vision_api_checked', 'vision_api_safe', 'vision_api_details_display'),
+            'fields': ('vision_api_checked', 'vision_api_safe', 'vision_api_details'),
             'classes': ('collapse',)
         }),
         ('Metadatos', {
@@ -106,45 +99,31 @@ class ImageAdmin(admin.ModelAdmin):
     def image_preview(self, obj):
         if obj.image:
             return format_html(
-                '<img src="{}" width="100" height="100" style="object-fit: cover; border-radius: 4px;" />',
+                '<img src="{}" width="80" height="80" style="border-radius: 4px; object-fit: cover;">',
                 obj.image.url
             )
-        return 'Sin imagen'
-    image_preview.short_description = 'Vista Previa'
-    
-    def match_link(self, obj):
-        if obj.match:
-            url = reverse('admin:competitions_match_change', args=[obj.match.id])
-            return format_html('<a href="{}">{}</a>', url, obj.match)
         return '-'
-    match_link.short_description = 'Partido'
+    image_preview.short_description = 'Imagen'
     
-    def all_tags_display(self, obj):
-        return ', '.join(obj.all_tags)
-    all_tags_display.short_description = 'Todas las Etiquetas'
-    
-    def vision_api_details_display(self, obj):
-        if obj.vision_api_details:
-            return format_html('<pre>{}</pre>', str(obj.vision_api_details))
-        return 'Sin detalles'
-    vision_api_details_display.short_description = 'Detalles Vision API'
+    def save_model(self, request, obj, form, change):
+        if not change:  # Solo para nuevas imágenes
+            obj.uploaded_by = request.user
+        super().save_model(request, obj, form, change)
     
     actions = ['approve_images', 'reject_images']
     
     def approve_images(self, request, queryset):
-        updated = queryset.update(
+        updated = queryset.filter(status='pending').update(
             status='approved',
-            moderated_by=request.user,
-            moderation_date=timezone.now()
+            moderated_by=request.user
         )
         self.message_user(request, f'{updated} imágenes aprobadas.')
     approve_images.short_description = 'Aprobar imágenes seleccionadas'
     
     def reject_images(self, request, queryset):
-        updated = queryset.update(
+        updated = queryset.filter(status='pending').update(
             status='rejected',
-            moderated_by=request.user,
-            moderation_date=timezone.now()
+            moderated_by=request.user
         )
         self.message_user(request, f'{updated} imágenes rechazadas.')
     reject_images.short_description = 'Rechazar imágenes seleccionadas'

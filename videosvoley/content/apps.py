@@ -1,3 +1,6 @@
+"""
+Configuración de la app content.
+"""
 from django.apps import AppConfig
 
 
@@ -7,9 +10,5 @@ class ContentConfig(AppConfig):
     verbose_name = 'Contenido'
     
     def ready(self):
-        """Configuración cuando la app está lista"""
-        # Importar signals si los hay
-        try:
-            import videosvoley.content.signals
-        except ImportError:
-            pass
+        """Importar signals cuando la app esté lista"""
+        import videosvoley.content.signals

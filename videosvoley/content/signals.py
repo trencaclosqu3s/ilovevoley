@@ -1,51 +1,148 @@
-from django.db.models.signals import post_save, pre_save
+"""
+Signals para la app content.
+Migrados desde videos.signals para la nueva app content.
+"""
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.utils import timezone
+from django.conf import settings
 from .models import Image
+from videosvoley.core.email_utils import send_notification_email
+from videosvoley.core.moderation_views import generate_moderation_token
+import os
 
 
-@receiver(pre_save, sender=Image)
-def image_pre_save(sender, instance, **kwargs):
-    """Señales que se ejecutan antes de guardar una imagen"""
-    # Auto-asignar año si no está especificado
-    if not instance.year:
-        instance.year = timezone.now().year
+@receiver(post_save, sender=Image)
+def image_uploaded_handler(sender, instance, created, **kwargs):
+    """
+    Maneja cuando se sube una nueva imagen (pendiente de moderación)
+    """
+    if created and instance.status == 'pending':
+        print(f"Nueva imagen subida: {instance.title} por {instance.uploaded_by.username}")
+        
+        # Enviar email de notificación a admins
+        if settings.EMAIL_NOTIFICATIONS.get('image_pending', True):
+            # Generar tokens de moderación
+            approve_token = generate_moderation_token('image', instance.id, 'approve')
+            reject_token = generate_moderation_token('image', instance.id, 'reject')
+            
+            # Preparar imagen para embeber (CID) y adjuntar
+            embedded_images = {}
+            attachments = []
+            if instance.image:
+                try:
+                    image_path = instance.image.path
+                    if os.path.exists(image_path):
+                        # Usar CID para embeber la imagen en el HTML
+                        embedded_images['pending_image'] = image_path
+                        # También adjuntar para que se pueda descargar
+                        attachments.append(image_path)
+                except Exception as e:
+                    print(f"No se pudo procesar la imagen: {str(e)}")
+            
+            context = {
+                'image': instance,
+                'user': instance.uploaded_by,
+                'site_name': 'I Love Voley',
+                'admin_url': f'/admin/content/image/{instance.id}/change/',
+                'image_cid': 'pending_image' if embedded_images else None,  # CID para usar en el template
+                'approve_url': f'/moderate/image/{approve_token}/',
+                'reject_url': f'/moderate/image/{reject_token}/',
+            }
+            send_notification_email(
+                subject=f'Nueva imagen pendiente de moderación: {instance.title}',
+                template_name='emails/image_pending.html',
+                context=context,
+                attachments=attachments if attachments else None,
+                embedded_images=embedded_images if embedded_images else None
+            )
+
+
+@receiver(post_save, sender=Image)
+def image_moderated_handler(sender, instance, created, **kwargs):
+    """
+    Envía email al usuario cuando su imagen es moderada (aprobada o rechazada)
+    """
+    if not created and instance.moderated_by:
+        # Verificar si cambió de pendiente a moderada
+        if hasattr(instance, '_old_status') and instance._old_status == 'pending':
+            print(f"Imagen moderada: {instance.title} - Estado: {instance.status}")
+            
+            # Enviar email al usuario que subió la imagen
+            if settings.EMAIL_NOTIFICATIONS.get('image_moderated', True) and instance.uploaded_by.email:
+                context = {
+                    'image': instance,
+                    'user': instance.uploaded_by,
+                    'site_name': 'I Love Voley',
+                    'is_approved': instance.status == 'approved',
+                    'moderation_notes': instance.moderation_notes,
+                }
+                
+                if instance.status == 'approved':
+                    subject = f'Tu imagen "{instance.title}" ha sido aprobada'
+                    template_name = 'emails/image_approved.html'
+                else:
+                    subject = f'Tu imagen "{instance.title}" ha sido rechazada'
+                    template_name = 'emails/image_rejected.html'
+                
+                send_notification_email(
+                    subject=subject,
+                    template_name=template_name,
+                    context=context,
+                    recipient_list=[instance.uploaded_by.email]
+                )
+
+
+# Hook para trackear cambios en status de imagen
+@receiver(post_save, sender=Image)
+def track_image_status_changes(sender, instance, **kwargs):
+    """
+    Trackea cambios en el estado de moderación de la imagen
+    """
+    if hasattr(instance, '_old_status'):
+        del instance._old_status
 
 
 @receiver(post_save, sender=Image)
 def image_post_save(sender, instance, created, **kwargs):
-    """Señales que se ejecutan después de guardar una imagen"""
+    """
+    Maneja la asignación automática de categorías cuando se vincula una imagen a un partido
+    """
     if created and instance.match:
-        # Auto-asignar categorías desde el partido si es nueva imagen
-        if not instance.categories.exists():
-            # Importar el modelo de categoría correcto
+        # Obtener categorías del partido
+        categories_to_add = []
+        
+        # Categoría del equipo local
+        if instance.match.home_team and instance.match.home_team.category:
+            categories_to_add.append(instance.match.home_team.category)
+        
+        # Categoría del equipo visitante
+        if instance.match.away_team and instance.match.away_team.category:
+            categories_to_add.append(instance.match.away_team.category)
+        
+        # Categoría de la liga
+        if instance.match.league and instance.match.league.category:
+            categories_to_add.append(instance.match.league.category)
+        
+        # Asignar categorías únicas
+        if categories_to_add:
+            # Importar Category desde content.models
             from .models import Category as ContentCategory
             
-            if instance.match.league and instance.match.league.category:
-                # Buscar la categoría correspondiente en el nuevo modelo
+            # Convertir a objetos ContentCategory
+            content_categories = []
+            for category in categories_to_add:
                 try:
-                    new_category = ContentCategory.objects.get(
-                        name=instance.match.league.category.name
-                    )
-                    instance.categories.add(new_category)
+                    content_category = ContentCategory.objects.get(name=category.name)
+                    content_categories.append(content_category)
                 except ContentCategory.DoesNotExist:
-                    pass
+                    # Si no existe, crear una nueva
+                    content_category = ContentCategory.objects.create(
+                        name=category.name,
+                        description=category.description,
+                        is_active=category.is_active
+                    )
+                    content_categories.append(content_category)
             
-            # También agregar categorías de los equipos si las tienen
-            if instance.match.home_team and instance.match.home_team.category:
-                try:
-                    new_category = ContentCategory.objects.get(
-                        name=instance.match.home_team.category.name
-                    )
-                    instance.categories.add(new_category)
-                except ContentCategory.DoesNotExist:
-                    pass
-                    
-            if instance.match.away_team and instance.match.away_team.category:
-                try:
-                    new_category = ContentCategory.objects.get(
-                        name=instance.match.away_team.category.name
-                    )
-                    instance.categories.add(new_category)
-                except ContentCategory.DoesNotExist:
-                    pass
+            # Asignar categorías únicas
+            unique_categories = list(set(content_categories))
+            instance.categories.set(unique_categories)
