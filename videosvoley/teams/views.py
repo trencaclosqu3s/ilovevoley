@@ -72,7 +72,7 @@ def team_list(request):
     page_obj = paginator.get_page(page_number)
     
     # Obtener clubs para filtro
-    clubs = Club.objects.filter(is_active=True).order_by('official_name')
+    clubs = Club.objects.all().order_by('official_name')
     
     return render(request, 'teams/team_list.html', {
         'page_obj': page_obj,
@@ -205,7 +205,7 @@ def club_detail(request, club_id):
 @user_passes_test(user_is_approved, login_url='/pending-approval/')
 def club_list(request):
     """Vista para mostrar todos los clubs disponibles"""
-    clubs = Club.objects.filter(is_active=True).prefetch_related('teams__category')
+    clubs = Club.objects.all().prefetch_related('teams__category')
     
     # Filtros
     search_query = request.GET.get('search', '').strip()

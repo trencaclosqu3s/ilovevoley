@@ -44,7 +44,7 @@
             
             <div class="flex items-center gap-2">
                 {% if user.is_staff %}
-                    <a href="{% url 'admin:videos_team_change' team.id %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition text-sm whitespace-nowrap">
+                    <a href="{% url 'admin:teams_team_change' team.id %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition text-sm whitespace-nowrap">
                         ⚙️ Editar
                     </a>
                 {% endif %}
@@ -293,7 +293,7 @@
                     {% endif %}
                 </h3>
                 {% if user.is_staff %}
-                    <a href="{% url 'admin:videos_playerrole_add' %}?team={{ team.id }}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-4 py-2 rounded-lg font-medium transition inline-block">
+                    <a href="{% url 'admin:rosters_playerrole_add' %}?team={{ team.id }}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-4 py-2 rounded-lg font-medium transition inline-block">
                         ➕ Agregar Jugador
                     </a>
                 {% endif %}
@@ -516,7 +516,7 @@
                     {% endif %}
                 </h3>
                 {% if user.is_staff %}
-                    <a href="{% url 'admin:videos_staffrole_add' %}?team={{ team.id }}" class="bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 dark:text-gray-900 px-4 py-2 rounded-lg font-medium transition inline-block">
+                    <a href="{% url 'admin:rosters_staffrole_add' %}?team={{ team.id }}" class="bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 dark:text-gray-900 px-4 py-2 rounded-lg font-medium transition inline-block">
                         ➕ Agregar Staff
                     </a>
                 {% endif %}

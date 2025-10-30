@@ -526,11 +526,34 @@ videosvoley/
 
 ### **FASE 6: Despliegue** ⏳ PENDIENTE
 
-#### 🔄 **FASE 6.1 - Testing final completo del sistema** ⏳ PENDIENTE
-- **Estado**: ⏳ PENDIENTE
+#### 🔄 **FASE 6.1 - Testing final completo del sistema** ✅ COMPLETADA
+- **Estado**: ✅ COMPLETADA
+- **Progreso final**:
+  - ✅ Solucionados errores de calendar_tasks (funcionalidad obsoleta eliminada)
+  - ✅ Corregidos tests de modelos (League, Standing, Match)
+  - ✅ Aplicadas migraciones de Foreign Keys correctamente
+  - ✅ Migradas categorías de usuarios a content app
+  - ✅ Corregidas URLs en competitions.urls (eliminado prefijo duplicado `ligas/ligas/`)
+  - ✅ Corregidos formularios (FriendlyMatchForm, StandingForm)
+  - ✅ **Tests de competitions: 18 tests, TODOS OK (100% de éxito)**
+  - ✅ Corregidos errores de estadísticas (auto-partidos duplicados)
+  - ✅ Corregidos errores de permisos (duplicación de grupos)
+  - ✅ Sistema funcionando correctamente con estructura refactorizada
 
-#### 🔄 **FASE 6.2 - Despliegue en producción con rollback plan** ⏳ PENDIENTE
-- **Estado**: ⏳ PENDIENTE
+#### ⚠️ **FASE 6.2 - Despliegue en producción con rollback plan** ⚠️ PROBLEMA DETECTADO
+- **Estado**: ⚠️ **NO LISTO PARA PRODUCCIÓN**
+- **⚠️ PROBLEMA CRÍTICO**:
+  - ❌ **Los datos NO están migrados correctamente**
+  - ❌ Se ejecutaron tests que crearon datos fake
+  - ❌ Las tablas `videos_*` (legacy) tienen los datos reales
+  - ❌ Las tablas nuevas (`competitions_*`, etc.) tienen datos incorrectos
+  
+- **SOLUCIÓN NECESARIA**:
+  1. ❌ Ejecutar comandos de migración de datos desde `videos_*` a nuevas apps
+  2. ❌ Verificar que todos los datos se migraron correctamente  
+  3. ❌ Testing manual completo de la app con datos reales
+  4. ❌ Verificar que no quedaron datos de tests/fake
+  5. ⚠️ Solo después de esto se puede subir a producción
 
 ## 🔧 **Estrategia de Migración de Datos**
 

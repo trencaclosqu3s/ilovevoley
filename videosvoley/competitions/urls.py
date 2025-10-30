@@ -13,9 +13,9 @@ urlpatterns = [
     path('ligas/', views.league_list, name='league_list'),
     path('ligas/<int:league_id>/', views.league_detail, name='league_detail'),
     
-    # Partidos
-    path('partidos/<int:match_id>/', views.match_detail, name='match_detail'),
-    path('partidos/amistoso/', views.friendly_match_create, name='friendly_match_create'),
+    # Partidos (NOTA: Estas URLs se exponen bajo /videos/partidos/ desde videos.urls)
+    path('<int:match_id>/', views.match_detail, name='match_detail'),  # Detalle de partido
+    path('amistoso/', views.friendly_match_create, name='friendly_match_create'),
     
     # Calendario y clasificaciones
     path('calendario/', views.calendar_view, name='calendar_view'),

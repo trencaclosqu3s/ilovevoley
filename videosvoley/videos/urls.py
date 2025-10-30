@@ -28,7 +28,6 @@ urlpatterns = [
     
     # APIs AJAX (mantener para compatibilidad)
     path('ajax/', include('videosvoley.competitions.urls')),
-    path('api/', include('videosvoley.content.urls')),
     
     # MANTENER COMPATIBILIDAD HACIA ATRÁS - Calendar feed
     # Los usuarios que ya tienen el calendario suscrito no tendrán que volver a suscribirse

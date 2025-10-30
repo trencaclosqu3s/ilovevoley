@@ -15,6 +15,7 @@ urlpatterns = [
     
     # Imágenes
     path('imagenes/', views.image_gallery, name='image_gallery'),
+    path('imagenes/individual/', views.image_gallery, name='image_gallery_individual'),
     path('imagenes/albums/', views.image_gallery_albums, name='image_gallery_albums'),
     path('imagenes/subir/', views.image_upload, name='image_upload'),
     path('imagenes/subir-masivo/', views.image_bulk_upload, name='image_bulk_upload'),

@@ -17,7 +17,7 @@
                 📋 Vista General
             </a>
             {% if user.is_staff %}
-                <a href="{% url 'admin:videos_team_changelist' %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition text-sm whitespace-nowrap">
+                <a href="{% url 'admin:teams_team_changelist' %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition text-sm whitespace-nowrap">
                     ⚙️ Admin
                 </a>
             {% endif %}
@@ -182,7 +182,7 @@
                 </a>
             {% endif %}
             {% if user.is_staff %}
-                <a href="{% url 'admin:videos_team_add' %}" class="bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 px-4 py-2 rounded-lg font-medium transition">
+                <a href="{% url 'admin:teams_team_add' %}" class="bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 px-4 py-2 rounded-lg font-medium transition">
                     ➕ Agregar Equipo
                 </a>
             {% endif %}
