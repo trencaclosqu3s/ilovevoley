@@ -386,13 +386,42 @@ def image_gallery_albums(request):
     albums = list(match_groups.values())
     albums.sort(key=lambda x: x['match'].match_date, reverse=True)
     
-    # Obtener imágenes sin partido como imágenes individuales
-    images_without_match = list(images.filter(match__isnull=True))
+    # Obtener imágenes sin partido
+    images_without_match = images.filter(match__isnull=True)
     
-    # Paginación para álbumes - mezclar álbumes e imágenes individuales
+    # Agrupar imágenes sin partido por album_group_id
+    album_group_groups = {}
+    single_images = []
+    
+    for image in images_without_match:
+        if image.album_group_id:
+            # Agrupar por album_group_id
+            group_id = str(image.album_group_id)
+            if group_id not in album_group_groups:
+                album_group_groups[group_id] = {
+                    'album_group_id': image.album_group_id,
+                    'album_name': image.album_name or 'Álbum',
+                    'images': [],
+                    'image_count': 0,
+                    'upload_date': image.upload_date  # Usar fecha de primera imagen para ordenar
+                }
+            album_group_groups[group_id]['images'].append(image)
+            album_group_groups[group_id]['image_count'] += 1
+            # Actualizar fecha si es más reciente (para ordenar por la más reciente)
+            if image.upload_date > album_group_groups[group_id]['upload_date']:
+                album_group_groups[group_id]['upload_date'] = image.upload_date
+        else:
+            # Imagen individual sin grupo
+            single_images.append(image)
+    
+    # Convertir grupos de album_group_id a lista de álbumes
+    album_groups = list(album_group_groups.values())
+    album_groups.sort(key=lambda x: x['upload_date'], reverse=True)
+    
+    # Paginación para álbumes - mezclar álbumes de partidos, álbumes de grupos e imágenes individuales
     all_items = []
     
-    # Agregar álbumes
+    # Agregar álbumes de partidos
     for album in albums:
         all_items.append({
             'type': 'album',
@@ -401,16 +430,35 @@ def image_gallery_albums(request):
             'image_count': album['image_count']
         })
     
+    # Agregar álbumes de grupos (sin partido)
+    for album_group in album_groups:
+        all_items.append({
+            'type': 'album_group',
+            'album_group_id': album_group['album_group_id'],
+            'album_name': album_group['album_name'],
+            'images': album_group['images'],
+            'image_count': album_group['image_count'],
+            'upload_date': album_group['upload_date']
+        })
+    
     # Agregar imágenes individuales
-    for image in images_without_match:
+    for image in single_images:
         all_items.append({
             'type': 'single',
             'image': image,
             'image_count': 1
         })
     
-    # Ordenar por fecha (partidos primero, luego imágenes individuales)
-    all_items.sort(key=lambda x: x['match'].match_date if x['type'] == 'album' else x['image'].upload_date, reverse=True)
+    # Ordenar por fecha
+    def get_sort_date(item):
+        if item['type'] == 'album':
+            return item['match'].match_date
+        elif item['type'] == 'album_group':
+            return item['upload_date']
+        else:
+            return item['image'].upload_date
+    
+    all_items.sort(key=get_sort_date, reverse=True)
     
     paginator = Paginator(all_items, 12)
     page_number = request.GET.get('page')
@@ -419,8 +467,8 @@ def image_gallery_albums(request):
     # Estadísticas para la vista
     total_images = Image.objects.filter(status='approved').count()
     pending_images = Image.objects.filter(status='pending').count()
-    total_albums = len(albums)
-    total_single_images = len(images_without_match)
+    total_albums = len(albums) + len(album_groups)  # Incluir álbumes de grupos
+    total_single_images = len(single_images)
     
     # Obtener etiquetas populares para sugerencias
     popular_tags = []
@@ -684,6 +732,18 @@ def image_bulk_upload(request):
                 shared_data['match'] = Match.objects.get(id=match_id)
             except Match.DoesNotExist:
                 pass
+        
+        # Generar album_group_id y nombre si se marca crear álbum y no hay partido
+        import uuid
+        create_album = request.POST.get('create_album') == 'on'
+        album_name = request.POST.get('album_name', '').strip()
+        if create_album and not match_id:
+            if not album_name:
+                messages.error(request, 'El nombre del álbum es obligatorio cuando se agrupan imágenes.')
+                return redirect('content:image_bulk_upload')
+            album_group_id = uuid.uuid4()
+            shared_data['album_group_id'] = album_group_id
+            shared_data['album_name'] = album_name
         
         # Etiquetas compartidas
         shared_tags = request.POST.get('tags', '').strip()
@@ -1015,6 +1075,48 @@ def match_images(request, match_id):
     }
     
     return render(request, 'content/match_images.html', context)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def album_group_images(request, album_group_id):
+    """Vista de imágenes de un álbum de grupo (sin partido)"""
+    from django.http import Http404
+    
+    # album_group_id ya viene como UUID desde la URL (gracias al path converter <uuid:album_group_id>)
+    images = Image.objects.filter(
+        album_group_id=album_group_id,
+        status='approved'
+    ).select_related('uploaded_by').prefetch_related('categories').order_by('-upload_date')
+    
+    if not images.exists():
+        raise Http404("Álbum no encontrado")
+    
+    # Obtener información del álbum desde la primera imagen
+    first_image = images.first()
+    
+    # Paginación
+    paginator = Paginator(images, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Preparar información del álbum
+    album_info = {
+        'album_group_id': album_group_id,
+        'album_name': first_image.album_name or 'Álbum',
+        'image_count': images.count(),
+        'upload_date': first_image.upload_date,
+        'categories': first_image.categories.all(),
+        'image_type': first_image.get_image_type_display(),
+    }
+    
+    context = {
+        'album': album_info,
+        'page_obj': page_obj,
+        'total_images': images.count(),
+    }
+    
+    return render(request, 'content/album_group_images.html', context)
 
 
 def about(request):

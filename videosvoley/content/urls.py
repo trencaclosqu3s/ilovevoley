@@ -21,6 +21,7 @@ urlpatterns = [
     path('imagenes/subir-masivo/', views.image_bulk_upload, name='image_bulk_upload'),
     path('imagenes/<int:image_id>/', views.image_detail, name='image_detail'),
     path('imagenes/partido/<int:match_id>/', views.match_images, name='match_images'),
+    path('imagenes/album/<uuid:album_group_id>/', views.album_group_images, name='album_group_images'),
     
     # Moderación (solo staff)
     path('moderacion/', views.image_moderation, name='image_moderation'),

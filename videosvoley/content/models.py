@@ -5,6 +5,7 @@ from django.core.validators import FileExtensionValidator
 from django.contrib.auth import get_user_model
 import re
 import os
+import uuid
 
 User = get_user_model()
 
@@ -166,6 +167,17 @@ class Image(models.Model):
         related_name='content_images',
         help_text='Partido al que pertenece la imagen (opcional)'
     )
+    # Campos para álbumes sin partido (retrocompatibles)
+    album_group_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text='ID de grupo para agrupar imágenes en un álbum sin partido vinculado'
+    )
+    album_name = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text='Nombre del álbum cuando las imágenes están agrupadas sin partido'
+    )
     categories = models.ManyToManyField(
         Category,
         blank=True,
@@ -214,6 +226,7 @@ class Image(models.Model):
         indexes = [
             models.Index(fields=['status']),
             models.Index(fields=['match']),
+            models.Index(fields=['album_group_id']),
             models.Index(fields=['year']),
             models.Index(fields=['upload_date']),
             models.Index(fields=['image_type']),
