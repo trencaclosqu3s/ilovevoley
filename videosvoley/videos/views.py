@@ -1086,8 +1086,18 @@ def image_upload(request):
                     'recent_matches': recent_matches
                 })
             
+            # Si el usuario es superuser, aprobar directamente sin pasar por Vision API
+            if request.user.is_superuser:
+                image.status = 'approved'
+                image.moderated_by = request.user
+                image.moderation_date = timezone.now()
+                image.moderation_notes = 'Aprobada automáticamente por superusuario'
+                image.vision_api_checked = False
+                image.vision_api_safe = True
+                image.vision_api_details = {'skipped': 'Superuser approval - bypassed Vision API'}
+                logger.info(f"Imagen aprobada automáticamente para superusuario {request.user.username}")
             # Procesar con Google Vision API si está habilitado
-            if getattr(settings, 'GOOGLE_VISION_ENABLED', False):
+            elif getattr(settings, 'GOOGLE_VISION_ENABLED', False):
                 try:
                     from .utils import check_image_with_vision_api, process_vision_tags_for_volleyball
                     
@@ -1338,8 +1348,18 @@ def image_bulk_upload(request):
                 if was_converted:
                     logger.info(f"Imagen {uploaded_file.name} convertida de {original_ext} a JPEG")
                 
+                # Si el usuario es superuser, aprobar directamente sin pasar por Vision API
+                if request.user.is_superuser:
+                    image.status = 'approved'
+                    image.moderated_by = request.user
+                    image.moderation_date = timezone.now()
+                    image.moderation_notes = 'Aprobada automáticamente por superusuario'
+                    image.vision_api_checked = False
+                    image.vision_api_safe = True
+                    image.vision_api_details = {'skipped': 'Superuser approval - bypassed Vision API'}
+                    logger.info(f"Imagen aprobada automáticamente para superusuario {request.user.username}")
                 # Procesar con Google Vision API si está habilitado (solo si no es móvil para mejor rendimiento)
-                if (getattr(settings, 'GOOGLE_VISION_ENABLED', False) and 
+                elif (getattr(settings, 'GOOGLE_VISION_ENABLED', False) and 
                     not is_mobile_request and 
                     len(uploaded_files) <= 5):  # Limitar Vision API en carga múltiple
                     try:

@@ -4,7 +4,7 @@ set -e
 # Función para verificar si necesitamos ejecutar migraciones y collectstatic
 needs_setup() {
     # Comandos que NO necesitan setup completo
-    local skip_commands=("shell" "shell_plus" "test" "check" "help" "version" "diffsettings" "inspectdb" "dbshell" "showmigrations" "sqlmigrate" "squashmigrations" "makemigrations")
+    local skip_commands=("shell" "shell_plus" "test" "check" "help" "version" "diffsettings" "inspectdb" "dbshell" "showmigrations" "sqlmigrate" "squashmigrations" "makemigrations" "migrate")
     
     # Si no hay argumentos, asumir que es el servidor web
     if [ $# -eq 0 ]; then
