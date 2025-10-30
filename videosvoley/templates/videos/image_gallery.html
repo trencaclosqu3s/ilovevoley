@@ -298,6 +298,73 @@
                                 </div>
                             </div>
                         </div>
+                    {% elif item.type == 'album_group' %}
+                        <!-- Álbum de grupo (sin partido) -->
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer w-full"
+                             onclick="window.location.href='{% url 'videos:album_group_images' item.album_group_id %}'">
+                            <div class="aspect-square relative overflow-hidden">
+                                <!-- Mostrar hasta 4 miniaturas en grid 2x2 -->
+                                <div class="w-full h-full grid grid-cols-2 gap-0.5 absolute inset-0">
+                                    {% for image in item.images|slice:":4" %}
+                                        <div class="relative overflow-hidden">
+                                            <img src="{{ image.image.url }}" 
+                                                 alt="{{ image.title }}" 
+                                                 class="w-full h-full object-cover">
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <!-- Overlay con contador si hay más de 4 imágenes -->
+                                {% if item.image_count > 4 %}
+                                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+                                        <span class="text-white text-2xl font-bold">+{{ item.image_count|add:"-4" }}</span>
+                                    </div>
+                                {% endif %}
+                                
+                                <!-- Badge de álbum -->
+                                <div class="absolute top-2 left-2 bg-csj-purple text-white px-2 py-1 rounded-full text-xs font-semibold z-20">
+                                    <i class="fas fa-images mr-1"></i>{{ item.image_count }}
+                                </div>
+                            </div>
+                            
+                            <div class="p-3 sm:p-4">
+                                <h3 class="font-semibold text-gray-900 mb-2 truncate text-sm sm:text-base">
+                                    <i class="fas fa-images mr-1"></i>{{ item.album_name }}
+                                </h3>
+                                
+                                <div class="text-xs sm:text-sm text-gray-600 mb-2">
+                                    <i class="fas fa-calendar-alt mr-1"></i>
+                                    {{ item.upload_date|date:"d/m/Y" }}
+                                </div>
+                                
+                                {% if item.images.0.categories.exists %}
+                                    <div class="text-xs sm:text-sm text-gray-600 mb-2">
+                                        <i class="fas fa-tag mr-1"></i>
+                                        {% for category in item.images.0.categories.all|slice:":2" %}
+                                            <span class="inline-block bg-csj-purple bg-opacity-10 text-csj-purple px-1.5 py-0.5 rounded text-xs mr-1">
+                                                {{ category.name }}
+                                            </span>
+                                        {% endfor %}
+                                        {% if item.images.0.categories.count > 2 %}
+                                            <span class="text-gray-500">...</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                                
+                                {% if item.images.0.image_type %}
+                                    <div class="text-xs sm:text-sm text-gray-600 mb-2">
+                                        <i class="fas fa-image mr-1"></i>
+                                        <span class="inline-block bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-xs">
+                                            {{ item.images.0.get_image_type_display }}
+                                        </span>
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="text-xs text-gray-500">
+                                    <i class="fas fa-images mr-1"></i>{{ item.image_count }} imagen{{ item.image_count|pluralize:"es" }}
+                                </div>
+                            </div>
+                        </div>
                     {% else %}
                         <!-- Imagen individual sin partido -->
                         <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">

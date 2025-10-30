@@ -114,6 +114,33 @@
                         <p class="text-xs text-gray-500 mt-1">Las categorías se asignarán automáticamente desde el partido</p>
                     </div>
 
+                    <!-- Agrupar en álbum (solo si no hay partido) -->
+                    <div id="album-group-container" class="hidden">
+                        <label class="flex items-center space-x-2 cursor-pointer mb-2">
+                            <input type="checkbox" 
+                                   name="create_album" 
+                                   id="id_create_album"
+                                   class="w-4 h-4 text-csj-purple border-gray-300 rounded focus:ring-csj-purple">
+                            <span class="text-sm font-medium text-gray-700">
+                                Agrupar todas las imágenes en un álbum
+                            </span>
+                        </label>
+                        <div id="album-name-container" class="ml-6 hidden">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">
+                                Nombre del álbum <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" 
+                                   name="album_name" 
+                                   id="id_album_name"
+                                   placeholder="Ej: Entrenamiento Senior, Celebración Final..."
+                                   maxlength="200"
+                                   class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                            <p class="text-xs text-gray-500 mt-1">
+                                El nombre aparecerá en la galería de álbumes
+                            </p>
+                        </div>
+                    </div>
+
                     <!-- Etiquetas compartidas -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -501,9 +528,25 @@ function clearAllImages() {
 // Lógica de categorías: deshabilitar si hay partido seleccionado
 const matchSelect = document.getElementById('id_match');
 const categoryCheckboxes = document.querySelectorAll('input[name="categories"]');
+const albumGroupContainer = document.getElementById('album-group-container');
+const createAlbumCheckbox = document.getElementById('id_create_album');
 
 function updateCategoriesState() {
     const hasMatch = matchSelect.value !== '';
+    const albumNameContainer = document.getElementById('album-name-container');
+    const albumNameInput = document.getElementById('id_album_name');
+    
+    // Mostrar/ocultar opción de crear álbum (solo si no hay partido)
+    if (albumGroupContainer) {
+        if (hasMatch) {
+            albumGroupContainer.classList.add('hidden');
+            if (createAlbumCheckbox) createAlbumCheckbox.checked = false;
+            if (albumNameContainer) albumNameContainer.classList.add('hidden');
+            if (albumNameInput) albumNameInput.value = '';
+        } else {
+            albumGroupContainer.classList.remove('hidden');
+        }
+    }
     
     categoryCheckboxes.forEach(checkbox => {
         if (hasMatch) {
@@ -515,6 +558,25 @@ function updateCategoriesState() {
             checkbox.disabled = false;
             checkbox.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
             checkbox.parentElement.classList.add('cursor-pointer');
+        }
+    });
+}
+
+// Mostrar/ocultar campo de nombre según checkbox
+if (createAlbumCheckbox) {
+    createAlbumCheckbox.addEventListener('change', function() {
+        const albumNameContainer = document.getElementById('album-name-container');
+        const albumNameInput = document.getElementById('id_album_name');
+        
+        if (this.checked) {
+            if (albumNameContainer) albumNameContainer.classList.remove('hidden');
+            if (albumNameInput) albumNameInput.required = true;
+        } else {
+            if (albumNameContainer) albumNameContainer.classList.add('hidden');
+            if (albumNameInput) {
+                albumNameInput.required = false;
+                albumNameInput.value = '';
+            }
         }
     });
 }
@@ -531,6 +593,17 @@ document.getElementById('bulk-upload-form').addEventListener('submit', (e) => {
         e.preventDefault();
         alert('Por favor, selecciona al menos una imagen.');
         return false;
+    }
+    
+    // Validar que si se marca crear álbum, tenga nombre
+    if (createAlbumCheckbox && createAlbumCheckbox.checked) {
+        const albumNameInput = document.getElementById('id_album_name');
+        if (!albumNameInput || !albumNameInput.value.trim()) {
+            e.preventDefault();
+            alert('Por favor, ingresa un nombre para el álbum.');
+            albumNameInput.focus();
+            return false;
+        }
     }
     
     // Crear un DataTransfer para asignar los archivos al input

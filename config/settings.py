@@ -236,7 +236,7 @@ GOOGLE_VISION_ENABLED = env_config('GOOGLE_VISION_ENABLED', default=False, cast=
 GOOGLE_APPLICATION_CREDENTIALS = env_config('GOOGLE_APPLICATION_CREDENTIALS', default='')
 
 # Configuración de moderación automática
-AUTO_MODERATION_ENABLED = env_config('AUTO_MODERATION_ENABLED', default=False, cast=bool)
+AUTO_MODERATION_ENABLED = env_config('AUTO_MODERATION_ENABLED', default=DEBUG, cast=bool)
 
 # Configuración específica del club
 CLUB_TEAM_NAME = 'SANT JOSEP'  # Nombre del equipo principal para filtrar videos y equipos del club

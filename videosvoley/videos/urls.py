@@ -30,6 +30,7 @@ urlpatterns = [
     path('imagenes/subir-multiples/', views.image_bulk_upload, name='image_bulk_upload'),
     path('imagenes/<int:image_id>/', views.image_detail, name='image_detail'),
     path('partidos/<int:match_id>/imagenes/', views.match_images, name='match_images'),
+    path('imagenes/album/<uuid:album_group_id>/', views.album_group_images, name='album_group_images'),
     
     # URLs de moderación (solo admin)
     path('admin/imagenes/moderar/', views.image_moderation, name='image_moderation'),
