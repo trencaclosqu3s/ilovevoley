@@ -1165,6 +1165,31 @@ def image_upload(request):
             
             image.save()
             
+            # Asignar categorías
+            categories_to_add = []
+            
+            # Prioridad 1: Si hay match, usar categorías del partido
+            if image.match:
+                match = image.match
+                if match.home_team and match.home_team.category:
+                    categories_to_add.append(match.home_team.category)
+                if match.away_team and match.away_team.category:
+                    categories_to_add.append(match.away_team.category)
+                if match.league and match.league.category:
+                    categories_to_add.append(match.league.category)
+            
+            # Prioridad 2: Si no hay match, usar categorías seleccionadas manualmente
+            if not categories_to_add:
+                category_ids = form.cleaned_data.get('categories', [])
+                if category_ids:
+                    categories_to_add = list(category_ids)
+            
+            # Asignar categorías (eliminar duplicados)
+            if categories_to_add:
+                # Convertir a set para eliminar duplicados, luego a list
+                unique_categories = list(set(categories_to_add))
+                image.categories.set(unique_categories)
+            
             # Mensaje dinámico según el estado de la imagen
             if image.status == 'approved':
                 auto_tags_msg = f" Se detectaron automáticamente las etiquetas: {', '.join(image.auto_tags[:3])}." if image.auto_tags else ""

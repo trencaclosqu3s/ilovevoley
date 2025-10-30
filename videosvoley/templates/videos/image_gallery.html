@@ -97,13 +97,14 @@
                     
                     const viewportWidth = window.innerWidth;
                     
-                    // En móvil, usar ancho completo
+                    // En móvil, alinear al lado derecho del botón para evitar overflow
                     if (viewportWidth < 640) {
-                        menu.style.left = '0';
+                        menu.style.left = 'auto';
                         menu.style.right = '0';
                         menu.style.transform = 'none';
-                        menu.style.width = 'calc(100vw - 2rem)';
-                        menu.style.maxWidth = '320px';
+                        menu.style.width = 'auto';
+                        menu.style.minWidth = '200px';
+                        menu.style.maxWidth = 'calc(100vw - 1rem)';
                     } else {
                         // En desktop, centrar debajo del botón
                         menu.style.left = '50%';
