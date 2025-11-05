@@ -7,7 +7,7 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('content', '0002_alter_image_match_alter_video_match'),
+        ('content', '0001_initial'),
     ]
 
     operations = [

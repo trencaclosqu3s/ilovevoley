@@ -225,7 +225,7 @@ class Command(BaseCommand):
                         match=old_image.match,  # Foreign key temporal
                         year=old_image.year,
                         uploaded_by=old_image.uploaded_by,
-                        upload_date=old_image.upload_date,
+                        upload_date=old_image.upload_date,  # Preservar fecha original
                         status=old_image.status,
                         moderated_by=old_image.moderated_by,
                         moderation_date=old_image.moderation_date,
@@ -233,6 +233,9 @@ class Command(BaseCommand):
                         vision_api_checked=old_image.vision_api_checked,
                         vision_api_safe=old_image.vision_api_safe,
                         vision_api_details=old_image.vision_api_details,
+                        # Campos de álbum (si existen en el modelo original)
+                        album_group_id=getattr(old_image, 'album_group_id', None),
+                        album_name=getattr(old_image, 'album_name', ''),
                     )
                     
                     # Asignar categorías

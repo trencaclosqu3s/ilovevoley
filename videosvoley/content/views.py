@@ -51,7 +51,7 @@ def video_list(request):
     
     # Filtrar por categorías preferidas del usuario si no se especifica otra cosa
     if not category_filter and not show_all and request.user.preferred_categories.exists():
-        user_categories = request.user.preferred_categories.all()
+        user_categories = request.user.preferred_categories.values_list('pk', flat=True)
         videos = videos.filter(category__in=user_categories)
     
     # Aplicar filtro de categoría
@@ -224,7 +224,7 @@ def image_gallery(request):
             images = images.filter(categories=category)
         elif not show_all and request.user.preferred_categories.exists():
             # Filtrar por preferencias solo si no hay filtro de categoría específico
-            user_categories = request.user.preferred_categories.all()
+            user_categories = request.user.preferred_categories.values_list('pk', flat=True)
             images = images.filter(categories__in=user_categories).distinct()
             
         if year:
@@ -235,7 +235,7 @@ def image_gallery(request):
     else:
         # Si no hay filtros válidos, aplicar preferencias por defecto
         if not show_all and request.user.preferred_categories.exists():
-            user_categories = request.user.preferred_categories.all()
+            user_categories = request.user.preferred_categories.values_list('pk', flat=True)
             images = images.filter(categories__in=user_categories).distinct()
     
     # Paginación
@@ -349,7 +349,7 @@ def image_gallery_albums(request):
             images = images.filter(categories=category)
         elif not show_all and request.user.preferred_categories.exists():
             # Filtrar por preferencias solo si no hay filtro de categoría específico
-            user_categories = request.user.preferred_categories.all()
+            user_categories = request.user.preferred_categories.values_list('pk', flat=True)
             images = images.filter(categories__in=user_categories).distinct()
             
         if year:
@@ -360,7 +360,7 @@ def image_gallery_albums(request):
     else:
         # Si no hay filtros válidos, aplicar preferencias por defecto
         if not show_all and request.user.preferred_categories.exists():
-            user_categories = request.user.preferred_categories.all()
+            user_categories = request.user.preferred_categories.values_list('pk', flat=True)
             images = images.filter(categories__in=user_categories).distinct()
     
     # Agrupar imágenes por partido
@@ -740,7 +740,7 @@ def image_bulk_upload(request):
         if create_album and not match_id:
             if not album_name:
                 messages.error(request, 'El nombre del álbum es obligatorio cuando se agrupan imágenes.')
-                return redirect('content:image_bulk_upload')
+                return redirect('videos:image_bulk_upload')
             album_group_id = uuid.uuid4()
             shared_data['album_group_id'] = album_group_id
             shared_data['album_name'] = album_name

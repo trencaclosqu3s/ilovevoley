@@ -14,9 +14,9 @@ def person_saved_handler(sender, instance, created, **kwargs):
     Maneja la creación/actualización de personas
     """
     if created:
-        print(f"Nueva persona creada: {instance.get_full_name()}")
+        print(f"Nueva persona creada: {instance.full_name}")
     else:
-        print(f"Persona actualizada: {instance.get_full_name()}")
+        print(f"Persona actualizada: {instance.full_name}")
 
 
 @receiver(post_delete, sender=Person)
@@ -24,7 +24,7 @@ def person_deleted_handler(sender, instance, **kwargs):
     """
     Maneja la eliminación de personas
     """
-    print(f"Persona eliminada: {instance.get_full_name()}")
+    print(f"Persona eliminada: {instance.full_name}")
 
 
 @receiver(post_save, sender=PlayerRole)
@@ -33,12 +33,12 @@ def player_role_saved_handler(sender, instance, created, **kwargs):
     Maneja la creación/actualización de roles de jugador
     """
     if created:
-        print(f"Nuevo rol de jugador creado: {instance.person.get_full_name()} en {instance.team.name}")
+        print(f"Nuevo rol de jugador creado: {instance.person.full_name} en {instance.team.name}")
         
         # Actualizar estadísticas del equipo si es necesario
         update_team_stats(instance.team)
     else:
-        print(f"Rol de jugador actualizado: {instance.person.get_full_name()} en {instance.team.name}")
+        print(f"Rol de jugador actualizado: {instance.person.full_name} en {instance.team.name}")
         
         # Si cambió el equipo, actualizar estadísticas de ambos equipos
         if hasattr(instance, '_old_team_id'):
@@ -59,7 +59,7 @@ def player_role_deleted_handler(sender, instance, **kwargs):
     """
     Maneja la eliminación de roles de jugador
     """
-    print(f"Rol de jugador eliminado: {instance.person.get_full_name()} de {instance.team.name}")
+    print(f"Rol de jugador eliminado: {instance.person.full_name} de {instance.team.name}")
     
     # Actualizar estadísticas del equipo
     update_team_stats(instance.team)
@@ -71,12 +71,12 @@ def staff_role_saved_handler(sender, instance, created, **kwargs):
     Maneja la creación/actualización de roles de staff
     """
     if created:
-        print(f"Nuevo rol de staff creado: {instance.person.get_full_name()} en {instance.team.name}")
+        print(f"Nuevo rol de staff creado: {instance.person.full_name} en {instance.team.name}")
         
         # Actualizar estadísticas del equipo si es necesario
         update_team_stats(instance.team)
     else:
-        print(f"Rol de staff actualizado: {instance.person.get_full_name()} en {instance.team.name}")
+        print(f"Rol de staff actualizado: {instance.person.full_name} en {instance.team.name}")
         
         # Si cambió el equipo, actualizar estadísticas de ambos equipos
         if hasattr(instance, '_old_team_id'):
@@ -97,7 +97,7 @@ def staff_role_deleted_handler(sender, instance, **kwargs):
     """
     Maneja la eliminación de roles de staff
     """
-    print(f"Rol de staff eliminado: {instance.person.get_full_name()} de {instance.team.name}")
+    print(f"Rol de staff eliminado: {instance.person.full_name} de {instance.team.name}")
     
     # Actualizar estadísticas del equipo
     update_team_stats(instance.team)

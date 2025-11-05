@@ -81,7 +81,7 @@ def match_created_handler(sender, instance, created, **kwargs):
     """
     Maneja la creación de partidos amistosos
     """
-    if created and instance.competition_type == 'friendly':
+    if created and instance.is_friendly:
         # Crear liga amistosa si no existe
         if not instance.league:
             from .models import League
