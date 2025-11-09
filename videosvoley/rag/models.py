@@ -84,6 +84,34 @@ class ChatMessage(models.Model):
     content = models.TextField(verbose_name="Contenido")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
     
+    # Campos para aprendizaje y análisis
+    response_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('rag_success', 'RAG Exitoso'),
+            ('rag_fallback', 'RAG con Fallback'),
+            ('direct_query', 'Consulta Directa'),
+            ('timeout', 'Timeout'),
+        ],
+        null=True,
+        blank=True,
+        verbose_name="Tipo de Respuesta"
+    )
+    response_time = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="Tiempo de Respuesta (segundos)"
+    )
+    user_rating = models.IntegerField(
+        choices=[
+            (1, '👎 Mal'),
+            (2, '👍 Bien'),
+        ],
+        null=True,
+        blank=True,
+        verbose_name="Valoración del Usuario"
+    )
+    
     class Meta:
         verbose_name = "Mensaje de Chat"
         verbose_name_plural = "Mensajes de Chat"

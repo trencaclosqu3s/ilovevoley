@@ -104,9 +104,12 @@ class RAGService:
     def _init_ollama(self):
         """Inicializar conexión con Ollama"""
         try:
-            # Configurar client de Ollama
-            self.ollama_client = ollama.Client(host=self.ollama_host)
-            logger.info(f"Conexión con Ollama configurada en {self.ollama_host}")
+            # Configurar client de Ollama con timeouts
+            self.ollama_client = ollama.Client(
+                host=self.ollama_host,
+                timeout=30  # 30 segundos de timeout de conexión
+            )
+            logger.info(f"Conexión con Ollama configurada en {self.ollama_host} con timeout de 30s")
         except Exception as e:
             logger.error(f"Error configurando Ollama: {e}")
             raise ImproperlyConfigured(f"Error configurando Ollama: {e}")
@@ -276,14 +279,15 @@ Pregunta: {query}
 
 Respuesta:"""
             
-            # Generar respuesta con Ollama
+            # Generar respuesta con Ollama (optimizado para velocidad)
             response = self.ollama_client.generate(
                 model=model,
                 prompt=prompt,
                 options={
-                    'temperature': 0.7,
+                    'temperature': 0.3,      # Más determinista = más rápido
                     'top_p': 0.9,
-                    'max_tokens': 2000
+                    'num_predict': 800,      # Máximo 800 tokens (respuestas más cortas)
+                    'timeout': 60            # Timeout específico de 60 segundos
                 }
             )
             
@@ -291,9 +295,10 @@ Respuesta:"""
             
         except Exception as e:
             logger.error(f"Error generando respuesta: {e}")
-            # Si es un error de memoria, usar fallback
+            # Si es un error de memoria o timeout, usar fallback
             error_str = str(e).lower()
-            if any(keyword in error_str for keyword in ["memory", "ram", "system memory", "out of memory"]):
+            if any(keyword in error_str for keyword in ["memory", "ram", "system memory", "out of memory", "timeout", "connection", "timed out"]):
+                logger.warning(f"Usando fallback por error: {error_str}")
                 return self._create_fallback_response(query, context_documents)
             return f"Lo siento, hubo un error generando la respuesta: {str(e)}"
     
@@ -352,7 +357,9 @@ Respuesta:"""
     def _create_fallback_response(self, query: str, context_documents: List[Dict[str, Any]]) -> str:
         """Crear respuesta de respaldo inteligente basada en contexto"""
         if not context_documents:
-            return "No encontré información relevante sobre tu consulta."
+            return "No encontré información relevante sobre tu consulta. El sistema tuvo un problema técnico, pero puedes intentar reformular la pregunta."
+        
+        logger.info(f"Usando fallback para consulta: {query[:100]}")
         
         # Analizar la consulta para entender qué busca el usuario
         query_lower = query.lower()
