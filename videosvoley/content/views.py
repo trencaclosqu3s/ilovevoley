@@ -127,7 +127,7 @@ def video_create(request):
             video.created_by = request.user
             video.save()
             messages.success(request, 'Vídeo añadido correctamente')
-            return redirect('videos:video_list')
+            return redirect('content:video_list')
     else:
         form = VideoForm()
 
@@ -149,7 +149,7 @@ def video_detail(request, video_id):
             comment.user = request.user
             comment.save()
             messages.success(request, '¡Comentario añadido correctamente!')
-            return redirect('videos:video_detail', video_id=video.id)
+            return redirect('content:video_detail', video_id=video.id)
     else:
         comment_form = CommentForm()
     
@@ -651,7 +651,7 @@ def image_upload(request):
                 auto_tags_msg = f" Se detectaron automáticamente las etiquetas: {', '.join(image.auto_tags[:3])}." if image.auto_tags else ""
                 messages.success(request, f'Imagen subida correctamente. Está pendiente de moderación.{auto_tags_msg}')
             
-            return redirect('videos:image_gallery')
+            return redirect('content:image_gallery')
         else:
             # El formulario no es válido, mostrar errores
             for field, errors in form.errors.items():
@@ -716,7 +716,7 @@ def image_bulk_upload(request):
         
         if not uploaded_files:
             messages.error(request, 'No se seleccionaron imágenes.')
-            return redirect('videos:image_bulk_upload')
+            return redirect('content:image_bulk_upload')
         
         # Datos compartidos para todas las imágenes
         shared_data = {
@@ -740,7 +740,7 @@ def image_bulk_upload(request):
         if create_album and not match_id:
             if not album_name:
                 messages.error(request, 'El nombre del álbum es obligatorio cuando se agrupan imágenes.')
-                return redirect('videos:image_bulk_upload')
+                return redirect('content:image_bulk_upload')
             album_group_id = uuid.uuid4()
             shared_data['album_group_id'] = album_group_id
             shared_data['album_name'] = album_name
@@ -878,9 +878,9 @@ def image_bulk_upload(request):
                 messages.warning(request, f'... y {len(errors) - 5} error(es) más.')
         
         if success_count > 0:
-            return redirect('videos:image_gallery')
+            return redirect('content:image_gallery')
         else:
-            return redirect('videos:image_bulk_upload')
+            return redirect('content:image_bulk_upload')
     
     # GET request
     # Pre-cargar partido si se pasa en la URL
@@ -953,7 +953,7 @@ def image_detail(request, image_id):
     # Solo mostrar imágenes aprobadas a usuarios normales
     if not request.user.is_staff and image.status != 'approved':
         messages.error(request, 'Imagen no disponible.')
-        return redirect('videos:image_gallery')
+        return redirect('content:image_gallery')
     
     # Imágenes relacionadas del mismo partido
     related_images = Image.objects.filter(
@@ -1011,7 +1011,7 @@ def image_moderate_action(request, image_id):
             
             action_text = 'aprobada' if action == 'approve' else 'rechazada'
             messages.success(request, f'Imagen {action_text} correctamente.')
-            return redirect('videos:image_moderation')
+            return redirect('content:image_moderation')
     else:
         form = ImageModerationForm()
     
@@ -1046,9 +1046,9 @@ def image_moderate_bulk(request):
             action_text = 'aprobadas' if approved else 'rechazadas'
             messages.success(request, f'{images.count()} imágenes {action_text}.')
         
-        return redirect('videos:image_moderation')
+        return redirect('content:image_moderation')
     
-    return redirect('videos:image_moderation')
+    return redirect('content:image_moderation')
 
 
 def match_images(request, match_id):

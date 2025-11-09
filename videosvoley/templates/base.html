@@ -205,17 +205,17 @@
                 <div class="text-center">
                     <h3 class="text-lg font-bold mb-3">Enlaces</h3>
                     <nav class="space-y-2">
-                        <a href="{% url 'videos:about' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                        <a href="{% url 'content:about' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
                             Quiénes Somos
                         </a>
                         {% if user.is_authenticated %}
-                            <a href="{% url 'videos:video_list' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            <a href="{% url 'content:video_list' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
                                 Videos
                             </a>
-                            <a href="{% url 'videos:image_gallery' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            <a href="{% url 'content:image_gallery' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
                                 Galería
                             </a>
-                            <a href="{% url 'videos:calendar_view' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            <a href="{% url 'competitions:calendar_view' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
                                 Calendario
                             </a>
                         {% endif %}

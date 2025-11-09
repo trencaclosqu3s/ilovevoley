@@ -5,7 +5,7 @@
             <div class="flex items-center space-x-2 sm:space-x-3">
                 <span class="text-2xl sm:text-3xl">🏐</span>
                 <div>
-                    <a href="{% url 'videos:video_list' %}" class="text-lg sm:text-xl font-bold text-csj-purple dark:text-csj-yellow">
+                    <a href="{% url 'content:video_list' %}" class="text-lg sm:text-xl font-bold text-csj-purple dark:text-csj-yellow">
                         <span class="hidden sm:inline">I Love Voley</span>
                         <span class="sm:hidden">Vídeos</span>
                     </a>
@@ -43,13 +43,13 @@
                         </button>
                         <div class="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50" data-dropdown-menu="multimedia">
                             <div class="py-2">
-                                <a href="{% url 'videos:video_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                <a href="{% url 'content:video_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                                     <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                     </svg>
                                     Videos
                                 </a>
-                                <a href="{% url 'videos:image_gallery' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                <a href="{% url 'content:image_gallery' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                                     <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                     </svg>
@@ -72,7 +72,7 @@
                         </button>
                         <div class="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50" data-dropdown-menu="competicion">
                             <div class="py-2">
-                                <a href="{% url 'videos:calendar_view' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                <a href="{% url 'competitions:calendar_view' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                                     <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                     </svg>
@@ -84,7 +84,7 @@
                                     </svg>
                                     Clasificación
                                 </a>
-                                <a href="{% url 'videos:league_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                <a href="{% url 'competitions:league_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                                     <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2H9m4 0v2a2 2 0 01-2 2H9a2 2 0 01-2-2v-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2H9z"></path>
                                     </svg>
@@ -107,13 +107,13 @@
                         </button>
                         <div class="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50" data-dropdown-menu="equipo">
                             <div class="py-2">
-                                <a href="{% url 'videos:roster_overview' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                <a href="{% url 'rosters:roster_overview' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                                     <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                     </svg>
                                     Plantillas
                                 </a>
-                                <a href="{% url 'videos:person_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                <a href="{% url 'rosters:person_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                                     <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                                     </svg>
@@ -134,7 +134,7 @@
                             </a>
                         {% endif %}
                         {% if user.is_superuser %}
-                            <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell" class="text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition relative inline-flex" title="Moderación">
+                            <a href="{% url 'content:moderation_panel' %}" id="moderation-bell" class="text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition relative inline-flex" title="Moderación">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                                 </svg>
@@ -143,7 +143,7 @@
                         {% endif %}
                         <!-- Enlace "Tú" si el usuario tiene una persona asociada -->
                         {% if user.person %}
-                            <a href="{% url 'videos:person_detail' user.person.id %}" class="text-sm lg:text-base text-csj-purple dark:text-csj-yellow hover:text-csj-purple-dark dark:hover:text-csj-yellow-dark transition font-medium flex items-center gap-2">
+                            <a href="{% url 'rosters:person_detail' user.person.id %}" class="text-sm lg:text-base text-csj-purple dark:text-csj-yellow hover:text-csj-purple-dark dark:hover:text-csj-yellow-dark transition font-medium flex items-center gap-2">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                                 </svg>
@@ -188,13 +188,13 @@
                 <!-- Sección Multimedia -->
                 <div class="px-4 py-2">
                     <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Multimedia</h3>
-                    <a href="{% url 'videos:video_list' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                    <a href="{% url 'content:video_list' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                         </svg>
                         <span class="font-medium">Videos</span>
                     </a>
-                    <a href="{% url 'videos:image_gallery' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                    <a href="{% url 'content:image_gallery' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                         </svg>
@@ -205,7 +205,7 @@
                 <!-- Sección Competición -->
                 <div class="px-4 py-2">
                     <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Competición</h3>
-                    <a href="{% url 'videos:calendar_view' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                    <a href="{% url 'competitions:calendar_view' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                         </svg>
@@ -217,7 +217,7 @@
                         </svg>
                         <span class="font-medium">Clasificación</span>
                     </a>
-                    <a href="{% url 'videos:league_list' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                    <a href="{% url 'competitions:league_list' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2H9m4 0v2a2 2 0 01-2 2H9a2 2 0 01-2-2v-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2H9z"></path>
                         </svg>
@@ -228,13 +228,13 @@
                 <!-- Sección Equipo -->
                 <div class="px-4 py-2">
                     <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Equipo</h3>
-                    <a href="{% url 'videos:roster_overview' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                    <a href="{% url 'rosters:roster_overview' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                         </svg>
                         <span class="font-medium">Plantillas</span>
                     </a>
-                    <a href="{% url 'videos:person_list' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                    <a href="{% url 'rosters:person_list' %}" class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                         </svg>
@@ -256,7 +256,7 @@
                 
                 <!-- Enlace "Tú" en móvil si el usuario tiene una persona asociada -->
                 {% if user.person %}
-                    <a href="{% url 'videos:person_detail' user.person.id %}" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
+                    <a href="{% url 'rosters:person_detail' user.person.id %}" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
                         <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                         </svg>
@@ -273,13 +273,13 @@
                 
                 {% if can_add %}
                     <div class="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
-                        <a href="{% url 'videos:video_create' %}" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
+                        <a href="{% url 'content:video_create' %}" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                             </svg>
                             <span>Añadir Video</span>
                         </a>
-                        <a href="{% url 'videos:image_upload' %}" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
+                        <a href="{% url 'content:image_upload' %}" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                             </svg>
@@ -298,7 +298,7 @@
                             <span>Administración</span>
                         </a>
                         {% if user.is_superuser %}
-                            <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell-mobile" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
+                            <a href="{% url 'content:moderation_panel' %}" id="moderation-bell-mobile" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
                                 <span class="relative inline-flex mr-3">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>

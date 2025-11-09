@@ -6,7 +6,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q, Case, When, Value, CharField
+from django.db.models import Q, Case, When, Value, CharField, Count, Exists, OuterRef
 from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.http import require_POST
@@ -19,7 +19,7 @@ from .models import League, Match, Standing, ScrapingEndpoint
 from .forms import FriendlyMatchForm, MatchResultForm
 
 # Importar modelos de otras apps
-from videosvoley.content.models import Category
+from videosvoley.content.models import Category, Video
 from videosvoley.teams.models import Team
 
 # Configurar logger
@@ -35,7 +35,7 @@ def user_is_approved(user):
 @user_passes_test(user_is_approved, login_url='/pending-approval/')
 def league_list(request):
     """Vista para mostrar todas las ligas disponibles"""
-    leagues = League.objects.visible_in_app().prefetch_related('matches__videos')
+    leagues = League.objects.visible_in_app()
     categories = Category.objects.filter(is_active=True).order_by('name')
     
     # Variable para controlar si mostrar todo el contenido
@@ -49,7 +49,7 @@ def league_list(request):
         leagues = leagues.filter(category_id=category_filter)
     # Filtrar por categorías preferidas del usuario si no se especifica otra cosa
     elif not show_all and request.user.preferred_categories.exists():
-        user_categories = request.user.preferred_categories.all()
+        user_categories = request.user.preferred_categories.values_list('pk', flat=True)
         leagues = leagues.filter(category__in=user_categories)
     
     # Filtrar partidos amistosos si no se quiere mostrar
@@ -92,10 +92,13 @@ def league_detail(request, league_id):
     """Vista detallada de una liga con partidos y clasificación"""
     league = get_object_or_404(League, id=league_id, is_active=True)
     
-    # Obtener partidos de la liga
+    # Obtener partidos de la liga con conteo de videos
     matches = Match.objects.filter(league=league).select_related(
         'home_team', 'away_team'
-    ).prefetch_related('videos').order_by('-match_date')
+    ).annotate(
+        videos_count=Count('content_videos', distinct=True),
+        has_videos=Exists(Video.objects.filter(match=OuterRef('pk')))
+    ).order_by('-match_date')
     
     # Obtener clasificación
     standings = league.standings.select_related('team').order_by('position')
@@ -108,7 +111,7 @@ def league_detail(request, league_id):
     # Filtro de solo partidos con videos
     with_videos = request.GET.get('with_videos')
     if with_videos:
-        matches = matches.filter(videos__isnull=False).distinct()
+        matches = matches.filter(has_videos=True)
     
     # Obtener jornadas disponibles
     available_rounds = matches.values_list('round_number', flat=True).distinct().order_by('round_number')
@@ -137,8 +140,8 @@ def match_detail(request, match_id):
         id=match_id
     )
     
-    # Obtener videos del partido
-    videos = match.videos.select_related('created_by', 'category').all()
+    # Obtener videos del partido desde la app content
+    videos = Video.objects.filter(match=match).select_related('created_by', 'category').all()
     
     return render(request, 'competitions/match_detail.html', {
         'match': match,
@@ -163,6 +166,9 @@ def calendar_view(request):
     # Consulta base de partidos (withdrawn excluidos automáticamente por el manager)
     matches = Match.objects.select_related(
         'home_team', 'away_team', 'league', 'league__category'
+    ).annotate(
+        videos_count=Count('content_videos', distinct=True),
+        has_videos=Exists(Video.objects.filter(match=OuterRef('pk')))
     ).order_by('match_date')
     
     # Filtrar por equipo del club por defecto
@@ -183,7 +189,7 @@ def calendar_view(request):
         matches = matches.filter(league__category_id=category_filter)
     # Si no hay filtro de categoría, aplicar preferencias del usuario
     elif not show_all and request.user.preferred_categories.exists():
-        user_categories = request.user.preferred_categories.all()
+        user_categories = request.user.preferred_categories.values_list('pk', flat=True)
         matches = matches.filter(league__category__in=user_categories)
     
     # Obtener datos para filtros
@@ -435,7 +441,7 @@ def standings_view(request):
         standings = standings.filter(league__category_id=category_filter)
     # Si no hay filtro de categoría, aplicar preferencias del usuario
     elif not show_all and request.user.preferred_categories.exists():
-        user_categories = request.user.preferred_categories.all()
+        user_categories = request.user.preferred_categories.values_list('pk', flat=True)
         standings = standings.filter(league__category__in=user_categories)
     
     # Agrupar por liga

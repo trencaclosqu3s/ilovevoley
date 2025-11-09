@@ -24,7 +24,7 @@
         <div class="flex items-center gap-2 w-full sm:w-auto">
             <!-- Toggle de vista -->
             <div class="flex bg-gray-100 rounded-lg p-1 flex-shrink-0">
-                <a href="{% url 'videos:image_gallery_albums' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" 
+                <a href="{% url 'content:image_gallery_albums' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" 
                    class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors
                           {% if view_mode == 'albums' %}bg-white text-csj-purple shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
                     <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,7 +32,7 @@
                     </svg>
                     Álbumes
                 </a>
-                <a href="{% url 'videos:image_gallery' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" 
+                <a href="{% url 'content:image_gallery' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" 
                    class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors
                           {% if view_mode != 'albums' %}bg-white text-csj-purple shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
                     <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,14 +68,14 @@
                 <div id="upload-menu"
                      class="hidden absolute mt-2 w-64 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
                     <div class="py-1 min-w-full">
-                        <a href="{% url 'videos:image_upload' %}" 
+                        <a href="{% url 'content:image_upload' %}" 
                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 whitespace-nowrap">
                             <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                             </svg>
                             Subir una imagen
                         </a>
-                        <a href="{% url 'videos:image_bulk_upload' %}" 
+                        <a href="{% url 'content:image_bulk_upload' %}" 
                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 whitespace-nowrap">
                             <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
@@ -200,7 +200,7 @@
             </div>
             {% endif %}
             <div class="flex items-end">
-                <a href="{% url 'videos:image_gallery' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition w-full text-center">
+                <a href="{% url 'content:image_gallery' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition w-full text-center">
                     Limpiar filtros
                 </a>
             </div>
@@ -245,7 +245,7 @@
                     {% if item.type == 'album' %}
                         <!-- Álbum de partido -->
                         <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer w-full"
-                             onclick="window.location.href='{% url 'videos:match_images' item.match.id %}'">
+                             onclick="window.location.href='{% url 'content:match_images' item.match.id %}'">
                             <div class="aspect-square relative overflow-hidden">
                                 <!-- Mostrar hasta 4 miniaturas en grid 2x2 -->
                                 <div class="w-full h-full grid grid-cols-2 gap-0.5 absolute inset-0">
@@ -371,7 +371,7 @@
                             {% if item.match %}
                                 <div class="text-xs sm:text-sm text-gray-600 mb-2">
                                     <i class="fas fa-calendar-alt mr-1"></i>
-                                    <a href="{% url 'videos:match_images' item.match.id %}" class="hover:text-csj-purple">
+                                    <a href="{% url 'content:match_images' item.match.id %}" class="hover:text-csj-purple">
                                         {{ item.match.home_team_display }} vs {{ item.match.away_team_display }}
                                     </a>
                                 </div>
@@ -458,7 +458,7 @@
             <i class="fas fa-images text-gray-400 text-4xl sm:text-6xl mb-4"></i>
             <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-2">No se encontraron imágenes</h3>
             <p class="text-sm sm:text-base text-gray-600 mb-4">No hay imágenes que coincidan con los filtros seleccionados.</p>
-            <a href="{% url 'videos:image_upload' %}" class="bg-csj-purple text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm sm:text-base">
+            <a href="{% url 'content:image_upload' %}" class="bg-csj-purple text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm sm:text-base">
                 <i class="fas fa-plus mr-2"></i>Subir primera imagen
             </a>
         </div>

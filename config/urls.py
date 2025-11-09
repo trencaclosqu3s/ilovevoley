@@ -25,14 +25,27 @@ from videosvoley.core.moderation_views import moderate_user, moderate_image
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     path('accounts/', include('allauth.urls')),
-    path('videos/', include('videosvoley.videos.urls', namespace='videos')),
+    
+    # Nuevas apps refactorizadas (principales)
+    path('', include('videosvoley.content.urls', namespace='content')),  # Videos e imágenes en la raíz
+    path('competiciones/', include('videosvoley.competitions.urls', namespace='competitions')),
+    path('equipos/', include('videosvoley.teams.urls', namespace='teams')),
+    path('plantilla/', include('videosvoley.rosters.urls', namespace='rosters')),
+    
+    # Apps de soporte
     path('core/', include('videosvoley.core.urls', namespace='core')),
     path('rag/', include('videosvoley.rag.urls', namespace='rag')),
     path('', include('videosvoley.users.urls')),
+    
+    # App de compatibilidad (solo redirects)
+    path('videos/', include('videosvoley.videos.urls', namespace='videos')),
+    
     # Rutas de moderación con tokens seguros
     path('moderate/user/<str:token>/', moderate_user, name='moderate_user'),
     path('moderate/image/<str:token>/', moderate_image, name='moderate_image'),
-    path('', login_required(RedirectView.as_view(url='/videos/', permanent=False))),
+    
+    # Redirect por defecto
+    path('', login_required(RedirectView.as_view(url='/', permanent=False))),
 ]
 
 if settings.DEBUG:

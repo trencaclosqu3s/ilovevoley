@@ -32,8 +32,8 @@ class Video(models.Model):
     youtube_url = models.URLField()
     description = models.TextField(blank=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True, blank=True)
-    # Foreign key temporal - se actualizará cuando migremos Match
-    match = models.ForeignKey('videos.Match', on_delete=models.SET_NULL, null=True, blank=True, related_name='content_videos')
+    # Relación con Match de la app competitions
+    match = models.ForeignKey('competitions.Match', on_delete=models.SET_NULL, null=True, blank=True, related_name='content_videos')
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='content_videos')
 
@@ -158,9 +158,9 @@ class Image(models.Model):
     )
     
     # Relaciones
-    # Foreign key temporal - se actualizará cuando migremos Match
+    # Relación con Match de la app competitions
     match = models.ForeignKey(
-        'videos.Match', 
+        'competitions.Match', 
         on_delete=models.CASCADE, 
         null=True,
         blank=True,

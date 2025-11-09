@@ -43,8 +43,8 @@
                         <div class="text-2xl font-bold">
                             {% with total_videos=0 %}
                                 {% for match in page_obj.paginator.object_list %}
-                                    {% if match.videos.exists %}
-                                        {{ total_videos|add:match.videos.count }}
+                                    {% if match.has_videos %}
+                                        {{ total_videos|add:match.videos_count }}
                                     {% endif %}
                                 {% endfor %}
                             {% endwith %}
@@ -186,14 +186,14 @@
                             <!-- Acciones -->
                             <div class="flex items-center space-x-3">
                                 <!-- Indicador de videos -->
-                                {% if match.videos.exists %}
+                                {% if match.has_videos %}
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-yellow bg-opacity-30 text-csj-yellow-dark">
-                                        📹 {{ match.videos.count }} video{{ match.videos.count|pluralize }}
+                                        📹 {{ match.videos_count }} video{{ match.videos_count|pluralize }}
                                     </span>
                                 {% endif %}
                                 
                                 <!-- Enlace al detalle -->
-                                <a href="{% url 'videos:match_detail' match.id %}"
+                                <a href="{% url 'competitions:match_detail' match.id %}"
                                    class="inline-flex items-center px-4 py-2 border border-csj-purple text-sm font-medium rounded-lg text-csj-purple hover:bg-csj-purple hover:text-white transition">
                                     Ver detalles
                                 </a>
@@ -335,15 +335,15 @@
     <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">🔗 Enlaces relacionados</h3>
         <div class="flex flex-wrap gap-2 sm:gap-3">
-            <a href="{% url 'videos:league_list' %}"
+            <a href="{% url 'competitions:league_list' %}"
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 ← Volver a ligas
             </a>
-            <a href="{% url 'videos:calendar_view' %}"
+            <a href="{% url 'competitions:calendar_view' %}"
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
                 📅 Calendario
             </a>
-            <a href="{% url 'videos:video_list' %}" 
+            <a href="{% url 'content:video_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 🎬 Videos
             </a>

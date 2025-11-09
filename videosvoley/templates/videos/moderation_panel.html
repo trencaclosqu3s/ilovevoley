@@ -284,7 +284,7 @@
         <div class="text-6xl mb-4">🎉</div>
         <h2 class="text-2xl font-bold text-gray-800 mb-2">¡Todo al día!</h2>
         <p class="text-gray-600 mb-6">No hay usuarios ni imágenes pendientes de moderación.</p>
-        <a href="{% url 'videos:video_list' %}" class="inline-block bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+        <a href="{% url 'content:video_list' %}" class="inline-block bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors">
             🏐 Volver a Videos
         </a>
     </div>
@@ -344,7 +344,7 @@ document.addEventListener('DOMContentLoaded', function() {
             description: "{{ image.description|escapejs }}",
             user: "{{ image.uploaded_by.username|escapejs }}",
             date: "{{ image.upload_date|date:'d/m/Y H:i' }}",
-            detailUrl: "{% url 'videos:image_detail' image.id %}",
+            detailUrl: "{% url 'content:image_detail' image.id %}",
             visionData: {
                 {% if image.vision_api_details.reasons %}
                 reasons: {{ image.vision_api_details.reasons|safe }},
