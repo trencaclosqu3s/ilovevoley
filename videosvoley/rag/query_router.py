@@ -42,27 +42,35 @@ class QueryRouter:
         if self._is_versus_query(query_lower):
             return self._handle_versus_query(query_lower)
         
-        # 2. Detectar consultas específicas sobre puntos del equipo (ANTES de clasificación)
+        # 2. FASE 5 - Detectar consultas temporales e históricas (PRIORIDAD MÁXIMA)
+        if self._is_temporal_query(query_lower):
+            return self._handle_temporal_query(query_lower)
+        
+        # 3. FASE 5 - Detectar consultas históricas comparativas (PRIORIDAD MÁXIMA)
+        if self._is_historical_query(query_lower):
+            return self._handle_historical_query(query_lower)
+        
+        # 4. Detectar consultas específicas sobre puntos del equipo (ANTES de clasificación)
         if self._is_team_points_query(query_lower):
             return self._handle_team_points_query(query_lower)
         
-        # 3. Detectar consultas sobre estadísticas (tantos/goles) (ANTES de clasificación)
+        # 5. Detectar consultas sobre estadísticas (tantos/goles) (ANTES de clasificación)
         if self._is_team_stats_query(query_lower):
             return self._handle_team_stats_query(query_lower)
         
-        # 4. Detectar consultas sobre clasificación (DESPUÉS de consultas específicas)
+        # 6. Detectar consultas sobre clasificación (DESPUÉS de consultas específicas)
         if self._is_standings_query(query_lower):
             return self._handle_standings_query(query_lower)
         
-        # 5. Detectar consultas sobre resultados pasados
+        # 7. Detectar consultas sobre resultados pasados
         if self._is_past_match_query(query_lower):
             return self._handle_past_match_query(query_lower)
         
-        # 5.5. Detectar consultas sobre resultados de periodo (semana/mes)
+        # 8. Detectar consultas sobre resultados de periodo (semana/mes)
         if self._is_period_results_query(query_lower):
             return self._handle_period_results_query(query_lower)
         
-        # 5.6. Detectar consultas de análisis/tendencias (racha, mejor equipo, etc.)
+        # 9. Detectar consultas de análisis/tendencias (racha, mejor equipo, etc.)
         if self._is_analysis_query(query_lower):
             return self._handle_analysis_query(query_lower)
         
@@ -976,3 +984,586 @@ class QueryRouter:
             response += f"🏆 <strong>Liga</strong>: {match.league.name}\n"
         
         return response
+    
+    # FASE 5 - ANÁLISIS TEMPORAL E HISTÓRICO
+    
+    def _is_temporal_query(self, query_lower: str) -> bool:
+        """Detecta consultas sobre temporadas específicas o pasadas"""
+        temporal_indicators = [
+            'temporada pasada', 'año pasado', 'el año pasado', 'la temporada pasada',
+            'temporada anterior', 'año anterior', 'temporada previa',
+            'hace un año', 'hace 1 año', 'el año que pasó',
+            'temporada 20', '2024', '2023', '2022', '2021', '2020',  # años específicos
+            'como fue', 'cómo fue', 'como fuimos', 'como estuvo',
+            'que tal', 'qué tal', 'como quedamos'
+        ]
+        
+        context_indicators = [
+            'temporada', 'año', 'clasificación', 'liga', 'equipo', 'quedamos', 'fuimos'
+        ]
+        
+        has_temporal = any(indicator in query_lower for indicator in temporal_indicators)
+        has_context = any(indicator in query_lower for indicator in context_indicators)
+        
+        return has_temporal and has_context
+    
+    def _is_historical_query(self, query_lower: str) -> bool:
+        """Detecta consultas históricas comparativas o de récords"""
+        historical_indicators = [
+            'mejor temporada', 'peor temporada', 'mejor año', 'peor año',
+            'record histórico', 'récord histórico', 'de todos los tiempos',
+            'de la historia', 'histórico', 'historico', 'desde que', 'nunca',
+            'mejor de', 'peor de', 'cuándo fue', 'cuando fue',
+            'alguna vez', 'en qué año', 'en que año', 'que año',
+            'peor resultado histórico', 'peor resultado historico',
+            'mejor resultado histórico', 'mejor resultado historico'
+        ]
+        
+        # Patrones específicos que siempre deben ir a histórico
+        specific_historical_patterns = [
+            'qué equipo tiene el récord', 'que equipo tiene el record',
+            'qué equipo tiene el mejor', 'que equipo tiene el mejor',
+            'en qué año tuvimos más', 'en que año tuvimos mas',
+            'en qué año tuvimos menos', 'en que año tuvimos menos',
+            'cuál fue nuestro peor', 'cual fue nuestro peor',
+            'cuál fue nuestro mejor', 'cual fue nuestro mejor',
+            'cuál ha sido la mejor', 'cual ha sido la mejor',
+            'cuál ha sido la peor', 'cual ha sido la peor'
+        ]
+        
+        comparison_indicators = [
+            'mejor', 'peor', 'máximo', 'maximo', 'mínimo', 'minimo',
+            'más', 'mas', 'menos', 'mayor', 'menor', 'primero', 'último', 'ultimo'
+        ]
+        
+        # Verificar patrones específicos primero
+        has_specific_historical = any(pattern in query_lower for pattern in specific_historical_patterns)
+        has_historical = any(indicator in query_lower for indicator in historical_indicators)
+        has_comparison = any(indicator in query_lower for indicator in comparison_indicators)
+        
+        return has_specific_historical or has_historical or (has_comparison and ('año' in query_lower or 'temporada' in query_lower))
+    
+    def _get_current_season(self):
+        """Calcula la temporada actual dinámicamente"""
+        from django.utils import timezone
+        now = timezone.now()
+        year = now.year
+        
+        # Lógica: si estamos antes de septiembre, usar temporada anterior
+        if now.month < 9:
+            return f"{year-1}-{str(year)[2:]}"
+        else:
+            return f"{year}-{str(year+1)[2:]}"
+    
+    def _get_previous_season(self, current_season=None):
+        """Calcula la temporada anterior"""
+        if not current_season:
+            current_season = self._get_current_season()
+        
+        # Parsear temporada actual (ej: "2024-25")
+        start_year = int(current_season.split('-')[0])
+        return f"{start_year-1}-{str(start_year)[2:]}"
+    
+    def _detect_specific_season(self, query_lower: str):
+        """Detecta si la consulta menciona una temporada específica"""
+        import re
+        
+        # Patrones para años específicos
+        year_patterns = [
+            r'temporada (20\d{2})',          # temporada 2023
+            r'año (20\d{2})',                # año 2023  
+            r'en (20\d{2})',                 # en 2023
+            r'el (20\d{2})',                 # el 2023
+            r'(20\d{2})-(20\d{2})',          # 2023-2024
+            r'(20\d{2})[ -]?(\d{2})',        # 2023-24 o 202324
+        ]
+        
+        for pattern in year_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                if len(match.groups()) == 1:
+                    year = int(match.group(1))
+                    # Convertir año a formato temporada
+                    return f"{year}-{str(year+1)[2:]}"
+                elif len(match.groups()) == 2:
+                    year1 = int(match.group(1))
+                    year2_str = match.group(2)
+                    if len(year2_str) == 2:
+                        return f"{year1}-{year2_str}"
+                    else:
+                        year2 = int(year2_str)
+                        return f"{year1}-{str(year2)[2:]}"
+        
+        return None
+    
+    def _handle_temporal_query(self, query_lower: str):
+        """Maneja consultas sobre temporadas específicas o pasadas"""
+        try:
+            category = self._extract_category(query_lower)
+            
+            # Detectar temporada específica o usar temporada pasada
+            specific_season = self._detect_specific_season(query_lower)
+            if specific_season:
+                target_season = specific_season
+                season_label = f"temporada {target_season}"
+            else:
+                # Por defecto, temporada pasada
+                current_season = self._get_current_season()
+                target_season = self._get_previous_season(current_season)
+                season_label = "temporada pasada"
+            
+            # Determinar qué tipo de información busca
+            if 'clasificación' in query_lower or 'como quedamos' in query_lower or 'que tal' in query_lower:
+                return self._get_season_standings(target_season, category, season_label)
+            elif 'racha' in query_lower or 'mejor' in query_lower or 'peor' in query_lower:
+                return self._get_season_streaks(target_season, category, season_label, query_lower)
+            else:
+                # Información general de la temporada
+                return self._get_season_summary(target_season, category, season_label)
+                
+        except Exception as e:
+            logger.error(f"Error en consulta temporal: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en consulta temporal: {e}'
+            }
+    
+    def _handle_historical_query(self, query_lower: str):
+        """Maneja consultas históricas comparativas"""
+        try:
+            category = self._extract_category(query_lower)
+            
+            # Detectar tipo específico de consulta histórica
+            if 'mejor temporada' in query_lower or 'mejor año' in query_lower or 'cuál ha sido la mejor' in query_lower:
+                return self._get_best_historical_season(category)
+            elif 'peor temporada' in query_lower or 'peor año' in query_lower or 'cuál ha sido la peor' in query_lower:
+                return self._get_worst_historical_season(category)
+            elif 'cuál fue nuestro peor' in query_lower or 'cual fue nuestro peor' in query_lower:
+                return self._get_worst_historical_season(category)
+            elif 'cuál fue nuestro mejor' in query_lower or 'cual fue nuestro mejor' in query_lower:
+                return self._get_best_historical_season(category)
+            elif 'qué equipo tiene el récord' in query_lower or 'que equipo tiene el record' in query_lower:
+                return self._get_team_with_historical_record(category, query_lower)
+            elif 'en qué año tuvimos más' in query_lower or 'en que año tuvimos mas' in query_lower:
+                return self._get_year_with_most_points(category, query_lower)
+            elif 'en qué año tuvimos menos' in query_lower or 'en que año tuvimos menos' in query_lower:
+                return self._get_year_with_least_points(category, query_lower)
+            elif 'record' in query_lower or 'récord' in query_lower or 'histórico' in query_lower:
+                return self._get_historical_records(category, query_lower)
+            else:
+                # Análisis general histórico
+                return self._get_historical_overview(category)
+                
+        except Exception as e:
+            logger.error(f"Error en consulta histórica: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en consulta histórica: {e}'
+            }
+    
+    def _get_season_standings(self, target_season: str, category=None, season_label="temporada"):
+        """Obtiene clasificación de una temporada específica"""
+        try:
+            club_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+            
+            standings = Standing.objects.select_related('team', 'league').filter(
+                league__season=target_season
+            )
+            
+            if category:
+                standings = standings.filter(league__name__icontains=category)
+            
+            # Buscar específicamente nuestro equipo
+            our_standings = standings.filter(team__name__icontains=club_name)
+            
+            if our_standings.exists():
+                response = f"📊 <strong>Clasificación {season_label}{' de ' + category if category else ''}:</strong>\n\n"
+                
+                for standing in our_standings:
+                    emoji = "🥇" if standing.position == 1 else "🥈" if standing.position == 2 else "🥉" if standing.position == 3 else f"{standing.position}º"
+                    
+                    response += f"{emoji} <strong>{standing.team.name}</strong>\n"
+                    response += f"📍 Posición: {standing.position}\n"
+                    response += f"🏅 Puntos: {standing.total_points}\n"
+                    response += f"🏐 Partidos: {standing.played} (G:{standing.won} P:{standing.lost})\n"
+                    if standing.league:
+                        response += f"🏆 Liga: {standing.league.name}\n"
+                    response += "\n"
+                
+                return {
+                    'strategy': 'direct_query',
+                    'response': response,
+                    'confidence': 0.9,
+                    'reason': f'Consulta sobre clasificación de {season_label}'
+                }
+            else:
+                return {
+                    'strategy': 'direct_query',
+                    'response': f"No se encontraron datos de clasificación para {season_label}{' de ' + category if category else ''}.",
+                    'confidence': 0.7,
+                    'reason': f'No hay datos de {target_season}'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo clasificación de temporada: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en datos de temporada: {e}'
+            }
+    
+    def _get_season_summary(self, target_season: str, category=None, season_label="temporada"):
+        """Obtiene resumen general de una temporada"""
+        try:
+            # Por ahora, usar clasificación como resumen
+            return self._get_season_standings(target_season, category, season_label)
+        except Exception as e:
+            logger.error(f"Error obteniendo resumen de temporada: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en resumen de temporada: {e}'
+            }
+    
+    def _get_season_streaks(self, target_season: str, category=None, season_label="temporada", query_lower=""):
+        """Obtiene rachas de una temporada específica"""
+        try:
+            # Similar al método existing, pero para temporada específica
+            is_worst = 'peor' in query_lower or 'peores' in query_lower
+            
+            standings = Standing.objects.select_related('team', 'league').filter(
+                league__season=target_season
+            )
+            if category:
+                standings = standings.filter(league__name__icontains=category)
+            
+            if is_worst:
+                selected_teams = standings.order_by('won', 'total_points', '-lost')[:3]
+                racha_type = "peor racha"
+            else:
+                selected_teams = standings.order_by('-won', '-total_points', 'lost')[:3]
+                racha_type = "mejor racha"
+            
+            if selected_teams:
+                main_emoji = "💀" if is_worst else "🏆"
+                response = f"{main_emoji} <strong>{racha_type.title()} en {season_label}{' de ' + category if category else ''}:</strong>\n\n"
+                
+                for i, standing in enumerate(selected_teams, 1):
+                    if not is_worst and standing.won == 0:
+                        continue
+                        
+                    emoji = "💀" if is_worst and i == 1 else "🥇" if i == 1 else "🥈" if i == 2 else "🥉"
+                    
+                    response += f"{emoji} <strong>{standing.team.name}</strong>\n"
+                    if is_worst:
+                        response += f"   📉 {standing.lost} derrotas de {standing.played} partidos\n"
+                        response += f"   📍 Posición: {standing.position}º\n"
+                    else:
+                        response += f"   📈 {standing.won} victorias de {standing.played} partidos\n"
+                        response += f"   🏅 {standing.total_points} puntos - Posición {standing.position}\n"
+                    response += "\n"
+                
+                return {
+                    'strategy': 'direct_query',
+                    'response': response,
+                    'confidence': 0.9,
+                    'reason': f'Consulta sobre {racha_type} de {season_label}'
+                }
+            else:
+                return {
+                    'strategy': 'direct_query',
+                    'response': f"No hay datos de racha para {season_label}{' de ' + category if category else ''}.",
+                    'confidence': 0.7,
+                    'reason': f'No hay datos de {target_season}'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo rachas de temporada: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en rachas de temporada: {e}'
+            }
+    
+    def _get_best_historical_season(self, category=None):
+        """Encuentra la mejor temporada histórica"""
+        try:
+            club_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+            
+            standings = Standing.objects.select_related('team', 'league').filter(
+                team__name__icontains=club_name
+            )
+            
+            if category:
+                standings = standings.filter(league__name__icontains=category)
+            
+            # Ordenar por mejor desempeño: más victorias, más puntos, mejor posición
+            best_season = standings.order_by('-won', '-total_points', 'position').first()
+            
+            if best_season:
+                response = f"🏆 <strong>Mejor temporada histórica{' de ' + category if category else ''}:</strong>\n\n"
+                response += f"🎯 <strong>Temporada {best_season.league.season}</strong>\n"
+                response += f"🥇 Posición: {best_season.position}\n"
+                response += f"🏅 Puntos: {best_season.total_points}\n"
+                response += f"🏐 Partidos ganados: {best_season.won} de {best_season.played}\n"
+                if best_season.league:
+                    response += f"🏆 Liga: {best_season.league.name}\n"
+                
+                win_rate = (best_season.won / best_season.played * 100) if best_season.played > 0 else 0
+                response += f"📊 Efectividad: {win_rate:.1f}%"
+                
+                return {
+                    'strategy': 'direct_query',
+                    'response': response,
+                    'confidence': 0.9,
+                    'reason': f'Consulta sobre mejor temporada histórica'
+                }
+            else:
+                return {
+                    'strategy': 'direct_query',
+                    'response': f"No se encontraron datos históricos{' de ' + category if category else ''}.",
+                    'confidence': 0.7,
+                    'reason': 'No hay datos históricos'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo mejor temporada histórica: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en análisis histórico: {e}'
+            }
+    
+    def _get_worst_historical_season(self, category=None):
+        """Encuentra la peor temporada histórica"""
+        try:
+            club_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+            
+            standings = Standing.objects.select_related('team', 'league').filter(
+                team__name__icontains=club_name
+            )
+            
+            if category:
+                standings = standings.filter(league__name__icontains=category)
+            
+            # Ordenar por peor desempeño: menos victorias, menos puntos, peor posición
+            worst_season = standings.order_by('won', 'total_points', '-position').first()
+            
+            if worst_season:
+                response = f"💔 <strong>Peor temporada histórica{' de ' + category if category else ''}:</strong>\n\n"
+                response += f"📉 <strong>Temporada {worst_season.league.season}</strong>\n"
+                response += f"📍 Posición: {worst_season.position}\n"
+                response += f"💔 Puntos: {worst_season.total_points}\n"
+                response += f"😔 Partidos ganados: {worst_season.won} de {worst_season.played}\n"
+                if worst_season.league:
+                    response += f"🏆 Liga: {worst_season.league.name}\n"
+                
+                win_rate = (worst_season.won / worst_season.played * 100) if worst_season.played > 0 else 0
+                response += f"📊 Efectividad: {win_rate:.1f}%"
+                
+                return {
+                    'strategy': 'direct_query',
+                    'response': response,
+                    'confidence': 0.9,
+                    'reason': f'Consulta sobre peor temporada histórica'
+                }
+            else:
+                return {
+                    'strategy': 'direct_query',
+                    'response': f"No se encontraron datos históricos{' de ' + category if category else ''}.",
+                    'confidence': 0.7,
+                    'reason': 'No hay datos históricos'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo peor temporada histórica: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en análisis histórico: {e}'
+            }
+    
+    def _get_historical_records(self, category=None, query_lower=""):
+        """Obtiene récords históricos específicos"""
+        try:
+            # Por ahora, usar la mejor temporada como récord
+            return self._get_best_historical_season(category)
+        except Exception as e:
+            logger.error(f"Error obteniendo récords históricos: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en récords históricos: {e}'
+            }
+    
+    def _get_historical_overview(self, category=None):
+        """Obtiene resumen histórico general"""
+        try:
+            # Por ahora, usar la mejor temporada como resumen
+            return self._get_best_historical_season(category)
+        except Exception as e:
+            logger.error(f"Error obteniendo resumen histórico: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en resumen histórico: {e}'
+            }
+    
+    def _get_team_with_historical_record(self, category=None, query_lower=""):
+        """Encuentra el equipo con el mejor récord histórico"""
+        try:
+            # Buscar en todos los equipos, no solo nuestro club
+            standings = Standing.objects.select_related('team', 'league')
+            
+            if category:
+                standings = standings.filter(league__name__icontains=category)
+            
+            # Ordenar por mejor desempeño histórico: más victorias, más puntos
+            team_with_record = standings.order_by('-won', '-total_points', 'position').first()
+            
+            if team_with_record:
+                response = f"🏆 <strong>Equipo con mejor récord histórico{' de ' + category if category else ''}:</strong>\n\n"
+                response += f"👑 <strong>{team_with_record.team.name}</strong>\n"
+                response += f"🥇 Posición: {team_with_record.position}\n"
+                response += f"🏅 Puntos: {team_with_record.total_points}\n"
+                response += f"🏐 Victorias: {team_with_record.won} de {team_with_record.played} partidos\n"
+                if team_with_record.league:
+                    response += f"🏆 Liga: {team_with_record.league.name}\n"
+                    response += f"📅 Temporada: {team_with_record.league.season}\n"
+                
+                win_rate = (team_with_record.won / team_with_record.played * 100) if team_with_record.played > 0 else 0
+                response += f"📊 Efectividad: {win_rate:.1f}%"
+                
+                return {
+                    'strategy': 'direct_query',
+                    'response': response,
+                    'confidence': 0.9,
+                    'reason': f'Consulta sobre equipo con récord histórico'
+                }
+            else:
+                return {
+                    'strategy': 'direct_query',
+                    'response': f"No se encontraron datos de récords históricos{' de ' + category if category else ''}.",
+                    'confidence': 0.7,
+                    'reason': 'No hay datos históricos'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo equipo con récord histórico: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en récord histórico: {e}'
+            }
+    
+    def _get_year_with_most_points(self, category=None, query_lower=""):
+        """Encuentra el año en que nuestro equipo tuvo más puntos"""
+        try:
+            club_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+            
+            standings = Standing.objects.select_related('team', 'league').filter(
+                team__name__icontains=club_name
+            )
+            
+            if category:
+                standings = standings.filter(league__name__icontains=category)
+            
+            # Ordenar por más puntos en la historia
+            best_points_season = standings.order_by('-total_points', '-won', 'position').first()
+            
+            if best_points_season:
+                response = f"📈 <strong>Año con más puntos{' de ' + category if category else ''}:</strong>\n\n"
+                response += f"🎯 <strong>Temporada {best_points_season.league.season}</strong>\n"
+                response += f"🏅 <strong>{best_points_season.total_points} puntos</strong> (récord histórico)\n"
+                response += f"🥇 Posición: {best_points_season.position}\n"
+                response += f"🏐 Partidos ganados: {best_points_season.won} de {best_points_season.played}\n"
+                if best_points_season.league:
+                    response += f"🏆 Liga: {best_points_season.league.name}\n"
+                
+                win_rate = (best_points_season.won / best_points_season.played * 100) if best_points_season.played > 0 else 0
+                response += f"📊 Efectividad: {win_rate:.1f}%"
+                
+                return {
+                    'strategy': 'direct_query',
+                    'response': response,
+                    'confidence': 0.9,
+                    'reason': f'Consulta sobre año con más puntos'
+                }
+            else:
+                return {
+                    'strategy': 'direct_query',
+                    'response': f"No se encontraron datos históricos de puntos{' de ' + category if category else ''}.",
+                    'confidence': 0.7,
+                    'reason': 'No hay datos históricos'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo año con más puntos: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en análisis de puntos históricos: {e}'
+            }
+    
+    def _get_year_with_least_points(self, category=None, query_lower=""):
+        """Encuentra el año en que nuestro equipo tuvo menos puntos"""
+        try:
+            club_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+            
+            standings = Standing.objects.select_related('team', 'league').filter(
+                team__name__icontains=club_name
+            )
+            
+            if category:
+                standings = standings.filter(league__name__icontains=category)
+            
+            # Ordenar por menos puntos en la historia
+            worst_points_season = standings.order_by('total_points', 'won', '-position').first()
+            
+            if worst_points_season:
+                response = f"📉 <strong>Año con menos puntos{' de ' + category if category else ''}:</strong>\n\n"
+                response += f"💔 <strong>Temporada {worst_points_season.league.season}</strong>\n"
+                response += f"😔 <strong>{worst_points_season.total_points} puntos</strong> (mínimo histórico)\n"
+                response += f"📍 Posición: {worst_points_season.position}\n"
+                response += f"🏐 Partidos ganados: {worst_points_season.won} de {worst_points_season.played}\n"
+                if worst_points_season.league:
+                    response += f"🏆 Liga: {worst_points_season.league.name}\n"
+                
+                win_rate = (worst_points_season.won / worst_points_season.played * 100) if worst_points_season.played > 0 else 0
+                response += f"📊 Efectividad: {win_rate:.1f}%"
+                
+                return {
+                    'strategy': 'direct_query',
+                    'response': response,
+                    'confidence': 0.9,
+                    'reason': f'Consulta sobre año con menos puntos'
+                }
+            else:
+                return {
+                    'strategy': 'direct_query',
+                    'response': f"No se encontraron datos históricos de puntos{' de ' + category if category else ''}.",
+                    'confidence': 0.7,
+                    'reason': 'No hay datos históricos'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo año con menos puntos: {e}")
+            return {
+                'strategy': 'rag_fallback',
+                'response': None,
+                'confidence': 0.3,
+                'reason': f'Error en análisis de puntos históricos: {e}'
+            }

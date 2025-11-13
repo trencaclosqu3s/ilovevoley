@@ -66,6 +66,12 @@ class Command(BaseCommand):
             default=2.0,
             help='Delay entre requests (segundos)'
         )
+        parser.add_argument(
+            '--match-format',
+            type=str,
+            choices=['standard', 'alevin_balear', 'tournament_3sets', 'custom'],
+            help='Formato de partido para la liga (auto-detectado por categoría si no se especifica)'
+        )
 
     def handle(self, *args, **options):
         self.verbosity = options['verbose']
@@ -84,6 +90,21 @@ class Command(BaseCommand):
         except Exception as e:
             logger.error(f"Error durante el scraping: {e}")
             raise CommandError(f"Error durante el scraping: {e}")
+
+    def get_match_format_for_category(self, category_name, explicit_format=None):
+        """Determina el formato de partido basado en la categoría"""
+        if explicit_format:
+            return explicit_format
+        
+        # Auto-detección basada en categoría
+        if category_name:
+            category_lower = category_name.lower()
+            if 'alevin' in category_lower:
+                return 'alevin_balear'
+            elif any(keyword in category_lower for keyword in ['torneo', 'tournament', 'copa']):
+                return 'tournament_3sets'
+        
+        return 'standard'
 
     def scrape_specific_league(self, options):
         """Scraping de una liga específica"""
@@ -108,14 +129,25 @@ class Command(BaseCommand):
         else:
             league_data['name'] = f"Liga {league_id} ({season})"
         
+        category_obj = None
         if options['category']:
             try:
-                category = Category.objects.get(name=options['category'])
-                league_data['category'] = category
+                category_obj = Category.objects.get(name=options['category'])
+                league_data['category'] = category_obj
             except Category.DoesNotExist:
                 self.stdout.write(
                     self.style.WARNING(f"Categoría '{options['category']}' no encontrada")
                 )
+        
+        # Determinar formato de partido
+        match_format = self.get_match_format_for_category(
+            options.get('category'), 
+            options.get('match_format')
+        )
+        league_data['match_format'] = match_format
+        
+        if self.verbosity:
+            self.stdout.write(f"Formato de partido asignado: {match_format}")
         
         if not self.dry_run:
             league, created = League.objects.get_or_create(
@@ -194,20 +226,128 @@ class Command(BaseCommand):
         # Configuración de ligas históricas conocidas
         historical_leagues = [
             {
-                'federation_id': '1234',
-                'name': 'Liga Nacional 2023-24',
-                'season': '2023-24',
-                'category': 'Senior',
+                'federation_id': '6754',
+                'name': 'ALEVIN MASCULINO 4X4 - Fase Regular',
+                'season': '2024-25',
+                'category': 'Alevin',
+                'visibility_type': 'historical'
+                # match_format se auto-detecta como 'alevin_balear'
+            },
+            {
+                'federation_id': '6824',
+                'name': 'ALEVIN MASCULINO 4X4 - Fase Final Título',
+                'season': '2024-25',
+                'category': 'Alevin',
+                'visibility_type': 'historical'
+                # match_format se auto-detecta como 'alevin_balear'
+            },
+            {
+                'federation_id': '6825',
+                'name': 'ALEVIN MASCULINO 4X4 - Circuito Clasificatorio',
+                'season': '2024-25',
+                'category': 'Alevin',
+                'visibility_type': 'historical'
+                # match_format se auto-detecta como 'alevin_balear'
+            },
+            {
+                'federation_id': '7898',
+                'name': 'ALEVIN MASCULINO 4X4 - Campeonato de Baleares - Grup A',
+                'season': '2024-25',
+                'category': 'Alevin',
+                'visibility_type': 'historical'
+                # match_format se auto-detecta como 'alevin_balear'
+            },
+            {
+                'federation_id': '7899',
+                'name': 'ALEVIN MASCULINO 4X4 - Campeonato de Baleares - Grup B',
+                'season': '2024-25',
+                'category': 'Alevin',
+                'visibility_type': 'historical'
+                # match_format se auto-detecta como 'alevin_balear'
+            },
+            {
+                'federation_id': '7900',
+                'name': 'ALEVIN MASCULINO 4X4 - Campeonato de Baleares - Grup C',
+                'season': '2024-25',
+                'category': 'Alevin',
+                'visibility_type': 'historical'
+                # match_format se auto-detecta como 'alevin_balear'
+            },
+            {
+                'federation_id': '7905',
+                'name': 'ALEVIN MASCULINO 4X4 - Campeonato de Baleares - Grup OR A',
+                'season': '2024-25',
+                'category': 'Alevin',
+                'visibility_type': 'historical'
+                # match_format se auto-detecta como 'alevin_balear'
+            },
+            {
+                'federation_id': '7906',
+                'name': 'ALEVIN MASCULINO 4X4 - Campeonato de Baleares - Grup OR B',
+                'season': '2024-25',
+                'category': 'Alevin',
+                'visibility_type': 'historical'
+                # match_format se auto-detecta como 'alevin_balear'
+            },
+            {
+                'federation_id': '7907',
+                'name': 'ALEVIN MASCULINO 4X4 - Campeonato de Baleares - Plata',
+                'season': '2024-25',
+                'category': 'Alevin',
+                'visibility_type': 'historical'
+                # match_format se auto-detecta como 'alevin_balear'
+            },
+            {
+                'federation_id': '7920',
+                'name': 'ALEVIN MASCULINO 4X4 - Campeonato de Baleares - 5è-6è',
+                'season': '2024-25',
+                'category': 'Alevin',
+                'visibility_type': 'historical'
+                # match_format se auto-detecta como 'alevin_balear'
+            },
+            {
+                'federation_id': '7920',
+                'name': 'ALEVIN MASCULINO 4X4 - Campeonato de Baleares - FINALS',
+                'season': '2024-25',
+                'category': 'Alevin',
+                'visibility_type': 'historical'
+                # match_format se auto-detecta como 'alevin_balear'
+            },
+            {
+                'federation_id': '6738',
+                'name': 'INFANTIL MASCULINO - Liga Regular - Cúber',
+                'season': '2024-25',
+                'category': 'Infantil',
                 'visibility_type': 'historical'
             },
             {
-                'federation_id': '1235',
-                'name': 'Liga Nacional 2022-23',
-                'season': '2022-23',
-                'category': 'Senior',
+                'federation_id': '6739',
+                'name': 'INFANTIL MASCULINO - Liga Regular - Gorg Blau',
+                'season': '2024-25',
+                'category': 'Infantil',
                 'visibility_type': 'historical'
             },
-            # Agregar más ligas históricas según sea necesario
+            {
+                'federation_id': '6819',
+                'name': 'INFANTIL MASCULINO - Fase Final título',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'visibility_type': 'historical'
+            },
+            {
+                'federation_id': '7860',
+                'name': 'INFANTIL MASCULINO - Fase Final título - FINALS',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'visibility_type': 'historical'
+            },
+            {
+                'federation_id': '6820',
+                'name': 'INFANTIL MASCULINO - Circuito Clasificatorio',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'visibility_type': 'historical'
+            },
         ]
         
         # Configuración de ligas externas
@@ -263,6 +403,12 @@ class Command(BaseCommand):
                     self.style.WARNING(f"Categoría '{league_config['category']}' no encontrada")
                 )
         
+        # Determinar formato de partido
+        match_format = self.get_match_format_for_category(
+            league_config.get('category'), 
+            league_config.get('match_format', options.get('match_format'))
+        )
+        
         league_data = {
             'name': league_config['name'],
             'federation_id': federation_id,
@@ -271,8 +417,12 @@ class Command(BaseCommand):
             'is_historical': league_config['visibility_type'] == 'historical',
             'is_our_team_related': league_config.get('is_our_team_related', True),
             'category': category,
+            'match_format': match_format,
             'base_url': options['base_url']
         }
+        
+        if self.verbosity:
+            self.stdout.write(f"Liga {league_config['name']} - Formato asignado: {match_format}")
         
         if not self.dry_run:
             league, created = League.objects.get_or_create(

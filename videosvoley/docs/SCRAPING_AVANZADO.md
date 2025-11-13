@@ -27,14 +27,6 @@ El sistema de scraping ha sido expandido para soportar diferentes tipos de ligas
 ### 1. Scraping de Ligas Históricas
 
 ```bash
-# Scraping de ligas históricas específicas
-docker-compose exec web python manage.py scrape_historical_leagues \
-    --league-id "1234" \
-    --season "2023-24" \
-    --visibility-type historical \
-    --league-name "Liga Nacional 2023-24" \
-    --category "Senior" \
-    --verbose
 
 # Scraping masivo de ligas históricas
 docker-compose exec web python manage.py scrape_historical_leagues \
