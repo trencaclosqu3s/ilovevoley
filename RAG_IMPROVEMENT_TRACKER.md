@@ -246,27 +246,43 @@ User Query → Query Classifier → {
 
 **RESULTADO ESPERADO**: Análisis temporal completo + consultas históricas + acceso directo a fotos/videos
 
-### 📋 FASE 6: Mejorar RAG para Documentos PDF (FUTURO)
+### 📋 FASE 6: Mejorar RAG para Documentos PDF ✅ COMPLETADO (Dic 2025)
 **Objetivo**: RAG inteligente para documentos deportivos (reglamentos, dossiers de torneos, etc.)
 
-#### 6.1 Problema Actual 🚨 CRÍTICO
-- [ ] RAG devuelve siempre el principio del PDF sin análisis semántico
-- [ ] Fragmentación básica de PyPDF2 no preserva contexto
-- [ ] Consultas como "¿qué dice el reglamento sobre rotaciones?" → respuesta inútil
-- [ ] **IMPACTO**: RAG para reglamentos actualmente es inservible
+#### 6.1 Problema Inicial 🚨 RESUELTO
+- [x] RAG devuelve siempre el principio del PDF sin análisis semántico ✅ RESUELTO
+- [x] Fragmentación básica de PyPDF2 no preserva contexto ✅ RESUELTO
+- [x] Consultas como "¿qué dice el reglamento sobre rotaciones?" → respuesta inútil ✅ MEJORADO
+- [x] **IMPACTO**: RAG para reglamentos actualmente es inservible ✅ FUNCIONAL
 
-#### 6.2 Mejora de Fragmentación de PDFs ⏳ PLANIFICADO
-- [ ] Chunks semánticos inteligentes (por secciones, no por tamaño)
-- [ ] Detectar títulos, subtítulos, listas en PDFs
-- [ ] Preservar contexto: "Artículo 5.3 - Rotaciones" completo
-- [ ] Procesar automáticamente al subir documentos nuevos
-- [ ] Nuevo archivo: `videosvoley/rag/pdf_processor.py`
+#### 6.2 Mejora de Fragmentación de PDFs ✅ COMPLETADO
+- [x] Chunks semánticos inteligentes (por secciones, no por tamaño) ✅ IMPLEMENTADO
+- [x] Detectar títulos, subtítulos, listas en PDFs ✅ IMPLEMENTADO
+- [x] Preservar contexto: "Artículo 5.3 - Rotaciones" completo ✅ IMPLEMENTADO
+- [x] Procesar automáticamente al subir documentos nuevos ✅ IMPLEMENTADO
+- [x] Nuevo archivo: `videosvoley/rag/pdf_processor.py` ✅ CREADO
+- [x] Detección de alturas de red y categorías específicas ✅ IMPLEMENTADO
+- [x] Enriquecimiento de metadata con contexto deportivo ✅ IMPLEMENTADO
 
-#### 6.3 Mejora de Búsqueda Semántica ⏳ PLANIFICADO
-- [ ] Embeddings específicos para texto legal/deportivo
-- [ ] Filtrado de chunks irrelevantes antes de responder
-- [ ] Ranking de relevancia: artículos específicos > introducciones generales
-- [ ] Respuestas contextualizadas: "Según el Artículo X del reglamento..."
+#### 6.3 Mejora de Búsqueda Semántica ✅ COMPLETADO
+- [x] Activado filtro inteligente `_smart_filter_for_rules` ✅ IMPLEMENTADO
+- [x] Filtrado de chunks irrelevantes antes de responder ✅ IMPLEMENTADO
+- [x] Ranking de relevancia: artículos específicos > introducciones generales ✅ IMPLEMENTADO
+- [x] Scoring por keywords en contenido (+30 puntos/keyword) ✅ IMPLEMENTADO
+- [x] Bonificación por "altura de red" (+50 puntos) ✅ IMPLEMENTADO
+- [x] Bonificación por categorías mencionadas (+15 puntos) ✅ IMPLEMENTADO
+- [x] Logging detallado de scores para debugging ✅ IMPLEMENTADO
+
+#### 6.4 Mejora de Generación de Respuestas ✅ COMPLETADO
+- [x] Prompt específico para consultas de reglamento ✅ IMPLEMENTADO
+- [x] Instrucciones para sintetizar información (no repetir literal) ✅ IMPLEMENTADO
+- [x] Detección de categorías faltantes en contexto ✅ IMPLEMENTADO
+- [x] Organización estructurada de medidas y dimensiones ✅ IMPLEMENTADO
+
+#### 6.5 Comandos de Gestión ✅ COMPLETADO
+- [x] `list_pdf_documents.py` - Listar PDFs indexados ✅ CREADO
+- [x] `reindex_pdfs.py` - Re-indexar con fragmentación inteligente ✅ CREADO
+- [x] Logging mejorado en `import_rulebook.py` con flag --verbose ✅ IMPLEMENTADO
 
 #### 6.4 Casos de Uso Objetivo ⏳ PLANIFICADO
 
@@ -387,30 +403,51 @@ def send_message(request):
 ## 🎯 PRÓXIMOS PASOS INMEDIATOS
 
 1. ✅ **COMPLETADO**: Arreglar timeouts en Ollama
-2. ✅ **COMPLETADO**: Implementar query routing inteligente 
+2. ✅ **COMPLETADO**: Implementar query routing inteligente
 3. ✅ **COMPLETADO**: Sistema de aprendizaje con feedback
 4. ✅ **COMPLETADO**: Detección avanzada de lenguaje natural + análisis de rachas
-5. ⏳ **SIGUIENTE**: Análisis temporal, histórico y media (temporadas pasadas, récords, fotos/videos)
-6. 📋 **FUTURO**: Mejorar RAG para reglamentos (fragmentación inteligente de PDFs)
-7. **FUTURO**: Conversación contextual y seguimiento de sesión
+5. ✅ **COMPLETADO**: Mejorar RAG para reglamentos (fragmentación inteligente de PDFs)
+6. ⏳ **SIGUIENTE**: Análisis temporal, histórico y media (temporadas pasadas, récords, fotos/videos)
+7. 📋 **FUTURO**: Conversación contextual y seguimiento de sesión
+8. 📋 **FUTURO**: Subir reglamentos específicos de categorías infantiles (alevín, infantil, cadete)
 
 ---
 
 ## 📞 PARA EL PRÓXIMO CLAUDE
 
-**Estado actual (Nov 2025)**:
-✅ **Fases 1-4 COMPLETADAS**: Sistema funcional sin timeouts + query routing inteligente + análisis de rachas
+**Estado actual (Dic 2025)**:
+✅ **Fases 1-6 COMPLETADAS**: Sistema funcional sin timeouts + query routing inteligente + análisis de rachas + RAG para PDFs mejorado
 
-**Si continúas este proyecto**: 
+**Si continúas este proyecto**:
 1. ✅ Timeouts de Ollama → RESUELTO
 2. ✅ Query routing básico → FUNCIONANDO (90% consultas por BD directa)
 3. ✅ Análisis de rachas → FUNCIONANDO (mejor/peor racha con temporada actual dinámica)
-4. ⏳ **PRÓXIMO**: Implementar Fase 5 (análisis temporal e histórico)
-5. El usuario quiere consultas como "¿cómo fue la temporada pasada?" y "récords históricos"
-6. Ya tienes la base: temporada actual se calcula dinámicamente en `query_router.py:646-649`
+4. ✅ **COMPLETADO**: Fase 6 (RAG para PDFs) → FUNCIONANDO
+   - Fragmentación inteligente de PDFs con `pdf_processor.py`
+   - Filtro inteligente activado en `services.py`
+   - Scoring mejorado (+30 pts/keyword, +50 pts altura red)
+   - Prompt específico para reglamentos en Ollama
+   - Comandos: `list_pdf_documents.py`, `reindex_pdfs.py`
+5. ⏳ **PRÓXIMO**: Implementar Fase 5 (análisis temporal, histórico y media)
+6. El usuario quiere consultas como "¿cómo fue la temporada pasada?" y "récords históricos"
+7. Ya tienes la base: temporada actual se calcula dinámicamente en `query_router.py`
 
-**Comando para probar el estado actual**:
+**Limitaciones conocidas**:
+- El PDF subido es reglamento de adultos, no tiene alturas para categorías infantiles
+- Necesita subir reglamentos específicos de alevín/infantil/cadete para responder esas consultas
+
+**Comandos útiles**:
 ```bash
+# Listar PDFs indexados
+docker-compose exec web python manage.py list_pdf_documents --verbose
+
+# Re-indexar PDFs con fragmentación inteligente
+docker-compose exec web python manage.py reindex_pdfs --all --verbose
+
+# Importar nuevo reglamento
+docker-compose exec web python manage.py import_rulebook --file /path/to/reglamento.pdf --title "Reglamento Voleibol Infantil" --verbose
+
+# Probar sistema RAG
 docker-compose exec web python manage.py test_rag
 ```
 

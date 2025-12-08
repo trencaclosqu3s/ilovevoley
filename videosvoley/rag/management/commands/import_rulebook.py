@@ -35,6 +35,7 @@ class Command(BaseCommand):
         parser.add_argument('--title', type=str, default='Reglamento de Voleibol', help='Título del documento')
         parser.add_argument('--force-reindex', action='store_true', help='Forzar reindexación si ya existe')
         parser.add_argument('--dry-run', action='store_true', help='Mostrar acciones sin realizar cambios')
+        parser.add_argument('--verbose', action='store_true', help='Mostrar información detallada del proceso')
 
     def handle(self, *args, **options):
         source_url = options.get('url')
@@ -42,6 +43,7 @@ class Command(BaseCommand):
         title = options['title']
         force_reindex = options['force_reindex']
         dry_run = options['dry_run']
+        verbose = options.get('verbose', False)
 
         if not source_url and not file_path:
             # Intentar desde settings si existe
@@ -50,7 +52,14 @@ class Command(BaseCommand):
                 raise CommandError('Debes proporcionar --url o --file, o configurar RAG_RULEBOOK_URL en settings')
 
         # Obtener contenido
+        if verbose:
+            self.stdout.write(self.style.NOTICE(f'📄 Cargando contenido desde: {source_url or file_path}'))
+
         content, metadata_extra = self._load_content(source_url, file_path)
+
+        if verbose:
+            self.stdout.write(self.style.NOTICE(f'✅ Contenido cargado: {len(content)} caracteres'))
+            self.stdout.write(self.style.NOTICE(f'📊 Metadata: {metadata_extra}'))
 
         if dry_run:
             self.stdout.write(self.style.WARNING('MODO DRY RUN - No se realizarán cambios'))
@@ -89,6 +98,10 @@ class Command(BaseCommand):
             doc.save()
 
         # Indexar en Chroma
+        if verbose:
+            self.stdout.write(self.style.NOTICE(f'🔄 Indexando en ChromaDB con ID: {doc.id}'))
+            self.stdout.write(self.style.NOTICE(f'📝 Usando fragmentación inteligente: {self._will_use_smart_chunking(doc.metadata)}'))
+
         rag_service = get_rag_service()
         success = rag_service.add_document(
             document_id=str(doc.id),
@@ -105,9 +118,19 @@ class Command(BaseCommand):
         if success:
             doc.is_indexed = True
             doc.save()
-            self.stdout.write(self.style.SUCCESS(f"Documento '{doc.title}' importado e indexado (ID {doc.id})"))
+            self.stdout.write(self.style.SUCCESS(f"✅ Documento '{doc.title}' importado e indexado (ID {doc.id})"))
+            if verbose:
+                self.stdout.write(self.style.SUCCESS(f'💾 Documento marcado como indexado en BD'))
         else:
-            self.stdout.write(self.style.ERROR('Error indexando el documento en ChromaDB'))
+            self.stdout.write(self.style.ERROR('❌ Error indexando el documento en ChromaDB'))
+
+    def _will_use_smart_chunking(self, metadata: dict) -> bool:
+        """Verifica si el documento usará fragmentación inteligente basado en metadata"""
+        return (
+            metadata.get('content_type', '').lower().find('pdf') != -1 or
+            metadata.get('file_ext', '').lower() == '.pdf' or
+            metadata.get('topic') == 'volleyball_rules'
+        )
 
     def _load_content(self, url: str | None, file_path: str | None):
         metadata_extra = {}

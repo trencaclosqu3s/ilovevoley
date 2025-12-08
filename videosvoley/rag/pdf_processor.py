@@ -299,21 +299,31 @@ class SmartPDFProcessor:
         """Genera información de contexto para mejorar búsquedas"""
         context_parts = []
         content_lower = content.lower()
-        
+
         # Detectar temas deportivos
         for theme, keywords in self.sports_keywords.items():
             if any(keyword in content_lower for keyword in keywords):
                 context_parts.append(f"Tema: {theme}")
                 break
-        
+
         # Detectar si son reglas específicas
         if any(word in content_lower for word in ['prohibido', 'obligatorio', 'debe', 'deberá', 'no puede']):
             context_parts.append("Tipo: regla específica")
-        
+
         # Detectar medidas y dimensiones
         if re.search(r'\d+[\.\,]?\d*\s*(metro|cm|mm|m\b)', content_lower):
             context_parts.append("Contiene: medidas")
-        
+
+        # NUEVO: Detectar específicamente alturas de red
+        if any(word in content_lower for word in ['altura de la red', 'altura red', 'altura de red']):
+            context_parts.append("Contiene: altura de red")
+
+        # NUEVO: Detectar categorías específicas
+        categories = ['alevín', 'alevin', 'infantil', 'cadete', 'juvenil', 'senior', 'minivolei', 'mini-volei']
+        found_categories = [cat for cat in categories if cat in content_lower]
+        if found_categories:
+            context_parts.append(f"Categorías: {', '.join(found_categories)}")
+
         return " | ".join(context_parts)
     
     def process_for_rag(self, raw_content: str) -> List[Dict[str, str]]:
