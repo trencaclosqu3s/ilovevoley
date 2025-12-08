@@ -9,9 +9,12 @@ from django.views.generic import ListView, DetailView
 from django.db.models import Q
 import json
 import logging
+import time
+from django.utils import timezone
 
 from .models import Document, ChatSession, ChatMessage
 from .services import get_rag_service
+from .query_router import QueryRouter
 
 logger = logging.getLogger(__name__)
 
@@ -61,15 +64,50 @@ def send_message(request):
             content=query
         )
         
-        # Procesar con RAG
-        rag_service = get_rag_service()
-        rag_result = rag_service.rag_query(query, n_results=5, model=model)
+        # Procesar consulta (con query routing y medición de tiempo)
+        start_time = time.time()
         
-        # Guardar respuesta del asistente
+        # 1. Probar query routing primero
+        router = QueryRouter(user=request.user)
+        routing_result = router.route_query(query)
+        
+        response_content = ""
+        response_type = "rag_full"
+        rag_result = {'sources': []}  # Inicializar para evitar errores
+        
+        if routing_result['strategy'] == 'direct_query' and routing_result['response']:
+            # Respuesta directa sin RAG
+            response_content = routing_result['response']
+            response_type = 'direct_query'
+            rag_result = {'sources': []}  # No hay fuentes en consultas directas
+            logger.info(f"Consulta resuelta con query directa: {routing_result['reason']}")
+            
+        else:
+            # Usar RAG (completo o específico)
+            rag_service = get_rag_service()
+            rag_result = rag_service.rag_query(query, n_results=5, model=model)
+            response_content = rag_result['response']
+            
+            if 'timeout' in response_content.lower() or 'fallback' in str(rag_result.get('sources', [])):
+                response_type = 'timeout'
+            else:
+                response_type = 'rag_success'
+        
+        response_time = time.time() - start_time
+        
+        logger.info(f"Consulta procesada en {response_time:.2f}s: '{query[:50]}...' - Tipo: {response_type}")
+        
+        # Si tardó mucho, loggearlo como warning
+        if response_time > 30:
+            logger.warning(f"Consulta lenta ({response_time:.2f}s): {query}")
+        
+        # Guardar respuesta del asistente CON DATOS DE APRENDIZAJE
         assistant_message = ChatMessage.objects.create(
             session=session,
             role='assistant',
-            content=rag_result['response']
+            content=response_content,
+            response_type=response_type,
+            response_time=response_time
         )
         
         # Actualizar título de la sesión si es la primera conversación
@@ -236,3 +274,39 @@ def rag_stats(request):
         logger.error(f"Error obteniendo estadísticas: {e}")
         messages.error(request, f'Error obteniendo estadísticas: {str(e)}')
         return redirect('rag:rag_chat')
+
+
+@login_required
+@require_http_methods(["POST"])
+def rate_message(request):
+    """Valorar mensaje del asistente"""
+    try:
+        data = json.loads(request.body)
+        message_id = data.get('message_id')
+        rating = data.get('rating')
+        
+        if not message_id or rating not in [1, 2]:
+            return JsonResponse({'error': 'Datos inválidos'}, status=400)
+        
+        # Verificar que el mensaje pertenece a una sesión del usuario
+        message = get_object_or_404(
+            ChatMessage, 
+            id=message_id,
+            session__user=request.user,
+            role='assistant'  # Solo se pueden valorar respuestas del asistente
+        )
+        
+        # Actualizar rating
+        message.user_rating = rating
+        message.save()
+        
+        logger.info(f"Usuario {request.user.username} valoró mensaje {message_id} con {rating}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Valoración guardada correctamente'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error valorando mensaje: {e}")
+        return JsonResponse({'error': 'Error guardando la valoración'}, status=500)

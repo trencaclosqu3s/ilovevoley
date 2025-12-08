@@ -12,6 +12,7 @@ urlpatterns = [
     path('chat/sessions/<int:session_id>/', views.chat_session_detail, name='chat_session_detail'),
     path('chat/sessions/<int:session_id>/delete/', views.delete_session, name='delete_session'),
     path('chat/send-message/', views.send_message, name='send_message'),
+    path('chat/rate-message/', views.rate_message, name='rate_message'),
     
     # Documentos
     path('documents/', views.documents_list, name='documents_list'),

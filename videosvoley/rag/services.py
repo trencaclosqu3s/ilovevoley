@@ -104,9 +104,12 @@ class RAGService:
     def _init_ollama(self):
         """Inicializar conexión con Ollama"""
         try:
-            # Configurar client de Ollama
-            self.ollama_client = ollama.Client(host=self.ollama_host)
-            logger.info(f"Conexión con Ollama configurada en {self.ollama_host}")
+            # Configurar client de Ollama con timeouts
+            self.ollama_client = ollama.Client(
+                host=self.ollama_host,
+                timeout=30  # 30 segundos de timeout de conexión
+            )
+            logger.info(f"Conexión con Ollama configurada en {self.ollama_host} con timeout de 30s")
         except Exception as e:
             logger.error(f"Error configurando Ollama: {e}")
             raise ImproperlyConfigured(f"Error configurando Ollama: {e}")
@@ -121,7 +124,32 @@ class RAGService:
             raise
     
     def add_document(self, document_id: str, content: str, metadata: Dict[str, Any]) -> bool:
-        """Añadir documento a ChromaDB"""
+        """Añadir documento a ChromaDB con fragmentación inteligente para PDFs"""
+        try:
+            # Detectar si es contenido PDF que necesita fragmentación inteligente
+            is_pdf_content = (
+                metadata.get('content_type', '').lower().find('pdf') != -1 or
+                metadata.get('file_ext', '').lower() == '.pdf' or
+                metadata.get('topic') == 'volleyball_rules' or
+                len(content) > 3000  # Documentos largos que se benefician de fragmentación
+            )
+
+            if is_pdf_content:
+                logger.info(f"🔍 Detectado contenido PDF/largo para documento {document_id}")
+                logger.info(f"📝 Metadata: content_type={metadata.get('content_type')}, file_ext={metadata.get('file_ext')}, topic={metadata.get('topic')}, length={len(content)}")
+                logger.info(f"✂️ Usando fragmentación inteligente")
+                return self._add_document_with_smart_chunking(document_id, content, metadata)
+            else:
+                # Procesamiento normal para documentos cortos
+                logger.info(f"📄 Documento {document_id} procesado como documento simple (sin fragmentación)")
+                return self._add_single_document(document_id, content, metadata)
+
+        except Exception as e:
+            logger.error(f"❌ Error añadiendo documento {document_id}: {e}")
+            return False
+    
+    def _add_single_document(self, document_id: str, content: str, metadata: Dict[str, Any]) -> bool:
+        """Añade un documento simple sin fragmentación"""
         try:
             # Generar embedding
             embedding = self.generate_embedding(content)
@@ -141,8 +169,70 @@ class RAGService:
             return True
             
         except Exception as e:
-            logger.error(f"Error añadiendo documento {document_id}: {e}")
+            logger.error(f"Error añadiendo documento simple {document_id}: {e}")
             return False
+    
+    def _add_document_with_smart_chunking(self, document_id: str, content: str, metadata: Dict[str, Any]) -> bool:
+        """Añade documento usando fragmentación inteligente"""
+        try:
+            logger.info(f"📦 Importando pdf_processor para documento {document_id}")
+            from .pdf_processor import process_pdf_content
+            logger.info(f"✅ pdf_processor importado correctamente")
+
+            # Procesar contenido con fragmentación inteligente
+            logger.info(f"⚙️ Procesando contenido ({len(content)} caracteres) con fragmentación inteligente")
+            chunks = process_pdf_content(content)
+
+            if not chunks:
+                logger.warning(f"⚠️ No se generaron chunks para documento {document_id}, usando procesamiento simple")
+                return self._add_single_document(document_id, content, metadata)
+
+            logger.info(f"✂️ Generados {len(chunks)} fragmentos inteligentes para documento {document_id}")
+            
+            # Añadir cada fragmento como un documento separado
+            success_count = 0
+            for chunk_data in chunks:
+                chunk_id = f"{document_id}_{chunk_data['id']}"
+                chunk_content = chunk_data['content']
+                chunk_metadata = {**metadata, **chunk_data['metadata']}
+                
+                # Limpiar metadatos
+                cleaned_metadata = {k: v for k, v in chunk_metadata.items() if v is not None}
+                
+                try:
+                    # Generar embedding para el fragmento
+                    embedding = self.generate_embedding(chunk_content)
+                    
+                    # Añadir a ChromaDB
+                    self.collection.add(
+                        ids=[chunk_id],
+                        embeddings=[embedding],
+                        documents=[chunk_content],
+                        metadatas=[cleaned_metadata]
+                    )
+                    
+                    success_count += 1
+                    
+                except Exception as e:
+                    logger.error(f"Error añadiendo chunk {chunk_id}: {e}")
+                    continue
+            
+            if success_count > 0:
+                logger.info(f"✅ Documento {document_id} fragmentado exitosamente: {success_count}/{len(chunks)} fragmentos añadidos")
+                return True
+            else:
+                logger.error(f"❌ No se pudo añadir ningún fragmento del documento {document_id}")
+                return False
+
+        except ImportError as e:
+            logger.error(f"❌ ImportError: pdf_processor no disponible - {e}")
+            logger.warning("⚠️ Fallback: usando fragmentación básica")
+            return self._add_single_document(document_id, content, metadata)
+        except Exception as e:
+            logger.error(f"❌ Error en fragmentación inteligente para {document_id}: {e}")
+            logger.exception("Traceback completo:")
+            logger.warning("⚠️ Fallback: usando fragmentación básica")
+            return self._add_single_document(document_id, content, metadata)
     
     def search_similar_documents(self, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
         """Buscar documentos similares a una consulta"""
@@ -157,9 +247,10 @@ class RAGService:
             query_lower = query.lower()
             if any(term in query_lower for term in ['qué es', 'que es', 'definición', 'definicion', 'reglas', 'reglamento', 'altura', 'medidas', 'red']):
                 # Buscar solo en documentos de tipo manual (reglamentos)
+                # Obtener MUCHOS más resultados para tener más contexto
                 results = self.collection.query(
                     query_embeddings=[query_embedding],
-                    n_results=n_results * 3,  # Obtener más resultados
+                    n_results=n_results * 5,  # Aumentado de 3 a 5
                     where={"source_type": "manual"}  # Filtrar solo documentos manuales
                 )
             else:
@@ -178,10 +269,15 @@ class RAGService:
                         'metadata': results['metadatas'][0][i] if results['metadatas'] else {},
                         'distance': results['distances'][0][i] if results['distances'] else 0.0
                     })
-            
-            # Filtrar por categoría específica si se menciona en la consulta
-            filtered_docs = self._filter_by_category(query, documents)
-            
+
+            # Aplicar filtrado inteligente para consultas de reglamento
+            if any(term in query_lower for term in ['reglamento', 'reglas', 'altura', 'medidas', 'red', 'rotación', 'rotacion', 'toques', 'cancha', 'campo']):
+                logger.info(f"🎯 Aplicando filtro inteligente de reglamento para consulta: '{query}'")
+                filtered_docs = self._smart_filter_for_rules(query_lower, documents)
+            else:
+                # Filtrar por categoría específica si se menciona en la consulta
+                filtered_docs = self._filter_by_category(query, documents)
+
             return filtered_docs[:n_results]
             
         except Exception as e:
@@ -221,13 +317,305 @@ class RAGService:
         
         return query
     
+    def _smart_filter_for_rules(self, query_lower: str, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Filtro inteligente para consultas de reglamento usando metadatos enriquecidos"""
+        filtered_docs = []
+        scored_docs = []
+
+        # Extraer palabras clave importantes de la consulta
+        query_keywords = set(query_lower.split())
+        # Eliminar palabras comunes
+        stopwords = {'la', 'de', 'en', 'el', 'y', 'a', 'los', 'las', 'un', 'una', 'por', 'para', 'con', 'me', 'indica', 'puedes', 'diferentes'}
+        query_keywords = query_keywords - stopwords
+
+        # Detectar tema específico de la consulta
+        query_themes = {
+            'medidas': ['altura', 'medidas', 'dimensiones', 'metros', 'campo', 'cancha', 'pista', 'red'],
+            'reglas': ['reglas', 'reglamento', 'prohibido', 'permitido', 'obligatorio', 'normas'],
+            'juego': ['rotación', 'rotacion', 'saque', 'punto', 'set', 'partido', 'toques'],
+            'equipos': ['jugadores', 'equipo', 'capitán', 'capitan', 'entrenador'],
+            'arbitraje': ['árbitro', 'arbitro', 'falta', 'sanción', 'sancion']
+        }
+
+        detected_theme = None
+        for theme, keywords in query_themes.items():
+            if any(keyword in query_lower for keyword in keywords):
+                detected_theme = theme
+                break
+
+        logger.info(f"🔍 Tema detectado: {detected_theme}, Keywords de consulta: {query_keywords}")
+
+        for doc in documents:
+            metadata = doc.get('metadata', {})
+            content_lower = doc.get('content', '').lower()
+            score = 0
+            
+            # NUEVO: Puntuar por keywords en el contenido (MUY IMPORTANTE)
+            keyword_matches = sum(1 for keyword in query_keywords if keyword in content_lower)
+            score += keyword_matches * 30  # 30 puntos por cada keyword encontrada
+
+            # Bonificación si encuentra múltiples keywords juntas
+            if keyword_matches >= 2:
+                score += 20
+
+            # Puntuar por metadatos enriquecidos (FASE 6)
+            if metadata.get('source_type') == 'manual':
+                score += 10  # Base score for manual docs
+
+            # Usar metadatos del procesador inteligente
+            context_info = metadata.get('context_info', '')
+            if detected_theme and f'Tema: {detected_theme}' in context_info:
+                score += 20  # Tema específico detectado
+
+            # NUEVO: Bonificación extra por altura de red específica
+            if 'altura' in query_lower and 'red' in query_lower:
+                if 'Contiene: altura de red' in context_info:
+                    score += 50  # MUY relevante
+                elif 'altura' in content_lower and 'red' in content_lower:
+                    score += 25  # También relevante
+
+            # NUEVO: Bonificación por categorías mencionadas (MUY IMPORTANTE)
+            for category in ['alevín', 'alevin', 'infantil', 'cadete', 'juvenil', 'senior', 'benjamí', 'benjami']:
+                if category in query_lower:
+                    if category in context_info.lower():
+                        score += 40  # Gran bonificación si el chunk tiene la categoría
+                    if category in content_lower:
+                        score += 20  # Bonificación si aparece en contenido
+
+            # MEGA bonificación si el título del documento menciona la categoría
+            doc_title = metadata.get('title', '').lower()
+            if any(cat in query_lower for cat in ['alevín', 'alevin', 'infantil', 'cadete']) and \
+               any(cat in doc_title for cat in ['alevín', 'alevin', 'infantil', 'cadete', 'benjamí']):
+                score += 80  # Muy relevante
+            
+            if metadata.get('chunk_type') == 'article':
+                score += 15  # Artículos específicos son muy relevantes
+            elif metadata.get('chunk_type') == 'subsection':
+                score += 10  # Subsecciones también relevantes
+            
+            # Puntuación por contenido de medidas
+            if detected_theme == 'medidas' and 'Contiene: medidas' in context_info:
+                score += 25  # Muy relevante para consultas de medidas
+            
+            # Puntuación por reglas específicas
+            if 'Tipo: regla específica' in context_info:
+                if detected_theme == 'reglas':
+                    score += 20
+                else:
+                    score += 10  # También relevante para otras consultas
+            
+            # Puntuación por artículo específico mencionado
+            article_number = metadata.get('article_number')
+            if article_number:
+                score += 15
+                # Si la consulta menciona un número, priorizar ese artículo
+                if article_number in query_lower:
+                    score += 30
+            
+            # Filtrar documentos con score mínimo
+            if score >= 10:
+                scored_docs.append((doc, score))
+
+        # Ordenar por puntuación descendente
+        scored_docs.sort(key=lambda x: x[1], reverse=True)
+
+        # Logging detallado de scores
+        if scored_docs:
+            logger.info(f"🎯 Top 10 resultados por score:")
+            for i, (doc, score) in enumerate(scored_docs[:10], 1):
+                preview = doc.get('content', '')[:100].replace('\n', ' ')
+                logger.info(f"  {i}. Score: {score} - {preview}...")
+
+        # Tomar los mejores resultados (balanceado: suficiente contexto sin timeout)
+        filtered_docs = [doc for doc, score in scored_docs[:7]]
+
+        logger.info(f"✅ Filtro inteligente: {len(filtered_docs)} documentos relevantes encontrados para tema '{detected_theme}'")
+        return filtered_docs
+    
+    def _create_enhanced_rules_response(self, query_lower: str, filtered_docs: List[Dict[str, Any]]):
+        """Crear respuesta específica y completa para consultas de reglamento"""
+        if not filtered_docs:
+            return None
+            
+        # Detectar qué información específica se busca
+        seeking_info = {
+            'altura': any(term in query_lower for term in ['altura', 'altura de la red', 'red', 'medidas']),
+            'rotacion': any(term in query_lower for term in ['rotación', 'rotacion', 'rotar']),
+            'toques': any(term in query_lower for term in ['toques', 'toque', 'contactos', 'golpeo']),
+            'categorias': any(term in query_lower for term in ['categoría', 'categoria', 'alevín', 'alevin', 'infantil', 'cadete', 'juvenil']),
+            'red': any(term in query_lower for term in ['red', 'tocar la red', 'contacto red'])
+        }
+        
+        # Extraer información específica de los documentos
+        relevant_info = []
+        
+        for doc in filtered_docs:
+            content = doc['content']
+            metadata = doc.get('metadata', {})
+            
+            # Buscar información específica sobre altura de red
+            if seeking_info['altura']:
+                height_info = self._extract_height_info(content, metadata)
+                if height_info:
+                    relevant_info.extend(height_info)
+            
+            # Buscar información sobre rotación
+            if seeking_info['rotacion']:
+                rotation_info = self._extract_rotation_info(content, metadata)
+                if rotation_info:
+                    relevant_info.extend(rotation_info)
+            
+            # Buscar información sobre toques
+            if seeking_info['toques']:
+                touches_info = self._extract_touches_info(content, metadata)
+                if touches_info:
+                    relevant_info.extend(touches_info)
+            
+            # Buscar información sobre contacto con la red
+            if seeking_info['red']:
+                net_contact_info = self._extract_net_contact_info(content, metadata)
+                if net_contact_info:
+                    relevant_info.extend(net_contact_info)
+        
+        # Crear respuesta estructurada
+        if relevant_info:
+            response = "📋 <strong>Información del reglamento:</strong>\n\n"
+            
+            # Remover duplicados manteniendo orden
+            seen = set()
+            unique_info = []
+            for info in relevant_info:
+                if info not in seen:
+                    seen.add(info)
+                    unique_info.append(info)
+            
+            for info in unique_info[:5]:  # Máximo 5 elementos relevantes
+                response += f"• {info}\n\n"
+            
+            return response.strip()
+        
+        return None
+    
+    def _extract_height_info(self, content: str, metadata: Dict) -> List[str]:
+        """Extraer información específica sobre altura de red"""
+        height_info = []
+        content_lower = content.lower()
+        
+        # Buscar patrones específicos de altura
+        import re
+        
+        # Patrón para alturas con medidas específicas
+        height_patterns = [
+            r'altura.*?(\d+[,.]?\d*)\s*m.*?(hombres|masculino|masculina)',
+            r'altura.*?(\d+[,.]?\d*)\s*m.*?(mujeres|femenino|femenina)',
+            r'(\d+[,.]?\d*)\s*m.*?(hombres|masculino)',
+            r'(\d+[,.]?\d*)\s*m.*?(mujeres|femenino)',
+            r'alevín.*?(\d+[,.]?\d*)\s*m',
+            r'infantil.*?(\d+[,.]?\d*)\s*m',
+            r'cadete.*?(\d+[,.]?\d*)\s*m',
+            r'juvenil.*?(\d+[,.]?\d*)\s*m'
+        ]
+        
+        for pattern in height_patterns:
+            matches = re.finditer(pattern, content_lower)
+            for match in matches:
+                # Extraer contexto alrededor del match
+                start = max(0, match.start() - 50)
+                end = min(len(content), match.end() + 100)
+                context = content[start:end].strip()
+                
+                if context and len(context) > 10:
+                    height_info.append(context)
+        
+        # Si no encontramos patrones específicos, buscar frases sobre altura
+        if not height_info and any(word in content_lower for word in ['altura', 'red']):
+            # Buscar en el contenido completo del fragmento, no solo oraciones
+            lines = content.split('\n')
+            current_context = []
+            
+            for line in lines:
+                line = line.strip()
+                current_context.append(line)
+                
+                # Si encontramos una línea con información de altura
+                if any(word in line.lower() for word in ['altura', 'red', 'metros', 'm', '2.', '1.']):
+                    # Incluir contexto anterior y posterior
+                    context_start = max(0, len(current_context) - 3)
+                    context_text = ' '.join(current_context[context_start:])
+                    
+                    if len(context_text) > 30 and any(word in context_text.lower() for word in ['altura', 'red']):
+                        height_info.append(context_text)
+                
+                # Mantener un buffer de contexto
+                if len(current_context) > 5:
+                    current_context = current_context[-3:]
+            
+            # Si aún no tenemos info, buscar por oraciones como fallback
+            if not height_info:
+                sentences = content.split('.')
+                for sentence in sentences:
+                    if any(word in sentence.lower() for word in ['altura', 'red', 'metros', 'm']) and len(sentence.strip()) > 20:
+                        height_info.append(sentence.strip())
+        
+        return height_info[:3]  # Máximo 3 resultados
+    
+    def _extract_rotation_info(self, content: str, metadata: Dict) -> List[str]:
+        """Extraer información específica sobre rotación"""
+        rotation_info = []
+        content_lower = content.lower()
+        
+        if any(word in content_lower for word in ['rotación', 'rotacion', 'rotar']):
+            sentences = content.split('.')
+            for sentence in sentences:
+                if any(word in sentence.lower() for word in ['rotación', 'rotacion', 'rotar', 'sentido']):
+                    clean_sentence = sentence.strip()
+                    if len(clean_sentence) > 15:
+                        rotation_info.append(clean_sentence)
+        
+        return rotation_info[:2]
+    
+    def _extract_touches_info(self, content: str, metadata: Dict) -> List[str]:
+        """Extraer información específica sobre toques"""
+        touches_info = []
+        content_lower = content.lower()
+        
+        if any(word in content_lower for word in ['toque', 'toques', 'contacto', 'golpeo']):
+            sentences = content.split('.')
+            for sentence in sentences:
+                if any(word in sentence.lower() for word in ['toque', 'toques', 'contacto', 'tres', '3']):
+                    clean_sentence = sentence.strip()
+                    if len(clean_sentence) > 15:
+                        touches_info.append(clean_sentence)
+        
+        return touches_info[:2]
+    
+    def _extract_net_contact_info(self, content: str, metadata: Dict) -> List[str]:
+        """Extraer información específica sobre contacto con la red"""
+        net_info = []
+        content_lower = content.lower()
+        
+        if any(word in content_lower for word in ['red', 'tocar', 'contacto', 'prohibido']):
+            sentences = content.split('.')
+            for sentence in sentences:
+                if any(word in sentence.lower() for word in ['red', 'tocar', 'contacto']):
+                    clean_sentence = sentence.strip()
+                    if len(clean_sentence) > 15:
+                        net_info.append(clean_sentence)
+        
+        return net_info[:2]
+    
     def _filter_by_category(self, original_query: str, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Filtrar documentos por categoría específica mencionada en la consulta"""
+        """Filtrar documentos por categoría específica con metadatos enriquecidos"""
         query_lower = original_query.lower()
         
-        # Para consultas generales sobre voleibol, priorizar documentos de reglamento
-        if any(term in query_lower for term in ['qué es', 'que es', 'definición', 'definicion', 'reglas', 'reglamento', 'altura', 'medidas', 'red']):
-            # Priorizar documentos de tipo 'manual' (reglamentos)
+        # FASE 6 MEJORA: Usar metadatos enriquecidos para filtrado inteligente
+        # Para consultas generales sobre voleibol, usar filtrado avanzado
+        if any(term in query_lower for term in ['qué es', 'que es', 'definición', 'definicion', 'reglas', 'reglamento', 'altura', 'medidas', 'red', 'rotación', 'rotacion']):
+            filtered_docs = self._smart_filter_for_rules(query_lower, documents)
+            if filtered_docs:
+                return filtered_docs
+            
+            # Fallback: documentos de tipo manual
             manual_docs = [doc for doc in documents if doc.get('metadata', {}).get('source_type') == 'manual']
             if manual_docs:
                 return manual_docs
@@ -254,19 +642,43 @@ class RAGService:
         # Si no hay filtro específico o no se encuentran documentos, devolver todos
         return documents
     
-    def generate_response(self, query: str, context_documents: List[Dict[str, Any]], 
+    def generate_response(self, query: str, context_documents: List[Dict[str, Any]],
                          model: str = None) -> str:
         """Generar respuesta usando Ollama con contexto"""
         try:
             # Usar modelo por defecto si no se especifica
             if model is None:
                 model = getattr(settings, 'DEFAULT_OLLAMA_MODEL', 'phi3:mini')
-            
+
             # Preparar contexto
             context = "\n\n".join([doc['content'] for doc in context_documents])
-            
-            # Crear prompt optimizado
-            prompt = f"""Eres un asistente especializado en voleibol y el sistema VideosVoley. 
+
+            # Detectar tipo de consulta para prompt específico
+            query_lower = query.lower()
+            is_rules_query = any(term in query_lower for term in ['reglamento', 'reglas', 'altura', 'medidas', 'red', 'rotación', 'rotacion', 'toques'])
+
+            # Crear prompt optimizado según tipo de consulta
+            if is_rules_query:
+                prompt = f"""Eres un asistente especializado en reglamentos de voleibol.
+
+CONTEXTO DEL REGLAMENTO:
+{context}
+
+PREGUNTA: {query}
+
+INSTRUCCIONES IMPORTANTES:
+1. ANALIZA el contexto completo y extrae la información específica solicitada
+2. SINTETIZA la información de forma clara - NO copies el texto literal del contexto
+3. Si preguntan por MEDIDAS (alturas, dimensiones):
+   - Organízalas en formato tabla o lista clara
+   - Incluye TODAS las categorías mencionadas en el contexto
+   - Ejemplo: "Altura de red por categoría: Alevín: 2.00m, Infantil: 2.20m, Cadete: 2.35m"
+4. Si el contexto tiene información parcial, indica qué falta
+5. Respuesta COMPLETA pero CONCISA - usa todo el espacio disponible si es necesario
+
+RESPUESTA (sintetizada y organizada):"""
+            else:
+                prompt = f"""Eres un asistente especializado en voleibol y el sistema VideosVoley.
 Responde la pregunta del usuario basándote en el contexto proporcionado.
 
 Contexto:
@@ -277,13 +689,17 @@ Pregunta: {query}
 Respuesta:"""
             
             # Generar respuesta con Ollama
+            # Para consultas de reglamento, permitir respuestas más largas
+            max_tokens = 1200 if is_rules_query else 800
+
             response = self.ollama_client.generate(
                 model=model,
                 prompt=prompt,
                 options={
-                    'temperature': 0.7,
+                    'temperature': 0.3,      # Más determinista = más rápido
                     'top_p': 0.9,
-                    'max_tokens': 2000
+                    'num_predict': max_tokens,  # Tokens variables según tipo de consulta
+                    'timeout': 60            # Timeout de 60s (balanceado)
                 }
             )
             
@@ -291,13 +707,14 @@ Respuesta:"""
             
         except Exception as e:
             logger.error(f"Error generando respuesta: {e}")
-            # Si es un error de memoria, usar fallback
+            # Si es un error de memoria o timeout, usar fallback
             error_str = str(e).lower()
-            if any(keyword in error_str for keyword in ["memory", "ram", "system memory", "out of memory"]):
+            if any(keyword in error_str for keyword in ["memory", "ram", "system memory", "out of memory", "timeout", "connection", "timed out"]):
+                logger.warning(f"Usando fallback por error: {error_str}")
                 return self._create_fallback_response(query, context_documents)
             return f"Lo siento, hubo un error generando la respuesta: {str(e)}"
     
-    def rag_query(self, query: str, n_results: int = 3, model: str = None) -> Dict[str, Any]:
+    def rag_query(self, query: str, n_results: int = 5, model: str = None) -> Dict[str, Any]:
         """Proceso completo RAG: búsqueda + generación"""
         try:
             # Buscar documentos relevantes
@@ -352,7 +769,9 @@ Respuesta:"""
     def _create_fallback_response(self, query: str, context_documents: List[Dict[str, Any]]) -> str:
         """Crear respuesta de respaldo inteligente basada en contexto"""
         if not context_documents:
-            return "No encontré información relevante sobre tu consulta."
+            return "No encontré información relevante sobre tu consulta. El sistema tuvo un problema técnico, pero puedes intentar reformular la pregunta."
+        
+        logger.info(f"Usando fallback para consulta: {query[:100]}")
         
         # Analizar la consulta para entender qué busca el usuario
         query_lower = query.lower()
@@ -485,10 +904,21 @@ Respuesta:"""
                     response += f"- {sentence}.\n"
                 return response.strip()
             
+            # FASE 6 MEJORA: Usar extracción inteligente para consultas de reglamento
+            enhanced_response = self._create_enhanced_rules_response(query_lower, filtered_docs)
+            if enhanced_response:
+                return enhanced_response
+            
             # Si no se encuentra información específica, proporcionar un resumen más coherente
             response = "Basándome en la información disponible, aquí tienes un resumen de los documentos encontrados:\n\n"
             for i, doc in enumerate(filtered_docs[:3], 1):
-                content_summary = ' '.join(doc['content'].split()[:50]) + "..." if len(doc['content'].split()) > 50 else doc['content']
+                # FASE 6 MEJORA: Mostrar más contenido para reglamentos, especialmente si contiene medidas
+                metadata = doc.get('metadata', {})
+                if metadata.get('context_info') and 'medidas' in metadata.get('context_info', ''):
+                    # Para contenido con medidas, mostrar más texto
+                    content_summary = ' '.join(doc['content'].split()[:150]) + "..." if len(doc['content'].split()) > 150 else doc['content']
+                else:
+                    content_summary = ' '.join(doc['content'].split()[:80]) + "..." if len(doc['content'].split()) > 80 else doc['content']
                 response += f"{i}. {content_summary}\n\n"
             
             return response.strip()
