@@ -257,18 +257,22 @@ def league_detail(request, league_id):
 @login_required
 @user_passes_test(user_is_approved, login_url='/pending-approval/')
 def match_detail(request, match_id):
-    """Vista detallada de un partido con sus videos"""
+    """Vista detallada de un partido con sus videos e imágenes"""
     match = get_object_or_404(
-        Match.objects.select_related('home_team', 'away_team', 'league'), 
+        Match.objects.select_related('home_team', 'away_team', 'league'),
         id=match_id
     )
-    
+
     # Obtener videos del partido
     videos = match.videos.select_related('created_by', 'category').all()
-    
+
+    # Obtener imágenes aprobadas del partido
+    images = match.images.filter(is_approved=True).select_related('uploaded_by').all()
+
     return render(request, 'videos/match_detail.html', {
         'match': match,
         'videos': videos,
+        'images': images,
         'today': timezone.now().date()
     })
 

@@ -224,9 +224,10 @@
                     <div class="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition">
                         <!-- Video embed -->
                         <div class="relative aspect-video bg-black rounded-t-lg">
-                            <iframe 
-                                src="{{ video.get_embed_url }}" 
-                                frameborder="0" 
+                            <iframe
+                                src="{{ video.get_embed_url }}"
+                                frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                 allowfullscreen
                                 class="absolute inset-0 w-full h-full">
                             </iframe>
@@ -296,14 +297,14 @@
             </div>
         </div>
         
-        {% if match.images.approved.all %}
+        {% if images %}
             <div class="p-4 sm:p-6">
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                    {% for image in match.images.approved.all|slice:":8" %}
-                        <div class="aspect-square relative group cursor-pointer" 
+                    {% for image in images|slice:":8" %}
+                        <div class="aspect-square relative group cursor-pointer"
                              onclick="openImageLightbox('{{ image.image.url }}', '{{ image.title|escapejs }}', {{ image.id }})">
-                            <img src="{{ image.image.url }}" 
-                                 alt="{{ image.title }}" 
+                            <img src="{{ image.image.url }}"
+                                 alt="{{ image.title }}"
                                  class="w-full h-full object-cover rounded-lg group-hover:scale-105 transition-transform duration-200">
                             <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-200 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-expand text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"></i>
@@ -311,12 +312,12 @@
                         </div>
                     {% endfor %}
                 </div>
-                
-                {% if match.images.approved.count > 8 %}
+
+                {% if images.count > 8 %}
                     <div class="text-center mt-4">
-                        <a href="{% url 'videos:match_images' match.id %}" 
+                        <a href="{% url 'videos:match_images' match.id %}"
                            class="inline-flex items-center px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
-                            Ver las {{ match.images.approved.count }} imágenes <i class="fas fa-images ml-2"></i>
+                            Ver las {{ images.count }} imágenes <i class="fas fa-images ml-2"></i>
                         </a>
                     </div>
                 {% endif %}
