@@ -1290,17 +1290,39 @@ def image_bulk_upload(request):
             except Match.DoesNotExist:
                 pass
         
-        # Generar album_group_id y nombre si se marca crear álbum y no hay partido
+        # Generar album_group_id y nombre
         import uuid
-        create_album = request.POST.get('create_album') == 'on'
-        album_name = request.POST.get('album_name', '').strip()
-        if create_album and not match_id:
-            if not album_name:
-                messages.error(request, 'El nombre del álbum es obligatorio cuando se agrupan imágenes.')
+        from django.core.exceptions import ValidationError
+
+        # Verificar si se está agregando a álbum existente
+        existing_album_id = request.POST.get('existing_album_id')
+        if existing_album_id and not match_id:
+            try:
+                album_uuid = uuid.UUID(existing_album_id)
+                # Verificar que álbum existe
+                existing_images = Image.objects.filter(album_group_id=album_uuid)
+                if existing_images.exists():
+                    album_group_id = album_uuid
+                    album_name = existing_images.first().album_name or 'Álbum'
+                    shared_data['album_group_id'] = album_group_id
+                    shared_data['album_name'] = album_name
+                else:
+                    messages.error(request, 'El álbum especificado no existe.')
+                    return redirect('videos:image_bulk_upload')
+            except (ValueError, ValidationError):
+                messages.error(request, 'ID de álbum inválido.')
                 return redirect('videos:image_bulk_upload')
-            album_group_id = uuid.uuid4()
-            shared_data['album_group_id'] = album_group_id
-            shared_data['album_name'] = album_name
+        else:
+            # Código original: crear nuevo álbum si se marca
+            create_album = request.POST.get('create_album') == 'on'
+            album_name = request.POST.get('album_name', '').strip()
+            if create_album and not match_id:
+                if not album_name:
+                    messages.error(request, 'El nombre del álbum es obligatorio cuando se agrupan imágenes.')
+                    return redirect('videos:image_bulk_upload')
+                album_group_id = uuid.uuid4()
+                shared_data['album_group_id'] = album_group_id
+                shared_data['album_name'] = album_name
         
         # Etiquetas compartidas
         shared_tags = request.POST.get('tags', '').strip()
@@ -1445,11 +1467,48 @@ def image_bulk_upload(request):
                 messages.warning(request, f'... y {len(errors) - 5} error(es) más.')
         
         if success_count > 0:
-            return redirect('videos:image_gallery')
+            # Redirigir al álbum si se agregaron fotos a uno existente
+            existing_album_id = request.POST.get('existing_album_id')
+            if existing_album_id:
+                messages.success(
+                    request,
+                    f'✅ {success_count} imagen(es) agregada(s) al álbum correctamente.'
+                )
+                return redirect('videos:album_group_images', album_group_id=existing_album_id)
+            else:
+                return redirect('videos:image_gallery')
         else:
             return redirect('videos:image_bulk_upload')
     
     # GET request
+    # Pre-cargar álbum existente si se proporciona en URL
+    existing_album = None
+    album_group_id_param = request.GET.get('album_group_id')
+    if album_group_id_param:
+        try:
+            import uuid
+            from django.core.exceptions import ValidationError
+
+            # Validar formato UUID
+            album_uuid = uuid.UUID(album_group_id_param)
+
+            # Verificar que el álbum existe
+            album_images = Image.objects.filter(
+                album_group_id=album_uuid
+            ).select_related('uploaded_by')
+
+            if album_images.exists():
+                first_image = album_images.first()
+                existing_album = {
+                    'album_group_id': str(album_uuid),
+                    'album_name': first_image.album_name or 'Álbum',
+                    'image_count': album_images.count(),
+                    'upload_date': first_image.upload_date,
+                }
+        except (ValueError, ValidationError):
+            # UUID inválido, ignorar
+            pass
+
     # Pre-cargar partido si se pasa en la URL
     selected_match = None
     match_id = request.GET.get('match')
@@ -1500,8 +1559,9 @@ def image_bulk_upload(request):
         'image_types': image_types,
         'current_year': timezone.now().year,
         'selected_match': selected_match,
+        'existing_album': existing_album,
     }
-    
+
     return render(request, 'videos/image_bulk_upload.html', context)
 
 
@@ -1638,9 +1698,10 @@ def match_images(request, match_id):
     context = {
         'match': match,
         'page_obj': page_obj,
+        'all_images': images,
         'total_images': images.count(),
     }
-    
+
     return render(request, 'videos/match_images.html', context)
 
 
@@ -1678,9 +1739,10 @@ def album_group_images(request, album_group_id):
     context = {
         'album': album_info,
         'page_obj': page_obj,
+        'all_images': images,
         'total_images': images.count(),
     }
-    
+
     return render(request, 'videos/album_group_images.html', context)
 
 

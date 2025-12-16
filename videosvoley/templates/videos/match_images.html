@@ -190,6 +190,42 @@
 <script src="{% static 'js/lightbox.js' %}"></script>
 
 <script>
+// Serializar todas las imágenes del partido para navegación
+const allMatchImages = [
+    {% for image in all_images %}
+    {
+        id: {{ image.id }},
+        url: '{{ image.image.url }}',
+        title: '{{ image.title|escapejs }}',
+        description: '{{ image.description|escapejs }}',
+        user: '{{ image.uploaded_by.username|escapejs }}',
+        date: '{{ image.upload_date|date:"d/m/Y" }}',
+        detailUrl: '{% url "videos:image_detail" image.id %}'
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+// Inicializar lightbox con navegación habilitada
+const matchLightbox = new ImageLightbox({
+    showNavigation: true
+});
+
+// Sobreescribir función global
+function openLightbox(imageUrl, title, imageId, description = '', user = '', date = '') {
+    const imageData = {
+        id: imageId,
+        url: imageUrl,
+        title: title,
+        description: description,
+        user: user,
+        date: date,
+        detailUrl: `/videos/imagenes/${imageId}/`
+    };
+    matchLightbox.open(imageData, allMatchImages);
+}
+</script>
+
+<script>
 // Menú desplegable de subida de imágenes
 document.addEventListener('DOMContentLoaded', function() {
     const menuBtn = document.getElementById('upload-menu-btn-{{ match.id }}');

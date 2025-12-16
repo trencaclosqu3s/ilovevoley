@@ -11,12 +11,35 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-2xl font-bold text-gray-900">Subir Múltiples Imágenes</h1>
-                    <p class="text-gray-600 mt-1">Sube varias imágenes a la vez con datos compartidos</p>
+                    <p class="text-gray-600 mt-1">
+                        {% if existing_album %}
+                            Agregar imágenes al álbum "{{ existing_album.album_name }}"
+                        {% else %}
+                            Sube varias imágenes a la vez con datos compartidos
+                        {% endif %}
+                    </p>
                 </div>
                 <a href="{% url 'videos:image_upload' %}" class="text-csj-purple hover:text-csj-purple-dark">
                     <i class="fas fa-image mr-2"></i>Subida Individual
                 </a>
             </div>
+
+            <!-- Banner de álbum existente -->
+            {% if existing_album %}
+            <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <i class="fas fa-info-circle text-blue-600 mr-3"></i>
+                    <div>
+                        <p class="text-sm font-medium text-blue-900">
+                            Agregando imágenes a álbum existente
+                        </p>
+                        <p class="text-xs text-blue-700 mt-1">
+                            {{ existing_album.album_name }} • {{ existing_album.image_count }} imagen(es) actual(es)
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <form method="post" enctype="multipart/form-data" id="bulk-upload-form">
@@ -114,8 +137,13 @@
                         <p class="text-xs text-gray-500 mt-1">Las categorías se asignarán automáticamente desde el partido</p>
                     </div>
 
-                    <!-- Agrupar en álbum (solo si no hay partido) -->
-                    <div id="album-group-container" class="hidden">
+                    <!-- Campo oculto para álbum existente -->
+                    {% if existing_album %}
+                    <input type="hidden" name="existing_album_id" value="{{ existing_album.album_group_id }}">
+                    {% endif %}
+
+                    <!-- Agrupar en álbum (solo si no hay partido Y no hay álbum existente) -->
+                    <div id="album-group-container" class="{% if selected_match or existing_album %}hidden{% endif %}">
                         <label class="flex items-center space-x-2 cursor-pointer mb-2">
                             <input type="checkbox" 
                                    name="create_album" 
@@ -530,15 +558,16 @@ const matchSelect = document.getElementById('id_match');
 const categoryCheckboxes = document.querySelectorAll('input[name="categories"]');
 const albumGroupContainer = document.getElementById('album-group-container');
 const createAlbumCheckbox = document.getElementById('id_create_album');
+const hasExistingAlbum = {{ existing_album|yesno:"true,false" }};
 
 function updateCategoriesState() {
     const hasMatch = matchSelect.value !== '';
     const albumNameContainer = document.getElementById('album-name-container');
     const albumNameInput = document.getElementById('id_album_name');
-    
-    // Mostrar/ocultar opción de crear álbum (solo si no hay partido)
+
+    // Mostrar/ocultar opción de crear álbum (solo si no hay partido Y no hay álbum existente)
     if (albumGroupContainer) {
-        if (hasMatch) {
+        if (hasMatch || hasExistingAlbum) {
             albumGroupContainer.classList.add('hidden');
             if (createAlbumCheckbox) createAlbumCheckbox.checked = false;
             if (albumNameContainer) albumNameContainer.classList.add('hidden');
