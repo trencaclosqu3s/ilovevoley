@@ -267,7 +267,7 @@ def match_detail(request, match_id):
     videos = match.videos.select_related('created_by', 'category').all()
 
     # Obtener imágenes aprobadas del partido
-    images = match.images.filter(is_approved=True).select_related('uploaded_by').all()
+    images = match.images.filter(status='approved').select_related('uploaded_by').all()
 
     return render(request, 'videos/match_detail.html', {
         'match': match,
