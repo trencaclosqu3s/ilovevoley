@@ -59,7 +59,9 @@ def scrape_all_leagues_task(self, round_number=None, category_filter=None, delay
     }
     
     for i, league in enumerate(leagues):
-        category_name = league.category.name if league.category else 'Sin categoría'
+        # Obtener nombres de todas las categorías
+        categories = league.categories.all()
+        category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
         logger.info(f'[{i+1}/{leagues.count()}] Procesando {league.name} ({category_name})')
         
         try:
@@ -314,7 +316,9 @@ def scrape_calendar_task(self, league_id=None, delay=2.0):
         }
         
         for i, league in enumerate(leagues):
-            category_name = league.category.name if league.category else 'Sin categoría'
+            # Obtener nombres de todas las categorías
+            categories = league.categories.all()
+            category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
             logger.info(f'[{i+1}/{len(leagues)}] Procesando calendario de {league.name} ({category_name})')
             
             try:
@@ -467,7 +471,9 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
         }
         
         for i, league in enumerate(leagues):
-            category_name = league.category.name if league.category else 'Sin categoría'
+            # Obtener nombres de todas las categorías
+            categories = league.categories.all()
+            category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
             logger.info(f'[{i+1}/{len(leagues)}] Procesando resultados de {league.name} ({category_name})')
             
             try:
@@ -823,7 +829,9 @@ def handle_withdrawn_teams_task(self, league_id=None, dry_run=False, reactivate_
         }
         
         for league in leagues:
-            category_name = league.category.name if league.category else 'Sin categoría'
+            # Obtener nombres de todas las categorías
+            categories = league.categories.all()
+            category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
             logger.info(f'Procesando {league.name} ({category_name})')
             
             league_stats = {
@@ -989,10 +997,12 @@ def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
         
         if existing_league:
             logger.info(f'Liga encontrada: {existing_league.name}')
-            # Usar la categoría de la liga existente si coincide
-            if existing_league.category and existing_league.category.name != category_name:
+            # Verificar si la categoría ya está asignada a la liga
+            existing_categories = existing_league.categories.all()
+            if existing_categories and category not in existing_categories:
+                existing_cat_names = ', '.join([c.name for c in existing_categories])
                 logger.warning(
-                    f'ADVERTENCIA: La liga existente tiene categoría "{existing_league.category.name}" '
+                    f'ADVERTENCIA: La liga existente tiene categorías "{existing_cat_names}" '
                     f'pero se especificó "{category_name}". Se usará la especificada.'
                 )
         else:
@@ -1280,7 +1290,9 @@ def enrich_matches_json_task(self, league_id=None, delay=1.0):
         }
         
         for i, league in enumerate(leagues):
-            category_name = league.category.name if league.category else 'Sin categoría'
+            # Obtener nombres de todas las categorías
+            categories = league.categories.all()
+            category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
             logger.info(f'[{i+1}/{len(leagues)}] Enriqueciendo partidos de {league.name} ({category_name})')
             
             try:
@@ -1481,7 +1493,10 @@ def enrich_upcoming_matches_task(self, delay=1.0):
         for league in leagues:
             try:
                 leagues_processed += 1
-                logger.info(f"[{leagues_processed}/{leagues.count()}] Enriqueciendo partidos próximos de {league.name} ({league.category.name if league.category else 'Sin categoría'})")
+                # Obtener nombres de todas las categorías
+                categories = league.categories.all()
+                category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
+                logger.info(f"[{leagues_processed}/{leagues.count()}] Enriqueciendo partidos próximos de {league.name} ({category_name})")
                 
                 # Crear scraper y enriquecer con endpoint de próximos partidos
                 scraper = FederationScraper(league)
@@ -1872,17 +1887,20 @@ def process_json_unified_task(self, json_url, op_type='1', league_id=None, categ
     normalized_name = ''.join(c for c in normalized_name if c.isalnum() or c.isspace())
     normalized_name = ' '.join(normalized_name.split())
     
+    # Obtener las categorías de la liga
+    league_categories = league.categories.all()
+
     # Buscar por nombre exacto primero
     team = Team.objects.filter(
         name__iexact=team_name,
-        category=league.category
+        category__in=league_categories
     ).first()
-    
+
     if team:
         return team
-    
+
     # Buscar por nombre normalizado
-    for team in Team.objects.filter(category=league.category):
+    for team in Team.objects.filter(category__in=league_categories):
         team_normalized = unidecode(team.name.upper())
         team_normalized = ''.join(c for c in team_normalized if c.isalnum() or c.isspace())
         team_normalized = ' '.join(team_normalized.split())

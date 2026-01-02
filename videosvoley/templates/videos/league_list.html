@@ -117,11 +117,11 @@
                                     {% endif %}
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
-                                    {% if league.category %}
+                                    {% for category in league.categories.all %}
                                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
-                                            {{ league.category.name }}
+                                            {{ category.name }}
                                         </span>
-                                    {% endif %}
+                                    {% endfor %}
                                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
                                         {{ league.season }}
                                     </span>

@@ -276,11 +276,13 @@
                                                 J{{ match.round_number }}
                                             </span>
                                             
-                                            <!-- Categoría -->
-                                            {% if match.league.category %}
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-csj-purple bg-opacity-20 dark:bg-csj-purple-dark dark:bg-opacity-30 text-csj-purple-dark dark:text-csj-yellow">
-                                                    {{ match.league.category.name }}
-                                                </span>
+                                            <!-- Categorías -->
+                                            {% if match.league %}
+                                                {% for category in match.league.categories.all %}
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-csj-purple bg-opacity-20 dark:bg-csj-purple-dark dark:bg-opacity-30 text-csj-purple-dark dark:text-csj-yellow">
+                                                        {{ category.name }}
+                                                    </span>
+                                                {% endfor %}
                                             {% endif %}
                                             
                                             <!-- Indicador de amistoso -->
@@ -543,7 +545,7 @@ window.calendarData = {
             home_team_logo: '{% if match.home_team and match.home_team.display_logo %}{{ match.home_team.display_logo|escapejs }}{% endif %}',
             away_team_logo: '{% if match.away_team and match.away_team.display_logo %}{{ match.away_team.display_logo|escapejs }}{% endif %}',
             league: '{% if match.league %}{{ match.league.name|escapejs }}{% endif %}',
-            category: '{% if match.league and match.league.category %}{{ match.league.category.name|escapejs }}{% endif %}',
+            category: '{% if match.league %}{% for category in match.league.categories.all %}{{ category.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}',
             venue: '{% if match.venue %}{{ match.venue|escapejs }}{% endif %}',
             city: '{% if match.city %}{{ match.city|escapejs }}{% endif %}',
             result: '{% if match.is_finished %}{{ match.result_display }}{% endif %}',

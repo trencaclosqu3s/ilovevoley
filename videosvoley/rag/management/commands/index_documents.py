@@ -368,11 +368,14 @@ class Command(BaseCommand):
                     continue
 
                 content = self._create_league_content(league)
+                # Obtener nombres de todas las categorías
+                categories = league.categories.all()
+                category_names = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
                 metadata = {
                     'title': league.name,
                     'source_type': 'league',
                     'source_id': league.id,
-                    'category': league.category.name if league.category else 'Sin categoría',
+                    'category': category_names,
                     'season': league.season or 'Sin temporada',
                     'created_at': league.created_at.isoformat() if league.created_at else 'Sin fecha',
                 }
@@ -529,9 +532,12 @@ class Command(BaseCommand):
 
     def _create_league_content(self, league):
         """Crear contenido para indexar de una liga"""
+        # Obtener nombres de todas las categorías
+        categories = league.categories.all()
+        category_names = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
         content_parts = [
             f"Liga: {league.name}",
-            f"Categoría: {league.category.name if league.category else 'Sin categoría'}",
+            f"Categoría: {category_names}",
             f"Temporada: {league.season}",
         ]
         
@@ -557,6 +563,9 @@ class Command(BaseCommand):
                 continue
 
             content = self._create_standing_content(standing)
+            # Obtener nombres de todas las categorías
+            categories = standing.league.categories.all()
+            category_names = ', '.join([c.name for c in categories]) if categories else None
             metadata = {
                 'league_name': standing.league.name,
                 'team_name': standing.team.name,
@@ -564,7 +573,7 @@ class Command(BaseCommand):
                 'total_points': standing.total_points,
                 'source_type': 'standing',
                 'source_id': standing.id,
-                'category': standing.league.category.name if standing.league.category else None,
+                'category': category_names,
             }
 
             if not dry_run:
@@ -619,8 +628,11 @@ class Command(BaseCommand):
             f"Sets en contra: {standing.sets_against}",
             f"Puntos totales: {standing.total_points}",
         ]
-        
-        if standing.league.category:
-            content_parts.append(f"Categoría: {standing.league.category.name}")
+
+        # Agregar categorías si existen
+        categories = standing.league.categories.all()
+        if categories:
+            category_names = ', '.join([c.name for c in categories])
+            content_parts.append(f"Categoría: {category_names}")
         
         return " | ".join(content_parts)

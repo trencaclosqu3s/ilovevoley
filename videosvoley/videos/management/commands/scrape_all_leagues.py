@@ -65,7 +65,9 @@ class Command(BaseCommand):
         }
 
         for i, league in enumerate(leagues):
-            category_name = league.category.name if league.category else 'Sin categoría'
+            # Obtener nombres de todas las categorías
+            categories = league.categories.all()
+            category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
             self.stdout.write(f'\n[{i+1}/{leagues.count()}] {league.name} ({category_name})')
             
             try:

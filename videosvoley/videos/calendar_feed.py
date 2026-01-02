@@ -66,7 +66,7 @@ class UserMatchesFeed(ICalFeed):
         # 3. Rango de fechas
         # 4. Excluir partidos con estado 'withdrawn' (equipo retirado de la liga)
         matches = Match.objects.filter(
-            Q(league__category__in=categories) | Q(is_friendly=True),  # Incluir amistosos
+            Q(league__categories__in=categories) | Q(is_friendly=True),  # Incluir amistosos
             match_date__gte=start_date,
             match_date__lte=end_date
         ).filter(
@@ -77,9 +77,10 @@ class UserMatchesFeed(ICalFeed):
         ).select_related(  # withdrawn excluidos automáticamente por el manager
             'home_team',
             'away_team',
-            'league',
-            'league__category'
-        ).order_by('match_date')
+            'league'
+        ).prefetch_related(
+            'league__categories'
+        ).distinct().order_by('match_date')
         
         return matches
     
@@ -89,14 +90,15 @@ class UserMatchesFeed(ICalFeed):
     
     def item_title(self, item):
         """Título del evento"""
-        # Incluir categoría en el título para mejor visibilidad
-        category_name = item.league.category.name if item.league.category else 'Sin Categoría'
-        
+        # Incluir categorías en el título para mejor visibilidad
+        categories = item.league.categories.all() if item.league else []
+        category_name = ', '.join([c.name for c in categories]) if categories else 'Sin Categoría'
+
         # Prefijo para partidos cancelados
         prefix = ''
         if item.status == 'cancelled':
             prefix = '❌ CANCELADO - '
-        
+
         title = f'{prefix}🏐 [{category_name}] {item.home_team_display} vs {item.away_team_display}'
         
         # Añadir indicador de amistoso
@@ -124,9 +126,12 @@ class UserMatchesFeed(ICalFeed):
             description_parts.append('')
         
         description_parts.append(f'Liga: {item.league.name}')
-        
-        if item.league.category:
-            description_parts.append(f'Categoría: {item.league.category.name}')
+
+        # Agregar todas las categorías
+        categories = item.league.categories.all()
+        if categories:
+            category_names = ', '.join([c.name for c in categories])
+            description_parts.append(f'Categoría: {category_names}')
         
         if item.round_number:
             description_parts.append(f'Jornada: {item.round_number}')

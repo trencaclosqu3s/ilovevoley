@@ -67,17 +67,20 @@ class VideoForm(forms.ModelForm):
         # Construir query base para equipos del club
         # Incluir tanto equipos con ForeignKey como texto libre (amistosos)
         club_query = (
-            Q(home_team__name__icontains=club_team_name) | 
+            Q(home_team__name__icontains=club_team_name) |
             Q(away_team__name__icontains=club_team_name) |
             Q(home_team_text__icontains=club_team_name) |
-            Q(away_team_text__icontains=club_team_name)
+            Q(away_team_text__icontains=club_team_name) |
+            # Incluir partidos con variantes del equipo
+            Q(home_team__parent_team__name__icontains=club_team_name) |
+            Q(away_team__parent_team__name__icontains=club_team_name)
         )
         
         # Si hay categoría específica, filtrar por equipos de esa categoría
         if category:
             # Filtrar por equipos que tengan la categoría específica O por liga de esa categoría
             category_query = (Q(home_team__category=category) | Q(away_team__category=category) |
-                            Q(league__category=category))
+                            Q(league__categories=category))
             
             # Combinar: partidos del club Y de la categoría específica
             final_query = club_query & category_query
@@ -93,15 +96,15 @@ class VideoForm(forms.ModelForm):
         # (withdrawn excluidos automáticamente por el manager)
         # 1. Obtener todos los partidos del pasado
         past_matches = Match.objects.select_related(
-            'home_team', 'away_team', 'home_team__category', 'away_team__category', 
-            'league', 'league__category'
-        ).filter(final_query, match_date__lt=now)
+            'home_team', 'away_team', 'home_team__category', 'away_team__category',
+            'league'
+        ).prefetch_related('league__categories').filter(final_query, match_date__lt=now)
         
         # 2. Obtener el próximo partido futuro (solo uno)
         next_match = Match.objects.select_related(
-            'home_team', 'away_team', 'home_team__category', 'away_team__category', 
-            'league', 'league__category'
-        ).filter(final_query, match_date__gte=now).order_by('match_date').first()
+            'home_team', 'away_team', 'home_team__category', 'away_team__category',
+            'league'
+        ).prefetch_related('league__categories').filter(final_query, match_date__gte=now).order_by('match_date').first()
         
         # 3. Combinar: partidos pasados + próximo partido (si existe)
         if next_match:
@@ -157,7 +160,7 @@ class MatchAdminForm(forms.ModelForm):
         
         # Si estamos editando un match existente y tiene liga
         if self.instance and self.instance.pk and self.instance.league:
-            league_category = self.instance.league.category
+            league_category = self.instance.league.categories.first()  # Usar la primera categoría
             
             # Verificar si se envió el formulario con el checkbox
             if self.data and 'filter_by_category' in self.data:
@@ -168,7 +171,7 @@ class MatchAdminForm(forms.ModelForm):
             try:
                 from .models import League
                 league = League.objects.get(id=self.data['league'])
-                league_category = league.category
+                league_category = league.categories.first()  # Usar la primera categoría
                 if self.data and 'filter_by_category' in self.data:
                     filter_by_category = self.data.get('filter_by_category') == 'on'
             except (League.DoesNotExist, ValueError):
@@ -272,14 +275,17 @@ class ImageUploadForm(forms.ModelForm):
         from django.utils import timezone
         
         club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
-        
+
         # Filtrar partidos del club ordenados por fecha
         # Incluir tanto equipos con ForeignKey como texto libre (amistosos)
         club_query = (
-            Q(home_team__name__icontains=club_team_name) | 
+            Q(home_team__name__icontains=club_team_name) |
             Q(away_team__name__icontains=club_team_name) |
             Q(home_team_text__icontains=club_team_name) |
-            Q(away_team_text__icontains=club_team_name)
+            Q(away_team_text__icontains=club_team_name) |
+            # Incluir partidos con variantes del equipo
+            Q(home_team__parent_team__name__icontains=club_team_name) |
+            Q(away_team__parent_team__name__icontains=club_team_name)
         )
         
         # Fecha actual

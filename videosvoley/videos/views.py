@@ -217,35 +217,62 @@ def league_list(request):
 def league_detail(request, league_id):
     """Vista detallada de una liga con partidos y clasificación"""
     league = get_object_or_404(League, id=league_id, is_active=True)
-    
-    # Obtener partidos de la liga
-    matches = Match.objects.filter(league=league).select_related(
-        'home_team', 'away_team'
-    ).prefetch_related('videos').order_by('-match_date')
-    
-    # Obtener clasificación
-    standings = league.standings.select_related('team').order_by('position')
-    
-    # Filtros opcionales
+
+    # NUEVO: Lógica de filtrado por fases
+    show_all_phases = request.GET.get('all_phases', '1') == '1'
+    selected_phase = request.GET.get('phase')
+
+    # Obtener todas las fases si la liga es parte de un sistema de fases
+    all_phases = league.get_all_phases(include_self=True) if (league.is_phase or league.phases.exists()) else [league]
+
+    # Determinar qué partidos mostrar
+    if show_all_phases and not selected_phase:
+        # Mostrar todas las fases combinadas
+        league_ids = [p.id for p in all_phases]
+        matches = Match.objects.filter(league_id__in=league_ids)
+        display_league = league.root_league
+    elif selected_phase:
+        # Mostrar fase específica
+        try:
+            phase_league = League.objects.get(id=selected_phase)
+            matches = Match.objects.filter(league=phase_league)
+            display_league = phase_league
+        except League.DoesNotExist:
+            matches = Match.objects.filter(league=league)
+            display_league = league
+    else:
+        # Mostrar solo esta liga
+        matches = Match.objects.filter(league=league)
+        display_league = league
+
+    # Aplicar select_related y prefetch_related
+    matches = matches.select_related('home_team', 'away_team', 'league').prefetch_related('videos').order_by('-match_date')
+
+    # Obtener clasificación (solo de la liga específica o root)
+    standings = display_league.standings.select_related('team').order_by('position')
+
+    # Filtros opcionales existentes
     round_filter = request.GET.get('round')
     if round_filter:
         matches = matches.filter(round_number=round_filter)
-    
-    # Filtro de solo partidos con videos
+
     with_videos = request.GET.get('with_videos')
     if with_videos:
         matches = matches.filter(videos__isnull=False).distinct()
-    
-    # Obtener jornadas disponibles
+
     available_rounds = matches.values_list('round_number', flat=True).distinct().order_by('round_number')
-    
-    # Paginación de partidos
+
+    # Paginación
     paginator = Paginator(matches, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
     return render(request, 'videos/league_detail.html', {
-        'league': league,
+        'league': display_league,
+        'root_league': league.root_league,
+        'all_phases': all_phases,
+        'show_all_phases': show_all_phases,
+        'selected_phase': selected_phase,
         'page_obj': page_obj,
         'standings': standings,
         'available_rounds': available_rounds,
@@ -292,8 +319,8 @@ def calendar_view(request):
     
     # Consulta base de partidos (withdrawn excluidos automáticamente por el manager)
     matches = Match.objects.select_related(
-        'home_team', 'away_team', 'league', 'league__category'
-    ).order_by('match_date')
+        'home_team', 'away_team', 'league'
+    ).prefetch_related('league__categories').order_by('match_date')
     
     # Filtrar por equipo del club por defecto
     if not show_all_teams:
@@ -310,11 +337,11 @@ def calendar_view(request):
     
     # Aplicar filtro de categoría
     if category_filter:
-        matches = matches.filter(league__category_id=category_filter)
+        matches = matches.filter(league__categories__id=category_filter)
     # Si no hay filtro de categoría, aplicar preferencias del usuario
     elif not show_all and request.user.preferred_categories.exists():
         user_categories = request.user.preferred_categories.all()
-        matches = matches.filter(league__category__in=user_categories)
+        matches = matches.filter(league__categories__in=user_categories)
     
     # Obtener datos para filtros
     leagues = League.objects.visible_in_app().order_by('name')
@@ -558,8 +585,8 @@ def standings_view(request):
     
     # Consulta base de clasificaciones
     standings = Standing.objects.select_related(
-        'team', 'league', 'league__category'
-    ).order_by('league__name', 'position')
+        'team', 'league'
+    ).prefetch_related('league__categories').order_by('league__name', 'position')
     
     # Aplicar filtro de liga
     if league_filter:
@@ -567,11 +594,11 @@ def standings_view(request):
     
     # Aplicar filtro de categoría
     if category_filter:
-        standings = standings.filter(league__category_id=category_filter)
+        standings = standings.filter(league__categories__id=category_filter)
     # Si no hay filtro de categoría, aplicar preferencias del usuario
     elif not show_all and request.user.preferred_categories.exists():
         user_categories = request.user.preferred_categories.all()
-        standings = standings.filter(league__category__in=user_categories)
+        standings = standings.filter(league__categories__in=user_categories)
     
     # Agrupar por liga
     standings_by_league = {}
@@ -620,7 +647,7 @@ def ajax_matches_by_category(request):
             category = Category.objects.get(id=category_id)
             # Filtrar por equipos que tengan la categoría específica O por liga de esa categoría
             category_query = (Q(home_team__category=category) | Q(away_team__category=category) |
-                            Q(league__category=category))
+                            Q(league__categories=category))
             
             # Combinar: partidos del club Y de la categoría específica
             final_query = club_query & category_query
@@ -632,9 +659,9 @@ def ajax_matches_by_category(request):
     
     # Obtener partidos
     matches = Match.objects.select_related(
-        'home_team', 'away_team', 'home_team__category', 'away_team__category', 
-        'league', 'league__category'
-    ).filter(final_query).order_by('-match_date')[:50]  # Limitar a 50 partidos más recientes
+        'home_team', 'away_team', 'home_team__category', 'away_team__category',
+        'league'
+    ).prefetch_related('league__categories').filter(final_query).order_by('-match_date')[:50]  # Limitar a 50 partidos más recientes
     
     # Formatear respuesta
     matches_data = []
@@ -660,11 +687,12 @@ def ajax_teams_by_league_category(request):
             from .models import League
             league = League.objects.get(id=league_id)
             
-            if league.category:
-                # Filtrar equipos por la categoría de la liga
-                teams = Team.objects.filter(category=league.category).order_by('name')
+            league_categories = league.categories.all()
+            if league_categories.exists():
+                # Filtrar equipos por las categorías de la liga
+                teams = Team.objects.filter(category__in=league_categories).order_by('name')
             else:
-                # Si la liga no tiene categoría, mostrar todos
+                # Si la liga no tiene categorías, mostrar todos
                 teams = Team.objects.all().order_by('name')
         except League.DoesNotExist:
             teams = Team.objects.all().order_by('name')
@@ -1189,8 +1217,8 @@ def image_upload(request):
                     categories_to_add.append(match.home_team.category)
                 if match.away_team and match.away_team.category:
                     categories_to_add.append(match.away_team.category)
-                if match.league and match.league.category:
-                    categories_to_add.append(match.league.category)
+                if match.league:
+                    categories_to_add.extend(list(match.league.categories.all()))
             
             # Prioridad 2: Si no hay match, usar categorías seleccionadas manualmente
             if not categories_to_add:
@@ -1438,8 +1466,8 @@ def image_bulk_upload(request):
                         categories_to_add.append(match.home_team.category)
                     if match.away_team and match.away_team.category:
                         categories_to_add.append(match.away_team.category)
-                    if match.league and match.league.category:
-                        categories_to_add.append(match.league.category)
+                    if match.league:
+                        categories_to_add.extend(list(match.league.categories.all()))
                 
                 # Prioridad 2: Si no hay match, usar categorías seleccionadas manualmente
                 if not categories_to_add:

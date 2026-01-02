@@ -39,16 +39,22 @@ class VideoAdmin(admin.ModelAdmin):
 
 @admin.register(League)
 class LeagueAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'federation_id', 'competition_type', 'season', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'matches_count', 'created_at')
-    list_filter = ('category', 'competition_type', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'season')
-    search_fields = ('name', 'federation_id', 'category__name')
+    list_display = ('display_name_admin', 'categories_display', 'federation_id', 'competition_type', 'season', 'phase_indicator', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'matches_count', 'created_at')
+    list_filter = ('categories', 'competition_type', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'season', ('parent_league', admin.RelatedOnlyFieldListFilter))
+    search_fields = ('name', 'federation_id', 'categories__name')
     readonly_fields = ('created_at',)
-    autocomplete_fields = ('category',)
+    autocomplete_fields = ('parent_league',)
+    filter_horizontal = ('categories',)
     list_editable = ('visibility_type', 'is_our_team_related', 'is_historical', 'is_active')
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('name', 'federation_id', 'category', 'competition_type', 'season')
+            'fields': ('name', 'display_name_override', 'federation_id', 'categories', 'competition_type', 'season')
+        }),
+        ('Configuración de Fases', {
+            'fields': ('parent_league', 'phase_name', 'phase_order'),
+            'description': 'Configura si esta liga es una fase de otra (ej: Liguilla Oro/Plata)',
+            'classes': ('collapse',)
         }),
         ('Formato de Partidos', {
             'fields': ('match_format', 'custom_max_sets', 'custom_sets_to_win'),
@@ -68,10 +74,40 @@ class LeagueAdmin(admin.ModelAdmin):
         """Muestra el número de partidos asociados"""
         return obj.matches.count()
     matches_count.short_description = 'Partidos'
-    
+
+    def display_name_admin(self, obj):
+        """Muestra el nombre con indentación si es una fase"""
+        if obj.parent_league:
+            return f"  └─ {obj.display_name}"
+        return obj.display_name
+    display_name_admin.short_description = 'Nombre'
+
+    def phase_indicator(self, obj):
+        """Muestra un indicador visual si la liga tiene fases o es una fase"""
+        if obj.parent_league:
+            return format_html(
+                '<span style="background: #f0ad4e; color: white; padding: 2px 6px; border-radius: 3px;">FASE {}</span>',
+                obj.phase_order
+            )
+        elif obj.phases.exists():
+            return format_html(
+                '<span style="background: #5bc0de; color: white; padding: 2px 6px; border-radius: 3px;">{} FASES</span>',
+                obj.phases.count()
+            )
+        return '-'
+    phase_indicator.short_description = 'Fases'
+
+    def categories_display(self, obj):
+        """Muestra las categorías de forma legible"""
+        cats = obj.categories.all()
+        if cats:
+            return ', '.join([cat.name for cat in cats])
+        return '-'
+    categories_display.short_description = 'Categorías'
+
     def get_queryset(self, request):
         """Optimiza las consultas"""
-        return super().get_queryset(request).prefetch_related('matches', 'category')
+        return super().get_queryset(request).prefetch_related('matches', 'categories')
     
     def get_list_display(self, request):
         """Personaliza la lista según el usuario"""
@@ -269,17 +305,25 @@ class StaffInline(admin.TabularInline):
 
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'club_name', 'sponsor_name', 'federation_id', 'is_active', 'logo_preview', 'players_count', 'staff_count')
-    list_filter = ('is_active', 'category', 'club', 'created_at')
+    list_display = ('display_name_admin', 'category', 'club_name', 'variant_indicator', 'sponsor_name', 'federation_id', 'is_active', 'logo_preview', 'players_count', 'staff_count')
+    list_filter = ('is_active', 'category', 'club', ('parent_team', admin.RelatedOnlyFieldListFilter), 'variant_type', 'is_temporary_variant', 'created_at')
     search_fields = ('name', 'federation_id', 'sponsor_name', 'club__official_name', 'category__name')
     readonly_fields = ('created_at', 'display_logo', 'players_count', 'staff_count')
-    autocomplete_fields = ('club', 'category')
+    autocomplete_fields = ('club', 'category', 'parent_team')
     # inlines = [PlayerInline, StaffInline]  # DESACTIVADO - usar Person con roles
     # Para gestionar plantillas usar PersonAdmin con PlayerRoleInline y StaffRoleInline
     
     fieldsets = (
         ('Información Básica', {
             'fields': ('name', 'federation_id', 'club', 'category', 'is_active')
+        }),
+        ('Configuración de Variantes', {
+            'fields': (
+                'parent_team', 'variant_type', 'variant_name',
+                'variant_description', 'is_temporary_variant', 'temporary_end_date'
+            ),
+            'description': 'Configura si este equipo es una variante de otro',
+            'classes': ('collapse',)
         }),
         ('Patrocinio', {
             'fields': ('sponsor_name',),
@@ -301,7 +345,29 @@ class TeamAdmin(admin.ModelAdmin):
         """Muestra el nombre del club asociado"""
         return obj.club.official_name if obj.club else '-'
     club_name.short_description = 'Club'
-    
+
+    def display_name_admin(self, obj):
+        """Muestra el nombre con indentación si es una variante"""
+        if obj.parent_team:
+            return f"  └─ {obj.display_name_with_variant}"
+        return obj.name
+    display_name_admin.short_description = 'Nombre'
+
+    def variant_indicator(self, obj):
+        """Muestra un indicador visual si el equipo tiene variantes o es una variante"""
+        if obj.parent_team:
+            return format_html(
+                '<span style="background: #f39c12; color: white; padding: 2px 6px; border-radius: 3px;">{}</span>',
+                obj.variant_name or 'VARIANTE'
+            )
+        elif obj.variants.exists():
+            return format_html(
+                '<span style="background: #95a5a6; color: white; padding: 2px 6px; border-radius: 3px;">{} VAR</span>',
+                obj.variants.count()
+            )
+        return '-'
+    variant_indicator.short_description = 'Variante'
+
     def players_count(self, obj):
         """Muestra el número de jugadores activos usando nueva estructura Person-Role"""
         return obj.player_roles.filter(is_active=True).count()
@@ -430,14 +496,14 @@ class ScrapingEndpointAdmin(admin.ModelAdmin):
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
     form = MatchAdminForm
-    list_display = ('__str__', 'match_date', 'venue', 'status', 'result_display', 'league_category', 'match_type_display', 'teams_active_status', 'referee_display')
-    list_filter = ('is_friendly', 'status', 'league', 'league__category', 'match_date', 'home_team__is_active', 'away_team__is_active', 'referee1', 'scorer')
+    list_display = ('__str__', 'match_date', 'venue', 'status', 'result_display', 'league_categories', 'match_type_display', 'teams_active_status', 'referee_display')
+    list_filter = ('is_friendly', 'status', 'league', 'league__categories', 'match_date', 'home_team__is_active', 'away_team__is_active', 'referee1', 'scorer')
     search_fields = ('home_team__name', 'away_team__name', 'venue', 'city', 'league__name', 'referee1', 'referee2', 'scorer', 'timekeeper', 'delegate', 'field_address')
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'match_date'
     inlines = [ImageInline]
     actions = ['mark_as_withdrawn', 'mark_as_scheduled']
-    
+
     def get_queryset(self, request):
         """Usar all_objects en el admin para ver todos los partidos, incluyendo withdrawn"""
         return Match.all_objects.get_queryset()
@@ -475,14 +541,19 @@ class MatchAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         })
     )
-    
+
     class Media:
         js = ('admin/js/match_admin.js',)
-    
-    def league_category(self, obj):
-        """Muestra la categoría de la liga"""
-        return obj.league.category.name if obj.league and obj.league.category else '-'
-    league_category.short_description = 'Categoría'
+
+    def league_categories(self, obj):
+        """Muestra las categorías de la liga"""
+        if not obj.league:
+            return '-'
+        cats = obj.league.categories.all()
+        if cats:
+            return ', '.join([cat.name for cat in cats])
+        return '-'
+    league_categories.short_description = 'Categorías'
     
     def match_type_display(self, obj):
         """Muestra el tipo de partido"""

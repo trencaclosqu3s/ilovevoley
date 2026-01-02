@@ -135,8 +135,11 @@ class GoogleCalendarService:
         description_parts = []
         if match.league:
             description_parts.append(f"Liga: {match.league.name}")
-            if match.league.category:
-                description_parts.append(f"Categoría: {match.league.category.name}")
+            # Agregar todas las categorías de la liga
+            categories = match.league.categories.all()
+            if categories:
+                category_names = ', '.join([cat.name for cat in categories])
+                description_parts.append(f"Categoría: {category_names}")
         
         if match.venue:
             description_parts.append(f"Lugar: {match.venue}")
@@ -328,9 +331,9 @@ class GoogleCalendarService:
         # Filtrar partidos futuros o recientes (último mes hacia adelante)
         cutoff_date = timezone.now() - timedelta(days=30)
         matches = Match.objects.filter(
-            league__category__in=user_categories,
+            league__categories__in=user_categories,
             match_date__gte=cutoff_date
-        ).select_related('home_team', 'away_team', 'league__category')
+        ).select_related('home_team', 'away_team', 'league').prefetch_related('league__categories')
         
         logger.info(f"Syncing {matches.count()} matches for user {self.user.username}")
         

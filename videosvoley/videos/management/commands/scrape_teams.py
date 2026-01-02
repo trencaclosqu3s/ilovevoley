@@ -70,11 +70,13 @@ class Command(BaseCommand):
         if existing_league:
             if verbose:
                 self.stdout.write(f'Liga encontrada: {existing_league.name}')
-            # Usar la categoría de la liga existente si coincide
-            if existing_league.category and existing_league.category.name != category_name:
+            # Verificar si la categoría ya está asignada a la liga
+            existing_categories = existing_league.categories.all()
+            if existing_categories and category not in existing_categories:
+                existing_cat_names = ', '.join([c.name for c in existing_categories])
                 self.stdout.write(
                     self.style.WARNING(
-                        f'ADVERTENCIA: La liga existente tiene categoría "{existing_league.category.name}" '
+                        f'ADVERTENCIA: La liga existente tiene categorías "{existing_cat_names}" '
                         f'pero se especificó "{category_name}". Se usará la especificada.'
                     )
                 )

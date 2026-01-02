@@ -146,7 +146,10 @@ class League(models.Model):
     federation_id = models.CharField(max_length=200, unique=True)
     competition_type = models.CharField(max_length=20, choices=COMPETITION_TYPES, default='regular')
     season = models.CharField(max_length=20)
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='leagues')
+    # DEPRECATED: Usar 'categories' en su lugar
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='leagues_old', help_text='DEPRECATED: Usar categories')
+    # Nuevo campo para soporte multi-categoría (torneos, copas)
+    categories = models.ManyToManyField(Category, blank=True, related_name='leagues', help_text='Categorías de la liga (puede ser múltiple para torneos/copas)')
     is_active = models.BooleanField(default=True)
     visibility_type = models.CharField(
         max_length=20, 
@@ -180,7 +183,31 @@ class League(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     base_url = models.URLField(default='https://www.voleibolib.net')
-    
+
+    # Sistema de fases de liga
+    parent_league = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='phases',
+        help_text='Liga padre si esta es una fase (ej: Liguilla Oro es fase de Liga Regular)'
+    )
+    phase_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text='Nombre de la fase (ej: "Liguilla Oro", "Liguilla Plata", "Playoffs")'
+    )
+    phase_order = models.IntegerField(
+        default=0,
+        help_text='Orden de la fase (0 = liga principal, 1+ = fases subsecuentes)'
+    )
+    display_name_override = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text='Nombre personalizado para mostrar (opcional)'
+    )
+
     objects = LeagueManager()
     
     class Meta:
@@ -220,6 +247,46 @@ class League(models.Model):
     def is_past_league(self):
         """Indica si la liga es del pasado (sin partidos pendientes)"""
         return not self.has_pending_matches
+
+    @property
+    def is_phase(self):
+        """Returns True if this league is a phase of another league"""
+        return self.parent_league is not None
+
+    @property
+    def root_league(self):
+        """Returns the root league (traverses up parent chain)"""
+        if self.parent_league:
+            return self.parent_league.root_league
+        return self
+
+    @property
+    def display_name(self):
+        """Returns the display name with phase info"""
+        if self.display_name_override:
+            return self.display_name_override
+        if self.phase_name:
+            return f"{self.name} - {self.phase_name}"
+        return self.name
+
+    def get_all_phases(self, include_self=True):
+        """Returns all phases of this league including itself"""
+        if self.parent_league:
+            return self.parent_league.get_all_phases(include_self=True)
+        else:
+            phases = list(self.phases.filter(is_active=True).order_by('phase_order'))
+            if include_self:
+                phases.insert(0, self)
+            return phases
+
+    def get_combined_matches(self):
+        """Returns matches from this league and all its phases"""
+        if self.parent_league:
+            return self.parent_league.get_combined_matches()
+        else:
+            from .models import Match
+            league_ids = [self.id] + list(self.phases.values_list('id', flat=True))
+            return Match.objects.filter(league_id__in=league_ids)
 
 
 class Club(models.Model):
@@ -265,19 +332,87 @@ class Team(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams', help_text='Categoría asignada automáticamente durante el scraping')
     is_active = models.BooleanField(default=True, help_text='Indica si el equipo sigue activo en las competiciones')
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
+    # Sistema de variantes de equipo
+    parent_team = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='variants',
+        help_text='Equipo principal si este es una variante (ej: Sant Josep A, Sant Josep Groc)'
+    )
+    variant_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('split', 'División de Equipo (A/B)'),
+            ('color', 'Variante de Color (Groc/Lila)'),
+            ('temporary', 'Temporal (Torneo)'),
+            ('other', 'Otro'),
+        ],
+        blank=True,
+        help_text='Tipo de variante'
+    )
+    variant_name = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text='Nombre de la variante (ej: "A", "B", "Groc", "Lila")'
+    )
+    variant_description = models.TextField(
+        blank=True,
+        help_text='Descripción de la variante'
+    )
+    is_temporary_variant = models.BooleanField(
+        default=False,
+        help_text='Marca si es una variante temporal (ej: para un torneo específico)'
+    )
+    temporary_end_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text='Fecha estimada de finalización si es variante temporal'
+    )
+
     class Meta:
         ordering = ['name']
         verbose_name = 'Equipo'
         verbose_name_plural = 'Equipos'
 
     def __str__(self):
-        return self.name
+        return self.display_name_with_variant
 
     @property
     def display_logo(self):
         """Devuelve logo del equipo o del club si no tiene"""
         return self.logo_url or (self.club.logo_federation_url if self.club else None)
+
+    @property
+    def is_variant(self):
+        """Returns True if this team is a variant of another"""
+        return self.parent_team is not None
+
+    @property
+    def root_team(self):
+        """Returns the root team (main team)"""
+        if self.parent_team:
+            return self.parent_team.root_team
+        return self
+
+    @property
+    def display_name_with_variant(self):
+        """Returns full display name including variant"""
+        if self.variant_name:
+            return f"{self.name} ({self.variant_name})"
+        return self.name
+
+    def get_all_variants(self, include_self=True):
+        """Returns all variants of this team"""
+        if self.parent_team:
+            return self.parent_team.get_all_variants(include_self=True)
+        else:
+            variants = list(self.variants.filter(is_active=True).order_by('variant_name'))
+            if include_self:
+                variants.insert(0, self)
+            return variants
 
 
 class MatchManager(models.Manager):
@@ -664,8 +799,9 @@ class Image(models.Model):
         
         # Después de guardar, asignar categorías desde el partido si es nueva y no tiene categorías
         if is_new and self.match and not self.categories.exists():
-            if self.match.league and self.match.league.category:
-                self.categories.add(self.match.league.category)
+            # Agregar todas las categorías de la liga
+            if self.match.league:
+                self.categories.add(*self.match.league.categories.all())
             # También agregar categorías de los equipos si las tienen
             if self.match.home_team and self.match.home_team.category:
                 self.categories.add(self.match.home_team.category)

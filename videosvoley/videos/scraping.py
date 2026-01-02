@@ -1005,9 +1005,11 @@ class FederationScraper:
             if not team:
                 # Si no existe por federation_id, buscar por nombre normalizado para evitar duplicados
                 from videosvoley.videos.utils import find_duplicate_team_by_name
+                # Usar la primera categoría de la liga (para compatibilidad con ligas multi-categoría)
+                league_category = self.league.categories.first()
                 duplicate_team = find_duplicate_team_by_name(
-                    team_data['name'], 
-                    category=self.league.category
+                    team_data['name'],
+                    category=league_category
                 )
                 
                 if duplicate_team:
@@ -1020,10 +1022,12 @@ class FederationScraper:
                     created = False
                 else:
                     # Crear nuevo equipo
+                    # Usar la primera categoría de la liga (para compatibilidad con ligas multi-categoría)
+                    league_category = self.league.categories.first()
                     team = Team.objects.create(
                         name=team_data['name'],
                         federation_id=team_data['federation_id'],
-                        category=self.league.category,
+                        category=league_category,
                         is_active=True
                     )
                     created = True
@@ -1041,11 +1045,12 @@ class FederationScraper:
                 else:
                     logger.info(f"Team name variation detected but keeping original: '{team.name}' vs '{team_data['name']}'")
             
-            # Asignar/actualizar categoría si la liga tiene categoría y el equipo no la tiene o es diferente
-            if self.league.category and team.category != self.league.category:
-                team.category = self.league.category
+            # Asignar/actualizar categoría si la liga tiene categorías y el equipo no la tiene o es diferente
+            league_category = self.league.categories.first()
+            if league_category and team.category != league_category:
+                team.category = league_category
                 updated = True
-                logger.info(f"Assigned category '{self.league.category}' to team: {team.name}")
+                logger.info(f"Assigned category '{league_category}' to team: {team.name}")
             
             # Reactivar equipo si había sido marcado como inactivo y ahora aparece de nuevo
             if not team.is_active:
@@ -1061,7 +1066,8 @@ class FederationScraper:
             team_objects[self._normalize_team_name(team_data['name'])] = team
             
             if created:
-                logger.info(f"Created new team: {team.name} with category: {self.league.category}")
+                league_category = self.league.categories.first()
+                logger.info(f"Created new team: {team.name} with category: {league_category}")
         
         # DETECTAR EQUIPOS RETIRADOS: buscar equipos que participaban en esta liga pero ya no aparecen
         if current_federation_ids:  # Solo si hay datos para comparar
@@ -1876,17 +1882,20 @@ class FederationScraper:
     
     def _find_team_by_name(self, team_name: str, league: League) -> Optional[Team]:
         """Busca un equipo por nombre en la liga específica"""
-        # Buscar por nombre exacto
-        team = Team.objects.filter(name=team_name, category=league.category).first()
+        # Obtener las categorías de la liga
+        league_categories = league.categories.all()
+
+        # Buscar por nombre exacto en cualquiera de las categorías de la liga
+        team = Team.objects.filter(name=team_name, category__in=league_categories).first()
         if team:
             return team
-        
+
         # Buscar por similitud
         normalized_name = self._normalize_team_name(team_name)
-        for team in Team.objects.filter(category=league.category):
+        for team in Team.objects.filter(category__in=league_categories):
             if self._normalize_team_name(team.name) == normalized_name:
                 return team
-        
+
         return None
     
     def _normalize_team_name(self, name: str) -> str:

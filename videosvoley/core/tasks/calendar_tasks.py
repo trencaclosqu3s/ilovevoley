@@ -92,25 +92,26 @@ def sync_match_for_users(self, match_id: int, user_ids: Optional[List[int]] = No
     """
     try:
         match = Match.objects.select_related(
-            'home_team', 'away_team', 'league__category'
-        ).get(id=match_id)
-        
-        if not match.league or not match.league.category:
-            logger.info(f"Match {match_id} has no category, skipping calendar sync")
+            'home_team', 'away_team', 'league'
+        ).prefetch_related('league__categories').get(id=match_id)
+
+        if not match.league or not match.league.categories.exists():
+            logger.info(f"Match {match_id} has no categories, skipping calendar sync")
             return {'status': 'skipped', 'reason': 'no_category'}
         
-        # Get users who should sync this match
+        # Get users who should sync this match (users with any matching category)
+        match_categories = match.league.categories.all()
         if user_ids:
             users = User.objects.filter(
                 id__in=user_ids,
                 calendar_sync_enabled=True,
-                preferred_categories=match.league.category
-            )
+                preferred_categories__in=match_categories
+            ).distinct()
         else:
             users = User.objects.filter(
                 calendar_sync_enabled=True,
-                preferred_categories=match.league.category
-            )
+                preferred_categories__in=match_categories
+            ).distinct()
         
         synced_users = []
         errors = []

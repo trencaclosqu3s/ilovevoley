@@ -13,11 +13,11 @@
                         {{ league.name }}
                     </h1>
                     <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-                        {% if league.category %}
+                        {% for category in league.categories.all %}
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
-                                {{ league.category.name }}
+                                {{ category.name }}
                             </span>
-                        {% endif %}
+                        {% endfor %}
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
                             {{ league.season }}
                         </span>
@@ -25,8 +25,26 @@
                             {{ league.get_competition_type_display }}
                         </span>
                     </div>
+
+                    <!-- Selector de fases si la liga tiene fases -->
+                    {% if all_phases|length > 1 %}
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <a href="?all_phases=1"
+                           class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition
+                                  {% if show_all_phases %}bg-white text-csj-purple{% else %}bg-white bg-opacity-20 text-white hover:bg-opacity-30{% endif %}">
+                            📊 Todas las fases
+                        </a>
+                        {% for phase in all_phases %}
+                        <a href="?phase={{ phase.id }}"
+                           class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition
+                                  {% if selected_phase == phase.id|stringformat:'s' %}bg-white text-csj-purple{% else %}bg-white bg-opacity-20 text-white hover:bg-opacity-30{% endif %}">
+                            {% if phase.phase_name %}{{ phase.phase_name }}{% else %}Liga Regular{% endif %}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
-                
+
                 <!-- Estadísticas rápidas -->
                 <div class="grid grid-cols-3 gap-4 lg:gap-6 text-center text-white">
                     <div>
@@ -134,6 +152,13 @@
                                         J{{ match.round_number }}
                                     </span>
 
+                                    <!-- Badge de fase si mostrando todas las fases -->
+                                    {% if show_all_phases and all_phases|length > 1 %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                            {% if match.league.phase_name %}{{ match.league.phase_name }}{% else %}Liga Regular{% endif %}
+                                        </span>
+                                    {% endif %}
+
                                     <!-- Estado del partido -->
                                     {% if match.is_finished %}
                                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -152,16 +177,26 @@
 
                                 <!-- Equipos -->
                                 <div class="flex items-center space-x-3 mb-2">
-                                    <div class="flex items-center space-x-2">
-                                        <span class="font-semibold text-lg text-gray-800 
+                                    <div class="flex items-center space-x-2 flex-wrap">
+                                        <span class="font-semibold text-lg text-gray-800
                                             {% if 'SANT JOSEP' in match.home_team_display %}text-csj-purple{% endif %}">
                                             {{ match.home_team_display }}
                                         </span>
+                                        {% if match.home_team and match.home_team.is_variant %}
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                {{ match.home_team.variant_name }}
+                                            </span>
+                                        {% endif %}
                                         <span class="text-gray-500">vs</span>
-                                        <span class="font-semibold text-lg text-gray-800 
+                                        <span class="font-semibold text-lg text-gray-800
                                             {% if 'SANT JOSEP' in match.away_team_display %}text-csj-purple{% endif %}">
                                             {{ match.away_team_display }}
                                         </span>
+                                        {% if match.away_team and match.away_team.is_variant %}
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                {{ match.away_team.variant_name }}
+                                            </span>
+                                        {% endif %}
                                     </div>
                                     
                                     <!-- Resultado -->

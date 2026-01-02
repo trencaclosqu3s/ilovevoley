@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.conf import settings
-from .models import Image, Match
+from .models import Image, Match, League, ScrapingEndpoint
 from videosvoley.core.email_utils import send_notification_email
 from videosvoley.core.moderation_views import generate_moderation_token
 import os
@@ -107,8 +107,8 @@ def match_saved_handler(sender, instance, created, **kwargs):
     if not settings.GOOGLE_CALENDAR_ENABLED:
         return
     
-    # Only sync if the match has a category (required for filtering users)
-    if not instance.league or not instance.league.category:
+    # Only sync if the match has categories (required for filtering users)
+    if not instance.league or not instance.league.categories.exists():
         return
     
     from videosvoley.core.tasks.calendar_tasks import sync_match_for_users
@@ -149,3 +149,59 @@ def track_match_changes(sender, instance, **kwargs):
     for attr in ['_old_match_date', '_old_venue', '_old_status']:
         if hasattr(instance, attr):
             delattr(instance, attr)
+
+
+# =============================================================================
+# League signals - Auto-crear endpoints de scraping
+# =============================================================================
+
+@receiver(post_save, sender=League)
+def create_default_scraping_endpoints(sender, instance, created, **kwargs):
+    """
+    Crea automáticamente los 3 endpoints básicos de scraping cuando se crea una liga.
+    Esto asegura que las ligas creadas desde el admin tengan la misma configuración
+    que las creadas con el comando setup_league.
+    """
+    if not created:
+        # Solo crear endpoints para ligas nuevas
+        return
+    
+    # Configuración de endpoints por defecto (igual que en setup_league.py)
+    endpoints_config = [
+        {
+            'endpoint_type': 'standings',
+            'url_pattern': 'JSON/get_clasificacion.asp?id={league_id}',
+            'parser_type': 'table_standings'
+        },
+        {
+            'endpoint_type': 'results',
+            'url_pattern': 'JSON/get_resultados.asp?id={league_id}&jor={round}',
+            'parser_type': 'match_results'
+        },
+        {
+            'endpoint_type': 'calendar',
+            'url_pattern': 'JSON/get_calendario.asp?id={league_id}',
+            'parser_type': 'match_calendar'
+        }
+    ]
+    
+    created_count = 0
+    for endpoint_config in endpoints_config:
+        endpoint, endpoint_created = ScrapingEndpoint.objects.get_or_create(
+            league=instance,
+            endpoint_type=endpoint_config['endpoint_type'],
+            defaults={
+                'url_pattern': endpoint_config['url_pattern'],
+                'parser_type': endpoint_config['parser_type'],
+                'is_active': True
+            }
+        )
+        
+        if endpoint_created:
+            created_count += 1
+            print(f"✓ Endpoint creado automáticamente: {endpoint.get_endpoint_type_display()} para {instance.name}")
+    
+    if created_count > 0:
+        print(f"✓ Liga '{instance.name}' configurada con {created_count} endpoints de scraping")
+    else:
+        print(f"ℹ Liga '{instance.name}' ya tenía endpoints configurados")

@@ -58,15 +58,26 @@ docker-compose exec web python manage.py createsuperuser
 
 ### Configuración de Datos
 
-Para configurar ligas y datos federativos:
+#### Crear Ligas (Nuevo - Auto-configuración)
+
+**¡NOVEDAD!** Ahora puedes crear ligas directamente desde el admin de Django y los endpoints de scraping se configuran automáticamente:
+
+1. Ve a `/admin/videos/league/add/`
+2. Rellena los campos (nombre, federation_id, temporada, categorías)
+3. Guarda la liga
+4. **¡Los 3 endpoints básicos se crean automáticamente!** ✨
+
+También puedes usar el comando tradicional:
 
 ```bash
-# Configurar nueva liga
+# Configurar nueva liga (opcional - el admin lo hace automáticamente)
 docker-compose exec web python manage.py setup_league --name "Liga Name" --federation-id 1234 --season "2024-25"
 
 # Importar todos los datos de ligas activas
 docker-compose exec web python manage.py scrape_all_leagues --verbose
 ```
+
+Ver `LEAGUE_AUTO_SETUP.md` para más detalles sobre la auto-configuración.
 
 ### Configuración de Google Vision API (Opcional)
 
@@ -171,6 +182,7 @@ docker-compose exec web python manage.py autotag_images --limit 10
 
 - **[Sistema de Imágenes](videosvoley/docs/IMAGENES.md)**: Documentación completa del sistema de gestión de imágenes
 - **[Scraping de Federaciones](videosvoley/docs/SCRAPING.md)**: Guía detallada del sistema de scraping
+- **[Auto-configuración de Ligas](LEAGUE_AUTO_SETUP.md)**: Nueva funcionalidad de auto-setup de endpoints
 
 ## URLs Principales
 
@@ -189,6 +201,13 @@ docker-compose exec web python manage.py autotag_images --limit 10
 5. Crear Pull Request
 
 ## Notas de Versión
+
+### v2.1 - Auto-configuración de Ligas
+- ⚡ **Auto-setup de endpoints**: Los endpoints de scraping se crean automáticamente al crear una liga
+- 🎯 **Simplificación del workflow**: Ya no es necesario ejecutar `setup_league` manualmente
+- 🔧 **Django signals**: Implementación elegante usando signals post_save
+- 📝 **Documentación completa**: Nueva guía `LEAGUE_AUTO_SETUP.md`
+- ✅ **Tests incluidos**: Script de prueba `test_league_auto_setup.py`
 
 ### v2.0 - Sistema de Imágenes Avanzado
 - ✨ Imágenes independientes sin vinculación obligatoria a partidos
