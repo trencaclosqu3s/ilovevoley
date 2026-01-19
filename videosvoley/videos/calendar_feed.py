@@ -66,7 +66,7 @@ class UserMatchesFeed(ICalFeed):
         # 3. Rango de fechas
         # 4. Excluir partidos con estado 'withdrawn' (equipo retirado de la liga)
         matches = Match.objects.filter(
-            Q(league__categories__in=categories) | Q(is_friendly=True),  # Incluir amistosos
+            Q(league__categories__in=categories) | Q(league__category__in=categories) | Q(is_friendly=True),  # Incluir amistosos
             match_date__gte=start_date,
             match_date__lte=end_date
         ).filter(
@@ -91,7 +91,11 @@ class UserMatchesFeed(ICalFeed):
     def item_title(self, item):
         """Título del evento"""
         # Incluir categorías en el título para mejor visibilidad
-        categories = item.league.categories.all() if item.league else []
+        categories = []
+        if item.league:
+            categories = list(item.league.categories.all())
+            if not categories and item.league.category:
+                categories = [item.league.category]
         category_name = ', '.join([c.name for c in categories]) if categories else 'Sin Categoría'
 
         # Prefijo para partidos cancelados
@@ -125,13 +129,21 @@ class UserMatchesFeed(ICalFeed):
             description_parts.append('⚠️ HORARIO PROVISIONAL - Pendiente de confirmación')
             description_parts.append('')
         
-        description_parts.append(f'Liga: {item.league.name}')
+        if item.league:
+            description_parts.append(f'Liga: {item.league.name}')
+        else:
+            description_parts.append('Liga: Amistoso')
 
         # Agregar todas las categorías
-        categories = item.league.categories.all()
-        if categories:
-            category_names = ', '.join([c.name for c in categories])
-            description_parts.append(f'Categoría: {category_names}')
+        if item.league:
+            categories = list(item.league.categories.all())
+            if not categories and item.league.category:
+                categories = [item.league.category]
+            if categories:
+                category_names = ', '.join([c.name for c in categories])
+                description_parts.append(f'Categoría: {category_names}')
+        elif item.is_friendly:
+            description_parts.append('Categoría: Amistoso')
         
         if item.round_number:
             description_parts.append(f'Jornada: {item.round_number}')
