@@ -356,3 +356,9 @@ postgres/
 redis/
 reloadDDBB.sh
 dump/
+chroma_db/chroma.sqlite3
+chroma_db/42ac3b61-4d66-46e6-a6eb-fe5d8aa1c1a7/data_level0.bin
+chroma_db/42ac3b61-4d66-46e6-a6eb-fe5d8aa1c1a7/header.bin
+chroma_db/42ac3b61-4d66-46e6-a6eb-fe5d8aa1c1a7/index_metadata.pickle
+chroma_db/42ac3b61-4d66-46e6-a6eb-fe5d8aa1c1a7/length.bin
+chroma_db/42ac3b61-4d66-46e6-a6eb-fe5d8aa1c1a7/link_lists.bin

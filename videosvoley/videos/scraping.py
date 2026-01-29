@@ -1116,6 +1116,50 @@ class FederationScraper:
         normalized = ' '.join(normalized.split())
         return normalized
     
+    def _calculate_team_stats_from_matches(self, team) -> Dict[str, int]:
+        """
+        Calcula estadísticas detalladas (breakdown de resultados) desde los partidos guardados.
+        Esto es necesario porque la tabla de la federación agrupa G3 (3-0 y 3-1) y P0 (0-3 y 1-3),
+        haciendo imposible distinguir estos resultados solo con la tabla.
+        """
+        stats = {
+            'wins_3_0': 0, 'wins_3_1': 0, 'wins_3_2': 0,
+            'losses_2_3': 0, 'losses_1_3': 0, 'losses_0_3': 0
+        }
+        
+        # Obtener todos los partidos finalizados de este equipo en esta liga
+        matches = Match.objects.filter(
+            league=self.league,
+            status='finished'
+        ).filter(
+            models.Q(home_team=team) | models.Q(away_team=team)
+        )
+        
+        for match in matches:
+            # Asegurarse de tener resultados válidos
+            if match.home_score is None or match.away_score is None:
+                continue
+                
+            is_home = (match.home_team == team)
+            sets_won = match.home_score if is_home else match.away_score
+            sets_lost = match.away_score if is_home else match.home_score
+            
+            # Clasificar resultado
+            if sets_won == 3:
+                if sets_lost == 0: stats['wins_3_0'] += 1
+                elif sets_lost == 1: stats['wins_3_1'] += 1
+                elif sets_lost == 2: stats['wins_3_2'] += 1
+            elif sets_lost == 3:
+                if sets_won == 2: stats['losses_2_3'] += 1
+                elif sets_won == 1: stats['losses_1_3'] += 1
+                elif sets_won == 0: stats['losses_0_3'] += 1
+            
+            # NOTA: Para ligas de 3 sets (alevín) u otros formatos, 
+            # estos contadores podrían no cubrir todos los casos, 
+            # pero cubren el estándar de voleibol que es lo que pide el usuario.
+                
+        return stats
+
     @transaction.atomic
     def update_standings(self, standings_data: List[Dict[str, Any]], team_objects: Dict[str, Team]):
         """Actualiza clasificaciones en la base de datos"""
@@ -1130,6 +1174,22 @@ class FederationScraper:
             if not team:
                 logger.warning(f"Team not found: {team_name}")
                 continue
+            
+            # Calcular estadísticas detalladas desde los partidos reales
+            # Esto corrige el problema de interpretación de G3/G2/etc de la federación
+            detailed_stats = self._calculate_team_stats_from_matches(team)
+            
+            # Sobrescribir los datos parseados de la tabla con los calculados
+            # Solo si tenemos partidos para calcular (para no poner ceros si no tenemos partidos scrapeados aún)
+            matches_exist = Match.objects.filter(
+                league=self.league, 
+                status='finished'
+            ).filter(
+                models.Q(home_team=team) | models.Q(away_team=team)
+            ).exists()
+            
+            if matches_exist:
+                standing_data.update(detailed_stats)
             
             Standing.objects.create(
                 league=self.league,
