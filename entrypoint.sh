@@ -3,6 +3,9 @@ set -e
 
 # Función para verificar si necesitamos ejecutar migraciones y collectstatic
 needs_setup() {
+    # Debug args
+    # echo "DEBUG: args=$@"
+
     # Si no hay argumentos, es el comando por defecto (server) -> NECESITA SETUP
     if [ $# -eq 0 ]; then
         return 0
@@ -13,8 +16,13 @@ needs_setup() {
         return 0
     fi
 
-    # Si el comando es python/python3 y el subcomando es runserver -> NECESITA SETUP
+    # Si el comando es python/python3
     if [ "$1" = "python" ] || [ "$1" = "python3" ]; then
+        # Caso: python manage.py runserver
+        if [ "$2" = "manage.py" ] && [ "$3" = "runserver" ]; then
+            return 0
+        fi
+        # Caso raro: python runserver (si existiera)
         if [ "$2" = "runserver" ]; then
             return 0
         fi
