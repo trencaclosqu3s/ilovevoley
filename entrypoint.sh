@@ -3,22 +3,25 @@ set -e
 
 # Función para verificar si necesitamos ejecutar migraciones y collectstatic
 needs_setup() {
-    # Comandos que NO necesitan setup completo
-    local skip_commands=("shell" "shell_plus" "test" "check" "help" "version" "diffsettings" "inspectdb" "dbshell" "showmigrations" "sqlmigrate" "squashmigrations" "makemigrations" "migrate")
-    
-    # Si no hay argumentos, asumir que es el servidor web
+    # Si no hay argumentos, es el comando por defecto (server) -> NECESITA SETUP
     if [ $# -eq 0 ]; then
         return 0
     fi
-    
-    # Verificar si el primer argumento está en la lista de comandos a saltar
-    for cmd in "${skip_commands[@]}"; do
-        if [ "$1" = "$cmd" ]; then
-            return 1
+
+    # Si el comando es explícitamente gunicorn -> NECESITA SETUP
+    if [ "$1" = "gunicorn" ]; then
+        return 0
+    fi
+
+    # Si el comando es python/python3 y el subcomando es runserver -> NECESITA SETUP
+    if [ "$1" = "python" ] || [ "$1" = "python3" ]; then
+        if [ "$2" = "runserver" ]; then
+            return 0
         fi
-    done
-    
-    return 0
+    fi
+
+    # Para todo lo demás (shell, migrate, celery, tests, etc) -> NO NECESITA SETUP
+    return 1
 }
 
 echo "🚀 Iniciando aplicación..."
