@@ -1004,7 +1004,7 @@ class FederationScraper:
             
             if not team:
                 # Si no existe por federation_id, buscar por nombre normalizado para evitar duplicados
-                from videosvoley.videos.utils import find_duplicate_team_by_name
+                from videosvoley.videos.utils import find_duplicate_team_by_name, find_similar_team_by_name
                 # Usar la primera categoría de la liga (para compatibilidad con ligas multi-categoría)
                 league_category = self.league.categories.first()
                 duplicate_team = find_duplicate_team_by_name(
@@ -1021,16 +1021,31 @@ class FederationScraper:
                     team = duplicate_team
                     created = False
                 else:
-                    # Crear nuevo equipo
-                    # Usar la primera categoría de la liga (para compatibilidad con ligas multi-categoría)
-                    league_category = self.league.categories.first()
-                    team = Team.objects.create(
-                        name=team_data['name'],
-                        federation_id=team_data['federation_id'],
+                    # Intentar búsqueda difusa para typos (ej: LUCI'S WORD vs LUCI'S WORK)
+                    similar_team, score = find_similar_team_by_name(
+                        team_data['name'],
                         category=league_category,
-                        is_active=True
+                        threshold=0.9  # Alta similitud requerida
                     )
-                    created = True
+                    
+                    if similar_team:
+                        logger.info(f"Found similar team ({score:.2f}): '{team_data['name']}' -> '{similar_team.name}'")
+                        similar_team.federation_id = team_data['federation_id']
+                        similar_team.is_active = True
+                        similar_team.save()
+                        team = similar_team
+                        created = False
+                    else:
+                        # Crear nuevo equipo
+                        # Usar la primera categoría de la liga (para compatibilidad con ligas multi-categoría)
+                        league_category = self.league.categories.first()
+                        team = Team.objects.create(
+                            name=team_data['name'],
+                            federation_id=team_data['federation_id'],
+                            category=league_category,
+                            is_active=True
+                        )
+                        created = True
             else:
                 created = False
             

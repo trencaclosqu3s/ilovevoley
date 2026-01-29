@@ -597,3 +597,44 @@ def find_duplicate_team_by_name(team_name, category=None, exclude_id=None):
             return team
     
     return None
+
+
+def find_similar_team_by_name(team_name, category=None, threshold=0.85, exclude_id=None):
+    """
+    Busca equipos con nombres similares usando similitud de secuencia (Levenshtein).
+    Útil para detectar cambios leves en nombres (ej: typos, cambio de patrocinador menor)
+    
+    Args:
+        team_name (str): Nombre del equipo a buscar
+        category: Categoría a filtrar (opcional)
+        threshold (float): Umbral de similitud (0.0 a 1.0)
+        exclude_id: ID del equipo a excluir de la búsqueda
+        
+    Returns:
+        tuple: (Team, score) o (None, 0)
+    """
+    from .models import Team
+    from difflib import SequenceMatcher
+    
+    normalized_target = normalize_team_name(team_name)
+    best_match = None
+    best_score = 0
+    
+    # Obtener candidatos (optimización: filtrar por longitud similar si hay muchos)
+    teams = Team.objects.all()
+    if category:
+        teams = teams.filter(category=category)
+    if exclude_id:
+        teams = teams.exclude(id=exclude_id)
+        
+    for team in teams:
+        normalized_current = normalize_team_name(team.name)
+        
+        # Calcular similitud
+        ratio = SequenceMatcher(None, normalized_target, normalized_current).ratio()
+        
+        if ratio > best_score and ratio >= threshold:
+            best_score = ratio
+            best_match = team
+            
+    return best_match, best_score
