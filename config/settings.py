@@ -99,8 +99,7 @@ GOOGLE_BASIC_SCOPES = [
     'email',
 ]
 
-# Scope adicional para Calendar (solo para usuarios específicos)
-GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar'
+
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
@@ -118,10 +117,7 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if DEBUG else 'https'
 # Header de proxy SSL (necesario para que Django detecte HTTPS detrás de nginx)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Google Calendar API Configuration
-GOOGLE_CALENDAR_ENABLED = env_config('GOOGLE_CALENDAR_ENABLED', default=True, cast=bool)
-GOOGLE_CALENDAR_NAME = env_config('GOOGLE_CALENDAR_NAME', default='I Love Voley - Partidos')
-GOOGLE_CALENDAR_TIMEZONE = env_config('GOOGLE_CALENDAR_TIMEZONE', default='Europe/Madrid')
+
 
 # Adapters personalizados para suprimir mensajes
 ACCOUNT_ADAPTER = 'videosvoley.users.adapters.CustomAccountAdapter'
@@ -274,11 +270,6 @@ CELERY_TIMEZONE = 'UTC'
 
 # Celery Beat Configuration (Periodic Tasks)
 CELERY_BEAT_SCHEDULE = {
-    'daily-calendar-sync': {
-        'task': 'videosvoley.core.tasks.calendar_tasks.daily_calendar_sync',
-        'schedule': 3600.0 * 24,  # Run daily (24 hours)
-        'options': {'expire_seconds': 3600 * 2}  # Expire after 2 hours if not executed
-    },
     'rag-incremental-reindex': {
         'task': 'videosvoley.rag.tasks.incremental_reindex_task',
         'schedule': 3600.0 * 6,  # Run every 6 hours
