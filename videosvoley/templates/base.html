@@ -185,7 +185,8 @@
                             {% get_latest_images limit=9 as latest_images %}
                             <div class="grid grid-cols-3 gap-2">
                                 {% for img in latest_images %}
-                                <a href="{% url 'videos:image_detail' img.id %}"
+                                <a href="javascript:void(0)"
+                                    onclick="openLightbox('{{ img.image.url }}', '{{ img.title|escapejs }}', {{ img.id }}, '{{ img.description|escapejs }}', '{{ img.uploaded_by.username|escapejs }}', '{{ img.upload_date|date:'d/m/Y' }}')"
                                     class="block aspect-square overflow-hidden rounded-lg hover:ring-2 hover:ring-csj-purple transition-all duration-200 group">
                                     <img src="{{ img.thumbnail_url }}" alt="{{ img.title }}"
                                         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
