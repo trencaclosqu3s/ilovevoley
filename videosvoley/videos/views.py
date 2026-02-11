@@ -579,14 +579,42 @@ def standings_view(request):
     league_filter = request.GET.get('league')
     category_filter = request.GET.get('category')
     show_all = request.GET.get('show_all', '0') == '1'
+    show_archived = request.GET.get('show_archived', '0') == '1'
     
     # Configuración del club
     CLUB_TEAM_NAME = 'SANT JOSEP'
     
-    # Consulta base de clasificaciones
-    standings = Standing.objects.select_related(
-        'team', 'league'
-    ).prefetch_related('league__categories').order_by('league__name', 'position')
+    # Obtener temporadas disponibles
+    seasons = League.objects.filter(is_our_team_related=True).values_list('season', flat=True).distinct().order_by('-season')
+    season_filter = request.GET.get('season')
+
+    if show_archived or season_filter:
+        # Mostrar ligas archivadas, de referencia, etc. O si se filtra por temporada específica
+        # Ordenamos por fecha de creación descendente para ver las más recientes primero
+        standings = Standing.objects.select_related(
+            'team', 'league'
+        ).prefetch_related('league__categories').order_by('-league__created_at', 'league__name', 'position')
+        
+        # Filtro de ligas para el dropdown
+        leagues = League.objects.all().order_by('-created_at', 'name')
+    else:
+        # Consulta base de clasificaciones - Solo ligas activas y visibles en app
+        standings = Standing.objects.filter(
+            league__is_active=True,
+            league__visibility_type='main',
+            league__is_our_team_related=True
+        ).select_related(
+            'team', 'league'
+        ).prefetch_related('league__categories').order_by('league__name', 'position')
+        
+        # Filtro de ligas para el dropdown
+        leagues = League.objects.visible_in_app().order_by('name')
+    
+    # Aplicar filtro de temporada
+    if season_filter:
+        standings = standings.filter(league__season=season_filter)
+        # También filtrar las ligas del dropdown por temporada
+        leagues = leagues.filter(season=season_filter)
     
     # Aplicar filtro de liga
     if league_filter:
@@ -604,25 +632,29 @@ def standings_view(request):
     standings_by_league = {}
     for standing in standings:
         league_name = standing.league.name
+        if standing.league.display_name:
+             league_name = standing.league.display_name
+             
         if league_name not in standings_by_league:
             standings_by_league[league_name] = {
                 'league': standing.league,
                 'standings': []
             }
         standings_by_league[league_name]['standings'].append(standing)
-    
-    # Obtener datos para filtros
-    leagues = League.objects.visible_in_app().order_by('name')
+        
     categories = Category.objects.filter(is_active=True).order_by('name')
     
     return render(request, 'videos/standings.html', {
         'standings_by_league': standings_by_league,
         'leagues': leagues,
         'categories': categories,
+        'seasons': seasons,
         'selected_league': league_filter,
         'selected_category': category_filter,
+        'selected_season': season_filter,
         'club_team_name': CLUB_TEAM_NAME,
         'show_all': show_all,
+        'show_archived': show_archived,
         'has_preferences': request.user.preferred_categories.exists(),
     })
 
