@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="es" class="transition-colors duration-200">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Vídeos del Equipo{% endblock %}</title>
-    <link rel="icon" type="image/png" href="{% load static %}{% static 'images/logo.png' %}">
+    <link rel="icon" type="image/png" href="{% load static video_tags %}{% static 'images/logo.png' %}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -21,56 +22,57 @@
             }
         }
     </script>
-    
+
     <style>
         /* Optimización de formularios para móviles */
-        input[type="text"], 
-        input[type="email"], 
-        input[type="password"], 
-        input[type="url"], 
-        textarea, 
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="url"],
+        textarea,
         select {
             min-height: 44px !important;
-            font-size: 16px !important; /* Previene zoom en iOS */
+            font-size: 16px !important;
+            /* Previene zoom en iOS */
             padding: 12px 16px !important;
             border: 2px solid #e5e7eb !important;
             border-radius: 8px !important;
             width: 100% !important;
             transition: all 0.2s ease !important;
         }
-        
-        .dark input[type="text"], 
-        .dark input[type="email"], 
-        .dark input[type="password"], 
-        .dark input[type="url"], 
-        .dark textarea, 
+
+        .dark input[type="text"],
+        .dark input[type="email"],
+        .dark input[type="password"],
+        .dark input[type="url"],
+        .dark textarea,
         .dark select {
             background-color: #374151 !important;
             border-color: #4b5563 !important;
             color: #f9fafb !important;
         }
-        
-        input[type="text"]:focus, 
-        input[type="email"]:focus, 
-        input[type="password"]:focus, 
-        input[type="url"]:focus, 
-        textarea:focus, 
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        input[type="url"]:focus,
+        textarea:focus,
         select:focus {
             outline: none !important;
             border-color: #9B7FBF !important;
             box-shadow: 0 0 0 3px rgba(155, 127, 191, 0.1) !important;
         }
-        
-        .dark input[type="text"]:focus, 
-        .dark input[type="email"]:focus, 
-        .dark input[type="password"]:focus, 
-        .dark input[type="url"]:focus, 
-        .dark textarea:focus, 
+
+        .dark input[type="text"]:focus,
+        .dark input[type="email"]:focus,
+        .dark input[type="password"]:focus,
+        .dark input[type="url"]:focus,
+        .dark textarea:focus,
         .dark select:focus {
             border-color: #F4D47C !important;
             box-shadow: 0 0 0 3px rgba(244, 212, 124, 0.2) !important;
         }
-        
+
         /* Mejor espaciado en móviles */
         @media (max-width: 640px) {
             .mobile-spacing {
@@ -78,65 +80,68 @@
                 padding-right: 1rem;
             }
         }
-        
+
         /* Truncar texto con line-clamp */
         .line-clamp-2 {
             display: -webkit-box;
             -webkit-line-clamp: 2;
+            line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-        
+
         /* Mejorar interacciones táctiles */
         .touch-manipulation {
             touch-action: manipulation;
         }
-        
+
         /* Estilos para el banner de cookies */
         #cookie-banner {
             backdrop-filter: blur(4px);
         }
-        
+
         @media (max-width: 768px) {
             #cookie-banner .lg\\:flex {
                 flex-direction: column;
                 gap: 1rem;
             }
-            
+
             #cookie-banner .lg\\:flex-1 {
                 flex: none;
             }
-            
+
             #cookie-banner .lg\\:ml-6 {
                 margin-left: 0;
                 margin-top: 1rem;
             }
         }
     </style>
-    
+
     <!-- Notyf CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
-    
+
     <!-- Notyf JS -->
     <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
-    
+
     <!-- Cookie Consent JS -->
     {% load static %}
     <script src="{% static 'js/cookies.js' %}" defer></script>
-    
+
     <!-- Dark Mode Script - debe ejecutarse antes de renderizar -->
     <script>
-        // Script inline para evitar flash de contenido
-        (function() {
-            const theme = localStorage.getItem('theme') || 'light';
-            if (theme === 'dark') {
-                document.documentElement.classList.add('dark');
-            }
-        })();
+            // Script inline para evitar flash de contenido
+            (function () {
+                const theme = localStorage.getItem('theme') || 'light';
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                }
+            })();
     </script>
     {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-gradient-to-br from-purple-50 via-yellow-50 to-purple-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-screen flex flex-col">
+
+<body
+    class="bg-gradient-to-br from-purple-50 via-yellow-50 to-purple-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-screen flex flex-col">
     {% include 'includes/navbar.html' %}
 
     <div class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
@@ -146,12 +151,14 @@
                 <!-- Fallback para cuando JavaScript está deshabilitado -->
                 <noscript>
                     {% if messages %}
-                        {% for message in messages %}
-                            <div class="mb-4 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-800 border-l-4 border-green-500{% elif message.tags == 'error' %}bg-red-100 text-red-800 border-l-4 border-red-500{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800 border-l-4 border-yellow-500{% else %}bg-csj-yellow bg-opacity-30 text-gray-800 border-l-4 border-csj-yellow{% endif %}">
-                                <strong>{% if message.tags == 'success' %}✓{% elif message.tags == 'error' %}✕{% elif message.tags == 'warning' %}⚠{% else %}ℹ{% endif %}</strong>
-                                {{ message }}
-                            </div>
-                        {% endfor %}
+                    {% for message in messages %}
+                    <div
+                        class="mb-4 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-800 border-l-4 border-green-500{% elif message.tags == 'error' %}bg-red-100 text-red-800 border-l-4 border-red-500{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800 border-l-4 border-yellow-500{% else %}bg-csj-yellow bg-opacity-30 text-gray-800 border-l-4 border-csj-yellow{% endif %}">
+                        <strong>{% if message.tags == 'success' %}✓{% elif message.tags == 'error' %}✕{% elif
+                            message.tags == 'warning' %}⚠{% else %}ℹ{% endif %}</strong>
+                        {{ message }}
+                    </div>
+                    {% endfor %}
                     {% endif %}
                 </noscript>
 
@@ -161,16 +168,51 @@
             <!-- Sidebar de Instagram (solo en desktop) -->
             <aside class="hidden lg:block lg:w-96 lg:flex-shrink-0">
                 <div class="sticky top-4">
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark">
+                    <div
+                        class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark">
                         <div class="flex items-center mb-4">
-                            <svg class="w-6 h-6 text-csj-purple dark:text-csj-yellow mr-2" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                            <svg class="w-6 h-6 text-csj-purple dark:text-csj-yellow mr-2" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                </path>
                             </svg>
-                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">@clubvoleisantjosep</h3>
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Galería del Club</h3>
                         </div>
-                        
-                        <!-- Widget de Instagram -->
-                        <div id="instagram-widget" class="text-center">
+
+                        <!-- Widget de Galería (Reemplaza a Instagram) -->
+                        <div id="image-gallery-widget">
+                            {% get_latest_images limit=9 as latest_images %}
+                            <div class="grid grid-cols-3 gap-2">
+                                {% for img in latest_images %}
+                                <a href="{% url 'videos:image_detail' img.id %}"
+                                    class="block aspect-square overflow-hidden rounded-lg hover:ring-2 hover:ring-csj-purple transition-all duration-200 group">
+                                    <img src="{{ img.thumbnail_url }}" alt="{{ img.title }}"
+                                        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                                </a>
+                                {% empty %}
+                                <div class="col-span-3 text-center py-8">
+                                    <p class="text-sm text-gray-500 italic">No hay fotos recientes</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            {% if latest_images %}
+                            <div class="mt-4 text-center">
+                                <a href="{% url 'videos:image_gallery' %}"
+                                    class="inline-flex items-center text-csj-purple dark:text-csj-yellow text-sm font-semibold hover:underline">
+                                    Ver galería completa
+                                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Widget de Instagram (Oculto temporalmente) -->
+                        <div id="instagram-widget" class="hidden">
                             <div class="animate-pulse">
                                 <div class="bg-gray-200 rounded h-64 mb-4"></div>
                                 <div class="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
@@ -187,7 +229,8 @@
     {% include 'cookies_banner.html' %}
 
     <!-- Footer -->
-    <footer class="bg-gradient-to-r from-csj-purple via-csj-purple-dark to-csj-purple dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-white mt-12">
+    <footer
+        class="bg-gradient-to-r from-csj-purple via-csj-purple-dark to-csj-purple dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-white mt-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
                 <!-- Sección Izquierda: Sobre el Proyecto -->
@@ -197,7 +240,8 @@
                         I Love Voley
                     </h3>
                     <p class="text-purple-200 text-sm leading-relaxed">
-                        Plataforma comunitaria del CV Sant Josep Obrer para compartir partidos, fotos y momentos especiales.
+                        Plataforma comunitaria del CV Sant Josep Obrer para compartir partidos, fotos y momentos
+                        especiales.
                     </p>
                 </div>
 
@@ -205,19 +249,23 @@
                 <div class="text-center">
                     <h3 class="text-lg font-bold mb-3">Enlaces</h3>
                     <nav class="space-y-2">
-                        <a href="{% url 'videos:about' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                        <a href="{% url 'videos:about' %}"
+                            class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
                             Quiénes Somos
                         </a>
                         {% if user.is_authenticated %}
-                            <a href="{% url 'videos:video_list' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
-                                Videos
-                            </a>
-                            <a href="{% url 'videos:image_gallery' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
-                                Galería
-                            </a>
-                            <a href="{% url 'videos:calendar_view' %}" class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
-                                Calendario
-                            </a>
+                        <a href="{% url 'videos:video_list' %}"
+                            class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            Videos
+                        </a>
+                        <a href="{% url 'videos:image_gallery' %}"
+                            class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            Galería
+                        </a>
+                        <a href="{% url 'videos:calendar_view' %}"
+                            class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            Calendario
+                        </a>
                         {% endif %}
                     </nav>
                 </div>
@@ -226,10 +274,11 @@
                 <div class="text-center md:text-right">
                     <h3 class="text-lg font-bold mb-3">Sigue al club</h3>
                     <div class="flex justify-center md:justify-end space-x-4">
-                        <a href="https://www.instagram.com/clubvoleisantjosep/" target="_blank" rel="noopener" 
-                           class="text-purple-200 hover:text-csj-yellow transition-colors" title="Instagram">
+                        <a href="https://www.instagram.com/clubvoleisantjosep/" target="_blank" rel="noopener"
+                            class="text-purple-200 hover:text-csj-yellow transition-colors" title="Instagram">
                             <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                <path
+                                    d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
                             </svg>
                         </a>
                     </div>
@@ -244,9 +293,11 @@
                 <div class="flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0">
                     <!-- Copyright -->
                     <p class="text-purple-200 text-sm text-center sm:text-left">
-                        © 2025 Desarrollado con 💜 por <a href="https://www.instagram.com/trencaclosques/" target="_blank" rel="noopener" class="font-semibold text-csj-yellow hover:text-yellow-200 transition-colors">trencaclosques</a>
+                        © 2025 Desarrollado con 💜 por <a href="https://www.instagram.com/trencaclosques/"
+                            target="_blank" rel="noopener"
+                            class="font-semibold text-csj-yellow hover:text-yellow-200 transition-colors">trencaclosques</a>
                     </p>
-                    
+
                     <!-- Mensaje adicional -->
                     <p class="text-purple-200 text-xs text-center sm:text-right">
                         Proyecto sin ánimo de lucro · Para la comunidad del CV Sant Josep Obrer
@@ -292,49 +343,49 @@
         // Función para mostrar mensajes de Django como toast
         function showDjangoMessages() {
             {% if messages %}
-                {% for message in messages %}
-                    {% if message.tags == 'success' %}
-                        notyf.success('{{ message|escapejs }}');
-                    {% elif message.tags == 'error' %}
-                        notyf.error('{{ message|escapejs }}');
-                    {% elif message.tags == 'warning' %}
-                        notyf.open({
-                            type: 'warning',
-                            message: '{{ message|escapejs }}'
-                        });
-                    {% elif message.tags == 'info' %}
-                        notyf.open({
-                            type: 'info',
-                            message: '{{ message|escapejs }}'
-                        });
-                    {% else %}
-                        notyf.open({
-                            type: 'info',
-                            message: '{{ message|escapejs }}'
-                        });
-                    {% endif %}
-                {% endfor %}
+            {% for message in messages %}
+            {% if message.tags == 'success' %}
+            notyf.success('{{ message|escapejs }}');
+            {% elif message.tags == 'error' %}
+            notyf.error('{{ message|escapejs }}');
+            {% elif message.tags == 'warning' %}
+            notyf.open({
+                type: 'warning',
+                message: '{{ message|escapejs }}'
+            });
+            {% elif message.tags == 'info' %}
+            notyf.open({
+                type: 'info',
+                message: '{{ message|escapejs }}'
+            });
+            {% else %}
+            notyf.open({
+                type: 'info',
+                message: '{{ message|escapejs }}'
+            });
+            {% endif %}
+            {% endfor %}
             {% endif %}
         }
 
         // Ejecutar cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             showDjangoMessages();
             setupMobileMenu();
-            loadInstagramWidget();
+            // loadInstagramWidget(); // Deshabilitado temporalmente
         });
-        
+
         // Configurar menú móvil
         function setupMobileMenu() {
             const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
             const mobileMenu = document.getElementById('mobile-menu');
             const menuIcon = document.getElementById('menu-icon');
             const closeIcon = document.getElementById('close-icon');
-            
+
             if (mobileMenuToggle && mobileMenu) {
-                mobileMenuToggle.addEventListener('click', function() {
+                mobileMenuToggle.addEventListener('click', function () {
                     const isHidden = mobileMenu.classList.contains('hidden');
-                    
+
                     if (isHidden) {
                         // Mostrar menú
                         mobileMenu.classList.remove('hidden');
@@ -347,11 +398,11 @@
                         closeIcon.classList.add('hidden');
                     }
                 });
-                
+
                 // Cerrar menú al hacer clic en un enlace
                 const menuLinks = mobileMenu.querySelectorAll('a');
                 menuLinks.forEach(link => {
-                    link.addEventListener('click', function() {
+                    link.addEventListener('click', function () {
                         mobileMenu.classList.add('hidden');
                         menuIcon.classList.remove('hidden');
                         closeIcon.classList.add('hidden');
@@ -361,7 +412,7 @@
         }
 
         // Función global para mostrar toast desde JavaScript
-        window.showToast = function(type, message) {
+        window.showToast = function (type, message) {
             if (type === 'success') {
                 notyf.success(message);
             } else if (type === 'error') {
@@ -380,13 +431,13 @@
                 callback();
                 return;
             }
-            
+
             // Si el script ya está en el DOM, esperar a que cargue
             const existingScript = document.querySelector('script[src*="instagram.com/embed.js"]');
             if (existingScript) {
                 if (existingScript.onload) {
                     const originalOnload = existingScript.onload;
-                    existingScript.onload = function() {
+                    existingScript.onload = function () {
                         originalOnload();
                         callback();
                     };
@@ -395,7 +446,7 @@
                 }
                 return;
             }
-            
+
             // Crear y cargar el script
             const script = document.createElement('script');
             script.async = true;
@@ -417,12 +468,12 @@
             // Verificar si el widget ya fue procesado en esta sesión
             const widgetProcessed = sessionStorage.getItem('instagram-widget-processed');
             const widgetCached = sessionStorage.getItem('instagram-widget-html');
-            
+
             try {
                 // Si ya tenemos el widget procesado en caché, usarlo directamente
                 if (widgetProcessed === 'true' && widgetCached) {
                     widget.innerHTML = widgetCached;
-                    
+
                     // Asegurar que el script de Instagram esté cargado y procesar
                     if (window.instgrm && window.instgrm.Embeds) {
                         // Procesar inmediatamente si el script ya está disponible
@@ -440,7 +491,7 @@
                     }
                     return;
                 }
-                
+
                 // Embed real de Instagram para la primera carga
                 const instagramHTML = `
                     <blockquote class="instagram-media" 
@@ -483,7 +534,7 @@
                 `;
 
                 widget.innerHTML = instagramHTML;
-                
+
                 // Guardar en caché
                 sessionStorage.setItem('instagram-widget-html', instagramHTML);
 
@@ -509,7 +560,7 @@
         function showInstagramFallback() {
             const widget = document.getElementById('instagram-widget');
             if (!widget) return;
-            
+
             const fallbackHTML = `
                 <div class="text-center p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
                     <div class="mb-3">
@@ -528,17 +579,18 @@
         }
 
     </script>
-    
+
     <!-- Dark Mode Script -->
     {% load static %}
     <script src="{% static 'js/dark_mode.js' %}" defer></script>
-    
+
     <!-- Cargar scripts de moderación solo para superusers -->
     {% if user.is_superuser %}
     <script src="{% static 'js/moderation.js' %}"></script>
     {% endif %}
-    
+
     <!-- Scripts adicionales de páginas específicas -->
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>
