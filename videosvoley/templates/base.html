@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Vídeos del Equipo{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% load static video_tags %}{% static 'images/logo.png' %}">
+    <script src="{% static 'js/lightbox.js' %}"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -582,7 +583,6 @@
     </script>
 
     <!-- Dark Mode Script -->
-    {% load static %}
     <script src="{% static 'js/dark_mode.js' %}" defer></script>
 
     <!-- Cargar scripts de moderación solo para superusers -->
