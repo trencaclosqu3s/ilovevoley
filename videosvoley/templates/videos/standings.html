@@ -43,8 +43,7 @@
                         class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent text-sm sm:text-base">
                         <option value="">Todas las categorías</option>
                         {% for category in categories %}
-                        <option value="{{ category.id }}" {% if selected_category==category.id|stringformat:"s"
-                            %}selected{% endif %}>
+                        <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
                             {{ category.name }}
                         </option>
                         {% endfor %}
@@ -58,8 +57,7 @@
                         class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent text-sm sm:text-base">
                         <option value="">Todas las ligas</option>
                         {% for league in leagues %}
-                        <option value="{{ league.id }}" {% if selected_league==league.id|stringformat:"s" %}selected{%
-                            endif %}>
+                        <option value="{{ league.id }}" {% if selected_league == league.id|stringformat:"s" %}selected{% endif %}>
                             {{ league.name }}
                         </option>
                         {% endfor %}
@@ -83,8 +81,7 @@
 
             <!-- Filtro de ligas archivadas/referencia -->
             <div class="flex items-center mt-4">
-                <input type="checkbox" name="show_archived" id="show_archived" value="1" {% if show_archived %}checked{%
-                    endif %} onchange="this.form.submit()"
+                <input type="checkbox" name="show_archived" id="show_archived" value="1" {% if show_archived %}checked{% endif %} onchange="this.form.submit()"
                     class="h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded">
                 <label for="show_archived" class="ml-2 block text-sm text-gray-700">
                     Mostrar ligas archivadas, de referencia o históricas
