@@ -18,7 +18,7 @@
       <excludeFolder url="file://$MODULE_DIR$/media" />
       <excludeFolder url="file://$MODULE_DIR$/staticfiles" />
     </content>
-    <orderEntry type="jdk" jdkName="VOLEY" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Remote 3.13 Docker Compose (web)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="TemplatesService">
