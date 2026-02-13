@@ -173,8 +173,7 @@
                     class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                     <option value="">Todas las categorías</option>
                     {% for cat in filter_form.fields.category.queryset %}
-                    <option value="{{ cat.id }}" {% if filter_form.category.value==cat.id|stringformat:"s" %}selected{%
-                        endif %}>
+                    <option value="{{ cat.id }}" {% if filter_form.category.value == cat.id|stringformat:"s" %}selected{% endif %}>
                         {{ cat.name }}
                     </option>
                     {% endfor %}
@@ -187,8 +186,7 @@
                     <option value="">Todos los años</option>
                     {% for year_choice in filter_form.fields.year.choices %}
                     {% if year_choice.0 %}
-                    <option value="{{ year_choice.0 }}" {% if filter_form.year.value==year_choice.0|stringformat:"s"
-                        %}selected{% endif %}>
+                    <option value="{{ year_choice.0 }}" {% if filter_form.year.value == year_choice.0|stringformat:"s" %}selected{% endif %}>
                         {{ year_choice.1 }}
                     </option>
                     {% endif %}
@@ -203,8 +201,7 @@
                     <option value="">Todos los estados</option>
                     {% for status_choice in filter_form.fields.status.choices %}
                     {% if status_choice.0 %}
-                    <option value="{{ status_choice.0 }}" {% if filter_form.status.value==status_choice.0 %}selected{%
-                        endif %}>
+                    <option value="{{ status_choice.0 }}" {% if filter_form.status.value == status_choice.0 %}selected{% endif %}>
                         {{ status_choice.1 }}
                     </option>
                     {% endif %}
