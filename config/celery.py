@@ -16,10 +16,6 @@ app.autodiscover_tasks()
 
 # Force Django setup and import all tasks
 django.setup()
-try:
-    from videosvoley.core.tasks.calendar_tasks import *
-except ImportError as e:
-    print(f"Warning: Could not import calendar tasks: {e}")
 
 try:
     from videosvoley.videos.tasks import *
