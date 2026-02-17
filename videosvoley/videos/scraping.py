@@ -1116,17 +1116,49 @@ class FederationScraper:
         normalized = ' '.join(normalized.split())
         return normalized
     
+    def _calculate_won_lost_from_matches(self, team) -> Dict[str, int]:
+        """
+        Calcula partidos ganados y perdidos desde los partidos finalizados.
+        Especialmente importante para formato alevín, donde la tabla de la federación
+        puede tener estructura distinta (ej. todos con 0 perdidos).
+        """
+        matches = Match.objects.filter(
+            league=self.league,
+            status='finished'
+        ).filter(
+            models.Q(home_team=team) | models.Q(away_team=team)
+        )
+        won = 0
+        lost = 0
+        for match in matches:
+            if match.home_score is None or match.away_score is None:
+                continue
+            is_home = (match.home_team == team)
+            sets_won = match.home_score if is_home else match.away_score
+            sets_lost = match.away_score if is_home else match.home_score
+            if sets_won > sets_lost:
+                won += 1
+            elif sets_lost > sets_won:
+                lost += 1
+        return {'won': won, 'lost': lost}
+
     def _calculate_team_stats_from_matches(self, team) -> Dict[str, int]:
         """
         Calcula estadísticas detalladas (breakdown de resultados) desde los partidos guardados.
         Esto es necesario porque la tabla de la federación agrupa G3 (3-0 y 3-1) y P0 (0-3 y 1-3),
         haciendo imposible distinguir estos resultados solo con la tabla.
+        Para formato alevín (3 sets, 2-1/1-2/3-0/0-3) estos contadores no aplican; en la vista
+        se ocultan las estadísticas detalladas para ligas alevín.
         """
         stats = {
             'wins_3_0': 0, 'wins_3_1': 0, 'wins_3_2': 0,
             'losses_2_3': 0, 'losses_1_3': 0, 'losses_0_3': 0
         }
         
+        # Ligas alevín: no usamos el desglose 3-0/3-1/... (siempre 3 sets, 2-1 o 1-2)
+        if self.league.match_format == 'alevin_balear':
+            return stats
+
         # Obtener todos los partidos finalizados de este equipo en esta liga
         matches = Match.objects.filter(
             league=self.league,
@@ -1144,7 +1176,7 @@ class FederationScraper:
             sets_won = match.home_score if is_home else match.away_score
             sets_lost = match.away_score if is_home else match.home_score
             
-            # Clasificar resultado
+            # Clasificar resultado (formato estándar 5 sets)
             if sets_won == 3:
                 if sets_lost == 0: stats['wins_3_0'] += 1
                 elif sets_lost == 1: stats['wins_3_1'] += 1
@@ -1153,10 +1185,6 @@ class FederationScraper:
                 if sets_won == 2: stats['losses_2_3'] += 1
                 elif sets_won == 1: stats['losses_1_3'] += 1
                 elif sets_won == 0: stats['losses_0_3'] += 1
-            
-            # NOTA: Para ligas de 3 sets (alevín) u otros formatos, 
-            # estos contadores podrían no cubrir todos los casos, 
-            # pero cubren el estándar de voleibol que es lo que pide el usuario.
                 
         return stats
 
@@ -1179,10 +1207,9 @@ class FederationScraper:
             # Esto corrige el problema de interpretación de G3/G2/etc de la federación
             detailed_stats = self._calculate_team_stats_from_matches(team)
             
-            # Sobrescribir los datos parseados de la tabla con los calculados
             # Solo si tenemos partidos para calcular (para no poner ceros si no tenemos partidos scrapeados aún)
             matches_exist = Match.objects.filter(
-                league=self.league, 
+                league=self.league,
                 status='finished'
             ).filter(
                 models.Q(home_team=team) | models.Q(away_team=team)
@@ -1190,6 +1217,12 @@ class FederationScraper:
             
             if matches_exist:
                 standing_data.update(detailed_stats)
+                # Formato alevín: la tabla de la federación suele tener estructura distinta
+                # (ej. todos con 0 perdidos). Calculamos G/P desde los partidos reales.
+                if self.league.match_format == 'alevin_balear':
+                    won_lost = self._calculate_won_lost_from_matches(team)
+                    standing_data['won'] = won_lost['won']
+                    standing_data['lost'] = won_lost['lost']
             
             Standing.objects.create(
                 league=self.league,

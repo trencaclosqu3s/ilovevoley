@@ -297,7 +297,8 @@
             </table>
         </div>
 
-        <!-- Estadísticas detalladas (móvil colapsable) -->
+        <!-- Estadísticas detalladas (3-0, 3-1, ...). Omitidas para formato alevín (3 sets, 2-1/1-2). -->
+        {% if league_data.league.match_format != 'alevin_balear' %}
         {% for standing in league_data.standings %}
         {% if club_team_name in standing.team.name %}
         <div class="bg-csj-purple bg-opacity-10 p-4 border-t border-csj-purple border-opacity-30">
@@ -333,6 +334,7 @@
         </div>
         {% endif %}
         {% endfor %}
+        {% endif %}
     </div>
     {% endfor %}
     {% else %}
