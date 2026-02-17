@@ -698,9 +698,10 @@ def ajax_matches_by_category(request):
     # Formatear respuesta
     matches_data = []
     for match in matches:
+        league_name = match.league.name if match.league else 'Sin liga'
         matches_data.append({
             'id': match.id,
-            'text': f"{match.home_team_display} vs {match.away_team_display} - {match.match_date.strftime('%d/%m/%Y')} ({match.league.name})"
+            'text': f"{match.home_team_display} vs {match.away_team_display} - {match.match_date.strftime('%d/%m/%Y')} ({league_name})"
         })
     
     return JsonResponse({
