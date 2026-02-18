@@ -18,6 +18,8 @@ from django.core.files.base import ContentFile
 from .models import Video, Comment, Category, League, Match, Team, Standing, Image, Player, Staff, Person, PlayerRole, StaffRole
 from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm, PersonForm, PlayerRoleForm, StaffRoleForm, MatchResultForm
 from .utils import process_uploaded_image
+import requests as http_requests
+from .scraping import parse_acta_lineup
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -565,10 +567,137 @@ def ajax_add_match_result(request, match_id):
             errors[field] = field_errors[0] if field_errors else 'Error desconocido'
         
         return JsonResponse({
-            'success': False, 
+            'success': False,
             'error': 'Datos inválidos',
             'errors': errors
         }, status=400)
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+def ajax_acta_lineup(request, match_id):
+    """
+    Vista AJAX que devuelve convocados + alineaciones por set del acta oficial,
+    enriquecidos con datos de Person/PlayerRole donde haya coincidencia de dorsal.
+    """
+    import re as _re
+    from unidecode import unidecode as _uni
+
+    try:
+        match = Match.objects.select_related('home_team', 'away_team').get(id=match_id)
+    except Match.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
+
+    if not match.acta_html:
+        return JsonResponse({'success': False, 'error': 'Este partido no tiene acta disponible'}, status=404)
+
+    try:
+        response = http_requests.get(match.acta_html, timeout=10)
+        response.raise_for_status()
+    except http_requests.exceptions.Timeout:
+        return JsonResponse({'success': False, 'error': 'Tiempo de espera agotado al obtener el acta'}, status=504)
+    except http_requests.exceptions.RequestException as e:
+        logger.warning(f"Error obteniendo acta del partido {match_id}: {e}")
+        return JsonResponse({'success': False, 'error': 'No se pudo acceder al acta oficial'}, status=502)
+
+    try:
+        # Pasar bytes para que BeautifulSoup detecte el charset del meta tag
+        # (evita que requests decodifique mal UTF-8 como Latin-1)
+        lineup_data = parse_acta_lineup(response.content)
+    except Exception as e:
+        logger.error(f"Error parseando acta del partido {match_id}: {e}")
+        return JsonResponse({'success': False, 'error': 'Error al procesar el acta'}, status=500)
+
+    # Pre-fetch todos los PlayerRole activos de ambos equipos en una sola query
+    roles_lookup = {}  # {(team_id, jersey_number): role}
+    teams_to_query = [t for t in [match.home_team, match.away_team] if t]
+    if teams_to_query:
+        for role in (
+            PlayerRole.objects
+            .filter(team__in=teams_to_query, is_active=True, jersey_number__isnull=False)
+            .select_related('person', 'team')
+        ):
+            roles_lookup[(role.team_id, role.jersey_number)] = role
+
+    def _person_data(role):
+        if not role or not role.person:
+            return None
+        p = role.person
+        return {
+            'id': p.id,
+            'full_name': p.full_name,
+            'photo_url': p.photo.url if p.photo else None,
+            'position': role.display_position if role.position else None,
+        }
+
+    def _match_team(name_acta):
+        """Determina si name_acta corresponde al equipo local o visitante por solapamiento de palabras."""
+        def words(s):
+            return set(_uni(s or '').upper().split())
+        n = words(name_acta)
+        nh = words(match.home_team.name if match.home_team else '')
+        na = words(match.away_team.name if match.away_team else '')
+        return match.home_team if len(n & nh) >= len(n & na) else match.away_team
+
+    def _enrich_convocados(raw_list, team):
+        """["1 Raya", ...] → [{number, name_acta, person}]"""
+        result = []
+        for entry in raw_list:
+            m = _re.match(r'^(\d+)\s+(.+)$', entry)
+            if not m:
+                result.append({'number': None, 'name_acta': entry, 'person': None})
+                continue
+            jersey = int(m.group(1))
+            role = roles_lookup.get((team.id if team else None, jersey))
+            result.append({
+                'number': jersey,
+                'name_acta': m.group(2),
+                'person': _person_data(role),
+            })
+        return result
+
+    def _enrich_lineup(lineup, team):
+        """[{position, number, sub}] → [{position, number, sub, person}]"""
+        result = []
+        for entry in lineup:
+            jersey = entry.get('number')
+            role = roles_lookup.get((team.id if team else None, jersey)) if jersey is not None else None
+            result.append({
+                'position': entry.get('position'),
+                'number': jersey,
+                'sub': entry.get('sub'),
+                'person': _person_data(role),
+            })
+        return result
+
+    # Enriquecer sets: detectar home/away por nombre para cada equipo de cada set
+    enriched_sets = []
+    for set_data in lineup_data.get('sets', []):
+        enriched_teams = []
+        for team_data in set_data.get('teams', []):
+            team_obj = _match_team(team_data['name'])
+            enriched_teams.append({
+                'name': team_data['name'],
+                'is_home': team_obj == match.home_team,
+                'lineup': _enrich_lineup(team_data['lineup'], team_obj),
+                'points': team_data['points'],
+            })
+        enriched_sets.append({
+            'title': set_data['title'],
+            'time': set_data['time'],
+            'teams': enriched_teams,
+        })
+
+    return JsonResponse({
+        'success': True,
+        'home_team': lineup_data['home_team'],
+        'away_team': lineup_data['away_team'],
+        'home_captain': lineup_data['home_captain'],
+        'away_captain': lineup_data['away_captain'],
+        'home_convocados': _enrich_convocados(lineup_data['home_convocados'], match.home_team),
+        'away_convocados': _enrich_convocados(lineup_data['away_convocados'], match.away_team),
+        'sets': enriched_sets,
+    })
 
 
 @login_required

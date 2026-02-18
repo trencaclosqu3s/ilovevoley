@@ -43,6 +43,7 @@ urlpatterns = [
     path('ajax/search-teams/', views.ajax_search_teams, name='ajax_search_teams'),
     path('ajax/register-team/', views.ajax_register_team, name='ajax_register_team'),
     path('ajax/partidos/<int:match_id>/resultado/', views.ajax_add_match_result, name='ajax_add_match_result'),
+    path('ajax/partidos/<int:match_id>/alineacion/', views.ajax_acta_lineup, name='ajax_acta_lineup'),
     
     # URLs de moderación y notificaciones (solo superuser)
     path('moderacion/', views.moderation_panel, name='moderation_panel'),
