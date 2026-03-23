@@ -92,6 +92,7 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+      - webproxy
 
   certbot:
     image: certbot/certbot
@@ -105,3 +106,5 @@ services:
 networks:
   app-network:
     driver: bridge
+  webproxy:
+    external: true
