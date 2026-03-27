@@ -787,9 +787,19 @@ class FederationScraper:
         """
         try:
             logger.info(f"Procesando JSON unificado (op={op_type}) desde: {json_url}")
-            
+
             # Obtener datos del JSON
-            response = requests.get(json_url, timeout=30)
+            for attempt in range(2):
+                try:
+                    response = requests.get(json_url, timeout=60)
+                    break
+                except requests.exceptions.ReadTimeout:
+                    if attempt == 0:
+                        logger.warning(f"Timeout en intento 1 para {json_url}, reintentando en 10s...")
+                        import time
+                        time.sleep(10)
+                    else:
+                        raise
             response.raise_for_status()
             json_data = json.loads(response.text)
             
@@ -1356,11 +1366,8 @@ class FederationScraper:
                         should_update = True
                     # Si el nuevo valor tiene más información (ej: hora específica vs 00:00)
                     elif key == 'match_date' and new_value and current_value:
-                        # Actualizar si la nueva fecha tiene hora específica y la actual no
-                        if new_value.hour != 0 and current_value.hour == 0:
-                            should_update = True
-                        # O si la fecha es completamente diferente (cambio de día)
-                        elif new_value.date() != current_value.date():
+                        # Actualizar si el datetime ha cambiado (cambio de día, hora o ambos)
+                        if new_value != current_value:
                             should_update = True
                     # Si tenemos nuevos resultados y el partido estaba sin resultados
                     elif key in ['home_score', 'away_score', 'status'] and new_value is not None:
@@ -1595,9 +1602,19 @@ class FederationScraper:
             logger.info(f"Found {len(db_league_ids)} leagues in database: {sorted(db_league_ids)}")
             
             # Obtener datos del JSON
-            response = requests.get(json_url, timeout=30)
+            for attempt in range(2):
+                try:
+                    response = requests.get(json_url, timeout=60)
+                    break
+                except requests.exceptions.ReadTimeout:
+                    if attempt == 0:
+                        logger.warning(f"Timeout en intento 1 para {json_url}, reintentando en 10s...")
+                        import time
+                        time.sleep(10)
+                    else:
+                        raise
             response.raise_for_status()
-            
+
             # Parsear JSON
             json_data = json.loads(response.text)
             
@@ -2040,7 +2057,7 @@ class FederationScraper:
                     self.update_standings(data['standings'], all_teams)
                 
                 # Actualizar partidos
-                if 'matches' in data and all_teams:
+                if 'matches' in data:
                     self.update_matches(data['matches'], all_teams)
                     
             except Exception as e:

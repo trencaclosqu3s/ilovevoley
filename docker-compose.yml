@@ -40,7 +40,7 @@ services:
 
   celery:
     build: .
-    command: celery -A config worker -l info
+    command: celery -A config worker -l info --pool=solo
     volumes:
       - .:/app
     environment:
@@ -49,6 +49,10 @@ services:
       - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
       - REDIS_URL=redis://redis:6379/0
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
+      - OMP_NUM_THREADS=1
+      - OPENBLAS_NUM_THREADS=1
+      - TOKENIZERS_PARALLELISM=false
+      - MALLOC_TRIM_THRESHOLD_=100
     depends_on:
       - db
       - redis

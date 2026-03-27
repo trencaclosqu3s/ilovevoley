@@ -152,27 +152,6 @@ def scrape_all_leagues_task(self, round_number=None, category_filter=None, delay
         except Exception as e:
             logger.error(f"Error enviando email de notificación: {e}")
     
-    # Auto-reindexar RAG después del scraping si hay datos nuevos
-    if total_results['total_matches'] > 0 or total_results['total_standings'] > 0:
-        try:
-            logger.info("Iniciando actualización automática del sistema RAG")
-            # Importar la tarea RAG
-            from videosvoley.rag.tasks import reindex_after_scraping_task
-            
-            # Ejecutar reindexación de forma asíncrona
-            leagues_ids = list(leagues.values_list('id', flat=True))
-            reindex_after_scraping_task.delay(leagues_scraped=leagues_ids)
-            
-            logger.info("Tarea de actualización RAG iniciada")
-            total_results['rag_reindex_scheduled'] = True
-            
-        except Exception as e:
-            logger.error(f"Error programando actualización RAG: {e}")
-            total_results['rag_reindex_error'] = str(e)
-    else:
-        logger.info("No hay datos nuevos - omitiendo actualización RAG")
-        total_results['rag_reindex_scheduled'] = False
-    
     return total_results
 
 
@@ -238,22 +217,6 @@ def scrape_league_task(self, league_id, round_number=None):
         
         if summary['errors']:
             summary['status'] = 'partial_success'
-        
-        # Auto-reindexar RAG después del scraping individual si hay datos nuevos
-        total_matches = sum(ep.get('matches', 0) for ep in summary['endpoints'].values() if isinstance(ep, dict))
-        total_standings = sum(ep.get('standings', 0) for ep in summary['endpoints'].values() if isinstance(ep, dict))
-        
-        if total_matches > 0 or total_standings > 0:
-            try:
-                logger.info(f"Iniciando actualización RAG para liga {league.name}")
-                from videosvoley.rag.tasks import reindex_after_scraping_task
-                reindex_after_scraping_task.delay(leagues_scraped=[league_id])
-                summary['rag_reindex_scheduled'] = True
-            except Exception as e:
-                logger.error(f"Error programando actualización RAG: {e}")
-                summary['rag_reindex_error'] = str(e)
-        else:
-            summary['rag_reindex_scheduled'] = False
         
         logger.info(f'Scraping completado para {league.name}')
         return summary
@@ -1623,14 +1586,14 @@ def scrape_json_results_task(self, league_id=None, category_filter=None, delay=1
     # Usar la tarea genérica para procesar resultados
     json_url = "https://www.voleibolib.net/JSON/get_partidos_desglose_competiciones.asp?op=2&fini=&ffin="
     
-    return process_json_unified_task.delay(
+    return process_json_unified_task(
         json_url=json_url,
         op_type='2',
         league_id=league_id,
         category_filter=category_filter,
         delay=delay,
         create_endpoint=create_endpoint
-    ).get()
+    )
 
 
 @shared_task(name='scrape_json_upcoming', bind=True)
@@ -1651,14 +1614,14 @@ def scrape_json_upcoming_task(self, league_id=None, category_filter=None, delay=
     # Usar la tarea genérica para procesar partidos próximos
     json_url = "https://www.voleibolib.net/JSON/get_partidos_desglose_competiciones.asp?op=1&fini=&ffin="
     
-    return process_json_unified_task.delay(
+    return process_json_unified_task(
         json_url=json_url,
         op_type='1',
         league_id=league_id,
         category_filter=category_filter,
         delay=delay,
         create_endpoint=create_endpoint
-    ).get()
+    )
 
 
 def _process_json_matches_from_group(league, partidos_data, categoria_name, grupo_id):
