@@ -494,7 +494,12 @@ class Match(models.Model):
         verbose_name_plural = 'Partidos'
 
     def __str__(self):
-        return f'{self.home_team_display} vs {self.away_team_display} - {self.match_date.strftime("%d/%m/%Y")}'
+        base = f'{self.home_team_display} vs {self.away_team_display} - {self.match_date.strftime("%d/%m/%Y")}'
+        if self.league_id:
+            cats = self.league.categories.all()
+            if cats:
+                return f'{base} [{", ".join(c.name for c in cats)}]'
+        return base
 
     @property
     def is_finished(self):

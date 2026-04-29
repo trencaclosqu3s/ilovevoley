@@ -99,7 +99,7 @@ class VideoForm(forms.ModelForm):
             'home_team', 'away_team', 'home_team__category', 'away_team__category',
             'league'
         ).prefetch_related('league__categories').filter(final_query, match_date__lt=now)
-        
+
         # 2. Obtener el próximo partido futuro (solo uno)
         next_match = Match.objects.select_related(
             'home_team', 'away_team', 'home_team__category', 'away_team__category',
@@ -296,12 +296,12 @@ class ImageUploadForm(forms.ModelForm):
         # 1. Obtener todos los partidos del pasado
         past_matches = Match.objects.select_related(
             'home_team', 'away_team', 'league'
-        ).filter(club_query, match_date__lt=now)
-        
+        ).prefetch_related('league__categories').filter(club_query, match_date__lt=now)
+
         # 2. Obtener el próximo partido futuro (solo uno)
         next_match = Match.objects.select_related(
             'home_team', 'away_team', 'league'
-        ).filter(club_query, match_date__gte=now).order_by('match_date').first()
+        ).prefetch_related('league__categories').filter(club_query, match_date__gte=now).order_by('match_date').first()
         
         # 3. Combinar: partidos pasados + próximo partido (si existe)
         if next_match:
