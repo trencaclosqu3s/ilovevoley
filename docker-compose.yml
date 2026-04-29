@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:18-alpine
     volumes:
       - /opt/videosvoley/postgres:/var/lib/postgresql/data
     environment:
@@ -12,7 +12,7 @@ services:
       - app-network
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: unless-stopped
     networks:
       - app-network
