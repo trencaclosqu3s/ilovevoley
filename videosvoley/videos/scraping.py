@@ -1276,7 +1276,7 @@ class FederationScraper:
             
             # Si es solo un resultado (sin fecha), buscar partido existente para actualizar
             if is_result_only:
-                existing_match = Match.objects.filter(
+                existing_match = Match.all_objects.filter(
                     league=self.league,
                     home_team=home_team,
                     away_team=away_team,
@@ -1315,23 +1315,23 @@ class FederationScraper:
             
             # PRIORIDAD 1: Buscar por jornada (más preciso para detectar cambios de fecha)
             if round_number:
-                existing_match = Match.objects.filter(
+                existing_match = Match.all_objects.filter(
                     league=self.league,
                     home_team=home_team,
                     away_team=away_team,
                     round_number=round_number,
                     is_friendly=False  # Solo actualizar partidos oficiales, no amistosos
                 ).first()
-                
+
                 if existing_match:
                     logger.info(f"Found existing match by round: {home_team.name} vs {away_team.name} in round {round_number}")
-            
+
             # PRIORIDAD 2: Si no se encontró por jornada, buscar por fecha (fallback)
             if not existing_match and match_date:
                 date_start = match_date.replace(hour=0, minute=0, second=0, microsecond=0)
                 date_end = date_start + timedelta(days=1)
-                
-                existing_match = Match.objects.filter(
+
+                existing_match = Match.all_objects.filter(
                     league=self.league,
                     home_team=home_team,
                     away_team=away_team,
@@ -1345,12 +1345,18 @@ class FederationScraper:
             
             # Crear o actualizar el partido con merge inteligente
             if existing_match:
+                # Si el partido estaba withdrawn pero ahora los equipos son activos, reactivarlo
+                if existing_match.status == 'withdrawn' and home_team.is_active and away_team.is_active:
+                    existing_match.status = 'scheduled'
+                    existing_match.save()
+                    logger.info(f"Reactivated withdrawn match: {home_team.name} vs {away_team.name}")
+
                 # MERGE INTELIGENTE: Actualizar solo campos que:
                 # 1. Tienen valor en los nuevos datos (no None y no vacío)
                 # 2. O están vacíos/None en el partido existente
                 # 3. O representan información más específica (ej: hora específica vs 00:00)
                 updated_fields = []
-                
+
                 for key, new_value in match_data.items():
                     # Saltar campos que no existen en el modelo
                     if not hasattr(existing_match, key):
@@ -1674,7 +1680,7 @@ class FederationScraper:
                 
                 # Verificar si el partido ya existe
                 json_match_id = str(partido_data.get('ID', ''))
-                match_exists = Match.objects.filter(federation_id=json_match_id).exists() if json_match_id else False
+                match_exists = Match.all_objects.filter(federation_id=json_match_id).exists() if json_match_id else False
                 
                 enriched = self._enrich_single_match(partido_data, league)
                 if enriched:
@@ -1711,9 +1717,9 @@ class FederationScraper:
         
         match = None
         
-        # Primero intentar buscar por federation_id del JSON
+        # Primero intentar buscar por federation_id del JSON (incluye withdrawn)
         try:
-            match = Match.objects.get(federation_id=json_match_id)
+            match = Match.all_objects.get(federation_id=json_match_id)
         except Match.DoesNotExist:
             # Si no existe, buscar por otros criterios
             # Extraer datos del partido del JSON
@@ -1914,8 +1920,8 @@ class FederationScraper:
         if not json_match_id:
             return False
             
-        # Verificar si ya existe un partido con este federation_id
-        if Match.objects.filter(federation_id=json_match_id).exists():
+        # Verificar si ya existe un partido con este federation_id (incluye withdrawn)
+        if Match.all_objects.filter(federation_id=json_match_id).exists():
             logger.debug(f"Match with federation_id {json_match_id} already exists, skipping creation")
             return False
         
@@ -1957,7 +1963,7 @@ class FederationScraper:
         date_start = match_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         date_end = date_start + timedelta(days=1)
         
-        existing_match = Match.objects.filter(
+        existing_match = Match.all_objects.filter(
             league=league,
             home_team=home_team,
             away_team=away_team,
@@ -1965,7 +1971,7 @@ class FederationScraper:
             match_date__lt=date_end,
             is_friendly=False  # Solo verificar partidos oficiales
         ).first()
-        
+
         if existing_match:
             logger.info(f"Match already exists (by teams and date): {home_team.name} vs {away_team.name} on {match_datetime.date()}")
             return False
