@@ -658,12 +658,12 @@ class StandingAdmin(admin.ModelAdmin):
 
 @admin.register(Image)
 class ImageAdmin(admin.ModelAdmin):
-    list_display = ('thumbnail_preview', 'title', 'match', 'categories_display_admin', 'status', 'uploaded_by', 'upload_date', 'moderated_by', 'original_format', 'was_converted')
+    list_display = ('thumbnail_preview', 'title', 'match', 'album_display', 'categories_display_admin', 'status', 'uploaded_by', 'upload_date', 'moderated_by', 'original_format', 'was_converted')
     list_filter = ('status', 'categories', 'year', 'upload_date', 'match__league', 'was_converted', 'original_format')
-    search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name')
+    search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name', 'album_name')
     readonly_fields = ('upload_date', 'thumbnail_preview', 'vision_api_details', 'moderation_date', 'original_format', 'was_converted')
     date_hierarchy = 'upload_date'
-    actions = ['approve_images', 'reject_images', 'check_with_vision_api', 'assign_to_album', 'assign_to_match']
+    actions = ['approve_images', 'reject_images', 'check_with_vision_api', 'assign_to_album', 'assign_to_match', 'unassign_album', 'unassign_match']
     filter_horizontal = ('categories',)
     
     fieldsets = (
@@ -698,6 +698,14 @@ class ImageAdmin(admin.ModelAdmin):
         return '-'
     thumbnail_preview.short_description = 'Preview'
     
+    def album_display(self, obj):
+        """Muestra el álbum de la imagen"""
+        if obj.album_name:
+            return obj.album_name
+        return '-'
+    album_display.short_description = 'Álbum'
+    album_display.admin_order_field = 'album_name'
+
     def categories_display_admin(self, obj):
         """Muestra las categorías de forma legible"""
         cats = obj.categories.all()
@@ -885,6 +893,29 @@ class ImageAdmin(admin.ModelAdmin):
         })
 
     assign_to_match.short_description = "Asignar a partido"
+
+    def unassign_album(self, request, queryset):
+        """Quitar el álbum de las imágenes seleccionadas."""
+        updated = queryset.filter(album_group_id__isnull=False).update(
+            album_group_id=None,
+            album_name='',
+        )
+        if updated:
+            self.message_user(request, f'{updated} foto(s) desasignada(s) de su álbum.')
+        else:
+            self.message_user(request, 'Las imágenes seleccionadas no pertenecían a ningún álbum.')
+
+    unassign_album.short_description = "Desasignar álbum"
+
+    def unassign_match(self, request, queryset):
+        """Quitar el partido de las imágenes seleccionadas."""
+        updated = queryset.filter(match__isnull=False).update(match=None)
+        if updated:
+            self.message_user(request, f'{updated} foto(s) desasignada(s) de su partido.')
+        else:
+            self.message_user(request, 'Las imágenes seleccionadas no tenían partido asignado.')
+
+    unassign_match.short_description = "Desasignar partido"
 
     def save_model(self, request, obj, form, change):
         """Auto-asignar moderador en cambios de estado"""
