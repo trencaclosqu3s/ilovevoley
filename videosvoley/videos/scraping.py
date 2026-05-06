@@ -928,8 +928,26 @@ class FederationScraper:
                 away_team = self._find_team_by_name(match_data['away_team'], league)
                 
                 if not home_team or not away_team:
-                    logger.debug(f'Saltando partido: {match_data["home_team"]} vs {match_data["away_team"]} (equipos no encontrados)')
-                    continue
+                    league_category = league.categories.first()
+                    if not home_team and league_category:
+                        home_fed_id = f"{league.federation_id}_{match_data['home_team'].replace(' ', '_').lower()}"
+                        home_team, created = Team.objects.get_or_create(
+                            federation_id=home_fed_id,
+                            defaults={'name': match_data['home_team'], 'category': league_category, 'is_active': True}
+                        )
+                        if created:
+                            logger.info(f"Equipo creado automáticamente: {home_team.name} para liga {league.name}")
+                    if not away_team and league_category:
+                        away_fed_id = f"{league.federation_id}_{match_data['away_team'].replace(' ', '_').lower()}"
+                        away_team, created = Team.objects.get_or_create(
+                            federation_id=away_fed_id,
+                            defaults={'name': match_data['away_team'], 'category': league_category, 'is_active': True}
+                        )
+                        if created:
+                            logger.info(f"Equipo creado automáticamente: {away_team.name} para liga {league.name}")
+                    if not home_team or not away_team:
+                        logger.warning(f'No se pudieron encontrar ni crear equipos: {match_data["home_team"]} vs {match_data["away_team"]}')
+                        continue
                 
                 # Buscar partido existente
                 match = Match.objects.filter(
@@ -1472,19 +1490,20 @@ class FederationScraper:
         return False
     
     def _find_similar_team(self, team_name: str) -> Optional[Team]:
-        """Busca equipos similares en la base de datos"""
+        """Busca equipos similares en la base de datos, prefiriendo la categoría de la liga"""
         normalized_name = self._normalize_team_name(team_name)
-        
-        # Buscar por contenido parcial
-        similar_teams = Team.objects.filter(name__icontains=team_name[:10])
-        if similar_teams.exists():
-            return similar_teams.first()
-        
-        # Buscar por nombres normalizados
+
+        # Primero buscar por nombre normalizado en la categoría de la liga
+        league_categories = self.league.categories.all()
+        for team in Team.objects.filter(category__in=league_categories):
+            if self._normalize_team_name(team.name) == normalized_name:
+                return team
+
+        # Fallback: buscar por nombre normalizado en todas las categorías
         for team in Team.objects.all():
             if self._normalize_team_name(team.name) == normalized_name:
                 return team
-        
+
         return None
     
     def get_max_rounds(self) -> int:
