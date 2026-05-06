@@ -1,6 +1,7 @@
 from django import forms
 from django.conf import settings
 from django.db.models import Q
+from django.forms import formset_factory
 from .models import Video, Comment, Category, Match, Team, Image, League, Person, PlayerRole, StaffRole
 
 
@@ -1028,3 +1029,93 @@ class StaffRoleForm(forms.ModelForm):
             # No se puede tener el mismo rol en el mismo equipo
             active_roles = person.staff_roles.filter(is_active=True).values_list('team_id', 'role')
             # Esto se validará en el clean del formulario
+
+
+INPUT_CSS = 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+
+
+class VideoEntryForm(forms.Form):
+    """Fila de título + URL para el formulario de subida múltiple de vídeos."""
+    title = forms.CharField(
+        max_length=200,
+        label='Título',
+        widget=forms.TextInput(attrs={
+            'class': INPUT_CSS,
+            'placeholder': 'Ej: Primer tiempo',
+        }),
+    )
+    youtube_url = forms.URLField(
+        label='URL de YouTube',
+        widget=forms.URLInput(attrs={
+            'class': INPUT_CSS,
+            'placeholder': 'https://www.youtube.com/watch?v=...',
+        }),
+    )
+
+
+VideoEntryFormSet = formset_factory(VideoEntryForm, extra=2, can_delete=True)
+
+
+class VideoBulkSharedForm(forms.Form):
+    """Campos compartidos (partido y categoría) para la subida múltiple de vídeos."""
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.filter(is_active=True).order_by('name'),
+        required=False,
+        label='Categoría',
+        empty_label='Todas las categorías',
+        widget=forms.Select(attrs={'class': INPUT_CSS, 'id': 'id_category'}),
+    )
+    match = forms.ModelChoiceField(
+        queryset=Match.objects.none(),
+        required=False,
+        label='Partido (opcional)',
+        empty_label='Seleccionar partido del club (opcional)',
+        widget=forms.Select(attrs={'class': INPUT_CSS, 'id': 'id_match'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._setup_match_queryset()
+
+    def _setup_match_queryset(self):
+        from django.utils import timezone
+        club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+
+        category = None
+        if self.data and 'category' in self.data:
+            try:
+                category = Category.objects.get(id=self.data['category'])
+            except (Category.DoesNotExist, ValueError):
+                pass
+
+        club_query = (
+            Q(home_team__name__icontains=club_team_name) |
+            Q(away_team__name__icontains=club_team_name) |
+            Q(home_team_text__icontains=club_team_name) |
+            Q(away_team_text__icontains=club_team_name) |
+            Q(home_team__parent_team__name__icontains=club_team_name) |
+            Q(away_team__parent_team__name__icontains=club_team_name)
+        )
+
+        if category:
+            category_query = (
+                Q(home_team__category=category) | Q(away_team__category=category) |
+                Q(league__categories=category)
+            )
+            final_query = club_query & category_query
+            self.fields['match'].empty_label = f'Seleccionar partido de {category.name} (opcional)'
+        else:
+            final_query = club_query
+
+        now = timezone.now()
+        base_qs = Match.objects.select_related(
+            'home_team', 'away_team', 'home_team__category', 'away_team__category', 'league'
+        ).prefetch_related('league__categories')
+
+        past = base_qs.filter(final_query, match_date__lt=now)
+        next_match = base_qs.filter(final_query, match_date__gte=now).order_by('match_date').first()
+
+        if next_match:
+            self.fields['match'].queryset = (past | Match.objects.filter(id=next_match.id)).order_by('-match_date')
+        else:
+            self.fields['match'].queryset = past.order_by('-match_date')

@@ -1,4 +1,7 @@
+import uuid
 from django.contrib import admin
+from django.contrib.admin import helpers
+from django.shortcuts import render
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils import timezone
@@ -660,7 +663,7 @@ class ImageAdmin(admin.ModelAdmin):
     search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name')
     readonly_fields = ('upload_date', 'thumbnail_preview', 'vision_api_details', 'moderation_date', 'original_format', 'was_converted')
     date_hierarchy = 'upload_date'
-    actions = ['approve_images', 'reject_images', 'check_with_vision_api']
+    actions = ['approve_images', 'reject_images', 'check_with_vision_api', 'assign_to_album']
     filter_horizontal = ('categories',)
     
     fieldsets = (
@@ -784,7 +787,55 @@ class ImageAdmin(admin.ModelAdmin):
             self.message_user(request, 'Utilidad de Vision API no disponible.', level='ERROR')
     
     check_with_vision_api.short_description = "Verificar con Google Vision API"
-    
+
+    def assign_to_album(self, request, queryset):
+        """Asignar imágenes seleccionadas a un álbum nuevo o existente."""
+        if 'apply' in request.POST:
+            action_type = request.POST.get('action_type')
+            if action_type == 'new':
+                album_name = request.POST.get('album_name', '').strip()
+                if not album_name:
+                    self.message_user(request, 'El nombre del álbum no puede estar vacío.', level='ERROR')
+                    return None
+                album_id = uuid.uuid4()
+            else:
+                raw_id = request.POST.get('album_group_id', '').strip()
+                if not raw_id:
+                    self.message_user(request, 'Selecciona un álbum existente.', level='ERROR')
+                    return None
+                try:
+                    album_id = uuid.UUID(raw_id)
+                except ValueError:
+                    self.message_user(request, 'Álbum no válido.', level='ERROR')
+                    return None
+                album_name = Image.objects.filter(album_group_id=album_id).values_list('album_name', flat=True).first() or ''
+
+            ids = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
+            updated = Image.objects.filter(pk__in=ids).update(
+                album_group_id=album_id,
+                album_name=album_name,
+            )
+            self.message_user(request, f'{updated} foto(s) asignada(s) al álbum "{album_name}".')
+            return None
+
+        existing_albums = (
+            Image.objects
+            .filter(album_group_id__isnull=False)
+            .exclude(album_name='')
+            .values('album_group_id', 'album_name')
+            .distinct()
+            .order_by('album_name')
+        )
+        return render(request, 'admin/videos/assign_album_action.html', {
+            **self.admin_site.each_context(request),
+            'queryset': queryset,
+            'existing_albums': existing_albums,
+            'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+            'title': 'Asignar álbum a imágenes seleccionadas',
+        })
+
+    assign_to_album.short_description = "Asignar a álbum"
+
     def save_model(self, request, obj, form, change):
         """Auto-asignar moderador en cambios de estado"""
         if change and 'status' in form.changed_data:

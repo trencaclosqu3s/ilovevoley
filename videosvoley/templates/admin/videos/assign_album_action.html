@@ -1,0 +1,77 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<p>{{ queryset.count }} foto(s) seleccionada(s):</p>
+<ul class="object-tools" style="margin-bottom:1em;">
+    {% for obj in queryset %}
+        <li style="display:inline-block; margin:4px;">
+            {% if obj.image %}
+                <img src="{{ obj.image.url }}" alt="{{ obj.title }}"
+                     style="width:60px; height:60px; object-fit:cover; border-radius:4px; vertical-align:middle;">
+            {% endif %}
+            <small style="display:block; text-align:center; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ obj.title|truncatechars:10 }}</small>
+        </li>
+    {% endfor %}
+</ul>
+
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="assign_to_album">
+    {% for obj in queryset %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+    {% endfor %}
+
+    <fieldset class="module aligned">
+        <div class="form-row">
+            <label style="font-weight:bold;">Tipo de acción:</label>
+            <div style="margin-top:8px;">
+                <label style="margin-right:16px;">
+                    <input type="radio" name="action_type" value="new" checked
+                           onchange="toggleAlbumFields(this.value)">
+                    Crear nuevo álbum
+                </label>
+                <label>
+                    <input type="radio" name="action_type" value="existing"
+                           onchange="toggleAlbumFields(this.value)">
+                    Añadir a álbum existente
+                </label>
+            </div>
+        </div>
+
+        <div id="field-new" class="form-row" style="margin-top:12px;">
+            <label for="album_name">Nombre del nuevo álbum:</label>
+            <input type="text" name="album_name" id="album_name"
+                   class="vTextField" style="width:300px; margin-left:8px;"
+                   placeholder="Ej: Campionat 2024-25">
+        </div>
+
+        <div id="field-existing" class="form-row" style="margin-top:12px; display:none;">
+            <label for="album_group_id">Álbum existente:</label>
+            <select name="album_group_id" id="album_group_id" style="margin-left:8px; width:300px;">
+                <option value="">— Selecciona un álbum —</option>
+                {% for album in existing_albums %}
+                    <option value="{{ album.album_group_id }}">{{ album.album_name }}</option>
+                {% endfor %}
+            </select>
+            {% if not existing_albums %}
+                <p style="color:#666; margin-left:8px;">No hay álbumes creados todavía.</p>
+            {% endif %}
+        </div>
+    </fieldset>
+
+    <div class="submit-row" style="margin-top:16px;">
+        <input type="submit" name="apply" value="Asignar álbum" class="default">
+        <a href="../" style="margin-left:16px;">Cancelar</a>
+    </div>
+</form>
+
+<script>
+function toggleAlbumFields(value) {
+    document.getElementById('field-new').style.display = value === 'new' ? '' : 'none';
+    document.getElementById('field-existing').style.display = value === 'existing' ? '' : 'none';
+}
+</script>
+{% endblock %}

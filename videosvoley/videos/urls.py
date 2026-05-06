@@ -8,6 +8,7 @@ urlpatterns = [
     # URLs de videos
     path('', views.video_list, name='video_list'),
     path('nuevo/', views.video_create, name='video_create'),
+    path('nuevo-multiple/', views.video_bulk_create, name='video_bulk_create'),
     path('<int:video_id>/', views.video_detail, name='video_detail'),
     
     # URLs de ligas y partidos

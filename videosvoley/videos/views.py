@@ -16,7 +16,7 @@ import base64
 import uuid
 from django.core.files.base import ContentFile
 from .models import Video, Comment, Category, League, Match, Team, Standing, Image, Player, Staff, Person, PlayerRole, StaffRole
-from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm, PersonForm, PlayerRoleForm, StaffRoleForm, MatchResultForm
+from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm, PersonForm, PlayerRoleForm, StaffRoleForm, MatchResultForm, VideoBulkSharedForm, VideoEntryFormSet
 from .utils import process_uploaded_image
 import requests as http_requests
 from .scraping import parse_acta_lineup
@@ -127,6 +127,58 @@ def video_create(request):
         form = VideoForm()
 
     return render(request, 'videos/video_form.html', {'form': form})
+
+
+@login_required
+@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@user_passes_test(lambda u: u.groups.filter(name='VideoManagers').exists())
+def video_bulk_create(request):
+    """Crear múltiples vídeos para el mismo partido en un solo formulario."""
+    match_id = request.GET.get('match') or request.POST.get('match_hidden')
+
+    if request.method == 'POST':
+        shared_form = VideoBulkSharedForm(request.POST)
+        formset = VideoEntryFormSet(request.POST, prefix='videos')
+
+        if shared_form.is_valid() and formset.is_valid():
+            match = shared_form.cleaned_data.get('match')
+            category = shared_form.cleaned_data.get('category')
+            created = 0
+            for entry in formset.cleaned_data:
+                if entry and not entry.get('DELETE') and entry.get('title') and entry.get('youtube_url'):
+                    Video.objects.create(
+                        title=entry['title'],
+                        youtube_url=entry['youtube_url'],
+                        match=match,
+                        category=category,
+                        created_by=request.user,
+                    )
+                    created += 1
+
+            if created:
+                messages.success(request, f'{created} vídeo(s) añadido(s) correctamente.')
+            else:
+                messages.warning(request, 'No se añadió ningún vídeo. Rellena al menos un título y URL.')
+                return render(request, 'videos/video_bulk_form.html', {
+                    'shared_form': shared_form,
+                    'formset': formset,
+                })
+
+            if match:
+                return redirect('videos:match_detail', match_id=match.id)
+            return redirect('videos:video_list')
+    else:
+        initial_shared = {}
+        if match_id:
+            initial_shared['match'] = match_id
+        shared_form = VideoBulkSharedForm(initial=initial_shared)
+        formset = VideoEntryFormSet(prefix='videos')
+
+    return render(request, 'videos/video_bulk_form.html', {
+        'shared_form': shared_form,
+        'formset': formset,
+        'match_id': match_id,
+    })
 
 
 @login_required

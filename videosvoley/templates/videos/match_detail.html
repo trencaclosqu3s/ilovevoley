@@ -300,13 +300,23 @@
     <!-- Videos del partido -->
     {% if videos %}
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div class="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+            <div class="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex items-center justify-between">
                 <h2 class="text-lg sm:text-xl font-bold text-gray-800">
                     📹 Videos del partido ({{ videos.count }})
                 </h2>
+                {% if user.groups.all %}
+                    {% for group in user.groups.all %}
+                        {% if group.name == 'VideoManagers' %}
+                            <a href="{% url 'videos:video_bulk_create' %}?match={{ match.id }}"
+                               class="inline-flex items-center px-3 py-1.5 bg-csj-purple hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition">
+                                + Añadir vídeos
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
             </div>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 sm:p-6">
+
+            <div class="grid grid-cols-1 gap-6 p-4 sm:p-6">
                 {% for video in videos %}
                     <div class="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition">
                         <!-- Video embed -->
@@ -360,7 +370,7 @@
                 {% if user.groups.all %}
                     {% for group in user.groups.all %}
                         {% if group.name == 'VideoManagers' %}
-                            <a href="{% url 'videos:video_create' %}" class="text-csj-purple hover:text-csj-purple-dark font-medium">
+                            <a href="{% url 'videos:video_bulk_create' %}?match={{ match.id }}" class="text-csj-purple hover:text-csj-purple-dark font-medium">
                                 ¡Sé el primero en añadir uno!
                             </a>
                         {% endif %}
