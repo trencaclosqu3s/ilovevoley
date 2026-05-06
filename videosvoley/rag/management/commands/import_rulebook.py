@@ -21,7 +21,7 @@ except Exception:
 
 # PDF parsing is optional
 try:
-    from PyPDF2 import PdfReader
+    from pypdf import PdfReader
 except Exception:
     PdfReader = None
 
