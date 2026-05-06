@@ -663,7 +663,7 @@ class ImageAdmin(admin.ModelAdmin):
     search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name')
     readonly_fields = ('upload_date', 'thumbnail_preview', 'vision_api_details', 'moderation_date', 'original_format', 'was_converted')
     date_hierarchy = 'upload_date'
-    actions = ['approve_images', 'reject_images', 'check_with_vision_api', 'assign_to_album']
+    actions = ['approve_images', 'reject_images', 'check_with_vision_api', 'assign_to_album', 'assign_to_match']
     filter_horizontal = ('categories',)
     
     fieldsets = (
@@ -835,6 +835,56 @@ class ImageAdmin(admin.ModelAdmin):
         })
 
     assign_to_album.short_description = "Asignar a álbum"
+
+    def assign_to_match(self, request, queryset):
+        """Asignar imágenes seleccionadas a un partido."""
+        if 'apply' in request.POST:
+            match_id = request.POST.get('match_id', '').strip()
+            if not match_id:
+                self.message_user(request, 'Selecciona un partido.', level='ERROR')
+                return None
+            try:
+                match = Match.objects.get(pk=match_id)
+            except Match.DoesNotExist:
+                self.message_user(request, 'Partido no encontrado.', level='ERROR')
+                return None
+
+            ids = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
+            updated = Image.objects.filter(pk__in=ids).update(match=match)
+            self.message_user(request, f'{updated} foto(s) asignada(s) al partido "{match}".')
+            return None
+
+        from django.utils import timezone
+        from django.conf import settings as django_settings
+        from django.db.models import Q as DQ
+
+        club_name = getattr(django_settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+        club_query = (
+            DQ(home_team__name__icontains=club_name) |
+            DQ(away_team__name__icontains=club_name) |
+            DQ(home_team_text__icontains=club_name) |
+            DQ(away_team_text__icontains=club_name) |
+            DQ(home_team__parent_team__name__icontains=club_name) |
+            DQ(away_team__parent_team__name__icontains=club_name)
+        )
+        now = timezone.now()
+        base_qs = Match.objects.select_related('home_team', 'away_team', 'league')
+        past = base_qs.filter(club_query, match_date__lt=now).order_by('-match_date')
+        next_match = base_qs.filter(club_query, match_date__gte=now).order_by('match_date').first()
+        if next_match:
+            matches = list(base_qs.filter(id=next_match.id)) + list(past)
+        else:
+            matches = list(past)
+
+        return render(request, 'admin/videos/assign_match_action.html', {
+            **self.admin_site.each_context(request),
+            'queryset': queryset,
+            'matches': matches,
+            'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+            'title': 'Asignar partido a imágenes seleccionadas',
+        })
+
+    assign_to_match.short_description = "Asignar a partido"
 
     def save_model(self, request, obj, form, change):
         """Auto-asignar moderador en cambios de estado"""
