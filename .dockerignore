@@ -28,4 +28,6 @@ celerybeat-schedule
 .coverage
 htmlcov/
 certbot/
+docker/
+chroma_db/
 

@@ -2,7 +2,7 @@ services:
   db:
     image: postgres:18-alpine
     volumes:
-      - /opt/videosvoley/postgres:/var/lib/postgresql/data
+      - /opt/videosvoley/postgres:/var/lib/postgresql
     environment:
       POSTGRES_DB: ${DB_NAME:-volleyvideos}
       POSTGRES_USER: ${DB_USER:-volleyuser}
