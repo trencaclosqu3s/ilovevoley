@@ -269,13 +269,7 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
 # Celery Beat Configuration (Periodic Tasks)
-CELERY_BEAT_SCHEDULE = {
-    'rag-incremental-reindex': {
-        'task': 'videosvoley.rag.tasks.incremental_reindex_task',
-        'schedule': 3600.0 * 6,  # Run every 6 hours
-        'options': {'expire_seconds': 3600}  # Expire after 1 hour if not executed
-    },
-}
+CELERY_BEAT_SCHEDULE = {}
 
 # Admin URL Configuration
 # En producción (DEBUG=False) usa la URL cifrada del .env
