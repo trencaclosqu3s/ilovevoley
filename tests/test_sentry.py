@@ -1,6 +1,4 @@
 from unittest.mock import patch
-from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.celery import CeleryIntegration
 
 
 def test_configure_does_not_init_when_debug_true():
@@ -31,6 +29,8 @@ def test_configure_inits_in_production():
 
 def test_configure_includes_django_and_celery_integrations():
     from config.sentry import configure
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.celery import CeleryIntegration
     with patch('sentry_sdk.init') as mock_init:
         configure(dsn='https://test@sentry.io/1', debug=False, traces_sample_rate=0.1)
         integrations = mock_init.call_args.kwargs['integrations']
