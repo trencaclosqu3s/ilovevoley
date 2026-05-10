@@ -329,3 +329,11 @@ CHROMA_COLLECTION_NAME = env_config('CHROMA_COLLECTION_NAME', default='videosvol
 CHROMA_PERSIST_DIR = env_config('CHROMA_PERSIST_DIR', default=os.path.join(BASE_DIR, 'chroma_db'))
 EMBEDDING_MODEL = env_config('EMBEDDING_MODEL', default='sentence-transformers/all-MiniLM-L6-v2')
 DEFAULT_OLLAMA_MODEL = env_config('DEFAULT_OLLAMA_MODEL', default='phi3:mini')
+
+# Sentry error tracking and performance monitoring
+from config.sentry import configure as _configure_sentry
+_configure_sentry(
+    dsn=env_config('SENTRY_DSN', default=''),
+    debug=DEBUG,
+    traces_sample_rate=env_config('SENTRY_TRACES_SAMPLE_RATE', default=0.1, cast=float),
+)

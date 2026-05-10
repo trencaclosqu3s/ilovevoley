@@ -2,9 +2,13 @@ def configure(dsn, debug, traces_sample_rate):
     if debug or not dsn:
         return
 
-    import sentry_sdk
-    from sentry_sdk.integrations.django import DjangoIntegration
-    from sentry_sdk.integrations.celery import CeleryIntegration
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.django import DjangoIntegration
+        from sentry_sdk.integrations.celery import CeleryIntegration
+    except ImportError:
+        # sentry_sdk not installed, skip initialization
+        return
 
     sentry_sdk.init(
         dsn=dsn,
