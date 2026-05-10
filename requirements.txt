@@ -24,3 +24,4 @@ sentence-transformers==5.4.1
 chromadb==1.5.9
 ollama==0.6.2
 pypdf>=3.9.0
+sentry-sdk[django]==2.29.1
