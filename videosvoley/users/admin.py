@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.utils.html import format_html
+from django.utils.html import format_html, mark_safe
 from .models import User
 
 
@@ -46,17 +46,11 @@ class UserAdmin(BaseUserAdmin):
     def approval_status(self, obj):
         """Muestra el estado de aprobación con iconos"""
         if obj.is_approved:
-            return format_html(
-                '<span style="color: green; font-weight: bold;">✅ Aprobado</span>'
-            )
+            return mark_safe('<span style="color: green; font-weight: bold;">✅ Aprobado</span>')
         elif not obj.is_active and not obj.is_approved:
-            return format_html(
-                '<span style="color: #e74c3c; font-weight: bold;">❌ Rechazado</span>'
-            )
+            return mark_safe('<span style="color: #e74c3c; font-weight: bold;">❌ Rechazado</span>')
         else:
-            return format_html(
-                '<span style="color: orange; font-weight: bold;">⏳ Pendiente</span>'
-            )
+            return mark_safe('<span style="color: orange; font-weight: bold;">⏳ Pendiente</span>')
     
     approval_status.short_description = 'Estado de Aprobación'
     approval_status.admin_order_field = 'is_approved'
@@ -69,7 +63,7 @@ class UserAdmin(BaseUserAdmin):
             if len(obj.parent_info) > 50:
                 info += '...'
             return info
-        return format_html('<span style="color: gray; font-style: italic;">No especificado</span>')
+        return mark_safe('<span style="color: gray; font-style: italic;">No especificado</span>')
     
     parent_info_short.short_description = 'Información Familiar'
     parent_info_short.admin_order_field = 'parent_info'
@@ -84,7 +78,6 @@ class UserAdmin(BaseUserAdmin):
                 count,
                 's' if count != 1 else ''
             )
-        return format_html('<span style="color: gray;">—</span>')
+        return mark_safe('<span style="color: gray;">—</span>')
     
     children_count.short_description = 'Hijos'
-    children_count.admin_order_field = 'children__count'
