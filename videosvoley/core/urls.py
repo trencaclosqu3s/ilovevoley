@@ -1,5 +1,5 @@
 """
-URLs for core app - Calendar and error handling.
+URLs for core app - error handling.
 """
 from django.urls import path
 from . import views
@@ -7,10 +7,6 @@ from . import views
 app_name = 'core'
 
 urlpatterns = [
-    # Calendar management
-    path('calendar/settings/', views.calendar_settings, name='calendar_settings'),
-    path('calendar/request-permissions/', views.request_calendar_permissions, name='request_calendar_permissions'),
-    
     # Error page testing (development only)
     path('test/400/', views.test_400, name='test_400'),
     path('test/403/', views.test_403, name='test_403'), 
