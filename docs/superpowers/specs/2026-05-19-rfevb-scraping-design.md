@@ -121,11 +121,22 @@ Parser reutilizable para cualquier página de fase RFEVB.
 - Un `<div class="card">` = un grupo
 - `<h4>` dentro del card = nombre del grupo (strip de espacios)
 - Primera tabla del card (`class="table table-responsive"`) = partidos
-- Segunda tabla del card (`width="80%"`) = clasificación — puede no existir (fases cruzadas no tienen clasificación, solo partidos); el parser la omite silenciosamente si no está presente
+- Segunda tabla del card (`width="80%"`) = clasificación — puede no existir (fases cruzadas no tienen clasificación); el parser la omite silenciosamente si no está presente
 - Partido descartado si `home_team_name.startswith('#')` o `away_team_name.startswith('#')`
 - Score: `"X - Y".split(" - ")` → `(int(X), int(Y))`; si ambos son 0 → `scheduled`, si no → validar con `validate_volleyball_score()` → `finished`
 - Nombre de equipo en standings: texto del `<td>` que contiene el `<img>`, con `.get_text(strip=True)` (BeautifulSoup ignora el img)
-- Mapping columnas standings: `J`→played, `G3+G2`→won, `P1+P0`→lost, `SF`→sets_for, `SC`→sets_against (puntos no se almacenan, son calculables)
+
+**Mapping columnas de standings** (sistema estándar de voleibol de copa):
+- `Ptos` → `total_points` (leído directamente de la web)
+- `J` → `played`
+- `G3` → `wins_3_0` (agrupa victorias 3-0 y 3-1; la web no las distingue; 3 puntos cada una)
+- `G2` → `wins_3_2` (victoria 3-2; 2 puntos)
+- `P1` → `losses_2_3` (derrota 2-3; 1 punto)
+- `P0` → `losses_0_3` (agrupa derrotas 0-3 y 1-3; la web no las distingue; 0 puntos)
+- `SF` → `sets_for`, `SC` → `sets_against`
+- `PF` → `points_for`, `PC` → `points_against`
+- `won` = G3 + G2, `lost` = P1 + P0
+- `wins_3_1` y `losses_1_3` se dejan a 0 (no disponibles en esta fuente)
 
 ### 2. Comando `scrape_rfevb_fase` — `management/commands/scrape_rfevb_fase.py`
 
@@ -173,11 +184,25 @@ League.objects.get_or_create(
 
 Sin hardcoding: cualquier nombre de grupo del HTML genera la sub-liga correcta.
 
+#### Escudos de equipos
+
+Al inicio del comando se scrapea `webCompeticion-equipos.php?IdCompeticion={id}`, que contiene una fila por equipo con logo:
+
+```html
+<td><img src="http://intranet.rfevb.com/clubes/logos/web/cl00922.png"></td>
+<td>AD Eliocroca (MURCIA)</td>
+<td>A1</td>
+```
+
+Se construye un mapa `{team_name: logo_url}` (normalizando el nombre: quitar la región entre paréntesis). Cuando se resuelve un equipo, si `team.logo_url` está vacío se actualiza con el logo RFEVB.
+
 #### Resolución de equipos (en cascada)
 
 1. Búsqueda exacta: `Team.objects.filter(name=name).first()`
 2. Búsqueda normalizada: `unidecode(name).lower().strip()` contra todos los equipos del torneo (precargados en memoria al inicio)
 3. No encontrado → crear equipo con `federation_id=f'rfevb_{competition_id}_{slugify(name)}'` + warning en log
+
+En todos los casos: si el equipo encontrado/creado no tiene `logo_url`, asignar el logo del mapa RFEVB si está disponible.
 
 #### Match get-or-create
 
@@ -257,9 +282,50 @@ docker compose run --rm web python manage.py scrape_rfevb_fase \
 
 ---
 
+## Tarea Celery
+
+Tarea `scrape_rfevb_competition` que durante el torneo llama a la lógica del comando y, opcionalmente, carga la clasificación final.
+
+### Comportamiento
+
+```python
+@shared_task
+def scrape_rfevb_competition(competition_id, fase_ids, parent_league_id):
+    # 1. Ejecutar scraping de todas las fases
+    result = run_rfevb_scraping(competition_id, fase_ids, parent_league_id)
+
+    # 2. Trigger de clasificación final: si todos los partidos de todas
+    #    las fases tienen resultado, scrapear webCompeticion-clasificacion.php
+    parent = League.objects.get(federation_id=parent_league_id)
+    all_done = not Match.objects.filter(
+        league__parent_league=parent,
+        status='scheduled'
+    ).exists()
+    if all_done:
+        scrape_rfevb_final_classification.delay(competition_id, parent_league_id)
+```
+
+### Clasificación final
+
+Tarea separada `scrape_rfevb_final_classification` que parsea `webCompeticion-clasificacion.php?IdCompeticion={id}`. La estructura HTML de esa página se analizará cuando el torneo tenga datos reales (ahora devuelve vacío). El parser creará un `Standing` en la liga padre con las posiciones finales (1º al 32º).
+
+### Programación
+
+La tarea no se registra como Celery Beat permanente. Se lanza manualmente al inicio del torneo y se puede encadenar con `countdown`:
+
+```python
+# Lanzar scraping cada 20 min durante el torneo
+scrape_rfevb_competition.apply_async(
+    args=[9041, [2193, 2194, 2195, 2196], 'ceim_2526'],
+    countdown=0,
+)
+# La tarea se re-encola a sí misma mientras haya partidos pendientes
+```
+
+Alternativamente, se puede lanzar manualmente con el comando y confiar en el trigger de clasificación final.
+
+---
+
 ## Fuera de alcance
 
-- Scraping de equipos participantes (`webCompeticion-equipos.php`) — los equipos ya existen en BD
-- Clasificación general final (`webCompeticion-clasificacion.php`) — se puede añadir en el futuro
-- Tarea Celery periódica — se puede añadir en el futuro si se necesita scraping automático
 - Actas de partido individuales
