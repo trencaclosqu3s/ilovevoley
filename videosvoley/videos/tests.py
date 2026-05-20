@@ -399,3 +399,66 @@ class ScrapeRFEVBFaseCommandTests(TestCase):
         ).count()
         # Solo los 2 partidos reales del Grupo A (match 1 y match 3)
         self.assertEqual(count, 2)
+
+
+# ---------------------------------------------------------------------------
+# Celery tasks tests
+# ---------------------------------------------------------------------------
+
+class ScrapeRFEVBCompetitionTaskTests(TestCase):
+
+    def setUp(self):
+        self.category = Category.objects.get_or_create(name='Infantil Masculino')[0]
+        self.parent_league = League.objects.create(
+            name='CEIM 2025-26',
+            federation_id='ceim_2526_task_test',
+            season='2025-26',
+            competition_type='cup',
+            match_format='standard',
+            visibility_type='main',
+            is_our_team_related=True,
+        )
+
+    @patch('videosvoley.videos.tasks.scrape_rfevb_fases')
+    @patch('videosvoley.videos.tasks.scrape_rfevb_final_classification')
+    def test_task_calls_scrape_fases(self, mock_final, mock_scrape):
+        from videosvoley.videos.tasks import scrape_rfevb_competition
+        mock_scrape.return_value = {'matches_found': 10, 'created': 2, 'updated': 8,
+                                    'skipped': 0, 'errors': []}
+        scrape_rfevb_competition(9041, [2193, 2194], 'ceim_2526_task_test')
+        mock_scrape.assert_called_once_with(9041, [2193, 2194], 'ceim_2526_task_test')
+
+    @patch('videosvoley.videos.tasks.scrape_rfevb_fases')
+    @patch('videosvoley.videos.tasks.scrape_rfevb_final_classification')
+    def test_task_triggers_final_classification_when_all_done(self, mock_final, mock_scrape):
+        from videosvoley.videos.tasks import scrape_rfevb_competition
+        mock_scrape.return_value = {'matches_found': 0, 'created': 0, 'updated': 0,
+                                    'skipped': 0, 'errors': []}
+        # No hay partidos pendientes (BD vacía para esta liga)
+        scrape_rfevb_competition(9041, [2193], 'ceim_2526_task_test')
+        mock_final.delay.assert_called_once_with(9041, 'ceim_2526_task_test')
+
+    @patch('videosvoley.videos.tasks.scrape_rfevb_fases')
+    @patch('videosvoley.videos.tasks.scrape_rfevb_final_classification')
+    def test_task_does_not_trigger_final_when_pending_matches(self, mock_final, mock_scrape):
+        from videosvoley.videos.tasks import scrape_rfevb_competition
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        # Crear un partido pendiente
+        sub = League.objects.create(
+            name='Grupo A', federation_id='ceim_2526_task_test_grupo_a',
+            season='2025-26', competition_type='cup', match_format='standard',
+            visibility_type='main', is_our_team_related=True,
+            parent_league=self.parent_league, phase_name='Grupo A',
+        )
+        t1 = Team.objects.create(name='TeamX', federation_id='task_test_tx', is_active=True)
+        t2 = Team.objects.create(name='TeamY', federation_id='task_test_ty', is_active=True)
+        Match.objects.create(
+            league=sub, home_team=t1, away_team=t2,
+            match_date=datetime(2026, 5, 27, 17, 0, tzinfo=ZoneInfo('Europe/Madrid')),
+            status='scheduled',
+        )
+        mock_scrape.return_value = {'matches_found': 1, 'created': 0, 'updated': 0,
+                                    'skipped': 0, 'errors': []}
+        scrape_rfevb_competition(9041, [2193], 'ceim_2526_task_test')
+        mock_final.delay.assert_not_called()
