@@ -51,7 +51,11 @@ def scrape_rfevb_fases(competition_id, fase_ids, parent_league_id, dry_run=False
                 logger.info(f'  {group_name}: todos placeholders, sin datos reales')
                 continue
 
-            sub_league = _get_or_create_subleague(parent, group_name, dry_run)
+            try:
+                sub_league = _get_or_create_subleague(parent, group_name, dry_run)
+            except Exception as e:
+                totals['errors'].append(f'Error creando sub-liga {group_name}: {e}')
+                continue
             if not sub_league:
                 continue
 
@@ -126,7 +130,7 @@ def _get_or_create_subleague(parent, group_name, dry_run):
         return league
     except Exception as e:
         logger.error(f'Error creando sub-liga {group_name}: {e}')
-        return None
+        raise
 
 
 def _resolve_team(name, team_map, logo_map, competition_id, dry_run):
@@ -164,6 +168,10 @@ def _process_match(match_data, league, competition_id, team_map, logo_map, dry_r
     rfevb_id = f'rfevb_{competition_id}_{match_data["rfevb_match_number"]}'
 
     if dry_run:
+        if Match.objects.filter(federation_id=rfevb_id).exists():
+            return 'updated'
+        if Match.objects.filter(league=league, home_team=home_team, away_team=away_team).exists():
+            return 'updated'
         return 'created'
 
     match = Match.objects.filter(federation_id=rfevb_id).first()
