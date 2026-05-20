@@ -14,7 +14,7 @@ from django.conf import settings
 from django.db import models as django_models
 from videosvoley.videos.models import League, Club, Team, Match
 from videosvoley.videos.scraping import FederationScraper
-from videosvoley.videos.management.commands.scrape_rfevb_fase import scrape_rfevb_fases
+from videosvoley.videos.rfevb_service import scrape_rfevb_fases
 
 logger = logging.getLogger(__name__)
 
@@ -1892,6 +1892,9 @@ def scrape_rfevb_competition(competition_id, fase_ids, parent_league_id):
     """
     result = scrape_rfevb_fases(competition_id, fase_ids, parent_league_id)
     logger.info(f'RFEVB scraping completado: {result}')
+
+    if 'error' in result:
+        return result
 
     try:
         parent = League.objects.get(federation_id=parent_league_id)

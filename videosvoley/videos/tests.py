@@ -462,3 +462,12 @@ class ScrapeRFEVBCompetitionTaskTests(TestCase):
                                     'skipped': 0, 'errors': []}
         scrape_rfevb_competition(9041, [2193], 'ceim_2526_task_test')
         mock_final.delay.assert_not_called()
+
+    @patch('videosvoley.videos.tasks.scrape_rfevb_fases')
+    @patch('videosvoley.videos.tasks.scrape_rfevb_final_classification')
+    def test_task_returns_error_without_triggering_final_when_league_not_found(self, mock_final, mock_scrape):
+        from videosvoley.videos.tasks import scrape_rfevb_competition
+        mock_scrape.return_value = {'error': 'Liga padre no encontrada: nonexistent'}
+        result = scrape_rfevb_competition(9041, [2193], 'nonexistent')
+        self.assertIn('error', result)
+        mock_final.delay.assert_not_called()
