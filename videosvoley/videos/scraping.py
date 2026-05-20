@@ -2375,7 +2375,7 @@ class RFEVBPhaseParser(BaseParser):
                 logger.warning(f'RFEVB: fecha inválida {date_text!r} en partido {match_number}')
                 continue
 
-            score_parts = score_text.split(' - ')
+            score_parts = score_text.split(' - ', 1)
             try:
                 home_score = int(score_parts[0])
                 away_score = int(score_parts[1])
@@ -2417,7 +2417,7 @@ class RFEVBPhaseParser(BaseParser):
 
         for row in tbody.find_all('tr'):
             tds = row.find_all('td')
-            if len(tds) < 11:
+            if len(tds) < 12:
                 continue
             try:
                 position = int(tds[0].get_text(strip=True))
@@ -2431,7 +2431,7 @@ class RFEVBPhaseParser(BaseParser):
                 sets_for = int(tds[8].get_text(strip=True) or 0)
                 sets_against = int(tds[9].get_text(strip=True) or 0)
                 points_for = int(tds[10].get_text(strip=True) or 0)
-                points_against = int(tds[11].get_text(strip=True) or 0) if len(tds) > 11 else 0
+                points_against = int(tds[11].get_text(strip=True) or 0)
             except (ValueError, IndexError) as e:
                 logger.warning(f'RFEVB: error parseando fila de clasificación: {e}')
                 continue
