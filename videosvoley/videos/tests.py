@@ -230,3 +230,172 @@ class RFEVBTeamsParserTests(TestCase):
             result['teams']['AD Eliocroca'],
             'http://intranet.rfevb.com/clubes/logos/web/cl00922.png',
         )
+
+
+# ---------------------------------------------------------------------------
+# scrape_rfevb_fase command tests
+# ---------------------------------------------------------------------------
+
+from unittest.mock import patch, MagicMock
+from django.core.management import call_command
+from io import StringIO
+
+from videosvoley.videos.models import League, Team, Match, Standing, Category
+
+
+class ScrapeRFEVBFaseCommandTests(TestCase):
+
+    def setUp(self):
+        self.category = Category.objects.create(name='Infantil Masculino')
+
+        self.parent_league = League.objects.create(
+            name='CEIM 2025-26',
+            federation_id='ceim_2526',
+            season='2025-26',
+            competition_type='cup',
+            match_format='standard',
+            visibility_type='main',
+            is_our_team_related=True,
+        )
+        self.parent_league.categories.add(self.category)
+
+        self.sub_league = League.objects.create(
+            name='CEIM 2025-26 - Grupo A',
+            federation_id='ceim_2526_grupo_a',
+            season='2025-26',
+            competition_type='cup',
+            match_format='standard',
+            visibility_type='main',
+            is_our_team_related=True,
+            parent_league=self.parent_league,
+            phase_name='Grupo A',
+        )
+
+        self.team_home = Team.objects.create(
+            name='AD Eliocroca',
+            federation_id='ceim_2526_a1',
+            is_active=True,
+        )
+        self.team_away = Team.objects.create(
+            name='CV Sant Josep',
+            federation_id='ceim_2526_a2',
+            is_active=True,
+        )
+        self.team_oviedo = Team.objects.create(
+            name='CV Oviedo',
+            federation_id='ceim_2526_c2',
+            is_active=True,
+        )
+        self.team_viñas = Team.objects.create(
+            name='CD Las Viñas',
+            federation_id='ceim_2526_c4',
+            is_active=True,
+        )
+
+        # Match preexistente sin federation_id (creado por create_ceim_2526)
+        from django.utils import timezone as tz
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        MADRID = ZoneInfo('Europe/Madrid')
+        self.existing_match = Match.objects.create(
+            league=self.sub_league,
+            home_team=self.team_home,
+            away_team=self.team_away,
+            match_date=datetime(2026, 5, 27, 17, 0, tzinfo=MADRID),
+            status='scheduled',
+        )
+
+    def _run_command(self, fase_ids='2193', dry_run=False):
+        """Ejecuta el comando mockeando las llamadas HTTP."""
+        out = StringIO()
+        with patch(
+            'videosvoley.videos.scraping.RFEVBPhaseParser.fetch_content',
+            return_value=PHASE_HTML,
+        ), patch(
+            'videosvoley.videos.scraping.RFEVBTeamsParser.fetch_content',
+            return_value=TEAMS_HTML,
+        ):
+            call_command(
+                'scrape_rfevb_fase',
+                competition_id=9041,
+                fase_ids=fase_ids,
+                parent_league='ceim_2526',
+                dry_run=dry_run,
+                delay=0,
+                stdout=out,
+            )
+        return out.getvalue()
+
+    def test_existing_match_updated_with_result(self):
+        self._run_command()
+        self.existing_match.refresh_from_db()
+        self.assertEqual(self.existing_match.home_score, 3)
+        self.assertEqual(self.existing_match.away_score, 1)
+        self.assertEqual(self.existing_match.status, 'finished')
+
+    def test_existing_match_anchored_with_federation_id(self):
+        self._run_command()
+        self.existing_match.refresh_from_db()
+        self.assertEqual(self.existing_match.federation_id, 'rfevb_9041_1')
+
+    def test_scheduled_match_created_for_oviedo_viñas(self):
+        self._run_command()
+        match = Match.objects.filter(
+            league=self.sub_league,
+            home_team=self.team_oviedo,
+            away_team=self.team_viñas,
+        ).first()
+        self.assertIsNotNone(match)
+        self.assertEqual(match.status, 'scheduled')
+        self.assertEqual(match.federation_id, 'rfevb_9041_3')
+
+    def test_placeholder_matches_not_created(self):
+        self._run_command()
+        # Match number 2 is a placeholder → should not exist
+        self.assertFalse(
+            Match.objects.filter(federation_id='rfevb_9041_2').exists()
+        )
+
+    def test_subleague_found_by_phase_name(self):
+        """El comando encuentra la sub-liga existente por phase_name, no crea una nueva."""
+        self._run_command()
+        count = League.objects.filter(parent_league=self.parent_league).count()
+        self.assertEqual(count, 1)  # solo la sub-liga 'Grupo A' ya existente
+
+    def test_standings_updated(self):
+        self._run_command()
+        standing = Standing.objects.filter(
+            league=self.sub_league, team=self.team_home
+        ).first()
+        self.assertIsNotNone(standing)
+        self.assertEqual(standing.total_points, 3)
+        self.assertEqual(standing.position, 1)
+        self.assertEqual(standing.played, 1)
+        self.assertEqual(standing.won, 1)
+        self.assertEqual(standing.sets_for, 3)
+        self.assertEqual(standing.sets_against, 1)
+
+    def test_team_logo_updated(self):
+        self.assertFalse(self.team_home.logo_url)
+        self._run_command()
+        self.team_home.refresh_from_db()
+        self.assertEqual(
+            self.team_home.logo_url,
+            'http://intranet.rfevb.com/clubes/logos/web/cl00922.png',
+        )
+
+    def test_dry_run_makes_no_changes(self):
+        self._run_command(dry_run=True)
+        self.existing_match.refresh_from_db()
+        self.assertIsNone(self.existing_match.home_score)
+        self.assertEqual(self.existing_match.status, 'scheduled')
+
+    def test_second_call_is_idempotent(self):
+        self._run_command()
+        self._run_command()
+        count = Match.objects.filter(
+            league=self.sub_league,
+            federation_id__startswith='rfevb_9041_',
+        ).count()
+        # Solo los 2 partidos reales del Grupo A (match 1 y match 3)
+        self.assertEqual(count, 2)
