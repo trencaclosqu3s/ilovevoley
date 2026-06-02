@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html, mark_safe
-from .models import User
+from .models import Membership, User
 
 
 def approve_users(modeladmin, request, queryset):
@@ -81,3 +81,15 @@ class UserAdmin(BaseUserAdmin):
         return mark_safe('<span style="color: gray;">—</span>')
     
     children_count.short_description = 'Hijos'
+
+
+@admin.register(Membership)
+class MembershipAdmin(admin.ModelAdmin):
+    list_display = ['user', 'organization', 'role', 'is_approved', 'joined_at']
+    list_filter = ['organization', 'role', 'is_approved']
+    search_fields = ['user__username', 'user__email']
+    actions = ['approve_memberships']
+
+    @admin.action(description='Aprobar membresías seleccionadas')
+    def approve_memberships(self, request, queryset):
+        queryset.update(is_approved=True)

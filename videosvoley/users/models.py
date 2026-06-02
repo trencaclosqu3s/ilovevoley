@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 import secrets
@@ -68,3 +69,28 @@ class User(AbstractUser):
             return True
             
         return False
+
+
+from videosvoley.core.models import Organization
+
+
+class Membership(models.Model):
+    ROLES = [
+        ('admin', 'Admin'),
+        ('manager', 'Manager'),
+        ('member', 'Miembro'),
+    ]
+
+    user         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='memberships')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='memberships')
+    role         = models.CharField(max_length=20, choices=ROLES, default='member')
+    is_approved  = models.BooleanField(default=False)
+    joined_at    = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'organization')
+        verbose_name = 'Membresía'
+        verbose_name_plural = 'Membresías'
+
+    def __str__(self):
+        return f'{self.user} @ {self.organization} ({self.role})'

@@ -20,3 +20,30 @@ class OrganizationModelTest(TestCase):
         Organization.objects.create(slug='unique', name='A')
         with self.assertRaises(IntegrityError):
             Organization.objects.create(slug='unique', name='B')
+
+
+class MembershipModelTest(TestCase):
+    def setUp(self):
+        from videosvoley.core.models import Organization
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.org = Organization.objects.create(slug='club1', name='Club 1')
+        self.user = User.objects.create_user(username='testuser', password='pass')
+
+    def test_create_membership(self):
+        from videosvoley.users.models import Membership
+        m = Membership.objects.create(
+            user=self.user,
+            organization=self.org,
+            role='member',
+            is_approved=False,
+        )
+        self.assertEqual(m.role, 'member')
+        self.assertFalse(m.is_approved)
+
+    def test_unique_user_organization(self):
+        from videosvoley.users.models import Membership
+        from django.db import IntegrityError
+        Membership.objects.create(user=self.user, organization=self.org)
+        with self.assertRaises(IntegrityError):
+            Membership.objects.create(user=self.user, organization=self.org)
