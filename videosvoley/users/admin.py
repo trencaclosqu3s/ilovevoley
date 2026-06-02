@@ -92,4 +92,5 @@ class MembershipAdmin(admin.ModelAdmin):
 
     @admin.action(description='Aprobar membresías seleccionadas')
     def approve_memberships(self, request, queryset):
-        queryset.update(is_approved=True)
+        count = queryset.update(is_approved=True)
+        self.message_user(request, f'{count} membresía(s) aprobada(s).')
