@@ -32,6 +32,14 @@ class Video(models.Model):
     match = models.ForeignKey('Match', on_delete=models.SET_NULL, null=True, blank=True, related_name='videos')
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='videos',
+        verbose_name='Organización',
+    )
 
     class Meta:
         ordering = ['-created_at']
@@ -755,7 +763,16 @@ class Image(models.Model):
     vision_api_checked = models.BooleanField(default=False)
     vision_api_safe = models.BooleanField(default=True)
     vision_api_details = models.JSONField(default=dict, blank=True)
-    
+
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='images',
+        verbose_name='Organización',
+    )
+
     class Meta:
         ordering = ['-upload_date']
         verbose_name = 'Imagen'
