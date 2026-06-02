@@ -27,8 +27,7 @@ urlpatterns = [
     path('accounts/', include('allauth.urls')),
     path('videos/', include('videosvoley.videos.urls', namespace='videos')),
     path('core/', include('videosvoley.core.urls', namespace='core')),
-    path('rag/', include('videosvoley.rag.urls', namespace='rag')),
-    path('', include('videosvoley.users.urls')),
+path('', include('videosvoley.users.urls')),
     # Rutas de moderación con tokens seguros
     path('moderate/user/<str:token>/', moderate_user, name='moderate_user'),
     path('moderate/image/<str:token>/', moderate_image, name='moderate_image'),

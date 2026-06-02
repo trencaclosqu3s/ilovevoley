@@ -56,7 +56,6 @@ INSTALLED_APPS = [
     'videosvoley.core.apps.CoreConfig',
     'videosvoley.videos',
     'videosvoley.users',
-    'videosvoley.rag',
 ]
 
 SITE_ID = 1
@@ -315,20 +314,8 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
-        'rag': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
     },
 }
-
-# Configuración del sistema RAG
-OLLAMA_HOST = env_config('OLLAMA_HOST', default='http://192.168.0.16:11434')  # Cambia por tu IP del servidor
-CHROMA_COLLECTION_NAME = env_config('CHROMA_COLLECTION_NAME', default='videosvoley_docs')
-CHROMA_PERSIST_DIR = env_config('CHROMA_PERSIST_DIR', default=os.path.join(BASE_DIR, 'chroma_db'))
-EMBEDDING_MODEL = env_config('EMBEDDING_MODEL', default='sentence-transformers/all-MiniLM-L6-v2')
-DEFAULT_OLLAMA_MODEL = env_config('DEFAULT_OLLAMA_MODEL', default='phi3:mini')
 
 # Sentry error tracking and performance monitoring
 from config.sentry import configure as _configure_sentry
