@@ -1,3 +1,5 @@
+.superpowers/
+
 # Google Cloud Credentials (NEVER COMMIT)
 *.json
 google-credentials.json
