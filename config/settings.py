@@ -126,6 +126,7 @@ SOCIALACCOUNT_ADAPTER = 'videosvoley.users.adapters.CustomSocialAccountAdapter'
 ACCOUNT_SIGNUP_FORM_CLASS = 'videosvoley.users.forms.CustomSignupForm'
 
 MIDDLEWARE = [
+    'videosvoley.core.middleware.TenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

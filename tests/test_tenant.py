@@ -47,3 +47,38 @@ class MembershipModelTest(TestCase):
         Membership.objects.create(user=self.user, organization=self.org)
         with self.assertRaises(IntegrityError):
             Membership.objects.create(user=self.user, organization=self.org)
+
+
+class TenantMiddlewareTest(TestCase):
+    def setUp(self):
+        from videosvoley.core.models import Organization
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club', is_active=True
+        )
+
+    def test_middleware_sets_tenant_from_subdomain(self):
+        from django.test import RequestFactory
+        from videosvoley.core.middleware import TenantMiddleware
+        factory = RequestFactory(SERVER_NAME='testclub.ilovevoley.es')
+        request = factory.get('/')
+        request.META['HTTP_HOST'] = 'testclub.ilovevoley.es'
+
+        middleware = TenantMiddleware(lambda r: type('R', (), {'status_code': 200})())
+        middleware(request)
+
+        self.assertEqual(request.tenant, self.org)
+
+    def test_middleware_passthrough_on_root_domain(self):
+        from videosvoley.core.models import Organization
+        from django.test import RequestFactory
+        from videosvoley.core.middleware import TenantMiddleware
+
+        root_org, _ = Organization.objects.get_or_create(slug='santjosep', defaults={'name': 'Sant Josep', 'is_active': True})
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.META['HTTP_HOST'] = 'ilovevoley.es'
+
+        middleware = TenantMiddleware(lambda r: type('R', (), {'status_code': 200})())
+        middleware(request)
+
+        self.assertEqual(request.tenant, root_org)

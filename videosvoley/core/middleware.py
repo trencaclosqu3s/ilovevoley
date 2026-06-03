@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from collections import defaultdict
-from django.http import Http404
+from django.http import Http404, HttpResponseNotFound
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -11,6 +11,52 @@ from .email_utils import get_admin_emails
 
 
 logger = logging.getLogger(__name__)
+
+
+class TenantMiddleware:
+    """
+    Resuelve el tenant (Organization) a partir del subdominio del Host header
+    y lo pone en request.tenant.
+
+    Modo passthrough (Fase 1): si no hay subdominio reconocido, asigna Sant Josep
+    para que ilovevoley.es siga funcionando. En Fase 2 se elimina el passthrough.
+    """
+
+    PASSTHROUGH = True  # Cambiar a False en Fase 2
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from videosvoley.core.models import Organization
+
+        host = request.META.get('HTTP_HOST', '').split(':')[0]
+        parts = host.split('.')
+        root_domain = '.'.join(parts[-2:])
+
+        if host == root_domain:
+            # Dominio raíz: passthrough a Sant Josep en Fase 1
+            if self.PASSTHROUGH:
+                try:
+                    request.tenant = Organization.objects.get(slug='santjosep', is_active=True)
+                except Organization.DoesNotExist:
+                    request.tenant = None
+            else:
+                request.tenant = None  # Landing page en Fase 2
+        else:
+            subdomain = parts[0]
+            try:
+                request.tenant = Organization.objects.get(slug=subdomain, is_active=True)
+            except Organization.DoesNotExist:
+                if self.PASSTHROUGH:
+                    try:
+                        request.tenant = Organization.objects.get(slug='santjosep', is_active=True)
+                    except Organization.DoesNotExist:
+                        request.tenant = None
+                else:
+                    return HttpResponseNotFound()
+
+        return self.get_response(request)
 
 
 class Error404TrackingMiddleware:
