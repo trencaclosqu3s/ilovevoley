@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib.postgres.search import TrigramSimilarity
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.conf import settings
 from django.views.decorators.http import require_POST
 from unidecode import unidecode
@@ -18,6 +18,7 @@ from django.core.files.base import ContentFile
 from .models import Video, Comment, Category, League, Match, Team, Standing, Image, Player, Staff, Person, PlayerRole, StaffRole
 from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm, PersonForm, PlayerRoleForm, StaffRoleForm, MatchResultForm, VideoBulkSharedForm, VideoEntryFormSet
 from .utils import process_uploaded_image
+from videosvoley.core.mixins import get_club_team_filter
 import requests as http_requests
 from .scraping import parse_acta_lineup
 
@@ -33,7 +34,9 @@ def user_is_approved(user):
 @login_required
 @user_passes_test(user_is_approved, login_url='/pending-approval/')
 def video_list(request):
-    videos = Video.objects.select_related('category', 'created_by', 'match__home_team', 'match__away_team', 'match__league').prefetch_related('comments').all()
+    videos = Video.objects.select_related('category', 'created_by', 'match__home_team', 'match__away_team', 'match__league').prefetch_related('comments').filter(
+        organization=request.tenant
+    )
     categories = Category.objects.filter(is_active=True)
     leagues = League.objects.visible_in_app()
     teams = Team.objects.all()
@@ -120,6 +123,7 @@ def video_create(request):
         if form.is_valid():
             video = form.save(commit=False)
             video.created_by = request.user
+            video.organization = request.tenant
             video.save()
             messages.success(request, 'Vídeo añadido correctamente')
             return redirect('videos:video_list')
@@ -152,6 +156,7 @@ def video_bulk_create(request):
                         match=match,
                         category=category,
                         created_by=request.user,
+                        organization=request.tenant,
                     )
                     created += 1
 
@@ -185,7 +190,9 @@ def video_bulk_create(request):
 @user_passes_test(user_is_approved, login_url='/pending-approval/')
 def video_detail(request, video_id):
     video = get_object_or_404(Video, id=video_id)
-    
+    if video.organization != request.tenant and not request.user.is_superuser:
+        raise Http404
+
     # Manejar envío de comentarios
     if request.method == 'POST':
         comment_form = CommentForm(request.POST)
@@ -362,28 +369,20 @@ def match_detail(request, match_id):
 @user_passes_test(user_is_approved, login_url='/pending-approval/')
 def calendar_view(request):
     """Vista del calendario de partidos"""
-    # Configuración del club
-    CLUB_TEAM_NAME = 'SANT JOSEP'
-    
     # Obtener filtros
     show_all_teams = request.GET.get('all_teams', '0') == '1'
     show_all = request.GET.get('show_all', '0') == '1'
     league_filter = request.GET.get('league')
     category_filter = request.GET.get('category')
-    
+
     # Consulta base de partidos (withdrawn excluidos automáticamente por el manager)
     matches = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).prefetch_related('league__categories').order_by('match_date')
-    
+
     # Filtrar por equipo del club por defecto
     if not show_all_teams:
-        matches = matches.filter(
-            Q(home_team__name__icontains=CLUB_TEAM_NAME) | 
-            Q(away_team__name__icontains=CLUB_TEAM_NAME) |
-            Q(home_team_text__icontains=CLUB_TEAM_NAME) |
-            Q(away_team_text__icontains=CLUB_TEAM_NAME)
-        )
+        matches = matches.filter(get_club_team_filter(request.tenant))
     
     # Aplicar filtro de liga
     if league_filter:
@@ -474,7 +473,6 @@ def calendar_view(request):
         'selected_category': category_filter,
         'show_all_teams': show_all_teams,
         'show_all': show_all,
-        'club_team_name': CLUB_TEAM_NAME,
         'current_month': start_date,
         'prev_month': prev_month,
         'next_month': next_month,
@@ -762,9 +760,6 @@ def standings_view(request):
     show_all = request.GET.get('show_all', '0') == '1'
     show_archived = request.GET.get('show_archived', '0') == '1'
     
-    # Configuración del club
-    CLUB_TEAM_NAME = 'SANT JOSEP'
-    
     # Obtener temporadas disponibles
     seasons = League.objects.filter(is_our_team_related=True).values_list('season', flat=True).distinct().order_by('-season')
     season_filter = request.GET.get('season')
@@ -833,7 +828,6 @@ def standings_view(request):
         'selected_league': league_filter,
         'selected_category': category_filter,
         'selected_season': season_filter,
-        'club_team_name': CLUB_TEAM_NAME,
         'show_all': show_all,
         'show_archived': show_archived,
         'has_preferences': request.user.preferred_categories.exists(),
@@ -844,15 +838,9 @@ def standings_view(request):
 def ajax_matches_by_category(request):
     """Vista AJAX para obtener partidos filtrados por categoría"""
     category_id = request.GET.get('category_id')
-    club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
-    
+
     # Construir query base para equipos del club
-    club_query = (
-        Q(home_team__name__icontains=club_team_name) | 
-        Q(away_team__name__icontains=club_team_name) |
-        Q(home_team_text__icontains=club_team_name) |
-        Q(away_team_text__icontains=club_team_name)
-    )
+    club_query = get_club_team_filter(request.tenant)
     
     # Si hay categoría específica, filtrar por equipos de esa categoría
     if category_id and category_id != '':
@@ -940,9 +928,12 @@ def ajax_teams_by_league_category(request):
 def image_gallery(request):
     """Vista de galería de imágenes con filtros"""
     images = Image.objects.select_related(
-        'match__home_team', 'match__away_team', 'match__league', 
+        'match__home_team', 'match__away_team', 'match__league',
         'uploaded_by'
-    ).prefetch_related('categories').filter(status='approved').order_by('-upload_date')
+    ).prefetch_related('categories').filter(
+        organization=request.tenant,
+        status='approved',
+    ).order_by('-upload_date')
     
     # Variable para controlar si mostrar todo el contenido
     show_all = request.GET.get('show_all', '0') == '1'
@@ -1062,12 +1053,15 @@ def image_gallery(request):
 def image_gallery_albums(request):
     """Vista de galería de imágenes agrupadas por partido (álbumes)"""
     from django.db.models import Count, Prefetch
-    
+
     # Obtener imágenes con sus partidos relacionados
     images = Image.objects.select_related(
-        'match__home_team', 'match__away_team', 'match__league', 
+        'match__home_team', 'match__away_team', 'match__league',
         'uploaded_by'
-    ).prefetch_related('categories').filter(status='approved').order_by('-upload_date')
+    ).prefetch_related('categories').filter(
+        organization=request.tenant,
+        status='approved',
+    ).order_by('-upload_date')
     
     # Variable para controlar si mostrar todo el contenido
     show_all = request.GET.get('show_all', '0') == '1'
@@ -1287,7 +1281,8 @@ def image_upload(request):
         if form.is_valid():
             image = form.save(commit=False)
             image.uploaded_by = request.user
-            
+            image.organization = request.tenant
+
             # Procesar imagen (convertir HEIC si es necesario)
             try:
                 uploaded_file = request.FILES.get('image')
@@ -1307,12 +1302,7 @@ def image_upload(request):
                 messages.error(request, f'Error al procesar la imagen: {str(e)}')
                 
                 # Preparar recent_matches con la misma lógica
-                club_query = (
-                    Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-                    Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-                    Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-                    Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
-                )
+                club_query = get_club_team_filter(request.tenant)
                 now = timezone.now()
                 past_matches = Match.objects.select_related(
                     'home_team', 'away_team', 'league'
@@ -1472,28 +1462,23 @@ def image_upload(request):
                 pass
         
         form = ImageUploadForm(initial=initial_data)
-    
+
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
-    club_query = (
-        Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
-    )
-    
+    club_query = get_club_team_filter(request.tenant)
+
     now = timezone.now()
-    
+
     # Partidos del pasado (últimos 10)
     # (withdrawn excluidos automáticamente por el manager)
     past_matches = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
-    
+
     # Próximo partido futuro (solo uno)
     next_match = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__gte=now).order_by('match_date').first()
-    
+
     # Combinar ambos querysets
     if next_match:
         # Convertir a lista para combinar y ordenar
@@ -1526,6 +1511,7 @@ def image_bulk_upload(request):
             'uploaded_by': request.user,
             'image_type': request.POST.get('image_type', 'other'),
             'year': request.POST.get('year', timezone.now().year),
+            'organization': request.tenant,
         }
         
         # Match y categorías opcionales compartidos
@@ -1765,26 +1751,21 @@ def image_bulk_upload(request):
             pass
     
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
-    club_query = (
-        Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
-    )
-    
+    club_query = get_club_team_filter(request.tenant)
+
     now = timezone.now()
-    
+
     # Partidos del pasado (últimos 10)
     # (withdrawn excluidos automáticamente por el manager)
     past_matches = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
-    
+
     # Próximo partido futuro (solo uno)
     next_match = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__gte=now).order_by('match_date').first()
-    
+
     # Combinar ambos querysets
     if next_match:
         # Convertir a lista para combinar y ordenar
@@ -1792,13 +1773,13 @@ def image_bulk_upload(request):
         recent_matches.sort(key=lambda x: x.match_date, reverse=True)
     else:
         recent_matches = list(past_matches)
-    
+
     # Obtener categorías activas
     categories = Category.objects.filter(is_active=True).order_by('name')
-    
+
     # Tipos de imagen
     image_types = Image.IMAGE_TYPES
-    
+
     context = {
         'recent_matches': recent_matches,
         'categories': categories,
@@ -1822,7 +1803,9 @@ def image_detail(request, image_id):
         ).prefetch_related('categories'),
         id=image_id
     )
-    
+    if image.organization != request.tenant and not request.user.is_superuser:
+        raise Http404
+
     # Solo mostrar imágenes aprobadas a usuarios normales
     if not request.user.is_staff and image.status != 'approved':
         messages.error(request, 'Imagen no disponible.')
@@ -2280,13 +2263,16 @@ def ajax_register_team(request):
 @user_passes_test(user_is_approved, login_url="/pending-approval/")
 def team_list(request):
     """Lista de equipos del club con información de plantillas"""
-    # Configuración del club - usar solo CLUB_TEAM_NAME para máxima flexibilidad
-    club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
-    
+    # Configuración del club - usar tenant para máxima flexibilidad
+    club_name = (
+        request.tenant.club_team_names.get('default', '') if request.tenant and request.tenant.club_team_names
+        else getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
+    )
+
     # Obtener categorías del usuario para filtrar
     user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
-    
-    # Query base para equipos del club - filtrar por nombre que contenga CLUB_TEAM_NAME
+
+    # Query base para equipos del club - filtrar por nombre que contenga club_name
     teams_query = Team.objects.select_related("category", "club").prefetch_related(
         "players", "staff"
     ).filter(is_active=True, name__icontains=club_name)
@@ -2331,8 +2317,11 @@ def team_roster(request, team_id):
         id=team_id
     )
     
-    # Verificar que sea un equipo del club - usar solo CLUB_TEAM_NAME
-    club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
+    # Verificar que sea un equipo del club - usar tenant
+    club_name = (
+        request.tenant.club_team_names.get('default', '') if request.tenant and request.tenant.club_team_names
+        else getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
+    )
     
     is_club_team = club_name.lower() in team.name.lower()
     
@@ -2408,13 +2397,16 @@ def team_roster(request, team_id):
 @user_passes_test(user_is_approved, login_url="/pending-approval/")
 def roster_overview(request):
     """Vista general de todas las plantillas del club"""
-    # Configuración del club - usar solo CLUB_TEAM_NAME para máxima flexibilidad
-    club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
-    
+    # Configuración del club - usar tenant para máxima flexibilidad
+    club_name = (
+        request.tenant.club_team_names.get('default', '') if request.tenant and request.tenant.club_team_names
+        else getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
+    )
+
     # Obtener categorías del usuario para filtrar
     user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
-    
-    # Query base para equipos del club - filtrar por nombre que contenga CLUB_TEAM_NAME
+
+    # Query base para equipos del club - filtrar por nombre que contenga club_name
     teams_query = Team.objects.select_related("category", "club").prefetch_related(
         "players__user", "staff__user"
     ).filter(is_active=True, name__icontains=club_name)
