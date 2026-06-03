@@ -82,3 +82,22 @@ class TenantMiddlewareTest(TestCase):
         middleware(request)
 
         self.assertEqual(request.tenant, root_org)
+
+
+class GetClubTeamFilterTest(TestCase):
+    def test_returns_q_for_tenant_with_names(self):
+        from videosvoley.core.models import Organization
+        from videosvoley.core.mixins import get_club_team_filter
+        org = Organization.objects.create(
+            slug='testclub',
+            name='Test',
+            club_team_names={'Senior': 'TEST CLUB', 'Juvenil': 'TEST B'},
+        )
+        q = get_club_team_filter(org)
+        self.assertIsNotNone(q)
+
+    def test_falls_back_to_settings_when_no_tenant(self):
+        from videosvoley.core.mixins import get_club_team_filter
+        from django.db.models import Q
+        q = get_club_team_filter(None)
+        self.assertIsNotNone(q)
