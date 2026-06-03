@@ -3,11 +3,14 @@
         <div class="flex justify-between h-16">
             <!-- Logo y título (responsive) -->
             <div class="flex items-center space-x-2 sm:space-x-3">
-                <span class="text-2xl sm:text-3xl">🏐</span>
+                {% if tenant.logo %}
+                    <img src="{{ tenant.logo.url }}" alt="{{ tenant.name }}" class="h-8 w-auto">
+                {% else %}
+                    <span class="text-2xl sm:text-3xl">🏐</span>
+                {% endif %}
                 <div>
                     <a href="{% url 'videos:video_list' %}" class="text-lg sm:text-xl font-bold text-csj-purple dark:text-csj-yellow">
-                        <span class="hidden sm:inline">I Love Voley</span>
-                        <span class="sm:hidden">Vídeos</span>
+                        <span class="font-bold text-csj-purple dark:text-csj-yellow">{{ tenant.name|default:"VideosVoley" }}</span>
                     </a>
                     <p class="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Plataforma comunitaria - CV Sant Josep Obrer</p>
                 </div>
