@@ -3,7 +3,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.forms import formset_factory
 from .models import Video, Comment, Category, Match, Team, Image, League, Person, PlayerRole, StaffRole
-from videosvoley.core.mixins import get_club_team_filter
+from videosvoley.core.mixins import get_club_team_filter, get_club_team_names
 
 
 class VideoForm(forms.ModelForm):
@@ -891,12 +891,14 @@ class PlayerRoleForm(forms.ModelForm):
         self.fields['notes'].required = False
 
         # Filtrar equipos del club
-        if self.organization and self.organization.club_team_names:
-            club_name = next(iter(self.organization.club_team_names.values()))
-        else:
-            club_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+        club_names = get_club_team_names(self.organization)
+        # Usar la primera categoría de equipo como filtro principal
+        team_query = Q()
+        for club_name in club_names:
+            team_query |= Q(name__icontains=club_name)
+
         self.fields['team'].queryset = Team.objects.filter(
-            name__icontains=club_name,
+            team_query,
             is_active=True
         ).select_related('category').order_by('category__name', 'name')
 
@@ -1003,12 +1005,13 @@ class StaffRoleForm(forms.ModelForm):
         self.fields['notes'].required = False
 
         # Filtrar equipos del club
-        if self.organization and self.organization.club_team_names:
-            club_name = next(iter(self.organization.club_team_names.values()))
-        else:
-            club_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+        club_names = get_club_team_names(self.organization)
+        team_query = Q()
+        for club_name in club_names:
+            team_query |= Q(name__icontains=club_name)
+
         self.fields['team'].queryset = Team.objects.filter(
-            name__icontains=club_name,
+            team_query,
             is_active=True
         ).select_related('category').order_by('category__name', 'name')
 

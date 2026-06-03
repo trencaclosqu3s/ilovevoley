@@ -4,13 +4,18 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 
 
-def get_club_team_filter(tenant):
-    """Retorna un Q que filtra partidos por los equipos del tenant."""
+def get_club_team_names(tenant):
+    """Extrae los nombres de equipos del club desde la organización o fallback."""
     if tenant and tenant.club_team_names:
-        team_names = list(tenant.club_team_names.values())
+        return list(tenant.club_team_names.values())
     else:
         fallback = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
-        team_names = [fallback]
+        return [fallback]
+
+
+def get_club_team_filter(tenant):
+    """Retorna un Q que filtra partidos por los equipos del tenant."""
+    team_names = get_club_team_names(tenant)
 
     q = Q()
     for name in team_names:
