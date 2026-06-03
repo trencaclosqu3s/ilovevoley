@@ -21,6 +21,7 @@ from django.conf.urls.static import static
 from django.views.generic import RedirectView
 from django.contrib.auth.decorators import login_required
 from videosvoley.core.moderation_views import moderate_user, moderate_image
+from videosvoley.core.views import landing
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
@@ -31,7 +32,8 @@ urlpatterns = [
     # Rutas de moderación con tokens seguros
     path('moderate/user/<str:token>/', moderate_user, name='moderate_user'),
     path('moderate/image/<str:token>/', moderate_image, name='moderate_image'),
-    path('', login_required(RedirectView.as_view(url='/videos/', permanent=False))),
+    # Landing page and tenant redirect
+    path('', landing, name='landing'),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Bienvenido — VideosVoley{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex flex-col items-center justify-center px-4 py-12">
+  <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">VideosVoley</h1>
+  <p class="text-gray-500 dark:text-gray-400 mb-10">Selecciona tu club para continuar</p>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl">
+    {% for org in organizations %}
+    <a href="//{{ org.slug }}.ilovevoley.es/"
+       class="block bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border-t-4 hover:shadow-lg transition-shadow"
+       style="border-color: {{ org.primary_color }};">
+      {% if org.logo %}
+        <img src="{{ org.logo.url }}" alt="{{ org.name }}" class="h-12 w-auto mb-3">
+      {% else %}
+        <div class="h-12 w-12 rounded-full mb-3 flex items-center justify-center text-white font-bold text-xl"
+             style="background-color: {{ org.primary_color }};">
+          {{ org.name|first }}
+        </div>
+      {% endif %}
+      <h2 class="text-lg font-semibold text-gray-800 dark:text-white">{{ org.name }}</h2>
+      {% if org.id in user_org_ids %}
+        <span class="text-xs text-green-600 dark:text-green-400 font-medium">✓ Tienes acceso</span>
+      {% endif %}
+    </a>
+    {% empty %}
+    <p class="col-span-2 text-center text-gray-400">No hay clubs activos.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

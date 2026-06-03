@@ -52,3 +52,32 @@ def test_404(request):
 def test_500(request):
     """Test view for 500 error page."""
     return custom_500(request)
+
+
+def landing(request):
+    """
+    Landing page for root domain with organization selection.
+    Redirects authenticated users on tenant domains to /videos/.
+    """
+    from django.shortcuts import redirect
+    from videosvoley.core.models import Organization
+
+    # If we're on a tenant subdomain and user is authenticated, redirect to videos
+    if request.tenant and request.user.is_authenticated:
+        return redirect('/videos/')
+
+    organizations = Organization.objects.filter(is_active=True).order_by('name')
+
+    user_org_ids = set()
+    if request.user.is_authenticated:
+        from videosvoley.users.models import Membership
+        user_org_ids = set(
+            Membership.objects.filter(
+                user=request.user, is_approved=True
+            ).values_list('organization_id', flat=True)
+        )
+
+    return render(request, 'landing.html', {
+        'organizations': organizations,
+        'user_org_ids': user_org_ids,
+    })
