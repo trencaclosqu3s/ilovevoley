@@ -22,7 +22,7 @@ class TenantMiddleware:
     para que ilovevoley.es siga funcionando. En Fase 2 se elimina el passthrough.
     """
 
-    PASSTHROUGH = True  # Cambiar a False en Fase 2
+    PASSTHROUGH = False
 
     def __init__(self, get_response):
         self.get_response = get_response

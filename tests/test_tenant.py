@@ -68,12 +68,10 @@ class TenantMiddlewareTest(TestCase):
 
         self.assertEqual(request.tenant, self.org)
 
-    def test_middleware_passthrough_on_root_domain(self):
-        from videosvoley.core.models import Organization
+    def test_middleware_root_domain_sets_tenant_none(self):
         from django.test import RequestFactory
         from videosvoley.core.middleware import TenantMiddleware
 
-        root_org, _ = Organization.objects.get_or_create(slug='santjosep', defaults={'name': 'Sant Josep', 'is_active': True})
         factory = RequestFactory()
         request = factory.get('/')
         request.META['HTTP_HOST'] = 'ilovevoley.es'
@@ -81,7 +79,7 @@ class TenantMiddlewareTest(TestCase):
         middleware = TenantMiddleware(lambda r: type('R', (), {'status_code': 200})())
         middleware(request)
 
-        self.assertEqual(request.tenant, root_org)
+        self.assertIsNone(request.tenant)
 
 
 class GetClubTeamFilterTest(TestCase):
