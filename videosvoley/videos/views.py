@@ -119,7 +119,7 @@ def video_list(request):
 @user_passes_test(lambda u: u.groups.filter(name='VideoManagers').exists())
 def video_create(request):
     if request.method == 'POST':
-        form = VideoForm(request.POST)
+        form = VideoForm(request.POST, organization=request.tenant)
         if form.is_valid():
             video = form.save(commit=False)
             video.created_by = request.user
@@ -128,7 +128,7 @@ def video_create(request):
             messages.success(request, 'Vídeo añadido correctamente')
             return redirect('videos:video_list')
     else:
-        form = VideoForm()
+        form = VideoForm(organization=request.tenant)
 
     return render(request, 'videos/video_form.html', {'form': form})
 
@@ -141,7 +141,7 @@ def video_bulk_create(request):
     match_id = request.GET.get('match') or request.POST.get('match_hidden')
 
     if request.method == 'POST':
-        shared_form = VideoBulkSharedForm(request.POST)
+        shared_form = VideoBulkSharedForm(request.POST, organization=request.tenant)
         formset = VideoEntryFormSet(request.POST, prefix='videos')
 
         if shared_form.is_valid() and formset.is_valid():
@@ -176,7 +176,7 @@ def video_bulk_create(request):
         initial_shared = {}
         if match_id:
             initial_shared['match'] = match_id
-        shared_form = VideoBulkSharedForm(initial=initial_shared)
+        shared_form = VideoBulkSharedForm(initial=initial_shared, organization=request.tenant)
         formset = VideoEntryFormSet(prefix='videos')
 
     return render(request, 'videos/video_bulk_form.html', {
@@ -1277,7 +1277,7 @@ def image_gallery_albums(request):
 def image_upload(request):
     """Vista para subir imágenes"""
     if request.method == 'POST':
-        form = ImageUploadForm(request.POST, request.FILES)
+        form = ImageUploadForm(request.POST, request.FILES, organization=request.tenant)
         if form.is_valid():
             image = form.save(commit=False)
             image.uploaded_by = request.user
@@ -1461,7 +1461,7 @@ def image_upload(request):
             except Match.DoesNotExist:
                 pass
         
-        form = ImageUploadForm(initial=initial_data)
+        form = ImageUploadForm(initial=initial_data, organization=request.tenant)
 
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
     club_query = get_club_team_filter(request.tenant)
@@ -2682,7 +2682,7 @@ def player_role_create(request, person_id):
         return redirect('videos:person_detail', person_id=person.id)
     
     if request.method == 'POST':
-        form = PlayerRoleForm(request.POST, person=person)
+        form = PlayerRoleForm(request.POST, person=person, organization=request.tenant)
         if form.is_valid():
             player_role = form.save(commit=False)
             player_role.person = person
@@ -2690,7 +2690,7 @@ def player_role_create(request, person_id):
             messages.success(request, f'¡Rol de jugador agregado en {player_role.team.name}!')
             return redirect('videos:person_detail', person_id=person.id)
     else:
-        form = PlayerRoleForm(person=person)
+        form = PlayerRoleForm(person=person, organization=request.tenant)
     
     context = {
         'form': form,
@@ -2716,7 +2716,7 @@ def staff_role_create(request, person_id):
         return redirect('videos:person_detail', person_id=person.id)
     
     if request.method == 'POST':
-        form = StaffRoleForm(request.POST, person=person)
+        form = StaffRoleForm(request.POST, person=person, organization=request.tenant)
         if form.is_valid():
             staff_role = form.save(commit=False)
             staff_role.person = person
@@ -2724,7 +2724,7 @@ def staff_role_create(request, person_id):
             messages.success(request, f'¡Rol de staff agregado en {staff_role.team.name}!')
             return redirect('videos:person_detail', person_id=person.id)
     else:
-        form = StaffRoleForm(person=person)
+        form = StaffRoleForm(person=person, organization=request.tenant)
     
     context = {
         'form': form,
@@ -2750,13 +2750,13 @@ def player_role_edit(request, role_id):
         return redirect('videos:person_detail', person_id=player_role.person.id)
     
     if request.method == 'POST':
-        form = PlayerRoleForm(request.POST, instance=player_role, person=player_role.person)
+        form = PlayerRoleForm(request.POST, instance=player_role, person=player_role.person, organization=request.tenant)
         if form.is_valid():
             form.save()
             messages.success(request, '¡Rol actualizado correctamente!')
             return redirect('videos:person_detail', person_id=player_role.person.id)
     else:
-        form = PlayerRoleForm(instance=player_role, person=player_role.person)
+        form = PlayerRoleForm(instance=player_role, person=player_role.person, organization=request.tenant)
     
     context = {
         'form': form,
@@ -2783,13 +2783,13 @@ def staff_role_edit(request, role_id):
         return redirect('videos:person_detail', person_id=staff_role.person.id)
     
     if request.method == 'POST':
-        form = StaffRoleForm(request.POST, instance=staff_role, person=staff_role.person)
+        form = StaffRoleForm(request.POST, instance=staff_role, person=staff_role.person, organization=request.tenant)
         if form.is_valid():
             form.save()
             messages.success(request, '¡Rol actualizado correctamente!')
             return redirect('videos:person_detail', person_id=staff_role.person.id)
     else:
-        form = StaffRoleForm(instance=staff_role, person=staff_role.person)
+        form = StaffRoleForm(instance=staff_role, person=staff_role.person, organization=request.tenant)
     
     context = {
         'form': form,
