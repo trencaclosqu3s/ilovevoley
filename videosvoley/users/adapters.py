@@ -15,16 +15,30 @@ class CustomAccountAdapter(DefaultAccountAdapter):
             'successfully signed in',
             'successfully signed out',
         ]
-        
+
         # Si el mensaje contiene alguna frase suprimida, no lo mostramos
         if message:
             message_str = str(message).lower()
             for suppressed in suppressed_messages:
                 if suppressed in message_str:
                     return
-        
+
         # Para el resto de mensajes, usar el comportamiento por defecto
         super().add_message(request, level, message_template, message_context, extra_tags, message)
+
+    def save_user(self, request, user, form, commit=True):
+        """
+        Guardar usuario y crear Membership para el tenant actual
+        """
+        user = super().save_user(request, user, form, commit=commit)
+        if commit and getattr(request, 'tenant', None):
+            from videosvoley.users.models import Membership
+            Membership.objects.get_or_create(
+                user=user,
+                organization=request.tenant,
+                defaults={'role': 'member', 'is_approved': False},
+            )
+        return user
 
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
@@ -91,12 +105,21 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         Guardar el usuario con información adicional del formulario de signup
         """
         user = super().save_user(request, sociallogin, form)
-        
+
         # Si hay un formulario con parent_info, guardarlo
         if form and hasattr(form, 'cleaned_data'):
             parent_info = form.cleaned_data.get('parent_info', '')
             if parent_info:
                 user.parent_info = parent_info
                 user.save()
-        
+
+        # Crear Membership para el tenant actual
+        if getattr(request, 'tenant', None):
+            from videosvoley.users.models import Membership
+            Membership.objects.get_or_create(
+                user=user,
+                organization=request.tenant,
+                defaults={'role': 'member', 'is_approved': False},
+            )
+
         return user

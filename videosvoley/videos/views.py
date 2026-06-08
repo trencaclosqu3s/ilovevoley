@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib.postgres.search import TrigramSimilarity
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.conf import settings
 from django.views.decorators.http import require_POST
 from unidecode import unidecode
@@ -18,6 +18,8 @@ from django.core.files.base import ContentFile
 from .models import Video, Comment, Category, League, Match, Team, Standing, Image, Player, Staff, Person, PlayerRole, StaffRole
 from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm, PersonForm, PlayerRoleForm, StaffRoleForm, MatchResultForm, VideoBulkSharedForm, VideoEntryFormSet
 from .utils import process_uploaded_image
+from videosvoley.core.mixins import get_club_team_filter, get_club_team_names, get_club_team_name_filter
+from videosvoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager, approve_user_membership
 import requests as http_requests
 from .scraping import parse_acta_lineup
 
@@ -25,15 +27,11 @@ from .scraping import parse_acta_lineup
 logger = logging.getLogger(__name__)
 
 
-def user_is_approved(user):
-    """Verifica si el usuario está aprobado para acceder al contenido"""
-    return user.is_approved
-
-
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def video_list(request):
-    videos = Video.objects.select_related('category', 'created_by', 'match__home_team', 'match__away_team', 'match__league').prefetch_related('comments').all()
+    videos = Video.objects.select_related('category', 'created_by', 'match__home_team', 'match__away_team', 'match__league').prefetch_related('comments').filter(
+        organization=request.tenant
+    )
     categories = Category.objects.filter(is_active=True)
     leagues = League.objects.visible_in_app()
     teams = Team.objects.all()
@@ -82,7 +80,7 @@ def video_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    can_add = request.user.groups.filter(name='VideoManagers').exists()
+    can_add = user_is_tenant_manager(request.user, request.tenant)
     
     # Mensaje de prueba para verificar el sistema de toast (solo para desarrollo)
     if request.GET.get('test_toast'):
@@ -111,33 +109,30 @@ def video_list(request):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
-@user_passes_test(lambda u: u.groups.filter(name='VideoManagers').exists())
+@tenant_access_required(manager=True)
 def video_create(request):
     if request.method == 'POST':
-        form = VideoForm(request.POST)
+        form = VideoForm(request.POST, organization=request.tenant)
         if form.is_valid():
             video = form.save(commit=False)
             video.created_by = request.user
+            video.organization = request.tenant
             video.save()
             messages.success(request, 'Vídeo añadido correctamente')
             return redirect('videos:video_list')
     else:
-        form = VideoForm()
+        form = VideoForm(organization=request.tenant)
 
     return render(request, 'videos/video_form.html', {'form': form})
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
-@user_passes_test(lambda u: u.groups.filter(name='VideoManagers').exists())
+@tenant_access_required(manager=True)
 def video_bulk_create(request):
     """Crear múltiples vídeos para el mismo partido en un solo formulario."""
     match_id = request.GET.get('match') or request.POST.get('match_hidden')
 
     if request.method == 'POST':
-        shared_form = VideoBulkSharedForm(request.POST)
+        shared_form = VideoBulkSharedForm(request.POST, organization=request.tenant)
         formset = VideoEntryFormSet(request.POST, prefix='videos')
 
         if shared_form.is_valid() and formset.is_valid():
@@ -152,6 +147,7 @@ def video_bulk_create(request):
                         match=match,
                         category=category,
                         created_by=request.user,
+                        organization=request.tenant,
                     )
                     created += 1
 
@@ -171,7 +167,7 @@ def video_bulk_create(request):
         initial_shared = {}
         if match_id:
             initial_shared['match'] = match_id
-        shared_form = VideoBulkSharedForm(initial=initial_shared)
+        shared_form = VideoBulkSharedForm(initial=initial_shared, organization=request.tenant)
         formset = VideoEntryFormSet(prefix='videos')
 
     return render(request, 'videos/video_bulk_form.html', {
@@ -181,11 +177,12 @@ def video_bulk_create(request):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def video_detail(request, video_id):
     video = get_object_or_404(Video, id=video_id)
-    
+    if video.organization != request.tenant and not request.user.is_superuser:
+        raise Http404
+
     # Manejar envío de comentarios
     if request.method == 'POST':
         comment_form = CommentForm(request.POST)
@@ -209,8 +206,7 @@ def video_detail(request, video_id):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def league_list(request):
     """Vista para mostrar todas las ligas disponibles"""
     leagues = League.objects.visible_in_app().prefetch_related('matches__videos')
@@ -266,8 +262,7 @@ def league_list(request):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def league_detail(request, league_id):
     """Vista detallada de una liga con partidos y clasificación"""
     league = get_object_or_404(League, id=league_id, is_active=True)
@@ -335,8 +330,7 @@ def league_detail(request, league_id):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def match_detail(request, match_id):
     """Vista detallada de un partido con sus videos e imágenes"""
     match = get_object_or_404(
@@ -354,36 +348,28 @@ def match_detail(request, match_id):
         'match': match,
         'videos': videos,
         'images': images,
-        'today': timezone.now().date()
+        'today': timezone.now().date(),
+        'can_manage_videos': user_is_tenant_manager(request.user, request.tenant),
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def calendar_view(request):
     """Vista del calendario de partidos"""
-    # Configuración del club
-    CLUB_TEAM_NAME = 'SANT JOSEP'
-    
     # Obtener filtros
     show_all_teams = request.GET.get('all_teams', '0') == '1'
     show_all = request.GET.get('show_all', '0') == '1'
     league_filter = request.GET.get('league')
     category_filter = request.GET.get('category')
-    
+
     # Consulta base de partidos (withdrawn excluidos automáticamente por el manager)
     matches = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).prefetch_related('league__categories').order_by('match_date')
-    
+
     # Filtrar por equipo del club por defecto
     if not show_all_teams:
-        matches = matches.filter(
-            Q(home_team__name__icontains=CLUB_TEAM_NAME) | 
-            Q(away_team__name__icontains=CLUB_TEAM_NAME) |
-            Q(home_team_text__icontains=CLUB_TEAM_NAME) |
-            Q(away_team_text__icontains=CLUB_TEAM_NAME)
-        )
+        matches = matches.filter(get_club_team_filter(request.tenant))
     
     # Aplicar filtro de liga
     if league_filter:
@@ -474,7 +460,6 @@ def calendar_view(request):
         'selected_category': category_filter,
         'show_all_teams': show_all_teams,
         'show_all': show_all,
-        'club_team_name': CLUB_TEAM_NAME,
         'current_month': start_date,
         'prev_month': prev_month,
         'next_month': next_month,
@@ -488,9 +473,7 @@ def calendar_view(request):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
-@user_passes_test(lambda u: u.is_staff or u.groups.filter(name='VideoManagers').exists(), login_url='/')
+@tenant_access_required(manager=True)
 def friendly_match_create(request):
     """Vista para crear un partido amistoso"""
     if request.method == 'POST':
@@ -566,9 +549,7 @@ def ajax_search_teams(request):
     return JsonResponse({'teams': teams_data})
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
-@user_passes_test(lambda u: u.is_staff or u.groups.filter(name='VideoManagers').exists(), login_url='/')
+@tenant_access_required(manager=True)
 def ajax_add_match_result(request, match_id):
     """Vista AJAX para agregar resultado de partido"""
     from django.http import JsonResponse
@@ -625,8 +606,7 @@ def ajax_add_match_result(request, match_id):
         }, status=400)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def ajax_acta_lineup(request, match_id):
     """
     Vista AJAX que devuelve convocados + alineaciones por set del acta oficial,
@@ -752,8 +732,7 @@ def ajax_acta_lineup(request, match_id):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def standings_view(request):
     """Vista de clasificación de las ligas"""
     # Obtener filtros
@@ -761,9 +740,6 @@ def standings_view(request):
     category_filter = request.GET.get('category')
     show_all = request.GET.get('show_all', '0') == '1'
     show_archived = request.GET.get('show_archived', '0') == '1'
-    
-    # Configuración del club
-    CLUB_TEAM_NAME = 'SANT JOSEP'
     
     # Obtener temporadas disponibles
     seasons = League.objects.filter(is_our_team_related=True).values_list('season', flat=True).distinct().order_by('-season')
@@ -833,7 +809,6 @@ def standings_view(request):
         'selected_league': league_filter,
         'selected_category': category_filter,
         'selected_season': season_filter,
-        'club_team_name': CLUB_TEAM_NAME,
         'show_all': show_all,
         'show_archived': show_archived,
         'has_preferences': request.user.preferred_categories.exists(),
@@ -844,15 +819,9 @@ def standings_view(request):
 def ajax_matches_by_category(request):
     """Vista AJAX para obtener partidos filtrados por categoría"""
     category_id = request.GET.get('category_id')
-    club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
-    
+
     # Construir query base para equipos del club
-    club_query = (
-        Q(home_team__name__icontains=club_team_name) | 
-        Q(away_team__name__icontains=club_team_name) |
-        Q(home_team_text__icontains=club_team_name) |
-        Q(away_team_text__icontains=club_team_name)
-    )
+    club_query = get_club_team_filter(request.tenant)
     
     # Si hay categoría específica, filtrar por equipos de esa categoría
     if category_id and category_id != '':
@@ -935,14 +904,16 @@ def ajax_teams_by_league_category(request):
 # VISTAS DE GESTIÓN DE IMÁGENES
 # ===============================
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def image_gallery(request):
     """Vista de galería de imágenes con filtros"""
     images = Image.objects.select_related(
-        'match__home_team', 'match__away_team', 'match__league', 
+        'match__home_team', 'match__away_team', 'match__league',
         'uploaded_by'
-    ).prefetch_related('categories').filter(status='approved').order_by('-upload_date')
+    ).prefetch_related('categories').filter(
+        organization=request.tenant,
+        status='approved',
+    ).order_by('-upload_date')
     
     # Variable para controlar si mostrar todo el contenido
     show_all = request.GET.get('show_all', '0') == '1'
@@ -1057,17 +1028,19 @@ def image_gallery(request):
     return render(request, 'videos/image_gallery.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def image_gallery_albums(request):
     """Vista de galería de imágenes agrupadas por partido (álbumes)"""
     from django.db.models import Count, Prefetch
-    
+
     # Obtener imágenes con sus partidos relacionados
     images = Image.objects.select_related(
-        'match__home_team', 'match__away_team', 'match__league', 
+        'match__home_team', 'match__away_team', 'match__league',
         'uploaded_by'
-    ).prefetch_related('categories').filter(status='approved').order_by('-upload_date')
+    ).prefetch_related('categories').filter(
+        organization=request.tenant,
+        status='approved',
+    ).order_by('-upload_date')
     
     # Variable para controlar si mostrar todo el contenido
     show_all = request.GET.get('show_all', '0') == '1'
@@ -1278,16 +1251,16 @@ def image_gallery_albums(request):
     return render(request, 'videos/image_gallery.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def image_upload(request):
     """Vista para subir imágenes"""
     if request.method == 'POST':
-        form = ImageUploadForm(request.POST, request.FILES)
+        form = ImageUploadForm(request.POST, request.FILES, organization=request.tenant)
         if form.is_valid():
             image = form.save(commit=False)
             image.uploaded_by = request.user
-            
+            image.organization = request.tenant
+
             # Procesar imagen (convertir HEIC si es necesario)
             try:
                 uploaded_file = request.FILES.get('image')
@@ -1307,12 +1280,7 @@ def image_upload(request):
                 messages.error(request, f'Error al procesar la imagen: {str(e)}')
                 
                 # Preparar recent_matches con la misma lógica
-                club_query = (
-                    Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-                    Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-                    Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-                    Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
-                )
+                club_query = get_club_team_filter(request.tenant)
                 now = timezone.now()
                 past_matches = Match.objects.select_related(
                     'home_team', 'away_team', 'league'
@@ -1471,29 +1439,24 @@ def image_upload(request):
             except Match.DoesNotExist:
                 pass
         
-        form = ImageUploadForm(initial=initial_data)
-    
+        form = ImageUploadForm(initial=initial_data, organization=request.tenant)
+
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
-    club_query = (
-        Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
-    )
-    
+    club_query = get_club_team_filter(request.tenant)
+
     now = timezone.now()
-    
+
     # Partidos del pasado (últimos 10)
     # (withdrawn excluidos automáticamente por el manager)
     past_matches = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
-    
+
     # Próximo partido futuro (solo uno)
     next_match = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__gte=now).order_by('match_date').first()
-    
+
     # Combinar ambos querysets
     if next_match:
         # Convertir a lista para combinar y ordenar
@@ -1510,8 +1473,7 @@ def image_upload(request):
     return render(request, 'videos/image_upload.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def image_bulk_upload(request):
     """Vista para subir múltiples imágenes a la vez"""
     if request.method == 'POST':
@@ -1526,6 +1488,7 @@ def image_bulk_upload(request):
             'uploaded_by': request.user,
             'image_type': request.POST.get('image_type', 'other'),
             'year': request.POST.get('year', timezone.now().year),
+            'organization': request.tenant,
         }
         
         # Match y categorías opcionales compartidos
@@ -1765,26 +1728,21 @@ def image_bulk_upload(request):
             pass
     
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
-    club_query = (
-        Q(home_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team__name__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(home_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')) |
-        Q(away_team_text__icontains=getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP'))
-    )
-    
+    club_query = get_club_team_filter(request.tenant)
+
     now = timezone.now()
-    
+
     # Partidos del pasado (últimos 10)
     # (withdrawn excluidos automáticamente por el manager)
     past_matches = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
-    
+
     # Próximo partido futuro (solo uno)
     next_match = Match.objects.select_related(
         'home_team', 'away_team', 'league'
     ).filter(club_query, match_date__gte=now).order_by('match_date').first()
-    
+
     # Combinar ambos querysets
     if next_match:
         # Convertir a lista para combinar y ordenar
@@ -1792,13 +1750,13 @@ def image_bulk_upload(request):
         recent_matches.sort(key=lambda x: x.match_date, reverse=True)
     else:
         recent_matches = list(past_matches)
-    
+
     # Obtener categorías activas
     categories = Category.objects.filter(is_active=True).order_by('name')
-    
+
     # Tipos de imagen
     image_types = Image.IMAGE_TYPES
-    
+
     context = {
         'recent_matches': recent_matches,
         'categories': categories,
@@ -1811,8 +1769,7 @@ def image_bulk_upload(request):
     return render(request, 'videos/image_bulk_upload.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def image_detail(request, image_id):
     """Vista de detalle de imagen"""
     image = get_object_or_404(
@@ -1822,7 +1779,9 @@ def image_detail(request, image_id):
         ).prefetch_related('categories'),
         id=image_id
     )
-    
+    if image.organization != request.tenant and not request.user.is_superuser:
+        raise Http404
+
     # Solo mostrar imágenes aprobadas a usuarios normales
     if not request.user.is_staff and image.status != 'approved':
         messages.error(request, 'Imagen no disponible.')
@@ -1842,8 +1801,7 @@ def image_detail(request, image_id):
     return render(request, 'videos/image_detail.html', context)
 
 
-@login_required
-@user_passes_test(lambda u: u.is_staff, login_url='/')
+@tenant_access_required(staff=True)
 def image_moderation(request):
     """Vista de moderación para admins"""
     images = Image.objects.select_related(
@@ -1864,8 +1822,7 @@ def image_moderation(request):
     return render(request, 'videos/image_moderation.html', context)
 
 
-@login_required
-@user_passes_test(lambda u: u.is_staff, login_url='/')
+@tenant_access_required(staff=True)
 def image_moderate_action(request, image_id):
     """Acción de moderación individual"""
     image = get_object_or_404(Image, id=image_id, status='pending')
@@ -1896,8 +1853,7 @@ def image_moderate_action(request, image_id):
     return render(request, 'videos/image_moderate.html', context)
 
 
-@login_required
-@user_passes_test(lambda u: u.is_staff, login_url='/')
+@tenant_access_required(staff=True)
 def image_moderate_bulk(request):
     """Moderación masiva de imágenes"""
     if request.method == 'POST':
@@ -1951,8 +1907,7 @@ def match_images(request, match_id):
     return render(request, 'videos/match_images.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def album_group_images(request, album_group_id):
     """Vista de imágenes de un álbum de grupo (sin partido)"""
     # album_group_id ya viene como UUID desde la URL (gracias al path converter <uuid:album_group_id>)
@@ -2009,8 +1964,14 @@ def moderation_counts_api(request):
     
     User = get_user_model()
     
-    # Contar usuarios pendientes de aprobación
-    pending_users_count = User.objects.filter(is_approved=False).count()
+    if getattr(request, 'tenant', None):
+        pending_users = User.objects.filter(
+            memberships__organization=request.tenant,
+            memberships__is_approved=False,
+        ).distinct().order_by('date_joined')
+        pending_users_count = pending_users.count()
+    else:
+        pending_users_count = User.objects.filter(is_approved=False).count()
     
     # Contar imágenes pendientes de moderación
     pending_images_count = Image.objects.filter(status='pending').count()
@@ -2034,8 +1995,13 @@ def moderation_panel(request):
     
     User = get_user_model()
     
-    # Obtener usuarios pendientes de aprobación
-    pending_users = User.objects.filter(is_approved=False).order_by('date_joined')
+    if getattr(request, 'tenant', None):
+        pending_users = User.objects.filter(
+            memberships__organization=request.tenant,
+            memberships__is_approved=False,
+        ).distinct().order_by('date_joined')
+    else:
+        pending_users = User.objects.filter(is_approved=False).order_by('date_joined')
     
     # Obtener imágenes pendientes de moderación
     pending_images = Image.objects.filter(status='pending').select_related(
@@ -2063,9 +2029,7 @@ def approve_user_api(request, user_id):
     
     try:
         user = User.objects.get(id=user_id, is_approved=False)
-        user.is_approved = True
-        user.is_active = True  # Asegurarse de que el usuario esté activo al aprobar
-        user.save(update_fields=['is_approved', 'is_active'])
+        approve_user_membership(user, getattr(request, 'tenant', None))
         
         # Enviar email de confirmación si está configurado
         if getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
@@ -2195,8 +2159,7 @@ def moderate_image_api(request, image_id):
         }, status=500)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def ajax_register_team(request):
     """Vista AJAX para registrar un nuevo equipo desde el formulario de amistosos"""
     if request.method != 'POST':
@@ -2276,20 +2239,16 @@ def ajax_register_team(request):
 # VISTAS DE PLANTILLAS (PLAYERS Y STAFF)  
 # ===============================
 
-@login_required
-@user_passes_test(user_is_approved, login_url="/pending-approval/")
+@tenant_access_required()
 def team_list(request):
     """Lista de equipos del club con información de plantillas"""
-    # Configuración del club - usar solo CLUB_TEAM_NAME para máxima flexibilidad
-    club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
-    
     # Obtener categorías del usuario para filtrar
     user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
-    
-    # Query base para equipos del club - filtrar por nombre que contenga CLUB_TEAM_NAME
+
+    # Query base para equipos del club
     teams_query = Team.objects.select_related("category", "club").prefetch_related(
         "players", "staff"
-    ).filter(is_active=True, name__icontains=club_name)
+    ).filter(is_active=True).filter(get_club_team_name_filter(request.tenant))
     
     # Filtrar por categorías preferidas del usuario
     category_filter = request.GET.get("category")
@@ -2322,8 +2281,7 @@ def team_list(request):
     return render(request, "videos/team_list.html", context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url="/pending-approval/")
+@tenant_access_required()
 def team_roster(request, team_id):
     """Vista de plantilla de un equipo específico"""
     team = get_object_or_404(
@@ -2331,10 +2289,9 @@ def team_roster(request, team_id):
         id=team_id
     )
     
-    # Verificar que sea un equipo del club - usar solo CLUB_TEAM_NAME
-    club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
-    
-    is_club_team = club_name.lower() in team.name.lower()
+    # Verificar que sea un equipo del club
+    club_names = get_club_team_names(request.tenant)
+    is_club_team = any(name.lower() in team.name.lower() for name in club_names)
     
     if not is_club_team:
         messages.error(request, "Este equipo no pertenece al club.")
@@ -2404,20 +2361,16 @@ def team_roster(request, team_id):
     return render(request, "videos/team_roster.html", context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url="/pending-approval/")
+@tenant_access_required()
 def roster_overview(request):
     """Vista general de todas las plantillas del club"""
-    # Configuración del club - usar solo CLUB_TEAM_NAME para máxima flexibilidad
-    club_name = getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
-    
     # Obtener categorías del usuario para filtrar
     user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
-    
-    # Query base para equipos del club - filtrar por nombre que contenga CLUB_TEAM_NAME
+
+    # Query base para equipos del club
     teams_query = Team.objects.select_related("category", "club").prefetch_related(
         "players__user", "staff__user"
-    ).filter(is_active=True, name__icontains=club_name)
+    ).filter(is_active=True).filter(get_club_team_name_filter(request.tenant))
     
     # Filtrar por categorías preferidas del usuario
     category_filter = request.GET.get("category")
@@ -2484,8 +2437,7 @@ def roster_overview(request):
 # VISTAS PARA GESTIÓN DE PERSONAS (Person-Role)
 # =============================================================================
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def person_list(request):
     """Vista de listado de personas del club"""
     # Obtener todas las personas activas con sus roles
@@ -2529,8 +2481,7 @@ def person_list(request):
     return render(request, 'videos/person_list.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def person_detail(request, person_id):
     """Vista de detalle de una persona"""
     person = get_object_or_404(
@@ -2558,8 +2509,7 @@ def person_detail(request, person_id):
     return render(request, 'videos/person_detail.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def person_create(request):
     """Vista para crear una nueva persona"""
     if request.method == 'POST':
@@ -2614,8 +2564,7 @@ def person_create(request):
     return render(request, 'videos/person_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def person_edit(request, person_id):
     """Vista para editar una persona existente"""
     person = get_object_or_404(Person, id=person_id)
@@ -2677,8 +2626,7 @@ def person_edit(request, person_id):
     return render(request, 'videos/person_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def player_role_create(request, person_id):
     """Vista para agregar un rol de jugador a una persona"""
     person = get_object_or_404(Person, id=person_id)
@@ -2690,7 +2638,7 @@ def player_role_create(request, person_id):
         return redirect('videos:person_detail', person_id=person.id)
     
     if request.method == 'POST':
-        form = PlayerRoleForm(request.POST, person=person)
+        form = PlayerRoleForm(request.POST, person=person, organization=request.tenant)
         if form.is_valid():
             player_role = form.save(commit=False)
             player_role.person = person
@@ -2698,7 +2646,7 @@ def player_role_create(request, person_id):
             messages.success(request, f'¡Rol de jugador agregado en {player_role.team.name}!')
             return redirect('videos:person_detail', person_id=person.id)
     else:
-        form = PlayerRoleForm(person=person)
+        form = PlayerRoleForm(person=person, organization=request.tenant)
     
     context = {
         'form': form,
@@ -2711,8 +2659,7 @@ def player_role_create(request, person_id):
     return render(request, 'videos/role_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def staff_role_create(request, person_id):
     """Vista para agregar un rol de staff a una persona"""
     person = get_object_or_404(Person, id=person_id)
@@ -2724,7 +2671,7 @@ def staff_role_create(request, person_id):
         return redirect('videos:person_detail', person_id=person.id)
     
     if request.method == 'POST':
-        form = StaffRoleForm(request.POST, person=person)
+        form = StaffRoleForm(request.POST, person=person, organization=request.tenant)
         if form.is_valid():
             staff_role = form.save(commit=False)
             staff_role.person = person
@@ -2732,7 +2679,7 @@ def staff_role_create(request, person_id):
             messages.success(request, f'¡Rol de staff agregado en {staff_role.team.name}!')
             return redirect('videos:person_detail', person_id=person.id)
     else:
-        form = StaffRoleForm(person=person)
+        form = StaffRoleForm(person=person, organization=request.tenant)
     
     context = {
         'form': form,
@@ -2745,8 +2692,7 @@ def staff_role_create(request, person_id):
     return render(request, 'videos/role_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def player_role_edit(request, role_id):
     """Vista para editar un rol de jugador"""
     player_role = get_object_or_404(PlayerRole.objects.select_related('person', 'team'), id=role_id)
@@ -2758,13 +2704,13 @@ def player_role_edit(request, role_id):
         return redirect('videos:person_detail', person_id=player_role.person.id)
     
     if request.method == 'POST':
-        form = PlayerRoleForm(request.POST, instance=player_role, person=player_role.person)
+        form = PlayerRoleForm(request.POST, instance=player_role, person=player_role.person, organization=request.tenant)
         if form.is_valid():
             form.save()
             messages.success(request, '¡Rol actualizado correctamente!')
             return redirect('videos:person_detail', person_id=player_role.person.id)
     else:
-        form = PlayerRoleForm(instance=player_role, person=player_role.person)
+        form = PlayerRoleForm(instance=player_role, person=player_role.person, organization=request.tenant)
     
     context = {
         'form': form,
@@ -2778,8 +2724,7 @@ def player_role_edit(request, role_id):
     return render(request, 'videos/role_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def staff_role_edit(request, role_id):
     """Vista para editar un rol de staff"""
     staff_role = get_object_or_404(StaffRole.objects.select_related('person', 'team'), id=role_id)
@@ -2791,13 +2736,13 @@ def staff_role_edit(request, role_id):
         return redirect('videos:person_detail', person_id=staff_role.person.id)
     
     if request.method == 'POST':
-        form = StaffRoleForm(request.POST, instance=staff_role, person=staff_role.person)
+        form = StaffRoleForm(request.POST, instance=staff_role, person=staff_role.person, organization=request.tenant)
         if form.is_valid():
             form.save()
             messages.success(request, '¡Rol actualizado correctamente!')
             return redirect('videos:person_detail', person_id=staff_role.person.id)
     else:
-        form = StaffRoleForm(instance=staff_role, person=staff_role.person)
+        form = StaffRoleForm(instance=staff_role, person=staff_role.person, organization=request.tenant)
     
     context = {
         'form': form,
@@ -2811,8 +2756,7 @@ def staff_role_edit(request, role_id):
     return render(request, 'videos/role_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 @require_POST
 def player_role_toggle_active(request, role_id):
     """Vista AJAX para activar/desactivar rol de jugador"""
@@ -2832,8 +2776,7 @@ def player_role_toggle_active(request, role_id):
     return JsonResponse({'success': True, 'is_active': player_role.is_active})
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 @require_POST
 def staff_role_toggle_active(request, role_id):
     """Vista AJAX para activar/desactivar rol de staff"""

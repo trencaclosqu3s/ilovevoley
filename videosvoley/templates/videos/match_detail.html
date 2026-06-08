@@ -304,15 +304,11 @@
                 <h2 class="text-lg sm:text-xl font-bold text-gray-800">
                     📹 Videos del partido ({{ videos.count }})
                 </h2>
-                {% if user.groups.all %}
-                    {% for group in user.groups.all %}
-                        {% if group.name == 'VideoManagers' %}
-                            <a href="{% url 'videos:video_bulk_create' %}?match={{ match.id }}"
-                               class="inline-flex items-center px-3 py-1.5 bg-csj-purple hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition">
-                                + Añadir vídeos
-                            </a>
-                        {% endif %}
-                    {% endfor %}
+                {% if can_manage_videos %}
+                    <a href="{% url 'videos:video_bulk_create' %}?match={{ match.id }}"
+                       class="inline-flex items-center px-3 py-1.5 bg-csj-purple hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition">
+                        + Añadir vídeos
+                    </a>
                 {% endif %}
             </div>
 
@@ -368,14 +364,10 @@
             <h3 class="mt-4 text-lg font-medium text-gray-900">No hay videos para este partido</h3>
             <p class="mt-2 text-sm text-gray-500">
                 Aún no se han subido videos para este enfrentamiento. 
-                {% if user.groups.all %}
-                    {% for group in user.groups.all %}
-                        {% if group.name == 'VideoManagers' %}
-                            <a href="{% url 'videos:video_bulk_create' %}?match={{ match.id }}" class="text-csj-purple hover:text-csj-purple-dark font-medium">
-                                ¡Sé el primero en añadir uno!
-                            </a>
-                        {% endif %}
-                    {% endfor %}
+                {% if can_manage_videos %}
+                    <a href="{% url 'videos:video_bulk_create' %}?match={{ match.id }}" class="text-csj-purple hover:text-csj-purple-dark font-medium">
+                        ¡Sé el primero en añadir uno!
+                    </a>
                 {% endif %}
             </p>
         </div>

@@ -3,6 +3,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.forms import formset_factory
 from .models import Video, Comment, Category, Match, Team, Image, League, Person, PlayerRole, StaffRole
+from videosvoley.core.mixins import get_club_team_filter, get_club_team_names
 
 
 class VideoForm(forms.ModelForm):
@@ -39,20 +40,18 @@ class VideoForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
         # Hacer el campo match opcional
         self.fields['match'].required = False
-        
+
         # Filtrar partidos inteligentemente basado en categoría y equipos del club
         self._setup_match_queryset()
-        
+
     def _setup_match_queryset(self):
         """Configura el queryset de partidos basado en categoría y equipos del club"""
         from django.utils import timezone
         from django.db.models import Q
-        
-        # Obtener configuración de equipos del club
-        club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
         
         # Si hay una categoría preseleccionada, filtrar por equipos de esa categoría
         category = None
@@ -64,19 +63,10 @@ class VideoForm(forms.ModelForm):
                 pass
         elif self.instance and self.instance.category:
             category = self.instance.category
-        
+
         # Construir query base para equipos del club
-        # Incluir tanto equipos con ForeignKey como texto libre (amistosos)
-        club_query = (
-            Q(home_team__name__icontains=club_team_name) |
-            Q(away_team__name__icontains=club_team_name) |
-            Q(home_team_text__icontains=club_team_name) |
-            Q(away_team_text__icontains=club_team_name) |
-            # Incluir partidos con variantes del equipo
-            Q(home_team__parent_team__name__icontains=club_team_name) |
-            Q(away_team__parent_team__name__icontains=club_team_name)
-        )
-        
+        club_query = get_club_team_filter(self.organization)
+
         # Si hay categoría específica, filtrar por equipos de esa categoría
         if category:
             # Filtrar por equipos que tengan la categoría específica O por liga de esa categoría
@@ -253,41 +243,31 @@ class ImageUploadForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
-        
+
         # Hacer campos opcionales
         self.fields['description'].required = False
         self.fields['categories'].required = False
         self.fields['tags'].required = False
         self.fields['match'].required = False
-        
+
         # Configurar queryset de categorías activas
         self.fields['categories'].queryset = Category.objects.filter(is_active=True).order_by('name')
         self.fields['categories'].help_text = 'Selecciona una o más categorías (opcional si se vincula un partido)'
-        
+
         # Filtrar partidos del club
         self._setup_match_queryset()
-        
+
         # Configurar lógica condicional para el campo match
         self._setup_conditional_logic()
-        
+
     def _setup_match_queryset(self):
         """Configura el queryset de partidos basado en equipos del club"""
         from django.utils import timezone
-        
-        club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
 
         # Filtrar partidos del club ordenados por fecha
-        # Incluir tanto equipos con ForeignKey como texto libre (amistosos)
-        club_query = (
-            Q(home_team__name__icontains=club_team_name) |
-            Q(away_team__name__icontains=club_team_name) |
-            Q(home_team_text__icontains=club_team_name) |
-            Q(away_team_text__icontains=club_team_name) |
-            # Incluir partidos con variantes del equipo
-            Q(home_team__parent_team__name__icontains=club_team_name) |
-            Q(away_team__parent_team__name__icontains=club_team_name)
-        )
+        club_query = get_club_team_filter(self.organization)
         
         # Fecha actual
         now = timezone.now()
@@ -901,21 +881,27 @@ class PlayerRoleForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
         person = kwargs.pop('person', None)
         super().__init__(*args, **kwargs)
-        
+
         # Hacer campos opcionales
         self.fields['jersey_number'].required = False
         self.fields['position'].required = False
         self.fields['notes'].required = False
-        
+
         # Filtrar equipos del club
-        club_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+        club_names = get_club_team_names(self.organization)
+        # Usar la primera categoría de equipo como filtro principal
+        team_query = Q()
+        for club_name in club_names:
+            team_query |= Q(name__icontains=club_name)
+
         self.fields['team'].queryset = Team.objects.filter(
-            name__icontains=club_name,
+            team_query,
             is_active=True
         ).select_related('category').order_by('category__name', 'name')
-        
+
         # Si hay persona, excluir equipos donde ya tiene rol activo
         if person:
             active_team_ids = person.player_roles.filter(is_active=True).values_list('team_id', flat=True)
@@ -1011,19 +997,24 @@ class StaffRoleForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
         person = kwargs.pop('person', None)
         super().__init__(*args, **kwargs)
-        
+
         # Hacer campo notes opcional
         self.fields['notes'].required = False
-        
+
         # Filtrar equipos del club
-        club_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+        club_names = get_club_team_names(self.organization)
+        team_query = Q()
+        for club_name in club_names:
+            team_query |= Q(name__icontains=club_name)
+
         self.fields['team'].queryset = Team.objects.filter(
-            name__icontains=club_name,
+            team_query,
             is_active=True
         ).select_related('category').order_by('category__name', 'name')
-        
+
         # Si hay persona, excluir combinaciones equipo-rol donde ya tiene rol activo
         if person:
             # No se puede tener el mismo rol en el mismo equipo
@@ -1074,12 +1065,12 @@ class VideoBulkSharedForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
         self._setup_match_queryset()
 
     def _setup_match_queryset(self):
         from django.utils import timezone
-        club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
 
         category = None
         if self.data and 'category' in self.data:
@@ -1088,14 +1079,7 @@ class VideoBulkSharedForm(forms.Form):
             except (Category.DoesNotExist, ValueError):
                 pass
 
-        club_query = (
-            Q(home_team__name__icontains=club_team_name) |
-            Q(away_team__name__icontains=club_team_name) |
-            Q(home_team_text__icontains=club_team_name) |
-            Q(away_team_text__icontains=club_team_name) |
-            Q(home_team__parent_team__name__icontains=club_team_name) |
-            Q(away_team__parent_team__name__icontains=club_team_name)
-        )
+        club_query = get_club_team_filter(self.organization)
 
         if category:
             category_query = (

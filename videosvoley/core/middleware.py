@@ -1,16 +1,62 @@
 import logging
 from datetime import datetime, timedelta
 from collections import defaultdict
-from django.http import Http404
+from django.http import Http404, HttpResponseNotFound
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.core.cache import cache
+from django.shortcuts import redirect
 from .email_utils import get_admin_emails
+from .tenant_utils import get_organization_by_slug
 
 
 logger = logging.getLogger(__name__)
+
+TENANT_EXEMPT_PREFIXES = (
+    '/videos/calendario/suscripcion/',
+)
+
+
+class TenantMiddleware:
+    """
+    Resuelve el tenant (Organization) a partir del subdominio del Host header
+    y lo pone en request.tenant.
+
+    Modo passthrough (Fase 1): si no hay subdominio reconocido, asigna Sant Josep
+    para que ilovevoley.es siga funcionando. En Fase 2 se elimina el passthrough.
+    """
+
+    PASSTHROUGH = False
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        host = request.META.get('HTTP_HOST', '').split(':')[0]
+        parts = host.split('.')
+        root_domain = '.'.join(parts[-2:]) if len(parts) >= 2 else host
+
+        if host == root_domain:
+            if self.PASSTHROUGH:
+                request.tenant = get_organization_by_slug('santjosep')
+            else:
+                request.tenant = None
+        else:
+            subdomain = parts[0]
+            request.tenant = get_organization_by_slug(subdomain)
+            if request.tenant is None:
+                if self.PASSTHROUGH:
+                    request.tenant = get_organization_by_slug('santjosep')
+                else:
+                    return HttpResponseNotFound()
+
+        if request.tenant is None and request.path.startswith('/videos/'):
+            if not any(request.path.startswith(prefix) for prefix in TENANT_EXEMPT_PREFIXES):
+                return redirect('landing')
+
+        return self.get_response(request)
 
 
 class Error404TrackingMiddleware:

@@ -1,12 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html, mark_safe
-from .models import User
+from .models import Membership, User
 
 
 def approve_users(modeladmin, request, queryset):
     """Acción para aprobar usuarios seleccionados"""
+    from videosvoley.users.models import Membership
     count = queryset.update(is_approved=True, is_active=True)
+    Membership.objects.filter(user__in=queryset, is_approved=False).update(is_approved=True)
     modeladmin.message_user(request, f'{count} usuario(s) aprobado(s) correctamente.')
 
 
@@ -81,3 +83,18 @@ class UserAdmin(BaseUserAdmin):
         return mark_safe('<span style="color: gray;">—</span>')
     
     children_count.short_description = 'Hijos'
+
+
+@admin.register(Membership)
+class MembershipAdmin(admin.ModelAdmin):
+    list_display = ['user', 'organization', 'role', 'is_approved', 'joined_at']
+    list_filter = ['organization', 'role', 'is_approved']
+    search_fields = ['user__username', 'user__email']
+    actions = ['approve_memberships']
+
+    @admin.action(description='Aprobar membresías seleccionadas')
+    def approve_memberships(self, request, queryset):
+        user_ids = queryset.values_list('user_id', flat=True)
+        count = queryset.update(is_approved=True)
+        User.objects.filter(id__in=user_ids, is_approved=False).update(is_approved=True, is_active=True)
+        self.message_user(request, f'{count} membresía(s) aprobada(s).')

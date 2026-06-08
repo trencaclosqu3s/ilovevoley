@@ -7,6 +7,7 @@ from django.views.decorators.http import require_POST
 from django.core.files.base import ContentFile
 import base64
 import uuid
+from videosvoley.core.tenant_utils import user_has_approved_membership
 from .forms import UserProfileForm, ParentInfoForm
 from .signals import send_new_user_notification
 
@@ -14,11 +15,11 @@ from .signals import send_new_user_notification
 @login_required
 def pending_approval(request):
     """Vista para usuarios que están pendientes de aprobación"""
-    # Si el usuario ya está aprobado, redirigir a perfil
-    if request.user.is_approved:
-        print('is approved')
+    tenant = getattr(request, 'tenant', None)
+    if tenant and user_has_approved_membership(request.user, tenant):
         return redirect('profile')
-    print('pos no')
+    if not tenant and request.user.is_approved:
+        return redirect('profile')
     
     # Si el usuario no tiene parent_info, mostrar formulario para completarlo
     if not request.user.parent_info:

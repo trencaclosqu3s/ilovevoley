@@ -20,8 +20,5 @@ django-storages==1.14.6
 redis==8.0.0
 gunicorn==26.0.0
 django-ical==1.9.2
-sentence-transformers==5.5.1
-chromadb==1.5.9
-ollama==0.6.2
 pypdf>=6.12.2
 sentry-sdk[django]==2.61.1

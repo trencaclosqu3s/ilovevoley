@@ -7,6 +7,12 @@
     <title>{% block title %}Vídeos del Equipo{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% load static video_tags %}{% static 'images/logo.png' %}">
     <script src="{% static 'js/lightbox.js' %}"></script>
+    <style>
+      :root {
+        --brand: {{ tenant_color }};
+        --brand-dark: {{ tenant_color_dark }};
+      }
+    </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -14,9 +20,9 @@
             theme: {
                 extend: {
                     colors: {
-                        'csj-purple': '#9B7FBF',
+                        'csj-purple': 'var(--brand)',
                         'csj-yellow': '#F4D47C',
-                        'csj-purple-dark': '#7B5FA0',
+                        'csj-purple-dark': 'var(--brand-dark)',
                         'csj-yellow-dark': '#E5C05A',
                     }
                 }
