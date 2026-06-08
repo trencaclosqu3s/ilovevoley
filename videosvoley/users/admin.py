@@ -6,7 +6,9 @@ from .models import Membership, User
 
 def approve_users(modeladmin, request, queryset):
     """Acción para aprobar usuarios seleccionados"""
+    from videosvoley.users.models import Membership
     count = queryset.update(is_approved=True, is_active=True)
+    Membership.objects.filter(user__in=queryset, is_approved=False).update(is_approved=True)
     modeladmin.message_user(request, f'{count} usuario(s) aprobado(s) correctamente.')
 
 
@@ -92,5 +94,7 @@ class MembershipAdmin(admin.ModelAdmin):
 
     @admin.action(description='Aprobar membresías seleccionadas')
     def approve_memberships(self, request, queryset):
+        user_ids = queryset.values_list('user_id', flat=True)
         count = queryset.update(is_approved=True)
+        User.objects.filter(id__in=user_ids, is_approved=False).update(is_approved=True, is_active=True)
         self.message_user(request, f'{count} membresía(s) aprobada(s).')

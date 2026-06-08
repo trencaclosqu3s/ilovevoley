@@ -9,7 +9,7 @@
 
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl">
     {% for org in organizations %}
-    <a href="//{{ org.slug }}.ilovevoley.es/"
+    <a href="http{% if not debug %}s{% endif %}://{{ org.slug }}.{{ tenant_base_domain }}/"
        class="block bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border-t-4 hover:shadow-lg transition-shadow"
        style="border-color: {{ org.primary_color }};">
       {% if org.logo %}

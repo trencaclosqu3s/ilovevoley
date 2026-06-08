@@ -1,4 +1,6 @@
-from django.test import TestCase
+from django.test import TestCase, RequestFactory, override_settings
+from django.contrib.auth import get_user_model
+from django.core.cache import cache
 
 
 class OrganizationModelTest(TestCase):
@@ -25,7 +27,6 @@ class OrganizationModelTest(TestCase):
 class MembershipModelTest(TestCase):
     def setUp(self):
         from videosvoley.core.models import Organization
-        from django.contrib.auth import get_user_model
         User = get_user_model()
         self.org = Organization.objects.create(slug='club1', name='Club 1')
         self.user = User.objects.create_user(username='testuser', password='pass')
@@ -52,14 +53,14 @@ class MembershipModelTest(TestCase):
 class TenantMiddlewareTest(TestCase):
     def setUp(self):
         from videosvoley.core.models import Organization
+        cache.clear()
         self.org = Organization.objects.create(
             slug='testclub', name='Test Club', is_active=True
         )
 
     def test_middleware_sets_tenant_from_subdomain(self):
-        from django.test import RequestFactory
         from videosvoley.core.middleware import TenantMiddleware
-        factory = RequestFactory(SERVER_NAME='testclub.ilovevoley.es')
+        factory = RequestFactory()
         request = factory.get('/')
         request.META['HTTP_HOST'] = 'testclub.ilovevoley.es'
 
@@ -69,7 +70,6 @@ class TenantMiddlewareTest(TestCase):
         self.assertEqual(request.tenant, self.org)
 
     def test_middleware_root_domain_sets_tenant_none(self):
-        from django.test import RequestFactory
         from videosvoley.core.middleware import TenantMiddleware
 
         factory = RequestFactory()
@@ -80,6 +80,19 @@ class TenantMiddlewareTest(TestCase):
         middleware(request)
 
         self.assertIsNone(request.tenant)
+
+    def test_middleware_redirects_videos_without_tenant(self):
+        from videosvoley.core.middleware import TenantMiddleware
+
+        factory = RequestFactory()
+        request = factory.get('/videos/')
+        request.META['HTTP_HOST'] = 'ilovevoley.es'
+
+        middleware = TenantMiddleware(lambda r: type('R', (), {'status_code': 200})())
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/')
 
 
 class GetClubTeamFilterTest(TestCase):
@@ -96,6 +109,66 @@ class GetClubTeamFilterTest(TestCase):
 
     def test_falls_back_to_settings_when_no_tenant(self):
         from videosvoley.core.mixins import get_club_team_filter
-        from django.db.models import Q
         q = get_club_team_filter(None)
         self.assertIsNotNone(q)
+
+
+class ClubTeamNamesTest(TestCase):
+    def test_get_club_team_names_from_tenant(self):
+        from videosvoley.core.models import Organization
+        from videosvoley.core.mixins import get_club_team_names, get_primary_club_team_name
+        org = Organization.objects.create(
+            slug='club',
+            name='Club',
+            club_team_names={'Senior': 'SANT JOSEP', 'Juvenil': 'SANT JOSEP B'},
+        )
+        self.assertEqual(get_club_team_names(org), ['SANT JOSEP', 'SANT JOSEP B'])
+        self.assertEqual(get_primary_club_team_name(org), 'SANT JOSEP')
+
+    def test_get_club_team_name_filter_matches_all_names(self):
+        from videosvoley.core.models import Organization
+        from videosvoley.core.mixins import get_club_team_name_filter
+        from videosvoley.videos.models import Team, Category
+
+        org = Organization.objects.create(
+            slug='club',
+            name='Club',
+            club_team_names={'Senior': 'SANT JOSEP', 'Juvenil': 'SANT JOSEP B'},
+        )
+        category = Category.objects.create(name='Senior', is_active=True)
+        Team.objects.create(name='CV SANT JOSEP', category=category, federation_id='fed-1')
+        Team.objects.create(name='CV RIVAL', category=category, federation_id='fed-2')
+
+        teams = Team.objects.filter(get_club_team_name_filter(org))
+        self.assertEqual(teams.count(), 1)
+
+
+class TenantUtilsTest(TestCase):
+    def setUp(self):
+        from videosvoley.core.models import Organization
+        cache.clear()
+        self.org = Organization.objects.create(slug='club', name='Club')
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member', password='pass')
+        from videosvoley.users.models import Membership
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=False)
+
+    def test_user_has_approved_membership(self):
+        from videosvoley.core.tenant_utils import user_has_approved_membership, approve_user_membership
+        self.assertFalse(user_has_approved_membership(self.user, self.org))
+        approve_user_membership(self.user, self.org)
+        self.assertTrue(user_has_approved_membership(self.user, self.org))
+
+    @override_settings(TENANT_BASE_DOMAIN='localhost:8000', DEBUG=True)
+    def test_build_tenant_url(self):
+        from videosvoley.core.tenant_utils import build_tenant_url
+        self.assertEqual(build_tenant_url('santjosep'), 'http://santjosep.localhost:8000/')
+
+    def test_organization_cache(self):
+        from videosvoley.core.tenant_utils import get_organization_by_slug, invalidate_organization_cache
+        org = get_organization_by_slug('club')
+        self.assertEqual(org, self.org)
+        self.org.is_active = False
+        self.org.save()
+        invalidate_organization_cache('club')
+        self.assertIsNone(get_organization_by_slug('club'))

@@ -87,8 +87,8 @@ def moderate_user(request, token):
         })
     
     if action == 'approve':
-        user.is_approved = True
-        user.save()
+        from videosvoley.core.tenant_utils import approve_user_membership
+        approve_user_membership(user)
         
         # Enviar email de aprobación al usuario
         if user.email:

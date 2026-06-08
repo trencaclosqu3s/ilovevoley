@@ -18,7 +18,8 @@ from django.core.files.base import ContentFile
 from .models import Video, Comment, Category, League, Match, Team, Standing, Image, Player, Staff, Person, PlayerRole, StaffRole
 from .forms import VideoForm, CommentForm, ImageUploadForm, ImageFilterForm, ImageModerationForm, FriendlyMatchForm, PersonForm, PlayerRoleForm, StaffRoleForm, MatchResultForm, VideoBulkSharedForm, VideoEntryFormSet
 from .utils import process_uploaded_image
-from videosvoley.core.mixins import get_club_team_filter
+from videosvoley.core.mixins import get_club_team_filter, get_club_team_names, get_club_team_name_filter
+from videosvoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager, approve_user_membership
 import requests as http_requests
 from .scraping import parse_acta_lineup
 
@@ -26,13 +27,7 @@ from .scraping import parse_acta_lineup
 logger = logging.getLogger(__name__)
 
 
-def user_is_approved(user):
-    """Verifica si el usuario está aprobado para acceder al contenido"""
-    return user.is_approved
-
-
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def video_list(request):
     videos = Video.objects.select_related('category', 'created_by', 'match__home_team', 'match__away_team', 'match__league').prefetch_related('comments').filter(
         organization=request.tenant
@@ -85,7 +80,7 @@ def video_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    can_add = request.user.groups.filter(name='VideoManagers').exists()
+    can_add = user_is_tenant_manager(request.user, request.tenant)
     
     # Mensaje de prueba para verificar el sistema de toast (solo para desarrollo)
     if request.GET.get('test_toast'):
@@ -114,9 +109,7 @@ def video_list(request):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
-@user_passes_test(lambda u: u.groups.filter(name='VideoManagers').exists())
+@tenant_access_required(manager=True)
 def video_create(request):
     if request.method == 'POST':
         form = VideoForm(request.POST, organization=request.tenant)
@@ -133,9 +126,7 @@ def video_create(request):
     return render(request, 'videos/video_form.html', {'form': form})
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
-@user_passes_test(lambda u: u.groups.filter(name='VideoManagers').exists())
+@tenant_access_required(manager=True)
 def video_bulk_create(request):
     """Crear múltiples vídeos para el mismo partido en un solo formulario."""
     match_id = request.GET.get('match') or request.POST.get('match_hidden')
@@ -186,8 +177,7 @@ def video_bulk_create(request):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def video_detail(request, video_id):
     video = get_object_or_404(Video, id=video_id)
     if video.organization != request.tenant and not request.user.is_superuser:
@@ -216,8 +206,7 @@ def video_detail(request, video_id):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def league_list(request):
     """Vista para mostrar todas las ligas disponibles"""
     leagues = League.objects.visible_in_app().prefetch_related('matches__videos')
@@ -273,8 +262,7 @@ def league_list(request):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def league_detail(request, league_id):
     """Vista detallada de una liga con partidos y clasificación"""
     league = get_object_or_404(League, id=league_id, is_active=True)
@@ -342,8 +330,7 @@ def league_detail(request, league_id):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def match_detail(request, match_id):
     """Vista detallada de un partido con sus videos e imágenes"""
     match = get_object_or_404(
@@ -361,12 +348,12 @@ def match_detail(request, match_id):
         'match': match,
         'videos': videos,
         'images': images,
-        'today': timezone.now().date()
+        'today': timezone.now().date(),
+        'can_manage_videos': user_is_tenant_manager(request.user, request.tenant),
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def calendar_view(request):
     """Vista del calendario de partidos"""
     # Obtener filtros
@@ -486,9 +473,7 @@ def calendar_view(request):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
-@user_passes_test(lambda u: u.is_staff or u.groups.filter(name='VideoManagers').exists(), login_url='/')
+@tenant_access_required(manager=True)
 def friendly_match_create(request):
     """Vista para crear un partido amistoso"""
     if request.method == 'POST':
@@ -564,9 +549,7 @@ def ajax_search_teams(request):
     return JsonResponse({'teams': teams_data})
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
-@user_passes_test(lambda u: u.is_staff or u.groups.filter(name='VideoManagers').exists(), login_url='/')
+@tenant_access_required(manager=True)
 def ajax_add_match_result(request, match_id):
     """Vista AJAX para agregar resultado de partido"""
     from django.http import JsonResponse
@@ -623,8 +606,7 @@ def ajax_add_match_result(request, match_id):
         }, status=400)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def ajax_acta_lineup(request, match_id):
     """
     Vista AJAX que devuelve convocados + alineaciones por set del acta oficial,
@@ -750,8 +732,7 @@ def ajax_acta_lineup(request, match_id):
     })
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def standings_view(request):
     """Vista de clasificación de las ligas"""
     # Obtener filtros
@@ -923,8 +904,7 @@ def ajax_teams_by_league_category(request):
 # VISTAS DE GESTIÓN DE IMÁGENES
 # ===============================
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def image_gallery(request):
     """Vista de galería de imágenes con filtros"""
     images = Image.objects.select_related(
@@ -1048,8 +1028,7 @@ def image_gallery(request):
     return render(request, 'videos/image_gallery.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def image_gallery_albums(request):
     """Vista de galería de imágenes agrupadas por partido (álbumes)"""
     from django.db.models import Count, Prefetch
@@ -1272,8 +1251,7 @@ def image_gallery_albums(request):
     return render(request, 'videos/image_gallery.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def image_upload(request):
     """Vista para subir imágenes"""
     if request.method == 'POST':
@@ -1495,8 +1473,7 @@ def image_upload(request):
     return render(request, 'videos/image_upload.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def image_bulk_upload(request):
     """Vista para subir múltiples imágenes a la vez"""
     if request.method == 'POST':
@@ -1792,8 +1769,7 @@ def image_bulk_upload(request):
     return render(request, 'videos/image_bulk_upload.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def image_detail(request, image_id):
     """Vista de detalle de imagen"""
     image = get_object_or_404(
@@ -1825,8 +1801,7 @@ def image_detail(request, image_id):
     return render(request, 'videos/image_detail.html', context)
 
 
-@login_required
-@user_passes_test(lambda u: u.is_staff, login_url='/')
+@tenant_access_required(staff=True)
 def image_moderation(request):
     """Vista de moderación para admins"""
     images = Image.objects.select_related(
@@ -1847,8 +1822,7 @@ def image_moderation(request):
     return render(request, 'videos/image_moderation.html', context)
 
 
-@login_required
-@user_passes_test(lambda u: u.is_staff, login_url='/')
+@tenant_access_required(staff=True)
 def image_moderate_action(request, image_id):
     """Acción de moderación individual"""
     image = get_object_or_404(Image, id=image_id, status='pending')
@@ -1879,8 +1853,7 @@ def image_moderate_action(request, image_id):
     return render(request, 'videos/image_moderate.html', context)
 
 
-@login_required
-@user_passes_test(lambda u: u.is_staff, login_url='/')
+@tenant_access_required(staff=True)
 def image_moderate_bulk(request):
     """Moderación masiva de imágenes"""
     if request.method == 'POST':
@@ -1934,8 +1907,7 @@ def match_images(request, match_id):
     return render(request, 'videos/match_images.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def album_group_images(request, album_group_id):
     """Vista de imágenes de un álbum de grupo (sin partido)"""
     # album_group_id ya viene como UUID desde la URL (gracias al path converter <uuid:album_group_id>)
@@ -1992,8 +1964,14 @@ def moderation_counts_api(request):
     
     User = get_user_model()
     
-    # Contar usuarios pendientes de aprobación
-    pending_users_count = User.objects.filter(is_approved=False).count()
+    if getattr(request, 'tenant', None):
+        pending_users = User.objects.filter(
+            memberships__organization=request.tenant,
+            memberships__is_approved=False,
+        ).distinct().order_by('date_joined')
+        pending_users_count = pending_users.count()
+    else:
+        pending_users_count = User.objects.filter(is_approved=False).count()
     
     # Contar imágenes pendientes de moderación
     pending_images_count = Image.objects.filter(status='pending').count()
@@ -2017,8 +1995,13 @@ def moderation_panel(request):
     
     User = get_user_model()
     
-    # Obtener usuarios pendientes de aprobación
-    pending_users = User.objects.filter(is_approved=False).order_by('date_joined')
+    if getattr(request, 'tenant', None):
+        pending_users = User.objects.filter(
+            memberships__organization=request.tenant,
+            memberships__is_approved=False,
+        ).distinct().order_by('date_joined')
+    else:
+        pending_users = User.objects.filter(is_approved=False).order_by('date_joined')
     
     # Obtener imágenes pendientes de moderación
     pending_images = Image.objects.filter(status='pending').select_related(
@@ -2046,9 +2029,7 @@ def approve_user_api(request, user_id):
     
     try:
         user = User.objects.get(id=user_id, is_approved=False)
-        user.is_approved = True
-        user.is_active = True  # Asegurarse de que el usuario esté activo al aprobar
-        user.save(update_fields=['is_approved', 'is_active'])
+        approve_user_membership(user, getattr(request, 'tenant', None))
         
         # Enviar email de confirmación si está configurado
         if getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
@@ -2178,8 +2159,7 @@ def moderate_image_api(request, image_id):
         }, status=500)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def ajax_register_team(request):
     """Vista AJAX para registrar un nuevo equipo desde el formulario de amistosos"""
     if request.method != 'POST':
@@ -2259,23 +2239,16 @@ def ajax_register_team(request):
 # VISTAS DE PLANTILLAS (PLAYERS Y STAFF)  
 # ===============================
 
-@login_required
-@user_passes_test(user_is_approved, login_url="/pending-approval/")
+@tenant_access_required()
 def team_list(request):
     """Lista de equipos del club con información de plantillas"""
-    # Configuración del club - usar tenant para máxima flexibilidad
-    club_name = (
-        request.tenant.club_team_names.get('default', '') if request.tenant and request.tenant.club_team_names
-        else getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
-    )
-
     # Obtener categorías del usuario para filtrar
     user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
 
-    # Query base para equipos del club - filtrar por nombre que contenga club_name
+    # Query base para equipos del club
     teams_query = Team.objects.select_related("category", "club").prefetch_related(
         "players", "staff"
-    ).filter(is_active=True, name__icontains=club_name)
+    ).filter(is_active=True).filter(get_club_team_name_filter(request.tenant))
     
     # Filtrar por categorías preferidas del usuario
     category_filter = request.GET.get("category")
@@ -2308,8 +2281,7 @@ def team_list(request):
     return render(request, "videos/team_list.html", context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url="/pending-approval/")
+@tenant_access_required()
 def team_roster(request, team_id):
     """Vista de plantilla de un equipo específico"""
     team = get_object_or_404(
@@ -2317,13 +2289,9 @@ def team_roster(request, team_id):
         id=team_id
     )
     
-    # Verificar que sea un equipo del club - usar tenant
-    club_name = (
-        request.tenant.club_team_names.get('default', '') if request.tenant and request.tenant.club_team_names
-        else getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
-    )
-    
-    is_club_team = club_name.lower() in team.name.lower()
+    # Verificar que sea un equipo del club
+    club_names = get_club_team_names(request.tenant)
+    is_club_team = any(name.lower() in team.name.lower() for name in club_names)
     
     if not is_club_team:
         messages.error(request, "Este equipo no pertenece al club.")
@@ -2393,23 +2361,16 @@ def team_roster(request, team_id):
     return render(request, "videos/team_roster.html", context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url="/pending-approval/")
+@tenant_access_required()
 def roster_overview(request):
     """Vista general de todas las plantillas del club"""
-    # Configuración del club - usar tenant para máxima flexibilidad
-    club_name = (
-        request.tenant.club_team_names.get('default', '') if request.tenant and request.tenant.club_team_names
-        else getattr(settings, "CLUB_TEAM_NAME", "SANT JOSEP")
-    )
-
     # Obtener categorías del usuario para filtrar
     user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
 
-    # Query base para equipos del club - filtrar por nombre que contenga club_name
+    # Query base para equipos del club
     teams_query = Team.objects.select_related("category", "club").prefetch_related(
         "players__user", "staff__user"
-    ).filter(is_active=True, name__icontains=club_name)
+    ).filter(is_active=True).filter(get_club_team_name_filter(request.tenant))
     
     # Filtrar por categorías preferidas del usuario
     category_filter = request.GET.get("category")
@@ -2476,8 +2437,7 @@ def roster_overview(request):
 # VISTAS PARA GESTIÓN DE PERSONAS (Person-Role)
 # =============================================================================
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def person_list(request):
     """Vista de listado de personas del club"""
     # Obtener todas las personas activas con sus roles
@@ -2521,8 +2481,7 @@ def person_list(request):
     return render(request, 'videos/person_list.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def person_detail(request, person_id):
     """Vista de detalle de una persona"""
     person = get_object_or_404(
@@ -2550,8 +2509,7 @@ def person_detail(request, person_id):
     return render(request, 'videos/person_detail.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def person_create(request):
     """Vista para crear una nueva persona"""
     if request.method == 'POST':
@@ -2606,8 +2564,7 @@ def person_create(request):
     return render(request, 'videos/person_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def person_edit(request, person_id):
     """Vista para editar una persona existente"""
     person = get_object_or_404(Person, id=person_id)
@@ -2669,8 +2626,7 @@ def person_edit(request, person_id):
     return render(request, 'videos/person_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def player_role_create(request, person_id):
     """Vista para agregar un rol de jugador a una persona"""
     person = get_object_or_404(Person, id=person_id)
@@ -2703,8 +2659,7 @@ def player_role_create(request, person_id):
     return render(request, 'videos/role_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def staff_role_create(request, person_id):
     """Vista para agregar un rol de staff a una persona"""
     person = get_object_or_404(Person, id=person_id)
@@ -2737,8 +2692,7 @@ def staff_role_create(request, person_id):
     return render(request, 'videos/role_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def player_role_edit(request, role_id):
     """Vista para editar un rol de jugador"""
     player_role = get_object_or_404(PlayerRole.objects.select_related('person', 'team'), id=role_id)
@@ -2770,8 +2724,7 @@ def player_role_edit(request, role_id):
     return render(request, 'videos/role_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 def staff_role_edit(request, role_id):
     """Vista para editar un rol de staff"""
     staff_role = get_object_or_404(StaffRole.objects.select_related('person', 'team'), id=role_id)
@@ -2803,8 +2756,7 @@ def staff_role_edit(request, role_id):
     return render(request, 'videos/role_form.html', context)
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 @require_POST
 def player_role_toggle_active(request, role_id):
     """Vista AJAX para activar/desactivar rol de jugador"""
@@ -2824,8 +2776,7 @@ def player_role_toggle_active(request, role_id):
     return JsonResponse({'success': True, 'is_active': player_role.is_active})
 
 
-@login_required
-@user_passes_test(user_is_approved, login_url='/pending-approval/')
+@tenant_access_required()
 @require_POST
 def staff_role_toggle_active(request, role_id):
     """Vista AJAX para activar/desactivar rol de staff"""

@@ -1,5 +1,7 @@
 from django.db import models
 from django.core.validators import RegexValidator
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 
 _hex_color_validator = RegexValidator(r'^#[0-9a-fA-F]{6}$', 'Introduce un color hexadecimal válido (ej: #9B7FBF)')
 
@@ -21,3 +23,10 @@ class Organization(models.Model):
 
     def __str__(self):
         return self.name
+
+
+@receiver(post_save, sender=Organization)
+@receiver(post_delete, sender=Organization)
+def invalidate_org_cache(sender, instance, **kwargs):
+    from .tenant_utils import invalidate_organization_cache
+    invalidate_organization_cache(instance.slug)

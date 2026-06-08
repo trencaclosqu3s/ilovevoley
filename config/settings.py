@@ -322,6 +322,7 @@ LOGGING = {
 # Multi-tenant: cookie compartida entre subdominios en producción
 SESSION_COOKIE_DOMAIN = env_config('SESSION_COOKIE_DOMAIN', default=None)
 CSRF_COOKIE_DOMAIN = env_config('SESSION_COOKIE_DOMAIN', default=None)
+TENANT_BASE_DOMAIN = env_config('TENANT_BASE_DOMAIN', default='localhost:8000')
 
 # Sentry error tracking and performance monitoring
 from config.sentry import configure as _configure_sentry
