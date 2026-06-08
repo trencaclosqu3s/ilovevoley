@@ -99,10 +99,11 @@ services:
       - webproxy
 
   certbot:
-    image: certbot/certbot
+    image: certbot/dns-ovh
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
+      - ./certbot/ovh.ini:/opt/ovh.ini:ro
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     networks:
       - app-network
