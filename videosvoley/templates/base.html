@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Vídeos del Equipo{% endblock %}</title>
-    <link rel="icon" type="image/png" href="{% load static video_tags %}{% static 'images/logo.png' %}">
+    <link rel="icon" type="image/svg+xml" href="{% load static video_tags %}{% static 'images/favicon.svg' %}">
+    <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
     <script src="{% static 'js/lightbox.js' %}"></script>
     <style>
       :root {
@@ -173,6 +174,7 @@
             </main>
 
             <!-- Sidebar de Instagram (solo en desktop) -->
+            {% block sidebar %}
             <aside class="hidden lg:block lg:w-96 lg:flex-shrink-0">
                 <div class="sticky top-4">
                     <div
@@ -189,7 +191,7 @@
 
                         <!-- Widget de Galería (Reemplaza a Instagram) -->
                         <div id="image-gallery-widget">
-                            {% get_latest_images limit=9 as latest_images %}
+                            {% get_latest_images limit=9 organization=tenant as latest_images %}
                             <div class="grid grid-cols-3 gap-2">
                                 {% for img in latest_images %}
                                 <a href="javascript:void(0)"
@@ -230,6 +232,7 @@
                     </div>
                 </div>
             </aside>
+            {% endblock sidebar %}
         </div>
     </div>
 

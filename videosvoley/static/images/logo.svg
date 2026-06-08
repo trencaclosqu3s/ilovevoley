@@ -1,0 +1,8 @@
+<svg width="360" height="76" viewBox="0 0 360 76" aria-label="logo ilovevoley" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(10,8)" fill="none" stroke="#01696f" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 38 C 10 31, 8 22, 13 15 C 17 10, 24 10, 28 16 C 31 12, 37 11, 41 15 C 47 21, 45 31, 35 39" />
+    <path d="M35 39 C 42 35, 49 31, 58 29" />
+  </g>
+  <circle cx="72" cy="34" r="4.2" fill="#01696f" />
+  <text x="88" y="52" font-family="Inter, system-ui, sans-serif" font-size="29" font-weight="700" fill="#01696f" letter-spacing="-0.9">ilovevoley</text>
+</svg>

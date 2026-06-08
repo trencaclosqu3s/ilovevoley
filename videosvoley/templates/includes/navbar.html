@@ -1,19 +1,26 @@
+{% load static %}
 <nav class="bg-white dark:bg-gray-800 shadow-lg border-b-4 border-csj-purple dark:border-csj-purple-dark">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
             <!-- Logo y título (responsive) -->
             <div class="flex items-center space-x-2 sm:space-x-3">
-                {% if tenant.logo %}
-                    <img src="{{ tenant.logo.url }}" alt="{{ tenant.name }}" class="h-8 w-auto">
+                {% if tenant %}
+                    {% if tenant.logo %}
+                        <img src="{{ tenant.logo.url }}" alt="{{ tenant.name }}" class="h-8 w-auto">
+                    {% else %}
+                        <span class="text-2xl sm:text-3xl">🏐</span>
+                    {% endif %}
+                    <div>
+                        <a href="{% url 'videos:video_list' %}" class="text-lg sm:text-xl font-bold text-csj-purple dark:text-csj-yellow">
+                            <span class="font-bold text-csj-purple dark:text-csj-yellow">{{ tenant.name }}</span>
+                        </a>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Plataforma comunitaria · {{ tenant.name }}</p>
+                    </div>
                 {% else %}
-                    <span class="text-2xl sm:text-3xl">🏐</span>
-                {% endif %}
-                <div>
-                    <a href="{% url 'videos:video_list' %}" class="text-lg sm:text-xl font-bold text-csj-purple dark:text-csj-yellow">
-                        <span class="font-bold text-csj-purple dark:text-csj-yellow">{{ tenant.name|default:"VideosVoley" }}</span>
+                    <a href="/" aria-label="ilovevoley">
+                        <img src="{% static 'images/logo.svg' %}" alt="ilovevoley" class="h-9 w-auto">
                     </a>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Plataforma comunitaria - CV Sant Josep Obrer</p>
-                </div>
+                {% endif %}
             </div>
             
             <!-- Menú desktop -->

@@ -14,7 +14,7 @@ from django.conf import settings
 from django.db import models as django_models
 from videosvoley.videos.models import League, Club, Team, Match
 from videosvoley.videos.scraping import FederationScraper
-from videosvoley.videos.rfevb_service import scrape_rfevb_fases
+from videosvoley.videos.rfevb_service import scrape_rfevb_fases, scrape_rfevb_final_classification as _scrape_final_classification
 
 logger = logging.getLogger(__name__)
 
@@ -1923,7 +1923,6 @@ def scrape_rfevb_final_classification(competition_id, parent_league_id):
     NOTA: El parser de clasificación final se implementará cuando el torneo
     tenga datos reales (la página devuelve vacío antes de que termine).
     """
-    logger.info(
-        f'RFEVB clasificación final pendiente de implementar: '
-        f'competition_id={competition_id}, parent_league={parent_league_id}'
-    )
+    result = _scrape_final_classification(competition_id, parent_league_id)
+    logger.info(f'RFEVB clasificación final: {result}')
+    return result

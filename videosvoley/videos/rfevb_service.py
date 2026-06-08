@@ -5,8 +5,11 @@ Función core reutilizable desde el comando scrape_rfevb_fase y desde tareas Cel
 """
 
 import logging
+import re
 import time
 
+import requests
+from bs4 import BeautifulSoup
 from django.utils.text import slugify
 from unidecode import unidecode
 
@@ -240,3 +243,88 @@ def _update_standings(standings, league, team_map):
                 'points_against': s['points_against'],
             },
         )
+
+
+def scrape_rfevb_final_classification(competition_id, parent_league_id):
+    """
+    Parsea webCompeticion-clasificacion.php?IdCompeticion=X y guarda la
+    clasificación final en una sub-liga 'Clasificación Final' bajo el padre.
+    """
+    try:
+        parent = League.objects.get(federation_id=parent_league_id)
+    except League.DoesNotExist:
+        logger.error(f'Liga padre no encontrada: {parent_league_id}')
+        return {'error': f'Liga padre no encontrada: {parent_league_id}'}
+
+    url = f'{RFEVB_BASE}/webCompeticion-clasificacion.php?IdCompeticion={competition_id}'
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+    except Exception as e:
+        logger.error(f'Error fetching clasificación final: {e}')
+        return {'error': str(e)}
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    table = soup.find('table')
+    if not table:
+        logger.warning('Clasificación final: no se encontró tabla')
+        return {'error': 'tabla no encontrada'}
+
+    rankings = []
+    for row in table.find_all('tr'):
+        tds = row.find_all('td')
+        if len(tds) < 3:
+            continue
+        try:
+            position = int(tds[0].get_text(strip=True))
+        except ValueError:
+            continue
+        raw_name = tds[2].get_text(strip=True)
+        team_name = re.sub(r'\s*\([^)]+\)\s*$', '', raw_name).strip()
+        if team_name:
+            rankings.append({'position': position, 'team_name': team_name})
+
+    if not rankings:
+        logger.warning('Clasificación final: sin datos en la tabla')
+        return {'error': 'sin datos'}
+
+    fed_id = f'{parent_league_id}_clasificacion_final'
+    ranking_league, _ = League.objects.get_or_create(
+        federation_id=fed_id,
+        defaults={
+            'name': f'{parent.name} - Clasificación Final',
+            'season': parent.season,
+            'parent_league': parent,
+            'phase_name': 'Clasificación Final',
+            'competition_type': parent.competition_type,
+            'match_format': parent.match_format,
+            'visibility_type': parent.visibility_type,
+            'is_our_team_related': parent.is_our_team_related,
+        },
+    )
+    for cat in parent.categories.all():
+        ranking_league.categories.add(cat)
+
+    team_map = {unidecode(t.name).lower().strip(): t for t in Team.objects.filter(is_active=True)}
+
+    saved = 0
+    for entry in rankings:
+        key = unidecode(entry['team_name']).lower().strip()
+        team = team_map.get(key) or Team.objects.filter(name=entry['team_name']).first()
+        if not team:
+            logger.warning(f'Clasificación final: equipo no encontrado: {entry["team_name"]!r}')
+            continue
+        Standing.objects.update_or_create(
+            league=ranking_league,
+            team=team,
+            defaults={
+                'position': entry['position'],
+                'total_points': 0, 'played': 0, 'won': 0, 'lost': 0,
+                'sets_for': 0, 'sets_against': 0,
+                'points_for': 0, 'points_against': 0,
+            },
+        )
+        saved += 1
+
+    logger.info(f'Clasificación final guardada: {saved}/{len(rankings)} equipos en {ranking_league.name}')
+    return {'saved': saved, 'total': len(rankings)}
