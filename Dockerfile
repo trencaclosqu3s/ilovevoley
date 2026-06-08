@@ -13,10 +13,6 @@ RUN apt-get update && apt-get install -y \
     libde265-dev \
     build-essential \
     gcc \
-    g++ \
-    gfortran \
-    libopenblas-dev \
-    liblapack-dev \
     pkg-config \
     libffi-dev \
     libssl-dev \
