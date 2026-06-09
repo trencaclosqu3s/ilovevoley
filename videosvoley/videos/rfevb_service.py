@@ -69,11 +69,28 @@ def scrape_rfevb_fases(competition_id, fase_ids, parent_league_id, dry_run=False
 
             totals['matches_found'] += len(matches)
 
+            # Pre-load existing matches to avoid N+1 SELECTs per iteration
+            existing_by_fed_id = {m.federation_id: m for m in Match.all_objects.filter(league=sub_league)}
+            existing_by_teams = {(m.home_team_id, m.away_team_id): m for m in existing_by_fed_id.values()}
+
+            to_create = []
+            to_update = []
             for match_data in matches:
-                result = _process_match(
-                    match_data, sub_league, competition_id, team_map, logo_map, dry_run
+                result, match_obj = _process_match(
+                    match_data, sub_league, competition_id, team_map, logo_map, dry_run,
+                    existing_by_fed_id, existing_by_teams,
                 )
                 totals[result] += 1
+                if match_obj:
+                    (to_create if result == 'created' else to_update).append(match_obj)
+
+            if not dry_run:
+                if to_create:
+                    Match.objects.bulk_create(to_create)
+                if to_update:
+                    Match.objects.bulk_update(
+                        to_update, ['federation_id', 'home_score', 'away_score', 'status']
+                    )
 
             if standings and not dry_run:
                 _update_standings(standings, sub_league, team_map)
@@ -165,7 +182,8 @@ def _resolve_team(name, team_map, logo_map, competition_id, dry_run):
     return team
 
 
-def _process_match(match_data, league, competition_id, team_map, logo_map, dry_run):
+def _process_match(match_data, league, competition_id, team_map, logo_map, dry_run,
+                   existing_by_fed_id=None, existing_by_teams=None):
     home_team = _resolve_team(
         match_data['home_team_name'], team_map, logo_map, competition_id, dry_run
     )
@@ -174,28 +192,29 @@ def _process_match(match_data, league, competition_id, team_map, logo_map, dry_r
     )
 
     if not home_team or not away_team:
-        return 'skipped'
+        return 'skipped', None
 
     rfevb_id = f'rfevb_{competition_id}_{match_data["rfevb_match_number"]}'
 
     if dry_run:
-        if Match.objects.filter(federation_id=rfevb_id).exists():
-            return 'updated'
-        if Match.objects.filter(league=league, home_team=home_team, away_team=away_team).exists():
-            return 'updated'
-        return 'created'
+        if existing_by_fed_id is not None:
+            exists = rfevb_id in existing_by_fed_id or (home_team.id, away_team.id) in existing_by_teams
+        else:
+            exists = (
+                Match.objects.filter(federation_id=rfevb_id).exists()
+                or Match.objects.filter(league=league, home_team=home_team, away_team=away_team).exists()
+            )
+        return ('updated' if exists else 'created'), None
 
-    match = Match.objects.filter(federation_id=rfevb_id).first()
+    match = (existing_by_fed_id or {}).get(rfevb_id)
+    needs_save = False
     created = False
 
     if not match:
-        match = Match.objects.filter(
-            league=league,
-            home_team=home_team,
-            away_team=away_team,
-        ).first()
+        match = (existing_by_teams or {}).get((home_team.id, away_team.id))
         if match:
             match.federation_id = rfevb_id
+            needs_save = True
         else:
             match = Match(
                 league=league,
@@ -207,14 +226,15 @@ def _process_match(match_data, league, competition_id, team_map, logo_map, dry_r
                 status='scheduled',
             )
             created = True
+            needs_save = True
 
     if match_data['status'] == 'finished':
         match.home_score = match_data['home_score']
         match.away_score = match_data['away_score']
         match.status = 'finished'
+        needs_save = True
 
-    match.save()
-    return 'created' if created else 'updated'
+    return ('created' if created else 'updated'), (match if needs_save else None)
 
 
 def _update_standings(standings, league, team_map):
