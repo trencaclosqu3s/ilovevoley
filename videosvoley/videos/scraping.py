@@ -1,5 +1,6 @@
 import requests
 import re
+import string
 import time
 import logging
 import json
@@ -2066,7 +2067,17 @@ class FederationScraper:
         results = {}
         all_teams = {}
         
+        available_keys = set(kwargs.keys()) | {'league_id'}
         for endpoint in self.league.endpoints.filter(is_active=True):
+            required_keys = {
+                field_name
+                for _, field_name, _, _ in string.Formatter().parse(endpoint.url_pattern)
+                if field_name
+            }
+            missing = required_keys - available_keys
+            if missing:
+                logger.info(f"Skipping endpoint {endpoint}: missing required params {missing}")
+                continue
             try:
                 logger.info(f"Scraping endpoint: {endpoint}")
                 data = self.scrape_endpoint(endpoint, **kwargs)
