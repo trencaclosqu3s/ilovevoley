@@ -115,6 +115,10 @@ def create_default_scraping_endpoints(sender, instance, created, **kwargs):
     if not created:
         # Solo crear endpoints para ligas nuevas
         return
+
+    # Las ligas de amistosos se gestionan manualmente, sin scraping automático
+    if instance.competition_type == 'friendly':
+        return
     
     # Configuración de endpoints por defecto (igual que en setup_league.py)
     endpoints_config = [
