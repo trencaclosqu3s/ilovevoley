@@ -3,86 +3,82 @@ from django.http import Http404
 from django.utils import timezone
 from django_ical.views import ICalFeed
 from django.urls import reverse
-from django.conf import settings
 from django.db.models import Q
 from videosvoley.videos.models import Match
 from videosvoley.users.models import User
+from videosvoley.core.models import Organization
+from videosvoley.core.mixins import get_club_team_filter
 from datetime import timedelta, datetime, time
 
 
 class UserMatchesFeed(ICalFeed):
     """
-    Feed de calendario iCal para partidos filtrados por categorías preferidas del usuario.
-    Genera un archivo .ics que se puede suscribir desde cualquier aplicación de calendario.
+    Feed de calendario iCal para partidos filtrados por categorías preferidas del usuario
+    y limitado a las organizaciones donde el usuario tiene membresía aprobada.
     """
-    
+
     product_id = '-//I Love Voley//Calendario de Partidos//ES'
     timezone = 'Europe/Madrid'
     file_name = 'partidos.ics'
-    
+
     def get_object(self, request, token):
-        """
-        Obtiene el usuario basado en el token único.
-        """
         try:
             user = User.objects.get(calendar_token=token, is_active=True)
             return user
         except User.DoesNotExist:
             raise Http404("Token de calendario inválido")
-    
+
     def title(self, obj):
-        """Título del calendario"""
         return f'I Love Voley - Partidos de {obj.username}'
-    
+
     def description(self, obj):
-        """Descripción del calendario"""
         categories = obj.preferred_categories.all()
+        orgs = Organization.objects.filter(memberships__user=obj, memberships__is_approved=True)
+        parts = []
+        if orgs:
+            parts.append(', '.join([o.name for o in orgs]))
         if categories:
-            cat_names = ', '.join([c.name for c in categories])
-            return f'Calendario de partidos de las categorías: {cat_names}'
-        return 'Calendario de partidos de voleibol'
-    
+            parts.append(', '.join([c.name for c in categories]))
+        return f'Calendario de partidos: {" · ".join(parts)}' if parts else 'Calendario de partidos de voleibol'
+
     def items(self, obj):
         """
-        Retorna los partidos que coinciden con las categorías preferidas del usuario.
-        Filtra partidos desde 30 días atrás hasta 1 año adelante.
+        Muestra los partidos que cumplen ambas condiciones:
+        1. La categoría de la liga está entre las categorías preferidas del usuario.
+        2. Uno de los equipos pertenece a una organización donde el usuario tiene membresía aprobada.
         """
         categories = obj.preferred_categories.all()
-        
         if not categories:
-            # Si no tiene categorías, no mostrar nada
             return Match.objects.none()
-        
-        # Rango de fechas: 30 días atrás hasta 1 año adelante
+
+        approved_orgs = Organization.objects.filter(
+            memberships__user=obj,
+            memberships__is_approved=True
+        )
+        if not approved_orgs.exists():
+            return Match.objects.none()
+
+        # Combinar filtros de equipo de todas las organizaciones del usuario
+        team_filter = Q()
+        for org in approved_orgs:
+            team_filter |= get_club_team_filter(org)
+
         start_date = timezone.now() - timedelta(days=30)
         end_date = timezone.now() + timedelta(days=365)
-        
-        # Obtener el nombre del club
-        club_team_name = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
-        
-        # Filtrar partidos por:
-        # 1. Categorías preferidas del usuario
-        # 2. Solo partidos donde juega nuestro club (local o visitante)
-        # 3. Rango de fechas
-        # 4. Excluir partidos con estado 'withdrawn' (equipo retirado de la liga)
-        matches = Match.objects.filter(
-            Q(league__categories__in=categories) | Q(league__category__in=categories) | Q(is_friendly=True),  # Incluir amistosos
+
+        return Match.objects.filter(
+            Q(league__categories__in=categories) | Q(league__category__in=categories) | Q(is_friendly=True),
             match_date__gte=start_date,
-            match_date__lte=end_date
+            match_date__lte=end_date,
         ).filter(
-            Q(home_team__name__icontains=club_team_name) |
-            Q(away_team__name__icontains=club_team_name) |
-            Q(home_team_text__icontains=club_team_name) |  # Buscar en texto también
-            Q(away_team_text__icontains=club_team_name)
-        ).select_related(  # withdrawn excluidos automáticamente por el manager
+            team_filter
+        ).select_related(
             'home_team',
             'away_team',
             'league'
         ).prefetch_related(
             'league__categories'
         ).distinct().order_by('match_date')
-        
-        return matches
     
     def item_guid(self, item):
         """ID único para cada evento (importante para actualizaciones)"""
