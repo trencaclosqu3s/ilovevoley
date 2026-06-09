@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 from django.utils.text import slugify
 from unidecode import unidecode
 
-from videosvoley.videos.models import League, Match, Standing, Team
+from videosvoley.videos.models import League, Match, ScrapingEndpoint, Standing, Team
 from videosvoley.videos.scraping import RFEVBPhaseParser, RFEVBTeamsParser
 
 logger = logging.getLogger(__name__)
@@ -134,6 +134,9 @@ def _get_or_create_subleague(parent, group_name, dry_run):
         )
         for cat in parent.categories.all():
             league.categories.add(cat)
+        # La señal crea endpoints de voleibolib.net por defecto, pero las sub-ligas
+        # RFEVB no usan ese scraper — desactivarlos para evitar errores 500.
+        ScrapingEndpoint.objects.filter(league=league).update(is_active=False)
         logger.info(f'Sub-liga creada: {league.name} ({fed_id})')
         return league
     except Exception as e:
