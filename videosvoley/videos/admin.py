@@ -9,12 +9,13 @@ from django.conf import settings
 from django.db.models import Count
 from django_celery_beat.models import PeriodicTask, IntervalSchedule, CrontabSchedule
 from django_celery_beat.admin import PeriodicTaskAdmin as BasePeriodicTaskAdmin
+from unfold.admin import ModelAdmin, TabularInline
 from .models import Video, Category, League, Team, Match, ScrapingEndpoint, Standing, Club, Image, Player, Staff, Person, PlayerRole, StaffRole
 from .forms import MatchAdminForm
 
 
 @admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
+class CategoryAdmin(ModelAdmin):
     list_display = ('name', 'is_active', 'leagues_count', 'created_at')
     list_filter = ('is_active', 'created_at')
     search_fields = ('name', 'description')
@@ -32,7 +33,7 @@ class CategoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(Video)
-class VideoAdmin(admin.ModelAdmin):
+class VideoAdmin(ModelAdmin):
     list_display = ('title', 'category', 'match', 'created_by', 'created_at')
     list_filter = ('category', 'match__league', 'created_at')
     search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name')
@@ -41,7 +42,7 @@ class VideoAdmin(admin.ModelAdmin):
 
 
 @admin.register(League)
-class LeagueAdmin(admin.ModelAdmin):
+class LeagueAdmin(ModelAdmin):
     list_display = ('display_name_admin', 'categories_display', 'federation_id', 'competition_type', 'season', 'phase_indicator', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'matches_count', 'created_at')
     list_filter = ('categories', 'competition_type', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'season', ('parent_league', admin.RelatedOnlyFieldListFilter))
     search_fields = ('name', 'federation_id', 'categories__name')
@@ -229,7 +230,7 @@ class LeagueAdmin(admin.ModelAdmin):
 
 
 @admin.register(Club)
-class ClubAdmin(admin.ModelAdmin):
+class ClubAdmin(ModelAdmin):
     list_display = ('official_name', 'federation_id', 'president', 'province', 'teams_count', 'logo_preview')
     list_filter = ('province', 'created_at')
     search_fields = ('official_name', 'federation_id', 'president', 'email')
@@ -292,14 +293,14 @@ class ClubAdmin(admin.ModelAdmin):
     sync_selected_clubs.short_description = "Sincronizar datos de clubes seleccionados"
 
 
-class PlayerInline(admin.TabularInline):
+class PlayerInline(TabularInline):
     model = Player
     extra = 0
     fields = ('first_name', 'last_name', 'jersey_number', 'position', 'is_active')
     readonly_fields = ('created_at',)
 
 
-class StaffInline(admin.TabularInline):
+class StaffInline(TabularInline):
     model = Staff
     extra = 0
     fields = ('first_name', 'last_name', 'role', 'is_active')
@@ -307,7 +308,7 @@ class StaffInline(admin.TabularInline):
 
 
 @admin.register(Team)
-class TeamAdmin(admin.ModelAdmin):
+class TeamAdmin(ModelAdmin):
     list_display = ('display_name_admin', 'category', 'club_name', 'variant_indicator', 'sponsor_name', 'federation_id', 'is_active', 'logo_preview', 'players_count', 'staff_count')
     list_filter = ('is_active', 'category', 'club', ('parent_team', admin.RelatedOnlyFieldListFilter), 'variant_type', 'is_temporary_variant', 'created_at')
     search_fields = ('name', 'federation_id', 'sponsor_name', 'club__official_name', 'category__name')
@@ -443,14 +444,14 @@ class TeamAdmin(admin.ModelAdmin):
     deactivate_teams.short_description = "Desactivar equipos seleccionados"
 
 
-class ScrapingEndpointInline(admin.TabularInline):
+class ScrapingEndpointInline(TabularInline):
     model = ScrapingEndpoint
     extra = 1
     fields = ('endpoint_type', 'url_pattern', 'parser_type', 'is_active')
 
 
 # Agregar inline de imágenes a MatchAdmin
-class ImageInline(admin.TabularInline):
+class ImageInline(TabularInline):
     model = Image
     extra = 0
     readonly_fields = ('thumbnail_preview', 'status', 'uploaded_by', 'upload_date')
@@ -472,7 +473,7 @@ class ImageInline(admin.TabularInline):
 
 
 @admin.register(ScrapingEndpoint)
-class ScrapingEndpointAdmin(admin.ModelAdmin):
+class ScrapingEndpointAdmin(ModelAdmin):
     list_display = ('league', 'endpoint_type', 'parser_type', 'is_active')
     list_filter = ('endpoint_type', 'parser_type', 'is_active')
     search_fields = ('league__name', 'url_pattern')
@@ -497,7 +498,7 @@ class ScrapingEndpointAdmin(admin.ModelAdmin):
 
 
 @admin.register(Match)
-class MatchAdmin(admin.ModelAdmin):
+class MatchAdmin(ModelAdmin):
     form = MatchAdminForm
     list_display = ('__str__', 'match_date', 'venue', 'status', 'result_display', 'league_categories', 'match_type_display', 'teams_active_status', 'referee_display')
     list_filter = ('is_friendly', 'status', 'league', 'league__categories', 'match_date', 'home_team__is_active', 'away_team__is_active', 'referee1', 'scorer')
@@ -629,7 +630,7 @@ class MatchAdmin(admin.ModelAdmin):
 
 
 @admin.register(Standing)
-class StandingAdmin(admin.ModelAdmin):
+class StandingAdmin(ModelAdmin):
     list_display = ('position', 'team', 'league', 'total_points', 'played', 'won', 'lost')
     list_filter = ('league',)
     search_fields = ('team__name', 'league__name')
@@ -657,7 +658,7 @@ class StandingAdmin(admin.ModelAdmin):
 
 
 @admin.register(Image)
-class ImageAdmin(admin.ModelAdmin):
+class ImageAdmin(ModelAdmin):
     list_display = ('thumbnail_preview', 'title', 'match', 'album_display', 'categories_display_admin', 'status', 'uploaded_by', 'upload_date', 'moderated_by', 'original_format', 'was_converted')
     list_filter = ('status', 'categories', 'year', 'upload_date', 'match__league', 'was_converted', 'original_format')
     search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name', 'album_name')
@@ -938,7 +939,7 @@ except admin.sites.NotRegistered:
     pass
 
 @admin.register(PeriodicTask)
-class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
+class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin, ModelAdmin):
     """
     Admin personalizado para tareas periódicas de Celery.
     Hereda del admin original de django-celery-beat para mantener toda la funcionalidad.
@@ -1084,7 +1085,7 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin):
 # =============================================================================
 
 # @admin.register(Player) - DESACTIVADO - USAR PersonAdmin y PlayerRoleAdmin
-class PlayerAdmin(admin.ModelAdmin):
+class PlayerAdmin(ModelAdmin):
     list_display = ('__str__', 'team', 'position', 'age_display', 'is_active', 'photo_preview')
     list_filter = ('team', 'team__category', 'position', 'is_active', 'created_at')
     search_fields = ('first_name', 'last_name', 'jersey_number', 'team__name')
@@ -1148,7 +1149,7 @@ class PlayerAdmin(admin.ModelAdmin):
 
 
 # @admin.register(Staff) - DESACTIVADO - USAR PersonAdmin y StaffRoleAdmin
-class StaffAdmin(admin.ModelAdmin):
+class StaffAdmin(ModelAdmin):
     list_display = ('__str__', 'team', 'role', 'is_active', 'contact_info', 'photo_preview')
     list_filter = ('team', 'team__category', 'role', 'is_active', 'created_at')
     search_fields = ('first_name', 'last_name', 'team__name', 'email', 'phone')
@@ -1222,7 +1223,7 @@ class StaffAdmin(admin.ModelAdmin):
 # NUEVA ESTRUCTURA: PERSON-ROLE ADMIN
 # =============================================================================
 
-class PlayerRoleInline(admin.TabularInline):
+class PlayerRoleInline(TabularInline):
     """Inline para roles de jugador en la vista de Person"""
     model = PlayerRole
     extra = 0
@@ -1231,7 +1232,7 @@ class PlayerRoleInline(admin.TabularInline):
     autocomplete_fields = ('team',)
 
 
-class StaffRoleInline(admin.TabularInline):
+class StaffRoleInline(TabularInline):
     """Inline para roles de staff en la vista de Person"""
     model = StaffRole
     extra = 0
@@ -1241,7 +1242,7 @@ class StaffRoleInline(admin.TabularInline):
 
 
 @admin.register(Person)
-class PersonAdmin(admin.ModelAdmin):
+class PersonAdmin(ModelAdmin):
     """Admin para el modelo Person"""
     list_display = ('__str__', 'age_display', 'contact_info', 'parents_info', 'is_active', 'photo_preview', 'active_teams_count')
     list_filter = ('is_active', 'created_at', 'birth_date')
@@ -1321,7 +1322,7 @@ class PersonAdmin(admin.ModelAdmin):
 
 
 @admin.register(PlayerRole)
-class PlayerRoleAdmin(admin.ModelAdmin):
+class PlayerRoleAdmin(ModelAdmin):
     """Admin para el modelo PlayerRole"""
     list_display = ('person', 'team', 'jersey_number', 'display_position', 'is_active', 'created_at')
     list_filter = ('team', 'team__category', 'position', 'is_active', 'created_at')
@@ -1360,7 +1361,7 @@ class PlayerRoleAdmin(admin.ModelAdmin):
 
 
 @admin.register(StaffRole)
-class StaffRoleAdmin(admin.ModelAdmin):
+class StaffRoleAdmin(ModelAdmin):
     """Admin para el modelo StaffRole"""
     list_display = ('person', 'team', 'display_role', 'is_active', 'created_at')
     list_filter = ('team', 'team__category', 'role', 'is_active', 'created_at')

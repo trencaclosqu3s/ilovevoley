@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html, mark_safe
+from unfold.admin import ModelAdmin
+from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from .models import Membership, User
 
 
@@ -23,7 +25,10 @@ reject_users.short_description = "❌ Rechazar usuarios seleccionados (desactiva
 
 
 @admin.register(User)
-class UserAdmin(BaseUserAdmin):
+class UserAdmin(BaseUserAdmin, ModelAdmin):
+    form = UserChangeForm
+    add_form = UserCreationForm
+    change_password_form = AdminPasswordChangeForm
     list_display = ['username', 'email', 'first_name', 'last_name', 'parent_info_short', 'children_count', 'approval_status', 'is_staff', 'date_joined']
     list_filter = ['is_approved', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'preferred_categories']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'parent_info']
@@ -86,7 +91,7 @@ class UserAdmin(BaseUserAdmin):
 
 
 @admin.register(Membership)
-class MembershipAdmin(admin.ModelAdmin):
+class MembershipAdmin(ModelAdmin):
     list_display = ['user', 'organization', 'role', 'is_approved', 'joined_at']
     list_filter = ['organization', 'role', 'is_approved']
     search_fields = ['user__username', 'user__email']

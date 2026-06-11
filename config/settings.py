@@ -13,6 +13,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 from decouple import config as env_config
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,6 +40,10 @@ CSRF_TRUSTED_ORIGINS = env_config('CSRF_TRUSTED_ORIGINS', default='https://aerol
 # Application definition
 
 INSTALLED_APPS = [
+    'unfold',
+    'unfold.contrib.filters',
+    'unfold.contrib.forms',
+    'unfold.contrib.inlines',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -279,6 +286,225 @@ if DEBUG:
     ADMIN_URL = 'admin/'
 else:
     ADMIN_URL = env_config('DJANGO_ADMIN_URL', default='admin/')
+
+UNFOLD = {
+    'SITE_TITLE': 'ilovevoley',
+    'SITE_HEADER': 'ilovevoley',
+    'SITE_SUBHEADER': _('Panel de administración'),
+    'SITE_URL': '/',
+    'SITE_SYMBOL': 'sports_volleyball',
+    'SITE_ICON': lambda request: static('images/favicon.svg'),
+    'SITE_LOGO': lambda request: static('images/logo.svg'),
+    'SITE_DROPDOWN': [
+        {
+            'icon': 'home',
+            'title': _('Ir al sitio web'),
+            'link': '/',
+        },
+        {
+            'icon': 'photo_library',
+            'title': _('Galería de fotos'),
+            'link': '/videos/imagenes/',
+        },
+        {
+            'icon': 'calendar_month',
+            'title': _('Calendario de partidos'),
+            'link': '/videos/calendario/',
+        },
+    ],
+    'ENVIRONMENT': 'videosvoley.core.unfold_callbacks.environment_callback',
+    'BORDER_RADIUS': '10px',
+    'SHOW_HISTORY': True,
+    'SHOW_VIEW_ON_SITE': True,
+    'SHOW_BACK_BUTTON': True,
+    'COLORS': {
+        'base': {
+            '50': 'oklch(98.5% 0.004 220)',
+            '100': 'oklch(96% 0.008 220)',
+            '200': 'oklch(91% 0.012 220)',
+            '300': 'oklch(84% 0.016 220)',
+            '400': 'oklch(68% 0.022 220)',
+            '500': 'oklch(52% 0.026 220)',
+            '600': 'oklch(44% 0.028 220)',
+            '700': 'oklch(37% 0.028 220)',
+            '800': 'oklch(28% 0.024 220)',
+            '900': 'oklch(21% 0.02 220)',
+            '950': 'oklch(14% 0.016 220)',
+        },
+        'primary': {
+            '50': 'oklch(97% 0.02 195)',
+            '100': 'oklch(93% 0.04 195)',
+            '200': 'oklch(86% 0.06 195)',
+            '300': 'oklch(76% 0.08 195)',
+            '400': 'oklch(62% 0.09 195)',
+            '500': 'oklch(50% 0.09 195)',
+            '600': 'oklch(44% 0.08 195)',
+            '700': 'oklch(38% 0.07 195)',
+            '800': 'oklch(32% 0.06 195)',
+            '900': 'oklch(26% 0.05 195)',
+            '950': 'oklch(20% 0.04 195)',
+        },
+        'font': {
+            'subtle-light': 'var(--color-base-500)',
+            'subtle-dark': 'var(--color-base-400)',
+            'default-light': 'var(--color-base-600)',
+            'default-dark': 'var(--color-base-300)',
+            'important-light': 'var(--color-base-900)',
+            'important-dark': 'var(--color-base-100)',
+        },
+    },
+    'STYLES': [
+        lambda request: static('admin/css/unfold_custom.css'),
+    ],
+    'SIDEBAR': {
+        'show_search': True,
+        'show_all_applications': True,
+        'navigation': [
+            {
+                'title': _('Inicio'),
+                'separator': True,
+                'items': [
+                    {
+                        'title': _('Panel principal'),
+                        'icon': 'dashboard',
+                        'link': reverse_lazy('admin:index'),
+                    },
+                ],
+            },
+            {
+                'title': _('Moderación'),
+                'separator': True,
+                'collapsible': False,
+                'items': [
+                    {
+                        'title': _('Fotos pendientes'),
+                        'icon': 'photo_camera',
+                        'link': f"/{ADMIN_URL}videos/image/?status__exact=pending",
+                        'badge': 'videosvoley.core.unfold_callbacks.pending_images_badge',
+                        'badge_variant': 'warning',
+                    },
+                    {
+                        'title': _('Usuarios pendientes'),
+                        'icon': 'person_add',
+                        'link': f"/{ADMIN_URL}users/user/?is_approved__exact=0",
+                        'badge': 'videosvoley.core.unfold_callbacks.pending_users_badge',
+                        'badge_variant': 'warning',
+                    },
+                    {
+                        'title': _('Membresías pendientes'),
+                        'icon': 'group_add',
+                        'link': f"/{ADMIN_URL}users/membership/?is_approved__exact=0",
+                        'badge': 'videosvoley.core.unfold_callbacks.pending_memberships_badge',
+                        'badge_variant': 'info',
+                    },
+                ],
+            },
+            {
+                'title': _('Contenido'),
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Todas las fotos'),
+                        'icon': 'image',
+                        'link': reverse_lazy('admin:videos_image_changelist'),
+                    },
+                    {
+                        'title': _('Videos'),
+                        'icon': 'videocam',
+                        'link': reverse_lazy('admin:videos_video_changelist'),
+                    },
+                    {
+                        'title': _('Partidos'),
+                        'icon': 'sports_volleyball',
+                        'link': reverse_lazy('admin:videos_match_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('Club y plantilla'),
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Personas'),
+                        'icon': 'badge',
+                        'link': reverse_lazy('admin:videos_person_changelist'),
+                    },
+                    {
+                        'title': _('Equipos'),
+                        'icon': 'groups',
+                        'link': reverse_lazy('admin:videos_team_changelist'),
+                    },
+                    {
+                        'title': _('Clasificaciones'),
+                        'icon': 'leaderboard',
+                        'link': reverse_lazy('admin:videos_standing_changelist'),
+                    },
+                    {
+                        'title': _('Categorías'),
+                        'icon': 'category',
+                        'link': reverse_lazy('admin:videos_category_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('Competiciones'),
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Ligas'),
+                        'icon': 'emoji_events',
+                        'link': reverse_lazy('admin:videos_league_changelist'),
+                    },
+                    {
+                        'title': _('Clubes'),
+                        'icon': 'stadium',
+                        'link': reverse_lazy('admin:videos_club_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('Usuarios'),
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Todos los usuarios'),
+                        'icon': 'people',
+                        'link': reverse_lazy('admin:users_user_changelist'),
+                    },
+                    {
+                        'title': _('Membresías'),
+                        'icon': 'card_membership',
+                        'link': reverse_lazy('admin:users_membership_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('Sistema'),
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Organizaciones'),
+                        'icon': 'domain',
+                        'link': reverse_lazy('admin:core_organization_changelist'),
+                        'permission': 'videosvoley.core.unfold_callbacks.is_superuser',
+                    },
+                    {
+                        'title': _('Tareas programadas'),
+                        'icon': 'schedule',
+                        'link': reverse_lazy('admin:django_celery_beat_periodictask_changelist'),
+                        'permission': 'videosvoley.core.unfold_callbacks.is_superuser',
+                    },
+                    {
+                        'title': _('Endpoints de scraping'),
+                        'icon': 'cloud_download',
+                        'link': reverse_lazy('admin:videos_scrapingendpoint_changelist'),
+                        'permission': 'videosvoley.core.unfold_callbacks.is_superuser',
+                    },
+                ],
+            },
+        ],
+    },
+}
 
 # Logging configuration
 LOGGING = {
