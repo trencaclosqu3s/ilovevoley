@@ -1524,15 +1524,15 @@ def scrape_and_enrich_all_task(self, round_number=None, category_filter=None, de
     
     # 1. Ejecutar scraping normal
     logger.info("=== FASE 1: Scraping normal ===")
-    scrape_results = scrape_all_leagues_task.delay(
+    scrape_results = scrape_all_leagues_task(
         round_number=round_number,
         category_filter=category_filter,
         delay=delay
-    ).get()
-    
+    )
+
     # 2. Ejecutar enriquecimiento JSON
     logger.info("=== FASE 2: Enriquecimiento JSON ===")
-    enrich_results = enrich_matches_json_task.delay(delay=delay).get()
+    enrich_results = enrich_matches_json_task(delay=delay)
     
     # 3. Combinar resultados
     combined_results = {
