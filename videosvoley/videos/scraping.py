@@ -813,11 +813,10 @@ class FederationScraper:
             # Crear mapeo de grupo_id a league para procesamiento eficiente
             group_league_map = {}
             if filter_by_db_leagues:
-                for grupo_id in db_league_ids:
-                    league = League.objects.filter(federation_id=grupo_id, is_active=True).first()
-                    if league:
-                        group_league_map[grupo_id] = league
-                        logger.debug(f"Mapped group {grupo_id} to league: {league.name}")
+                group_league_map = {
+                    league.federation_id: league
+                    for league in League.objects.filter(federation_id__in=db_league_ids, is_active=True)
+                }
             
             total_results = {
                 'leagues_processed': 0,
@@ -1653,12 +1652,11 @@ class FederationScraper:
             all_matches = []
             group_league_map = {}  # Mapeo grupo_id -> league
             
-            # Primero, crear mapeo de grupo_id a league para evitar búsquedas repetidas
-            for grupo_id in db_league_ids:
-                league = League.objects.filter(federation_id=grupo_id, is_active=True).first()
-                if league:
-                    group_league_map[grupo_id] = league
-                    logger.debug(f"Mapped group {grupo_id} to league: {league.name}")
+            # Crear mapeo de grupo_id a league en una sola query
+            group_league_map = {
+                league.federation_id: league
+                for league in League.objects.filter(federation_id__in=db_league_ids, is_active=True)
+            }
             
             # Procesar cada categoría del JSON
             for categoria in json_data.get('categorias', []):
