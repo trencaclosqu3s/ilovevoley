@@ -556,4 +556,6 @@ _configure_sentry(
     dsn=env_config('SENTRY_DSN', default=''),
     debug=DEBUG,
     traces_sample_rate=env_config('SENTRY_TRACES_SAMPLE_RATE', default=0.1, cast=float),
+    release=env_config('SENTRY_RELEASE', default=None),
+    environment=env_config('SENTRY_ENVIRONMENT', default='production'),
 )

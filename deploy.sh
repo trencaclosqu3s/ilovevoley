@@ -10,6 +10,9 @@ echo "🚀 Iniciando despliegue..."
 echo "📥 Descargando últimos cambios..."
 git pull
 
+# SHA del commit desplegado, usado por Sentry para el release tracking
+export GIT_SHA=$(git rev-parse --short HEAD)
+
 # Reconstruir imágenes si hay cambios en Dockerfile o requirements
 echo "🏗️  Reconstruyendo imágenes..."
 docker compose build

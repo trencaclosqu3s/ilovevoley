@@ -1,4 +1,4 @@
-def configure(dsn, debug, traces_sample_rate):
+def configure(dsn, debug, traces_sample_rate, release=None, environment='production'):
     if debug or not dsn:
         return
 
@@ -15,5 +15,6 @@ def configure(dsn, debug, traces_sample_rate):
         integrations=[DjangoIntegration(), CeleryIntegration()],
         traces_sample_rate=traces_sample_rate,
         send_default_pii=False,
-        environment='production',
+        environment=environment,
+        release=release,
     )

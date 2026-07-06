@@ -37,3 +37,24 @@ def test_configure_includes_django_and_celery_integrations():
         integration_types = [type(i) for i in integrations]
         assert DjangoIntegration in integration_types
         assert CeleryIntegration in integration_types
+
+
+def test_configure_defaults_release_to_none():
+    from config.sentry import configure
+    with patch('sentry_sdk.init') as mock_init:
+        configure(dsn='https://test@sentry.io/1', debug=False, traces_sample_rate=0.1)
+        assert mock_init.call_args.kwargs['release'] is None
+
+
+def test_configure_passes_release():
+    from config.sentry import configure
+    with patch('sentry_sdk.init') as mock_init:
+        configure(dsn='https://test@sentry.io/1', debug=False, traces_sample_rate=0.1, release='abc1234')
+        assert mock_init.call_args.kwargs['release'] == 'abc1234'
+
+
+def test_configure_passes_custom_environment():
+    from config.sentry import configure
+    with patch('sentry_sdk.init') as mock_init:
+        configure(dsn='https://test@sentry.io/1', debug=False, traces_sample_rate=0.1, environment='staging')
+        assert mock_init.call_args.kwargs['environment'] == 'staging'

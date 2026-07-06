@@ -31,6 +31,8 @@ services:
       - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
       - REDIS_URL=redis://redis:6379/0
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
+      - SENTRY_RELEASE=${GIT_SHA:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
     depends_on:
       - db
       - redis
@@ -53,6 +55,8 @@ services:
       - OPENBLAS_NUM_THREADS=1
       - TOKENIZERS_PARALLELISM=false
       - MALLOC_TRIM_THRESHOLD_=100
+      - SENTRY_RELEASE=${GIT_SHA:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
     depends_on:
       - db
       - redis
@@ -72,6 +76,8 @@ services:
       - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
       - REDIS_URL=redis://redis:6379/0
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
+      - SENTRY_RELEASE=${GIT_SHA:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
     depends_on:
       - db
       - redis
