@@ -1,5 +1,5 @@
 Django==6.0.7
-django-unfold==0.100.0
+django-unfold==0.101.0
 psycopg2-binary==2.9.12
 python-decouple==3.8
 Pillow==12.3.0
@@ -13,7 +13,7 @@ beautifulsoup4==4.15.0
 celery==5.6.3
 django-celery-beat==2.9.0
 google-cloud-vision==3.15.0
-google-auth==2.56.0
+google-auth==2.56.2
 google-auth-oauthlib==1.4.0
 google-auth-httplib2==0.4.0
 google-api-python-client==2.198.0
@@ -21,5 +21,5 @@ django-storages==1.14.6
 redis==8.0.1
 gunicorn==26.0.0
 django-ical==1.9.2
-sentry-sdk[django]==2.65.0
+sentry-sdk[django]==2.66.0
 pypdf>=6.14.2
