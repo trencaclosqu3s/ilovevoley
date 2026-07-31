@@ -755,6 +755,35 @@ class FederationScraper:
             'json_results': JSONUnifiedParser(league, op_type='2'),  # Resultados
         }
     
+    def _fetch_json_with_retry(self, json_url: str, max_attempts: int = 3) -> requests.Response:
+        """
+        Realiza un GET reintentando ante timeouts y errores 5xx transitorios
+        (p.ej. 522 de Cloudflare cuando el origen no responde a tiempo).
+        """
+        retryable_statuses = {500, 502, 503, 504, 522, 524}
+        last_error = None
+
+        for attempt in range(max_attempts):
+            try:
+                response = requests.get(json_url, timeout=60)
+                if response.status_code in retryable_statuses:
+                    raise requests.exceptions.HTTPError(
+                        f"{response.status_code} Server Error (transitorio) para url: {json_url}",
+                        response=response,
+                    )
+                return response
+            except (requests.exceptions.ReadTimeout, requests.exceptions.HTTPError) as e:
+                last_error = e
+                if attempt < max_attempts - 1:
+                    wait = 10 * (attempt + 1)
+                    logger.warning(
+                        f"Intento {attempt + 1}/{max_attempts} fallido para {json_url} ({e}), "
+                        f"reintentando en {wait}s..."
+                    )
+                    time.sleep(wait)
+                else:
+                    raise last_error
+
     def scrape_endpoint(self, endpoint: ScrapingEndpoint, **kwargs) -> Dict[str, Any]:
         """Ejecuta scraping de un endpoint específico"""
         
@@ -790,20 +819,9 @@ class FederationScraper:
             logger.info(f"Procesando JSON unificado (op={op_type}) desde: {json_url}")
 
             # Obtener datos del JSON
-            for attempt in range(2):
-                try:
-                    response = requests.get(json_url, timeout=60)
-                    break
-                except requests.exceptions.ReadTimeout:
-                    if attempt == 0:
-                        logger.warning(f"Timeout en intento 1 para {json_url}, reintentando en 10s...")
-                        import time
-                        time.sleep(10)
-                    else:
-                        raise
-            response.raise_for_status()
+            response = self._fetch_json_with_retry(json_url)
             json_data = json.loads(response.text)
-            
+
             # Obtener IDs de ligas que tenemos en la base de datos (si se requiere filtrado)
             db_league_ids = set()
             if filter_by_db_leagues:
@@ -1627,18 +1645,7 @@ class FederationScraper:
             logger.info(f"Found {len(db_league_ids)} leagues in database: {sorted(db_league_ids)}")
             
             # Obtener datos del JSON
-            for attempt in range(2):
-                try:
-                    response = requests.get(json_url, timeout=60)
-                    break
-                except requests.exceptions.ReadTimeout:
-                    if attempt == 0:
-                        logger.warning(f"Timeout en intento 1 para {json_url}, reintentando en 10s...")
-                        import time
-                        time.sleep(10)
-                    else:
-                        raise
-            response.raise_for_status()
+            response = self._fetch_json_with_retry(json_url)
 
             # Parsear JSON
             json_data = json.loads(response.text)
