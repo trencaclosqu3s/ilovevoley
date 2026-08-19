@@ -22,4 +22,4 @@ redis==8.1.0
 gunicorn==26.0.0
 django-ical==1.9.2
 sentry-sdk[django]==2.66.1
-pypdf>=6.15.0
+pypdf>=6.16.1
