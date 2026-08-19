@@ -1,10 +1,10 @@
 Django==6.1
-django-unfold==0.103.0
+django-unfold==0.104.1
 psycopg2-binary==2.9.12
 python-decouple==3.8
 Pillow==12.3.0
 pillow-heif==1.5.0
-django-allauth==65.19.0
+django-allauth==65.19.1
 requests==2.34.2
 PyJWT==2.13.0
 cryptography==50.0.0
@@ -21,5 +21,5 @@ django-storages==1.14.6
 redis==8.1.0
 gunicorn==26.0.0
 django-ical==1.9.2
-sentry-sdk[django]==2.66.1
+sentry-sdk[django]==2.68.0
 pypdf>=6.15.0
