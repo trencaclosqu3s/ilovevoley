@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from django.db import models
 from django.core.validators import RegexValidator
 from django.db.models.signals import post_save, post_delete
@@ -12,6 +14,7 @@ class Organization(models.Model):
     logo            = models.ImageField(upload_to='organizations/logos/', null=True, blank=True)
     primary_color   = models.CharField(max_length=7, default='#9B7FBF', validators=[_hex_color_validator])
     secondary_color = models.CharField(max_length=7, default='#7B5FA0', blank=True, validators=[_hex_color_validator])
+    instagram_url   = models.URLField(blank=True, help_text='URL del perfil de Instagram del club')
     club_team_names = models.JSONField(default=dict, help_text='{"Senior": "SANT JOSEP", "Juvenil": "SANT JOSEP B"}')
     is_active       = models.BooleanField(default=True)
     created_at      = models.DateTimeField(auto_now_add=True)
@@ -23,6 +26,16 @@ class Organization(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def instagram_handle(self):
+        if not self.instagram_url:
+            return ''
+        path = urlparse(self.instagram_url).path.strip('/')
+        if not path:
+            return ''
+        handle = path.split('/')[0]
+        return f'@{handle}' if handle else ''
 
 
 @receiver(post_save, sender=Organization)

@@ -23,6 +23,17 @@ class OrganizationModelTest(TestCase):
         with self.assertRaises(IntegrityError):
             Organization.objects.create(slug='unique', name='B')
 
+    def test_instagram_handle(self):
+        from videosvoley.core.models import Organization
+        org = Organization.objects.create(
+            slug='igclub',
+            name='IG Club',
+            instagram_url='https://www.instagram.com/clubvoleisantjosep/',
+        )
+        self.assertEqual(org.instagram_handle, '@clubvoleisantjosep')
+        org.instagram_url = ''
+        self.assertEqual(org.instagram_handle, '')
+
 
 class MembershipModelTest(TestCase):
     def setUp(self):

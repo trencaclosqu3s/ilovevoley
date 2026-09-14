@@ -78,7 +78,7 @@
 
         <div class="mt-6 pt-4 border-t border-gray-200 text-center">
             <p class="text-xs text-gray-500">
-                Si tienes dudas, contacta con los administradores de esta plataforma comunitaria del CV Sant Josep Obrer
+                Si tienes dudas, contacta con los administradores de esta plataforma comunitaria{% if tenant %} de {{ tenant.name }}{% endif %}
             </p>
         </div>
     </div>

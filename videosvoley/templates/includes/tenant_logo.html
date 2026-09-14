@@ -1,0 +1,6 @@
+{% load static %}
+{% if tenant.logo %}
+<img src="{{ tenant.logo.url }}" alt="{{ tenant.name }}" class="{{ img_class|default:'w-24 h-24 mx-auto mb-4 rounded-full shadow-md' }}">
+{% else %}
+<img src="{% static 'images/cvsantjosep.jpg' %}" alt="{{ tenant.name|default:'I Love Voley' }}" class="{{ img_class|default:'w-24 h-24 mx-auto mb-4 rounded-full shadow-md' }}">
+{% endif %}
