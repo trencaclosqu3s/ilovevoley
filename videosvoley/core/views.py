@@ -57,14 +57,17 @@ def test_500(request):
 def landing(request):
     """
     Landing page for root domain with organization selection.
-    Redirects authenticated users on tenant domains to /videos/.
+    On tenant domains: login if anonymous, /videos/ if authenticated.
     """
     from django.shortcuts import redirect
+    from django.urls import reverse
     from videosvoley.core.models import Organization
 
-    # If we're on a tenant subdomain and user is authenticated, redirect to videos
-    if request.tenant and request.user.is_authenticated:
-        return redirect('/videos/')
+    if request.tenant:
+        if request.user.is_authenticated:
+            return redirect('/videos/')
+        login_url = reverse('account_login')
+        return redirect(f'{login_url}?next=/videos/')
 
     organizations = Organization.objects.filter(is_active=True).order_by('name')
 
