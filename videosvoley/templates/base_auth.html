@@ -6,15 +6,21 @@
     <title>{% block title %}Autenticación - I Love Voley{% endblock %}</title>
     {% load static %}
     <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
+    <style>
+      :root {
+        --brand: {{ tenant_color }};
+        --brand-dark: {{ tenant_color_dark }};
+      }
+    </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        'csj-purple': '#9B7FBF',
+                        'csj-purple': 'var(--brand)',
                         'csj-yellow': '#F4D47C',
-                        'csj-purple-dark': '#7B5FA0',
+                        'csj-purple-dark': 'var(--brand-dark)',
                         'csj-yellow-dark': '#E5C05A',
                     }
                 }
@@ -23,6 +29,15 @@
     </script>
     
     <style>
+        body.auth-bg {
+            background: linear-gradient(
+                135deg,
+                color-mix(in srgb, var(--brand) 14%, #ffffff) 0%,
+                #fafafa 48%,
+                color-mix(in srgb, var(--brand) 12%, #f3f4f6) 100%
+            );
+        }
+
         /* Optimización de formularios para móviles */
         input[type="text"], 
         input[type="email"], 
@@ -46,8 +61,8 @@
         textarea:focus, 
         select:focus {
             outline: none !important;
-            border-color: #9B7FBF !important;
-            box-shadow: 0 0 0 3px rgba(155, 127, 191, 0.1) !important;
+            border-color: var(--brand) !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 20%, transparent) !important;
         }
         
         /* Mejorar interacciones táctiles */
@@ -64,7 +79,7 @@
     
     {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-gradient-to-br from-purple-50 via-yellow-50 to-purple-100 min-h-screen flex flex-col">
+<body class="auth-bg min-h-screen flex flex-col">
     
     <!-- Header minimalista -->
     <div class="absolute top-4 left-4 sm:top-6 sm:left-6 z-10">
@@ -101,7 +116,9 @@
 
     <!-- Toast Notifications Script -->
     <script>
-        // Inicializar Notyf con colores personalizados del club
+        const brandColor = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim() || '#9B7FBF';
+
+        // Inicializar Notyf con colores del tenant
         const notyf = new Notyf({
             duration: 4000,
             position: {
@@ -111,7 +128,7 @@
             types: [
                 {
                     type: 'warning',
-                    background: '#F4D47C', // csj-yellow
+                    background: '#F4D47C',
                     icon: {
                         className: 'notyf__icon--warning',
                         tagName: 'span',
@@ -121,7 +138,7 @@
                 },
                 {
                     type: 'info',
-                    background: '#9B7FBF', // csj-purple
+                    background: brandColor,
                     icon: {
                         className: 'notyf__icon--info',
                         tagName: 'span',
@@ -169,4 +186,3 @@
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
-

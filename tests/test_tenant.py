@@ -134,6 +134,16 @@ class LandingViewTest(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/videos/')
 
+    def test_login_page_uses_tenant_brand_color(self):
+        self.org.primary_color = '#112233'
+        self.org.secondary_color = '#445566'
+        self.org.save()
+        response = self.client.get('/accounts/login/', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '--brand: #112233')
+        self.assertContains(response, '--brand-dark: #445566')
+        self.assertContains(response, "'csj-purple': 'var(--brand)'")
+
 
 class GetClubTeamFilterTest(TestCase):
     def test_returns_q_for_tenant_with_names(self):
