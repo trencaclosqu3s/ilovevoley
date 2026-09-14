@@ -16,6 +16,14 @@ class Organization(models.Model):
     secondary_color = models.CharField(max_length=7, default='#7B5FA0', blank=True, validators=[_hex_color_validator])
     instagram_url   = models.URLField(blank=True, help_text='URL del perfil de Instagram del club')
     club_team_names = models.JSONField(default=dict, help_text='{"Senior": "SANT JOSEP", "Juvenil": "SANT JOSEP B"}')
+    club            = models.ForeignKey(
+        'videos.Club',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='organizations',
+        help_text='Club federativo vinculado (opcional; null p.ej. para selecciones)',
+    )
     is_active       = models.BooleanField(default=True)
     created_at      = models.DateTimeField(auto_now_add=True)
 
