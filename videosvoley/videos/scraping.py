@@ -948,21 +948,13 @@ class FederationScraper:
                 if not home_team or not away_team:
                     league_category = league.categories.first()
                     if not home_team and league_category:
-                        home_fed_id = f"{league.federation_id}_{match_data['home_team'].replace(' ', '_').lower()}"
-                        home_team, created = Team.objects.get_or_create(
-                            federation_id=home_fed_id,
-                            defaults={'name': match_data['home_team'], 'category': league_category, 'is_active': True}
+                        home_team = self._find_or_create_team_by_name(
+                            match_data['home_team'], league, league_category
                         )
-                        if created:
-                            logger.info(f"Equipo creado automáticamente: {home_team.name} para liga {league.name}")
                     if not away_team and league_category:
-                        away_fed_id = f"{league.federation_id}_{match_data['away_team'].replace(' ', '_').lower()}"
-                        away_team, created = Team.objects.get_or_create(
-                            federation_id=away_fed_id,
-                            defaults={'name': match_data['away_team'], 'category': league_category, 'is_active': True}
+                        away_team = self._find_or_create_team_by_name(
+                            match_data['away_team'], league, league_category
                         )
-                        if created:
-                            logger.info(f"Equipo creado automáticamente: {away_team.name} para liga {league.name}")
                     if not home_team or not away_team:
                         logger.warning(f'No se pudieron encontrar ni crear equipos: {match_data["home_team"]} vs {match_data["away_team"]}')
                         continue
@@ -2054,7 +2046,30 @@ class FederationScraper:
                 return team
 
         return None
-    
+
+    def _find_or_create_team_by_name(self, team_name: str, league: League, league_category) -> Team:
+        """
+        Busca un equipo por nombre difuso antes de crear uno nuevo, para no fragmentar
+        el mismo equipo real en varias filas cuando cambia de liga/fase (y por tanto de
+        federation_id) y el nombre exacto no coincide.
+        """
+        from videosvoley.videos.utils import find_duplicate_team_by_name, find_similar_team_by_name
+
+        team = find_duplicate_team_by_name(team_name, category=league_category)
+        if not team:
+            team, score = find_similar_team_by_name(team_name, category=league_category, threshold=0.9)
+
+        if team:
+            logger.info(f"Equipo reutilizado por nombre: '{team_name}' -> '{team.name}' (ID: {team.id})")
+            return team
+
+        fed_id = f"{league.federation_id}_{team_name.replace(' ', '_').lower()}"
+        team = Team.objects.create(
+            name=team_name, federation_id=fed_id, category=league_category, is_active=True
+        )
+        logger.info(f"Equipo creado automáticamente: {team.name} para liga {league.name}")
+        return team
+
     def _normalize_team_name(self, name: str) -> str:
         """Normaliza nombres de equipos para búsqueda flexible"""
         if not name:
