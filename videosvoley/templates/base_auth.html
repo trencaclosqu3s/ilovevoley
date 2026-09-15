@@ -5,7 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Autenticación - I Love Voley{% endblock %}</title>
     {% load static %}
-    <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
+    <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
+    <link rel="icon" type="image/png" href="{% static 'images/logo_app.png' %}">
+
+    <meta property="og:image" content="{{ tenant_share_image }}">
+    <meta property="og:title" content="{% if tenant %}{{ tenant.name }}{% else %}I Love Voley{% endif %}">
+    <meta property="og:description" content="Vídeos y resultados de {% if tenant %}{{ tenant.name }}{% else %}tu club{% endif %} en I Love Voley.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
     <style>
       :root {
         --brand: {{ tenant_color }};
