@@ -108,6 +108,7 @@ Tooling: **no hay pytest** (los tests son `django.test.TestCase`), **no hay CI**
 | Deuda técnica | Fase propia y **al final**, después de la fase 2 |
 | Ubicación de `Category` | Fichero propio desde la fase 1 |
 | Vistas/URLs en la fase 2 | **No se mueven**: se quedan en `videos` |
+| Vistas/URLs a largo plazo | Se mudan en una **fase 4** propia, tras la fase 3 |
 
 ## 6. Fase 0 — Red de seguridad
 
@@ -352,8 +353,9 @@ siguen válidas.
 El motivo es que mezclarlo juntaría el riesgo verificable (migraciones
 state-only, comprobables con `sqlmigrate`) con el que no lo es: un
 `{% url 'videos:match_detail' %}` roto no lo detecta `manage.py check`, explota
-en runtime. Separadas, la fase 2 es auditable de principio a fin. Las vistas
-pueden mudarse más adelante o no mudarse nunca.
+en runtime. Separadas, la fase 2 es auditable de principio a fin. La mudanza de
+las vistas no se descarta: se aplaza a la fase 4 (sección 10), donde va con su
+propia red de seguridad.
 
 ### 8.4 Orden de extracción
 
@@ -412,7 +414,61 @@ Datos medidos: 13 de 91 ligas conservan `category`, pero solo **1** carece de
 
 Eliminar `videosvoley/core/tasks/`, paquete vacío sin uso.
 
-## 10. Riesgos
+## 10. Fase 4 — Mudanza de vistas, URLs y templates
+
+**Motivación**: coherencia interna. Que `competitions` tenga los modelos y
+`videos` las vistas es defendible operativamente pero incoherente en un
+diagrama, y obliga a explicárselo a quien llegue nuevo al proyecto.
+
+**Precondición**: la fase 2 completa. Si se ejerció el punto de parada de 8.5,
+esta fase no aplica.
+
+### 10.1 Dos pasos, porque solo uno es peligroso
+
+Mover el código de las vistas y renombrar el namespace de URLs son cosas
+separables, y solo la segunda rompe en runtime. Separarlas es lo que hace
+asumible esta fase.
+
+**Paso 4a — Mover el código.** Los módulos de `views/` (ya repartidos por la
+fase 1) se trasladan a `competitions/views.py`, `content/views.py`, etc.
+**`videosvoley/videos/urls.py` se queda donde está** e importa desde las apps
+nuevas. El namespace `videos:` no cambia, las 219 referencias siguen intactas y
+los templates no se tocan. Es un movimiento mecánico, verificable igual que la
+fase 1.
+
+**Paso 4b — Mover los URLconf y renombrar el namespace.** Cada app recibe su
+`urls.py` con su `app_name`, `config/urls.py` los incluye, y las referencias
+pasan de `videos:x` a `<app>:x`. Aquí sí hay riesgo de runtime, y por eso lleva
+red propia.
+
+### 10.2 La red que hace seguro el paso 4b
+
+Un test que barre **estáticamente** los templates: extrae cada nombre de
+`{% url 'x' %}` de `videosvoley/templates/**/*.html` y comprueba que `reverse()`
+lo resuelve. Cubre las 171 referencias de una vez, es exhaustivo por
+construcción y no depende de que nadie se acuerde de abrir cada página. Un
+barrido equivalente cubre los 48 `reverse()` y `redirect()` con literal de
+cadena en Python.
+
+Este test se escribe **antes** de tocar nada y se ve pasar en verde con los
+nombres antiguos. Es la diferencia entre renombrar a ciegas y renombrar con
+evidencia.
+
+### 10.3 Templates
+
+Los 25 ficheros de `videosvoley/templates/videos/` se reparten a
+`<app>/templates/<app>/`, que el loader `APP_DIRS` localiza sin configuración
+adicional. Afecta a las 33 llamadas `render(request, 'videos/...')`, que se
+actualizan en el mismo commit que su template.
+
+### 10.4 Orden
+
+Una app por commit y en el mismo orden que la fase 2: `rosters`, `content`,
+`teams`, `competitions`. Cada app completa 4a y 4b antes de pasar a la
+siguiente, de modo que convivan temporalmente namespaces viejos y nuevos y
+cualquier problema quede acotado a una app.
+
+## 11. Riesgos
 
 | Riesgo | Fase | Mitigación |
 |---|---|---|
@@ -423,8 +479,9 @@ Eliminar `videosvoley/core/tasks/`, paquete vacío sin uso.
 | URLs rotas en runtime | 2 | Vistas, URLs y templates no se mueven (8.3) |
 | Pérdida de datos en la mudanza de apps | 2 | `database_operations=[]`; `sqlmigrate` debe salir vacío antes de desplegar |
 | Reconciliación Player/Person ambigua | 3 | Revisión humana; solape ya medido (18/21) |
+| Referencia `{% url %}` o `reverse()` olvidada al renombrar namespaces | 4 | Test de barrido estático de los 219 nombres, escrito y en verde antes de renombrar (10.2) |
 
-## 11. Criterios de aceptación
+## 12. Criterios de aceptación
 
 **Fase 0**: `pytest --create-db` verde en local y en CI; tests reorganizados a
 `app/tests/`; los 7 tests de 6.3 escritos y pasando.
@@ -443,9 +500,13 @@ intactos tras el despliegue; `videos:` sigue resolviendo las 219 referencias.
 **Fase 3**: cero filas en `Player` y `Staff` antes del `DeleteModel`; ninguna
 `Person` duplicada; `League.category` eliminado sin pérdida de categorías.
 
-## 12. Fuera de alcance
+**Fase 4**: el test de barrido de 10.2 en verde antes y después de cada commit;
+`videosvoley/templates/videos/` vacío al terminar; ninguna referencia a
+`videos:` superviviente en templates ni en Python.
 
-- Mover vistas, URLs o templates a las apps nuevas (evaluable tras la fase 2).
+## 13. Fuera de alcance
+
 - Refactor interno de la lógica de `scraping.py` o `views.py`: solo se reparten
   en módulos, su contenido no se reescribe.
-- Cualquier cambio de comportamiento observable. Las fases 1 y 2 son mecánicas.
+- Cualquier cambio de comportamiento observable. Las fases 1, 2 y 4 son
+  mecánicas: reparten código y renombran rutas, sin alterar qué hace la app.
