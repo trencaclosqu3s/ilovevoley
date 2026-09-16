@@ -1,0 +1,190 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static unfold %}
+
+{% block breadcrumbs %}
+<div class="px-4 lg:px-12">
+    <div class="container mb-6 mx-auto -my-3 text-sm text-font-subtle-light dark:text-font-subtle-dark flex items-center flex-wrap gap-2">
+        <a href="{% url 'admin:index' %}" class="hover:text-primary-600">{% trans 'Home' %}</a>
+        <span>/</span>
+        <a href="{% url 'admin:users_user_changelist' %}" class="hover:text-primary-600">{{ opts.verbose_name_plural|capfirst }}</a>
+        <span>/</span>
+        {% if not is_bulk and users|length == 1 %}
+            {% with u=users.0 %}
+            <a href="{% url 'admin:users_user_change' u.pk %}" class="hover:text-primary-600">{{ u.get_full_name|default:u.username }}</a>
+            <span>/</span>
+            {% endwith %}
+        {% endif %}
+        <span class="text-font-important-light dark:text-font-important-dark font-medium">Enviar correo</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="px-4 lg:px-12">
+    <div class="container mx-auto max-w-4xl">
+        <!-- Título -->
+        <div class="mb-6 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-font-important-light dark:text-font-important-dark flex items-center gap-3">
+                    <span class="material-symbols-outlined text-3xl text-primary-600">mail</span>
+                    {{ title }}
+                </h1>
+                <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark mt-1">
+                    Envía un correo con el formato oficial de la plataforma a los usuarios seleccionados.
+                </p>
+            </div>
+            <a href="{{ cancel_url }}" class="border border-base-200 hover:bg-base-100 text-font-default-light dark:border-base-700 dark:hover:bg-base-800 dark:text-font-default-dark font-medium px-4 py-2 rounded-default text-sm inline-flex items-center gap-1.5 transition-colors">
+                <span class="material-symbols-outlined text-sm">arrow_back</span> Volver
+            </a>
+        </div>
+
+        <!-- Alerta de usuarios sin email (si los hay) -->
+        {% if users_without_email %}
+        <div class="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-default p-4 mb-6 flex items-start gap-3">
+            <span class="material-symbols-outlined text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">warning</span>
+            <div class="text-sm text-amber-900 dark:text-amber-200">
+                <strong>Atención:</strong> {{ users_without_email|length }} de los {{ users|length }} usuario(s) no tienen dirección de correo electrónico registrada y serán omitidos:
+                <ul class="list-disc list-inside mt-1">
+                    {% for u in users_without_email %}
+                    <li>{{ u.get_full_name|default:u.username }} (@{{ u.username }})</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Tarjeta de Destinatarios -->
+        <div class="bg-white dark:bg-base-900 border border-base-200 dark:border-base-800 rounded-default shadow-xs p-6 mb-6">
+            <h2 class="text-base font-semibold text-font-important-light dark:text-font-important-dark mb-3 flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary-600 text-lg">group</span>
+                Destinatarios ({{ users_with_email|length }} válidos)
+            </h2>
+            <div class="divide-y divide-base-100 dark:divide-base-800 max-h-60 overflow-y-auto">
+                {% for u in users %}
+                <div class="py-2.5 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 font-semibold flex items-center justify-center text-xs shrink-0">
+                            {% if u.first_name %}{{ u.first_name|first|upper }}{% else %}{{ u.username|first|upper }}{% endif %}
+                        </div>
+                        <div>
+                            <span class="font-medium text-sm text-font-important-light dark:text-font-important-dark">
+                                {{ u.get_full_name|default:u.username }}
+                            </span>
+                            <span class="text-xs text-font-subtle-light dark:text-font-subtle-dark ml-1">@{{ u.username }}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        {% if u.email %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800">
+                                <span class="material-symbols-outlined text-xs">check_circle</span>
+                                {{ u.email }}
+                            </span>
+                            <a href="mailto:{{ u.email }}" title="Abrir en cliente de correo externo" class="text-font-subtle-light hover:text-primary-600 dark:text-font-subtle-dark p-1">
+                                <span class="material-symbols-outlined text-sm">open_in_new</span>
+                            </a>
+                        {% else %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800">
+                                <span class="material-symbols-outlined text-xs">cancel</span>
+                                Sin correo
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Formulario de Redacción -->
+        <div class="bg-white dark:bg-base-900 border border-base-200 dark:border-base-800 rounded-default shadow-xs p-6">
+            <h2 class="text-base font-semibold text-font-important-light dark:text-font-important-dark mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary-600 text-lg">edit_note</span>
+                Redactar mensaje
+            </h2>
+
+            {% if not users_with_email %}
+                <div class="p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-default text-red-800 dark:text-red-200 text-sm">
+                    No es posible enviar el correo porque ninguno de los usuarios seleccionados tiene una dirección de correo válida.
+                </div>
+            {% else %}
+                <form method="post" action="{{ action_url }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="apply" value="yes">
+                    {% if is_bulk %}
+                        <input type="hidden" name="action" value="send_email_action">
+                        {% for u in users %}
+                        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ u.pk }}">
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Asunto -->
+                    <div class="mb-5">
+                        <label for="id_subject" class="block text-sm font-semibold text-font-important-light dark:text-font-important-dark mb-1.5">
+                            Asunto <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text"
+                               name="subject"
+                               id="id_subject"
+                               value="{{ subject|default:'' }}"
+                               required
+                               placeholder="Ej: Aviso importante sobre tus partidos / Información de tu cuenta"
+                               class="border border-base-200 bg-white rounded-default px-3.5 py-2.5 text-sm text-font-default-light dark:bg-base-950 dark:border-base-700 dark:text-font-default-dark focus:outline-none focus:ring-2 focus:ring-primary-500 w-full">
+                    </div>
+
+                    <!-- Mensaje -->
+                    <div class="mb-5">
+                        <label for="id_message" class="block text-sm font-semibold text-font-important-light dark:text-font-important-dark mb-1.5">
+                            Mensaje <span class="text-red-500">*</span>
+                        </label>
+                        <textarea name="message"
+                                  id="id_message"
+                                  rows="9"
+                                  required
+                                  placeholder="Escribe el cuerpo del mensaje aquí...&#10;&#10;Los saltos de línea se respetarán en el correo enviado y el mensaje se mostrará con el diseño oficial de {{ site_name }}."
+                                  class="border border-base-200 bg-white rounded-default px-3.5 py-2.5 text-sm text-font-default-light dark:bg-base-950 dark:border-base-700 dark:text-font-default-dark focus:outline-none focus:ring-2 focus:ring-primary-500 w-full resize-y">{{ message|default:'' }}</textarea>
+                        <p class="text-xs text-font-subtle-light dark:text-font-subtle-dark mt-1.5 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-xs">info</span>
+                            El mensaje incluirá automáticamente el saludo inicial ("Hola &lt;Nombre&gt;,"), el membrete del club y la firma de administración.
+                        </p>
+                    </div>
+
+                    <!-- Configuración de remitente y respuestas -->
+                    <div class="bg-base-50 dark:bg-base-950/70 border border-base-200 dark:border-base-800 rounded-default p-4 mb-6">
+                        <div class="text-xs text-font-subtle-light dark:text-font-subtle-dark space-y-1">
+                            <p><strong>Remitente (From):</strong> {{ default_from_email }}</p>
+                            {% if request.user.email %}
+                            <p><strong>Respuestas directas (Reply-To):</strong> {{ request.user.get_full_name|default:request.user.username }} &lt;{{ request.user.email }}&gt; (si el usuario pulsa Responder en su gestor de correo, te llegará a esta cuenta).</p>
+                            {% endif %}
+                        </div>
+
+                        {% if request.user.email %}
+                        <div class="mt-3 pt-3 border-t border-base-200 dark:border-base-800">
+                            <label class="inline-flex items-center gap-2 cursor-pointer text-sm text-font-default-light dark:text-font-default-dark">
+                                <input type="checkbox"
+                                       name="send_copy"
+                                       value="1"
+                                       {% if send_copy or send_copy is None %}checked{% endif %}
+                                       class="rounded border-base-300 text-primary-600 focus:ring-primary-500">
+                                <span>Enviarme una copia de seguridad a <strong>{{ request.user.email }}</strong></span>
+                            </label>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Botones de Acción -->
+                    <div class="flex items-center gap-3 pt-2">
+                        <button type="submit"
+                                class="bg-primary-600 hover:bg-primary-700 text-white font-medium px-5 py-2.5 rounded-default text-sm inline-flex items-center gap-2 cursor-pointer shadow-xs transition-colors">
+                            <span class="material-symbols-outlined text-sm">send</span>
+                            Enviar correo{% if users_with_email|length > 1 %} a {{ users_with_email|length }} usuarios{% endif %}
+                        </button>
+                        <a href="{{ cancel_url }}"
+                           class="border border-base-200 hover:bg-base-100 text-font-default-light dark:border-base-700 dark:hover:bg-base-800 dark:text-font-default-dark font-medium px-5 py-2.5 rounded-default text-sm inline-flex items-center gap-1.5 transition-colors">
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

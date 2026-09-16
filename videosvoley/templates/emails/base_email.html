@@ -107,9 +107,11 @@
         </div>
         
         <div class="footer">
+            {% block footer %}
             <p>Este es un mensaje automático del sistema {{ site_name }}.</p>
             <p>No responda a este email.</p>
             <p>© {% now "Y" %} {{ site_name }}. Todos los derechos reservados.</p>
+            {% endblock %}
         </div>
     </div>
 </body>
