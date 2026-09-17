@@ -22,15 +22,17 @@ RUN apt-get update && apt-get install -y \
 RUN adduser --disabled-password --gecos '' --uid 1000 appuser
 
 # Instalar dependencias Python
-COPY requirements.txt .
+COPY requirements.txt requirements-dev.txt ./
 
 # Actualizar pip y herramientas de compilación
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip setuptools wheel
 
-# Instalar el resto de dependencias
+# requirements-dev.txt arranca con `-r requirements.txt`, así que esta única
+# instalación cubre producción y desarrollo. El sobrecoste en la imagen de
+# producción son dos paquetes de test.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r requirements.txt
+    pip install -r requirements-dev.txt
 
 # Copiar código
 COPY --chown=appuser:appuser . .

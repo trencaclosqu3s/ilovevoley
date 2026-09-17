@@ -28,6 +28,15 @@ Docker Compose, GitHub Actions.
   `docker compose -f docker-compose.dev.yml run --rm web <comando>`.
   El `entrypoint.sh` deja pasar cualquier comando que no sea `runserver` ni
   `gunicorn`, así que `python -m pytest` funciona sin `--entrypoint`.
+- **⚠️ Este plan NO se ejecuta en el servidor de producción.** Allí la aplicación
+  corre como proyecto compose `videosvoley`, y `docker-compose.dev.yml` resuelve
+  al mismo nombre de proyecto (lo toma del directorio). Compose daría por
+  satisfechos los servicios `db` y `redis` con los contenedores de producción, de
+  modo que `pytest --create-db` crearía la base de datos de test dentro del
+  Postgres de producción, y `build web` podría sustituir la imagen que usa el
+  contenedor `web` de producción al reiniciarse. Ejecutar todo en el entorno de
+  desarrollo. Si alguna vez hiciera falta aquí, aislarlo con
+  `docker compose -p videosvoley_dev -f docker-compose.dev.yml ...`.
 - **`--create-db` es obligatorio en toda ejecución de pytest.** Sin él la BD de
   test queda desactualizada y fallan columnas.
 - **Las fases 0 y 1 no cambian comportamiento observable.** Si un test existente
@@ -57,15 +66,21 @@ Docker Compose, GitHub Actions.
   `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db`,
   del que dependen todas las tareas siguientes.
 
-- [ ] **Step 1: Crear `requirements-dev.txt`**
+- [x] **Step 1: Crear `requirements-dev.txt`**
 
 ```
+# Dependencias de desarrollo y test.
+# Incluye las de producción para que una sola instalación cubra ambos casos.
 -r requirements.txt
-pytest==8.4.2
-pytest-django==4.11.1
+
+pytest==9.1.1
+pytest-django==4.14.0
 ```
 
-- [ ] **Step 2: Instalar las dependencias de desarrollo en la imagen**
+Versiones comprobadas contra PyPI el 2026-09-17. `pytest-django 4.14.0` declara
+soporte explícito de Django 6.0 y Python 3.13, y requiere `pytest>=7.0.0`.
+
+- [x] **Step 2: Instalar las dependencias de desarrollo en la imagen**
 
 En `Dockerfile`, sustituir el bloque que copia e instala `requirements.txt`:
 
@@ -77,28 +92,37 @@ COPY requirements.txt requirements-dev.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip setuptools wheel
 
-# Instalar el resto de dependencias
+# requirements-dev.txt arranca con `-r requirements.txt`, así que esta única
+# instalación cubre producción y desarrollo. El sobrecoste en la imagen de
+# producción son dos paquetes de test.
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements-dev.txt
 ```
 
-`requirements-dev.txt` arranca con `-r requirements.txt`, así que esta única
-instalación cubre producción y desarrollo. La imagen de producción se construye
-con el mismo Dockerfile; el sobrecoste son dos paquetes de test, asumible frente
-a mantener dos Dockerfiles divergentes.
+La imagen de producción se construye con el mismo Dockerfile; el sobrecoste son
+dos paquetes de test, asumible frente a mantener dos Dockerfiles divergentes.
 
-- [ ] **Step 3: Crear `pytest.ini`**
+- [x] **Step 3: Crear `pytest.ini`**
 
 ```ini
 [pytest]
 DJANGO_SETTINGS_MODULE = config.settings
 python_files = test_*.py
-testpaths = videosvoley
+# `tests` (raíz) desaparece en la Task 2 del plan de refactor, que reubica sus
+# tests en videosvoley/core/tests/. Al hacerlo, quitar `tests` de esta línea.
+testpaths = videosvoley tests
 addopts = --strict-markers
 ```
 
-`testpaths = videosvoley` excluye deliberadamente el directorio `tests/` de la
-raíz, que la Task 2 vacía.
+`testpaths` incluye de momento el directorio `tests/` de la raíz. Si se pusiera
+solo `videosvoley`, los tests de `test_tenant.py` y `test_sentry.py` dejarían de
+ejecutarse en silencio hasta que la Task 2 los reubicase. La Task 2 elimina
+`tests` de esta línea al vaciar el directorio.
+
+> **Estado:** los pasos 1-3 se completaron el 2026-09-17 desde el servidor de
+> producción (solo edición de ficheros, sin ejecutar nada). Los pasos 4 y 5
+> quedan **pendientes** y deben ejecutarse en el entorno de desarrollo, por el
+> motivo explicado en las restricciones globales.
 
 - [ ] **Step 4: Reconstruir la imagen**
 
@@ -882,6 +906,12 @@ docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-
 
 `--create-db` es **obligatorio**: sin él la BD de test queda desactualizada y
 fallan columnas inexistentes.
+
+**No ejecutar `docker-compose.dev.yml` en el servidor de producción.** Allí la
+aplicación corre como proyecto compose `videosvoley` y el compose de desarrollo
+resuelve al mismo nombre, así que reutilizaría los contenedores `db` y `redis`
+de producción. Para una consulta puntual en producción se usa el compose por
+defecto: `docker compose run --rm web python manage.py <comando>`.
 
 ## Restricciones
 
