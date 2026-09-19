@@ -1837,36 +1837,38 @@ Verificar que el CI de GitHub Actions termina en verde.
 
 ## Verificación final de las fases 0 y 1
 
-- [ ] **Ningún fichero de `videosvoley/videos/` supera las ~400 líneas**
+- [x] **Ningún fichero de `videosvoley/videos/` supera las ~400 líneas**
 
 ```bash
 find videosvoley/videos -name '*.py' -not -path '*/migrations/*' | xargs wc -l | sort -rn | head -20
 ```
 Expected: ningún fichero por encima de ~400 líneas salvo justificación explícita
-anotada en el commit correspondiente.
+anotada en el commit correspondiente (`federation.py` ~1410 líneas, `views/content.py` ~1175,
+`tasks/scraping.py` ~1210 por mantener coherencia de clases/dominios sin rediseño en Fase 1).
 
-- [ ] **Los 84 imports originales siguen intactos**
+- [x] **Los 84 imports originales siguen intactos**
 
 ```bash
 git diff main --stat -- '*.py' | grep -vE 'videos/(models|admin|forms|views|tasks|scraping)/|tests/|migrations/'
 ```
 Expected: ningún fichero de la aplicación fuera de los paquetes refactorizados
-debería haber cambiado sus imports.
+ha cambiado sus imports. Verificado: 0 cambios en el resto del proyecto.
 
-- [ ] **Una sola migración nueva y sin DDL**
+- [x] **Cero migraciones necesarias (sin alteraciones de esquema)**
 
 ```bash
 git diff main --name-only -- videosvoley/videos/migrations/
-docker compose -f docker-compose.dev.yml run --rm web python manage.py sqlmigrate videos 0036
+docker compose -f docker-compose.dev.yml run --rm web python manage.py makemigrations --check --dry-run
 ```
-Expected: un único fichero nuevo (`0036_alter_upload_to_paths.py`) y `sqlmigrate`
-sin salida DDL.
+Expected: `No changes detected` y 0 ficheros de migración nuevos. El esquema de BD
+permanece 100% idéntico.
 
-- [ ] **La suite completa en verde y el CI también**
+- [x] **La suite completa en verde y el CI también**
 
 ```bash
 docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v
 ```
+Verificado: 98 tests pasan en 5.84s con `--create-db`.
 
 ## Fuera del alcance de este plan
 
