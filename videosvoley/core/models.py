@@ -17,7 +17,7 @@ class Organization(models.Model):
     instagram_url   = models.URLField(blank=True, help_text='URL del perfil de Instagram del club')
     club_team_names = models.JSONField(default=dict, help_text='{"Senior": "SANT JOSEP", "Juvenil": "SANT JOSEP B"}')
     club            = models.ForeignKey(
-        'videos.Club',
+        'teams.Club',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

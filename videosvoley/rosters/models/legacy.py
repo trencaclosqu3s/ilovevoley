@@ -36,7 +36,7 @@ class Player(models.Model):
     first_name = models.CharField(max_length=100, verbose_name='Nombre')
     last_name = models.CharField(max_length=100, verbose_name='Apellidos')
     team = models.ForeignKey(
-        'videos.Team', 
+        'teams.Team', 
         on_delete=models.CASCADE, 
         related_name='players',
         verbose_name='Equipo'
@@ -157,7 +157,7 @@ class Staff(models.Model):
     first_name = models.CharField(max_length=100, verbose_name='Nombre')
     last_name = models.CharField(max_length=100, verbose_name='Apellidos')
     team = models.ForeignKey(
-        'videos.Team', 
+        'teams.Team', 
         on_delete=models.CASCADE, 
         related_name='staff',
         verbose_name='Equipo'

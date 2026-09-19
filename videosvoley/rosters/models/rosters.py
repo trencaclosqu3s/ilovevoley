@@ -153,7 +153,7 @@ class Person(models.Model):
         """Obtiene todos los equipos donde tiene roles activos"""
         from django.apps import apps
         from django.db.models import Q
-        Team = apps.get_model('videos', 'Team')
+        Team = apps.get_model('teams', 'Team')
         player_teams = Team.objects.filter(player_roles__person=self, player_roles__is_active=True)
         staff_teams = Team.objects.filter(staff_roles__person=self, staff_roles__is_active=True)
         return Team.objects.filter(Q(id__in=player_teams) | Q(id__in=staff_teams)).distinct()
@@ -180,7 +180,7 @@ class PlayerRole(models.Model):
         verbose_name='Persona'
     )
     team = models.ForeignKey(
-        'videos.Team',
+        'teams.Team',
         on_delete=models.CASCADE,
         related_name='player_roles',
         verbose_name='Equipo'
@@ -271,7 +271,7 @@ class StaffRole(models.Model):
         verbose_name='Persona'
     )
     team = models.ForeignKey(
-        'videos.Team',
+        'teams.Team',
         on_delete=models.CASCADE,
         related_name='staff_roles',
         verbose_name='Equipo'
