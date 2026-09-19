@@ -1503,14 +1503,14 @@ git commit -m "refactor(videos): repartir forms.py en un paquete por dominio"
 
 Es el fichero más grande del proyecto (2797 líneas) y el de mayor beneficio.
 
-- [ ] **Step 1: Inventariar las vistas que `urls.py` referencia**
+- [x] **Step 1: Inventariar las vistas que `urls.py` referencia**
 
 Run: `grep -oE 'views\.[a-z_]+' videosvoley/videos/urls.py | sort -u > /tmp/vistas_en_urls.txt && cat /tmp/vistas_en_urls.txt`
 
 Esta lista es el contrato: todos esos nombres deben seguir accesibles como
 `videosvoley.videos.views.<nombre>` al terminar.
 
-- [ ] **Step 2: Reparto exacto de las 45 vistas**
+- [x] **Step 2: Reparto exacto de las 45 vistas**
 
 Verificado contra el fichero actual. Las 45 funciones se reparten así:
 
@@ -1547,7 +1547,7 @@ from ..models import League, Match, Standing, Team
 
 Ajustar los imports a lo que use realmente cada módulo.
 
-- [ ] **Step 3: Escribir el `__init__.py`**
+- [x] **Step 3: Escribir el `__init__.py`**
 
 ```python
 """Vistas de la app videos, repartidas por dominio.
@@ -1571,7 +1571,7 @@ de `views/pages.py`:
 __all__ = ['about']
 ```
 
-- [ ] **Step 4: Verificar el contrato con `urls.py`**
+- [x] **Step 4: Verificar el contrato con `urls.py`**
 
 ```bash
 docker compose -f docker-compose.dev.yml run --rm web python -c "
@@ -1587,7 +1587,7 @@ print('FALTAN:', faltan or 'ninguna')
 Expected: `FALTAN: ninguna`. Si falta alguna, no está reexportada y las URLs que
 la usan darían error al arrancar.
 
-- [ ] **Step 5: Verificar que todas las URLs resuelven**
+- [x] **Step 5: Verificar que todas las URLs resuelven**
 
 ```bash
 docker compose -f docker-compose.dev.yml run --rm web python -c "
@@ -1602,7 +1602,7 @@ print(len(resolver.reverse_dict), 'entradas resueltas')
 Expected: sin excepción. Un `ImportError` aquí significa que `urls.py` no
 encuentra una vista.
 
-- [ ] **Step 6: Verificación estándar de fase 1**
+- [x] **Step 6: Verificación estándar de fase 1**
 
 ```bash
 docker compose -f docker-compose.dev.yml run --rm web python manage.py check
@@ -1611,7 +1611,7 @@ docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-
 ```
 Expected: todo en verde.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git rm videosvoley/videos/views.py
