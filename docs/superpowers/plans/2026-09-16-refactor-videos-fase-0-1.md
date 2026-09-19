@@ -461,7 +461,7 @@ git commit -m "test(videos): caracterizar los managers de Match y League"
 funciones más frágiles ante un movimiento de código porque su corrección depende
 de que las clases se resuelvan entre sí.
 
-- [ ] **Step 1: Escribir los tests**
+- [x] **Step 1: Escribir los tests**
 
 Añadir a `videosvoley/videos/tests/test_models.py`:
 
@@ -571,16 +571,16 @@ class TeamVariantTests(TestCase):
         self.assertEqual(self.principal.display_name_with_variant, 'Sant Josep')
 ```
 
-- [ ] **Step 2: Ejecutar**
+- [x] **Step 2: Ejecutar**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest videosvoley/videos/tests/test_models.py -v --create-db`
 Expected: PASS, 27 tests acumulados.
 
 Si `test_get_all_variants_incluye_el_principal_y_excluye_las_inactivas` falla por
 el orden, comprobar que `get_all_variants()` ordena por `variant_name`: 'Groc'
-precede a 'Lila' alfabéticamente.
+va antes de 'Lila'.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add videosvoley/videos/tests/test_models.py

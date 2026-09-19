@@ -152,3 +152,109 @@ class LeagueManagerTests(TestCase):
     def test_external_leagues_exige_no_estar_relacionada_con_nuestro_equipo(self):
         self.assertEqual(self._nombres(League.objects.external_leagues()), {'Ajena'})
 
+
+class LeaguePhaseTests(TestCase):
+    """Fases de liga: la recursión sube al padre y agrega sus partidos."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.regular = League.objects.create(
+            name='Liga Regular', federation_id='L-R', season='2024-25',
+        )
+        cls.oro = League.objects.create(
+            name='Liga Regular', federation_id='L-ORO', season='2024-25',
+            parent_league=cls.regular, phase_name='Liguilla Oro', phase_order=1,
+        )
+        cls.plata = League.objects.create(
+            name='Liga Regular', federation_id='L-PLA', season='2024-25',
+            parent_league=cls.regular, phase_name='Liguilla Plata', phase_order=2,
+        )
+        cls.a = Team.objects.create(name='A', federation_id='TP-A')
+        cls.b = Team.objects.create(name='B', federation_id='TP-B')
+        cls.partido_regular = Match.objects.create(
+            league=cls.regular, home_team=cls.a, away_team=cls.b,
+            match_date=datetime(2024, 10, 5, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='MP-1',
+        )
+        cls.partido_oro = Match.objects.create(
+            league=cls.oro, home_team=cls.a, away_team=cls.b,
+            match_date=datetime(2025, 2, 8, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='MP-2',
+        )
+
+    def test_is_phase_distingue_la_liga_raiz_de_sus_fases(self):
+        self.assertFalse(self.regular.is_phase)
+        self.assertTrue(self.oro.is_phase)
+
+    def test_root_league_sube_hasta_la_raiz_desde_una_fase(self):
+        self.assertEqual(self.oro.root_league, self.regular)
+
+    def test_get_all_phases_devuelve_la_raiz_primero_y_luego_las_fases_ordenadas(self):
+        self.assertEqual(
+            self.regular.get_all_phases(), [self.regular, self.oro, self.plata]
+        )
+
+    def test_get_all_phases_desde_una_fase_devuelve_lo_mismo_que_desde_la_raiz(self):
+        self.assertEqual(self.oro.get_all_phases(), self.regular.get_all_phases())
+
+    def test_get_combined_matches_agrega_los_partidos_de_todas_las_fases(self):
+        self.assertEqual(
+            set(self.regular.get_combined_matches()),
+            {self.partido_regular, self.partido_oro},
+        )
+
+    def test_get_combined_matches_desde_una_fase_agrega_igual(self):
+        self.assertEqual(
+            set(self.oro.get_combined_matches()),
+            {self.partido_regular, self.partido_oro},
+        )
+
+    def test_display_name_prioriza_el_override_sobre_el_nombre_de_fase(self):
+        self.oro.display_name_override = 'Fase de Oro 24/25'
+        self.assertEqual(self.oro.display_name, 'Fase de Oro 24/25')
+
+    def test_display_name_concatena_el_nombre_de_fase_si_no_hay_override(self):
+        self.assertEqual(self.oro.display_name, 'Liga Regular - Liguilla Oro')
+
+
+class TeamVariantTests(TestCase):
+    """Variantes de equipo: misma recursión que las fases de liga."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.principal = Team.objects.create(name='Sant Josep', federation_id='TV-0')
+        cls.groc = Team.objects.create(
+            name='Sant Josep', federation_id='TV-1',
+            parent_team=cls.principal, variant_type='color', variant_name='Groc',
+        )
+        cls.lila = Team.objects.create(
+            name='Sant Josep', federation_id='TV-2',
+            parent_team=cls.principal, variant_type='color', variant_name='Lila',
+        )
+        cls.retirado = Team.objects.create(
+            name='Sant Josep', federation_id='TV-3',
+            parent_team=cls.principal, variant_name='Blau', is_active=False,
+        )
+
+    def test_is_variant_distingue_el_equipo_principal_de_sus_variantes(self):
+        self.assertFalse(self.principal.is_variant)
+        self.assertTrue(self.groc.is_variant)
+
+    def test_root_team_sube_hasta_el_equipo_principal(self):
+        self.assertEqual(self.groc.root_team, self.principal)
+
+    def test_get_all_variants_incluye_el_principal_y_excluye_las_inactivas(self):
+        self.assertEqual(
+            self.principal.get_all_variants(), [self.principal, self.groc, self.lila]
+        )
+
+    def test_get_all_variants_desde_una_variante_devuelve_lo_mismo(self):
+        self.assertEqual(self.groc.get_all_variants(), self.principal.get_all_variants())
+
+    def test_display_name_with_variant_anade_la_variante_entre_parentesis(self):
+        self.assertEqual(self.groc.display_name_with_variant, 'Sant Josep (Groc)')
+
+    def test_display_name_with_variant_no_anade_nada_al_principal(self):
+        self.assertEqual(self.principal.display_name_with_variant, 'Sant Josep')
+
+
