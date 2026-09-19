@@ -192,7 +192,7 @@ def video_detail(request, video_id):
             comment.user = request.user
             comment.save()
             messages.success(request, '¡Comentario añadido correctamente!')
-            return redirect('video_detail', video_id=video.id)
+            return redirect('videos:video_detail', video_id=video.id)
     else:
         comment_form = CommentForm()
     
