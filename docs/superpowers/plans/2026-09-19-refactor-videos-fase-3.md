@@ -186,7 +186,7 @@ git commit -m "feat(rosters): migrar datos residuales de Player y Staff a Person
 - Consumes: `rosters.migrations.0003_reconcile_legacy_players_staff`.
 - Produces: Eliminación de modelos `Player` y `Staff` en el schema de Django y tablas `videos_player`, `videos_staff`.
 
-- [ ] **Step 1: Crear migración para eliminar `Player` y `Staff`**
+- [x] **Step 1: Crear migración para eliminar `Player` y `Staff`**
 
 Ejecutar `makemigrations rosters` o crear `videosvoley/rosters/migrations/0004_delete_legacy_player_staff.py`:
 
@@ -210,7 +210,7 @@ class Migration(migrations.Migration):
     ]
 ```
 
-- [ ] **Step 2: Limpiar modelos y admin en `rosters`**
+- [x] **Step 2: Limpiar modelos y admin en `rosters`**
 
 En `videosvoley/rosters/models/legacy.py`:
 Dejar solo upload paths de compatibilidad si aplica o vaciar el archivo.
@@ -219,7 +219,7 @@ Remover imports de `Player` y `Staff`.
 En `videosvoley/rosters/admin/legacy.py`:
 Vaciar contenido (o dejar docstring explicativo).
 
-- [ ] **Step 3: Limpiar re-exports en `videos.models` preservando upload stubs**
+- [x] **Step 3: Limpiar re-exports en `videos.models` preservando upload stubs**
 
 En `videosvoley/videos/models/legacy.py`:
 Mantener:
@@ -240,7 +240,7 @@ __all__ = ['player_photo_upload_path', 'staff_photo_upload_path']
 En `videosvoley/videos/models/__init__.py`:
 Remover `Player` y `Staff` de imports y `__all__`. Mantener `player_photo_upload_path` y `staff_photo_upload_path`.
 
-- [ ] **Step 4: Aplicar migración y verificar**
+- [x] **Step 4: Aplicar migración y verificar**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py migrate`
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py check`
@@ -250,7 +250,7 @@ Expected: No changes detected.
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: 98 tests pasando.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add videosvoley/rosters/ videosvoley/videos/models/
