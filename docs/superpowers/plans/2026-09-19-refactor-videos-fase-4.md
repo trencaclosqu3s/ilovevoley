@@ -285,7 +285,7 @@ git commit -m "feat(content): mudar vistas, formularios, urls y templates de con
 - Consumes: Modelos `Club`, `Team`, `PlayerRole`, `StaffRole`, `Category`.
 - Produces: URLs bajo namespace `teams:` y templates en `teams/`.
 
-- [ ] **Step 1: Crear `videosvoley/teams/views.py` y re-exportar en `videos/views/teams.py`**
+- [x] **Step 1: Crear `videosvoley/teams/views.py` y re-exportar en `videos/views/teams.py`**
 
 Mover lógica de `videosvoley/videos/views/teams.py` a `videosvoley/teams/views.py`.
 Actualizar nombres de templates renderizados:
@@ -300,7 +300,7 @@ from videosvoley.teams.views import ajax_register_team, team_list, team_roster
 __all__ = ['ajax_register_team', 'team_list', 'team_roster']
 ```
 
-- [ ] **Step 2: Crear `videosvoley/teams/urls.py` y registrar en `config/urls.py`**
+- [x] **Step 2: Crear `videosvoley/teams/urls.py` y registrar en `config/urls.py`**
 
 Crear `videosvoley/teams/urls.py` con `app_name = 'teams'`:
 ```python
@@ -320,7 +320,7 @@ En `config/urls.py`:
     path('teams/', include('videosvoley.teams.urls', namespace='teams')),
 ```
 
-- [ ] **Step 3: Mover templates a `videosvoley/teams/templates/teams/` y actualizar referencias**
+- [x] **Step 3: Mover templates a `videosvoley/teams/templates/teams/` y actualizar referencias**
 
 Mover:
 - `videosvoley/templates/videos/team_list.html` -> `videosvoley/teams/templates/teams/team_list.html`
@@ -330,13 +330,13 @@ Actualizar en templates y código Python:
 - `videos:team_roster` -> `teams:team_roster`
 - `videos:ajax_register_team` -> `teams:ajax_register_team`
 
-- [ ] **Step 4: Ejecutar test de barrido y suite de tests**
+- [x] **Step 4: Ejecutar test de barrido y suite de tests**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest videosvoley/core/tests/test_url_reverse_sweep.py -v --tb=short`
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: todos los tests pasando en verde.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add videosvoley/teams/ videosvoley/videos/ config/urls.py videosvoley/templates/
