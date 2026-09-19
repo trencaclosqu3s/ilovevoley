@@ -598,7 +598,7 @@ git commit -m "test(videos): caracterizar fases de liga y variantes de equipo"
 - Consumes: los imports de la Task 3, más `ValidationError` y `Video`.
 - Produces: nada que consuman tareas posteriores.
 
-- [ ] **Step 1: Ampliar los imports del fichero**
+- [x] **Step 1: Ampliar los imports del fichero**
 
 En la cabecera de `videosvoley/videos/tests/test_models.py`, sustituir la línea
 de import de modelos y añadir `ValidationError`:
@@ -609,7 +609,7 @@ from django.core.exceptions import ValidationError
 from videosvoley.videos.models import Category, Image, League, Match, Team, Video
 ```
 
-- [ ] **Step 2: Escribir los tests**
+- [x] **Step 2: Escribir los tests**
 
 Añadir al final de `videosvoley/videos/tests/test_models.py`:
 
@@ -730,12 +730,12 @@ class VideoEmbedUrlTests(TestCase):
         )
 ```
 
-- [ ] **Step 3: Ejecutar**
+- [x] **Step 3: Ejecutar**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest videosvoley/videos/tests/test_models.py -v --create-db`
 Expected: PASS, 39 tests acumulados.
 
-- [ ] **Step 4: Documentar la rama muerta detectada en `Match.clean()`**
+- [x] **Step 4: Documentar la rama muerta detectada en `Match.clean()`**
 
 `models.py:556-562` contiene:
 
@@ -756,7 +756,7 @@ Abrir una issue describiendo el hallazgo y enlazarla desde el código con un
 comentario `# NOTA: rama inalcanzable, ver issue #NN` no es necesario aquí;
 basta con dejar constancia en la issue.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add videosvoley/videos/tests/test_models.py

@@ -1,11 +1,12 @@
 from datetime import datetime, timezone as dt_timezone
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
 
-from videosvoley.videos.models import Category, Image, League, Match, Team
+from videosvoley.videos.models import Category, Image, League, Match, Team, Video
 
 User = get_user_model()
 
@@ -256,5 +257,122 @@ class TeamVariantTests(TestCase):
 
     def test_display_name_with_variant_no_anade_nada_al_principal(self):
         self.assertEqual(self.principal.display_name_with_variant, 'Sant Josep')
+
+
+class MatchCleanTests(TestCase):
+    """Validación propia de Match, que no cubre ningún validador de Django."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.league = League.objects.create(
+            name='Liga', federation_id='L-C', season='2024-25',
+        )
+        cls.a = Team.objects.create(name='A', federation_id='TC-A')
+        cls.b = Team.objects.create(name='B', federation_id='TC-B')
+
+    def test_un_amistoso_no_puede_llevar_federation_id(self):
+        partido = Match(
+            is_friendly=True,
+            federation_id='F-1',
+            home_team_text='Equipo invitado',
+            away_team_text='Sant Josep',
+            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
+        )
+        with self.assertRaises(ValidationError):
+            partido.clean()
+
+    def test_un_partido_oficial_ya_guardado_exige_equipo_local(self):
+        partido = Match.objects.create(
+            league=self.league, home_team=self.a, away_team=self.b,
+            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='MC-1',
+        )
+        partido.home_team = None
+        with self.assertRaises(ValidationError):
+            partido.clean()
+
+    def test_un_partido_oficial_ya_guardado_exige_equipo_visitante(self):
+        partido = Match.objects.create(
+            league=self.league, home_team=self.a, away_team=self.b,
+            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='MC-2',
+        )
+        partido.away_team = None
+        with self.assertRaises(ValidationError):
+            partido.clean()
+
+    def test_un_partido_oficial_sin_guardar_no_exige_equipos(self):
+        # La validación solo aplica si self.pk is not None: durante la creación
+        # es el formulario quien valida.
+        partido = Match(
+            league=self.league,
+            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
+        )
+        partido.clean()  # no debe lanzar
+
+    def test_un_amistoso_con_equipos_en_texto_es_valido(self):
+        partido = Match(
+            is_friendly=True,
+            home_team_text='Equipo invitado',
+            away_team_text='Sant Josep',
+            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
+        )
+        partido.clean()  # no debe lanzar
+
+
+class VideoEmbedUrlTests(TestCase):
+    """Parsing de tres formatos de URL de YouTube hacia el dominio nocookie."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username='bert', password='x')
+
+    def _video(self, url):
+        return Video.objects.create(
+            title='Partido', youtube_url=url, created_by=self.user
+        )
+
+    def _esperado(self, video_id):
+        return (
+            f'https://www.youtube-nocookie.com/embed/{video_id}'
+            '?rel=0&modestbranding=1&fs=1&enablejsapi=0'
+        )
+
+    def test_url_watch_se_convierte_en_embed_nocookie(self):
+        video = self._video('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+        self.assertEqual(video.get_embed_url(), self._esperado('dQw4w9WgXcQ'))
+
+    def test_url_watch_con_parametros_extra_ignora_la_cola(self):
+        video = self._video('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s')
+        self.assertEqual(video.get_embed_url(), self._esperado('dQw4w9WgXcQ'))
+
+    def test_url_corta_youtu_be(self):
+        video = self._video('https://youtu.be/dQw4w9WgXcQ')
+        self.assertEqual(video.get_embed_url(), self._esperado('dQw4w9WgXcQ'))
+
+    def test_url_de_directo(self):
+        video = self._video('https://www.youtube.com/live/AbCdEf12345')
+        self.assertEqual(video.get_embed_url(), self._esperado('AbCdEf12345'))
+
+    def test_url_no_reconocida_se_devuelve_intacta(self):
+        video = self._video('https://vimeo.com/123456')
+        self.assertEqual(video.get_embed_url(), 'https://vimeo.com/123456')
+
+    def test_is_livestream_detecta_los_directos(self):
+        self.assertTrue(self._video('https://www.youtube.com/live/AbC').is_livestream())
+        self.assertFalse(
+            self._video('https://www.youtube.com/watch?v=AbC').is_livestream()
+        )
+
+    def test_get_video_type_distingue_directo_de_video(self):
+        self.assertEqual(
+            self._video('https://www.youtube.com/live/AbC').get_video_type(),
+            'livestream',
+        )
+        self.assertEqual(
+            self._video('https://www.youtube.com/watch?v=AbC').get_video_type(),
+            'video',
+        )
+
 
 
