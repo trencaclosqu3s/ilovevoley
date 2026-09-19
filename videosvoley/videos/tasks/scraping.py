@@ -29,11 +29,11 @@ def scrape_all_leagues_task(self, round_number=None, category_filter=None, delay
     logger.info(f"Iniciando tarea de scraping de todas las ligas activas")
     
     # Obtener ligas activas
-    leagues = League.objects.filter(is_active=True).select_related('category')
+    leagues = League.objects.filter(is_active=True).prefetch_related('categories')
     
     # Filtrar por categoría si se especifica
     if category_filter:
-        leagues = leagues.filter(category__name__icontains=category_filter)
+        leagues = leagues.filter(categories__name__icontains=category_filter)
     
     if not leagues.exists():
         error_msg = f'No se encontraron ligas activas'
@@ -257,7 +257,7 @@ def scrape_calendar_task(self, league_id=None, delay=2.0):
             leagues = [league]
         else:
             # Scraping de todas las ligas activas
-            leagues = League.objects.filter(is_active=True).select_related('category')
+            leagues = League.objects.filter(is_active=True).prefetch_related('categories')
             
             if not leagues.exists():
                 error_msg = 'No se encontraron ligas activas'
@@ -411,7 +411,7 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
             leagues = [league]
         else:
             # Scraping de todas las ligas activas
-            leagues = League.objects.filter(is_active=True).select_related('category')
+            leagues = League.objects.filter(is_active=True).prefetch_related('categories')
             
             if not leagues.exists():
                 error_msg = 'No se encontraron ligas activas'
@@ -767,7 +767,7 @@ def handle_withdrawn_teams_task(self, league_id=None, dry_run=False, reactivate_
                 logger.error(error_msg)
                 return {'status': 'error', 'message': error_msg}
         else:
-            leagues = League.objects.filter(is_active=True).select_related('category')
+            leagues = League.objects.filter(is_active=True).prefetch_related('categories')
         
         if not leagues:
             error_msg = 'No se encontraron ligas activas para procesar'
