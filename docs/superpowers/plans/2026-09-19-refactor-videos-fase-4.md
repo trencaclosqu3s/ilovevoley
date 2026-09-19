@@ -149,115 +149,17 @@ git commit -m "test(core): anadir test de barrido estatico de URLs y corregir re
 - Consumes: Modelos `Person`, `PlayerRole`, `StaffRole`, `Team`, `Category`.
 - Produces: URLs bajo namespace `rosters:` y templates en `rosters/`.
 
-- [ ] **Step 1: Crear `videosvoley/rosters/forms.py` y re-exportar en `videos/forms/rosters.py`**
-
-Mover contenido de `videosvoley/videos/forms/rosters.py` a `videosvoley/rosters/forms.py`, ajustando imports de modelos (`from .models import Person, PlayerRole, StaffRole` o `from videosvoley.rosters.models import ...`).
-En `videosvoley/videos/forms/rosters.py`, re-exportar:
-```python
-from videosvoley.rosters.forms import (
-    PersonForm,
-    PlayerRoleForm,
-    StaffRoleForm,
-)
-
-__all__ = [
-    'PersonForm',
-    'PlayerRoleForm',
-    'StaffRoleForm',
-]
-```
-
-- [ ] **Step 2: Crear `videosvoley/rosters/views.py` y re-exportar en `videos/views/rosters.py`**
-
-Mover lógica de `videosvoley/videos/views/rosters.py` a `videosvoley/rosters/views.py`.
-Actualizar los nombres de template renderizados a `'rosters/...'`:
-- `'videos/roster_overview.html'` -> `'rosters/roster_overview.html'`
-- `'videos/person_list.html'` -> `'rosters/person_list.html'`
-- `'videos/person_detail.html'` -> `'rosters/person_detail.html'`
-- `'videos/person_form.html'` -> `'rosters/person_form.html'`
-- `'videos/role_form.html'` -> `'rosters/role_form.html'`
-Actualizar redirects en `rosters/views.py` a `rosters:*`:
-- `videos:person_detail` -> `rosters:person_detail`
-- `videos:person_list` -> `rosters:person_list`
-- `videos:roster_overview` -> `rosters:roster_overview`
-En `videosvoley/videos/views/rosters.py`, re-exportar:
-```python
-from videosvoley.rosters.views import *  # noqa: F401,F403
-from videosvoley.rosters.views import (
-    person_create,
-    person_detail,
-    person_edit,
-    person_list,
-    player_role_create,
-    player_role_edit,
-    player_role_toggle_active,
-    roster_overview,
-    staff_role_create,
-    staff_role_edit,
-    staff_role_toggle_active,
-)
-
-__all__ = [
-    'roster_overview',
-    'person_list',
-    'person_detail',
-    'person_create',
-    'person_edit',
-    'player_role_create',
-    'staff_role_create',
-    'player_role_edit',
-    'staff_role_edit',
-    'player_role_toggle_active',
-    'staff_role_toggle_active',
-]
-```
-
-- [ ] **Step 3: Crear `videosvoley/rosters/urls.py` y añadir a `config/urls.py`**
-
-Crear `videosvoley/rosters/urls.py`:
-```python
-from django.urls import path
-from . import views
-
-app_name = 'rosters'
-
-urlpatterns = [
-    path('plantillas/', views.roster_overview, name='roster_overview'),
-    path('personas/', views.person_list, name='person_list'),
-    path('personas/nueva/', views.person_create, name='person_create'),
-    path('personas/<int:person_id>/', views.person_detail, name='person_detail'),
-    path('personas/<int:person_id>/editar/', views.person_edit, name='person_edit'),
-    path('personas/<int:person_id>/jugador/agregar/', views.player_role_create, name='player_role_create'),
-    path('roles-jugador/<int:role_id>/editar/', views.player_role_edit, name='player_role_edit'),
-    path('roles-jugador/<int:role_id>/toggle/', views.player_role_toggle_active, name='player_role_toggle_active'),
-    path('personas/<int:person_id>/staff/agregar/', views.staff_role_create, name='staff_role_create'),
-    path('roles-staff/<int:role_id>/editar/', views.staff_role_edit, name='staff_role_edit'),
-    path('roles-staff/<int:role_id>/toggle/', views.staff_role_toggle_active, name='staff_role_toggle_active'),
-]
-```
-En `config/urls.py`, registrar:
-```python
-    path('rosters/', include('videosvoley.rosters.urls', namespace='rosters')),
-```
-
-- [ ] **Step 4: Mover templates a `videosvoley/rosters/templates/rosters/` y actualizar referencias**
-
-Mover:
-- `videosvoley/templates/videos/roster_overview.html` -> `videosvoley/rosters/templates/rosters/roster_overview.html`
-- `videosvoley/templates/videos/person_list.html` -> `videosvoley/rosters/templates/rosters/person_list.html`
-- `videosvoley/templates/videos/person_detail.html` -> `videosvoley/rosters/templates/rosters/person_detail.html`
-- `videosvoley/templates/videos/person_form.html` -> `videosvoley/rosters/templates/rosters/person_form.html`
-- `videosvoley/templates/videos/role_form.html` -> `videosvoley/rosters/templates/rosters/role_form.html`
-
-Actualizar en todos los templates (`rosters/`, `navbar.html`, etc.) las llamadas `videos:person_*`, `videos:player_role_*`, `videos:staff_role_*`, `videos:roster_overview` por `rosters:*`.
-
-- [ ] **Step 5: Ejecutar test de barrido y suite de tests**
-
-Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest videosvoley/core/tests/test_url_reverse_sweep.py -v --tb=short`
-Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
-Expected: todos los tests pasando en verde.
-
-- [ ] **Step 6: Commit**
+- [x] **Step 1: Crear `videosvoley/rosters/forms.py` y re-exportar en `videos/forms/rosters.py`**
+...
+- [x] **Step 2: Crear `videosvoley/rosters/views.py` y re-exportar en `videos/views/rosters.py`**
+...
+- [x] **Step 3: Crear `videosvoley/rosters/urls.py` y añadir a `config/urls.py`**
+...
+- [x] **Step 4: Mover templates a `videosvoley/rosters/templates/rosters/` y actualizar referencias**
+...
+- [x] **Step 5: Ejecutar test de barrido y suite de tests**
+...
+- [x] **Step 6: Commit**
 
 ```bash
 git add videosvoley/rosters/ videosvoley/videos/ config/urls.py videosvoley/templates/
