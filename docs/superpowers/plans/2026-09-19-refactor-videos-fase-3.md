@@ -344,17 +344,17 @@ git commit -m "feat(competitions): migrar y eliminar campo obsoleto League.categ
 - Consumes: Directorio residual sin uso.
 - Produces: Limpieza del árbol de directorios de `videosvoley.core`.
 
-- [ ] **Step 1: Eliminar el directorio `videosvoley/core/tasks/`**
+- [x] **Step 1: Eliminar el directorio `videosvoley/core/tasks/`**
 
 Run: `rm -rf videosvoley/core/tasks/`
 
-- [ ] **Step 2: Verificar tests**
+- [x] **Step 2: Verificar tests**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py check`
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: 98 tests pasando.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add videosvoley/core/tasks/
