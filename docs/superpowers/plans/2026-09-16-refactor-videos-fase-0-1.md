@@ -235,7 +235,7 @@ git commit -m "test: reorganizar tests a la estructura app/tests/"
 `image_type` y, después de guardar, hereda categorías de la liga y de ambos
 equipos. Nada de eso es evidente leyendo el modelo.
 
-- [ ] **Step 1: Escribir el test que falla**
+- [x] **Step 1: Escribir el test que falla**
 
 Crear `videosvoley/videos/tests/test_models.py`:
 
@@ -323,7 +323,7 @@ class ImageSaveTests(TestCase):
         self.assertEqual(imagen.categories.count(), 0)
 ```
 
-- [ ] **Step 2: Ejecutar y verificar que pasa**
+- [x] **Step 2: Ejecutar y verificar que pasa**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest videosvoley/videos/tests/test_models.py -v --create-db`
 Expected: PASS, 6 tests.
@@ -333,7 +333,7 @@ primera. No es TDD: es caracterización previa a un refactor, y su valor está e
 fallar más adelante si la fase 1 altera algo. Si alguno falla ahora, el modelo
 no hace lo que el código aparenta y hay que investigarlo antes de seguir.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add videosvoley/videos/tests/test_models.py
