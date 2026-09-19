@@ -36,7 +36,7 @@ class User(AbstractUser):
     
     # Relación con fichas de hijos (para padres)
     children = models.ManyToManyField(
-        'videos.Person',
+        'rosters.Person',
         blank=True,
         related_name='parents',
         verbose_name='Hijos',
