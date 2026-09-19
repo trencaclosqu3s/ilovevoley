@@ -369,22 +369,22 @@ git commit -m "refactor(core): eliminar paquete residual core/tasks #68 @time 5m
 - Consumes: Todo el trabajo completado en las tareas 1-4.
 - Produces: Certificación de integridad de base de datos, código y tests.
 
-- [ ] **Step 1: Ejecutar check del sistema**
+- [x] **Step 1: Ejecutar check del sistema**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py check`
 Expected: 0 issues.
 
-- [ ] **Step 2: Verificar que no hay migraciones pendientes**
+- [x] **Step 2: Verificar que no hay migraciones pendientes**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py makemigrations --check --dry-run`
 Expected: `No changes detected`.
 
-- [ ] **Step 3: Ejecutar suite completa con `--create-db`**
+- [x] **Step 3: Ejecutar suite completa con `--create-db`**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: 98 tests pasando en verde.
 
-- [ ] **Step 4: Commit de documentación y checklist**
+- [x] **Step 4: Commit de documentación y checklist**
 
 ```bash
 git add docs/superpowers/plans/2026-09-19-refactor-videos-fase-3.md
