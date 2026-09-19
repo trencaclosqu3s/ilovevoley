@@ -41,7 +41,7 @@
 - Consumes: Los modelos actuales de `videosvoley.videos.models`.
 - Produces: `db_table = 'videos_...'` explícito en `Meta` de los 15 modelos y en los dos campos `ManyToManyField` (`League.categories`, `Image.categories`), garantizando que al moverlos a nuevas apps Django no intente cambiar el nombre de tabla física.
 
-- [ ] **Step 1: Añadir `db_table` a la clase `Meta` de cada modelo**
+- [x] **Step 1: Añadir `db_table` a la clase `Meta` de cada modelo**
 
 En cada uno de los archivos de `videosvoley/videos/models/`:
 - `category.py`:
@@ -73,23 +73,23 @@ En cada uno de los archivos de `videosvoley/videos/models/`:
   - `Player.Meta.db_table = 'videos_player'`
   - `Staff.Meta.db_table = 'videos_staff'`
 
-- [ ] **Step 2: Generar la migración de `db_table`**
+- [x] **Step 2: Generar la migración de `db_table`**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py makemigrations videos -n set_explicit_db_tables`
 Expected: Migración `0036_set_explicit_db_tables.py` creada con operaciones `AlterModelTable`.
 
-- [ ] **Step 3: Verificar que el SQL generado es 100% vacío**
+- [x] **Step 3: Verificar que el SQL generado es 100% vacío**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py sqlmigrate videos 0036`
 Expected: Salida sin sentencias DDL (tablas ya tienen esos nombres en BD).
 
-- [ ] **Step 4: Aplicar la migración y ejecutar suite de tests**
+- [x] **Step 4: Aplicar la migración y ejecutar suite de tests**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py migrate videos`
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: 98 tests pasando en verde.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add videosvoley/videos/models/ videosvoley/videos/migrations/0036_set_explicit_db_tables.py
