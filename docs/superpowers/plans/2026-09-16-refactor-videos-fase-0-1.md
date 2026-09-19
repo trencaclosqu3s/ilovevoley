@@ -882,7 +882,7 @@ entornos antes de tocar nada más.
 - Produces: la documentación que acompaña al repo a cualquier máquina, y que
   sustituye a la memoria local del servidor de producción.
 
-- [ ] **Step 1: Escribir `CLAUDE.md`**
+- [x] **Step 1: Escribir `CLAUDE.md`**
 
 ```markdown
 # CLAUDE.md
@@ -957,18 +957,18 @@ La app `videos` se está repartiendo en paquetes. Ver
 nuevas y vacías y copiaban las filas a mano. Está descartada.
 ```
 
-- [ ] **Step 2: Eliminar el symlink roto**
+- [x] **Step 2: Eliminar el symlink roto**
 
 ```bash
 git rm WARP.md
 ```
 
-- [ ] **Step 3: Verificar**
+- [x] **Step 3: Verificar**
 
 Run: `ls -la CLAUDE.md WARP.md 2>&1`
 Expected: `CLAUDE.md` existe como fichero regular; `WARP.md` ya no existe.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add CLAUDE.md
