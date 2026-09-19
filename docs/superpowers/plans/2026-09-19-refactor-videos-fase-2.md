@@ -261,12 +261,12 @@ git commit -m "feat(content): extraer app content con SeparateDatabaseAndState #
 - Consumes: Modelos `Club`, `Team` de `videosvoley.videos.models`.
 - Produces: App `videosvoley.teams` independiente con reexportación en `videos.models`.
 
-- [ ] **Step 1: Crear estructura de app `teams` y registrar en `settings.py`**
-- [ ] **Step 2: Mover modelos `Club`, `Team` a `videosvoley/teams/models/`**
-- [ ] **Step 3: Mover admin a `videosvoley/teams/admin/`**
-- [ ] **Step 4: Migraciones espejo `SeparateDatabaseAndState` + actualización de `django_content_type`**
-- [ ] **Step 5: Verificar `sqlmigrate` (0 DDL), `check`, `makemigrations --check` y tests**
-- [ ] **Step 6: Commit**
+- [x] **Step 1: Crear estructura de app `teams` y registrar en `settings.py`**
+- [x] **Step 2: Mover modelos `Club`, `Team` a `videosvoley/teams/models/`**
+- [x] **Step 3: Mover admin a `videosvoley/teams/admin/`**
+- [x] **Step 4: Migraciones espejo `SeparateDatabaseAndState` + actualización de `django_content_type`**
+- [x] **Step 5: Verificar `sqlmigrate` (0 DDL), `check`, `makemigrations --check` y tests**
+- [x] **Step 6: Commit**
 
 ```bash
 git add videosvoley/teams/ config/settings.py videosvoley/videos/
