@@ -1741,7 +1741,7 @@ Va el último porque es el fichero con más acoplamiento y porque un fallo aquí
 corrompe datos scrapeados en silencio, sin que ninguna página dé error. Llega con
 la red de tests RFEVB ya en su sitio.
 
-- [ ] **Step 1: Inventariar el contrato público**
+- [x] **Step 1: Inventariar el contrato público**
 
 ```bash
 grep -rhoE 'from (videosvoley\.videos\.)?\.?scraping import [A-Za-z0-9_, ]+' \
@@ -1750,7 +1750,7 @@ grep -rhoE 'from (videosvoley\.videos\.)?\.?scraping import [A-Za-z0-9_, ]+' \
 
 Esta lista de nombres es lo que el `__init__.py` debe reexportar sin falta.
 
-- [ ] **Step 2: Reparto exacto de los 14 elementos**
+- [x] **Step 2: Reparto exacto de los 14 elementos**
 
 Verificado contra el fichero actual:
 
@@ -1769,7 +1769,7 @@ lo cual es reescritura de diseño y no movimiento mecánico: queda fuera del
 alcance de la fase 1. Anotarlo en el mensaje del commit y abrir una issue de
 seguimiento.
 
-- [ ] **Step 3: Escribir el `__init__.py`**
+- [x] **Step 3: Escribir el `__init__.py`**
 
 ```python
 """Scraping de la app videos, repartido por fuente de datos."""
@@ -1788,7 +1788,7 @@ importa a nadie; `parsers`, `acta` y `rfevb` usan `BaseParser` de `base`; y
 `acta.py` expone solo `parse_acta_lineup` en su `__all__`: las tres funciones con
 prefijo `_` son auxiliares suyas y no forman parte del contrato público.
 
-- [ ] **Step 4: Verificar el contrato público**
+- [x] **Step 4: Verificar el contrato público**
 
 Comprobar que cada nombre del inventario del Step 1 sigue importable:
 
@@ -1804,7 +1804,7 @@ print('contrato mínimo OK')
 Expected: `contrato mínimo OK`. Ampliar la línea de import con el resto de
 nombres del inventario.
 
-- [ ] **Step 5: Verificar que los comandos de management siguen arrancando**
+- [x] **Step 5: Verificar que los comandos de management siguen arrancando**
 
 ```bash
 docker compose -f docker-compose.dev.yml run --rm web python manage.py help 2>&1 | grep -A40 '\[videos\]'
@@ -1813,7 +1813,7 @@ Expected: la lista completa de comandos de la app `videos`. Django los descubre
 importándolos, así que un `ImportError` en cualquiera los haría desaparecer de
 esta lista sin dar error.
 
-- [ ] **Step 6: Verificación estándar de fase 1**
+- [x] **Step 6: Verificación estándar de fase 1**
 
 ```bash
 docker compose -f docker-compose.dev.yml run --rm web python manage.py check
@@ -1822,7 +1822,7 @@ docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-
 ```
 Expected: todo en verde, con los 30 tests de scraping RFEVB incluidos.
 
-- [ ] **Step 7: Commit y cierre de la fase 1**
+- [x] **Step 7: Commit y cierre de la fase 1**
 
 ```bash
 git rm videosvoley/videos/scraping.py
