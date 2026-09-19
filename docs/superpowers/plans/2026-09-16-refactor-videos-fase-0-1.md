@@ -775,7 +775,7 @@ git commit -m "test(videos): caracterizar Match.clean() y Video.get_embed_url()"
 - Produces: la verificación automática de la que dependen todas las tareas de la
   fase 1, en particular la guarda `makemigrations --check`.
 
-- [ ] **Step 1: Crear el workflow**
+- [x] **Step 1: Crear el workflow**
 
 ```yaml
 name: Tests
@@ -841,7 +841,7 @@ jobs:
 El paso `makemigrations --check --dry-run` es la guarda central de la fase 1: si
 mover una clase de fichero generase una migración, este paso falla y el CI corta.
 
-- [ ] **Step 2: Verificar el workflow en local antes de empujar**
+- [x] **Step 2: Verificar el workflow en local antes de empujar**
 
 Run:
 ```bash
@@ -853,7 +853,7 @@ pendientes. **Si ya indica cambios pendientes antes de empezar la fase 1**,
 resolverlos ahora: arrancar la fase 1 con el árbol sucio impide distinguir las
 migraciones que genera el refactor de las que ya estaban.
 
-- [ ] **Step 3: Commit y comprobar el CI en verde**
+- [x] **Step 3: Commit y comprobar el CI en verde**
 
 ```bash
 git add .github/workflows/tests.yml
