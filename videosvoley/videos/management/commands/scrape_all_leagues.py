@@ -48,7 +48,7 @@ class Command(BaseCommand):
         
         # Filtrar por categoría si se especifica
         if category_filter:
-            leagues = leagues.filter(categories__name__icontains=category_filter)
+            leagues = leagues.filter(categories__name__icontains=category_filter).distinct()
 
         if not leagues.exists():
             filter_msg = f" de categoría '{category_filter}'" if category_filter else ""

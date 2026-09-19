@@ -33,7 +33,7 @@ def scrape_all_leagues_task(self, round_number=None, category_filter=None, delay
     
     # Filtrar por categoría si se especifica
     if category_filter:
-        leagues = leagues.filter(categories__name__icontains=category_filter)
+        leagues = leagues.filter(categories__name__icontains=category_filter).distinct()
     
     if not leagues.exists():
         error_msg = f'No se encontraron ligas activas'

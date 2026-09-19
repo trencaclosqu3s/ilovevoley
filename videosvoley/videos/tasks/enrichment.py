@@ -580,7 +580,7 @@ def process_json_unified_task(self, json_url, op_type='1', league_id=None, categ
         
         # Filtrar por categoría si se especifica
         if category_filter:
-            leagues = leagues.filter(categories__name__icontains=category_filter)
+            leagues = leagues.filter(categories__name__icontains=category_filter).distinct()
         
         if not leagues.exists():
             error_msg = f'No se encontraron ligas activas'
