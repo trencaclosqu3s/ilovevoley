@@ -295,12 +295,12 @@ git commit -m "feat(teams): extraer app teams con SeparateDatabaseAndState #68 @
 - Consumes: Modelos `League`, `Match`, `Standing`, `ScrapingEndpoint` de `videosvoley.videos.models`.
 - Produces: App `videosvoley.competitions` independiente con reexportación en `videos.models`.
 
-- [ ] **Step 1: Crear estructura de app `competitions` y registrar en `settings.py`**
-- [ ] **Step 2: Mover modelos a `videosvoley/competitions/models/`**
-- [ ] **Step 3: Mover admin a `videosvoley/competitions/admin/`**
-- [ ] **Step 4: Migraciones espejo `SeparateDatabaseAndState` + actualización de `django_content_type`**
-- [ ] **Step 5: Verificar `sqlmigrate` (0 DDL), `check`, `makemigrations --check` y tests**
-- [ ] **Step 6: Commit**
+- [x] **Step 1: Crear estructura de app `competitions` y registrar en `settings.py`**
+- [x] **Step 2: Mover modelos a `videosvoley/competitions/models/`**
+- [x] **Step 3: Mover admin a `videosvoley/competitions/admin/`**
+- [x] **Step 4: Migraciones espejo `SeparateDatabaseAndState` + actualización de `django_content_type`**
+- [x] **Step 5: Verificar `sqlmigrate` (0 DDL), `check`, `makemigrations --check` y tests**
+- [x] **Step 6: Commit**
 
 ```bash
 git add videosvoley/competitions/ config/settings.py videosvoley/videos/
