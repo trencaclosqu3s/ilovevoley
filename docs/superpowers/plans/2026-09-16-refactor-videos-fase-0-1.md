@@ -124,12 +124,12 @@ ejecutarse en silencio hasta que la Task 2 los reubicase. La Task 2 elimina
 > quedan **pendientes** y deben ejecutarse en el entorno de desarrollo, por el
 > motivo explicado en las restricciones globales.
 
-- [ ] **Step 4: Reconstruir la imagen**
+- [x] **Step 4: Reconstruir la imagen**
 
 Run: `docker compose -f docker-compose.dev.yml build web`
 Expected: build correcto, con `pytest` y `pytest-django` instalados.
 
-- [ ] **Step 5: Ejecutar la suite existente**
+- [x] **Step 5: Ejecutar la suite existente**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v`
 Expected: PASS. Los tests actuales son `django.test.TestCase` y pytest-django
