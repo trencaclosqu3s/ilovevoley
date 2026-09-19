@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'videosvoley.rosters',
     'videosvoley.content',
     'videosvoley.teams',
+    'videosvoley.competitions',
     'videosvoley.videos',
     'videosvoley.users',
 ]

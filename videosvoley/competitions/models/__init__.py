@@ -1,5 +1,4 @@
-"""Reexport de modelos de competitions desde videosvoley.competitions para retrocompatibilidad."""
-from videosvoley.competitions.models import (  # noqa: F401
+from .competitions import (
     League,
     LeagueManager,
     Match,

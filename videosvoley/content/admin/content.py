@@ -9,7 +9,7 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 
 from ..models import Video, Image
-from videosvoley.videos.models import Match
+from videosvoley.competitions.models import Match
 
 
 @admin.register(Video)
