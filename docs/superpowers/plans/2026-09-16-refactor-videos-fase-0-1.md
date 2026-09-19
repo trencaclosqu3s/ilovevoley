@@ -1013,7 +1013,7 @@ Reparto de las 1433 líneas del `models.py` actual:
 | `rosters.py` | `person_photo_upload_path`, `Person`, `PlayerRole`, `StaffRole` | 1117-1433 |
 | `legacy.py` | `player_photo_upload_path`, `staff_photo_upload_path`, `Player`, `Staff` | 885-1110 |
 
-- [ ] **Step 1: Crear el directorio y extraer los bloques**
+- [x] **Step 1: Crear el directorio y extraer los bloques**
 
 Todos los comandos se ejecutan desde la raíz del repositorio. `M` y `N` son
 variables de conveniencia para no repetir rutas largas:
@@ -1037,7 +1037,7 @@ desde entonces, localizar los límites con
 `grep -n '^class \|^def ' videosvoley/videos/models.py` y ajustar antes de
 continuar.
 
-- [ ] **Step 2: Añadir la cabecera de imports a cada módulo**
+- [x] **Step 2: Añadir la cabecera de imports a cada módulo**
 
 Insertar al principio de cada fichero, exactamente esto:
 
@@ -1103,7 +1103,7 @@ importa `category`; `content` importa `category`; `competitions` importa
 cruzadas hacia `Match` ya usan strings (`FK('Match')`), que Django resuelve en
 diferido.
 
-- [ ] **Step 3: Arreglar el único import relativo roto**
+- [x] **Step 3: Arreglar el único import relativo roto**
 
 En `videosvoley/videos/models_new/competitions.py`, dentro de `League.get_combined_matches()`, hay:
 
@@ -1135,7 +1135,7 @@ grep -n 'from \.models' videosvoley/videos/models_new/*.py
 ```
 Expected: sin resultados.
 
-- [ ] **Step 4: Escribir el `__init__.py`**
+- [x] **Step 4: Escribir el `__init__.py`**
 
 `videosvoley/videos/models_new/__init__.py`:
 
@@ -1198,7 +1198,7 @@ El orden de los imports respeta el grafo de dependencias y **no debe
 reordenarse alfabéticamente**: `category` antes que `teams`, y `teams` antes que
 `competitions`, `rosters` y `legacy`.
 
-- [ ] **Step 5: Sustituir el módulo por el paquete**
+- [x] **Step 5: Sustituir el módulo por el paquete**
 
 ```bash
 git rm videosvoley/videos/models.py
@@ -1206,7 +1206,7 @@ mv videosvoley/videos/models_new videosvoley/videos/models
 git add videosvoley/videos/models/
 ```
 
-- [ ] **Step 6: Comprobar que Django arranca**
+- [x] **Step 6: Comprobar que Django arranca**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py check`
 Expected: `System check identified no issues`.
@@ -1214,7 +1214,7 @@ Expected: `System check identified no issues`.
 Si aparece `RuntimeError: Model class ... doesn't declare an explicit app_label`,
 falta un import en `__init__.py`: Django no ve el modelo porque nadie lo importa.
 
-- [ ] **Step 7: Generar la única migración esperada**
+- [x] **Step 7: Generar la única migración esperada**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py makemigrations videos --name alter_upload_to_paths`
 Expected: una migración con **exactamente cuatro** `AlterField`, sobre
@@ -1226,26 +1226,26 @@ funciones ha cambiado.
 `AlterModelOptions`, `CreateModel`…), algo se ha alterado sin querer al mover el
 código: revertir y comparar el módulo afectado con `git show HEAD:videosvoley/videos/models.py`.
 
-- [ ] **Step 8: Verificar que la migración no toca la base de datos**
+- [x] **Step 8: Verificar que la migración no toca la base de datos**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py sqlmigrate videos 0036`
 Expected: **sin una sola sentencia DDL**. `upload_to` es lógica de Python, no una
 columna. Si aparece cualquier `ALTER TABLE`, detenerse e investigar: significa
 que el campo ha cambiado de verdad.
 
-- [ ] **Step 9: Verificar que ya no quedan migraciones pendientes**
+- [x] **Step 9: Verificar que ya no quedan migraciones pendientes**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py makemigrations --check --dry-run`
 Expected: sin cambios pendientes.
 
-- [ ] **Step 10: Ejecutar toda la suite**
+- [x] **Step 10: Ejecutar toda la suite**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v`
 Expected: PASS, mismo recuento que tras la Task 6. `--create-db` reproduce las 36
 migraciones desde cero, lo que además confirma que las migraciones `0012`,
 `0015`, `0019` y `0020` siguen resolviendo las funciones de upload.
 
-- [ ] **Step 11: Comprobar que el diff es solo movimiento**
+- [x] **Step 11: Comprobar que el diff es solo movimiento**
 
 Run: `git diff --cached --stat`
 Expected: las líneas eliminadas de `models.py` deben coincidir aproximadamente
@@ -1253,7 +1253,7 @@ con las añadidas entre los seis módulos nuevos, más la cabecera de imports de
 cada uno y el `__init__.py`. Una diferencia grande indica código perdido o
 duplicado.
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add videosvoley/videos/models/ videosvoley/videos/migrations/0036_alter_upload_to_paths.py
