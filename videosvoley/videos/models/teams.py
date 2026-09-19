@@ -22,6 +22,7 @@ class Club(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'videos_club'
         ordering = ['official_name']
         verbose_name = 'Club'
         verbose_name_plural = 'Clubes'
@@ -87,6 +88,7 @@ class Team(models.Model):
     )
 
     class Meta:
+        db_table = 'videos_team'
         ordering = ['name']
         verbose_name = 'Equipo'
         verbose_name_plural = 'Equipos'

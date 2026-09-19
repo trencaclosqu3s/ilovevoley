@@ -86,6 +86,7 @@ class Person(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
 
     class Meta:
+        db_table = 'videos_person'
         ordering = ['last_name', 'first_name']
         verbose_name = 'Ficha'
         verbose_name_plural = 'Fichas'
@@ -217,6 +218,7 @@ class PlayerRole(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
 
     class Meta:
+        db_table = 'videos_playerrole'
         ordering = ['team', 'jersey_number', 'person__last_name', 'person__first_name']
         verbose_name = 'Rol de Jugador'
         verbose_name_plural = 'Roles de Jugador'
@@ -300,6 +302,7 @@ class StaffRole(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
 
     class Meta:
+        db_table = 'videos_staffrole'
         ordering = ['team', 'role', 'person__last_name', 'person__first_name']
         verbose_name = 'Rol de Staff'
         verbose_name_plural = 'Roles de Staff'

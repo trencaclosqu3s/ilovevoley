@@ -97,6 +97,7 @@ class Player(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Última Actualización')
     
     class Meta:
+        db_table = 'videos_player'
         ordering = ['jersey_number', 'last_name', 'first_name']
         verbose_name = 'Jugador'
         verbose_name_plural = 'Jugadores'
@@ -215,6 +216,7 @@ class Staff(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Última Actualización')
     
     class Meta:
+        db_table = 'videos_staff'
         ordering = ['role', 'last_name', 'first_name']
         verbose_name = 'Miembro del Staff'
         verbose_name_plural = 'Staff'

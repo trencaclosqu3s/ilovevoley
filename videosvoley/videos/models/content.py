@@ -27,6 +27,7 @@ class Video(models.Model):
     )
 
     class Meta:
+        db_table = 'videos_video'
         ordering = ['-created_at']
 
     def __str__(self):
@@ -71,6 +72,7 @@ class Comment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'videos_comment'
         ordering = ['created_at']
 
     def __str__(self):
@@ -161,6 +163,7 @@ class Image(models.Model):
         Category,
         blank=True,
         related_name='images',
+        db_table='videos_image_categories',
         help_text='Categorías asociadas a la imagen. Se asigna automáticamente desde el partido o manualmente'
     )
     year = models.IntegerField(help_text='Año de la temporada')
@@ -208,6 +211,7 @@ class Image(models.Model):
     )
 
     class Meta:
+        db_table = 'videos_image'
         ordering = ['-upload_date']
         verbose_name = 'Imagen'
         verbose_name_plural = 'Imágenes'

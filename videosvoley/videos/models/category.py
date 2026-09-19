@@ -8,6 +8,7 @@ class Category(models.Model):
     is_active = models.BooleanField(default=True)
 
     class Meta:
+        db_table = 'videos_category'
         ordering = ['name']
         verbose_name = 'Categoría'
         verbose_name_plural = 'Categorías'

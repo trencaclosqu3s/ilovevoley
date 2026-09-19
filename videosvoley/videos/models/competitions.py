@@ -69,7 +69,7 @@ class League(models.Model):
     # DEPRECATED: Usar 'categories' en su lugar
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='leagues_old', help_text='DEPRECATED: Usar categories')
     # Nuevo campo para soporte multi-categoría (torneos, copas)
-    categories = models.ManyToManyField(Category, blank=True, related_name='leagues', help_text='Categorías de la liga (puede ser múltiple para torneos/copas)')
+    categories = models.ManyToManyField(Category, blank=True, related_name='leagues', db_table='videos_league_categories', help_text='Categorías de la liga (puede ser múltiple para torneos/copas)')
     is_active = models.BooleanField(default=True)
     visibility_type = models.CharField(
         max_length=20, 
@@ -131,6 +131,7 @@ class League(models.Model):
     objects = LeagueManager()
     
     class Meta:
+        db_table = 'videos_league'
         ordering = ['-created_at']
         verbose_name = 'Liga'
         verbose_name_plural = 'Ligas'
@@ -282,6 +283,7 @@ class Match(models.Model):
     all_objects = MatchAllManager()  # Manager completo: incluye withdrawn
     
     class Meta:
+        db_table = 'videos_match'
         ordering = ['match_date']
         verbose_name = 'Partido'
         verbose_name_plural = 'Partidos'
@@ -373,6 +375,7 @@ class ScrapingEndpoint(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
+        db_table = 'videos_scrapingendpoint'
         verbose_name = 'Endpoint de Scraping'
         verbose_name_plural = 'Endpoints de Scraping'
         unique_together = ['league', 'endpoint_type']
@@ -409,6 +412,7 @@ class Standing(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'videos_standing'
         ordering = ['position']
         verbose_name = 'Clasificación'
         verbose_name_plural = 'Clasificaciones'
