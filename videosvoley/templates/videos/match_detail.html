@@ -305,7 +305,7 @@
                     📹 Videos del partido ({{ videos.count }})
                 </h2>
                 {% if can_manage_videos %}
-                    <a href="{% url 'videos:video_bulk_create' %}?match={{ match.id }}"
+                    <a href="{% url 'content:video_bulk_create' %}?match={{ match.id }}"
                        class="inline-flex items-center px-3 py-1.5 bg-csj-purple hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition">
                         + Añadir vídeos
                     </a>
@@ -330,7 +330,7 @@
                         <!-- Video info -->
                         <div class="p-4">
                             <h3 class="font-semibold text-gray-800 mb-2 line-clamp-2">
-                                <a href="{% url 'videos:video_detail' video.id %}" class="hover:text-csj-purple transition">
+                                <a href="{% url 'content:video_detail' video.id %}" class="hover:text-csj-purple transition">
                                     {{ video.title }}
                                 </a>
                             </h3>
@@ -365,7 +365,7 @@
             <p class="mt-2 text-sm text-gray-500">
                 Aún no se han subido videos para este enfrentamiento. 
                 {% if can_manage_videos %}
-                    <a href="{% url 'videos:video_bulk_create' %}?match={{ match.id }}" class="text-csj-purple hover:text-csj-purple-dark font-medium">
+                    <a href="{% url 'content:video_bulk_create' %}?match={{ match.id }}" class="text-csj-purple hover:text-csj-purple-dark font-medium">
                         ¡Sé el primero en añadir uno!
                     </a>
                 {% endif %}
@@ -380,7 +380,7 @@
                 <h2 class="text-lg sm:text-xl font-bold text-gray-800">
                     📸 Galería del partido
                 </h2>
-                <a href="{% url 'videos:match_images' match.id %}" 
+                <a href="{% url 'content:match_images' match.id %}" 
                    class="text-csj-purple hover:text-purple-700 text-sm font-medium">
                     Ver todas <i class="fas fa-arrow-right ml-1"></i>
                 </a>
@@ -405,7 +405,7 @@
 
                 {% if images.count > 8 %}
                     <div class="text-center mt-4">
-                        <a href="{% url 'videos:match_images' match.id %}"
+                        <a href="{% url 'content:match_images' match.id %}"
                            class="inline-flex items-center px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
                             Ver las {{ images.count }} imágenes <i class="fas fa-images ml-2"></i>
                         </a>
@@ -432,14 +432,14 @@
                     <div id="upload-menu-{{ match.id }}"
                          class="hidden absolute mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
                         <div class="py-1 min-w-full">
-                            <a href="{% url 'videos:image_upload' %}?match={{ match.id }}" 
+                            <a href="{% url 'content:image_upload' %}?match={{ match.id }}" 
                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 whitespace-nowrap">
                                 <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                 </svg>
                                 Subir una imagen
                             </a>
-                            <a href="{% url 'videos:image_bulk_upload' %}?match={{ match.id }}" 
+                            <a href="{% url 'content:image_bulk_upload' %}?match={{ match.id }}" 
                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 whitespace-nowrap">
                                 <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
@@ -457,7 +457,7 @@
     <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">🔗 Enlaces relacionados</h3>
         <div class="flex flex-wrap gap-2 sm:gap-3">
-            <a href="{% url 'videos:video_list' %}" 
+            <a href="{% url 'content:video_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 🎬 <span class="hidden sm:inline ml-1">Ver</span> Videos
             </a>
@@ -473,7 +473,7 @@
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 📋 <span class="hidden sm:inline ml-1">Ver</span> Ligas
             </a>
-            <a href="{% url 'videos:image_gallery' %}" 
+            <a href="{% url 'content:image_gallery' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 📸 <span class="hidden sm:inline ml-1">Ver</span> Galería
             </a>

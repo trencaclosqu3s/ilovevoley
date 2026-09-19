@@ -1,10 +1,10 @@
-{% extends '../base.html' %}
+{% extends 'base.html' %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
     <!-- Navegación de vuelta -->
     <div class="mb-4 sm:mb-6">
-        <a href="{% url 'videos:video_list' %}" class="inline-flex items-center text-csj-purple hover:text-csj-purple-dark font-semibold transition touch-manipulation py-2 -mx-2 px-2 rounded-lg">
+        <a href="{% url 'content:video_list' %}" class="inline-flex items-center text-csj-purple hover:text-csj-purple-dark font-semibold transition touch-manipulation py-2 -mx-2 px-2 rounded-lg">
             <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>

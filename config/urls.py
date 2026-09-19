@@ -28,6 +28,7 @@ urlpatterns = [
     path('accounts/', include('allauth.urls')),
     path('videos/', include('videosvoley.videos.urls', namespace='videos')),
     path('rosters/', include('videosvoley.rosters.urls', namespace='rosters')),
+    path('content/', include('videosvoley.content.urls', namespace='content')),
     path('core/', include('videosvoley.core.urls', namespace='core')),
     path('', include('videosvoley.users.urls')),
     # Rutas de moderación con tokens seguros

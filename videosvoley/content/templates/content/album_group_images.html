@@ -42,11 +42,11 @@
             </div>
             
             <div class="flex flex-col sm:items-end space-y-2 flex-shrink-0">
-                <a href="{% url 'videos:image_bulk_upload' %}?album_group_id={{ album.album_group_id }}"
+                <a href="{% url 'content:image_bulk_upload' %}?album_group_id={{ album.album_group_id }}"
                    class="inline-flex items-center px-3 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm">
                     <i class="fas fa-plus mr-2"></i>Agregar más fotos
                 </a>
-                <a href="{% url 'videos:image_gallery' %}"
+                <a href="{% url 'content:image_gallery' %}"
                    class="inline-flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 text-sm">
                     <i class="fas fa-arrow-left mr-2"></i>Volver a la galería
                 </a>
@@ -154,7 +154,7 @@ const allAlbumImages = [
         description: '{{ image.description|escapejs }}',
         user: '{{ image.uploaded_by.username|escapejs }}',
         date: '{{ image.upload_date|date:"d/m/Y" }}',
-        detailUrl: '{% url "videos:image_detail" image.id %}'
+        detailUrl: '{% url "content:image_detail" image.id %}'
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ];
