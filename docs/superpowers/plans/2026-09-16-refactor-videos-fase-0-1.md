@@ -166,7 +166,7 @@ git commit -m "chore(tests): instalar pytest y pytest-django"
 - Produces: los directorios `videosvoley/{videos,users,core}/tests/`, donde las
   Tasks 3-6 añaden `test_models.py`.
 
-- [ ] **Step 1: Crear los paquetes de tests**
+- [x] **Step 1: Crear los paquetes de tests**
 
 ```bash
 mkdir -p videosvoley/videos/tests videosvoley/users/tests videosvoley/core/tests
@@ -175,7 +175,7 @@ touch videosvoley/videos/tests/__init__.py \
       videosvoley/core/tests/__init__.py
 ```
 
-- [ ] **Step 2: Mover los ficheros de una sola responsabilidad**
+- [x] **Step 2: Mover los ficheros de una sola responsabilidad**
 
 ```bash
 git mv videosvoley/videos/tests.py videosvoley/videos/tests/test_scraping.py
@@ -189,7 +189,7 @@ scraping. `users/tests.py` contiene `AdminEmailUtilsTests` y
 `UserAdminEmailActionTests`: el punto de entrada de ambos es la acción de admin,
 de ahí `test_admin.py`.
 
-- [ ] **Step 3: Repartir `tests/test_tenant.py` por responsabilidad**
+- [x] **Step 3: Repartir `tests/test_tenant.py` por responsabilidad**
 
 Sus 7 clases van a 5 ficheros de `videosvoley/core/tests/`. Mover cada clase con
 sus imports, sin modificar su cuerpo:
@@ -205,14 +205,14 @@ sus imports, sin modificar su cuerpo:
 Después: `git rm tests/test_tenant.py && rmdir tests` (el `__init__.py` de la
 raíz también se elimina).
 
-- [ ] **Step 4: Verificar que no se ha perdido ningún test**
+- [x] **Step 4: Verificar que no se ha perdido ningún test**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v`
 Expected: PASS, y el recuento total de tests debe ser **idéntico** al de la
 Task 1 Step 5. Anotar ambos números y compararlos: si no coinciden, un test se
 ha quedado por el camino.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
