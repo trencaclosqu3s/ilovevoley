@@ -27,6 +27,7 @@ urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     path('accounts/', include('allauth.urls')),
     path('videos/', include('videosvoley.videos.urls', namespace='videos')),
+    path('rosters/', include('videosvoley.rosters.urls', namespace='rosters')),
     path('core/', include('videosvoley.core.urls', namespace='core')),
     path('', include('videosvoley.users.urls')),
     # Rutas de moderación con tokens seguros

@@ -79,7 +79,7 @@
             
             <!-- Botón limpiar -->
             <div class="flex gap-2">
-                <a href="{% url 'videos:roster_overview' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition">
+                <a href="{% url 'rosters:roster_overview' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition">
                     Limpiar filtros
                 </a>
             </div>
@@ -235,7 +235,7 @@
             </p>
             <div class="flex gap-2 justify-center">
                 {% if selected_category %}
-                    <a href="{% url 'videos:roster_overview' %}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-4 py-2 rounded-lg font-medium transition">
+                    <a href="{% url 'rosters:roster_overview' %}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-4 py-2 rounded-lg font-medium transition">
                         Ver todos los equipos
                     </a>
                 {% endif %}

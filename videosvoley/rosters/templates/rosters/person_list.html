@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">👥 Personas del Club</h1>
                 <p class="text-gray-600 dark:text-gray-400 mt-1">Jugadores, entrenadores y staff{% if tenant %} de {{ tenant.name }}{% endif %}</p>
             </div>
-            <a href="{% url 'videos:person_create' %}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center justify-center touch-manipulation">
+            <a href="{% url 'rosters:person_create' %}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center justify-center touch-manipulation">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             <!-- Botón limpiar -->
             <div class="flex gap-2">
-                <a href="{% url 'videos:person_list' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition">
+                <a href="{% url 'rosters:person_list' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition">
                     Limpiar filtros
                 </a>
             </div>
@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if page_obj %}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
             {% for person in page_obj %}
-                <a href="{% url 'videos:person_detail' person.id %}" class="person-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 block flex flex-col h-80" style="position: relative;">
+                <a href="{% url 'rosters:person_detail' person.id %}" class="person-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 block flex flex-col h-80" style="position: relative;">
                     <!-- Marca visual "Tú" en la card del usuario conectado -->
                     {% if person.user == request.user %}
                         <div class="absolute top-2 right-2 bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg" style="z-index: 20;">
@@ -336,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </svg>
             <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">No se encontraron personas</h3>
             <p class="text-gray-600 dark:text-gray-400 mb-4">{% if search or role_type %}Intenta ajustar los filtros{% else %}Aún no hay personas registradas{% endif %}</p>
-            <a href="{% url 'videos:person_create' %}" class="inline-flex items-center bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition">
+            <a href="{% url 'rosters:person_create' %}" class="inline-flex items-center bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
