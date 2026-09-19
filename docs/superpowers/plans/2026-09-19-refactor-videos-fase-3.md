@@ -27,15 +27,15 @@
 ### Task 1: Migración de datos: Reconciliar `Player` y `Staff` con `Person` y Roles
 
 **Files:**
-- Create: `videosvoley/rosters/migrations/0002_reconcile_legacy_players_staff.py`
+- Create: `videosvoley/rosters/migrations/0003_reconcile_legacy_players_staff.py`
 
 **Interfaces:**
 - Consumes: Modelos `Player`, `Staff`, `Person`, `PlayerRole`, `StaffRole` desde la app `rosters`.
 - Produces: Datos reconciliados en base de datos; todo `Player` tiene su `Person` y `PlayerRole`; todo `Staff` tiene su `Person` y `StaffRole`.
 
-- [ ] **Step 1: Crear migración de datos de reconciliación**
+- [x] **Step 1: Crear migración de datos de reconciliación**
 
-Crear `videosvoley/rosters/migrations/0002_reconcile_legacy_players_staff.py`:
+Crear `videosvoley/rosters/migrations/0003_reconcile_legacy_players_staff.py`:
 
 ```python
 from django.db import migrations
@@ -147,7 +147,7 @@ def noop_reverse(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('rosters', '0001_initial'),
+        ('rosters', '0002_alter_player_team_alter_playerrole_team_and_more'),
     ]
 
     operations = [
@@ -155,18 +155,18 @@ class Migration(migrations.Migration):
     ]
 ```
 
-- [ ] **Step 2: Aplicar migración y verificar**
+- [x] **Step 2: Aplicar migración y verificar**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py migrate rosters`
-Expected: `Applying rosters.0002_reconcile_legacy_players_staff... OK`.
+Expected: `Applying rosters.0003_reconcile_legacy_players_staff... OK`.
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: 98 tests pasando.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
-git add videosvoley/rosters/migrations/0002_reconcile_legacy_players_staff.py
+git add videosvoley/rosters/migrations/0003_reconcile_legacy_players_staff.py
 git commit -m "feat(rosters): migrar datos residuales de Player y Staff a Person-Role #68 @time 25m"
 ```
 
@@ -175,7 +175,7 @@ git commit -m "feat(rosters): migrar datos residuales de Player y Staff a Person
 ### Task 2: Retirar modelos `Player` y `Staff`, admin inlines y limpiar `legacy.py`
 
 **Files:**
-- Create: `videosvoley/rosters/migrations/0003_delete_legacy_player_staff.py`
+- Create: `videosvoley/rosters/migrations/0004_delete_legacy_player_staff.py`
 - Modify: `videosvoley/rosters/models/legacy.py` (eliminar clases `Player` y `Staff`)
 - Modify: `videosvoley/rosters/models/__init__.py` (remover `Player` y `Staff` de exports)
 - Modify: `videosvoley/rosters/admin/legacy.py` (eliminar `PlayerAdmin`, `StaffAdmin`, `PlayerInline`, `StaffInline`)
@@ -183,12 +183,12 @@ git commit -m "feat(rosters): migrar datos residuales de Player y Staff a Person
 - Modify: `videosvoley/videos/models/__init__.py` (remover `Player` y `Staff`)
 
 **Interfaces:**
-- Consumes: `rosters.migrations.0002_reconcile_legacy_players_staff`.
+- Consumes: `rosters.migrations.0003_reconcile_legacy_players_staff`.
 - Produces: Eliminación de modelos `Player` y `Staff` en el schema de Django y tablas `videos_player`, `videos_staff`.
 
 - [ ] **Step 1: Crear migración para eliminar `Player` y `Staff`**
 
-Ejecutar `makemigrations rosters` o crear `videosvoley/rosters/migrations/0003_delete_legacy_player_staff.py`:
+Ejecutar `makemigrations rosters` o crear `videosvoley/rosters/migrations/0004_delete_legacy_player_staff.py`:
 
 ```python
 from django.db import migrations
@@ -197,7 +197,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('rosters', '0002_reconcile_legacy_players_staff'),
+        ('rosters', '0003_reconcile_legacy_players_staff'),
     ]
 
     operations = [
