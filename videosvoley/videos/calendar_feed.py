@@ -67,7 +67,7 @@ class UserMatchesFeed(ICalFeed):
         end_date = timezone.now() + timedelta(days=365)
 
         return Match.objects.filter(
-            Q(league__categories__in=categories) | Q(league__category__in=categories) | Q(is_friendly=True),
+            Q(league__categories__in=categories) | Q(is_friendly=True),
             match_date__gte=start_date,
             match_date__lte=end_date,
         ).filter(
@@ -90,8 +90,6 @@ class UserMatchesFeed(ICalFeed):
         categories = []
         if item.league:
             categories = list(item.league.categories.all())
-            if not categories and item.league.category:
-                categories = [item.league.category]
         category_name = ', '.join([c.name for c in categories]) if categories else 'Sin Categoría'
 
         # Prefijo para partidos cancelados
@@ -133,8 +131,6 @@ class UserMatchesFeed(ICalFeed):
         # Agregar todas las categorías
         if item.league:
             categories = list(item.league.categories.all())
-            if not categories and item.league.category:
-                categories = [item.league.category]
             if categories:
                 category_names = ', '.join([c.name for c in categories])
                 description_parts.append(f'Categoría: {category_names}')

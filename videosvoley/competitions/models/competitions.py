@@ -63,15 +63,6 @@ class League(models.Model):
     federation_id = models.CharField(max_length=200, unique=True)
     competition_type = models.CharField(max_length=20, choices=COMPETITION_TYPES, default='regular')
     season = models.CharField(max_length=20)
-    # DEPRECATED: Usar 'categories' en su lugar
-    category = models.ForeignKey(
-        'core.Category',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='leagues_old',
-        help_text='DEPRECATED: Usar categories'
-    )
     # Nuevo campo para soporte multi-categoría (torneos, copas)
     categories = models.ManyToManyField(
         'core.Category',
