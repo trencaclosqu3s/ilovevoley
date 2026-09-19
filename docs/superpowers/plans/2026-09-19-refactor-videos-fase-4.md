@@ -33,14 +33,14 @@
 - Consumes: Django URL resolver, templates en `videosvoley/templates/` y código Python en `videosvoley/`.
 - Produces: Test automatizado de regresión que analiza estáticamente cada `{% url %}` y `reverse()` / `redirect()`.
 
-- [ ] **Step 1: Corregir llamada no cualificada en `videosvoley/videos/views/content.py`**
+- [x] **Step 1: Corregir llamada no cualificada en `videosvoley/videos/views/content.py`**
 
 Modificar la línea 195:
 ```python
             return redirect('videos:video_detail', video_id=video.id)
 ```
 
-- [ ] **Step 2: Crear el test de barrido estático `test_url_reverse_sweep.py`**
+- [x] **Step 2: Crear el test de barrido estático `test_url_reverse_sweep.py`**
 
 Crear `videosvoley/core/tests/test_url_reverse_sweep.py`:
 ```python
@@ -117,12 +117,12 @@ def test_python_reverse_calls_can_resolve():
     assert not failures, f"Fallo al resolver URLs en Python:\n" + "\n".join(failures)
 ```
 
-- [ ] **Step 3: Ejecutar el test de barrido y verificar que pasa en verde**
+- [x] **Step 3: Ejecutar el test de barrido y verificar que pasa en verde**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest videosvoley/core/tests/test_url_reverse_sweep.py -v --tb=short`
 Expected: 2 passed.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add videosvoley/videos/views/content.py videosvoley/core/tests/test_url_reverse_sweep.py
