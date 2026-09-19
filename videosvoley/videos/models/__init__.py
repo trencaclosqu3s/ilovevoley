@@ -20,8 +20,6 @@ from .competitions import (
 )
 from .rosters import Person, PlayerRole, StaffRole, person_photo_upload_path
 from .legacy import (
-    Player,
-    Staff,
     player_photo_upload_path,
     staff_photo_upload_path,
 )
@@ -37,10 +35,8 @@ __all__ = [
     'MatchAllManager',
     'MatchManager',
     'Person',
-    'Player',
     'PlayerRole',
     'ScrapingEndpoint',
-    'Staff',
     'StaffRole',
     'Standing',
     'Team',
