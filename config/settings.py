@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     # Local apps
     'videosvoley.core.apps.CoreConfig',
     'videosvoley.rosters',
+    'videosvoley.content',
     'videosvoley.videos',
     'videosvoley.users',
 ]
