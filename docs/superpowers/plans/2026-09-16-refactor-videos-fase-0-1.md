@@ -1650,12 +1650,12 @@ Reparto por responsabilidad:
 | `enrichment.py` | `enrich_matches_json`, `enrich_single_league_json`, `enrich_upcoming_matches`, `scrape_and_enrich_all`, `scrape_json_results`, `scrape_json_upcoming`, `process_json_unified` |
 | `rfevb.py` | `scrape_rfevb_competition`, `scrape_rfevb_final_classification` |
 
-- [ ] **Step 1: Extraer los bloques**
+- [x] **Step 1: Extraer los bloques**
 
 Localizar los límites con `grep -n '@shared_task' videosvoley/videos/tasks.py` y
 mover cada tarea completa, con las funciones auxiliares que solo ella use.
 
-- [ ] **Step 2: Escribir el `__init__.py`**
+- [x] **Step 2: Escribir el `__init__.py`**
 
 ```python
 """Tareas Celery de la app videos, repartidas por responsabilidad.
@@ -1670,7 +1670,7 @@ from .enrichment import *  # noqa: F401,F403
 from .rfevb import *  # noqa: F401,F403
 ```
 
-- [ ] **Step 3: Verificar que Celery registra las 16 tareas con el mismo nombre**
+- [x] **Step 3: Verificar que Celery registra las 16 tareas con el mismo nombre**
 
 ```bash
 docker compose -f docker-compose.dev.yml run --rm web python -c "
@@ -1689,7 +1689,7 @@ cambio. Ejecutar este mismo comando sobre `HEAD` antes de empezar y comparar las
 dos listas. Si algún nombre cambia, las tareas periódicas guardadas en base de
 datos dejarían de encontrar su función.
 
-- [ ] **Step 4: Verificar que los tests de tareas siguen parcheando bien**
+- [x] **Step 4: Verificar que los tests de tareas siguen parcheando bien**
 
 `videosvoley/videos/tests/test_scraping.py` usa
 `@patch('videosvoley.videos.tasks.scrape_rfevb_fases')`. El reexport mantiene ese
@@ -1701,7 +1701,7 @@ Expected: PASS.
 Si algún `patch` falla con `AttributeError`, el nombre no está reexportado en el
 `__init__.py`.
 
-- [ ] **Step 5: Verificación estándar de fase 1**
+- [x] **Step 5: Verificación estándar de fase 1**
 
 ```bash
 docker compose -f docker-compose.dev.yml run --rm web python manage.py check
@@ -1710,7 +1710,7 @@ docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-
 ```
 Expected: todo en verde.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git rm videosvoley/videos/tasks.py
