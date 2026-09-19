@@ -43,7 +43,7 @@ class Team(models.Model):
     sponsor_name = models.CharField(max_length=200, blank=True, help_text='Nombre con patrocinador si aplica')
     logo_url = models.URLField(blank=True, null=True)
     category = models.ForeignKey(
-        'videos.Category',
+        'core.Category',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

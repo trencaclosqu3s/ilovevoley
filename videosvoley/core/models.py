@@ -8,6 +8,22 @@ from django.dispatch import receiver
 _hex_color_validator = RegexValidator(r'^#[0-9a-fA-F]{6}$', 'Introduce un color hexadecimal válido (ej: #9B7FBF)')
 
 
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'videos_category'
+        ordering = ['name']
+        verbose_name = 'Categoría'
+        verbose_name_plural = 'Categorías'
+
+    def __str__(self):
+        return self.name
+
+
 class Organization(models.Model):
     slug            = models.CharField(max_length=50, unique=True)
     name            = models.CharField(max_length=100)

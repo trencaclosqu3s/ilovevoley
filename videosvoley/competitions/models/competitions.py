@@ -65,7 +65,7 @@ class League(models.Model):
     season = models.CharField(max_length=20)
     # DEPRECATED: Usar 'categories' en su lugar
     category = models.ForeignKey(
-        'videos.Category',
+        'core.Category',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -74,7 +74,7 @@ class League(models.Model):
     )
     # Nuevo campo para soporte multi-categoría (torneos, copas)
     categories = models.ManyToManyField(
-        'videos.Category',
+        'core.Category',
         blank=True,
         related_name='leagues',
         db_table='videos_league_categories',

@@ -11,7 +11,7 @@ class Video(models.Model):
     title = models.CharField(max_length=200)
     youtube_url = models.URLField()
     description = models.TextField(blank=True)
-    category = models.ForeignKey('videos.Category', on_delete=models.CASCADE, null=True, blank=True)
+    category = models.ForeignKey('core.Category', on_delete=models.CASCADE, null=True, blank=True)
     match = models.ForeignKey('competitions.Match', on_delete=models.SET_NULL, null=True, blank=True, related_name='videos')
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -160,7 +160,7 @@ class Image(models.Model):
         help_text='Nombre del álbum cuando las imágenes están agrupadas sin partido'
     )
     categories = models.ManyToManyField(
-        'videos.Category',
+        'core.Category',
         blank=True,
         related_name='images',
         db_table='videos_image_categories',
