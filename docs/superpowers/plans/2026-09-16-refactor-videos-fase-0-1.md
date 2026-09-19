@@ -1402,7 +1402,7 @@ git commit -m "refactor(videos): repartir admin.py en un paquete por dominio"
 - Produces: `videosvoley.videos.forms` reexportando todas las clases de
   formulario, para que `views.py` y `admin/` sigan importándolas igual.
 
-- [ ] **Step 1: Reparto exacto de los 13 formularios**
+- [x] **Step 1: Reparto exacto de los 13 formularios**
 
 Verificado contra el fichero actual:
 
@@ -1415,7 +1415,7 @@ Verificado contra el fichero actual:
 **No hay ningún formulario de `teams`**, así que este paquete tiene tres
 módulos, no cuatro. No crear un `teams.py` vacío.
 
-- [ ] **Step 2: Extraer los bloques con sus cabeceras de import**
+- [x] **Step 2: Extraer los bloques con sus cabeceras de import**
 
 Ejemplo de cabecera para `forms/content.py`:
 
@@ -1425,7 +1425,7 @@ from django import forms
 from ..models import Category, Image, Video
 ```
 
-- [ ] **Step 3: Escribir el `__init__.py`**
+- [x] **Step 3: Escribir el `__init__.py`**
 
 A diferencia del admin, aquí hay que **reexportar nombres**, no solo importar
 módulos, porque otros ficheros hacen `from .forms import XForm`:
@@ -1446,7 +1446,7 @@ final de `forms/rosters.py`:
 __all__ = ['PersonForm', 'PlayerRoleForm', 'StaffRoleForm']
 ```
 
-- [ ] **Step 4: Comprobar que no falta ningún nombre**
+- [x] **Step 4: Comprobar que no falta ningún nombre**
 
 Antes de borrar el fichero original, comparar:
 
@@ -1464,7 +1464,7 @@ diff /tmp/forms_antes.txt /tmp/forms_despues.txt
 Expected: sin líneas que falten en `forms_despues.txt`. Que sobren nombres es
 aceptable (clases importadas de Django); que falte alguno no lo es.
 
-- [ ] **Step 5: Sustituir y verificar**
+- [x] **Step 5: Sustituir y verificar**
 
 ```bash
 git rm videosvoley/videos/forms.py
@@ -1475,7 +1475,7 @@ docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-
 ```
 Expected: todo en verde, sin migraciones pendientes.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git commit -m "refactor(videos): repartir forms.py en un paquete por dominio"
