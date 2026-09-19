@@ -356,7 +356,7 @@ una regla invisible: si el refactor altera el orden de declaración de los
 managers, el manager por defecto de Django pasa a ser otro y toda la aplicación
 empieza a mostrar partidos retirados sin que nada falle.
 
-- [ ] **Step 1: Escribir los tests**
+- [x] **Step 1: Escribir los tests**
 
 Añadir a `videosvoley/videos/tests/test_models.py`:
 
@@ -433,12 +433,12 @@ class LeagueManagerTests(TestCase):
         self.assertEqual(self._nombres(League.objects.external_leagues()), {'Ajena'})
 ```
 
-- [ ] **Step 2: Ejecutar**
+- [x] **Step 2: Ejecutar**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest videosvoley/videos/tests/test_models.py -v --create-db`
 Expected: PASS, 13 tests acumulados.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add videosvoley/videos/tests/test_models.py

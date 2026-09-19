@@ -79,3 +79,76 @@ class ImageSaveTests(TestCase):
     def test_imagen_sin_partido_no_hereda_categorias(self):
         imagen = self._crear_imagen()
         self.assertEqual(imagen.categories.count(), 0)
+
+
+class MatchManagerTests(TestCase):
+    """El manager por defecto oculta los partidos retirados. Regla no evidente."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.league = League.objects.create(
+            name='Liga', federation_id='LIG-M', season='2024-25',
+        )
+        cls.a = Team.objects.create(name='A', federation_id='T-A')
+        cls.b = Team.objects.create(name='B', federation_id='T-B')
+        cls.jugado = Match.objects.create(
+            league=cls.league, home_team=cls.a, away_team=cls.b,
+            match_date=datetime(2024, 11, 3, 12, 0, tzinfo=dt_timezone.utc),
+            status='finished', federation_id='M-OK',
+        )
+        cls.retirado = Match.objects.create(
+            league=cls.league, home_team=cls.a, away_team=cls.b,
+            match_date=datetime(2024, 11, 10, 12, 0, tzinfo=dt_timezone.utc),
+            status='withdrawn', federation_id='M-W',
+        )
+
+    def test_manager_por_defecto_oculta_los_retirados(self):
+        self.assertEqual(list(Match.objects.all()), [self.jugado])
+
+    def test_all_objects_incluye_los_retirados(self):
+        self.assertEqual(Match.all_objects.count(), 2)
+
+    def test_el_manager_por_defecto_es_el_que_filtra(self):
+        # Match._default_manager es el que usan el admin y las relaciones.
+        self.assertEqual(Match._default_manager.count(), 1)
+
+
+class LeagueManagerTests(TestCase):
+    """visible_in_app() exige tres condiciones a la vez, no una."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.principal = League.objects.create(
+            name='Principal', federation_id='L-M', season='2024-25',
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+        cls.inactiva = League.objects.create(
+            name='Inactiva', federation_id='L-I', season='2024-25',
+            is_active=False, visibility_type='main', is_our_team_related=True,
+        )
+        cls.ajena = League.objects.create(
+            name='Ajena', federation_id='L-E', season='2024-25',
+            is_active=True, visibility_type='external', is_our_team_related=False,
+        )
+        cls.historica = League.objects.create(
+            name='Historica', federation_id='L-H', season='2019-20',
+            is_active=True, visibility_type='historical', is_historical=True,
+        )
+
+    def _nombres(self, queryset):
+        return set(queryset.values_list('name', flat=True))
+
+    def test_visible_in_app_solo_devuelve_la_que_cumple_las_tres_condiciones(self):
+        self.assertEqual(self._nombres(League.objects.visible_in_app()), {'Principal'})
+
+    def test_reference_leagues_agrupa_los_tres_tipos_no_principales(self):
+        self.assertEqual(
+            self._nombres(League.objects.reference_leagues()), {'Ajena', 'Historica'}
+        )
+
+    def test_historical_leagues_exige_el_flag_ademas_del_tipo(self):
+        self.assertEqual(self._nombres(League.objects.historical_leagues()), {'Historica'})
+
+    def test_external_leagues_exige_no_estar_relacionada_con_nuestro_equipo(self):
+        self.assertEqual(self._nombres(League.objects.external_leagues()), {'Ajena'})
+
