@@ -18,7 +18,7 @@
             </div>
             
             <div class="flex items-center gap-2">
-                <a href="{% url 'videos:team_list' %}" class="bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 dark:text-gray-900 px-4 py-2 rounded-lg font-semibold transition text-sm whitespace-nowrap">
+                <a href="{% url 'teams:team_list' %}" class="bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 dark:text-gray-900 px-4 py-2 rounded-lg font-semibold transition text-sm whitespace-nowrap">
                     👥 Ver Equipos
                 </a>
                 {% if user.is_staff %}
@@ -197,7 +197,7 @@
 
 
                             <!-- Acciones -->
-                            <a href="{% url 'videos:team_roster' team.id %}" 
+                            <a href="{% url 'teams:team_roster' team.id %}" 
                                class="block w-full bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white text-center py-2 rounded-lg font-medium transition text-sm">
                                 👁️ Ver Plantilla Completa
                             </a>

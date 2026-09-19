@@ -1,4 +1,4 @@
-{% extends '../base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}Equipos del Club - I Love Voley{% endblock %}
@@ -55,7 +55,7 @@
             <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-medium transition">
                 🔍 Filtrar
             </button>
-            <a href="{% url 'videos:team_list' %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition">
+            <a href="{% url 'teams:team_list' %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition">
                 Limpiar filtros
             </a>
         </div>
@@ -140,7 +140,7 @@
                     </div>
 
                     <!-- Botón de acción -->
-                    <a href="{% url 'videos:team_roster' team.id %}" 
+                    <a href="{% url 'teams:team_roster' team.id %}" 
                        class="block w-full bg-csj-purple hover:bg-csj-purple-dark text-white text-center py-2 rounded-lg font-medium transition text-sm">
                         👥 Ver Plantilla
                     </a>
@@ -177,7 +177,7 @@
         </p>
         <div class="flex gap-2 justify-center">
             {% if selected_category %}
-                <a href="{% url 'videos:team_list' %}" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-medium transition">
+                <a href="{% url 'teams:team_list' %}" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-medium transition">
                     Ver todos los equipos
                 </a>
             {% endif %}
