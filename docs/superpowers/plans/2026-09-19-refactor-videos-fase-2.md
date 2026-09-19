@@ -122,7 +122,7 @@ git commit -m "refactor(videos): fijar db_table explicito en todos los modelos #
 - Consumes: Modelos de `Person`, `PlayerRole`, `StaffRole`, `Player`, `Staff` de `videosvoley.videos.models`.
 - Produces: App `videosvoley.rosters` independiente, reexportada en `videos.models` y `videos.models.rosters`.
 
-- [ ] **Step 1: Crear estructura de la app `rosters`**
+- [x] **Step 1: Crear estructura de la app `rosters`**
 
 Crear `videosvoley/rosters/apps.py`:
 ```python
@@ -136,7 +136,7 @@ class RostersConfig(AppConfig):
 ```
 Registrar `'videosvoley.rosters'` en `INSTALLED_APPS` en `config/settings.py`.
 
-- [ ] **Step 2: Mover modelos a `videosvoley/rosters/models/`**
+- [x] **Step 2: Mover modelos a `videosvoley/rosters/models/`**
 
 Mover el contenido de `videos/models/rosters.py` y `legacy.py` a `videosvoley/rosters/models/`.
 `videosvoley/rosters/models/__init__.py`:
@@ -161,12 +161,12 @@ from videosvoley.rosters.models import Player, Staff  # noqa: F401
 __all__ = ['Player', 'Staff']
 ```
 
-- [ ] **Step 3: Mover admin a `videosvoley/rosters/admin/`**
+- [x] **Step 3: Mover admin a `videosvoley/rosters/admin/`**
 
 Mover administradores de `PersonAdmin`, `PlayerRoleAdmin`, `StaffRoleAdmin`, `PlayerAdmin`, `StaffAdmin` a `videosvoley/rosters/admin/`.
 Vaciar las registraciones de `videosvoley/videos/admin/rosters.py` y `legacy.py` dejando solo comentario explicativo.
 
-- [ ] **Step 4: Generar migraciones espejo con `SeparateDatabaseAndState`**
+- [x] **Step 4: Generar migraciones espejo con `SeparateDatabaseAndState`**
 
 Crear `videosvoley/rosters/migrations/0001_initial.py` con `SeparateDatabaseAndState(state_operations=[...], database_operations=[])` que declare los 5 modelos en `rosters`.
 Crear `videosvoley/videos/migrations/0037_move_rosters_to_app.py` con `SeparateDatabaseAndState(state_operations=[...], database_operations=[])` que borre los 5 modelos del estado de `videos`.
@@ -187,7 +187,7 @@ def revert_contenttypes(apps, schema_editor):
     ).update(app_label='videos')
 ```
 
-- [ ] **Step 5: Verificar `sqlmigrate`, `check` y ejecutar tests**
+- [x] **Step 5: Verificar `sqlmigrate`, `check` y ejecutar tests**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py sqlmigrate rosters 0001`
 Expected: 0 sentencias DDL.
@@ -198,7 +198,7 @@ Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py mak
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: 98 tests pasando en verde.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add videosvoley/rosters/ config/settings.py videosvoley/videos/
