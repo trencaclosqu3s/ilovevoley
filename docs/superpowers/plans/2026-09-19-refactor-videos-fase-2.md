@@ -324,12 +324,12 @@ git commit -m "feat(competitions): extraer app competitions con SeparateDatabase
 - Consumes: Modelo `Category` de `videosvoley.videos.models`.
 - Produces: `Category` en `videosvoley.core.models`, disponible para todas las apps y reexportado en `videos.models`.
 
-- [ ] **Step 1: Mover modelo `Category` a `videosvoley/core/models/`**
-- [ ] **Step 2: Mover `CategoryAdmin` a `videosvoley/core/admin.py` y vaciar en `videos`**
-- [ ] **Step 3: Reexportar `Category` en `videosvoley/videos/models/category.py`**
-- [ ] **Step 4: Migraciones espejo `SeparateDatabaseAndState` + actualización de `django_content_type`**
-- [ ] **Step 5: Verificar `sqlmigrate` (0 DDL), `check`, `makemigrations --check` y tests**
-- [ ] **Step 6: Commit**
+- [x] **Step 1: Mover modelo `Category` a `videosvoley/core/models/`**
+- [x] **Step 2: Mover `CategoryAdmin` a `videosvoley/core/admin.py` y vaciar en `videos`**
+- [x] **Step 3: Reexportar `Category` en `videosvoley/videos/models/category.py`**
+- [x] **Step 4: Migraciones espejo `SeparateDatabaseAndState` + actualización de `django_content_type`**
+- [x] **Step 5: Verificar `sqlmigrate` (0 DDL), `check`, `makemigrations --check` y tests**
+- [x] **Step 6: Commit**
 
 ```bash
 git add videosvoley/core/ videosvoley/videos/
