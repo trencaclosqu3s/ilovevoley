@@ -1,10 +1,11 @@
 import uuid
+
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.admin import helpers
 from django.shortcuts import render
 from django.utils import timezone
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 from unfold.admin import ModelAdmin, TabularInline
 
 from ..models import Video, Image
