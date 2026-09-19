@@ -344,26 +344,26 @@ git commit -m "feat(core): mover Category a videosvoley.core #68 @time 30m"
 - Consumes: Todas las apps y modelos migrados en las tareas 1-6.
 - Produces: Certificación de integridad de base de datos, URLs y suite de tests.
 
-- [ ] **Step 1: Verificar que ningún comando o vista tiene dependencias rotas**
+- [x] **Step 1: Verificar que ningún comando o vista tiene dependencias rotas**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py check`
 Expected: 0 issues.
 
-- [ ] **Step 2: Verificar que no hay migraciones pendientes ni DDL generado**
+- [x] **Step 2: Verificar que no hay migraciones pendientes ni DDL generado**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py makemigrations --check --dry-run`
 Expected: `No changes detected`.
 
-- [ ] **Step 3: Verificar recuento de filas en cada tabla física**
+- [x] **Step 3: Verificar recuento de filas en cada tabla física**
 
 Comprobar que todas las tablas `videos_*` mantienen exactamente el mismo recuento de filas antes y después.
 
-- [ ] **Step 4: Ejecutar suite completa con `--create-db`**
+- [x] **Step 4: Ejecutar suite completa con `--create-db`**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: 98 tests pasando en verde.
 
-- [ ] **Step 5: Commit de documentación y checklist**
+- [x] **Step 5: Commit de documentación y checklist**
 
 ```bash
 git add docs/superpowers/plans/2026-09-19-refactor-videos-fase-2.md
