@@ -271,7 +271,7 @@ git commit -m "refactor(rosters): eliminar modelos legados Player y Staff #68 @t
 - Consumes: `competitions.models.League.category`.
 - Produces: Todas las categorías consolidadas en `League.categories` M2M; eliminación de la columna física `category_id` en `videos_league`.
 
-- [ ] **Step 1: Migración de datos para consolidar `category` en `categories`**
+- [x] **Step 1: Migración de datos para consolidar `category` en `categories`**
 
 Crear `videosvoley/competitions/migrations/0003_migrate_league_category_data.py`:
 
@@ -300,13 +300,13 @@ class Migration(migrations.Migration):
     ]
 ```
 
-- [ ] **Step 2: Actualizar `videosvoley/videos/calendar_feed.py`**
+- [x] **Step 2: Actualizar `videosvoley/videos/calendar_feed.py`**
 
 Eliminar referencias al campo obsoleto `league.category`:
 - En `items()`: simplificar `Q(league__categories__in=categories) | Q(is_friendly=True)`.
 - En `item_title()` y `item_description()`: no buscar fallback a `item.league.category`.
 
-- [ ] **Step 3: Remover campo `category` de `League` y generar migración**
+- [x] **Step 3: Remover campo `category` de `League` y generar migración**
 
 En `videosvoley/competitions/models/competitions.py`:
 Eliminar el campo `category = models.ForeignKey(...)` de `League`.
@@ -315,7 +315,7 @@ Generar migración:
 `docker compose -f docker-compose.dev.yml run --rm web python manage.py makemigrations competitions -n remove_league_category`
 (o crear `videosvoley/competitions/migrations/0004_remove_league_category.py` con `migrations.RemoveField(model_name='league', name='category')`).
 
-- [ ] **Step 4: Aplicar migraciones y verificar**
+- [x] **Step 4: Aplicar migraciones y verificar**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py migrate competitions`
 Run: `docker compose -f docker-compose.dev.yml run --rm web python manage.py check`
@@ -325,7 +325,7 @@ Expected: No changes detected.
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: 98 tests pasando.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add videosvoley/competitions/ videosvoley/videos/calendar_feed.py
