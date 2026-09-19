@@ -1280,7 +1280,7 @@ git commit -m "refactor(videos): repartir models.py en un paquete por dominio"
   todos los submódulos, de modo que los decoradores `@admin.register` se ejecuten
   al cargar la app.
 
-- [ ] **Step 1: Reparto exacto de las 22 clases**
+- [x] **Step 1: Reparto exacto de las 22 clases**
 
 Verificado contra el fichero actual. Las líneas incluyen el decorador
 `@admin.register` cuando lo hay:
@@ -1308,7 +1308,7 @@ cualquiera de los seis sería arbitrario.
 - `competitions.py` importa `ImageInline` desde `content.py` si `MatchAdmin` lo
   usa. Comprobarlo al mover `MatchAdmin` y añadir el import si hace falta.
 
-- [ ] **Step 2: Extraer los bloques a los siete módulos**
+- [x] **Step 2: Extraer los bloques a los siete módulos**
 
 Cada módulo empieza importando lo que necesite de `django.contrib.admin`,
 `unfold` y `..models`. Ejemplo de cabecera para `admin/competitions.py`:
@@ -1323,7 +1323,7 @@ from ..models import League, Match, ScrapingEndpoint, Standing
 Los imports desde los modelos usan `..models` (dos puntos: subir de `admin/` a
 `videos/`), no `.models`.
 
-- [ ] **Step 3: Escribir el `__init__.py`**
+- [x] **Step 3: Escribir el `__init__.py`**
 
 ```python
 """Configuración del admin de la app videos, repartida por dominio.
@@ -1345,14 +1345,14 @@ from . import periodic_tasks  # noqa: F401
 El orden importa: `legacy` antes que `teams` (que importa sus inlines) y
 `content` antes que `competitions` (que puede importar `ImageInline`).
 
-- [ ] **Step 4: Sustituir el módulo por el paquete**
+- [x] **Step 4: Sustituir el módulo por el paquete**
 
 ```bash
 git rm videosvoley/videos/admin.py
 git add videosvoley/videos/admin/
 ```
 
-- [ ] **Step 5: Verificar que todos los modelos siguen registrados**
+- [x] **Step 5: Verificar que todos los modelos siguen registrados**
 
 Run:
 ```bash
@@ -1368,7 +1368,7 @@ Expected: la lista debe contener los mismos modelos que antes del cambio. Anotar
 el recuento **antes** de empezar la tarea ejecutando el mismo comando sobre
 `HEAD`, y comparar. Un modelo que desaparece del admin no rompe ningún test.
 
-- [ ] **Step 6: Verificación estándar de fase 1**
+- [x] **Step 6: Verificación estándar de fase 1**
 
 ```bash
 docker compose -f docker-compose.dev.yml run --rm web python manage.py check
@@ -1380,7 +1380,7 @@ Expected: `check` limpio, **ninguna** migración pendiente (a diferencia de la
 Task 9, aquí no hay funciones serializadas en migraciones), tests en verde, y el
 diff solo movimiento.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git commit -m "refactor(videos): repartir admin.py en un paquete por dominio"
