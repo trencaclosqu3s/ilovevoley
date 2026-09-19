@@ -185,12 +185,12 @@ git commit -m "feat(rosters): mudar vistas, formularios, urls y templates de ros
 - Consumes: Modelos `Video`, `Image`, `Comment`.
 - Produces: URLs bajo namespace `content:` y templates en `content/`.
 
-- [ ] **Step 1: Crear `videosvoley/content/forms.py` y re-exportar en `videos/forms/content.py`**
+- [x] **Step 1: Crear `videosvoley/content/forms.py` y re-exportar en `videos/forms/content.py`**
 
 Mover contenido de `videosvoley/videos/forms/content.py` a `videosvoley/content/forms.py`.
 Re-exportar en `videosvoley/videos/forms/content.py`.
 
-- [ ] **Step 2: Crear vistas de content en `videosvoley/content/views.py` y re-exportar**
+- [x] **Step 2: Crear vistas de content en `videosvoley/content/views.py` y re-exportar**
 
 Mover lógica de `videosvoley/videos/views/content.py` y vistas de moderación de imágenes de `videosvoley/videos/views/moderation.py` (`image_moderation`, `image_moderate_action`, `image_moderate_bulk`, `moderate_image_api`) a `videosvoley/content/views.py`.
 Actualizar los nombres de template renderizados a `'content/...'`:
@@ -209,7 +209,7 @@ Actualizar los nombres de template renderizados a `'content/...'`:
 Actualizar redirects en `content/views.py` a `content:*`.
 Re-exportar todo en `videosvoley/videos/views/content.py`.
 
-- [ ] **Step 3: Crear `videosvoley/content/urls.py` y registrar en `config/urls.py`**
+- [x] **Step 3: Crear `videosvoley/content/urls.py` y registrar en `config/urls.py`**
 
 Crear `videosvoley/content/urls.py` con `app_name = 'content'`:
 ```python
@@ -246,7 +246,7 @@ En `config/urls.py`:
     path('content/', include('videosvoley.content.urls', namespace='content')),
 ```
 
-- [ ] **Step 4: Mover templates a `videosvoley/content/templates/content/` y actualizar referencias**
+- [x] **Step 4: Mover templates a `videosvoley/content/templates/content/` y actualizar referencias**
 
 Mover los templates de videos e imágenes.
 Actualizar referencias en templates (`navbar.html`, `base.html`, `400.html`, etc.) y Python (`core/views.py:landing`, etc.):
@@ -255,13 +255,13 @@ Actualizar referencias en templates (`navbar.html`, `base.html`, `400.html`, etc
 - `videos:album_group_images` -> `content:album_group_images`
 - `videos:match_images` -> `content:match_images`
 
-- [ ] **Step 5: Ejecutar test de barrido y suite de tests**
+- [x] **Step 5: Ejecutar test de barrido y suite de tests**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest videosvoley/core/tests/test_url_reverse_sweep.py -v --tb=short`
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: todos los tests pasando en verde.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add videosvoley/content/ videosvoley/videos/ config/urls.py videosvoley/templates/
