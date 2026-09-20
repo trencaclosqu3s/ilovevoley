@@ -260,11 +260,11 @@
         <div class="mt-8 flex justify-center">
             <nav class="flex items-center space-x-2">
                 {% if page_obj.has_previous %}
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if request.GET.season is not None %}season={{ request.GET.season }}&{% endif %}page=1" 
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if season_filtered %}season={{ selected_season }}&{% endif %}page=1" 
                        class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
                         « Primera
                     </a>
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if request.GET.season is not None %}season={{ request.GET.season }}&{% endif %}page={{ page_obj.previous_page_number }}" 
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if season_filtered %}season={{ selected_season }}&{% endif %}page={{ page_obj.previous_page_number }}" 
                        class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
                         ‹ Anterior
                     </a>
@@ -275,11 +275,11 @@
                 </span>
                 
                 {% if page_obj.has_next %}
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if request.GET.season is not None %}season={{ request.GET.season }}&{% endif %}page={{ page_obj.next_page_number }}" 
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if season_filtered %}season={{ selected_season }}&{% endif %}page={{ page_obj.next_page_number }}" 
                        class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
                         Siguiente ›
                     </a>
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if request.GET.season is not None %}season={{ request.GET.season }}&{% endif %}page={{ page_obj.paginator.num_pages }}" 
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if season_filtered %}season={{ selected_season }}&{% endif %}page={{ page_obj.paginator.num_pages }}" 
                        class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
                         Última »
                     </a>

@@ -96,6 +96,7 @@ def roster_overview(request):
         "categories": categories,
         "seasons": Season.objects.all(),
         "selected_season": selected_season,
+        "season_filtered": "season" in request.GET,
         "selected_category": category_filter,
         "show_all": show_all,
         "user_categories": user_categories,

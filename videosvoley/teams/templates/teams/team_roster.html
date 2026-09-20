@@ -115,11 +115,11 @@
         <!-- Filtros de posición -->
         {% if player_roles %}
             <div class="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2">
-                <a href="?{% if request.GET.season is not None %}season={{ request.GET.season }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if not selected_position %}bg-csj-purple dark:bg-csj-purple-dark text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
+                <a href="?{% if season_filtered %}season={{ selected_season }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if not selected_position %}bg-csj-purple dark:bg-csj-purple-dark text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
                     Todas las posiciones
                 </a>
                 {% for value, display in position_choices %}
-                    <a href="?{% if request.GET.season is not None %}season={{ request.GET.season }}&{% endif %}position={{ value }}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if selected_position == value %}bg-csj-purple dark:bg-csj-purple-dark text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
+                    <a href="?{% if season_filtered %}season={{ selected_season }}&{% endif %}position={{ value }}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if selected_position == value %}bg-csj-purple dark:bg-csj-purple-dark text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
                         {{ display }}
                     </a>
                 {% endfor %}
@@ -326,11 +326,11 @@
         <!-- Filtros de rol -->
         {% if staff_roles %}
             <div class="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2">
-                <a href="?{% if request.GET.season is not None %}season={{ request.GET.season }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if not selected_role %}bg-csj-yellow dark:bg-csj-yellow-dark text-gray-800 dark:text-gray-900{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
+                <a href="?{% if season_filtered %}season={{ selected_season }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if not selected_role %}bg-csj-yellow dark:bg-csj-yellow-dark text-gray-800 dark:text-gray-900{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
                     Todos los roles
                 </a>
                 {% for value, display in role_choices %}
-                    <a href="?{% if request.GET.season is not None %}season={{ request.GET.season }}&{% endif %}role={{ value }}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if selected_role == value %}bg-csj-yellow dark:bg-csj-yellow-dark text-gray-800 dark:text-gray-900{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
+                    <a href="?{% if season_filtered %}season={{ selected_season }}&{% endif %}role={{ value }}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if selected_role == value %}bg-csj-yellow dark:bg-csj-yellow-dark text-gray-800 dark:text-gray-900{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
                         {{ display }}
                     </a>
                 {% endfor %}

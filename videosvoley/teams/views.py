@@ -220,6 +220,7 @@ def team_roster(request, team_id):
         "role_choices": role_choices,
         "seasons": Season.objects.all(),
         "selected_season": selected_season,
+        "season_filtered": "season" in request.GET,
         "selected_position": position_filter,
         "selected_role": role_filter,
     }

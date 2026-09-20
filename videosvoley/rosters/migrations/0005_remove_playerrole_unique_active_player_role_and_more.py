@@ -65,6 +65,16 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(blank=True, help_text='Temporada en la que la persona desempeña el rol', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='staff_roles', to='core.season', verbose_name='Temporada'),
         ),
         migrations.RunPython(backfill_previous_season, reverse_backfill),
+        migrations.AlterField(
+            model_name='playerrole',
+            name='season',
+            field=models.ForeignKey(help_text='Temporada en la que el jugador pertenece al equipo', on_delete=django.db.models.deletion.PROTECT, related_name='player_roles', to='core.season', verbose_name='Temporada'),
+        ),
+        migrations.AlterField(
+            model_name='staffrole',
+            name='season',
+            field=models.ForeignKey(help_text='Temporada en la que la persona desempeña el rol', on_delete=django.db.models.deletion.PROTECT, related_name='staff_roles', to='core.season', verbose_name='Temporada'),
+        ),
         migrations.AddConstraint(
             model_name='playerrole',
             constraint=models.UniqueConstraint(condition=models.Q(('is_active', True)), fields=('person', 'team', 'season'), name='unique_active_player_role'),

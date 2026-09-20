@@ -188,8 +188,6 @@ class PlayerRole(models.Model):
     season = models.ForeignKey(
         'core.Season',
         on_delete=models.PROTECT,
-        null=True,
-        blank=True,
         related_name='player_roles',
         verbose_name='Temporada',
         help_text='Temporada en la que el jugador pertenece al equipo',
@@ -288,8 +286,6 @@ class StaffRole(models.Model):
     season = models.ForeignKey(
         'core.Season',
         on_delete=models.PROTECT,
-        null=True,
-        blank=True,
         related_name='staff_roles',
         verbose_name='Temporada',
         help_text='Temporada en la que la persona desempeña el rol',

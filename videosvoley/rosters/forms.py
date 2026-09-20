@@ -235,17 +235,9 @@ class StaffRoleForm(forms.ModelForm):
             is_active=True
         ).select_related('category').order_by('category__name', 'name')
 
-        # Si hay persona, excluir combinaciones equipo-rol donde ya tiene rol activo
-        if person:
-            season = self.instance.season if self.instance.pk else self.fields['season'].initial
-            active_roles = person.staff_roles.filter(is_active=True)
-            if self.instance.pk:
-                active_roles = active_roles.exclude(pk=self.instance.pk)
-            if season:
-                active_roles = active_roles.filter(season=season)
-            self.fields['team'].queryset = self.fields['team'].queryset.exclude(
-                id__in=active_roles.values_list('team_id', flat=True)
-            )
+        # Una persona puede tener varios roles distintos en el mismo equipo y
+        # temporada (p.ej. entrenador y delegado); lo valida el UniqueConstraint
+        # (person, team, role, season), no el queryset.
 
 
 __all__ = [

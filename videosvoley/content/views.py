@@ -120,6 +120,7 @@ def video_list(request):
         'teams': teams,
         'seasons': seasons,
         'selected_season': selected_season,
+        'season_filtered': 'season' in request.GET,
         'selected_category': category_filter,
         'selected_league': league_filter,
         'selected_team': team_filter,

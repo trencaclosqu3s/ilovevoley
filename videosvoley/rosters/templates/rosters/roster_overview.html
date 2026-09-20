@@ -107,7 +107,7 @@
                     </svg>
                     <span>Mostrando solo tus categorías preferidas</span>
                 </div>
-                <a href="?show_all=1" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                <a href="?show_all=1{% if season_filtered %}&season={{ selected_season }}{% endif %}" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
                     Ver todas
                 </a>
             </div>
@@ -120,7 +120,7 @@
                     </svg>
                     <span>Mostrando todas las categorías</span>
                 </div>
-                <a href="?" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300">
+                <a href="?{% if season_filtered %}season={{ selected_season }}{% endif %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300">
                     Filtrar por preferencias
                 </a>
             </div>
