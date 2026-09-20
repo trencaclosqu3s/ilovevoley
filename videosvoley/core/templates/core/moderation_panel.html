@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}Panel de Moderación - Vídeos del Equipo{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Encabezado -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6 border-t-4 border-csj-purple">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl lg:text-3xl font-bold text-gray-800 mb-2 flex items-center gap-3">
+                    <svg class="w-7 h-7 lg:w-8 lg:h-8 text-csj-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
+                    <span>Panel de Moderación</span>
+                </h1>
+                <p class="text-gray-600">Gestiona usuarios e imágenes pendientes de aprobación</p>
+            </div>
+            <div class="text-right">
+                <div class="text-3xl font-bold text-csj-purple">{{ pending_users_count|add:pending_images_count }}</div>
+                <div class="text-sm text-gray-500">elemento{{ pending_users_count|add:pending_images_count|pluralize:"s" }} pendiente{{ pending_users_count|add:pending_images_count|pluralize:"s" }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen de estadísticas -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 border-l-4 border-blue-500">
+            <div class="flex items-center">
+                <div class="text-3xl mr-4">👥</div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">Usuarios Pendientes</h3>
+                    <p class="text-2xl font-bold text-blue-600">{{ pending_users_count }}</p>
+                    <p class="text-sm text-gray-600">Esperando aprobación</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-6 border-l-4 border-purple-500">
+            <div class="flex items-center">
+                <div class="text-3xl mr-4">📸</div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">Imágenes Pendientes</h3>
+                    <p class="text-2xl font-bold text-purple-600">{{ pending_images_count }}</p>
+                    <p class="text-sm text-gray-600">Esperando moderación</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Token CSRF para AJAX -->
+    {% csrf_token %}
+
+    <!-- Sección de Usuarios Pendientes -->
+    {% if pending_users %}
+    <div class="mb-12">
+        <div class="flex items-center mb-6">
+            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 mr-3">👥 Usuarios Pendientes</h2>
+            <span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_users_count }}</span>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {% for user in pending_users %}
+            <div class="user-card bg-white rounded-lg shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
+                <div class="p-6">
+                    <!-- Avatar y nombre -->
+                    <div class="flex items-center mb-4">
+                        {% if user.avatar %}
+                            <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="w-12 h-12 rounded-full object-cover mr-4">
+                        {% else %}
+                            <div class="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center mr-4">
+                                <span class="text-xl">👤</span>
+                            </div>
+                        {% endif %}
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-800">{{ user.username }}</h3>
+                            {% if user.get_full_name %}
+                                <p class="text-sm text-gray-600">{{ user.get_full_name }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Información familiar (destacada) -->
+                    {% if user.parent_info %}
+                    <div class="mb-4 p-3 bg-csj-yellow bg-opacity-20 rounded-lg border-l-4 border-csj-yellow">
+                        <div class="flex items-center mb-1">
+                            <span class="text-sm font-semibold text-gray-700 mr-2">👨‍👩‍👧‍👦 Información Familiar:</span>
+                        </div>
+                        <p class="text-sm font-medium text-gray-800">{{ user.parent_info }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Detalles adicionales -->
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">Email:</span>
+                            <span class="text-gray-800">{{ user.email|default:"No proporcionado" }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">Registro:</span>
+                            <span class="text-gray-800">{{ user.date_joined|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">Tipo:</span>
+                            <span class="text-gray-800">
+                                {% if user.socialaccount_set.exists %}
+                                    <span class="text-blue-600">Google OAuth</span>
+                                {% else %}
+                                    <span class="text-green-600">Registro tradicional</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Botones de moderación -->
+                    <div class="flex space-x-3">
+                        <button 
+                            onclick="approveUser({{ user.id }}, this)"
+                            class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            ✅ Aprobar
+                        </button>
+                        <button 
+                            onclick="rejectUser({{ user.id }}, this)"
+                            class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            ❌ Rechazar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sección de Imágenes Pendientes -->
+    {% if pending_images %}
+    <div class="mb-8">
+        <div class="flex items-center mb-6">
+            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 mr-3">📸 Imágenes Pendientes</h2>
+            <span class="bg-purple-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_images_count }}</span>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {% for image in pending_images %}
+            <div class="image-card bg-white rounded-lg shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
+                <!-- Imagen clicable -->
+                <div class="aspect-w-16 aspect-h-12 cursor-pointer" onclick="openModerationLightbox({{ image.id }})">
+                    <img src="{{ image.image.url }}" alt="{{ image.title }}" 
+                         class="w-full h-48 object-cover rounded-t-lg hover:opacity-90 transition-opacity">
+                    <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                        🔍 Click para ampliar
+                    </div>
+                </div>
+                
+                <div class="p-6">
+                    <!-- Título y usuario -->
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">{{ image.title }}</h3>
+                    <div class="flex items-center mb-3">
+                        <span class="text-sm text-gray-600 mr-2">👤 Subida por:</span>
+                        <span class="text-sm font-medium text-gray-800">{{ image.uploaded_by.username }}</span>
+                    </div>
+                    
+                    <!-- Descripción -->
+                    {% if image.description %}
+                    <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ image.description }}</p>
+                    {% endif %}
+                    
+                    <!-- Tipo y fecha -->
+                    <div class="space-y-1 mb-4">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">Tipo:</span>
+                            <span class="text-gray-800">{{ image.get_image_type_display }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">Subida:</span>
+                            <span class="text-gray-800">{{ image.upload_date|date:"d/m/Y H:i" }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Partido asociado -->
+                    {% if image.match %}
+                    <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div class="text-sm">
+                            <div class="font-medium text-blue-800 mb-1">🏐 Partido:</div>
+                            <div class="text-blue-700">{{ image.match }}</div>
+                            <div class="text-xs text-blue-600 mt-1">{{ image.match.match_date|date:"d/m/Y" }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Razón de pendiente y análisis de Vision API -->
+                    <div class="mb-4">
+                        <div class="text-sm font-medium text-gray-700 mb-2">📋 Estado:</div>
+                        {% if image.vision_api_checked %}
+                            {% if not image.vision_api_safe %}
+                                <div class="p-3 bg-red-50 rounded-lg border border-red-200">
+                                    <div class="text-red-800 font-medium mb-2">⚠️ Moderación automática</div>
+                                    <div class="text-sm text-red-700">
+                                        {% if image.vision_api_details.reasons %}
+                                            {% for reason in image.vision_api_details.reasons %}
+                                                <div class="mb-1">
+                                                    {% if "violence" in reason %}
+                                                        🚨 Posible contenido violento
+                                                    {% elif "racy" in reason %}
+                                                        🔞 Contenido sugerente detectado
+                                                    {% elif "spoof" in reason %}
+                                                        🎭 Posible contenido falso/spam
+                                                    {% elif "medical" in reason %}
+                                                        🏥 Contenido médico detectado
+                                                    {% else %}
+                                                        ⚠️ {{ reason }}
+                                                    {% endif %}
+                                                </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            Contenido marcado para revisión manual
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                                    <div class="text-yellow-800 font-medium">💭 Revisión manual</div>
+                                    <div class="text-sm text-yellow-700">Requiere aprobación manual</div>
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Texto detectado si existe -->
+                            {% if image.vision_api_details.detected_text %}
+                            <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <div class="text-sm font-medium text-gray-700 mb-1">📝 Texto detectado:</div>
+                                <div class="text-sm text-gray-600 max-h-20 overflow-y-auto">
+                                    {{ image.vision_api_details.detected_text|truncatewords:20 }}
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <div class="text-gray-700 font-medium">📝 Revisión manual</div>
+                                <div class="text-sm text-gray-600">Sin análisis automático</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Etiquetas -->
+                    {% if image.tags or image.auto_tags %}
+                    <div class="mb-4">
+                        <div class="text-sm font-medium text-gray-700 mb-2">🏷️ Etiquetas:</div>
+                        <div class="flex flex-wrap gap-1">
+                            {% if image.tags %}
+                                <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">📝 {{ image.tags }}</span>
+                            {% endif %}
+                            {% if image.auto_tags %}
+                                {% for tag in image.auto_tags %}
+                                <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">🤖 {{ tag }}</span>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Botones de moderación -->
+                    <div class="flex space-x-3">
+                        <button 
+                            onclick="moderateImage({{ image.id }}, 'approve', this)"
+                            class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            ✅ Aprobar
+                        </button>
+                        <button 
+                            onclick="moderateImage({{ image.id }}, 'reject', this)"
+                            class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            ❌ Rechazar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Mensaje cuando no hay elementos pendientes -->
+    {% if not pending_users and not pending_images %}
+    <div class="bg-white rounded-lg shadow-lg p-12 text-center border-t-4 border-green-500">
+        <div class="text-6xl mb-4">🎉</div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">¡Todo al día!</h2>
+        <p class="text-gray-600 mb-6">No hay usuarios ni imágenes pendientes de moderación.</p>
+        <a href="{% url 'content:video_list' %}" class="inline-block bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+            🏐 Volver a Videos
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Cargar archivos JavaScript específicos -->
+{% load static %}
+<script src="{% static 'js/lightbox.js' %}"></script>
+<script src="{% static 'js/moderation.js' %}"></script>
+
+<script>
+// Configuración específica del panel de moderación
+let moderationLightbox = null;
+let pendingImages = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Panel de moderación cargado');
+    
+    // Inicializar lightbox con opciones de moderación
+    moderationLightbox = initImageLightbox({
+        showNavigation: true,
+        showActions: true,
+        onApprove: function(imageData) {
+            // Usar el sistema de moderación global
+            if (typeof moderateImage === 'function') {
+                // Simular click en botón aprobar del card
+                const imageCard = document.querySelector(`[data-image-id="${imageData.id}"]`);
+                const approveBtn = imageCard?.querySelector('.approve-btn');
+                if (approveBtn) {
+                    moderateImage(imageData.id, 'approve', approveBtn);
+                }
+            }
+        },
+        onReject: function(imageData) {
+            // Usar el sistema de moderación global
+            if (typeof moderateImage === 'function') {
+                // Simular click en botón rechazar del card
+                const imageCard = document.querySelector(`[data-image-id="${imageData.id}"]`);
+                const rejectBtn = imageCard?.querySelector('.reject-btn');
+                if (rejectBtn) {
+                    moderateImage(imageData.id, 'reject', rejectBtn);
+                }
+            }
+        }
+    });
+    
+    // Recopilar datos de imágenes pendientes para navegación
+    pendingImages = [
+        {% for image in pending_images %}
+        {
+            id: {{ image.id }},
+            url: "{{ image.image.url }}",
+            title: "{{ image.title|escapejs }}",
+            description: "{{ image.description|escapejs }}",
+            user: "{{ image.uploaded_by.username|escapejs }}",
+            date: "{{ image.upload_date|date:'d/m/Y H:i' }}",
+            detailUrl: "{% url 'content:image_detail' image.id %}",
+            visionData: {
+                {% if image.vision_api_details.reasons %}
+                reasons: {{ image.vision_api_details.reasons|safe }},
+                {% endif %}
+                {% if image.vision_api_details.detected_text %}
+                text: "{{ image.vision_api_details.detected_text|escapejs }}"
+                {% endif %}
+            }
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    // Agregar atributos data-image-id a las cards para facilitar la identificación
+    {% for image in pending_images %}
+    const imageCard{{ image.id }} = document.querySelector('.image-card:nth-child({{ forloop.counter }})');
+    if (imageCard{{ image.id }}) {
+        imageCard{{ image.id }}.setAttribute('data-image-id', '{{ image.id }}');
+        
+        // Marcar botones para fácil identificación
+        const approveBtn = imageCard{{ image.id }}.querySelector('button[onclick*="approve"]');
+        const rejectBtn = imageCard{{ image.id }}.querySelector('button[onclick*="reject"]');
+        if (approveBtn) approveBtn.classList.add('approve-btn');
+        if (rejectBtn) rejectBtn.classList.add('reject-btn');
+    }
+    {% endfor %}
+});
+
+// Función para abrir lightbox de moderación
+function openModerationLightbox(imageId) {
+    const imageData = pendingImages.find(img => img.id === imageId);
+    if (imageData && moderationLightbox) {
+        moderationLightbox.open(imageData, pendingImages);
+    }
+}
+
+// Mejorar las funciones de moderación existentes para cerrar lightbox tras la acción
+const originalModerateImage = window.moderateImage;
+window.moderateImage = function(imageId, action, buttonElement) {
+    // Llamar función original
+    if (originalModerateImage) {
+        originalModerateImage(imageId, action, buttonElement);
+        
+        // Cerrar lightbox después de la acción (con delay para permitir animación)
+        setTimeout(() => {
+            if (moderationLightbox && moderationLightbox.isOpen()) {
+                moderationLightbox.close();
+            }
+        }, 1000);
+    }
+};
+</script>
+{% endblock %}

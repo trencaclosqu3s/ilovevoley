@@ -44,11 +44,11 @@ class Command(BaseCommand):
             logging.basicConfig(level=logging.INFO)
 
         # Obtener ligas activas
-        leagues = League.objects.filter(is_active=True).select_related('category')
+        leagues = League.objects.filter(is_active=True).prefetch_related('categories')
         
         # Filtrar por categoría si se especifica
         if category_filter:
-            leagues = leagues.filter(category__name__icontains=category_filter)
+            leagues = leagues.filter(categories__name__icontains=category_filter).distinct()
 
         if not leagues.exists():
             filter_msg = f" de categoría '{category_filter}'" if category_filter else ""

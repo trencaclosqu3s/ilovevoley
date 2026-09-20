@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_js %}
+<script src="{% static 'js/auto_filters.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple mb-6">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">Partidos y Entrenamientos</h2>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <!-- Botón de filtros (solo móvil) -->
+            <button onclick="toggleFilters()" 
+                    class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark transition touch-manipulation">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                </svg>
+                Filtros
+                <span id="activeFiltersCount" class="ml-1 hidden px-1.5 py-0.5 bg-white text-csj-purple rounded-full text-xs font-bold"></span>
+            </button>
+            
+            {% if can_add %}
+                <div class="relative flex-shrink-0">
+                    <button id="upload-menu-btn"
+                        class="bg-csj-purple text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-csj-purple-dark transition text-sm flex items-center whitespace-nowrap font-semibold">
+                        <svg class="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span class="hidden sm:inline">Añadir vídeo</span>
+                        <svg class="w-3 h-3 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+
+                    <div id="upload-menu"
+                        class="hidden absolute mt-2 w-56 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                        <div class="py-1">
+                            <a href="{% url 'content:video_create' %}"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 whitespace-nowrap">
+                                <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                Subir un vídeo
+                            </a>
+                            <a href="{% url 'content:video_bulk_create' %}"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 whitespace-nowrap">
+                                <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                                </svg>
+                                Subir múltiples vídeos
+                            </a>
+                        </div>
+                    </div>
+
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const menuBtn = document.getElementById('upload-menu-btn');
+                            const menu = document.getElementById('upload-menu');
+
+                            function positionDropdown() {
+                                if (menu.classList.contains('hidden')) return;
+                                if (window.innerWidth < 640) {
+                                    menu.style.left = 'auto';
+                                    menu.style.right = '0';
+                                    menu.style.transform = 'none';
+                                    menu.style.width = 'auto';
+                                    menu.style.minWidth = '200px';
+                                    menu.style.maxWidth = 'calc(100vw - 1rem)';
+                                } else {
+                                    menu.style.left = '50%';
+                                    menu.style.right = 'auto';
+                                    menu.style.transform = 'translateX(-50%)';
+                                    menu.style.width = '14rem';
+                                }
+                            }
+
+                            menuBtn.addEventListener('click', function (e) {
+                                e.stopPropagation();
+                                menu.classList.toggle('hidden');
+                                if (!menu.classList.contains('hidden')) {
+                                    requestAnimationFrame(positionDropdown);
+                                }
+                            });
+
+                            window.addEventListener('resize', positionDropdown);
+
+                            document.addEventListener('click', function (e) {
+                                if (!menu.contains(e.target) && !menuBtn.contains(e.target)) {
+                                    menu.classList.add('hidden');
+                                }
+                            });
+                        });
+                    </script>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Filtros y búsqueda con aplicación automática -->
+<div id="filtersSection" class="bg-white rounded-lg shadow-sm border p-4 mb-6 hidden lg:block">
+    <div class="space-y-4 sm:space-y-0 sm:flex sm:gap-4 sm:items-end">
+        <!-- Búsqueda por texto -->
+        <div class="flex-1">
+            <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
+            <input 
+                type="text" 
+                id="search" 
+                name="search" 
+                value="{{ search_query }}"
+                placeholder="Escribe para buscar..."
+                class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                autocomplete="off"
+            >
+        </div>
+        
+        <!-- Filtro por categoría -->
+        <div class="sm:w-48">
+            <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+            <select 
+                id="category" 
+                name="category"
+                class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+            >
+                <option value="">Todas las categorías</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <!-- Botón limpiar -->
+        <div class="flex gap-2">
+            <a 
+                href="{% url 'content:video_list' %}"
+                class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition"
+            >
+                Limpiar filtros
+            </a>
+        </div>
+    </div>
+    
+    <!-- Indicador de resultados -->
+    {% if search_query or selected_category %}
+        <div class="mt-3 pt-3 border-t border-gray-200">
+            <p class="text-sm text-gray-600">
+                {% if page_obj.paginator.count == 0 %}
+                    No se encontraron vídeos
+                {% elif page_obj.paginator.count == 1 %}
+                    Se encontró 1 vídeo
+                {% else %}
+                    Se encontraron {{ page_obj.paginator.count }} vídeos
+                {% endif %}
+                {% if search_query %}para "{{ search_query }}"{% endif %}
+                {% if selected_category %}
+                    {% for cat in categories %}
+                        {% if cat.id|stringformat:"s" == selected_category %}
+                            en {{ cat.name }}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+    
+    <!-- Banner de preferencias -->
+    {% if has_preferences and not show_all and not selected_category %}
+        <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+            <div class="flex items-center text-sm text-blue-800">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>Mostrando solo tus categorías preferidas</span>
+            </div>
+            <a href="?show_all=1" class="text-sm font-medium text-blue-600 hover:text-blue-800">
+                Ver todas
+            </a>
+        </div>
+    {% elif show_all %}
+        <div class="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+            <div class="flex items-center text-sm text-gray-700">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+                <span>Mostrando todas las categorías</span>
+            </div>
+            <a href="?" class="text-sm font-medium text-gray-600 hover:text-gray-800">
+                Filtrar por preferencias
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+{% if page_obj %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        {% for video in page_obj %}
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="aspect-video">
+                    <iframe 
+                        class="w-full h-full"
+                        src="{{ video.get_embed_url }}" 
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        allowfullscreen
+                        referrerpolicy="strict-origin-when-cross-origin">
+                    </iframe>
+                </div>
+                <div class="p-5 lg:p-6">
+                    <a href="{% url 'content:video_detail' video.id %}" class="block hover:bg-gray-50 transition -m-5 lg:-m-6 p-5 lg:p-6 rounded-lg touch-manipulation">
+                        <h3 class="font-bold text-xl lg:text-2xl text-gray-800 mb-3 hover:text-csj-purple transition leading-tight">{{ video.title }}</h3>
+                        {% if video.description %}
+                            <p class="text-gray-600 mb-4 line-clamp-3">{{ video.description }}</p>
+                        {% endif %}
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                            <div class="flex flex-col gap-1">
+                                {% if video.category %}
+                                    <span class="bg-csj-purple/10 text-csj-purple text-xs px-2 py-1 rounded-full w-fit">{{ video.category.name }}</span>
+                                {% endif %}
+                                <p class="text-gray-400 text-sm">{{ video.created_at|date:"d/m/Y H:i" }}</p>
+                            </div>
+                            <div class="flex items-center space-x-2 text-csj-purple">
+                                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                </svg>
+                                <span class="truncate">{{ video.comments.count }} comentario{{ video.comments.count|pluralize:"s" }}</span>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Paginación -->
+    {% if page_obj.has_other_pages %}
+        <div class="mt-8 flex justify-center">
+            <nav class="flex items-center space-x-2">
+                {% if page_obj.has_previous %}
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}page=1" 
+                       class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
+                        « Primera
+                    </a>
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}page={{ page_obj.previous_page_number }}" 
+                       class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
+                        ‹ Anterior
+                    </a>
+                {% endif %}
+                
+                <span class="px-4 py-2 text-sm bg-csj-purple text-white rounded-lg">
+                    {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                </span>
+                
+                {% if page_obj.has_next %}
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}page={{ page_obj.next_page_number }}" 
+                       class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
+                        Siguiente ›
+                    </a>
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}page={{ page_obj.paginator.num_pages }}" 
+                       class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
+                        Última »
+                    </a>
+                {% endif %}
+            </nav>
+        </div>
+    {% endif %}
+{% else %}
+    <div class="text-center py-12">
+        <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <span class="text-2xl">🎥</span>
+        </div>
+        {% if search_query or selected_category %}
+            <p class="text-gray-500 text-lg mb-2">No se encontraron vídeos</p>
+            <p class="text-gray-400 text-sm">Prueba con otros criterios de búsqueda</p>
+        {% else %}
+            <p class="text-gray-500 text-lg mb-2">Todavía no hay vídeos subidos</p>
+            <p class="text-gray-400 text-sm">Los videos aparecerán aquí cuando se suban</p>
+        {% endif %}
+    </div>
+{% endif %}
+
+<script>
+// Toggle de filtros para móvil
+function toggleFilters() {
+    const filtersSection = document.getElementById('filtersSection');
+    filtersSection.classList.toggle('hidden');
+    
+    // Scroll suave hacia los filtros cuando se abren
+    if (!filtersSection.classList.contains('hidden')) {
+        filtersSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// Actualizar contador de filtros activos
+function updateActiveFiltersCount() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let activeCount = 0;
+    
+    // Contar filtros activos (excluir parámetros de navegación)
+    const navigationParams = ['page', 'show_all'];
+    for (const [key, value] of urlParams.entries()) {
+        if (!navigationParams.includes(key) && value !== '') {
+            activeCount++;
+        }
+    }
+    
+    const countBadge = document.getElementById('activeFiltersCount');
+    if (countBadge) {
+        if (activeCount > 0) {
+            countBadge.textContent = activeCount;
+            countBadge.classList.remove('hidden');
+        } else {
+            countBadge.classList.add('hidden');
+        }
+    }
+}
+
+// Inicializar al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    updateActiveFiltersCount();
+});
+</script>
+{% endblock %}

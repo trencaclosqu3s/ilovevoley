@@ -348,7 +348,6 @@ media/
 .idea/runConfigurations/runserver.xml
 .cursor/rules/estilos.mdc
 .vscode/settings.json
-CLAUDE.md
 celerybeat-schedule*
 certbot/
 # Ignorar staticfiles recopilados, pero NO el directorio source static

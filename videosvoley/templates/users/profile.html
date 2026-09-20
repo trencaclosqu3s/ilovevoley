@@ -117,7 +117,7 @@
                                                 type="text" 
                                                 id="calendar-url" 
                                                 readonly 
-                                                value="{{ request.scheme }}://{{ request.get_host }}{% url 'videos:calendar_feed' token='LOADING' %}"
+                                                value="{{ request.scheme }}://{{ request.get_host }}{% url 'competitions:calendar_feed' token='LOADING' %}"
                                                 class="flex-1 text-sm bg-white border border-blue-300 rounded px-3 py-2 text-gray-700 font-mono"
                                             >
                                             <button 

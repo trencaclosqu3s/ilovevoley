@@ -111,7 +111,7 @@ def get_calendar_token(request):
         token = request.user.get_or_create_calendar_token()
         
         # Construir la URL completa
-        calendar_path = reverse('videos:calendar_feed', args=[token])
+        calendar_path = reverse('competitions:calendar_feed', args=[token])
         calendar_url = request.build_absolute_uri(calendar_path)
         
         return JsonResponse({
@@ -137,7 +137,7 @@ def regenerate_calendar_token(request):
         request.user.save(update_fields=['calendar_token'])
         
         # Construir la URL completa con el nuevo token
-        calendar_path = reverse('videos:calendar_feed', args=[request.user.calendar_token])
+        calendar_path = reverse('competitions:calendar_feed', args=[request.user.calendar_token])
         calendar_url = request.build_absolute_uri(calendar_path)
         
         return JsonResponse({

@@ -1,0 +1,1056 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ match.home_team_display }} vs {{ match.away_team_display }} - Vídeos del Equipo{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header del partido -->
+    <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple">
+        <div class="space-y-4">
+            <!-- Primera línea: Equipos enfrentados -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">
+                    <span class="{% if 'SANT JOSEP' in match.home_team_display %}text-csj-purple{% endif %}">
+                        {{ match.home_team_display }}
+                    </span>
+                    {% if match.home_team and match.home_team.is_variant %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 ml-1">
+                            {{ match.home_team.variant_name }}
+                        </span>
+                    {% endif %}
+                    <span class="text-gray-500 mx-2">vs</span>
+                    <span class="{% if 'SANT JOSEP' in match.away_team_display %}text-csj-purple{% endif %}">
+                        {{ match.away_team_display }}
+                    </span>
+                    {% if match.away_team and match.away_team.is_variant %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 ml-1">
+                            {{ match.away_team.variant_name }}
+                        </span>
+                    {% endif %}
+                </h1>
+                
+                <!-- Enlaces rápidos -->
+                <div class="flex flex-wrap gap-2 sm:gap-3">
+                    <a href="{% url 'competitions:calendar_view' %}"
+                       class="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
+                        📅 Calendario
+                    </a>
+                    <a href="{% url 'competitions:league_detail' match.league.id %}" 
+                       class="inline-flex items-center px-3 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
+                        📋 Liga
+                    </a>
+                </div>
+            </div>
+
+            <!-- Segunda línea: Badges de información -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Fecha y hora -->
+                <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    {{ match.match_date|date:"d/m/Y" }}
+                    {% if match.match_date|date:"H:i" == "00:00" %}
+                        <span class="text-orange-600 ml-1">Sin horario confirmado</span>
+                    {% else %}
+                        {{ match.match_date|date:"H:i" }}
+                    {% endif %}
+                </div>
+
+                <!-- Jornada -->
+                <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                    </svg>
+                    J{{ match.round_number }}
+                </div>
+
+                <!-- Categorías -->
+                {% if match.league %}
+                    {% for category in match.league.categories.all %}
+                        <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple bg-opacity-20 dark:bg-csj-purple-dark dark:bg-opacity-30 text-csj-purple-dark dark:text-csj-yellow">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                            </svg>
+                            {{ category.name }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <!-- Indicador de amistoso -->
+                {% if match.is_friendly %}
+                    <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-green-700 dark:text-green-200 bg-green-100 dark:bg-green-900">
+                        🏐 Amistoso
+                    </div>
+                {% endif %}
+
+                <!-- Resultado o botón -->
+                {% if match.is_finished and match.home_score is not None and match.away_score is not None %}
+                    <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        {{ match.result_display }}
+                    </div>
+                {% elif user.is_staff or user.groups.all|length > 0 %}
+                    {% if match.match_date.date <= today %}
+                        <button onclick="openResultModal({{ match.id }}, '{{ match.home_team_display|escapejs }}', '{{ match.away_team_display|escapejs }}')" 
+                                class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white transition shadow-md">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                            Agregar resultado
+                        </button>
+                    {% else %}
+                        <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            {{ match.get_status_display }}
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        {{ match.get_status_display }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Tercera línea: Información detallada -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600 dark:text-gray-400">
+                <!-- Liga -->
+                <div class="flex items-center space-x-2">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                    <div>
+                        <div class="font-medium text-gray-800 dark:text-gray-200">{{ match.league.name }}</div>
+                        <div class="text-xs">{{ match.league.season }}</div>
+                    </div>
+                </div>
+
+                <!-- Ubicación -->
+                {% if match.venue %}
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        <div>
+                            <div class="font-medium text-gray-800 dark:text-gray-200">{{ match.venue }}</div>
+                            {% if match.city %}
+                                <div class="text-xs">{{ match.city }}</div>
+                            {% endif %}
+                            {% if match.field_address %}
+                                <div class="text-xs text-gray-500">{{ match.field_address }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Estado del partido -->
+                <div class="flex items-center space-x-2">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <div>
+                        <div class="font-medium text-gray-800 dark:text-gray-200">Estado</div>
+                        <div class="text-xs">{{ match.get_status_display }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cuarta línea: Información de árbitros y personal técnico -->
+            {% if match.referee1 or match.referee2 or match.scorer or match.timekeeper or match.delegate or match.acta_html %}
+                <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Personal Oficial
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                        <!-- Árbitros -->
+                        {% if match.referee1 or match.referee2 %}
+                            <div class="space-y-1">
+                                <div class="font-medium text-gray-700 dark:text-gray-300">Árbitros</div>
+                                {% if match.referee1 %}
+                                    <div class="text-gray-600 dark:text-gray-400">• {{ match.referee1 }}</div>
+                                {% endif %}
+                                {% if match.referee2 %}
+                                    <div class="text-gray-600 dark:text-gray-400">• {{ match.referee2 }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Personal técnico -->
+                        {% if match.scorer or match.timekeeper or match.delegate %}
+                            <div class="space-y-1">
+                                <div class="font-medium text-gray-700 dark:text-gray-300">Personal Técnico</div>
+                                {% if match.scorer %}
+                                    <div class="text-gray-600 dark:text-gray-400">Anotador: {{ match.scorer }}</div>
+                                {% endif %}
+                                {% if match.timekeeper %}
+                                    <div class="text-gray-600 dark:text-gray-400">Cronometrador: {{ match.timekeeper }}</div>
+                                {% endif %}
+                                {% if match.delegate %}
+                                    <div class="text-gray-600 dark:text-gray-400">Delegado: {{ match.delegate }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Acta oficial -->
+                        {% if match.acta_html %}
+                            <div class="space-y-1">
+                                <div class="font-medium text-gray-700 dark:text-gray-300">Acta Oficial</div>
+                                <div class="text-gray-600 dark:text-gray-400">
+                                    <a href="{{ match.acta_html }}" 
+                                       target="_blank" 
+                                       class="text-csj-purple hover:text-purple-700 underline">
+                                        Ver acta oficial
+                                    </a>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if match.acta_html %}
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+            <h2 class="text-lg sm:text-xl font-bold text-gray-800 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-csj-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Acta del partido
+            </h2>
+        </div>
+
+        <!-- Cargando -->
+        <div id="lineup-loading" class="p-8 text-center">
+            <div class="inline-flex items-center space-x-3 text-gray-500">
+                <svg class="animate-spin h-6 w-6 text-csj-purple" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-sm text-gray-500">Cargando alineación desde el acta oficial...</span>
+            </div>
+        </div>
+
+        <!-- Error -->
+        <div id="lineup-error" class="hidden p-6">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+                <div class="flex items-start space-x-2">
+                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    <span id="lineup-error-message">No se pudo cargar la alineación.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenido -->
+        <div id="lineup-content" class="hidden divide-y divide-gray-100">
+
+            <!-- Convocados -->
+            <div class="p-4 sm:p-6">
+                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Convocados</h3>
+                <div class="grid grid-cols-2 gap-4 sm:gap-6">
+                    <div class="bg-csj-purple bg-opacity-5 rounded-lg p-3 sm:p-4">
+                        <div class="mb-2">
+                            <div class="text-xs font-semibold text-csj-purple uppercase tracking-wide mb-0.5">Local</div>
+                            <div class="text-xs text-gray-400">Cap: <span id="lineup-home-captain" class="font-medium text-gray-600"></span></div>
+                        </div>
+                        <ul id="lineup-home-list" class="space-y-0.5"></ul>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 sm:p-4">
+                        <div class="mb-2">
+                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Visitante</div>
+                            <div class="text-xs text-gray-400">Cap: <span id="lineup-away-captain" class="font-medium text-gray-600"></span></div>
+                        </div>
+                        <ul id="lineup-away-list" class="space-y-0.5"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sets -->
+            <div class="p-4 sm:p-6">
+                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Desarrollo por sets</h3>
+                <div id="lineup-sets" class="space-y-3"></div>
+            </div>
+
+            <div class="px-4 py-2">
+                <p class="text-xs text-gray-400 italic text-center">
+                    * Datos extraídos del acta oficial. ↑N&nbsp;=&nbsp;sustituido por dorsal N.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Videos del partido -->
+    {% if videos %}
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800">
+                    📹 Videos del partido ({{ videos.count }})
+                </h2>
+                {% if can_manage_videos %}
+                    <a href="{% url 'content:video_bulk_create' %}?match={{ match.id }}"
+                       class="inline-flex items-center px-3 py-1.5 bg-csj-purple hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition">
+                        + Añadir vídeos
+                    </a>
+                {% endif %}
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 p-4 sm:p-6">
+                {% for video in videos %}
+                    <div class="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition">
+                        <!-- Video embed -->
+                        <div class="relative aspect-video bg-black rounded-t-lg">
+                            <iframe
+                                src="{{ video.get_embed_url }}"
+                                frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowfullscreen
+                                referrerpolicy="strict-origin-when-cross-origin"
+                                class="absolute inset-0 w-full h-full">
+                            </iframe>
+                        </div>
+                        
+                        <!-- Video info -->
+                        <div class="p-4">
+                            <h3 class="font-semibold text-gray-800 mb-2 line-clamp-2">
+                                <a href="{% url 'content:video_detail' video.id %}" class="hover:text-csj-purple transition">
+                                    {{ video.title }}
+                                </a>
+                            </h3>
+                            
+                            {% if video.description %}
+                                <p class="text-sm text-gray-600 mb-3 line-clamp-3">{{ video.description }}</p>
+                            {% endif %}
+                            
+                            <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+                                <div class="flex items-center space-x-3">
+                                    {% if video.category %}
+                                        <span class="bg-csj-purple bg-opacity-20 text-csj-purple px-2 py-1 rounded">
+                                            {{ video.category.name }}
+                                        </span>
+                                    {% endif %}
+                                    <span>{{ video.created_at|date:"d/m/Y" }}</span>
+                                </div>
+                                <span>Por {{ video.created_by.username }}</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <!-- Sin videos -->
+        <div class="bg-white rounded-lg shadow-lg p-8 sm:p-12 text-center">
+            <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+            </svg>
+            <h3 class="mt-4 text-lg font-medium text-gray-900">No hay videos para este partido</h3>
+            <p class="mt-2 text-sm text-gray-500">
+                Aún no se han subido videos para este enfrentamiento. 
+                {% if can_manage_videos %}
+                    <a href="{% url 'content:video_bulk_create' %}?match={{ match.id }}" class="text-csj-purple hover:text-csj-purple-dark font-medium">
+                        ¡Sé el primero en añadir uno!
+                    </a>
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+
+    <!-- Imágenes del partido -->
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800">
+                    📸 Galería del partido
+                </h2>
+                <a href="{% url 'content:match_images' match.id %}" 
+                   class="text-csj-purple hover:text-purple-700 text-sm font-medium">
+                    Ver todas <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+        </div>
+        
+        {% if images %}
+            <div class="p-4 sm:p-6">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                    {% for image in images|slice:":8" %}
+                        <div class="aspect-square relative group cursor-pointer"
+                             onclick="openImageLightbox('{{ image.image.url }}', '{{ image.title|escapejs }}', {{ image.id }})">
+                            <img src="{{ image.image.url }}"
+                                 alt="{{ image.title }}"
+                                 class="w-full h-full object-cover rounded-lg group-hover:scale-105 transition-transform duration-200">
+                            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-expand text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"></i>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% if images.count > 8 %}
+                    <div class="text-center mt-4">
+                        <a href="{% url 'content:match_images' match.id %}"
+                           class="inline-flex items-center px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
+                            Ver las {{ images.count }} imágenes <i class="fas fa-images ml-2"></i>
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="p-8 sm:p-12 text-center">
+                <i class="fas fa-images text-gray-400 text-4xl mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No hay imágenes para este partido</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                    Aún no se han subido imágenes para este enfrentamiento.
+                </p>
+                <!-- Menú desplegable de subida -->
+                <div class="relative">
+                    <button id="upload-menu-btn-{{ match.id }}"
+                            class="inline-flex items-center px-2.5 py-1 bg-csj-purple text-white rounded-md hover:bg-purple-700 transition-colors duration-200 text-xs">
+                        <i class="fas fa-plus mr-1 text-xs"></i>Subir imagen
+                        <svg class="w-2.5 h-2.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    
+                    <div id="upload-menu-{{ match.id }}"
+                         class="hidden absolute mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                        <div class="py-1 min-w-full">
+                            <a href="{% url 'content:image_upload' %}?match={{ match.id }}" 
+                               class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 whitespace-nowrap">
+                                <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                Subir una imagen
+                            </a>
+                            <a href="{% url 'content:image_bulk_upload' %}?match={{ match.id }}" 
+                               class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 whitespace-nowrap">
+                                <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                                </svg>
+                                Subir múltiples imágenes
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Navegación -->
+    <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">🔗 Enlaces relacionados</h3>
+        <div class="flex flex-wrap gap-2 sm:gap-3">
+            <a href="{% url 'content:video_list' %}" 
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
+                🎬 <span class="hidden sm:inline ml-1">Ver</span> Videos
+            </a>
+            <a href="{% url 'competitions:calendar_view' %}" 
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
+                📅 <span class="hidden sm:inline ml-1">Ver</span> Calendario
+            </a>
+            <a href="{% url 'competitions:standings_view' %}" 
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
+                🏆 <span class="hidden sm:inline ml-1">Ver</span> Clasificación
+            </a>
+            <a href="{% url 'competitions:league_list' %}" 
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
+                📋 <span class="hidden sm:inline ml-1">Ver</span> Ligas
+            </a>
+            <a href="{% url 'content:image_gallery' %}" 
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
+                📸 <span class="hidden sm:inline ml-1">Ver</span> Galería
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Lightbox Modal para Imágenes -->
+{% load static %}
+<script src="{% static 'js/lightbox.js' %}"></script>
+
+<!-- Modal para agregar resultado -->
+<div id="resultModal" class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Agregar Resultado</h3>
+                <button onclick="closeResultModal()" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="p-6">
+            <div class="text-center mb-6">
+                <div id="resultMatchInfo" class="text-lg font-semibold text-gray-800 dark:text-gray-200"></div>
+                <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Introduce el marcador final</div>
+            </div>
+            
+            <form id="resultForm" class="space-y-6">
+                <div class="flex items-center justify-center space-x-8">
+                    <!-- Equipo Local -->
+                    <div class="text-center">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" id="homeTeamLabel">Local</label>
+                        <input type="number" id="homeScore" name="home_score" min="0" max="99" 
+                               class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
+                               placeholder="0" required>
+                    </div>
+                    
+                    <!-- Separador -->
+                    <div class="text-2xl font-bold text-gray-500 dark:text-gray-400">-</div>
+                    
+                    <!-- Equipo Visitante -->
+                    <div class="text-center">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" id="awayTeamLabel">Visitante</label>
+                        <input type="number" id="awayScore" name="away_score" min="0" max="99" 
+                               class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
+                               placeholder="0" required>
+                    </div>
+                </div>
+                
+                <!-- Mensaje de error -->
+                <div id="resultError" class="hidden text-sm text-red-600 dark:text-red-400 text-center"></div>
+                
+                <!-- Botones -->
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeResultModal()" 
+                            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-csj-purple-dark transition">
+                        Guardar Resultado
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de perfil de jugador (alineación del acta) -->
+<div id="playerProfileModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-sm w-full shadow-xl">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Ficha del jugador</h3>
+            <button onclick="closePlayerModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="flex items-center space-x-4 mb-4">
+                <div id="playerPhoto" class="w-16 h-16 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div id="playerFullName" class="text-lg font-bold text-gray-900 dark:text-gray-100"></div>
+                    <div id="playerPosition" class="text-sm text-csj-purple dark:text-csj-yellow"></div>
+                    <div id="playerJersey" class="text-sm text-gray-500"></div>
+                </div>
+            </div>
+            <div id="playerProfileLink" class="hidden mt-2">
+                <a id="playerProfileUrl" href="#"
+                   class="inline-flex items-center px-4 py-2 bg-csj-purple text-white rounded-lg text-sm hover:bg-purple-700 transition w-full justify-center">
+                    Ver ficha completa
+                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Alias para compatibilidad con el código existente
+function openImageLightbox(imageUrl, title, imageId) {
+    openLightbox(imageUrl, title, imageId);
+}
+
+function closeImageLightbox() {
+    closeLightbox();
+}
+
+// Variables globales para el modal de resultado
+let currentMatchId = null;
+
+// Abrir modal de resultado
+function openResultModal(matchId, homeTeam, awayTeam) {
+    currentMatchId = matchId;
+    
+    // Actualizar información del partido
+    document.getElementById('resultMatchInfo').textContent = `${homeTeam} vs ${awayTeam}`;
+    document.getElementById('homeTeamLabel').textContent = homeTeam;
+    document.getElementById('awayTeamLabel').textContent = awayTeam;
+    
+    // Limpiar formulario
+    document.getElementById('homeScore').value = '';
+    document.getElementById('awayScore').value = '';
+    document.getElementById('resultError').classList.add('hidden');
+    
+    // Mostrar modal
+    document.getElementById('resultModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    
+    // Enfocar primer campo
+    document.getElementById('homeScore').focus();
+}
+
+// Cerrar modal de resultado
+function closeResultModal() {
+    document.getElementById('resultModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    currentMatchId = null;
+}
+
+// Manejar envío del formulario de resultado
+async function handleResultSubmit(e) {
+    e.preventDefault();
+    
+    const homeScore = document.getElementById('homeScore').value;
+    const awayScore = document.getElementById('awayScore').value;
+    const errorDiv = document.getElementById('resultError');
+    
+    // Validación básica
+    if (!homeScore || !awayScore) {
+        showResultError('Por favor, introduce ambos marcadores');
+        return;
+    }
+    
+    if (homeScore < 0 || awayScore < 0) {
+        showResultError('Los marcadores no pueden ser negativos');
+        return;
+    }
+    
+    if (homeScore == awayScore) {
+        showResultError('En voleibol no puede haber empate');
+        return;
+    }
+    
+    // Enviar datos
+    try {
+        const response = await fetch(`/competitions/ajax/partidos/${currentMatchId}/resultado/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                home_score: parseInt(homeScore),
+                away_score: parseInt(awayScore)
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Mostrar mensaje de éxito
+            showResultSuccess(data.message);
+            
+            // Cerrar modal
+            closeResultModal();
+            
+            // Recargar página para mostrar el resultado
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showResultError(data.error || 'Error al guardar el resultado');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showResultError('Error de conexión. Inténtalo de nuevo.');
+    }
+}
+
+// Mostrar error en el modal
+function showResultError(message) {
+    const errorDiv = document.getElementById('resultError');
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
+}
+
+// Mostrar mensaje de éxito
+function showResultSuccess(message) {
+    // Crear notificación temporal
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Remover después de 3 segundos
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Obtener cookie CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Inicializar formulario de resultado
+document.addEventListener('DOMContentLoaded', function() {
+    const resultForm = document.getElementById('resultForm');
+    if (resultForm) {
+        resultForm.addEventListener('submit', handleResultSubmit);
+    }
+});
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('resultModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeResultModal();
+    }
+});
+
+// Cerrar modales con ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeResultModal();
+        closePlayerModal();
+    }
+});
+
+// Menú desplegable de subida de imágenes
+document.addEventListener('DOMContentLoaded', function() {
+    const menuBtn = document.getElementById('upload-menu-btn-{{ match.id }}');
+    const menu = document.getElementById('upload-menu-{{ match.id }}');
+    
+    if (menuBtn && menu) {
+        function positionDropdown() {
+            if (menu.classList.contains('hidden')) return;
+            
+            const viewportWidth = window.innerWidth;
+            
+            // En móvil, alinear al lado derecho del botón para evitar overflow
+            if (viewportWidth < 640) {
+                menu.style.left = 'auto';
+                menu.style.right = '0';
+                menu.style.transform = 'none';
+                menu.style.width = 'auto';
+                menu.style.minWidth = '200px';
+                menu.style.maxWidth = 'calc(100vw - 1rem)';
+            } else {
+                // En desktop, centrar debajo del botón
+                menu.style.left = '50%';
+                menu.style.right = 'auto';
+                menu.style.transform = 'translateX(-50%)';
+                menu.style.width = '12rem'; // w-48
+            }
+        }
+        
+        menuBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            menu.classList.toggle('hidden');
+            
+            // Reposicionar después de mostrar
+            if (!menu.classList.contains('hidden')) {
+                requestAnimationFrame(() => {
+                    positionDropdown();
+                });
+            }
+        });
+        
+        // Reposicionar al redimensionar ventana
+        window.addEventListener('resize', positionDropdown);
+        
+        // Cerrar al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!menu.contains(e.target) && !menuBtn.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+    }
+});
+
+{% if match.acta_html %}
+(function() {
+
+    // ── Convocados ──────────────────────────────────────────────────────────
+    // Renderiza lista de convocados [{number, name_acta, person}] en un <ul>
+    function renderConvocados(ul, players) {
+        while (ul.firstChild) ul.removeChild(ul.firstChild);
+        if (!players || !players.length) {
+            var li = document.createElement('li');
+            li.className = 'text-xs text-gray-400 italic';
+            li.textContent = 'Sin datos';
+            ul.appendChild(li);
+            return;
+        }
+        players.forEach(function(player) {
+            var li = document.createElement('li');
+            var hasPerson = player.person && player.person.id;
+            li.className = 'flex items-center space-x-2 py-0.5' + (hasPerson ? ' cursor-pointer group' : '');
+            if (hasPerson) {
+                li.addEventListener('click', function() { openPlayerModal(player); });
+            }
+
+            // Dorsal
+            var badge = document.createElement('span');
+            badge.className = 'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold flex-shrink-0 '
+                + (hasPerson ? 'bg-csj-purple text-white group-hover:bg-purple-700 transition'
+                             : 'bg-csj-purple bg-opacity-20 text-csj-purple');
+            badge.textContent = player.number !== null ? String(player.number) : '?';
+
+            // Nombre del acta (siempre visible) + nombre completo entre paréntesis si hay persona
+            var nameSpan = document.createElement('span');
+            nameSpan.className = 'text-xs flex-1 min-w-0 truncate'
+                + (hasPerson ? ' font-medium text-gray-800 group-hover:text-csj-purple transition'
+                             : ' text-gray-600');
+            if (hasPerson && player.person.full_name) {
+                nameSpan.textContent = player.person.full_name;
+                nameSpan.title = player.name_acta;
+            } else {
+                nameSpan.textContent = player.name_acta || '';
+            }
+
+            li.appendChild(badge);
+            li.appendChild(nameSpan);
+            ul.appendChild(li);
+        });
+    }
+
+    // ── Sets ────────────────────────────────────────────────────────────────
+    // Crea una celda de posición (número + sustitución opcional)
+    function makePosCell(player) {
+        var td = document.createElement('td');
+        td.className = 'text-center py-2 px-1 align-top';
+
+        var hasPerson = player && player.person && player.person.id;
+        var num = player && player.number !== null ? String(player.number) : '–';
+
+        var badge = document.createElement('span');
+        badge.className = 'inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold '
+            + (hasPerson ? 'bg-csj-purple text-white cursor-pointer hover:bg-purple-700 transition'
+                         : 'bg-gray-100 text-gray-600');
+        badge.textContent = num;
+        if (hasPerson) {
+            badge.title = player.person.full_name || num;
+            badge.addEventListener('click', function() { openPlayerModal(player); });
+        }
+        td.appendChild(badge);
+
+        if (player && player.sub) {
+            var subWrap = document.createElement('div');
+            subWrap.className = 'mt-0.5 leading-none text-center';
+            var subNum = document.createElement('span');
+            subNum.style.fontSize = '10px';
+            subNum.className = 'text-orange-500 font-semibold';
+            subNum.textContent = '↑' + player.sub.number;
+            subWrap.appendChild(subNum);
+            if (player.sub.score) {
+                var subScore = document.createElement('div');
+                subScore.style.fontSize = '9px';
+                subScore.className = 'text-gray-400 leading-none';
+                subScore.textContent = player.sub.score;
+                subWrap.appendChild(subScore);
+            }
+            td.appendChild(subWrap);
+        }
+        return td;
+    }
+
+    // Renderiza todos los sets en el contenedor dado
+    function renderSets(container, sets) {
+        while (container.firstChild) container.removeChild(container.firstChild);
+        if (!sets || !sets.length) {
+            var msg = document.createElement('p');
+            msg.className = 'text-xs text-gray-400 italic';
+            msg.textContent = 'Sin datos de sets.';
+            container.appendChild(msg);
+            return;
+        }
+
+        sets.forEach(function(set) {
+            var card = document.createElement('div');
+            card.className = 'border border-gray-200 rounded-lg overflow-hidden';
+
+            // Cabecera del set
+            var hdr = document.createElement('div');
+            hdr.className = 'bg-gray-100 px-3 py-1.5 flex items-center justify-between';
+            var titleEl = document.createElement('span');
+            titleEl.className = 'text-xs font-bold text-gray-700 uppercase tracking-wide';
+            titleEl.textContent = set.title || '';
+            var timeEl = document.createElement('span');
+            timeEl.className = 'text-xs text-gray-400';
+            timeEl.textContent = set.time || '';
+            hdr.appendChild(titleEl);
+            hdr.appendChild(timeEl);
+            card.appendChild(hdr);
+
+            // Tabla de posiciones
+            var wrap = document.createElement('div');
+            wrap.className = 'overflow-x-auto';
+            var table = document.createElement('table');
+            table.className = 'w-full text-xs border-collapse';
+
+            // Fila de cabecera de posiciones
+            var thead = document.createElement('thead');
+            var hr = document.createElement('tr');
+            hr.className = 'bg-gray-50';
+            ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'Pts'].forEach(function(h, i) {
+                var th = document.createElement('th');
+                th.className = i === 0
+                    ? 'text-left py-1 px-2 font-semibold text-gray-400 min-w-[72px] border-b border-gray-100'
+                    : 'text-center py-1 px-1 font-semibold text-gray-400 w-8 border-b border-gray-100';
+                th.textContent = h;
+                hr.appendChild(th);
+            });
+            thead.appendChild(hr);
+            table.appendChild(thead);
+
+            // Filas de equipos
+            var tbody = document.createElement('tbody');
+            (set.teams || []).forEach(function(team, idx) {
+                var tr = document.createElement('tr');
+                tr.className = idx % 2 === 1 ? 'bg-gray-50' : '';
+
+                // Nombre equipo
+                var nameTd = document.createElement('td');
+                nameTd.className = 'py-2 px-2 text-xs text-gray-700 font-medium align-middle';
+                var short = team.name && team.name.length > 14 ? team.name.substring(0, 14) + '…' : (team.name || '');
+                nameTd.textContent = short;
+                nameTd.title = team.name || '';
+                tr.appendChild(nameTd);
+
+                // Celdas I-VI
+                (team.lineup || []).forEach(function(player) {
+                    tr.appendChild(makePosCell(player));
+                });
+                // Rellena si hay menos de 6
+                for (var i = (team.lineup || []).length; i < 6; i++) {
+                    tr.appendChild(makePosCell(null));
+                }
+
+                // Puntos
+                var ptsTd = document.createElement('td');
+                ptsTd.className = 'text-center py-2 px-2 font-bold text-gray-800 align-middle';
+                ptsTd.textContent = team.points !== null && team.points !== undefined ? String(team.points) : '–';
+                tr.appendChild(ptsTd);
+
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            wrap.appendChild(table);
+            card.appendChild(wrap);
+            container.appendChild(card);
+        });
+    }
+
+    // ── Fetch ────────────────────────────────────────────────────────────────
+    fetch('/competitions/ajax/partidos/{{ match.id }}/alineacion/', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('lineup-loading').classList.add('hidden');
+        if (!data.success) {
+            document.getElementById('lineup-error-message').textContent = data.error || 'No se pudo cargar el acta.';
+            document.getElementById('lineup-error').classList.remove('hidden');
+            return;
+        }
+        document.getElementById('lineup-home-captain').textContent = data.home_captain || '-';
+        document.getElementById('lineup-away-captain').textContent = data.away_captain || '-';
+        renderConvocados(document.getElementById('lineup-home-list'), data.home_convocados);
+        renderConvocados(document.getElementById('lineup-away-list'), data.away_convocados);
+        renderSets(document.getElementById('lineup-sets'), data.sets);
+        document.getElementById('lineup-content').classList.remove('hidden');
+    })
+    .catch(function() {
+        document.getElementById('lineup-loading').classList.add('hidden');
+        document.getElementById('lineup-error-message').textContent = 'Error de conexión al cargar el acta.';
+        document.getElementById('lineup-error').classList.remove('hidden');
+    });
+})();
+{% endif %}
+
+// Modal de perfil de jugador
+function openPlayerModal(player) {
+    var p = player.person;
+    document.getElementById('playerFullName').textContent = p.full_name || player.name_acta || '';
+    document.getElementById('playerPosition').textContent = p.position || '';
+    document.getElementById('playerJersey').textContent = player.number !== null ? 'Dorsal: ' + player.number : '';
+
+    // Foto
+    var photoDiv = document.getElementById('playerPhoto');
+    while (photoDiv.firstChild) photoDiv.removeChild(photoDiv.firstChild);
+    if (p.photo_url) {
+        var img = document.createElement('img');
+        img.src = p.photo_url;
+        img.alt = p.full_name || '';
+        img.className = 'w-full h-full object-cover';
+        photoDiv.appendChild(img);
+    } else {
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'w-8 h-8 text-gray-400');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('d', 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z');
+        svg.appendChild(path);
+        photoDiv.appendChild(svg);
+    }
+
+    // Enlace a ficha
+    if (p.id) {
+        document.getElementById('playerProfileUrl').href = '/videos/personas/' + p.id + '/';
+        document.getElementById('playerProfileLink').classList.remove('hidden');
+    } else {
+        document.getElementById('playerProfileLink').classList.add('hidden');
+    }
+
+    document.getElementById('playerProfileModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closePlayerModal() {
+    var modal = document.getElementById('playerProfileModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// Cerrar modal de jugador al hacer clic fuera
+document.getElementById('playerProfileModal').addEventListener('click', function(e) {
+    if (e.target === this) closePlayerModal();
+});
+</script>
+{% endblock %}

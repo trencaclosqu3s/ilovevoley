@@ -18,15 +18,18 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import RedirectView
-from django.contrib.auth.decorators import login_required
 from videosvoley.core.moderation_views import moderate_user, moderate_image
 from videosvoley.core.views import landing
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     path('accounts/', include('allauth.urls')),
+    # Alias para /videos/ preservando bookmarks hacia content:video_list y rutas legacy
     path('videos/', include('videosvoley.videos.urls', namespace='videos')),
+    path('rosters/', include('videosvoley.rosters.urls', namespace='rosters')),
+    path('content/', include('videosvoley.content.urls', namespace='content')),
+    path('teams/', include('videosvoley.teams.urls', namespace='teams')),
+    path('competitions/', include('videosvoley.competitions.urls', namespace='competitions')),
     path('core/', include('videosvoley.core.urls', namespace='core')),
     path('', include('videosvoley.users.urls')),
     # Rutas de moderación con tokens seguros

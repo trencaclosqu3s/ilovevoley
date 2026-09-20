@@ -214,7 +214,7 @@
 
                             {% if latest_images %}
                             <div class="mt-4 text-center">
-                                <a href="{% url 'videos:image_gallery' %}"
+                                <a href="{% url 'content:image_gallery' %}"
                                     class="inline-flex items-center text-csj-purple dark:text-csj-yellow text-sm font-semibold hover:underline">
                                     Ver galería completa
                                     <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -264,20 +264,20 @@
                 <div class="text-center">
                     <h3 class="text-lg font-bold mb-3">Enlaces</h3>
                     <nav class="space-y-2">
-                        <a href="{% url 'videos:about' %}"
+                        <a href="{% url 'core:about' %}"
                             class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
                             Quiénes Somos
                         </a>
                         {% if user.is_authenticated %}
-                        <a href="{% url 'videos:video_list' %}"
+                        <a href="{% url 'content:video_list' %}"
                             class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
                             Videos
                         </a>
-                        <a href="{% url 'videos:image_gallery' %}"
+                        <a href="{% url 'content:image_gallery' %}"
                             class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
                             Galería
                         </a>
-                        <a href="{% url 'videos:calendar_view' %}"
+                        <a href="{% url 'competitions:calendar_view' %}"
                             class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
                             Calendario
                         </a>

@@ -61,6 +61,10 @@ INSTALLED_APPS = [
 
     # Local apps
     'videosvoley.core.apps.CoreConfig',
+    'videosvoley.rosters',
+    'videosvoley.content',
+    'videosvoley.teams',
+    'videosvoley.competitions',
     'videosvoley.videos',
     'videosvoley.users',
 ]

@@ -16,7 +16,7 @@ class User(AbstractUser):
         help_text='Indica de qué niño/a eres padre/familiar (ej: "papá de Juanito de Infantil")'
     )
     preferred_categories = models.ManyToManyField(
-        'videos.Category',
+        'core.Category',
         blank=True,
         related_name='subscribed_users',
         verbose_name='Categorías de Interés',
@@ -36,7 +36,7 @@ class User(AbstractUser):
     
     # Relación con fichas de hijos (para padres)
     children = models.ManyToManyField(
-        'videos.Person',
+        'rosters.Person',
         blank=True,
         related_name='parents',
         verbose_name='Hijos',
