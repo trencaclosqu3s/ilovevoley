@@ -109,6 +109,8 @@ def about(request):
     return render(request, 'core/about.html', context)
 
 
+@login_required
+@user_passes_test(lambda u: u.is_superuser, login_url='/')
 def moderation_counts_api(request):
     """API para obtener contadores de elementos pendientes de moderación"""
     User = get_user_model()
