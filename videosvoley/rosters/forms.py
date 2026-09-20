@@ -134,7 +134,8 @@ class PlayerRoleForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
-        person = kwargs.pop('person', None)
+        self.person = kwargs.pop('person', None)
+        person = self.person
         super().__init__(*args, **kwargs)
 
         # Hacer campos opcionales
@@ -170,6 +171,22 @@ class PlayerRoleForm(forms.ModelForm):
             self.fields['team'].queryset = self.fields['team'].queryset.exclude(
                 id__in=active_roles.values_list('team_id', flat=True)
             )
+
+    def clean(self):
+        cleaned = super().clean()
+        team = cleaned.get('team')
+        season = cleaned.get('season')
+        if self.person and team and season:
+            existing = PlayerRole.objects.filter(
+                person=self.person, team=team, season=season, is_active=True
+            )
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise forms.ValidationError(
+                    'Esta persona ya tiene un rol de jugador en este equipo y temporada.'
+                )
+        return cleaned
 
 
 class StaffRoleForm(forms.ModelForm):
@@ -213,7 +230,7 @@ class StaffRoleForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
-        person = kwargs.pop('person', None)
+        self.person = kwargs.pop('person', None)
         super().__init__(*args, **kwargs)
 
         # Hacer campo notes opcional
@@ -238,6 +255,23 @@ class StaffRoleForm(forms.ModelForm):
         # Una persona puede tener varios roles distintos en el mismo equipo y
         # temporada (p.ej. entrenador y delegado); lo valida el UniqueConstraint
         # (person, team, role, season), no el queryset.
+
+    def clean(self):
+        cleaned = super().clean()
+        team = cleaned.get('team')
+        role = cleaned.get('role')
+        season = cleaned.get('season')
+        if self.person and team and role and season:
+            existing = StaffRole.objects.filter(
+                person=self.person, team=team, role=role, season=season, is_active=True
+            )
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise forms.ValidationError(
+                    'Esta persona ya tiene ese rol en este equipo y temporada.'
+                )
+        return cleaned
 
 
 __all__ = [

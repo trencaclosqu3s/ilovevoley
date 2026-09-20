@@ -48,3 +48,8 @@ class StaffRoleSeasonConstraintTests(TestCase):
         StaffRole.objects.create(person=self.person, team=self.team, role='head_coach', season=self.past)
         with self.assertRaises(IntegrityError):
             StaffRole.objects.create(person=self.person, team=self.team, role='head_coach', season=self.past)
+
+    def test_dos_roles_distintos_en_el_mismo_equipo_y_temporada(self):
+        StaffRole.objects.create(person=self.person, team=self.team, role='head_coach', season=self.past)
+        StaffRole.objects.create(person=self.person, team=self.team, role='delegate', season=self.past)
+        self.assertEqual(self.person.staff_roles.count(), 2)
