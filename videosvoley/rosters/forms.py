@@ -135,7 +135,6 @@ class PlayerRoleForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         self.person = kwargs.pop('person', None)
-        person = self.person
         super().__init__(*args, **kwargs)
 
         # Hacer campos opcionales
@@ -161,9 +160,9 @@ class PlayerRoleForm(forms.ModelForm):
         ).select_related('category').order_by('category__name', 'name')
 
         # Si hay persona, excluir equipos donde ya tiene rol activo en esa temporada
-        if person:
+        if self.person:
             season = self.instance.season if self.instance.pk else self.fields['season'].initial
-            active_roles = person.player_roles.filter(is_active=True)
+            active_roles = self.person.player_roles.filter(is_active=True)
             if self.instance.pk:
                 active_roles = active_roles.exclude(pk=self.instance.pk)
             if season:
@@ -171,22 +170,6 @@ class PlayerRoleForm(forms.ModelForm):
             self.fields['team'].queryset = self.fields['team'].queryset.exclude(
                 id__in=active_roles.values_list('team_id', flat=True)
             )
-
-    def clean(self):
-        cleaned = super().clean()
-        team = cleaned.get('team')
-        season = cleaned.get('season')
-        if self.person and team and season:
-            existing = PlayerRole.objects.filter(
-                person=self.person, team=team, season=season, is_active=True
-            )
-            if self.instance.pk:
-                existing = existing.exclude(pk=self.instance.pk)
-            if existing.exists():
-                raise forms.ValidationError(
-                    'Esta persona ya tiene un rol de jugador en este equipo y temporada.'
-                )
-        return cleaned
 
 
 class StaffRoleForm(forms.ModelForm):
