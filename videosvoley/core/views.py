@@ -109,10 +109,12 @@ def about(request):
     return render(request, 'core/about.html', context)
 
 
-@login_required
-@user_passes_test(lambda u: u.is_superuser, login_url='/')
 def moderation_counts_api(request):
     """API para obtener contadores de elementos pendientes de moderación"""
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'No autenticado'}, status=401)
+    if not (request.user.is_superuser or request.user.is_staff):
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
     User = get_user_model()
 
     if getattr(request, 'tenant', None):

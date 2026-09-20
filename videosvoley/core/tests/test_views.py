@@ -106,10 +106,15 @@ class CoreViewUrlTests(TestCase):
         self.assertTrue(data['success'])
         self.assertIn('total_pending', data)
 
-        # Anónimo redirige
+        # Anónimo recibe 401
         self.client.logout()
         anon_resp = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(anon_resp.status_code, 302)
+        self.assertEqual(anon_resp.status_code, 401)
+
+        # Usuario normal recibe 403
+        self.client.force_login(self.unapproved_user)
+        user_resp = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(user_resp.status_code, 403)
 
     def test_core_approve_user_api(self):
         self.client.force_login(self.superuser)
