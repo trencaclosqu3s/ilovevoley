@@ -460,6 +460,11 @@ UNFOLD = {
                         'link': reverse_lazy('admin:competitions_league_changelist'),
                     },
                     {
+                        'title': _('Temporadas'),
+                        'icon': 'calendar_month',
+                        'link': reverse_lazy('admin:core_season_changelist'),
+                    },
+                    {
                         'title': _('Clubes'),
                         'icon': 'stadium',
                         'link': reverse_lazy('admin:teams_club_changelist'),
