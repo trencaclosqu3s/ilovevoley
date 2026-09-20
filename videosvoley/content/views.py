@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 from videosvoley.competitions.models import League, Match
 from videosvoley.core.mixins import get_club_team_filter
 from videosvoley.core.models import Category, Season
+from videosvoley.core.season_utils import resolve_season_filter
 from videosvoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
 from videosvoley.teams.models import Team
 from videosvoley.videos.utils import (
@@ -37,25 +38,6 @@ from .models import Comment, Image, Video
 logger = logging.getLogger(__name__)
 
 
-def _resolve_season_filter(request):
-    """Temporada a filtrar según ?season=.
-
-    Sin parámetro -> temporada activa; parámetro vacío -> todas; id -> esa.
-    Devuelve (season_o_None, id_seleccionado_para_el_selector).
-    """
-    current = Season.objects.current()
-    param = request.GET.get('season')
-    if param is None:
-        return current, (str(current.pk) if current else '')
-    if param == '':
-        return None, ''
-    season = Season.objects.filter(pk=param).first()
-    if season is None:
-        # Id inválido: caer a la temporada activa en vez de mostrar todo.
-        return current, (str(current.pk) if current else '')
-    return season, str(season.pk)
-
-
 @tenant_access_required()
 def video_list(request):
     videos = Video.objects.select_related(
@@ -67,7 +49,7 @@ def video_list(request):
     leagues = League.objects.visible_in_app()
     teams = Team.objects.all()
     seasons = Season.objects.all()
-    season_filter, selected_season = _resolve_season_filter(request)
+    season_filter, selected_season = resolve_season_filter(request)
 
     # Filtros
     category_filter = request.GET.get('category')
@@ -315,7 +297,7 @@ def image_gallery(request):
             images = images.filter(categories__in=user_categories).distinct()
 
     # Filtrar por temporada (activa por defecto)
-    season_filter, selected_season = _resolve_season_filter(request)
+    season_filter, selected_season = resolve_season_filter(request)
     if season_filter:
         images = images.filter(season=season_filter)
 
@@ -442,7 +424,7 @@ def image_gallery_albums(request):
             images = images.filter(categories__in=user_categories).distinct()
 
     # Filtrar por temporada (activa por defecto)
-    season_filter, selected_season = _resolve_season_filter(request)
+    season_filter, selected_season = resolve_season_filter(request)
     if season_filter:
         images = images.filter(season=season_filter)
 

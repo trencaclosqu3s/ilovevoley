@@ -11,6 +11,7 @@ from videosvoley.core.models import normalize_season_name, season_start_year_for
 
 
 def _resolve(Season, cache, name):
+    name = normalize_season_name(name)
     if not name:
         return None
     if name in cache:
