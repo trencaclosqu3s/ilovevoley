@@ -134,7 +134,24 @@
                 {% endfor %}
             </select>
         </div>
-        
+
+        <!-- Filtro por temporada -->
+        <div class="sm:w-48">
+            <label for="season" class="block text-sm font-medium text-gray-700 mb-1">Temporada</label>
+            <select
+                id="season"
+                name="season"
+                class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+            >
+                <option value="">Todas las temporadas</option>
+                {% for season in seasons %}
+                    <option value="{{ season.id }}" {% if selected_season == season.id|stringformat:"s" %}selected{% endif %}>
+                        {{ season.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
         <!-- Botón limpiar -->
         <div class="flex gap-2">
             <a 
@@ -243,11 +260,11 @@
         <div class="mt-8 flex justify-center">
             <nav class="flex items-center space-x-2">
                 {% if page_obj.has_previous %}
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}page=1" 
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if request.GET.season is not None %}season={{ request.GET.season }}&{% endif %}page=1" 
                        class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
                         « Primera
                     </a>
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}page={{ page_obj.previous_page_number }}" 
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if request.GET.season is not None %}season={{ request.GET.season }}&{% endif %}page={{ page_obj.previous_page_number }}" 
                        class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
                         ‹ Anterior
                     </a>
@@ -258,11 +275,11 @@
                 </span>
                 
                 {% if page_obj.has_next %}
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}page={{ page_obj.next_page_number }}" 
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if request.GET.season is not None %}season={{ request.GET.season }}&{% endif %}page={{ page_obj.next_page_number }}" 
                        class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
                         Siguiente ›
                     </a>
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}page={{ page_obj.paginator.num_pages }}" 
+                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if request.GET.season is not None %}season={{ request.GET.season }}&{% endif %}page={{ page_obj.paginator.num_pages }}" 
                        class="px-3 py-2 text-sm text-gray-500 hover:text-csj-purple transition">
                         Última »
                     </a>

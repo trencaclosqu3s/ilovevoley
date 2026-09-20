@@ -55,13 +55,13 @@ class ImageSaveTests(TestCase):
         )
         return Image.objects.create(**kwargs)
 
-    def test_year_se_toma_del_ano_del_partido(self):
+    def test_season_se_toma_de_la_liga_del_partido(self):
         imagen = self._crear_imagen(match=self.match)
-        self.assertEqual(imagen.year, 2024)
+        self.assertEqual(imagen.season.name, '2024-25')
 
-    def test_year_sin_partido_usa_el_ano_actual(self):
+    def test_season_sin_partido_se_infiere_de_la_fecha(self):
         imagen = self._crear_imagen()
-        self.assertEqual(imagen.year, timezone.now().year)
+        self.assertEqual(imagen.season, Season.objects.for_date(timezone.now()))
 
     def test_image_type_other_pasa_a_match_al_vincular_partido(self):
         imagen = self._crear_imagen(match=self.match)
@@ -81,6 +81,43 @@ class ImageSaveTests(TestCase):
     def test_imagen_sin_partido_no_hereda_categorias(self):
         imagen = self._crear_imagen()
         self.assertEqual(imagen.categories.count(), 0)
+
+
+class VideoSaveTests(TestCase):
+    """Video.save() infiere la temporada del partido o de la fecha de subida."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username='video-user', password='x')
+        cls.league = League.objects.create(
+            name='Liga Video', federation_id='LIG-V', season=Season.objects.resolve('2024-25'),
+        )
+        cls.team_a = Team.objects.create(name='VA', federation_id='TV-A')
+        cls.team_b = Team.objects.create(name='VB', federation_id='TV-B')
+        cls.match = Match.objects.create(
+            league=cls.league, home_team=cls.team_a, away_team=cls.team_b,
+            match_date=datetime(2024, 11, 3, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='MV-1',
+        )
+
+    def _crear(self, **kwargs):
+        kwargs.setdefault('title', 'Video')
+        kwargs.setdefault('youtube_url', 'https://youtu.be/x')
+        kwargs.setdefault('created_by', self.user)
+        return Video.objects.create(**kwargs)
+
+    def test_season_se_toma_del_partido(self):
+        video = self._crear(match=self.match)
+        self.assertEqual(video.season.name, '2024-25')
+
+    def test_season_sin_partido_se_infiere_de_la_fecha(self):
+        video = self._crear()
+        self.assertEqual(video.season, Season.objects.for_date(timezone.now()))
+
+    def test_season_explicita_se_respeta(self):
+        season = Season.objects.resolve('2020-21')
+        video = self._crear(season=season)
+        self.assertEqual(video.season, season)
 
 
 class MatchManagerTests(TestCase):
