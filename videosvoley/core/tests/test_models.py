@@ -45,6 +45,17 @@ class SeasonModelTest(TestCase):
         with self.assertRaises(ValidationError):
             Season.objects.create(name='temp')
 
+    def test_save_update_fields_persists_derived_values(self):
+        from videosvoley.core.models import Season
+        season = Season.objects.create(name='2025-26')
+        season.name = '2025/2026'
+        season.is_current = True
+        season.save(update_fields=['is_current'])
+        season.refresh_from_db()
+        self.assertEqual(season.name, '2025-26')
+        self.assertEqual(season.start_year, 2025)
+        self.assertEqual(season.end_year, 2026)
+
     def test_for_date_resolves_season(self):
         from videosvoley.core.models import Season
         season = Season.objects.for_date(datetime.date(2026, 9, 20))
