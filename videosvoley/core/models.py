@@ -2,7 +2,8 @@ import datetime
 import re
 from urllib.parse import urlparse
 
-from django.db import models, transaction
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, models, transaction
 from django.core.validators import RegexValidator
 from django.db.models import Q
 from django.db.models.signals import post_save, post_delete
@@ -59,10 +60,13 @@ class SeasonManager(models.Manager):
         if not name:
             return None
         start_year = int(name.split('-')[0])
-        season, _ = self.get_or_create(
-            name=name,
-            defaults={'start_year': start_year, 'end_year': start_year + 1},
-        )
+        try:
+            season, _ = self.get_or_create(
+                name=name,
+                defaults={'start_year': start_year, 'end_year': start_year + 1},
+            )
+        except IntegrityError:
+            season = self.get(name=name)
         return season
 
     def for_date(self, value):
@@ -96,7 +100,17 @@ class Season(models.Model):
     def __str__(self):
         return self.name
 
+    def clean(self):
+        if not normalize_season_name(self.name):
+            raise ValidationError({'name': 'Formato de temporada no válido (ej: 2025-26).'})
+
     def save(self, *args, **kwargs):
+        normalized = normalize_season_name(self.name)
+        if not normalized:
+            raise ValidationError({'name': 'Formato de temporada no válido (ej: 2025-26).'})
+        self.name = normalized
+        self.start_year = int(normalized.split('-')[0])
+        self.end_year = self.start_year + 1
         if self.is_current:
             with transaction.atomic():
                 Season.objects.select_for_update().filter(is_current=True).exclude(pk=self.pk).update(is_current=False)
