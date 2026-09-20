@@ -550,7 +550,12 @@ def standings_view(request):
     show_archived = request.GET.get('show_archived', '0') == '1'
 
     # Obtener temporadas disponibles
-    seasons = League.objects.filter(is_our_team_related=True).values_list('season', flat=True).distinct().order_by('-season')
+    seasons = (
+        League.objects.filter(is_our_team_related=True, season__isnull=False)
+        .values_list('season__name', flat=True)
+        .distinct()
+        .order_by('-season__name')
+    )
     season_filter = request.GET.get('season')
 
     if show_archived or season_filter:
@@ -577,9 +582,9 @@ def standings_view(request):
 
     # Aplicar filtro de temporada
     if season_filter:
-        standings = standings.filter(league__season=season_filter)
+        standings = standings.filter(league__season__name=season_filter)
         # También filtrar las ligas del dropdown por temporada
-        leagues = leagues.filter(season=season_filter)
+        leagues = leagues.filter(season__name=season_filter)
 
     # Aplicar filtro de liga
     if league_filter:

@@ -8,7 +8,7 @@ from videosvoley.competitions import calendar_feed as comp_calendar_feed
 from videosvoley.competitions import forms as comp_forms
 from videosvoley.competitions import views as comp_views
 from videosvoley.competitions.models import League, Match, Standing
-from videosvoley.core.models import Category, Organization
+from videosvoley.core.models import Category, Organization, Season
 from videosvoley.teams.models import Club, Team
 from videosvoley.videos import calendar_feed as vid_calendar_feed
 from videosvoley.videos.forms import competitions as vid_forms_comp
@@ -79,7 +79,7 @@ class CompetitionsViewUrlTests(TestCase):
         self.league = League.objects.create(
             name='Superliga 2',
             federation_id='LEAGUE-1',
-            season='2026-2027',
+            season=Season.objects.resolve('2026-2027'),
             is_active=True,
             visibility_type='main',
             is_our_team_related=True,

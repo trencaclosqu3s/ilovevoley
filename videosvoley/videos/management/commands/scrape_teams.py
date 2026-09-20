@@ -105,7 +105,6 @@ class Command(BaseCommand):
             temp_league = League(
                 name=f"Temp League for scraping {league_id}",
                 federation_id=league_id,
-                season="temp",
                 category=category
             )
             parser = StandingsParser(temp_league)

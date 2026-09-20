@@ -240,6 +240,7 @@ from unittest.mock import patch, MagicMock
 from django.core.management import call_command
 from io import StringIO
 
+from videosvoley.core.models import Season
 from videosvoley.videos.models import League, Team, Match, Standing, Category
 
 
@@ -251,7 +252,7 @@ class ScrapeRFEVBFaseCommandTests(TestCase):
         self.parent_league = League.objects.create(
             name='CEIM 2025-26',
             federation_id='ceim_2526',
-            season='2025-26',
+            season=Season.objects.resolve('2025-26'),
             competition_type='cup',
             match_format='standard',
             visibility_type='main',
@@ -262,7 +263,7 @@ class ScrapeRFEVBFaseCommandTests(TestCase):
         self.sub_league = League.objects.create(
             name='CEIM 2025-26 - Grupo A',
             federation_id='ceim_2526_grupo_a',
-            season='2025-26',
+            season=Season.objects.resolve('2025-26'),
             competition_type='cup',
             match_format='standard',
             visibility_type='main',
@@ -412,7 +413,7 @@ class ScrapeRFEVBCompetitionTaskTests(TestCase):
         self.parent_league = League.objects.create(
             name='CEIM 2025-26',
             federation_id='ceim_2526_task_test',
-            season='2025-26',
+            season=Season.objects.resolve('2025-26'),
             competition_type='cup',
             match_format='standard',
             visibility_type='main',
@@ -447,7 +448,7 @@ class ScrapeRFEVBCompetitionTaskTests(TestCase):
         # Crear un partido pendiente
         sub = League.objects.create(
             name='Grupo A', federation_id='ceim_2526_task_test_grupo_a',
-            season='2025-26', competition_type='cup', match_format='standard',
+            season=Season.objects.resolve('2025-26'), competition_type='cup', match_format='standard',
             visibility_type='main', is_our_team_related=True,
             parent_league=self.parent_league, phase_name='Grupo A',
         )

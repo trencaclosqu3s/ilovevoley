@@ -6,6 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
 
+from videosvoley.core.models import Season
 from videosvoley.videos.models import Category, Image, League, Match, Team, Video
 
 User = get_user_model()
@@ -28,7 +29,7 @@ class ImageSaveTests(TestCase):
         cls.cat_local = Category.objects.create(name='Senior Femenino')
         cls.cat_visitante = Category.objects.create(name='Juvenil Femenino')
         cls.league = League.objects.create(
-            name='Liga Balear', federation_id='LIG-1', season='2024-25',
+            name='Liga Balear', federation_id='LIG-1', season=Season.objects.resolve('2024-25'),
         )
         cls.league.categories.add(cls.cat_liga)
         cls.local = Team.objects.create(
@@ -88,7 +89,7 @@ class MatchManagerTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.league = League.objects.create(
-            name='Liga', federation_id='LIG-M', season='2024-25',
+            name='Liga', federation_id='LIG-M', season=Season.objects.resolve('2024-25'),
         )
         cls.a = Team.objects.create(name='A', federation_id='T-A')
         cls.b = Team.objects.create(name='B', federation_id='T-B')
@@ -120,19 +121,19 @@ class LeagueManagerTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.principal = League.objects.create(
-            name='Principal', federation_id='L-M', season='2024-25',
+            name='Principal', federation_id='L-M', season=Season.objects.resolve('2024-25'),
             is_active=True, visibility_type='main', is_our_team_related=True,
         )
         cls.inactiva = League.objects.create(
-            name='Inactiva', federation_id='L-I', season='2024-25',
+            name='Inactiva', federation_id='L-I', season=Season.objects.resolve('2024-25'),
             is_active=False, visibility_type='main', is_our_team_related=True,
         )
         cls.ajena = League.objects.create(
-            name='Ajena', federation_id='L-E', season='2024-25',
+            name='Ajena', federation_id='L-E', season=Season.objects.resolve('2024-25'),
             is_active=True, visibility_type='external', is_our_team_related=False,
         )
         cls.historica = League.objects.create(
-            name='Historica', federation_id='L-H', season='2019-20',
+            name='Historica', federation_id='L-H', season=Season.objects.resolve('2019-20'),
             is_active=True, visibility_type='historical', is_historical=True,
         )
 
@@ -160,14 +161,14 @@ class LeaguePhaseTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.regular = League.objects.create(
-            name='Liga Regular', federation_id='L-R', season='2024-25',
+            name='Liga Regular', federation_id='L-R', season=Season.objects.resolve('2024-25'),
         )
         cls.oro = League.objects.create(
-            name='Liga Regular', federation_id='L-ORO', season='2024-25',
+            name='Liga Regular', federation_id='L-ORO', season=Season.objects.resolve('2024-25'),
             parent_league=cls.regular, phase_name='Liguilla Oro', phase_order=1,
         )
         cls.plata = League.objects.create(
-            name='Liga Regular', federation_id='L-PLA', season='2024-25',
+            name='Liga Regular', federation_id='L-PLA', season=Season.objects.resolve('2024-25'),
             parent_league=cls.regular, phase_name='Liguilla Plata', phase_order=2,
         )
         cls.a = Team.objects.create(name='A', federation_id='TP-A')
@@ -265,7 +266,7 @@ class MatchCleanTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.league = League.objects.create(
-            name='Liga', federation_id='L-C', season='2024-25',
+            name='Liga', federation_id='L-C', season=Season.objects.resolve('2024-25'),
         )
         cls.a = Team.objects.create(name='A', federation_id='TC-A')
         cls.b = Team.objects.create(name='B', federation_id='TC-B')

@@ -1,7 +1,7 @@
 from django import forms
 from django.utils import timezone
 
-from videosvoley.core.models import Category
+from videosvoley.core.models import Category, Season
 from videosvoley.teams.models import Club, Team
 from .models import League, Match
 
@@ -330,14 +330,14 @@ class FriendlyMatchForm(forms.ModelForm):
 
         # Crear o buscar liga de amistosos para esta categoría
         if category:
-            current_season = f"{timezone.now().year}-{timezone.now().year + 1}"
+            current_season = Season.objects.for_date(timezone.now())
 
             # Buscar o crear liga de amistosos
             league, created = League.objects.get_or_create(
                 name=f"Amistosos - {category.name}",
                 season=current_season,
                 defaults={
-                    'federation_id': f"friendly-{category.id}-{current_season}",
+                    'federation_id': f"friendly-{category.id}-{current_season.name}",
                     'competition_type': 'friendly',
                     'is_active': True,
                 }

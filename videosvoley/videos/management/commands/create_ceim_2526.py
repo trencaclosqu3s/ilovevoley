@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 
 from django.core.management.base import BaseCommand
 
+from videosvoley.core.models import Season
 from videosvoley.videos.models import Category, Club, League, Match, Team
 
 MADRID = ZoneInfo('Europe/Madrid')
@@ -164,11 +165,12 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         category = Category.objects.get(id=1)
         sant_josep_club = Club.objects.filter(id=12).first()
+        season = Season.objects.resolve(SEASON)
 
         # --- Liga principal ---
         main_league, created = League.objects.get_or_create(
             federation_id='ceim_2526',
-            season=SEASON,
+            season=season,
             defaults={
                 'name': 'CEIM - Campeonato de España Infantil Masculino',
                 'competition_type': 'cup',
@@ -190,7 +192,7 @@ class Command(BaseCommand):
 
             sub_league, created = League.objects.get_or_create(
                 federation_id=f'ceim_2526_grupo_{grupo_lower}',
-                season=SEASON,
+                season=season,
                 defaults={
                     'name': f'CEIM 2025-26 - Grupo {grupo}',
                     'competition_type': 'cup',

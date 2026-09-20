@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 
 from django.core.management.base import BaseCommand
 
+from videosvoley.core.models import Season
 from videosvoley.videos.models import Category, Club, League, Match, Team
 
 MADRID = ZoneInfo('Europe/Madrid')
@@ -107,11 +108,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         category = Category.objects.get(id=3)  # Alevín
+        season = Season.objects.resolve(SEASON)
 
         # --- Liga principal ---
         main_league, created = League.objects.get_or_create(
             federation_id='cbal_alevi_mas_2526',
-            season=SEASON,
+            season=season,
             defaults={
                 'name': 'CBAL - Campionat de Balears Alevín Masculino',
                 'competition_type': 'cup',
@@ -131,7 +133,7 @@ class Command(BaseCommand):
         for grupo, data in GRUPOS_DATA.items():
             gl, created = League.objects.get_or_create(
                 federation_id=f'cbal_alevi_mas_2526_grupo_{grupo.lower()}',
-                season=SEASON,
+                season=season,
                 defaults={
                     'name': f'CBAL Alevín Mas. 2025-26 - Grupo {grupo}',
                     'competition_type': 'cup',
@@ -166,7 +168,7 @@ class Command(BaseCommand):
         # --- Sub-ligas segunda fase ---
         fase_or, created = League.objects.get_or_create(
             federation_id='cbal_alevi_mas_2526_or',
-            season=SEASON,
+            season=season,
             defaults={
                 'name': 'CBAL Alevín Mas. 2025-26 - Fase OR',
                 'competition_type': 'cup',
@@ -184,7 +186,7 @@ class Command(BaseCommand):
 
         fase_plata, created = League.objects.get_or_create(
             federation_id='cbal_alevi_mas_2526_plata',
-            season=SEASON,
+            season=season,
             defaults={
                 'name': 'CBAL Alevín Mas. 2025-26 - Fase Plata',
                 'competition_type': 'cup',

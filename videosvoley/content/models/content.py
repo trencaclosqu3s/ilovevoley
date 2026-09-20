@@ -238,12 +238,8 @@ class Image(models.Model):
             # Extraer año de la fecha del partido o temporada
             if hasattr(self.match, 'match_date') and self.match.match_date:
                 self.year = self.match.match_date.year
-            elif hasattr(self.match.league, 'season'):
-                # Extraer año de temporada (ej: "2024-25" -> 2024)
-                try:
-                    self.year = int(self.match.league.season.split('-')[0])
-                except (ValueError, IndexError):
-                    self.year = timezone.now().year
+            elif self.match.league and self.match.league.season:
+                self.year = self.match.league.season.start_year
             else:
                 self.year = timezone.now().year
 
