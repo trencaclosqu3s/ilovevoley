@@ -144,7 +144,7 @@
                             </a>
                         {% endif %}
                         {% if user.is_superuser %}
-                            <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell" class="text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition relative inline-flex" title="Moderación">
+                            <a href="{% url 'core:moderation_panel' %}" id="moderation-bell" class="text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition relative inline-flex" title="Moderación">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                                 </svg>
@@ -308,7 +308,7 @@
                             <span>Administración</span>
                         </a>
                         {% if user.is_superuser %}
-                            <a href="{% url 'videos:moderation_panel' %}" id="moderation-bell-mobile" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
+                            <a href="{% url 'core:moderation_panel' %}" id="moderation-bell-mobile" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
                                 <span class="relative inline-flex mr-3">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>

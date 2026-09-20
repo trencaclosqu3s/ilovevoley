@@ -124,7 +124,7 @@ def league_detail(request, league_id):
         matches = matches.filter(round_number=round_filter)
 
     with_videos = request.GET.get('with_videos')
-    if with_videos:
+    if bool(with_videos):
         matches = matches.filter(videos__isnull=False).distinct()
 
     available_rounds = matches.values_list('round_number', flat=True).distinct().order_by('round_number')

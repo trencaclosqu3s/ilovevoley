@@ -26,6 +26,7 @@ from videosvoley.core.views import landing
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     path('accounts/', include('allauth.urls')),
+    # Alias para /videos/ preservando bookmarks hacia content:video_list y rutas legacy
     path('videos/', include('videosvoley.videos.urls', namespace='videos')),
     path('rosters/', include('videosvoley.rosters.urls', namespace='rosters')),
     path('content/', include('videosvoley.content.urls', namespace='content')),

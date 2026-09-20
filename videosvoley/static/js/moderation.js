@@ -11,10 +11,10 @@ class ModerationSystem {
         
         // URLs de API (se configuran dinámicamente)
         this.apiUrls = {
-            counts: '/videos/api/moderation/counts/',
-            approveUser: '/videos/api/users/{id}/approve/',
-            rejectUser: '/videos/api/users/{id}/reject/',
-            moderateImage: '/videos/api/images/{id}/moderate/'
+            counts: '/core/api/moderation/counts/',
+            approveUser: '/core/api/users/{id}/approve/',
+            rejectUser: '/core/api/users/{id}/reject/',
+            moderateImage: '/content/api/images/{id}/moderate/'
         };
     }
     
