@@ -364,12 +364,12 @@ git commit -m "feat(teams): mudar vistas, urls y templates de teams #68 @time 25
 - Consumes: Modelos `League`, `Match`, `Standing`, `Team`, `Category`.
 - Produces: URLs bajo namespace `competitions:` y templates en `competitions/`.
 
-- [ ] **Step 1: Crear `videosvoley/competitions/forms.py` y `calendar_feed.py` con re-exports**
+- [x] **Step 1: Crear `videosvoley/competitions/forms.py` y `calendar_feed.py` con re-exports**
 
 Mover `videosvoley/videos/forms/competitions.py` a `videosvoley/competitions/forms.py` y re-exportar en `videos/forms/competitions.py`.
 Mover `videosvoley/videos/calendar_feed.py` a `videosvoley/competitions/calendar_feed.py` y re-exportar en `videos/calendar_feed.py`.
 
-- [ ] **Step 2: Crear `videosvoley/competitions/views.py` y re-exportar en `videos/views/competitions.py`**
+- [x] **Step 2: Crear `videosvoley/competitions/views.py` y re-exportar en `videos/views/competitions.py`**
 
 Mover lógica de `videosvoley/videos/views/competitions.py` a `videosvoley/competitions/views.py`.
 Actualizar nombres de templates renderizados:
@@ -382,7 +382,7 @@ Actualizar nombres de templates renderizados:
 Actualizar redirects en `competitions/views.py` a `competitions:*`.
 Re-exportar todo en `videosvoley/videos/views/competitions.py`.
 
-- [ ] **Step 3: Crear `videosvoley/competitions/urls.py` y registrar en `config/urls.py`**
+- [x] **Step 3: Crear `videosvoley/competitions/urls.py` y registrar en `config/urls.py`**
 
 Crear `videosvoley/competitions/urls.py` con `app_name = 'competitions'`:
 ```python
@@ -417,7 +417,7 @@ En `config/urls.py`:
     path('competitions/', include('videosvoley.competitions.urls', namespace='competitions')),
 ```
 
-- [ ] **Step 4: Mover templates a `videosvoley/competitions/templates/competitions/` y actualizar referencias**
+- [x] **Step 4: Mover templates a `videosvoley/competitions/templates/competitions/` y actualizar referencias**
 
 Mover los templates de ligas, partidos, calendario y clasificaciones.
 Actualizar en templates y código Python:
@@ -432,13 +432,13 @@ Actualizar en templates y código Python:
 - `videos:ajax_add_match_result` -> `competitions:ajax_add_match_result`
 - `videos:ajax_acta_lineup` -> `competitions:ajax_acta_lineup`
 
-- [ ] **Step 5: Ejecutar test de barrido y suite de tests**
+- [x] **Step 5: Ejecutar test de barrido y suite de tests**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest videosvoley/core/tests/test_url_reverse_sweep.py -v --tb=short`
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: todos los tests pasando en verde.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add videosvoley/competitions/ videosvoley/videos/ config/urls.py videosvoley/templates/
