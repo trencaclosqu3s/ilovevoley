@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
+from videosvoley.core.models import Season
 from videosvoley.videos.models import League, ScrapingEndpoint
 
 
@@ -58,7 +59,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         name = options['name']
         federation_id = options['federation_id']
-        season = options['season']
+        season = Season.objects.resolve(options['season'])
         competition_type = options['competition_type']
         base_url = options['base_url']
         match_format = options['match_format']

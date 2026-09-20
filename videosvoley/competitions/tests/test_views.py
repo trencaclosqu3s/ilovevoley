@@ -8,7 +8,7 @@ from videosvoley.competitions import calendar_feed as comp_calendar_feed
 from videosvoley.competitions import forms as comp_forms
 from videosvoley.competitions import views as comp_views
 from videosvoley.competitions.models import League, Match, Standing
-from videosvoley.core.models import Category, Organization
+from videosvoley.core.models import Category, Organization, Season
 from videosvoley.teams.models import Club, Team
 from videosvoley.videos import calendar_feed as vid_calendar_feed
 from videosvoley.videos.forms import competitions as vid_forms_comp
@@ -79,7 +79,7 @@ class CompetitionsViewUrlTests(TestCase):
         self.league = League.objects.create(
             name='Superliga 2',
             federation_id='LEAGUE-1',
-            season='2026-2027',
+            season=Season.objects.resolve('2026-2027'),
             is_active=True,
             visibility_type='main',
             is_our_team_related=True,
@@ -143,6 +143,26 @@ class CompetitionsViewUrlTests(TestCase):
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'competitions/standings.html')
+
+    def test_standings_acepta_season_name_y_el_antiguo_season(self):
+        self.client.force_login(self.user)
+        url = reverse('competitions:standings_view')
+        # La liga del setUp es de la temporada 2026-2027.
+        for param in ('season_name=2026-27', 'season=2026-27'):
+            response = self.client.get(
+                f'{url}?{param}', HTTP_HOST='testclub.ilovevoley.es'
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'Superliga 2')
+
+    def test_standings_ignora_season_con_id_numerico(self):
+        self.client.force_login(self.user)
+        url = reverse('competitions:standings_view')
+        # Un id no es un nombre de temporada: no debe filtrar por un valor basura.
+        response = self.client.get(
+            f'{url}?season={self.league.season_id}', HTTP_HOST='testclub.ilovevoley.es'
+        )
+        self.assertEqual(response.status_code, 200)
 
     def test_competitions_friendly_match_create_url_resolves_and_renders(self):
         self.client.force_login(self.user)

@@ -550,8 +550,20 @@ def standings_view(request):
     show_archived = request.GET.get('show_archived', '0') == '1'
 
     # Obtener temporadas disponibles
-    seasons = League.objects.filter(is_our_team_related=True).values_list('season', flat=True).distinct().order_by('-season')
-    season_filter = request.GET.get('season')
+    seasons = (
+        League.objects.filter(is_our_team_related=True, season__isnull=False)
+        .values_list('season__name', flat=True)
+        .distinct()
+        .order_by('-season__name')
+    )
+    # Aquí la temporada se identifica por nombre (no por id como en el resto de
+    # la app), de ahí el parámetro distinto `season_name` para no colisionar.
+    season_filter = request.GET.get('season_name')
+    if not season_filter:
+        # Compatibilidad con el antiguo `?season=<nombre>`; se ignora si es un id.
+        legacy = request.GET.get('season')
+        if legacy and not legacy.isdigit():
+            season_filter = legacy
 
     if show_archived or season_filter:
         # Mostrar ligas archivadas, de referencia, etc. O si se filtra por temporada específica
@@ -577,9 +589,9 @@ def standings_view(request):
 
     # Aplicar filtro de temporada
     if season_filter:
-        standings = standings.filter(league__season=season_filter)
+        standings = standings.filter(league__season__name=season_filter)
         # También filtrar las ligas del dropdown por temporada
-        leagues = leagues.filter(season=season_filter)
+        leagues = leagues.filter(season__name=season_filter)
 
     # Aplicar filtro de liga
     if league_filter:

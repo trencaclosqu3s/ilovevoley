@@ -6,6 +6,18 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
+from videosvoley.core.models import Season
+
+
+def infer_season(match, when):
+    """Temporada de un contenido: la del partido o, si no la hay, la de la fecha."""
+    if match is not None:
+        if match.league_id and match.league.season_id:
+            return match.league.season
+        if match.match_date:
+            return Season.objects.for_date(match.match_date)
+    return Season.objects.for_date(when)
+
 
 class Video(models.Model):
     title = models.CharField(max_length=200)
@@ -13,6 +25,15 @@ class Video(models.Model):
     description = models.TextField(blank=True)
     category = models.ForeignKey('core.Category', on_delete=models.CASCADE, null=True, blank=True)
     match = models.ForeignKey('competitions.Match', on_delete=models.SET_NULL, null=True, blank=True, related_name='videos')
+    season = models.ForeignKey(
+        'core.Season',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='videos',
+        verbose_name='Temporada',
+        help_text='Temporada a la que pertenece el vídeo',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     organization = models.ForeignKey(
@@ -30,6 +51,18 @@ class Video(models.Model):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        # Inferir la temporada si no se especifica: del partido o de la fecha.
+        if self.season_id is None:
+            self.season = infer_season(
+                self.match if self.match_id else None,
+                self.created_at or timezone.now(),
+            )
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None:
+                kwargs['update_fields'] = set(update_fields) | {'season'}
+        super().save(*args, **kwargs)
 
     def get_embed_url(self):
         """Convierte URL de YouTube normal en URL de embed con privacidad mejorada"""
@@ -166,7 +199,15 @@ class Image(models.Model):
         db_table='videos_image_categories',
         help_text='Categorías asociadas a la imagen. Se asigna automáticamente desde el partido o manualmente'
     )
-    year = models.IntegerField(help_text='Año de la temporada')
+    season = models.ForeignKey(
+        'core.Season',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='images',
+        verbose_name='Temporada',
+        help_text='Temporada a la que pertenece la imagen',
+    )
 
     # Metadatos
     uploaded_by = models.ForeignKey(
@@ -219,7 +260,6 @@ class Image(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['match']),
             models.Index(fields=['album_group_id']),
-            models.Index(fields=['year']),
             models.Index(fields=['upload_date']),
             models.Index(fields=['image_type']),
         ]
@@ -232,28 +272,21 @@ class Image(models.Model):
     def save(self, *args, **kwargs):
         # Determinar si es una creación nueva
         is_new = self.pk is None
+        changed = set()
 
-        # Auto-asignar año desde el partido si está vinculado
-        if self.match:
-            # Extraer año de la fecha del partido o temporada
-            if hasattr(self.match, 'match_date') and self.match.match_date:
-                self.year = self.match.match_date.year
-            elif hasattr(self.match.league, 'season'):
-                # Extraer año de temporada (ej: "2024-25" -> 2024)
-                try:
-                    self.year = int(self.match.league.season.split('-')[0])
-                except (ValueError, IndexError):
-                    self.year = timezone.now().year
-            else:
-                self.year = timezone.now().year
+        # Auto-asignar temporada si no se especifica: del partido o de la fecha
+        if self.season_id is None:
+            self.season = infer_season(self.match if self.match_id else None, timezone.now())
+            changed.add('season')
 
-            # Si es una imagen de partido pero no se especificó el tipo, asignarlo
-            if self.image_type == 'other':
-                self.image_type = 'match'
-        else:
-            # Para imágenes sin partido, usar año actual si no se especifica
-            if not self.year:
-                self.year = timezone.now().year
+        # Si es una imagen de partido pero no se especificó el tipo, asignarlo
+        if self.match_id and self.image_type == 'other':
+            self.image_type = 'match'
+            changed.add('image_type')
+
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None and changed:
+            kwargs['update_fields'] = set(update_fields) | changed
 
         super().save(*args, **kwargs)
 

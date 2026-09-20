@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 
 from django.core.management.base import BaseCommand
 
+from videosvoley.core.models import Season
 from videosvoley.videos.models import Category, Club, League, Match, Team
 
 MADRID = ZoneInfo('Europe/Madrid')
@@ -107,13 +108,14 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         category = Category.objects.get(id=3)  # Alevín
+        season = Season.objects.resolve(SEASON)
 
         # --- Liga principal ---
         main_league, created = League.objects.get_or_create(
             federation_id='cbal_alevi_mas_2526',
-            season=SEASON,
             defaults={
                 'name': 'CBAL - Campionat de Balears Alevín Masculino',
+                'season': season,
                 'competition_type': 'cup',
                 'match_format': 'tournament_3sets',
                 'visibility_type': 'main',
@@ -131,9 +133,9 @@ class Command(BaseCommand):
         for grupo, data in GRUPOS_DATA.items():
             gl, created = League.objects.get_or_create(
                 federation_id=f'cbal_alevi_mas_2526_grupo_{grupo.lower()}',
-                season=SEASON,
                 defaults={
                     'name': f'CBAL Alevín Mas. 2025-26 - Grupo {grupo}',
+                    'season': season,
                     'competition_type': 'cup',
                     'match_format': 'tournament_3sets',
                     'visibility_type': 'main',
@@ -166,9 +168,9 @@ class Command(BaseCommand):
         # --- Sub-ligas segunda fase ---
         fase_or, created = League.objects.get_or_create(
             federation_id='cbal_alevi_mas_2526_or',
-            season=SEASON,
             defaults={
                 'name': 'CBAL Alevín Mas. 2025-26 - Fase OR',
+                'season': season,
                 'competition_type': 'cup',
                 'match_format': 'tournament_3sets',
                 'visibility_type': 'main',
@@ -184,9 +186,9 @@ class Command(BaseCommand):
 
         fase_plata, created = League.objects.get_or_create(
             federation_id='cbal_alevi_mas_2526_plata',
-            season=SEASON,
             defaults={
                 'name': 'CBAL Alevín Mas. 2025-26 - Fase Plata',
+                'season': season,
                 'competition_type': 'cup',
                 'match_format': 'tournament_3sets',
                 'visibility_type': 'main',

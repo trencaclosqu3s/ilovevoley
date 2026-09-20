@@ -62,7 +62,14 @@ class League(models.Model):
     name = models.CharField(max_length=200)
     federation_id = models.CharField(max_length=200, unique=True)
     competition_type = models.CharField(max_length=20, choices=COMPETITION_TYPES, default='regular')
-    season = models.CharField(max_length=20)
+    season = models.ForeignKey(
+        'core.Season',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='leagues',
+        verbose_name='Temporada',
+    )
     # Nuevo campo para soporte multi-categoría (torneos, copas)
     categories = models.ManyToManyField(
         'core.Category',
@@ -136,10 +143,10 @@ class League(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Liga'
         verbose_name_plural = 'Ligas'
-        unique_together = ['federation_id', 'season']
 
     def __str__(self):
-        return f'{self.name} ({self.season})'
+        season = self.season.name if self.season_id else '—'
+        return f'{self.name} ({season})'
 
     @property
     def has_pending_matches(self):

@@ -15,7 +15,8 @@ from django.views.decorators.http import require_POST
 
 from videosvoley.competitions.models import League, Match
 from videosvoley.core.mixins import get_club_team_filter
-from videosvoley.core.models import Category
+from videosvoley.core.models import Category, Season
+from videosvoley.core.season_utils import resolve_season_filter
 from videosvoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
 from videosvoley.teams.models import Team
 from videosvoley.videos.utils import (
@@ -47,13 +48,19 @@ def video_list(request):
     categories = Category.objects.filter(is_active=True)
     leagues = League.objects.visible_in_app()
     teams = Team.objects.all()
-    
+    seasons = Season.objects.all()
+    season_filter, selected_season = resolve_season_filter(request)
+
     # Filtros
     category_filter = request.GET.get('category')
     league_filter = request.GET.get('league')
     team_filter = request.GET.get('team')
     search_query = request.GET.get('search', '').strip()
     show_all = request.GET.get('show_all', '0') == '1'
+
+    # Filtrar por temporada (activa por defecto)
+    if season_filter:
+        videos = videos.filter(season=season_filter)
     
     # Filtrar por categorías preferidas del usuario si no se especifica otra cosa
     if not category_filter and not show_all and request.user.preferred_categories.exists():
@@ -111,6 +118,9 @@ def video_list(request):
         'categories': categories,
         'leagues': leagues,
         'teams': teams,
+        'seasons': seasons,
+        'selected_season': selected_season,
+        'season_filtered': 'season' in request.GET,
         'selected_category': category_filter,
         'selected_league': league_filter,
         'selected_team': team_filter,
@@ -240,7 +250,6 @@ def image_gallery(request):
         image_type = filter_form.cleaned_data.get('image_type')
         match_filter = filter_form.cleaned_data.get('match_filter')
         category = filter_form.cleaned_data.get('category')
-        year = filter_form.cleaned_data.get('year')
         status_filter = filter_form.cleaned_data.get('status')
         
         # Búsqueda general en título, descripción y etiquetas
@@ -280,9 +289,6 @@ def image_gallery(request):
             user_categories = request.user.preferred_categories.all()
             images = images.filter(categories__in=user_categories).distinct()
             
-        if year:
-            images = images.filter(year=year)
-            
         if status_filter:
             images = images.filter(status=status_filter)
     else:
@@ -290,7 +296,12 @@ def image_gallery(request):
         if not show_all and request.user.preferred_categories.exists():
             user_categories = request.user.preferred_categories.all()
             images = images.filter(categories__in=user_categories).distinct()
-    
+
+    # Filtrar por temporada (activa por defecto)
+    season_filter, selected_season = resolve_season_filter(request)
+    if season_filter:
+        images = images.filter(season=season_filter)
+
     # Paginación
     paginator = Paginator(images, 12)
     page_number = request.GET.get('page')
@@ -327,6 +338,8 @@ def image_gallery(request):
     context = {
         'page_obj': page_obj,
         'filter_form': filter_form,
+        'seasons': Season.objects.all(),
+        'selected_season': selected_season,
         'total_images': total_images,
         'pending_images': pending_images,
         'images_with_match': images_with_match,
@@ -364,7 +377,6 @@ def image_gallery_albums(request):
         image_type = filter_form.cleaned_data.get('image_type')
         match_filter = filter_form.cleaned_data.get('match_filter')
         category = filter_form.cleaned_data.get('category')
-        year = filter_form.cleaned_data.get('year')
         status_filter = filter_form.cleaned_data.get('status')
         
         # Búsqueda general en título, descripción y etiquetas
@@ -404,9 +416,6 @@ def image_gallery_albums(request):
             user_categories = request.user.preferred_categories.all()
             images = images.filter(categories__in=user_categories).distinct()
             
-        if year:
-            images = images.filter(year=year)
-            
         if status_filter:
             images = images.filter(status=status_filter)
     else:
@@ -414,7 +423,12 @@ def image_gallery_albums(request):
         if not show_all and request.user.preferred_categories.exists():
             user_categories = request.user.preferred_categories.all()
             images = images.filter(categories__in=user_categories).distinct()
-    
+
+    # Filtrar por temporada (activa por defecto)
+    season_filter, selected_season = resolve_season_filter(request)
+    if season_filter:
+        images = images.filter(season=season_filter)
+
     # Agrupar imágenes por partido
     albums = []
     
@@ -547,6 +561,8 @@ def image_gallery_albums(request):
     context = {
         'page_obj': page_obj,
         'filter_form': filter_form,
+        'seasons': Season.objects.all(),
+        'selected_season': selected_season,
         'total_images': total_images,
         'pending_images': pending_images,
         'total_albums': total_albums,
@@ -792,10 +808,11 @@ def image_bulk_upload(request):
             return redirect('content:image_bulk_upload')
         
         # Datos compartidos para todas las imágenes
+        season_id = request.POST.get('season') or None
         shared_data = {
             'uploaded_by': request.user,
             'image_type': request.POST.get('image_type', 'other'),
-            'year': request.POST.get('year', timezone.now().year),
+            'season_id': season_id,
             'organization': request.tenant,
         }
         
@@ -1060,7 +1077,8 @@ def image_bulk_upload(request):
         'recent_matches': recent_matches,
         'categories': categories,
         'image_types': image_types,
-        'current_year': timezone.now().year,
+        'seasons': Season.objects.all(),
+        'current_season': Season.objects.current(),
         'selected_match': selected_match,
         'existing_album': existing_album,
     }

@@ -6,6 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
 
+from videosvoley.core.models import Season
 from videosvoley.videos.models import Category, Image, League, Match, Team, Video
 
 User = get_user_model()
@@ -28,7 +29,7 @@ class ImageSaveTests(TestCase):
         cls.cat_local = Category.objects.create(name='Senior Femenino')
         cls.cat_visitante = Category.objects.create(name='Juvenil Femenino')
         cls.league = League.objects.create(
-            name='Liga Balear', federation_id='LIG-1', season='2024-25',
+            name='Liga Balear', federation_id='LIG-1', season=Season.objects.resolve('2024-25'),
         )
         cls.league.categories.add(cls.cat_liga)
         cls.local = Team.objects.create(
@@ -54,13 +55,18 @@ class ImageSaveTests(TestCase):
         )
         return Image.objects.create(**kwargs)
 
-    def test_year_se_toma_del_ano_del_partido(self):
+    def test_season_se_toma_de_la_liga_del_partido(self):
         imagen = self._crear_imagen(match=self.match)
-        self.assertEqual(imagen.year, 2024)
+        self.assertEqual(imagen.season.name, '2024-25')
 
-    def test_year_sin_partido_usa_el_ano_actual(self):
+    def test_season_sin_partido_se_infiere_de_la_fecha(self):
         imagen = self._crear_imagen()
-        self.assertEqual(imagen.year, timezone.now().year)
+        self.assertEqual(imagen.season, Season.objects.for_date(timezone.now()))
+
+    def test_season_explicita_se_respeta_aunque_haya_partido(self):
+        season = Season.objects.resolve('2020-21')
+        imagen = self._crear_imagen(match=self.match, season=season)
+        self.assertEqual(imagen.season, season)
 
     def test_image_type_other_pasa_a_match_al_vincular_partido(self):
         imagen = self._crear_imagen(match=self.match)
@@ -82,13 +88,50 @@ class ImageSaveTests(TestCase):
         self.assertEqual(imagen.categories.count(), 0)
 
 
+class VideoSaveTests(TestCase):
+    """Video.save() infiere la temporada del partido o de la fecha de subida."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username='video-user', password='x')
+        cls.league = League.objects.create(
+            name='Liga Video', federation_id='LIG-V', season=Season.objects.resolve('2024-25'),
+        )
+        cls.team_a = Team.objects.create(name='VA', federation_id='TV-A')
+        cls.team_b = Team.objects.create(name='VB', federation_id='TV-B')
+        cls.match = Match.objects.create(
+            league=cls.league, home_team=cls.team_a, away_team=cls.team_b,
+            match_date=datetime(2024, 11, 3, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='MV-1',
+        )
+
+    def _crear(self, **kwargs):
+        kwargs.setdefault('title', 'Video')
+        kwargs.setdefault('youtube_url', 'https://youtu.be/x')
+        kwargs.setdefault('created_by', self.user)
+        return Video.objects.create(**kwargs)
+
+    def test_season_se_toma_del_partido(self):
+        video = self._crear(match=self.match)
+        self.assertEqual(video.season.name, '2024-25')
+
+    def test_season_sin_partido_se_infiere_de_la_fecha(self):
+        video = self._crear()
+        self.assertEqual(video.season, Season.objects.for_date(timezone.now()))
+
+    def test_season_explicita_se_respeta(self):
+        season = Season.objects.resolve('2020-21')
+        video = self._crear(season=season)
+        self.assertEqual(video.season, season)
+
+
 class MatchManagerTests(TestCase):
     """El manager por defecto oculta los partidos retirados. Regla no evidente."""
 
     @classmethod
     def setUpTestData(cls):
         cls.league = League.objects.create(
-            name='Liga', federation_id='LIG-M', season='2024-25',
+            name='Liga', federation_id='LIG-M', season=Season.objects.resolve('2024-25'),
         )
         cls.a = Team.objects.create(name='A', federation_id='T-A')
         cls.b = Team.objects.create(name='B', federation_id='T-B')
@@ -120,19 +163,19 @@ class LeagueManagerTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.principal = League.objects.create(
-            name='Principal', federation_id='L-M', season='2024-25',
+            name='Principal', federation_id='L-M', season=Season.objects.resolve('2024-25'),
             is_active=True, visibility_type='main', is_our_team_related=True,
         )
         cls.inactiva = League.objects.create(
-            name='Inactiva', federation_id='L-I', season='2024-25',
+            name='Inactiva', federation_id='L-I', season=Season.objects.resolve('2024-25'),
             is_active=False, visibility_type='main', is_our_team_related=True,
         )
         cls.ajena = League.objects.create(
-            name='Ajena', federation_id='L-E', season='2024-25',
+            name='Ajena', federation_id='L-E', season=Season.objects.resolve('2024-25'),
             is_active=True, visibility_type='external', is_our_team_related=False,
         )
         cls.historica = League.objects.create(
-            name='Historica', federation_id='L-H', season='2019-20',
+            name='Historica', federation_id='L-H', season=Season.objects.resolve('2019-20'),
             is_active=True, visibility_type='historical', is_historical=True,
         )
 
@@ -160,14 +203,14 @@ class LeaguePhaseTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.regular = League.objects.create(
-            name='Liga Regular', federation_id='L-R', season='2024-25',
+            name='Liga Regular', federation_id='L-R', season=Season.objects.resolve('2024-25'),
         )
         cls.oro = League.objects.create(
-            name='Liga Regular', federation_id='L-ORO', season='2024-25',
+            name='Liga Regular', federation_id='L-ORO', season=Season.objects.resolve('2024-25'),
             parent_league=cls.regular, phase_name='Liguilla Oro', phase_order=1,
         )
         cls.plata = League.objects.create(
-            name='Liga Regular', federation_id='L-PLA', season='2024-25',
+            name='Liga Regular', federation_id='L-PLA', season=Season.objects.resolve('2024-25'),
             parent_league=cls.regular, phase_name='Liguilla Plata', phase_order=2,
         )
         cls.a = Team.objects.create(name='A', federation_id='TP-A')
@@ -265,7 +308,7 @@ class MatchCleanTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.league = League.objects.create(
-            name='Liga', federation_id='L-C', season='2024-25',
+            name='Liga', federation_id='L-C', season=Season.objects.resolve('2024-25'),
         )
         cls.a = Team.objects.create(name='A', federation_id='TC-A')
         cls.b = Team.objects.create(name='B', federation_id='TC-B')

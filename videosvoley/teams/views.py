@@ -5,7 +5,8 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from videosvoley.core.mixins import get_club_team_name_filter, get_club_team_names
-from videosvoley.core.models import Category
+from videosvoley.core.models import Category, Season
+from videosvoley.core.season_utils import resolve_season_filter
 from videosvoley.core.tenant_utils import tenant_access_required
 from videosvoley.rosters.models import PlayerRole, StaffRole
 from videosvoley.teams.models import Club, Team
@@ -109,11 +110,19 @@ def team_list(request):
     
     # Ordenar por categoría y nombre
     teams = teams_query.order_by("category__name", "name")
-    
+
+    # Temporada a mostrar (activa por defecto)
+    season_filter, selected_season = resolve_season_filter(request)
+
     # Añadir contadores de plantilla usando nueva estructura Person-Role
     for team in teams:
-        team.active_players_count = team.player_roles.filter(is_active=True).count()
-        team.active_staff_count = team.staff_roles.filter(is_active=True).count()
+        players = team.player_roles.filter(is_active=True)
+        staff = team.staff_roles.filter(is_active=True)
+        if season_filter:
+            players = players.filter(season=season_filter)
+            staff = staff.filter(season=season_filter)
+        team.active_players_count = players.count()
+        team.active_staff_count = staff.count()
     
     # Obtener categorías para el filtro
     categories = Category.objects.filter(is_active=True).order_by("name")
@@ -121,6 +130,8 @@ def team_list(request):
     context = {
         "teams": teams,
         "categories": categories,
+        "seasons": Season.objects.all(),
+        "selected_season": selected_season,
         "selected_category": category_filter,
         "show_all": show_all,
         "user_categories": user_categories,
@@ -145,11 +156,17 @@ def team_roster(request, team_id):
         messages.error(request, "Este equipo no pertenece al club.")
         return redirect("teams:team_list")
     
+    # Temporada a mostrar (activa por defecto)
+    season_filter, selected_season = resolve_season_filter(request)
+
     # Obtener jugadores activos ordenados por número de dorsal usando nueva estructura
-    player_roles = team.player_roles.filter(is_active=True).select_related('person').order_by("jersey_number", "person__last_name", "person__first_name")
-    
-    # Obtener staff activo ordenado por rol usando nueva estructura
-    staff_roles = team.staff_roles.filter(is_active=True).select_related('person').order_by("role", "person__last_name", "person__first_name")
+    player_roles = team.player_roles.filter(is_active=True)
+    staff_roles = team.staff_roles.filter(is_active=True)
+    if season_filter:
+        player_roles = player_roles.filter(season=season_filter)
+        staff_roles = staff_roles.filter(season=season_filter)
+    player_roles = player_roles.select_related('person').order_by("jersey_number", "person__last_name", "person__first_name")
+    staff_roles = staff_roles.select_related('person').order_by("role", "person__last_name", "person__first_name")
     
     # Filtros opcionales
     position_filter = request.GET.get("position")
@@ -201,6 +218,9 @@ def team_roster(request, team_id):
         "stats": stats,
         "position_choices": position_choices,
         "role_choices": role_choices,
+        "seasons": Season.objects.all(),
+        "selected_season": selected_season,
+        "season_filtered": "season" in request.GET,
         "selected_position": position_filter,
         "selected_role": role_filter,
     }

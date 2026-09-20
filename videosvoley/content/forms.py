@@ -5,14 +5,14 @@ from django.forms import formset_factory
 
 from videosvoley.competitions.models import Match
 from videosvoley.core.mixins import get_club_team_filter
-from videosvoley.core.models import Category
+from videosvoley.core.models import Category, Season
 from .models import Comment, Image, Video
 
 
 class VideoForm(forms.ModelForm):
     class Meta:
         model = Video
-        fields = ['title', 'youtube_url', 'description', 'category', 'match']
+        fields = ['title', 'youtube_url', 'description', 'category', 'match', 'season']
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
@@ -33,6 +33,9 @@ class VideoForm(forms.ModelForm):
             'match': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
             }),
+            'season': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
+            }),
         }
         labels = {
             'title': 'Título',
@@ -40,6 +43,7 @@ class VideoForm(forms.ModelForm):
             'description': 'Descripción',
             'category': 'Categoría',
             'match': 'Partido (opcional)',
+            'season': 'Temporada (opcional)',
         }
 
     def __init__(self, *args, **kwargs):
@@ -47,6 +51,9 @@ class VideoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Hacer el campo match opcional
         self.fields['match'].required = False
+        self.fields['season'].required = False
+        if not self.instance.pk:
+            self.fields['season'].initial = Season.objects.current()
 
         # Filtrar partidos inteligentemente basado en categoría y equipos del club
         self._setup_match_queryset()
@@ -134,7 +141,7 @@ class ImageUploadForm(forms.ModelForm):
     
     class Meta:
         model = Image
-        fields = ['image', 'title', 'description', 'image_type', 'categories', 'tags', 'match']
+        fields = ['image', 'title', 'description', 'image_type', 'categories', 'tags', 'match', 'season']
         widgets = {
             'image': forms.FileInput(attrs={
                 'class': 'hidden',
@@ -167,6 +174,10 @@ class ImageUploadForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'id': 'id_match'
             }),
+            'season': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'id': 'id_season'
+            }),
         }
         labels = {
             'image': 'Imagen',
@@ -176,6 +187,7 @@ class ImageUploadForm(forms.ModelForm):
             'categories': 'Categorías',
             'tags': 'Etiquetas',
             'match': 'Partido (opcional)',
+            'season': 'Temporada (opcional)',
         }
 
     def __init__(self, *args, **kwargs):
@@ -187,6 +199,9 @@ class ImageUploadForm(forms.ModelForm):
         self.fields['categories'].required = False
         self.fields['tags'].required = False
         self.fields['match'].required = False
+        self.fields['season'].required = False
+        if not self.instance.pk:
+            self.fields['season'].initial = Season.objects.current()
 
         # Configurar queryset de categorías activas
         self.fields['categories'].queryset = Category.objects.filter(is_active=True).order_by('name')
@@ -386,15 +401,6 @@ class ImageFilterForm(forms.Form):
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
         }),
         label='Categoría'
-    )
-    
-    year = forms.IntegerField(
-        required=False,
-        widget=forms.NumberInput(attrs={
-            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-            'placeholder': 'Año'
-        }),
-        label='Año'
     )
     
     status = forms.ChoiceField(

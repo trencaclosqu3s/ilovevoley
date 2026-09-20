@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
+from videosvoley.core.models import Season
 from videosvoley.videos.models import League, Category, ScrapingEndpoint
 from videosvoley.videos.scraping import FederationScraper
 import logging
@@ -245,7 +246,7 @@ class Command(BaseCommand):
     def process_external_league(self, league_info, options):
         """Procesa una liga externa específica"""
         federation_id = league_info['federation_id']
-        season = league_info['season']
+        season = Season.objects.resolve(league_info['season'])
         
         league_data = {
             'name': league_info['name'],
@@ -272,7 +273,6 @@ class Command(BaseCommand):
         if not self.dry_run:
             league, created = League.objects.get_or_create(
                 federation_id=federation_id,
-                season=season,
                 defaults=league_data
             )
             
@@ -337,15 +337,11 @@ class Command(BaseCommand):
                 )
 
     def get_current_season(self):
-        """Obtiene la temporada actual"""
-        now = timezone.now()
-        year = now.year
-        
-        # Lógica simple: si estamos antes de septiembre, usar temporada anterior
-        if now.month < 9:
-            return f"{year-1}-{str(year)[2:]}"
-        else:
-            return f"{year}-{str(year+1)[2:]}"
+        """Obtiene la temporada actual (la activa si está definida)."""
+        current = Season.objects.current()
+        if current:
+            return current.name
+        return Season.objects.for_date(timezone.now()).name
 
     def log_summary(self, leagues_processed, leagues_created, leagues_updated):
         """Muestra un resumen de la operación"""

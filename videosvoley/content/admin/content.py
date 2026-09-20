@@ -45,7 +45,7 @@ class ImageInline(TabularInline):
 @admin.register(Image)
 class ImageAdmin(ModelAdmin):
     list_display = ('thumbnail_preview', 'title', 'match', 'album_display', 'categories_display_admin', 'status', 'uploaded_by', 'upload_date', 'moderated_by', 'original_format', 'was_converted')
-    list_filter = ('status', 'categories', 'year', 'upload_date', 'match__league', 'was_converted', 'original_format')
+    list_filter = ('status', 'categories', 'season', 'upload_date', 'match__league', 'was_converted', 'original_format')
     search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name', 'album_name')
     readonly_fields = ('upload_date', 'thumbnail_preview', 'vision_api_details', 'moderation_date', 'original_format', 'was_converted')
     date_hierarchy = 'upload_date'
@@ -57,8 +57,8 @@ class ImageAdmin(ModelAdmin):
             'fields': ('thumbnail_preview', 'image', 'title', 'description', 'image_type', 'tags', 'original_format', 'was_converted')
         }),
         ('Asociación', {
-            'fields': ('match', 'categories', 'year'),
-            'description': 'Categorías y año se asignan automáticamente desde el partido, pero puedes modificarlas'
+            'fields': ('match', 'categories', 'season'),
+            'description': 'Categorías y temporada se asignan automáticamente desde el partido, pero puedes modificarlas'
         }),
         ('Moderación', {
             'fields': ('status', 'moderated_by', 'moderation_date', 'moderation_notes')

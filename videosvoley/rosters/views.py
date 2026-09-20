@@ -11,7 +11,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from videosvoley.core.mixins import get_club_team_name_filter
-from videosvoley.core.models import Category
+from videosvoley.core.models import Category, Season
+from videosvoley.core.season_utils import resolve_season_filter
 from videosvoley.core.tenant_utils import tenant_access_required
 from videosvoley.teams.models import Team
 from .forms import PersonForm, PlayerRoleForm, StaffRoleForm
@@ -41,7 +42,10 @@ def roster_overview(request):
         teams_query = teams_query.filter(category_id=category_filter)
     
     teams = teams_query.order_by("category__name", "name")
-    
+
+    # Temporada a mostrar (activa por defecto)
+    season_filter, selected_season = resolve_season_filter(request)
+
     # Estadísticas generales
     total_stats = {
         "total_teams": teams.count(),
@@ -53,8 +57,14 @@ def roster_overview(request):
     
     for team in teams:
         # Usar nueva estructura Person-Role evaluada en memoria para evitar N+1 queries
-        active_player_roles = [r for r in team.player_roles.all() if r.is_active]
-        active_staff_roles = [r for r in team.staff_roles.all() if r.is_active]
+        active_player_roles = [
+            r for r in team.player_roles.all()
+            if r.is_active and (season_filter is None or r.season_id == season_filter.pk)
+        ]
+        active_staff_roles = [
+            r for r in team.staff_roles.all()
+            if r.is_active and (season_filter is None or r.season_id == season_filter.pk)
+        ]
         
         team.active_players_count = len(active_player_roles)
         team.active_staff_count = len(active_staff_roles)
@@ -84,6 +94,9 @@ def roster_overview(request):
         "teams": teams,
         "total_stats": total_stats,
         "categories": categories,
+        "seasons": Season.objects.all(),
+        "selected_season": selected_season,
+        "season_filtered": "season" in request.GET,
         "selected_category": category_filter,
         "show_all": show_all,
         "user_categories": user_categories,

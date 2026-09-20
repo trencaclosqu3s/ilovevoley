@@ -1,14 +1,22 @@
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
-from django.urls import reverse
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 
-from videosvoley.core.models import Organization
+from videosvoley.core.models import Organization, Season
 from videosvoley.content import forms as content_forms
 from videosvoley.content import views as content_views
+from videosvoley.content.models import Image, Video
 from videosvoley.videos.forms import content as videos_forms_content
 from videosvoley.videos.views import content as videos_views_content
 from videosvoley.videos.views import moderation as videos_views_moderation
+
+TINY_GIF = (
+    b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
+    b'\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00'
+    b'\x00\x02\x02D\x01\x00;'
+)
 
 
 class ContentReExportCompatibilityTest(TestCase):
@@ -98,4 +106,82 @@ class ContentViewUrlTests(TestCase):
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'content/image_moderation.html')
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class ContentSeasonFilterTests(TestCase):
+    """Vídeos y galería filtran por temporada activa por defecto."""
+
+    def setUp(self):
+        from videosvoley.users.models import Membership
+        cache.clear()
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+        self.current = Season.objects.create(
+            name='2026-27', start_year=2026, end_year=2027, is_current=True
+        )
+        self.past = Season.objects.create(name='2025-26', start_year=2025, end_year=2026)
+        Video.objects.create(
+            title='Actual', youtube_url='https://youtu.be/a', created_by=self.user,
+            organization=self.org, season=self.current,
+        )
+        Video.objects.create(
+            title='Pasado', youtube_url='https://youtu.be/b', created_by=self.user,
+            organization=self.org, season=self.past,
+        )
+        for title, season, filename in (('Actual', self.current, 'a.jpg'), ('Pasado', self.past, 'b.jpg')):
+            Image.objects.create(
+                image=SimpleUploadedFile(filename, TINY_GIF, content_type='image/jpeg'),
+                title=title, uploaded_by=self.user, organization=self.org,
+                status='approved', season=season,
+            )
+
+    def _titles(self, response):
+        return {obj.title for obj in response.context['page_obj'].object_list}
+
+    def test_video_list_default_muestra_temporada_activa(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('content:video_list'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(self._titles(response), {'Actual'})
+
+    def test_video_list_filtra_temporada_pasada(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('content:video_list') + f'?season={self.past.id}',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(self._titles(response), {'Pasado'})
+
+    def test_video_list_todas_las_temporadas(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('content:video_list') + '?season=', HTTP_HOST='testclub.ilovevoley.es'
+        )
+        self.assertEqual(self._titles(response), {'Actual', 'Pasado'})
+
+    def test_video_list_id_de_temporada_invalido_cae_a_la_activa(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('content:video_list') + '?season=999999',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(self._titles(response), {'Actual'})
+
+    def test_video_list_temporada_no_numerica_no_rompe(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('content:video_list') + '?season=abc',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._titles(response), {'Actual'})
+
+    def test_galeria_individual_default_muestra_temporada_activa(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('content:image_gallery_individual'), HTTP_HOST='testclub.ilovevoley.es'
+        )
+        self.assertEqual(self._titles(response), {'Actual'})
 

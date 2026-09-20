@@ -3,7 +3,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from videosvoley.core.models import Category, Organization
+from videosvoley.core.models import Category, Organization, Season
 from videosvoley.rosters import forms as rosters_forms
 from videosvoley.rosters import views as rosters_views
 from videosvoley.rosters.models import Person, PlayerRole, StaffRole
@@ -69,6 +69,7 @@ class RosterViewUrlTests(TestCase):
         self.player_role = PlayerRole.objects.create(
             person=self.person,
             team=self.team,
+            season=Season.objects.resolve('2025-26'),
             jersey_number=7,
             position='setter',
             is_active=True,

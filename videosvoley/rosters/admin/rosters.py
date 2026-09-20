@@ -9,7 +9,7 @@ class PlayerRoleInline(TabularInline):
     """Inline para roles de jugador en la vista de Person"""
     model = PlayerRole
     extra = 0
-    fields = ('team', 'jersey_number', 'position', 'is_active', 'notes')
+    fields = ('team', 'season', 'jersey_number', 'position', 'is_active', 'notes')
     readonly_fields = ('created_at',)
     autocomplete_fields = ('team',)
 
@@ -18,7 +18,7 @@ class StaffRoleInline(TabularInline):
     """Inline para roles de staff en la vista de Person"""
     model = StaffRole
     extra = 0
-    fields = ('team', 'role', 'is_active', 'notes')
+    fields = ('team', 'season', 'role', 'is_active', 'notes')
     readonly_fields = ('created_at',)
     autocomplete_fields = ('team',)
 
@@ -106,8 +106,8 @@ class PersonAdmin(ModelAdmin):
 @admin.register(PlayerRole)
 class PlayerRoleAdmin(ModelAdmin):
     """Admin para el modelo PlayerRole"""
-    list_display = ('person', 'team', 'jersey_number', 'display_position', 'is_active', 'created_at')
-    list_filter = ('team', 'team__category', 'position', 'is_active', 'created_at')
+    list_display = ('person', 'team', 'season', 'jersey_number', 'display_position', 'is_active', 'created_at')
+    list_filter = ('team', 'team__category', 'season', 'position', 'is_active', 'created_at')
     search_fields = ('person__first_name', 'person__last_name', 'team__name', 'jersey_number')
     readonly_fields = ('created_at', 'updated_at')
     autocomplete_fields = ('person', 'team')
@@ -115,7 +115,7 @@ class PlayerRoleAdmin(ModelAdmin):
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('person', 'team')
+            'fields': ('person', 'team', 'season')
         }),
         ('Detalles del Jugador', {
             'fields': ('jersey_number', 'position')
@@ -145,8 +145,8 @@ class PlayerRoleAdmin(ModelAdmin):
 @admin.register(StaffRole)
 class StaffRoleAdmin(ModelAdmin):
     """Admin para el modelo StaffRole"""
-    list_display = ('person', 'team', 'display_role', 'is_active', 'created_at')
-    list_filter = ('team', 'team__category', 'role', 'is_active', 'created_at')
+    list_display = ('person', 'team', 'season', 'display_role', 'is_active', 'created_at')
+    list_filter = ('team', 'team__category', 'season', 'role', 'is_active', 'created_at')
     search_fields = ('person__first_name', 'person__last_name', 'team__name')
     readonly_fields = ('created_at', 'updated_at')
     autocomplete_fields = ('person', 'team')
@@ -154,7 +154,7 @@ class StaffRoleAdmin(ModelAdmin):
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('person', 'team')
+            'fields': ('person', 'team', 'season')
         }),
         ('Detalles del Staff', {
             'fields': ('role',)

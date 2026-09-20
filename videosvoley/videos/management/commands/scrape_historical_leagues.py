@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
+from videosvoley.core.models import Season
 from videosvoley.videos.models import League, Category, ScrapingEndpoint
 from videosvoley.videos.scraping import FederationScraper
 import logging
@@ -110,6 +111,7 @@ class Command(BaseCommand):
         """Scraping de una liga específica"""
         league_id = options['league_id']
         season = options['season'] or '2024-25'
+        season_obj = Season.objects.resolve(season)
         visibility_type = options['visibility_type']
         
         self.stdout.write(f"Procesando liga específica: {league_id}")
@@ -117,7 +119,7 @@ class Command(BaseCommand):
         # Crear o obtener la liga
         league_data = {
             'federation_id': league_id,
-            'season': season,
+            'season': season_obj,
             'visibility_type': visibility_type,
             'is_historical': visibility_type == 'historical',
             'is_our_team_related': visibility_type != 'external',
@@ -152,7 +154,6 @@ class Command(BaseCommand):
         if not self.dry_run:
             league, created = League.objects.get_or_create(
                 federation_id=league_id,
-                season=season,
                 defaults=league_data
             )
             
@@ -391,7 +392,7 @@ class Command(BaseCommand):
     def process_league_config(self, league_config, options):
         """Procesa una configuración de liga específica"""
         federation_id = league_config['federation_id']
-        season = league_config['season']
+        season = Season.objects.resolve(league_config['season'])
         
         # Obtener categoría
         category = None
@@ -427,7 +428,6 @@ class Command(BaseCommand):
         if not self.dry_run:
             league, created = League.objects.get_or_create(
                 federation_id=federation_id,
-                season=season,
                 defaults=league_data
             )
             

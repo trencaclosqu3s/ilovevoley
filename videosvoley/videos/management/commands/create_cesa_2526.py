@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 
+from videosvoley.core.models import Season
 from videosvoley.videos.models import Category, League
 
 SEASON = '2025-26'
@@ -10,12 +11,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         category = Category.objects.get(id=1)  # Infantil
+        season = Season.objects.resolve(SEASON)
 
         league, created = League.objects.get_or_create(
             federation_id='cesa_2526',
             defaults={
                 'name': 'CESA 2025-26 - Campeonato de España de Selecciones Autonómicas Infantil',
-                'season': SEASON,
+                'season': season,
                 'competition_type': 'cup',
                 'match_format': 'standard',
                 'visibility_type': 'main',
