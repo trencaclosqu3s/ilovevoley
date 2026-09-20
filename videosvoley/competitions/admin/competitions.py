@@ -55,7 +55,7 @@ class LeagueAdmin(ModelAdmin):
         Ayuda a decidir el flag global ``is_our_team_related``: las ligas son
         datos compartidos y una liga solo interesa a los tenants cuyo club
         juega en ella (detección por FK + fallback por nombre para equipos sin
-        club). Se resuelve con dos consultas, sin depender del número de orgs.
+        club). El coste es constante, no depende del número de organizaciones.
         """
         if not obj or not obj.pk:
             return 'Guarda la liga para detectar organizaciones'
