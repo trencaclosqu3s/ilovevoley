@@ -13,6 +13,7 @@ from videosvoley.teams.models import Club, Team
 logger = logging.getLogger(__name__)
 
 
+@tenant_access_required()
 def ajax_register_team(request):
     """Vista AJAX para registrar un nuevo equipo desde el formulario de amistosos"""
     if request.method != 'POST':

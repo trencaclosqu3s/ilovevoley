@@ -113,3 +113,19 @@ class TeamViewUrlTests(TestCase):
     def test_backwards_compatible_videos_ajax_register_team_url(self):
         url = reverse('videos:ajax_register_team')
         self.assertEqual(url, '/videos/ajax/register-team/')
+
+    def test_anonymous_cannot_register_team(self):
+        url = reverse('teams:ajax_register_team')
+        response = self.client.post(
+            url,
+            {
+                'name': 'Hacker Team',
+                'category_id': self.category.id,
+                'club_id': self.club.id,
+            },
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+        self.assertFalse(Team.objects.filter(name='Hacker Team').exists())
+
