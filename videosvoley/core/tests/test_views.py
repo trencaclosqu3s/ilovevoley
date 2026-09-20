@@ -135,3 +135,115 @@ class CoreViewUrlTests(TestCase):
         self.assertTrue(response.json()['success'])
         self.unapproved_user.refresh_from_db()
         self.assertFalse(self.unapproved_user.is_active)
+
+
+@override_settings(ALLOWED_HOSTS=[
+    'cluba.ilovevoley.es', 'clubb.ilovevoley.es', 'localhost',
+])
+class TenantManagerModerationTest(TestCase):
+    """Un manager/admin del club aprueba y rechaza solo membresías de su organización."""
+
+    def setUp(self):
+        from videosvoley.core.models import Organization
+        from videosvoley.users.models import Membership
+
+        cache.clear()
+        self.org_a = Organization.objects.create(slug='cluba', name='Club A', is_active=True)
+        self.org_b = Organization.objects.create(slug='clubb', name='Club B', is_active=True)
+
+        User = get_user_model()
+        self.manager = User.objects.create_user(username='manager_a', password='pass')
+        Membership.objects.create(
+            user=self.manager, organization=self.org_a, is_approved=True, role='manager'
+        )
+        self.member = User.objects.create_user(username='member_a', password='pass')
+        Membership.objects.create(
+            user=self.member, organization=self.org_a, is_approved=True, role='member'
+        )
+
+        self.pending_a = User.objects.create_user(
+            username='pending_a', password='pass', is_approved=False
+        )
+        Membership.objects.create(
+            user=self.pending_a, organization=self.org_a, is_approved=False
+        )
+        self.pending_b = User.objects.create_user(
+            username='pending_b', password='pass', is_approved=False
+        )
+        Membership.objects.create(
+            user=self.pending_b, organization=self.org_b, is_approved=False
+        )
+
+    def test_manager_approves_membership_of_own_org(self):
+        self.client.force_login(self.manager)
+        url = reverse('core:approve_user_api', args=[self.pending_a.id])
+        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+        self.pending_a.refresh_from_db()
+        self.assertTrue(self.pending_a.is_approved)
+        from videosvoley.users.models import Membership
+        self.assertTrue(Membership.objects.get(
+            user=self.pending_a, organization=self.org_a
+        ).is_approved)
+
+    def test_manager_cannot_approve_membership_of_other_org(self):
+        self.client.force_login(self.manager)
+        url = reverse('core:approve_user_api', args=[self.pending_b.id])
+        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 404)
+        self.pending_b.refresh_from_db()
+        self.assertFalse(self.pending_b.is_approved)
+
+    def test_member_without_role_cannot_approve(self):
+        self.client.force_login(self.member)
+        url = reverse('core:approve_user_api', args=[self.pending_a.id])
+        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 403)
+
+    def test_manager_reject_denies_membership_without_deactivating_account(self):
+        self.client.force_login(self.manager)
+        url = reverse('core:reject_user_api', args=[self.pending_a.id])
+        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.pending_a.refresh_from_db()
+        self.assertTrue(self.pending_a.is_active)
+        self.assertFalse(self.pending_a.is_approved)
+        from videosvoley.users.models import Membership
+        self.assertFalse(Membership.objects.filter(
+            user=self.pending_a, organization=self.org_a
+        ).exists())
+
+    def test_manager_cannot_reject_membership_of_other_org(self):
+        self.client.force_login(self.manager)
+        url = reverse('core:reject_user_api', args=[self.pending_b.id])
+        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 404)
+        from videosvoley.users.models import Membership
+        self.assertTrue(Membership.objects.filter(
+            user=self.pending_b, organization=self.org_b
+        ).exists())
+
+    def test_manager_panel_only_lists_own_org_and_no_images(self):
+        self.client.force_login(self.manager)
+        url = reverse('core:moderation_panel')
+        response = self.client.get(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'pending_a')
+        self.assertNotContains(response, 'pending_b')
+
+    def test_manager_counts_api_scoped_to_tenant(self):
+        self.client.force_login(self.manager)
+        url = reverse('core:moderation_counts_api')
+        response = self.client.get(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['pending_users'], 1)
+        self.assertEqual(data['pending_images'], 0)
+
+    def test_member_without_role_cannot_open_panel(self):
+        self.client.force_login(self.member)
+        response = self.client.get(
+            reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
+        )
+        self.assertEqual(response.status_code, 403)

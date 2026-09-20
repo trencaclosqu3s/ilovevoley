@@ -1,11 +1,11 @@
 from django.db.models.signals import post_save, m2m_changed
 from django.dispatch import receiver
+from django.urls import reverse
 from allauth.account.signals import user_signed_up
 from allauth.socialaccount.signals import social_account_added
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from videosvoley.core.email_utils import send_notification_email
-from videosvoley.core.moderation_views import generate_moderation_token
+from videosvoley.core.email_utils import get_moderation_recipients, send_notification_email
 
 User = get_user_model()
 
@@ -14,28 +14,29 @@ def send_new_user_notification(user, request, is_oauth=False):
     """
     Función auxiliar para enviar el correo de notificación de nuevo usuario.
     Se llama cuando el usuario ya tiene parent_info completado.
+
+    El aviso se limita al club en el que se registra: superusers y los
+    managers/admins aprobados de ese tenant.
     """
     if not settings.EMAIL_NOTIFICATIONS.get('new_user_pending', True):
         return
-    
-    # Generar tokens de moderación
-    approve_token = generate_moderation_token('user', user.id, 'approve')
-    reject_token = generate_moderation_token('user', user.id, 'reject')
-    
+
+    tenant = getattr(request, 'tenant', None)
+
     context = {
         'user': user,
         'site_name': 'I Love Voley',
-        'admin_url': f'{request.build_absolute_uri("/admin/users/user/")}{user.id}/change/',
+        'tenant': tenant,
         'is_oauth': is_oauth,
-        'approve_url': request.build_absolute_uri(f'/moderate/user/{approve_token}/'),
-        'reject_url': request.build_absolute_uri(f'/moderate/user/{reject_token}/'),
+        'moderation_url': request.build_absolute_uri(reverse('core:moderation_panel')),
     }
     
     subject_type = 'OAuth' if is_oauth else 'tradicional'
     send_notification_email(
         subject=f'Nuevo usuario pendiente de aprobación: {user.username}',
         template_name='emails/new_user_pending.html',
-        context=context
+        context=context,
+        recipient_list=get_moderation_recipients(tenant),
     )
     print(f"Correo de notificación enviado para usuario {user.username} (tipo: {subject_type})")
 

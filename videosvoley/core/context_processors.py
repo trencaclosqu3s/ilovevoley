@@ -1,6 +1,6 @@
 from django.templatetags.static import static
 
-from .tenant_utils import build_tenant_url, get_tenant_base_domain
+from .tenant_utils import build_tenant_url, get_tenant_base_domain, user_is_tenant_manager
 
 
 def tenant_context(request):
@@ -13,4 +13,5 @@ def tenant_context(request):
         'tenant_base_domain': get_tenant_base_domain(request),
         'build_tenant_url': lambda slug: build_tenant_url(slug, request),
         'tenant_share_image': request.build_absolute_uri(share_image_path),
+        'can_moderate_memberships': user_is_tenant_manager(request.user, org),
     }

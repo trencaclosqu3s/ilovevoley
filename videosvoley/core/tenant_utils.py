@@ -120,6 +120,19 @@ def approve_user_membership(user, tenant=None):
     qs.update(is_approved=True)
 
 
+def reject_user_membership(user, tenant):
+    """Deniega la solicitud de membresía del usuario en el tenant.
+
+    No toca la cuenta global (is_active/is_approved): el usuario puede seguir
+    perteneciendo a otras organizaciones.
+    """
+    from videosvoley.users.models import Membership
+
+    return Membership.objects.filter(
+        user=user, organization=tenant, is_approved=False
+    ).delete()
+
+
 def tenant_access_required(*, manager=False, staff=False):
     """Requiere tenant, login y membresía aprobada (u opciones manager/staff)."""
     def decorator(view_func):
