@@ -273,7 +273,6 @@ class Command(BaseCommand):
         if not self.dry_run:
             league, created = League.objects.get_or_create(
                 federation_id=federation_id,
-                season=season,
                 defaults=league_data
             )
             

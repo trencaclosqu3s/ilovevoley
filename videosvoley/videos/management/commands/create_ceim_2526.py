@@ -170,9 +170,9 @@ class Command(BaseCommand):
         # --- Liga principal ---
         main_league, created = League.objects.get_or_create(
             federation_id='ceim_2526',
-            season=season,
             defaults={
                 'name': 'CEIM - Campeonato de España Infantil Masculino',
+                'season': season,
                 'competition_type': 'cup',
                 'match_format': 'standard',
                 'visibility_type': 'main',
@@ -192,9 +192,9 @@ class Command(BaseCommand):
 
             sub_league, created = League.objects.get_or_create(
                 federation_id=f'ceim_2526_grupo_{grupo_lower}',
-                season=season,
                 defaults={
                     'name': f'CEIM 2025-26 - Grupo {grupo}',
+                    'season': season,
                     'competition_type': 'cup',
                     'match_format': 'standard',
                     'visibility_type': 'main',

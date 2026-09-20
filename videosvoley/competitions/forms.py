@@ -334,10 +334,10 @@ class FriendlyMatchForm(forms.ModelForm):
 
             # Buscar o crear liga de amistosos
             league, created = League.objects.get_or_create(
-                name=f"Amistosos - {category.name}",
-                season=current_season,
+                federation_id=f"friendly-{category.id}-{current_season.name}",
                 defaults={
-                    'federation_id': f"friendly-{category.id}-{current_season.name}",
+                    'name': f"Amistosos - {category.name}",
+                    'season': current_season,
                     'competition_type': 'friendly',
                     'is_active': True,
                 }

@@ -145,7 +145,8 @@ class League(models.Model):
         verbose_name_plural = 'Ligas'
 
     def __str__(self):
-        return f'{self.name} ({self.season})'
+        season = self.season.name if self.season_id else '—'
+        return f'{self.name} ({season})'
 
     @property
     def has_pending_matches(self):

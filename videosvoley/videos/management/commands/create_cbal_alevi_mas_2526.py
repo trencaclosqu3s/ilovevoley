@@ -113,9 +113,9 @@ class Command(BaseCommand):
         # --- Liga principal ---
         main_league, created = League.objects.get_or_create(
             federation_id='cbal_alevi_mas_2526',
-            season=season,
             defaults={
                 'name': 'CBAL - Campionat de Balears Alevín Masculino',
+                'season': season,
                 'competition_type': 'cup',
                 'match_format': 'tournament_3sets',
                 'visibility_type': 'main',
@@ -133,9 +133,9 @@ class Command(BaseCommand):
         for grupo, data in GRUPOS_DATA.items():
             gl, created = League.objects.get_or_create(
                 federation_id=f'cbal_alevi_mas_2526_grupo_{grupo.lower()}',
-                season=season,
                 defaults={
                     'name': f'CBAL Alevín Mas. 2025-26 - Grupo {grupo}',
+                    'season': season,
                     'competition_type': 'cup',
                     'match_format': 'tournament_3sets',
                     'visibility_type': 'main',
@@ -168,9 +168,9 @@ class Command(BaseCommand):
         # --- Sub-ligas segunda fase ---
         fase_or, created = League.objects.get_or_create(
             federation_id='cbal_alevi_mas_2526_or',
-            season=season,
             defaults={
                 'name': 'CBAL Alevín Mas. 2025-26 - Fase OR',
+                'season': season,
                 'competition_type': 'cup',
                 'match_format': 'tournament_3sets',
                 'visibility_type': 'main',
@@ -186,9 +186,9 @@ class Command(BaseCommand):
 
         fase_plata, created = League.objects.get_or_create(
             federation_id='cbal_alevi_mas_2526_plata',
-            season=season,
             defaults={
                 'name': 'CBAL Alevín Mas. 2025-26 - Fase Plata',
+                'season': season,
                 'competition_type': 'cup',
                 'match_format': 'tournament_3sets',
                 'visibility_type': 'main',
