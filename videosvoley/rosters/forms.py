@@ -2,6 +2,7 @@ from django import forms
 from django.db.models import Q
 
 from videosvoley.core.mixins import get_club_team_names
+from videosvoley.core.models import Season
 from videosvoley.teams.models import Team
 from .models import Person, PlayerRole, StaffRole
 
@@ -97,8 +98,11 @@ class PlayerRoleForm(forms.ModelForm):
     
     class Meta:
         model = PlayerRole
-        fields = ['team', 'jersey_number', 'position', 'notes']
+        fields = ['team', 'season', 'jersey_number', 'position', 'notes']
         widgets = {
+            'season': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white'
+            }),
             'jersey_number': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
                 'placeholder': 'Ej: 10',
@@ -116,11 +120,13 @@ class PlayerRoleForm(forms.ModelForm):
         }
         labels = {
             'team': 'Equipo',
+            'season': 'Temporada',
             'jersey_number': 'Número de Dorsal',
             'position': 'Posición Principal',
             'notes': 'Notas',
         }
         help_texts = {
+            'season': 'Temporada en la que el jugador pertenece al equipo',
             'jersey_number': 'Número de camiseta (opcional)',
             'position': 'Posición preferida del jugador (opcional)',
             'notes': 'Información adicional sobre este rol (opcional)',
@@ -136,6 +142,11 @@ class PlayerRoleForm(forms.ModelForm):
         self.fields['position'].required = False
         self.fields['notes'].required = False
 
+        # Temporada obligatoria; por defecto, la activa
+        self.fields['season'].required = True
+        if not self.instance.pk:
+            self.fields['season'].initial = Season.objects.current()
+
         # Filtrar equipos del club
         club_names = get_club_team_names(self.organization)
         # Usar la primera categoría de equipo como filtro principal
@@ -148,10 +159,17 @@ class PlayerRoleForm(forms.ModelForm):
             is_active=True
         ).select_related('category').order_by('category__name', 'name')
 
-        # Si hay persona, excluir equipos donde ya tiene rol activo
+        # Si hay persona, excluir equipos donde ya tiene rol activo en esa temporada
         if person:
-            active_team_ids = person.player_roles.filter(is_active=True).values_list('team_id', flat=True)
-            self.fields['team'].queryset = self.fields['team'].queryset.exclude(id__in=active_team_ids)
+            season = self.instance.season if self.instance.pk else self.fields['season'].initial
+            active_roles = person.player_roles.filter(is_active=True)
+            if self.instance.pk:
+                active_roles = active_roles.exclude(pk=self.instance.pk)
+            if season:
+                active_roles = active_roles.filter(season=season)
+            self.fields['team'].queryset = self.fields['team'].queryset.exclude(
+                id__in=active_roles.values_list('team_id', flat=True)
+            )
 
 
 class StaffRoleForm(forms.ModelForm):
@@ -167,8 +185,11 @@ class StaffRoleForm(forms.ModelForm):
     
     class Meta:
         model = StaffRole
-        fields = ['team', 'role', 'notes']
+        fields = ['team', 'season', 'role', 'notes']
         widgets = {
+            'season': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white'
+            }),
             'role': forms.Select(attrs={
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white'
             }),
@@ -180,10 +201,12 @@ class StaffRoleForm(forms.ModelForm):
         }
         labels = {
             'team': 'Equipo',
+            'season': 'Temporada',
             'role': 'Rol en el Equipo',
             'notes': 'Notas',
         }
         help_texts = {
+            'season': 'Temporada en la que la persona desempeña el rol',
             'role': 'Función que desempeña en el equipo',
             'notes': 'Información adicional sobre este rol (opcional)',
         }
@@ -195,6 +218,11 @@ class StaffRoleForm(forms.ModelForm):
 
         # Hacer campo notes opcional
         self.fields['notes'].required = False
+
+        # Temporada obligatoria; por defecto, la activa
+        self.fields['season'].required = True
+        if not self.instance.pk:
+            self.fields['season'].initial = Season.objects.current()
 
         # Filtrar equipos del club
         club_names = get_club_team_names(self.organization)
@@ -209,9 +237,15 @@ class StaffRoleForm(forms.ModelForm):
 
         # Si hay persona, excluir combinaciones equipo-rol donde ya tiene rol activo
         if person:
-            # No se puede tener el mismo rol en el mismo equipo
-            active_roles = person.staff_roles.filter(is_active=True).values_list('team_id', 'role')
-            # Esto se validará en el clean del formulario
+            season = self.instance.season if self.instance.pk else self.fields['season'].initial
+            active_roles = person.staff_roles.filter(is_active=True)
+            if self.instance.pk:
+                active_roles = active_roles.exclude(pk=self.instance.pk)
+            if season:
+                active_roles = active_roles.filter(season=season)
+            self.fields['team'].queryset = self.fields['team'].queryset.exclude(
+                id__in=active_roles.values_list('team_id', flat=True)
+            )
 
 
 __all__ = [

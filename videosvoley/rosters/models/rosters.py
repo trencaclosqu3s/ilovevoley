@@ -185,7 +185,16 @@ class PlayerRole(models.Model):
         related_name='player_roles',
         verbose_name='Equipo'
     )
-    
+    season = models.ForeignKey(
+        'core.Season',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='player_roles',
+        verbose_name='Temporada',
+        help_text='Temporada en la que el jugador pertenece al equipo',
+    )
+
     # Información específica del rol de jugador
     jersey_number = models.PositiveSmallIntegerField(
         null=True,
@@ -226,16 +235,16 @@ class PlayerRole(models.Model):
             models.Index(fields=['jersey_number']),
             models.Index(fields=['position']),
         ]
-        # Evitar duplicados de persona-equipo activos
+        # Evitar duplicados de persona-equipo activos dentro de una temporada
         constraints = [
             models.UniqueConstraint(
-                fields=['person', 'team'],
+                fields=['person', 'team', 'season'],
                 name='unique_active_player_role',
                 condition=models.Q(is_active=True)
             ),
-            # Evitar números de dorsal duplicados en el mismo equipo
+            # Evitar números de dorsal duplicados en el mismo equipo y temporada
             models.UniqueConstraint(
-                fields=['team', 'jersey_number'],
+                fields=['team', 'season', 'jersey_number'],
                 name='unique_jersey_number_per_team',
                 condition=models.Q(jersey_number__isnull=False, is_active=True)
             )
@@ -276,7 +285,16 @@ class StaffRole(models.Model):
         related_name='staff_roles',
         verbose_name='Equipo'
     )
-    
+    season = models.ForeignKey(
+        'core.Season',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='staff_roles',
+        verbose_name='Temporada',
+        help_text='Temporada en la que la persona desempeña el rol',
+    )
+
     # Información específica del rol de staff
     role = models.CharField(
         max_length=20,
@@ -309,10 +327,10 @@ class StaffRole(models.Model):
             models.Index(fields=['person', 'is_active']),
             models.Index(fields=['role']),
         ]
-        # Evitar duplicados de persona-equipo-rol activos
+        # Evitar duplicados de persona-equipo-rol activos dentro de una temporada
         constraints = [
             models.UniqueConstraint(
-                fields=['person', 'team', 'role'],
+                fields=['person', 'team', 'role', 'season'],
                 name='unique_active_staff_role',
                 condition=models.Q(is_active=True)
             )

@@ -41,6 +41,17 @@
             </select>
         </div>
         
+        <!-- Filtro por temporada -->
+        <div class="flex-1">
+            <label for="season" class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Temporada</label>
+            <select name="season" id="season" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                <option value="">Todas las temporadas</option>
+                {% for season in seasons %}
+                    <option value="{{ season.id }}" {% if selected_season == season.id|stringformat:"s" %}selected{% endif %}>{{ season.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
         <!-- Checkbox mostrar todas -->
         <div class="flex items-center">
             <input type="checkbox" name="show_all" value="1" id="show_all" {% if show_all %}checked{% endif %}
