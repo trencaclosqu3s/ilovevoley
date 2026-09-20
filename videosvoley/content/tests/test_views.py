@@ -161,6 +161,14 @@ class ContentSeasonFilterTests(TestCase):
         )
         self.assertEqual(self._titles(response), {'Actual', 'Pasado'})
 
+    def test_video_list_id_de_temporada_invalido_cae_a_la_activa(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('content:video_list') + '?season=999999',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(self._titles(response), {'Actual'})
+
     def test_galeria_individual_default_muestra_temporada_activa(self):
         self.client.force_login(self.user)
         response = self.client.get(

@@ -272,17 +272,21 @@ class Image(models.Model):
     def save(self, *args, **kwargs):
         # Determinar si es una creación nueva
         is_new = self.pk is None
+        changed = set()
 
         # Auto-asignar temporada si no se especifica: del partido o de la fecha
         if self.season_id is None:
             self.season = infer_season(self.match if self.match_id else None, timezone.now())
-            update_fields = kwargs.get('update_fields')
-            if update_fields is not None:
-                kwargs['update_fields'] = set(update_fields) | {'season'}
+            changed.add('season')
 
         # Si es una imagen de partido pero no se especificó el tipo, asignarlo
         if self.match_id and self.image_type == 'other':
             self.image_type = 'match'
+            changed.add('image_type')
+
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None and changed:
+            kwargs['update_fields'] = set(update_fields) | changed
 
         super().save(*args, **kwargs)
 
