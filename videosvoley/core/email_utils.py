@@ -31,6 +31,41 @@ def get_admin_emails():
     return admin_emails
 
 
+def get_moderation_recipients(tenant=None):
+    """
+    Destinatarios de los avisos de moderación: superusers y, cuando hay tenant,
+    los managers/admins aprobados de esa organización.
+
+    Args:
+        tenant (Organization, optional): organización a la que se limita el aviso
+
+    Returns:
+        list: emails sin duplicados
+    """
+    emails = set(
+        User.objects.filter(is_superuser=True, email__isnull=False)
+        .exclude(email='')
+        .values_list('email', flat=True)
+    )
+
+    if tenant is not None:
+        from videosvoley.users.models import Membership
+
+        emails.update(
+            Membership.objects.filter(
+                organization=tenant,
+                is_approved=True,
+                role__in=['manager', 'admin'],
+                user__email__isnull=False,
+            ).exclude(user__email='').values_list('user__email', flat=True)
+        )
+
+    if not emails and hasattr(settings, 'ADMIN_EMAIL_LIST'):
+        emails = set(settings.ADMIN_EMAIL_LIST)
+
+    return list(emails)
+
+
 def send_notification_email(subject, template_name, context, recipient_list=None, attachments=None, embedded_images=None):
     """
     Envía email de notificación usando template HTML

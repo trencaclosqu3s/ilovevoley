@@ -5,14 +5,20 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from videosvoley.content.models import Image
-from videosvoley.core.tenant_utils import approve_user_membership
+from videosvoley.core.tenant_utils import (
+    approve_user_membership,
+    reject_user_membership,
+    user_is_tenant_manager,
+)
+from videosvoley.users.models import Membership
 
 logger = logging.getLogger(__name__)
 
@@ -109,25 +115,43 @@ def about(request):
     return render(request, 'core/about.html', context)
 
 
+def _can_moderate_memberships(request):
+    """True si el usuario es superuser o manager/admin aprobado del tenant actual."""
+    return user_is_tenant_manager(request.user, getattr(request, 'tenant', None))
+
+
+def _get_pending_membership(user_id, tenant):
+    """Devuelve la Membership pendiente del usuario en el tenant o lanza DoesNotExist."""
+    return Membership.objects.select_related('user').get(
+        user_id=user_id, organization=tenant, is_approved=False
+    )
+
+
 def moderation_counts_api(request):
     """API para obtener contadores de elementos pendientes de moderación"""
     if not request.user.is_authenticated:
         return JsonResponse({'success': False, 'error': 'No autenticado'}, status=401)
-    if not request.user.is_superuser:
+    if not _can_moderate_memberships(request):
         return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+
     User = get_user_model()
+    tenant = getattr(request, 'tenant', None)
 
-    if getattr(request, 'tenant', None):
-        pending_users = User.objects.filter(
-            memberships__organization=request.tenant,
+    if tenant:
+        pending_users_count = User.objects.filter(
+            memberships__organization=tenant,
             memberships__is_approved=False,
-        ).distinct().order_by('date_joined')
-        pending_users_count = pending_users.count()
-    else:
+        ).distinct().count()
+    elif request.user.is_superuser:
         pending_users_count = User.objects.filter(is_approved=False).count()
+    else:
+        pending_users_count = 0
 
-    # Contar imágenes pendientes de moderación
-    pending_images_count = Image.objects.filter(status='pending').count()
+    # Las imágenes solo las modera un superuser
+    if request.user.is_superuser:
+        pending_images_count = Image.objects.filter(status='pending').count()
+    else:
+        pending_images_count = 0
 
     # Total de elementos pendientes
     total_pending = pending_users_count + pending_images_count
@@ -141,44 +165,61 @@ def moderation_counts_api(request):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser, login_url='/')
 def moderation_panel(request):
-    """Panel de moderación simplificado para superusers"""
-    User = get_user_model()
+    """Panel de moderación para superusers y managers/admins del tenant actual."""
+    if not _can_moderate_memberships(request):
+        raise PermissionDenied
 
-    if getattr(request, 'tenant', None):
+    User = get_user_model()
+    tenant = getattr(request, 'tenant', None)
+    is_superuser = request.user.is_superuser
+
+    if tenant:
         pending_users = User.objects.filter(
-            memberships__organization=request.tenant,
+            memberships__organization=tenant,
             memberships__is_approved=False,
         ).distinct().order_by('date_joined')
-    else:
+    elif is_superuser:
         pending_users = User.objects.filter(is_approved=False).order_by('date_joined')
+    else:
+        pending_users = User.objects.none()
 
-    # Obtener imágenes pendientes de moderación
-    pending_images = Image.objects.filter(status='pending').select_related(
-        'uploaded_by', 'match__home_team', 'match__away_team', 'match__league'
-    ).prefetch_related('categories').order_by('upload_date')
+    # Las imágenes pendientes solo se muestran a superusers
+    if is_superuser:
+        pending_images = Image.objects.filter(status='pending').select_related(
+            'uploaded_by', 'match__home_team', 'match__away_team', 'match__league'
+        ).prefetch_related('categories').order_by('upload_date')
+    else:
+        pending_images = Image.objects.none()
 
     context = {
         'pending_users': pending_users,
         'pending_images': pending_images,
         'pending_users_count': pending_users.count(),
         'pending_images_count': pending_images.count(),
+        'can_moderate_images': is_superuser,
     }
 
     return render(request, 'core/moderation_panel.html', context)
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser, login_url='/')
 @require_POST
 def approve_user_api(request, user_id):
-    """API para aprobar un usuario vía AJAX"""
+    """API para aprobar un usuario vía AJAX (superuser o manager del tenant)"""
+    if not _can_moderate_memberships(request):
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+
     User = get_user_model()
+    tenant = getattr(request, 'tenant', None)
 
     try:
-        user = User.objects.get(id=user_id, is_approved=False)
-        approve_user_membership(user, getattr(request, 'tenant', None))
+        if tenant is None and request.user.is_superuser:
+            user = User.objects.get(id=user_id, is_approved=False)
+        else:
+            user = _get_pending_membership(user_id, tenant).user
+
+        approve_user_membership(user, tenant)
 
         # Enviar email de confirmación si está configurado
         if getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
@@ -199,7 +240,7 @@ def approve_user_api(request, user_id):
             'user_name': user.username
         })
 
-    except User.DoesNotExist:
+    except (User.DoesNotExist, Membership.DoesNotExist):
         return JsonResponse({
             'success': False,
             'error': 'Usuario no encontrado o ya aprobado'
@@ -213,17 +254,29 @@ def approve_user_api(request, user_id):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser, login_url='/')
 @require_POST
 def reject_user_api(request, user_id):
-    """API para rechazar un usuario vía AJAX"""
+    """API para rechazar un usuario vía AJAX (superuser o manager del tenant)"""
+    if not _can_moderate_memberships(request):
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+
     User = get_user_model()
+    tenant = getattr(request, 'tenant', None)
 
     try:
-        user = User.objects.get(id=user_id, is_approved=False)
-        # Rechazar = desactivar el usuario y mantener is_approved en False
-        user.is_active = False
-        user.save(update_fields=['is_active'])
+        if request.user.is_superuser:
+            if tenant is None:
+                user = User.objects.get(id=user_id, is_approved=False)
+            else:
+                user = _get_pending_membership(user_id, tenant).user
+            # Rechazar = desactivar el usuario y mantener is_approved en False
+            user.is_active = False
+            user.save(update_fields=['is_active'])
+        else:
+            # El manager/admin del club solo deniega la membresía de su organización:
+            # la cuenta global del usuario no se toca.
+            user = _get_pending_membership(user_id, tenant).user
+            reject_user_membership(user, tenant)
 
         # Enviar email de rechazo si está configurado
         if getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
@@ -247,7 +300,7 @@ def reject_user_api(request, user_id):
             'user_name': user.username
         })
 
-    except User.DoesNotExist:
+    except (User.DoesNotExist, Membership.DoesNotExist):
         return JsonResponse({
             'success': False,
             'error': 'Usuario no encontrado o ya procesado'
