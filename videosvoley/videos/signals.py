@@ -53,54 +53,6 @@ def image_uploaded_handler(sender, instance, created, **kwargs):
             )
 
 
-@receiver(post_save, sender=Image)
-def image_moderated_handler(sender, instance, created, **kwargs):
-    """
-    Envía email al usuario cuando su imagen es moderada (aprobada o rechazada)
-    """
-    if not created and instance.moderated_by:
-        # Verificar si cambió de pendiente a moderada
-        if hasattr(instance, '_old_status') and instance._old_status == 'pending':
-            print(f"Imagen moderada: {instance.title} - Estado: {instance.status}")
-            
-            # Enviar email al usuario que subió la imagen
-            if settings.EMAIL_NOTIFICATIONS.get('image_moderated', True) and instance.uploaded_by.email:
-                context = {
-                    'image': instance,
-                    'user': instance.uploaded_by,
-                    'site_name': 'I Love Voley',
-                    'is_approved': instance.status == 'approved',
-                    'moderation_notes': instance.moderation_notes,
-                }
-                
-                if instance.status == 'approved':
-                    subject = f'Tu imagen "{instance.title}" ha sido aprobada'
-                    template_name = 'emails/image_approved.html'
-                else:
-                    subject = f'Tu imagen "{instance.title}" ha sido rechazada'
-                    template_name = 'emails/image_rejected.html'
-                
-                send_notification_email(
-                    subject=subject,
-                    template_name=template_name,
-                    context=context,
-                    recipient_list=[instance.uploaded_by.email]
-                )
-
-
-# Hook para trackear cambios en status de imagen
-@receiver(post_save, sender=Image)
-def track_image_status_changes(sender, instance, **kwargs):
-    """
-    Trackea cambios en el estado de moderación de la imagen
-    """
-    if hasattr(instance, '_old_status'):
-        del instance._old_status
-
-
-
-
-
 # =============================================================================
 # League signals - Auto-crear endpoints de scraping
 # =============================================================================

@@ -9,7 +9,6 @@ import base64
 import uuid
 from videosvoley.core.tenant_utils import user_has_approved_membership
 from .forms import UserProfileForm, ParentInfoForm
-from .signals import send_new_user_notification
 
 
 @login_required
@@ -26,14 +25,8 @@ def pending_approval(request):
         if request.method == 'POST':
             form = ParentInfoForm(request.POST, instance=request.user)
             if form.is_valid():
-                user = form.save()
-                
-                # Determinar si es usuario OAuth (tiene cuenta social asociada)
-                is_oauth = user.socialaccount_set.exists()
-                
-                # Enviar correo de notificación a admins ahora que tiene parent_info
-                send_new_user_notification(user, request, is_oauth=is_oauth)
-                
+                form.save()
+
                 messages.success(request, 'Información familiar guardada correctamente. Tu cuenta será revisada pronto.')
                 return redirect('pending_approval')
         else:

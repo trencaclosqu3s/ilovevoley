@@ -1,0 +1,65 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Nueva membresía pendiente - {{ site_name }}{% endblock %}
+
+{% block header_subtitle %}Nueva Membresía Pendiente de Aprobación{% endblock %}
+
+{% block content %}
+    <div class="alert warning">
+        <h2 style="margin-top: 0;">🔔 Nueva solicitud de membresía</h2>
+        <p>Un usuario ya registrado ha solicitado unirse a <strong>{{ tenant.name }}</strong>.</p>
+    </div>
+
+    <h3>Detalles del usuario:</h3>
+    <table class="data-table">
+        <tr>
+            <th>Nombre de usuario:</th>
+            <td><strong>{{ user.username }}</strong></td>
+        </tr>
+        <tr>
+            <th>Email:</th>
+            <td>{{ user.email|default:"No proporcionado" }}</td>
+        </tr>
+        <tr>
+            <th>Nombre completo:</th>
+            <td>{{ user.get_full_name|default:"No proporcionado" }}</td>
+        </tr>
+        <tr>
+            <th>Información Familiar:</th>
+            <td>
+                {% if user.parent_info %}
+                    <strong style="color: #e67e22;">{{ user.parent_info }}</strong>
+                {% else %}
+                    <span style="color: #95a5a6; font-style: italic;">No proporcionado</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Club solicitado:</th>
+            <td><strong>{{ tenant.name }}</strong></td>
+        </tr>
+        <tr>
+            <th>Fecha de solicitud:</th>
+            <td>{{ membership.joined_at|date:"d/m/Y H:i" }}</td>
+        </tr>
+        <tr>
+            <th>Estado actual:</th>
+            <td><span style="color: #f39c12;">⏳ Pendiente de aprobación</span></td>
+        </tr>
+    </table>
+
+    <h3>Acciones requeridas:</h3>
+    <p>Este usuario está pendiente de aprobación para acceder al contenido de <strong>{{ tenant.name }}</strong>.</p>
+    <p style="color: #7f8c8d; font-size: 14px;">Revisa y aprueba o rechaza la solicitud desde el panel de moderación.</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{ moderation_url }}" class="button" style="background-color: #27ae60; text-decoration: none; color: white; padding: 12px 30px; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+            🔔 Revisar en el panel de moderación
+        </a>
+    </div>
+
+    <div class="alert">
+        <h4 style="margin-top: 0;">💡 Recordatorio</h4>
+        <p>Las membresías no aprobadas no pueden acceder a la funcionalidad completa del club. Recuerde revisar y aprobar solicitudes legítimas de manera oportuna.</p>
+    </div>
+{% endblock %}
