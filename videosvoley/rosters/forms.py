@@ -171,6 +171,24 @@ class PlayerRoleForm(forms.ModelForm):
                 id__in=active_roles.values_list('team_id', flat=True)
             )
 
+    def clean(self):
+        # Red de seguridad ante envíos manipulados: el queryset ya excluye el
+        # equipo, pero el constraint de BD no debe convertirse en un 500.
+        cleaned = super().clean()
+        team = cleaned.get('team')
+        season = cleaned.get('season')
+        if self.person and team and season:
+            existing = PlayerRole.objects.filter(
+                person=self.person, team=team, season=season, is_active=True
+            )
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise forms.ValidationError(
+                    'Esta persona ya tiene un rol de jugador en este equipo y temporada.'
+                )
+        return cleaned
+
 
 class StaffRoleForm(forms.ModelForm):
     """Formulario para crear y editar roles de staff"""
