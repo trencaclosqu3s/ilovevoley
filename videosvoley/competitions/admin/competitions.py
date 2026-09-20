@@ -16,7 +16,7 @@ class LeagueAdmin(ModelAdmin):
     list_display = ('display_name_admin', 'categories_display', 'federation_id', 'competition_type', 'season', 'phase_indicator', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'matches_count', 'created_at')
     list_filter = ('categories', 'competition_type', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'season', ('parent_league', admin.RelatedOnlyFieldListFilter))
     search_fields = ('name', 'federation_id', 'categories__name')
-    readonly_fields = ('created_at',)
+    readonly_fields = ('created_at', 'related_organizations')
     autocomplete_fields = ('parent_league',)
     filter_horizontal = ('categories',)
     list_editable = ('visibility_type', 'is_our_team_related', 'is_historical', 'is_active')
@@ -35,7 +35,7 @@ class LeagueAdmin(ModelAdmin):
             'description': 'Configuración del formato de partidos y validación de resultados'
         }),
         ('Configuración de Visibilidad', {
-            'fields': ('visibility_type', 'is_our_team_related', 'is_historical', 'is_active'),
+            'fields': ('visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'related_organizations'),
             'description': 'Controla dónde y cómo se muestra la liga en la aplicación'
         }),
         ('Configuración Técnica', {
@@ -48,6 +48,60 @@ class LeagueAdmin(ModelAdmin):
         """Muestra el número de partidos asociados"""
         return obj.matches.count()
     matches_count.short_description = 'Partidos'
+
+    def related_organizations(self, obj):
+        """Organizaciones cuyo club participa en esta liga.
+
+        Ayuda a decidir el flag global ``is_our_team_related``: las ligas son
+        datos compartidos y una liga solo interesa a los tenants cuyo club
+        juega en ella (detección por FK + fallback por nombre para equipos sin
+        club). Se resuelve con dos consultas, sin depender del número de orgs.
+        """
+        if not obj or not obj.pk:
+            return 'Guarda la liga para detectar organizaciones'
+        from django.db.models import Q
+        from videosvoley.core.mixins import get_club_team_names
+        from videosvoley.core.models import Organization
+
+        matches = obj.matches
+
+        club_ids = set()
+        for home_club, away_club in matches.values_list(
+            'home_team__club_id', 'away_team__club_id'
+        ):
+            club_ids.update(cid for cid in (home_club, away_club) if cid)
+
+        orphan_names = set()
+        for home_name, home_text in matches.filter(
+            Q(home_team__club__isnull=True)
+        ).values_list('home_team__name', 'home_team_text'):
+            orphan_names.update(name.upper() for name in (home_name, home_text) if name)
+        for away_name, away_text in matches.filter(
+            Q(away_team__club__isnull=True)
+        ).values_list('away_team__name', 'away_team_text'):
+            orphan_names.update(name.upper() for name in (away_name, away_text) if name)
+
+        slugs = []
+        for org in Organization.objects.filter(club__isnull=False):
+            if org.club_id in club_ids:
+                slugs.append(org.slug)
+            elif any(
+                name.upper() in orphan
+                for name in get_club_team_names(org)
+                for orphan in orphan_names
+            ):
+                slugs.append(org.slug)
+
+        if not slugs:
+            return mark_safe('<span style="color:#b45309;">Ninguna organización con club participa</span>')
+        labels = ', '.join(slugs)
+        if obj.is_our_team_related:
+            return format_html('<span style="color:#15803d;">Participan: {}</span>', labels)
+        return format_html(
+            '<span style="color:#b91c1c;">Participan {} pero is_our_team_related=False</span>',
+            labels,
+        )
+    related_organizations.short_description = 'Organizaciones con club participante'
 
     def display_name_admin(self, obj):
         """Muestra el nombre con indentación si es una fase"""

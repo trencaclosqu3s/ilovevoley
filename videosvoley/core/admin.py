@@ -1,19 +1,81 @@
 from django.contrib import admin
+from django.db import transaction
+from django.db.models import Count, Q
+from django.utils.safestring import mark_safe
 from unfold.admin import ModelAdmin
+from videosvoley.teams.models import Team
+from videosvoley.teams.services import MATCH_THRESHOLD, find_best_club
 from .models import Category, Organization, Season
 
 
 @admin.register(Organization)
 class OrganizationAdmin(ModelAdmin):
-    list_display = ['slug', 'name', 'club', 'instagram_url', 'is_active', 'created_at']
+    list_display = ['slug', 'name', 'club', 'club_teams_count', 'instagram_url', 'is_active', 'created_at']
     list_filter = ['is_active']
     list_select_related = ['club']
     autocomplete_fields = ['club']
     search_fields = ['slug', 'name']
+    readonly_fields = ['club_teams_count', 'club_names_status']
     fields = [
         'slug', 'name', 'logo', 'primary_color', 'secondary_color',
         'instagram_url', 'club', 'club_team_names', 'is_active',
+        'club_teams_count', 'club_names_status',
     ]
+    actions = ['assign_club_to_orphan_teams']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            club_active_teams=Count('club__teams', filter=Q(club__teams__is_active=True))
+        )
+
+    def club_teams_count(self, obj):
+        """Número de equipos activos con la FK al club vinculado."""
+        if not obj.club_id:
+            return '-'
+        count = getattr(obj, 'club_active_teams', None)
+        if count is None:
+            count = obj.club.teams.filter(is_active=True).count()
+        return count
+    club_teams_count.short_description = 'Equipos activos'
+
+    def club_names_status(self, obj):
+        """Avisa si club_team_names no casa con ningún equipo del club."""
+        if not obj.club_id:
+            return '-'
+        names = list((obj.club_team_names or {}).values())
+        if not names:
+            return mark_safe('<span style="color:#b45309;">Sin club_team_names</span>')
+        q = Q()
+        for name in names:
+            q |= Q(name__icontains=name)
+        if obj.club.teams.filter(q).exists():
+            return mark_safe('<span style="color:#15803d;">OK</span>')
+        return mark_safe(
+            '<span style="color:#b91c1c;">club_team_names no casa con ningún equipo del club</span>'
+        )
+    club_names_status.short_description = 'Consistencia de nombres'
+
+    @admin.action(description='Asignar club a equipos huérfanos por coincidencia de nombre')
+    def assign_club_to_orphan_teams(self, request, queryset):
+        """Rellena Team.club en equipos sin club que casan con el club de la org."""
+        total = 0
+        with transaction.atomic():
+            for org in queryset.filter(club__isnull=False).select_related('club'):
+                matched = []
+                for team in Team.objects.filter(club__isnull=True):
+                    match = find_best_club(team.name, [org.club])
+                    if match and match[1] >= MATCH_THRESHOLD:
+                        team.club = org.club
+                        matched.append(team)
+                if matched:
+                    Team.objects.bulk_update(matched, ['club'])
+                    total += len(matched)
+                    self.message_user(
+                        request,
+                        f'{org.slug}: {len(matched)} equipo(s) asignado(s) a {org.club}.',
+                    )
+        if not total:
+            self.message_user(request, 'No se encontraron equipos huérfanos por coincidencia de nombre.')
 
 
 @admin.register(Category)
