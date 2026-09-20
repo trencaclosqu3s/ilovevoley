@@ -144,6 +144,26 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'competitions/standings.html')
 
+    def test_standings_acepta_season_name_y_el_antiguo_season(self):
+        self.client.force_login(self.user)
+        url = reverse('competitions:standings_view')
+        # La liga del setUp es de la temporada 2026-2027.
+        for param in ('season_name=2026-27', 'season=2026-27'):
+            response = self.client.get(
+                f'{url}?{param}', HTTP_HOST='testclub.ilovevoley.es'
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'Superliga 2')
+
+    def test_standings_ignora_season_con_id_numerico(self):
+        self.client.force_login(self.user)
+        url = reverse('competitions:standings_view')
+        # Un id no es un nombre de temporada: no debe filtrar por un valor basura.
+        response = self.client.get(
+            f'{url}?season={self.league.season_id}', HTTP_HOST='testclub.ilovevoley.es'
+        )
+        self.assertEqual(response.status_code, 200)
+
     def test_competitions_friendly_match_create_url_resolves_and_renders(self):
         self.client.force_login(self.user)
         url = reverse('competitions:friendly_match_create')
