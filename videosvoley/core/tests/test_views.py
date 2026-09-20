@@ -21,7 +21,7 @@ class LandingViewTest(TestCase):
         response = self.client.get('/', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 302)
         self.assertIn('/accounts/login/', response.url)
-        self.assertIn('next=/videos/', response.url)
+        self.assertIn('next=/content/', response.url)
 
     def test_root_domain_shows_landing_for_anonymous(self):
         response = self.client.get('/', HTTP_HOST='ilovevoley.es')
@@ -34,7 +34,7 @@ class LandingViewTest(TestCase):
         self.client.force_login(user)
         response = self.client.get('/', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, '/videos/')
+        self.assertEqual(response.url, '/content/')
 
     def test_login_page_uses_tenant_brand_color(self):
         self.org.primary_color = '#112233'

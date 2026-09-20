@@ -78,9 +78,10 @@ def landing(request):
 
     if request.tenant:
         if request.user.is_authenticated:
-            return redirect('/videos/')
+            return redirect('content:video_list')
         login_url = reverse('account_login')
-        return redirect(f'{login_url}?next=/videos/')
+        next_url = reverse('content:video_list')
+        return redirect(f'{login_url}?next={next_url}')
 
     organizations = Organization.objects.filter(is_active=True).order_by('name')
 

@@ -28,7 +28,7 @@ def roster_overview(request):
 
     # Query base para equipos del club
     teams_query = Team.objects.select_related("category", "club").prefetch_related(
-        "players__user", "staff__user"
+        "player_roles__person", "staff_roles__person"
     ).filter(is_active=True).filter(get_club_team_name_filter(request.tenant))
     
     # Filtrar por categorías preferidas del usuario

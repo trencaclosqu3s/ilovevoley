@@ -18,8 +18,6 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import RedirectView
-from django.contrib.auth.decorators import login_required
 from videosvoley.core.moderation_views import moderate_user, moderate_image
 from videosvoley.core.views import landing
 
