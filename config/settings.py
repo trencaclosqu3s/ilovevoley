@@ -383,7 +383,7 @@ UNFOLD = {
                     {
                         'title': _('Fotos pendientes'),
                         'icon': 'photo_camera',
-                        'link': f"/{ADMIN_URL}videos/image/?status__exact=pending",
+                        'link': f"/{ADMIN_URL}content/image/?status__exact=pending",
                         'badge': 'videosvoley.core.unfold_callbacks.pending_images_badge',
                         'badge_variant': 'warning',
                     },
@@ -410,17 +410,17 @@ UNFOLD = {
                     {
                         'title': _('Todas las fotos'),
                         'icon': 'image',
-                        'link': reverse_lazy('admin:videos_image_changelist'),
+                        'link': reverse_lazy('admin:content_image_changelist'),
                     },
                     {
                         'title': _('Videos'),
                         'icon': 'videocam',
-                        'link': reverse_lazy('admin:videos_video_changelist'),
+                        'link': reverse_lazy('admin:content_video_changelist'),
                     },
                     {
                         'title': _('Partidos'),
                         'icon': 'sports_volleyball',
-                        'link': reverse_lazy('admin:videos_match_changelist'),
+                        'link': reverse_lazy('admin:competitions_match_changelist'),
                     },
                 ],
             },
@@ -431,22 +431,22 @@ UNFOLD = {
                     {
                         'title': _('Personas'),
                         'icon': 'badge',
-                        'link': reverse_lazy('admin:videos_person_changelist'),
+                        'link': reverse_lazy('admin:rosters_person_changelist'),
                     },
                     {
                         'title': _('Equipos'),
                         'icon': 'groups',
-                        'link': reverse_lazy('admin:videos_team_changelist'),
+                        'link': reverse_lazy('admin:teams_team_changelist'),
                     },
                     {
                         'title': _('Clasificaciones'),
                         'icon': 'leaderboard',
-                        'link': reverse_lazy('admin:videos_standing_changelist'),
+                        'link': reverse_lazy('admin:competitions_standing_changelist'),
                     },
                     {
                         'title': _('Categorías'),
                         'icon': 'category',
-                        'link': reverse_lazy('admin:videos_category_changelist'),
+                        'link': reverse_lazy('admin:core_category_changelist'),
                     },
                 ],
             },
@@ -457,12 +457,12 @@ UNFOLD = {
                     {
                         'title': _('Ligas'),
                         'icon': 'emoji_events',
-                        'link': reverse_lazy('admin:videos_league_changelist'),
+                        'link': reverse_lazy('admin:competitions_league_changelist'),
                     },
                     {
                         'title': _('Clubes'),
                         'icon': 'stadium',
-                        'link': reverse_lazy('admin:videos_club_changelist'),
+                        'link': reverse_lazy('admin:teams_club_changelist'),
                     },
                 ],
             },
@@ -501,7 +501,7 @@ UNFOLD = {
                     {
                         'title': _('Endpoints de scraping'),
                         'icon': 'cloud_download',
-                        'link': reverse_lazy('admin:videos_scrapingendpoint_changelist'),
+                        'link': reverse_lazy('admin:competitions_scrapingendpoint_changelist'),
                         'permission': 'videosvoley.core.unfold_callbacks.is_superuser',
                     },
                 ],
