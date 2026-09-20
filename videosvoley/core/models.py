@@ -3,7 +3,7 @@ import re
 from urllib.parse import urlparse
 
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, models, transaction
+from django.db import models, transaction
 from django.core.validators import RegexValidator
 from django.db.models import Q
 from django.db.models.signals import post_save, post_delete
@@ -14,6 +14,7 @@ _hex_color_validator = RegexValidator(r'^#[0-9a-fA-F]{6}$', 'Introduce un color 
 
 # Una temporada empieza el 1 de septiembre y termina el 31 de agosto.
 SEASON_START_MONTH = 9
+_INVALID_SEASON_MSG = 'Formato de temporada no válido (ej: 2025-26).'
 
 
 def normalize_season_name(raw):
@@ -60,13 +61,10 @@ class SeasonManager(models.Manager):
         if not name:
             return None
         start_year = int(name.split('-')[0])
-        try:
-            season, _ = self.get_or_create(
-                name=name,
-                defaults={'start_year': start_year, 'end_year': start_year + 1},
-            )
-        except IntegrityError:
-            season = self.get(name=name)
+        season, _ = self.get_or_create(
+            name=name,
+            defaults={'start_year': start_year, 'end_year': start_year + 1},
+        )
         return season
 
     def for_date(self, value):
@@ -100,17 +98,23 @@ class Season(models.Model):
     def __str__(self):
         return self.name
 
-    def clean(self):
-        if not normalize_season_name(self.name):
-            raise ValidationError({'name': 'Formato de temporada no válido (ej: 2025-26).'})
-
-    def save(self, *args, **kwargs):
+    def _normalize(self):
+        """Normaliza el nombre y deriva el periodo. Lanza ValidationError si no es válido."""
         normalized = normalize_season_name(self.name)
         if not normalized:
-            raise ValidationError({'name': 'Formato de temporada no válido (ej: 2025-26).'})
+            raise ValidationError({'name': _INVALID_SEASON_MSG})
         self.name = normalized
         self.start_year = int(normalized.split('-')[0])
         self.end_year = self.start_year + 1
+
+    def clean(self):
+        self._normalize()
+
+    def save(self, *args, **kwargs):
+        self._normalize()
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'name', 'start_year', 'end_year'}
         if self.is_current:
             with transaction.atomic():
                 Season.objects.select_for_update().filter(is_current=True).exclude(pk=self.pk).update(is_current=False)
