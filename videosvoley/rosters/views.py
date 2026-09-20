@@ -52,12 +52,12 @@ def roster_overview(request):
     }
     
     for team in teams:
-        # Usar nueva estructura Person-Role
-        active_player_roles = team.player_roles.filter(is_active=True)
-        active_staff_roles = team.staff_roles.filter(is_active=True)
+        # Usar nueva estructura Person-Role evaluada en memoria para evitar N+1 queries
+        active_player_roles = [r for r in team.player_roles.all() if r.is_active]
+        active_staff_roles = [r for r in team.staff_roles.all() if r.is_active]
         
-        team.active_players_count = active_player_roles.count()
-        team.active_staff_count = active_staff_roles.count()
+        team.active_players_count = len(active_player_roles)
+        team.active_staff_count = len(active_staff_roles)
         team.has_good_roster = team.active_players_count >= 8  # Suficientes para rotaciones
         
         total_stats["total_players"] += team.active_players_count
