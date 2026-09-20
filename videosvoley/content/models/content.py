@@ -9,6 +9,16 @@ from django.utils import timezone
 from videosvoley.core.models import Season
 
 
+def infer_season(match, when):
+    """Temporada de un contenido: la del partido o, si no la hay, la de la fecha."""
+    if match is not None:
+        if match.league_id and match.league.season_id:
+            return match.league.season
+        if match.match_date:
+            return Season.objects.for_date(match.match_date)
+    return Season.objects.for_date(when)
+
+
 class Video(models.Model):
     title = models.CharField(max_length=200)
     youtube_url = models.URLField()
@@ -45,16 +55,10 @@ class Video(models.Model):
     def save(self, *args, **kwargs):
         # Inferir la temporada si no se especifica: del partido o de la fecha.
         if self.season_id is None:
-            season = None
-            if self.match_id:
-                match = self.match
-                if match.league_id and match.league.season_id:
-                    season = match.league.season
-                elif match.match_date:
-                    season = Season.objects.for_date(match.match_date)
-            if season is None:
-                season = Season.objects.for_date(self.created_at or timezone.now())
-            self.season = season
+            self.season = infer_season(
+                self.match if self.match_id else None,
+                self.created_at or timezone.now(),
+            )
             update_fields = kwargs.get('update_fields')
             if update_fields is not None:
                 kwargs['update_fields'] = set(update_fields) | {'season'}
@@ -269,22 +273,16 @@ class Image(models.Model):
         # Determinar si es una creación nueva
         is_new = self.pk is None
 
-        # Auto-asignar temporada desde el partido si está vinculado
-        if self.match:
-            if self.match.league_id and self.match.league.season_id:
-                self.season = self.match.league.season
-            elif self.match.match_date:
-                self.season = Season.objects.for_date(self.match.match_date)
-            elif not self.season_id:
-                self.season = Season.objects.for_date(timezone.now())
+        # Auto-asignar temporada si no se especifica: del partido o de la fecha
+        if self.season_id is None:
+            self.season = infer_season(self.match if self.match_id else None, timezone.now())
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None:
+                kwargs['update_fields'] = set(update_fields) | {'season'}
 
-            # Si es una imagen de partido pero no se especificó el tipo, asignarlo
-            if self.image_type == 'other':
-                self.image_type = 'match'
-        else:
-            # Para imágenes sin partido, inferir de la fecha de subida
-            if not self.season_id:
-                self.season = Season.objects.for_date(timezone.now())
+        # Si es una imagen de partido pero no se especificó el tipo, asignarlo
+        if self.match_id and self.image_type == 'other':
+            self.image_type = 'match'
 
         super().save(*args, **kwargs)
 

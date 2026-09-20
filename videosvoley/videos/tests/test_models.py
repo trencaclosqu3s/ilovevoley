@@ -63,6 +63,11 @@ class ImageSaveTests(TestCase):
         imagen = self._crear_imagen()
         self.assertEqual(imagen.season, Season.objects.for_date(timezone.now()))
 
+    def test_season_explicita_se_respeta_aunque_haya_partido(self):
+        season = Season.objects.resolve('2020-21')
+        imagen = self._crear_imagen(match=self.match, season=season)
+        self.assertEqual(imagen.season, season)
+
     def test_image_type_other_pasa_a_match_al_vincular_partido(self):
         imagen = self._crear_imagen(match=self.match)
         self.assertEqual(imagen.image_type, 'match')

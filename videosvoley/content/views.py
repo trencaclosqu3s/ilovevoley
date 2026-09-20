@@ -50,7 +50,10 @@ def _resolve_season_filter(request):
     if param == '':
         return None, ''
     season = Season.objects.filter(pk=param).first()
-    return season, (str(season.pk) if season else '')
+    if season is None:
+        # Id inválido: caer a la temporada activa en vez de mostrar todo.
+        return current, (str(current.pk) if current else '')
+    return season, str(season.pk)
 
 
 @tenant_access_required()
