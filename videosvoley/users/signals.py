@@ -79,7 +79,7 @@ def membership_pending_handler(sender, instance, created, **kwargs):
         'tenant': organization,
         'membership': instance,
         'site_name': 'I Love Voley',
-        'moderation_url': f'{build_tenant_url(organization.slug)}core/moderacion/',
+        'moderation_url': f'{build_tenant_url(organization.slug)}{reverse("core:moderation_panel").lstrip("/")}',
     }
 
     send_notification_email(

@@ -203,6 +203,7 @@ class MembershipPendingNotificationTest(TestCase):
 
         self.assertEqual(len(mail.outbox), 1)
         self.assertCountEqual(mail.outbox[0].to, ['root@test.com', 'manager@test.com'])
+        self.assertIn('/core/moderacion/', mail.outbox[0].alternatives[0][0])
 
     def test_signup_membership_of_pending_user_does_not_notify(self):
         from videosvoley.users.models import Membership
