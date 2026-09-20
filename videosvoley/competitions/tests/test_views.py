@@ -198,3 +198,10 @@ class CompetitionsViewUrlTests(TestCase):
         r = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(r.status_code, 200)
         self.assertTemplateUsed(r, 'competitions/calendar.html')
+
+    def test_anonymous_user_redirected_to_login_on_protected_views(self):
+        for url_name in ['competitions:league_list', 'competitions:standings_view', 'competitions:calendar_view']:
+            url = reverse(url_name)
+            response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+            self.assertEqual(response.status_code, 302)
+            self.assertIn('/accounts/login/', response.url)

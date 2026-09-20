@@ -27,6 +27,7 @@ from .models import League, Match, Standing
 logger = logging.getLogger(__name__)
 
 
+@tenant_access_required()
 def league_list(request):
     """Vista para mostrar todas las ligas disponibles"""
     leagues = League.objects.visible_in_app().prefetch_related('matches__videos')
@@ -195,11 +196,11 @@ def calendar_view(request):
 
     # Aplicar filtro de categoría
     if category_filter:
-        matches = matches.filter(league__categories__id=category_filter)
+        matches = matches.filter(league__categories__id=category_filter).distinct()
     # Si no hay filtro de categoría, aplicar preferencias del usuario
     elif not show_all and request.user.preferred_categories.exists():
         user_categories = request.user.preferred_categories.all()
-        matches = matches.filter(league__categories__in=user_categories)
+        matches = matches.filter(league__categories__in=user_categories).distinct()
 
     # Obtener datos para filtros
     leagues = League.objects.visible_in_app().order_by('name')
@@ -539,6 +540,7 @@ def ajax_acta_lineup(request, match_id):
     })
 
 
+@tenant_access_required()
 def standings_view(request):
     """Vista de clasificación de las ligas"""
     # Obtener filtros

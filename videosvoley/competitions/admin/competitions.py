@@ -7,7 +7,7 @@ from django.utils.safestring import mark_safe
 from unfold.admin import ModelAdmin, TabularInline
 
 from videosvoley.content.admin.content import ImageInline
-from videosvoley.videos.forms import MatchAdminForm
+from ..forms import MatchAdminForm
 from ..models import League, Match, ScrapingEndpoint, Standing
 
 
