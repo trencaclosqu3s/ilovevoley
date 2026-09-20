@@ -113,7 +113,7 @@ def moderation_counts_api(request):
     """API para obtener contadores de elementos pendientes de moderación"""
     if not request.user.is_authenticated:
         return JsonResponse({'success': False, 'error': 'No autenticado'}, status=401)
-    if not (request.user.is_superuser or request.user.is_staff):
+    if not request.user.is_superuser:
         return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
     User = get_user_model()
 
