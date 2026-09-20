@@ -42,6 +42,9 @@ def backfill_image_season(apps, schema_editor):
                 season = _resolve(Season, cache, match.league.season.name)
             elif match.match_date:
                 season = _for_date(Season, cache, match.match_date)
+        if season is None and image.year:
+            # `year` era editable: si se corrigió a mano, respetarlo.
+            season = _resolve(Season, cache, f'{image.year}-{image.year + 1}')
         if season is None:
             season = _for_date(Season, cache, image.upload_date or timezone.now())
         if season is not None:

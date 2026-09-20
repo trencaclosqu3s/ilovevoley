@@ -556,7 +556,9 @@ def standings_view(request):
         .distinct()
         .order_by('-season__name')
     )
-    season_filter = request.GET.get('season')
+    # Aquí la temporada se identifica por nombre (no por id como en el resto de
+    # la app), de ahí el parámetro distinto `season_name` para no colisionar.
+    season_filter = request.GET.get('season_name')
 
     if show_archived or season_filter:
         # Mostrar ligas archivadas, de referencia, etc. O si se filtra por temporada específica

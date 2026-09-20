@@ -14,7 +14,11 @@ def resolve_season_filter(request):
         return current, (str(current.pk) if current else '')
     if param == '':
         return None, ''
-    season = Season.objects.filter(pk=param).first()
+    try:
+        season = Season.objects.filter(pk=param).first()
+    except (ValueError, TypeError):
+        # `?season=abc` (o cualquier valor no numérico) no debe romper la vista.
+        season = None
     if season is None:
         return current, (str(current.pk) if current else '')
     return season, str(season.pk)

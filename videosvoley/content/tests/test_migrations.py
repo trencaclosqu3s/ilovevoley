@@ -68,6 +68,7 @@ class ContentSeasonBackfillMigrationTest(TransactionTestCase):
 
         self.assertEqual(img_match.season.name, '2024-25')
         self.assertEqual(video_match.season.name, '2024-25')
-        # Sin partido: se infiere de la fecha de subida (hoy).
-        self.assertIsNotNone(img_free.season_id)
+        # Imagen sin partido: se respeta el antiguo `year` corregido a mano.
+        self.assertEqual(img_free.season.name, '2020-21')
+        # Vídeo sin partido: se infiere de la fecha de subida (hoy).
         self.assertIsNotNone(video_free.season_id)
