@@ -190,7 +190,7 @@
         
         <!-- Botones -->
         <div class="flex justify-end space-x-4 pt-4 border-t">
-            <a href="{% url 'videos:calendar_view' %}" 
+            <a href="{% url 'competitions:calendar_view' %}" 
                class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
                 Cancelar
             </a>
@@ -268,7 +268,7 @@ class TeamAutocomplete {
         const categoryId = this.categorySelect ? this.categorySelect.value : '';
         
         try {
-            const response = await fetch(`{% url 'videos:ajax_search_teams' %}?q=${encodeURIComponent(query)}&category_id=${categoryId}`);
+            const response = await fetch(`{% url 'competitions:ajax_search_teams' %}?q=${encodeURIComponent(query)}&category_id=${categoryId}`);
             const data = await response.json();
             
             this.displayResults(data.teams);

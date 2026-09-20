@@ -173,7 +173,7 @@ def video_bulk_create(request):
                 })
 
             if match:
-                return redirect('videos:match_detail', match_id=match.id)
+                return redirect('competitions:match_detail', match_id=match.id)
             return redirect('content:video_list')
     else:
         initial_shared = {}

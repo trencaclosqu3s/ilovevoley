@@ -67,7 +67,7 @@
                     Guardar vídeos
                 </button>
                 {% if match_id %}
-                    <a href="{% url 'videos:match_detail' match_id %}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
+                    <a href="{% url 'competitions:match_detail' match_id %}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
                         Cancelar
                     </a>
                 {% else %}
@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const categoryId = this.value;
             matchSelect.innerHTML = '<option value="">Cargando partidos...</option>';
             matchSelect.disabled = true;
-            fetch(`{% url 'videos:ajax_matches_by_category' %}?category_id=${categoryId}`)
+            fetch(`{% url 'competitions:ajax_matches_by_category' %}?category_id=${categoryId}`)
                 .then(r => r.json())
                 .then(data => {
                     matchSelect.innerHTML = '';

@@ -31,11 +31,11 @@
                 
                 <!-- Enlaces rápidos -->
                 <div class="flex flex-wrap gap-2 sm:gap-3">
-                    <a href="{% url 'videos:calendar_view' %}"
+                    <a href="{% url 'competitions:calendar_view' %}"
                        class="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                         📅 Calendario
                     </a>
-                    <a href="{% url 'videos:league_detail' match.league.id %}" 
+                    <a href="{% url 'competitions:league_detail' match.league.id %}" 
                        class="inline-flex items-center px-3 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
                         📋 Liga
                     </a>
@@ -461,15 +461,15 @@
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 🎬 <span class="hidden sm:inline ml-1">Ver</span> Videos
             </a>
-            <a href="{% url 'videos:calendar_view' %}" 
+            <a href="{% url 'competitions:calendar_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 📅 <span class="hidden sm:inline ml-1">Ver</span> Calendario
             </a>
-            <a href="{% url 'videos:standings_view' %}" 
+            <a href="{% url 'competitions:standings_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
                 🏆 <span class="hidden sm:inline ml-1">Ver</span> Clasificación
             </a>
-            <a href="{% url 'videos:league_list' %}" 
+            <a href="{% url 'competitions:league_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition text-sm">
                 📋 <span class="hidden sm:inline ml-1">Ver</span> Ligas
             </a>
@@ -650,7 +650,7 @@ async function handleResultSubmit(e) {
     
     // Enviar datos
     try {
-        const response = await fetch(`/videos/ajax/partidos/${currentMatchId}/resultado/`, {
+        const response = await fetch(`/competitions/ajax/partidos/${currentMatchId}/resultado/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -971,7 +971,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ── Fetch ────────────────────────────────────────────────────────────────
-    fetch('/videos/ajax/partidos/{{ match.id }}/alineacion/', {
+    fetch('/competitions/ajax/partidos/{{ match.id }}/alineacion/', {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(function(r) { return r.json(); })

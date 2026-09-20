@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
             matchSelect.disabled = true;
             
             // Hacer petición AJAX para obtener partidos filtrados
-            fetch(`{% url 'videos:ajax_matches_by_category' %}?category_id=${categoryId}`)
+            fetch(`{% url 'competitions:ajax_matches_by_category' %}?category_id=${categoryId}`)
                 .then(response => response.json())
                 .then(data => {
                     // Limpiar el select
