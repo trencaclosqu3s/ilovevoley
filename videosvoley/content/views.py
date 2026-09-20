@@ -1172,6 +1172,7 @@ def album_group_images(request, album_group_id):
 # Vistas de moderación de imágenes
 # ---------------------------------------------------------------------------
 
+@tenant_access_required(staff=True)
 def image_moderation(request):
     """Vista de moderación para admins"""
     images = Image.objects.select_related(

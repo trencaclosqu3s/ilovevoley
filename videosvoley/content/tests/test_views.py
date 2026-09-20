@@ -79,3 +79,23 @@ class ContentViewUrlTests(TestCase):
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'content/image_gallery.html')
+
+    def test_image_moderation_requires_staff(self):
+        url = reverse('content:image_moderation')
+        # Anónimo redirige a login
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+        # Usuario normal recibe 403
+        self.client.force_login(self.user)
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 403)
+
+        # Usuario superusuario pasa con 200
+        self.user.is_superuser = True
+        self.user.save()
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'content/image_moderation.html')
+
