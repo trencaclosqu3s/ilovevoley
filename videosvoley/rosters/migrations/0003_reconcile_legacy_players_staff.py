@@ -27,6 +27,17 @@ def reconcile_players_and_staff(apps, schema_editor):
                 last_name__iexact=last_name,
             ).first()
 
+        # Si no se encuentra por nombre exacto, buscar si en ese equipo ya existe
+        # un PlayerRole activo con el mismo dorsal (errata de nombre/segundo nombre en legacy)
+        if not person and player.jersey_number is not None:
+            existing_role = PlayerRole.objects.filter(
+                team=player.team,
+                jersey_number=player.jersey_number,
+                is_active=True,
+            ).select_related('person').first()
+            if existing_role:
+                person = existing_role.person
+
         if not person:
             person = Person.objects.create(
                 first_name=first_name,
@@ -38,16 +49,43 @@ def reconcile_players_and_staff(apps, schema_editor):
                 is_active=player.is_active,
                 created_at=player.created_at,
             )
+        else:
+            updated = False
+            if not person.photo and player.photo:
+                person.photo = player.photo
+                updated = True
+            if not person.user and player.user:
+                person.user = player.user
+                updated = True
+            if not person.birth_date and player.birth_date:
+                person.birth_date = player.birth_date
+                updated = True
+            if updated:
+                person.save()
 
         # Crear PlayerRole si no existe para ese equipo
         if not PlayerRole.objects.filter(person=person, team=player.team).exists():
+            jersey_number = player.jersey_number
+            role_notes = player.notes or ''
+            if (
+                jersey_number is not None
+                and player.is_active
+                and PlayerRole.objects.filter(
+                    team=player.team,
+                    jersey_number=jersey_number,
+                    is_active=True,
+                ).exists()
+            ):
+                role_notes = f"{role_notes}\n[Dorsal legado {jersey_number} en conflicto]".strip()
+                jersey_number = None
+
             PlayerRole.objects.create(
                 person=person,
                 team=player.team,
-                jersey_number=player.jersey_number,
+                jersey_number=jersey_number,
                 position=player.position,
                 is_active=player.is_active,
-                notes=player.notes or '',
+                notes=role_notes,
                 created_at=player.created_at,
             )
 
