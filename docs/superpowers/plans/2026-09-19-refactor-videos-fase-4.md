@@ -463,19 +463,19 @@ git commit -m "feat(competitions): mudar vistas, formularios, urls y templates d
 - Consumes: Vistas restantes de `videos`.
 - Produces: `videosvoley/templates/videos/` eliminado; cero referencias `videos:` en el proyecto.
 
-- [ ] **Step 1: Trasladar `about` y vistas de moderación de usuarios a `videosvoley/core/`**
+- [x] **Step 1: Trasladar `about` y vistas de moderación de usuarios a `videosvoley/core/`**
 
 Mover lógica de `about` y de moderación de usuarios/panel a `videosvoley/core/views.py`.
 Renderizar `'core/about.html'` y `'core/moderation_panel.html'`.
 Re-exportar en `videosvoley/videos/views/pages.py` y `videosvoley/videos/views/moderation.py`.
 
-- [ ] **Step 2: Mover templates a `videosvoley/core/templates/core/`**
+- [x] **Step 2: Mover templates a `videosvoley/core/templates/core/`**
 
 Mover:
 - `videosvoley/templates/videos/about.html` -> `videosvoley/core/templates/core/about.html`
 - `videosvoley/templates/videos/moderation_panel.html` -> `videosvoley/core/templates/core/moderation_panel.html`
 
-- [ ] **Step 3: Añadir rutas a `videosvoley/core/urls.py` y actualizar templates**
+- [x] **Step 3: Añadir rutas a `videosvoley/core/urls.py` y actualizar templates**
 
 Añadir en `videosvoley/core/urls.py`:
 ```python
@@ -492,34 +492,34 @@ Actualizar en todos los templates y código:
 - `videos:approve_user_api` -> `core:approve_user_api`
 - `videos:reject_user_api` -> `core:reject_user_api`
 
-- [ ] **Step 4: Eliminar directorio vacío `videosvoley/templates/videos/`**
+- [x] **Step 4: Eliminar directorio vacío `videosvoley/templates/videos/`**
 
 Verificar que `videosvoley/templates/videos/` está vacío:
 Run: `ls videosvoley/templates/videos/`
 Expected: vacío.
 Eliminar el directorio: `rm -rf videosvoley/templates/videos/`.
 
-- [ ] **Step 5: En `config/urls.py`, añadir redirección de `/videos/` a `content:video_list`**
+- [x] **Step 5: En `config/urls.py`, añadir redirección de `/videos/` a `content:video_list`**
 
 En `config/urls.py`:
 ```python
     path('videos/', RedirectView.as_view(pattern_name='content:video_list', permanent=False)),
 ```
 
-- [ ] **Step 6: Verificar con grep que no queda ninguna referencia a `videos:`**
+- [x] **Step 6: Verificar con grep que no queda ninguna referencia a `videos:`**
 
 Run: `grep -rn "videos:" videosvoley/templates/`
 Expected: 0 coincidencias.
 Run: `grep -rn "videos:" videosvoley/ --exclude-dir=migrations --exclude-dir=tests`
 Expected: 0 coincidencias.
 
-- [ ] **Step 7: Ejecutar test de barrido y suite completa**
+- [x] **Step 7: Ejecutar test de barrido y suite completa**
 
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest videosvoley/core/tests/test_url_reverse_sweep.py -v --tb=short`
 Run: `docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -v --tb=short`
 Expected: 100% pasando en verde.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add videosvoley/core/ videosvoley/videos/ config/urls.py videosvoley/templates/
