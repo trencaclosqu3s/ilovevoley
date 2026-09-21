@@ -38,7 +38,7 @@ I Love Voley es una plataforma completa que permite:
 1. **Clonar el repositorio**:
 ```bash
 git clone <repository-url>
-cd videosvoley
+cd ilovevoley
 ```
 
 2. **Iniciar servicios con Docker**:
@@ -115,8 +115,8 @@ docker-compose exec web python manage.py autotag_images --limit 10 --delay 2.0
 ## Estructura del Proyecto
 
 ```
-videosvoley/
-├── videosvoley/
+ilovevoley/
+├── ilovevoley/
 │   ├── videos/          # Gestión de vídeos, imágenes y datos federativos
 │   ├── users/           # Sistema de usuarios y autenticación
 │   └── settings/        # Configuración Django
@@ -180,8 +180,8 @@ docker-compose exec web python manage.py autotag_images --limit 10
 
 ## Documentación Adicional
 
-- **[Sistema de Imágenes](videosvoley/docs/IMAGENES.md)**: Documentación completa del sistema de gestión de imágenes
-- **[Scraping de Federaciones](videosvoley/docs/SCRAPING.md)**: Guía detallada del sistema de scraping
+- **[Sistema de Imágenes](ilovevoley/docs/IMAGENES.md)**: Documentación completa del sistema de gestión de imágenes
+- **[Scraping de Federaciones](ilovevoley/docs/SCRAPING.md)**: Guía detallada del sistema de scraping
 - **[Auto-configuración de Ligas](LEAGUE_AUTO_SETUP.md)**: Nueva funcionalidad de auto-setup de endpoints
 
 ## URLs Principales

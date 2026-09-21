@@ -1,1 +1,0 @@
-"""Rosters app for videosvoley."""
