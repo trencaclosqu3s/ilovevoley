@@ -12,6 +12,22 @@ class LeagueManager(models.Manager):
             is_our_team_related=True
         )
 
+    def for_tenant(self, tenant):
+        """Ligas visibles donde participa un equipo del club del tenant.
+
+        Con la FK ``Organization.club`` se restringe la lista global a las
+        ligas que realmente interesan al tenant. Para tenants sin club
+        vinculado (selecciones) se mantiene el comportamiento global.
+        """
+        from ilovevoley.core.mixins import get_club_team_filter, get_tenant_club
+
+        qs = self.visible_in_app()
+        if get_tenant_club(tenant) is None:
+            return qs
+        return qs.filter(
+            matches__in=Match.objects.filter(get_club_team_filter(tenant))
+        ).distinct()
+
     def reference_leagues(self):
         """Ligas de referencia (solo admin)"""
         return self.filter(

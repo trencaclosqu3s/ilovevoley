@@ -46,7 +46,7 @@ def video_list(request):
         organization=request.tenant
     )
     categories = Category.objects.filter(is_active=True)
-    leagues = League.objects.visible_in_app()
+    leagues = League.objects.for_tenant(request.tenant)
     teams = Team.objects.all()
     seasons = Season.objects.all()
     season_filter, selected_season = resolve_season_filter(request)

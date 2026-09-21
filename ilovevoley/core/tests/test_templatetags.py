@@ -47,3 +47,14 @@ class ClubTeamNamesTest(TestCase):
 
         teams = Team.objects.filter(get_club_team_name_filter(org))
         self.assertEqual(teams.count(), 1)
+
+    def test_blank_names_fall_back_to_settings(self):
+        from django.test import override_settings
+        from ilovevoley.core.models import Organization
+        from ilovevoley.core.mixins import get_club_team_names
+
+        org = Organization.objects.create(
+            slug='blank-names', name='Blank', club_team_names={'Senior': ''},
+        )
+        with override_settings(CLUB_TEAM_NAME='FALLBACK'):
+            self.assertEqual(get_club_team_names(org), ['FALLBACK'])

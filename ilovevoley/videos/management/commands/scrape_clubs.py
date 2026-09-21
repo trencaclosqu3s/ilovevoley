@@ -1,11 +1,10 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
+from ilovevoley.teams.services import MATCH_THRESHOLD, find_best_club
 from ilovevoley.videos.models import Club, Team
 import requests
 import logging
 import time
-from difflib import SequenceMatcher
-import unicodedata
 
 logger = logging.getLogger(__name__)
 
@@ -173,15 +172,15 @@ class Command(BaseCommand):
         self.stdout.write('\nIniciando matching de equipos con clubes...')
         
         teams_without_club = Team.objects.filter(club__isnull=True)
-        clubs = Club.objects.all()
+        clubs = list(Club.objects.all())
         matched_count = 0
 
         for team in teams_without_club:
-            best_match = self.find_best_club_match(team, clubs)
-            
+            best_match = find_best_club(team.name, clubs)
+
             if best_match:
                 club, similarity = best_match
-                if similarity > 0.55:  # Umbral de confianza
+                if similarity >= MATCH_THRESHOLD:
                     if not self.dry_run:
                         team.club = club
                         # Si el equipo no tiene sponsor_name, usar el nombre actual
@@ -205,44 +204,6 @@ class Command(BaseCommand):
                     )
 
         return matched_count
-
-    def find_best_club_match(self, team, clubs):
-        """Encuentra la mejor coincidencia entre un equipo y los clubes"""
-        team_normalized = self.normalize_name(team.name)
-        best_match = None
-        best_similarity = 0
-
-        for club in clubs:
-            club_normalized = self.normalize_name(club.official_name)
-            
-            # Comparar nombre completo
-            similarity = SequenceMatcher(None, team_normalized, club_normalized).ratio()
-            
-            # Comparar palabras clave (buscar coincidencias parciales)
-            team_words = set(team_normalized.split())
-            club_words = set(club_normalized.split())
-            
-            # Si hay palabras comunes significativas, aumentar similaridad
-            common_words = team_words.intersection(club_words)
-            if common_words:
-                # Filtrar palabras muy comunes que no son distintivas
-                stopwords = {'club', 'volei', 'voley', 'voleibol', 'cv', 'esportiu', 'deportivo'}
-                meaningful_common = common_words - stopwords
-                
-                if meaningful_common:
-                    word_similarity = len(meaningful_common) / max(len(team_words), len(club_words))
-                    similarity = max(similarity, word_similarity)
-
-            if similarity > best_similarity:
-                best_similarity = similarity
-                best_match = (club, similarity)
-
-        return best_match if best_similarity > 0.3 else None
-
-    def normalize_name(self, name):
-        """Normaliza un nombre para comparación"""
-        from ilovevoley.videos.utils import normalize_team_name
-        return normalize_team_name(name)
 
     def clean_string(self, value):
         """Limpia una cadena de texto"""

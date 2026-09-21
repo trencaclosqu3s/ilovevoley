@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 @tenant_access_required()
 def league_list(request):
     """Vista para mostrar todas las ligas disponibles"""
-    leagues = League.objects.visible_in_app().prefetch_related('matches__videos')
+    leagues = League.objects.for_tenant(request.tenant).prefetch_related('matches__videos')
     categories = Category.objects.filter(is_active=True).order_by('name')
 
     # Variable para controlar si mostrar todo el contenido
@@ -203,7 +203,7 @@ def calendar_view(request):
         matches = matches.filter(league__categories__in=user_categories).distinct()
 
     # Obtener datos para filtros
-    leagues = League.objects.visible_in_app().order_by('name')
+    leagues = League.objects.for_tenant(request.tenant).order_by('name')
     categories = Category.objects.filter(is_active=True).order_by('name')
 
     # Obtener el mes actual o el solicitado
@@ -585,7 +585,7 @@ def standings_view(request):
         ).prefetch_related('league__categories').order_by('league__name', 'position')
 
         # Filtro de ligas para el dropdown
-        leagues = League.objects.visible_in_app().order_by('name')
+        leagues = League.objects.for_tenant(request.tenant).order_by('name')
 
     # Aplicar filtro de temporada
     if season_filter:
