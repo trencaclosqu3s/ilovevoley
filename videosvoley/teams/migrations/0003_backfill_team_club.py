@@ -8,6 +8,12 @@ def backfill_team_club(apps, schema_editor):
 
     Idempotente: solo toca equipos con ``club`` nulo y reutiliza el mismo
     matcher que el scraping (``scrape_clubs --match-teams``).
+
+    El match es fuzzy, así que conviene previsualizarlo antes con
+    ``scrape_clubs --match-teams --dry-run`` (misma lógica y umbral): un
+    assignment erróneo no solo pone un club equivocado, también oculta los
+    partidos históricos de ese equipo al tenant correcto, porque el fallback
+    por nombre de ``get_club_team_filter`` exige ``club__isnull``.
     """
     Team = apps.get_model('teams', 'Team')
     Club = apps.get_model('teams', 'Club')

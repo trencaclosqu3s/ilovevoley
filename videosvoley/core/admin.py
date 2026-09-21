@@ -42,7 +42,7 @@ class OrganizationAdmin(ModelAdmin):
         """Avisa si club_team_names no casa con ningún equipo del club."""
         if not obj.club_id:
             return '-'
-        names = list((obj.club_team_names or {}).values())
+        names = [name for name in (obj.club_team_names or {}).values() if name]
         if not names:
             return mark_safe('<span style="color:#b45309;">Sin club_team_names</span>')
         q = Q()

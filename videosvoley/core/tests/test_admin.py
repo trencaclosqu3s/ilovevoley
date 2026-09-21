@@ -24,6 +24,13 @@ class OrganizationAdminClubHelpersTest(TestCase):
         Team.objects.create(name='EQUIP FORA', federation_id='t-3', club=self.club)
         self.assertIn('no casa', self.admin.club_names_status(self.org))
 
+    def test_club_names_status_treats_blank_names_as_missing(self):
+        org = Organization.objects.create(
+            slug='test-blank', name='Blank', club=self.club, club_team_names={'Senior': ''},
+        )
+        Team.objects.create(name='CV SANT JOSEP', federation_id='t-6', club=self.club)
+        self.assertIn('Sin club_team_names', self.admin.club_names_status(org))
+
     def test_assign_club_action_fills_matching_orphan_teams(self):
         orphan = Team.objects.create(name='SANT JOSEP OBRER', federation_id='t-4', club=None)
         unrelated = Team.objects.create(name='CV ALTRES ESCOLA', federation_id='t-5', club=None)

@@ -96,3 +96,18 @@ class HybridClubFilterTest(TestCase):
         )
         self.assertEqual(names, ['SELECCIO BALEARS'])
         self.assertEqual(Match.objects.filter(get_club_team_filter(org)).count(), 0)
+
+    def test_blank_club_team_names_do_not_match_everything(self):
+        from django.test import override_settings
+
+        org = Organization.objects.create(
+            slug='test-blank-names', name='Blank', club=None,
+            club_team_names={'Senior': ''},
+        )
+        Team.objects.create(name='CV ALTRES', federation_id='team-blank')
+        with override_settings(CLUB_TEAM_NAME='ZZZ'):
+            names = list(
+                Team.objects.filter(get_club_team_name_filter(org))
+                .values_list('name', flat=True)
+            )
+        self.assertEqual(names, [])

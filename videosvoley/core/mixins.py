@@ -7,12 +7,18 @@ from .tenant_utils import user_has_approved_membership, user_is_tenant_manager
 
 
 def get_club_team_names(tenant):
-    """Extrae los nombres de equipos del club desde la organización o fallback."""
-    if tenant and tenant.club_team_names:
-        return list(tenant.club_team_names.values())
-    else:
-        fallback = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
-        return [fallback]
+    """Extrae los nombres de equipos del club desde la organización o fallback.
+
+    Los valores vacíos del JSON se descartan: si se dejaran, un
+    ``icontains=''`` casaría con cualquier equipo. Si no queda ningún nombre
+    (o el tenant no lo define) se usa el fallback de settings.
+    """
+    if tenant:
+        names = [name for name in (tenant.club_team_names or {}).values() if name]
+        if names:
+            return names
+    fallback = getattr(settings, 'CLUB_TEAM_NAME', 'SANT JOSEP')
+    return [fallback]
 
 
 def get_primary_club_team_name(tenant):
