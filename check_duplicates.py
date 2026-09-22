@@ -1,4 +1,4 @@
-from videosvoley.videos.models import Match, Team
+from ilovevoley.videos.models import Match, Team
 from django.db.models import Count, Q
 
 def check_duplicates():

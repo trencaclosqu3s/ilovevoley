@@ -5,7 +5,7 @@ import django
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
-app = Celery('videosvoley')
+app = Celery('ilovevoley')
 
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.
@@ -17,7 +17,7 @@ app.autodiscover_tasks()
 django.setup()
 
 try:
-    from videosvoley.videos.tasks import *
+    from ilovevoley.videos.tasks import *
 except ImportError as e:
     print(f"Warning: Could not import video tasks: {e}")
 

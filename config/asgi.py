@@ -1,5 +1,5 @@
 """
-ASGI config for videosvoley project.
+ASGI config for ilovevoley project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 

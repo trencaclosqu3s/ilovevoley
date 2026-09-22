@@ -1,0 +1,44 @@
+from django.contrib import admin as django_admin
+from django.test import TestCase
+
+from ilovevoley.core.admin import OrganizationAdmin
+from ilovevoley.core.models import Organization
+from ilovevoley.teams.models import Club, Team
+
+
+class OrganizationAdminClubHelpersTest(TestCase):
+    def setUp(self):
+        self.admin = OrganizationAdmin(Organization, django_admin.site)
+        self.club = Club.objects.create(federation_id='c-1', official_name='CLUB ESPORTIU SANT JOSEP OBRER')
+        self.org = Organization.objects.create(
+            slug='test-org', name='Test', club=self.club,
+            club_team_names={'Senior': 'SANT JOSEP'},
+        )
+
+    def test_club_teams_count_counts_active_teams(self):
+        Team.objects.create(name='SANT JOSEP A', federation_id='t-1', club=self.club, is_active=True)
+        Team.objects.create(name='SANT JOSEP B', federation_id='t-2', club=self.club, is_active=False)
+        self.assertEqual(self.admin.club_teams_count(self.org), 1)
+
+    def test_club_names_status_flags_mismatch(self):
+        Team.objects.create(name='EQUIP FORA', federation_id='t-3', club=self.club)
+        self.assertIn('no casa', self.admin.club_names_status(self.org))
+
+    def test_club_names_status_treats_blank_names_as_missing(self):
+        org = Organization.objects.create(
+            slug='test-blank', name='Blank', club=self.club, club_team_names={'Senior': ''},
+        )
+        Team.objects.create(name='CV SANT JOSEP', federation_id='t-6', club=self.club)
+        self.assertIn('Sin club_team_names', self.admin.club_names_status(org))
+
+    def test_assign_club_action_fills_matching_orphan_teams(self):
+        orphan = Team.objects.create(name='SANT JOSEP OBRER', federation_id='t-4', club=None)
+        unrelated = Team.objects.create(name='CV ALTRES ESCOLA', federation_id='t-5', club=None)
+        self.admin.message_user = lambda *args, **kwargs: None
+
+        self.admin.assign_club_to_orphan_teams(None, Organization.objects.filter(pk=self.org.pk))
+
+        orphan.refresh_from_db()
+        unrelated.refresh_from_db()
+        self.assertEqual(orphan.club_id, self.club.id)
+        self.assertIsNone(unrelated.club_id)

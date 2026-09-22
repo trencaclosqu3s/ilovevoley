@@ -39,7 +39,7 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': '/var/log/django/videosvoley.log',
+            'filename': '/var/log/django/ilovevoley.log',
             'maxBytes': 1024 * 1024 * 10,  # 10 MB
             'backupCount': 5,
             'formatter': 'verbose',
@@ -47,7 +47,7 @@ LOGGING = {
         'error_file': {
             'level': 'ERROR',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': '/var/log/django/videosvoley_errors.log',
+            'filename': '/var/log/django/ilovevoley_errors.log',
             'maxBytes': 1024 * 1024 * 10,  # 10 MB
             'backupCount': 5,
             'formatter': 'verbose',
@@ -61,19 +61,19 @@ LOGGING = {
     },
     'loggers': {
         # Logger principal de la aplicación
-        'videosvoley': {
+        'ilovevoley': {
             'handlers': ['console', 'file', 'error_file'],
             'level': 'INFO',
             'propagate': False,
         },
         # Logger específico para videos
-        'videosvoley.videos': {
+        'ilovevoley.videos': {
             'handlers': ['console', 'file', 'error_file'],
             'level': 'INFO',
             'propagate': False,
         },
         # Logger específico para usuarios
-        'videosvoley.users': {
+        'ilovevoley.users': {
             'handlers': ['console', 'file', 'error_file'],
             'level': 'INFO',
             'propagate': False,
@@ -139,7 +139,7 @@ LOGGING = {
        }
 
 3. Configurar logrotate (opcional pero recomendado):
-   sudo nano /etc/logrotate.d/django-videosvoley
+   sudo nano /etc/logrotate.d/django-ilovevoley
    
    Contenido:
    /var/log/django/*.log {
@@ -159,13 +159,13 @@ LOGGING = {
 4. Probar logging:
    python manage.py shell
    >>> import logging
-   >>> logger = logging.getLogger('videosvoley')
+   >>> logger = logging.getLogger('ilovevoley')
    >>> logger.info('Test log message')
    >>> logger.error('Test error message')
    
    Verificar:
-   tail -f /var/log/django/videosvoley.log
-   tail -f /var/log/django/videosvoley_errors.log
+   tail -f /var/log/django/ilovevoley.log
+   tail -f /var/log/django/ilovevoley_errors.log
 
 5. Para Docker, montar volumen:
    En docker-compose.yml:

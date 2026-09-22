@@ -61,7 +61,7 @@ coverage.xml
 staticfiles/
 
 # Sphinx documentation
-videosvoley/docs/_build/
+ilovevoley/docs/_build/
 
 # PyBuilder
 target/
@@ -333,7 +333,7 @@ tags
 dump.rdb
 
 ### Project template
-videosvoley/media/
+ilovevoley/media/
 media/
 
 
