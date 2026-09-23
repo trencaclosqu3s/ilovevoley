@@ -11,7 +11,7 @@ from .models import Category, Organization, Season
 @admin.register(Organization)
 class OrganizationAdmin(ModelAdmin):
     list_display = ['slug', 'name', 'club', 'club_teams_count', 'instagram_url', 'default_home', 'is_active', 'created_at']
-    list_filter = ['is_active']
+    list_filter = ['default_home', 'is_active']
     list_select_related = ['club']
     autocomplete_fields = ['club']
     search_fields = ['slug', 'name']

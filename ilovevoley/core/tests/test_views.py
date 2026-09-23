@@ -111,6 +111,13 @@ class CoreViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'core/about.html')
 
+    def test_navbar_brand_links_to_configured_home(self):
+        self.org.default_home = 'competitions'
+        self.org.save()
+        response = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'href="/competitions/ligas/"')
+
     def test_core_moderation_panel_url_resolves_and_renders(self):
         self.client.force_login(self.superuser)
         url = reverse('core:moderation_panel')

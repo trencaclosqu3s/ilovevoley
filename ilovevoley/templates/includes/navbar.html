@@ -6,12 +6,14 @@
             <div class="flex items-center space-x-2 sm:space-x-3">
                 {% if tenant %}
                     {% if tenant.logo %}
-                        <img src="{{ tenant.logo.url }}" alt="{{ tenant.name }}" class="h-8 w-auto">
+                        <a href="{% url tenant.home_url_name %}">
+                            <img src="{{ tenant.logo.url }}" alt="{{ tenant.name }}" class="h-8 w-auto">
+                        </a>
                     {% else %}
-                        <span class="text-2xl sm:text-3xl">🏐</span>
+                        <a href="{% url tenant.home_url_name %}" class="text-2xl sm:text-3xl">🏐</a>
                     {% endif %}
                     <div>
-                        <a href="{% url 'content:video_list' %}" class="text-lg sm:text-xl font-bold text-csj-purple dark:text-csj-yellow">
+                        <a href="{% url tenant.home_url_name %}" class="text-lg sm:text-xl font-bold text-csj-purple dark:text-csj-yellow">
                             <span class="font-bold text-csj-purple dark:text-csj-yellow">{{ tenant.name }}</span>
                         </a>
                         <p class="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Plataforma comunitaria · {{ tenant.name }}</p>
