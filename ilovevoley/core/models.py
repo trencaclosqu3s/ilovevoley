@@ -139,12 +139,32 @@ class Category(models.Model):
 
 
 class Organization(models.Model):
+    HOME_VIDEOS       = 'videos'
+    HOME_IMAGES       = 'images'
+    HOME_COMPETITIONS = 'competitions'
+    HOME_CHOICES = [
+        (HOME_VIDEOS, 'Vídeos'),
+        (HOME_IMAGES, 'Imágenes'),
+        (HOME_COMPETITIONS, 'Ligas y partidos'),
+    ]
+    HOME_URL_NAMES = {
+        HOME_VIDEOS: 'content:video_list',
+        HOME_IMAGES: 'content:image_gallery',
+        HOME_COMPETITIONS: 'competitions:league_list',
+    }
+
     slug            = models.CharField(max_length=50, unique=True)
     name            = models.CharField(max_length=100)
     logo            = models.ImageField(upload_to='organizations/logos/', null=True, blank=True)
     primary_color   = models.CharField(max_length=7, default='#9B7FBF', validators=[_hex_color_validator])
     secondary_color = models.CharField(max_length=7, default='#7B5FA0', blank=True, validators=[_hex_color_validator])
     instagram_url   = models.URLField(blank=True, help_text='URL del perfil de Instagram del club')
+    default_home    = models.CharField(
+        max_length=20,
+        choices=HOME_CHOICES,
+        default=HOME_VIDEOS,
+        help_text='Sección a la que redirige la raíz del tenant.',
+    )
     club_team_names = models.JSONField(default=dict, help_text='{"Senior": "SANT JOSEP", "Juvenil": "SANT JOSEP B"}')
     club            = models.ForeignKey(
         'teams.Club',
@@ -164,6 +184,13 @@ class Organization(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def home_url_name(self):
+        """Nombre de URL de la homepage del tenant, con fallback a vídeos."""
+        return self.HOME_URL_NAMES.get(
+            self.default_home, self.HOME_URL_NAMES[self.HOME_VIDEOS]
+        )
 
     @property
     def instagram_handle(self):

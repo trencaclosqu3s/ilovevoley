@@ -76,17 +76,18 @@ def test_500(request):
 def landing(request):
     """
     Landing page for root domain with organization selection.
-    On tenant domains: login if anonymous, /videos/ if authenticated.
+    On tenant domains: login if anonymous, configured homepage if authenticated.
     """
     from django.shortcuts import redirect
     from django.urls import reverse
     from ilovevoley.core.models import Organization
 
     if request.tenant:
+        home_url_name = request.tenant.home_url_name
         if request.user.is_authenticated:
-            return redirect('content:video_list')
+            return redirect(home_url_name)
         login_url = reverse('account_login')
-        next_url = reverse('content:video_list')
+        next_url = reverse(home_url_name)
         return redirect(f'{login_url}?next={next_url}')
 
     organizations = Organization.objects.filter(is_active=True).order_by('name')
