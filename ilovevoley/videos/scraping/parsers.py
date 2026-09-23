@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from django.utils import timezone
 
 from ..models import League
-from .base import BaseParser, ScrapingError
+from .base import BaseParser, ScrapingError, validate_volleyball_score
 
 logger = logging.getLogger(__name__)
 
