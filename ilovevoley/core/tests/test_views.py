@@ -36,6 +36,29 @@ class LandingViewTest(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/content/')
 
+    def test_tenant_root_respects_configured_home(self):
+        User = get_user_model()
+        user = User.objects.create_user(username='member2', password='pass')
+        self.client.force_login(user)
+        self.org.default_home = 'images'
+        self.org.save()
+
+        response = self.client.get('/', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/content/imagenes/')
+
+        self.org.default_home = 'competitions'
+        self.org.save()
+        response = self.client.get('/', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.url, '/competitions/ligas/')
+
+    def test_tenant_root_anonymous_next_uses_configured_home(self):
+        self.org.default_home = 'images'
+        self.org.save()
+        response = self.client.get('/', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('next=/content/imagenes/', response.url)
+
     def test_login_page_uses_tenant_brand_color(self):
         self.org.primary_color = '#112233'
         self.org.secondary_color = '#445566'
@@ -87,6 +110,13 @@ class CoreViewUrlTests(TestCase):
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'core/about.html')
+
+    def test_navbar_brand_links_to_configured_home(self):
+        self.org.default_home = 'competitions'
+        self.org.save()
+        response = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'href="/competitions/ligas/"')
 
     def test_core_moderation_panel_url_resolves_and_renders(self):
         self.client.force_login(self.superuser)

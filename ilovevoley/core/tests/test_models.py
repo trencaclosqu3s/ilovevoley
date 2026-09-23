@@ -117,6 +117,18 @@ class OrganizationModelTest(TestCase):
         org.instagram_url = ''
         self.assertEqual(org.instagram_handle, '')
 
+    def test_home_url_name_defaults_to_videos(self):
+        from ilovevoley.core.models import Organization
+        org = Organization.objects.create(slug='homeclub', name='Home Club')
+        self.assertEqual(org.home_url_name, 'content:video_list')
+
+    def test_home_url_name_falls_back_when_unknown(self):
+        from ilovevoley.core.models import Organization
+        org = Organization.objects.create(
+            slug='homeclub2', name='Home Club 2', default_home='nope'
+        )
+        self.assertEqual(org.home_url_name, 'content:video_list')
+
 
 class MembershipModelTest(TestCase):
     def setUp(self):
