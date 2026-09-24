@@ -472,3 +472,148 @@ class ScrapeRFEVBCompetitionTaskTests(TestCase):
         result = scrape_rfevb_competition(9041, [2193], 'nonexistent')
         self.assertIn('error', result)
         mock_final.delay.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# JSON unified match processing tests
+# ---------------------------------------------------------------------------
+
+class ProcessJsonMatchesUnifiedTests(TestCase):
+
+    def setUp(self):
+        from ilovevoley.videos.scraping import FederationScraper
+        self.category = Category.objects.create(name='Juvenil')
+        self.league = League.objects.create(
+            name='Juvenil Masculino',
+            federation_id='8246',
+            season=Season.objects.resolve('2026-27'),
+            competition_type='regular',
+            match_format='standard',
+            visibility_type='main',
+        )
+        self.league.categories.add(self.category)
+        self.home_team = Team.objects.create(
+            name='CLUB VOLEIBOL EIVISSA',
+            federation_id='8246_club_voleibol_eivissa',
+            category=self.category,
+            is_active=True,
+        )
+        self.away_team = Team.objects.create(
+            name='CD MESTRAL IBIZA VOLEY',
+            federation_id='8246_cd_mestral_ibiza_voley',
+            category=self.category,
+            is_active=True,
+        )
+        self.scraper = FederationScraper(self.league)
+
+    def test_updates_existing_match_when_date_or_time_changed(self):
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        # Match was previously saved with 10:00
+        old_date = datetime(2026, 10, 3, 10, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        existing_match = Match.objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=old_date,
+            federation_id='85843',
+            status='scheduled',
+        )
+
+        # JSON brings the match with ID 85843, but time changed to 12:00
+        partidos_data = [{
+            'ID': 85843,
+            'ELOCAL': 'CLUB VOLEIBOL EIVISSA',
+            'EVISITANTE': 'CD MESTRAL IBIZA VOLEY',
+            'FECHA': '03/10/2026',
+            'HORA': '12:00',
+            'Campo': 'Es Viver',
+            'Municipio': 'Eivissa',
+            'TORNEO': 8246,
+        }]
+
+        created, updated = self.scraper._process_json_matches_unified(
+            self.league, partidos_data, 'Juvenil', '8246', '1'
+        )
+
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+        existing_match.refresh_from_db()
+        expected_date = datetime(2026, 10, 3, 12, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        self.assertEqual(existing_match.match_date, expected_date)
+        self.assertEqual(existing_match.venue, 'Es Viver')
+
+    def test_updates_existing_withdrawn_match_by_federation_id(self):
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        match_date = datetime(2026, 10, 3, 12, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        existing_match = Match.all_objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=match_date,
+            federation_id='85843',
+            status='withdrawn',
+        )
+
+        partidos_data = [{
+            'ID': 85843,
+            'ELOCAL': 'CLUB VOLEIBOL EIVISSA',
+            'EVISITANTE': 'CD MESTRAL IBIZA VOLEY',
+            'FECHA': '03/10/2026',
+            'HORA': '12:00',
+            'TORNEO': 8246,
+        }]
+
+        created, updated = self.scraper._process_json_matches_unified(
+            self.league, partidos_data, 'Juvenil', '8246', '1'
+        )
+
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+        existing_match.refresh_from_db()
+        self.assertEqual(existing_match.status, 'scheduled')
+
+    def test_links_federation_id_to_existing_match_without_id_on_same_day(self):
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        # Match was previously created from HTML calendar without federation_id, e.g. at 00:00
+        old_date = datetime(2026, 10, 3, 0, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        existing_match = Match.objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=old_date,
+            federation_id=None,
+            status='scheduled',
+            round_number=3,
+        )
+
+        partidos_data = [{
+            'ID': 85843,
+            'ELOCAL': 'CLUB VOLEIBOL EIVISSA',
+            'EVISITANTE': 'CD MESTRAL IBIZA VOLEY',
+            'FECHA': '03/10/2026',
+            'HORA': '12:00',
+            'TORNEO': 8246,
+        }]
+
+        created, updated = self.scraper._process_json_matches_unified(
+            self.league, partidos_data, 'Juvenil', '8246', '1'
+        )
+
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+        existing_match.refresh_from_db()
+        self.assertEqual(existing_match.federation_id, '85843')
+        # Preserves original round_number if JSON defaulted to 1
+        self.assertEqual(existing_match.round_number, 3)
+        # Total matches in DB should remain 1, no duplicate created
+        self.assertEqual(Match.all_objects.count(), 1)
+
+
+
+

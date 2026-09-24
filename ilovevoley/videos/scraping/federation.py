@@ -1,6 +1,6 @@
 """Scraper principal para la federación."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import logging
 import re
@@ -243,12 +243,26 @@ class FederationScraper:
                         continue
                 
                 # Buscar partido existente
-                match = Match.objects.filter(
-                    home_team=home_team,
-                    away_team=away_team,
-                    match_date=match_data['match_date']
-                ).first()
-                
+                # 1. Prioridad: Buscar por federation_id acotando por liga (incluye withdrawn)
+                fed_id = str(match_data.get('federation_id') or '').strip()
+                match = None
+                if fed_id:
+                    match = Match.all_objects.filter(federation_id=fed_id, league=league).first()
+
+                # 2. Fallback: Buscar por equipos y fecha en el mismo día dentro de la liga (para partidos creados sin ID)
+                if not match:
+                    match_dt = match_data['match_date']
+                    date_start = match_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                    date_end = date_start + timedelta(days=1)
+                    match = Match.all_objects.filter(
+                        league=league,
+                        home_team=home_team,
+                        away_team=away_team,
+                        match_date__gte=date_start,
+                        match_date__lt=date_end,
+                        is_friendly=False
+                    ).first()
+
                 if match:
                     # Actualizar partido existente
                     match.home_score = match_data['home_score']
@@ -262,8 +276,14 @@ class FederationScraper:
                     match.timekeeper = match_data.get('timekeeper', '')
                     match.delegate = match_data.get('delegate', '')
                     match.field_address = match_data.get('field_address', '')
-                    match.federation_id = match_data.get('federation_id', '')
+                    if fed_id:
+                        match.federation_id = fed_id
+                    match.match_date = match_data['match_date']
                     match.acta_html = match_data.get('acta_html', '')
+                    if home_team and match.home_team_id != home_team.id:
+                        match.home_team = home_team
+                    if away_team and match.away_team_id != away_team.id:
+                        match.away_team = away_team
                     match.save()
                     matches_updated += 1
                     
@@ -297,7 +317,7 @@ class FederationScraper:
                         timekeeper=match_data.get('timekeeper', ''),
                         delegate=match_data.get('delegate', ''),
                         field_address=match_data.get('field_address', ''),
-                        federation_id=match_data.get('federation_id', ''),
+                        federation_id=fed_id or None,
                         acta_html=match_data.get('acta_html', ''),
                         round_number=match_data.get('round_number', 1)
                     )
