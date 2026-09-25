@@ -1,6 +1,5 @@
 """Procesamiento seguro de imágenes enviadas por el cliente como data-URI."""
 import base64
-import binascii
 import uuid
 from io import BytesIO
 
@@ -43,11 +42,14 @@ def decode_cropped_image(data_uri, *, max_size=MAX_IMAGE_UPLOAD_SIZE, filename=N
 
     try:
         raw = base64.b64decode(payload, validate=True)
-    except (binascii.Error, ValueError):
+    except ValueError:
         raise InvalidImageError('La imagen no se pudo decodificar.') from None
 
     if len(raw) > max_size:
-        raise InvalidImageError('El archivo es demasiado grande. Tamaño máximo: 5MB.')
+        max_mb = max_size // (1024 * 1024)
+        raise InvalidImageError(
+            f'El archivo es demasiado grande. Tamaño máximo: {max_mb}MB.'
+        )
 
     try:
         with Image.open(BytesIO(raw)) as image:
