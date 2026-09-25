@@ -3,6 +3,8 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from ilovevoley.core.tenancy import OrganizationTenantQuerySet, PersonRoleTenantQuerySet
+
 
 def person_photo_upload_path(instance, filename):
     """Generar un path aleatorio e inextensible para la foto de una persona."""
@@ -90,6 +92,8 @@ class Person(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
+
+    objects = OrganizationTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_person'
@@ -238,6 +242,8 @@ class PlayerRole(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
 
+    objects = PersonRoleTenantQuerySet.as_manager()
+
     class Meta:
         db_table = 'videos_playerrole'
         ordering = ['team', 'jersey_number', 'person__last_name', 'person__first_name']
@@ -328,6 +334,8 @@ class StaffRole(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
+
+    objects = PersonRoleTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_staffrole'

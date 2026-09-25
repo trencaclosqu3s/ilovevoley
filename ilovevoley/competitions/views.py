@@ -9,17 +9,14 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Case, CharField, Q, Value, When
-from django.http import Http404, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from unidecode import unidecode as _uni
 
-from ilovevoley.core.mixins import (
-    get_club_team_filter,
-    tenant_owns_league,
-    tenant_owns_match,
-)
+from ilovevoley.core.mixins import get_club_team_filter
 from ilovevoley.core.models import Category
+from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
 from ilovevoley.rosters.models import PlayerRole
 from ilovevoley.teams.models import Team
@@ -87,9 +84,9 @@ def league_list(request):
 @tenant_access_required()
 def league_detail(request, league_id):
     """Vista detallada de una liga con partidos y clasificación"""
-    league = get_object_or_404(League, id=league_id, is_active=True)
-    if not tenant_owns_league(request.tenant, league, request.user):
-        raise Http404
+    league = get_tenant_object_or_404(
+        League.objects, request.tenant, user=request.user, id=league_id, is_active=True
+    )
 
     # NUEVO: Lógica de filtrado por fases
     show_all_phases = request.GET.get('all_phases', '1') == '1'
@@ -106,11 +103,14 @@ def league_detail(request, league_id):
         display_league = league.root_league
     elif selected_phase:
         # Mostrar fase específica (solo si pertenece al tenant)
+        phase_league = None
         try:
-            phase_league = League.objects.get(id=selected_phase, is_active=True)
-        except (League.DoesNotExist, ValueError):
+            phase_league = League.objects.for_tenant(request.tenant).filter(
+                id=selected_phase, is_active=True
+            ).first()
+        except (TypeError, ValueError):
             phase_league = None
-        if phase_league is not None and tenant_owns_league(request.tenant, phase_league, request.user):
+        if phase_league is not None:
             matches = Match.objects.filter(league=phase_league)
             display_league = phase_league
         else:
@@ -160,12 +160,10 @@ def league_detail(request, league_id):
 @tenant_access_required()
 def match_detail(request, match_id):
     """Vista detallada de un partido con sus videos e imágenes"""
-    match = get_object_or_404(
+    match = get_tenant_object_or_404(
         Match.objects.select_related('home_team', 'away_team', 'league'),
-        id=match_id
+        request.tenant, user=request.user, id=match_id,
     )
-    if not tenant_owns_match(request.tenant, match, request.user):
-        raise Http404
 
     # Obtener videos del partido
     videos = match.videos.select_related('created_by', 'category').all()
@@ -381,11 +379,8 @@ def ajax_add_match_result(request, match_id):
         return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
     try:
-        match = Match.objects.select_related('league').get(id=match_id)
+        match = Match.objects.for_tenant(request.tenant).select_related('league').get(id=match_id)
     except Match.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
-
-    if not tenant_owns_match(request.tenant, match, request.user):
         return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
 
     # Verificar que el partido no tenga resultado ya
@@ -444,11 +439,10 @@ def ajax_acta_lineup(request, match_id):
     enriquecidos con datos de Person/PlayerRole donde haya coincidencia de dorsal.
     """
     try:
-        match = Match.objects.select_related('home_team', 'away_team').get(id=match_id)
+        match = Match.objects.for_tenant(request.tenant).select_related(
+            'home_team', 'away_team'
+        ).get(id=match_id)
     except Match.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
-
-    if not tenant_owns_match(request.tenant, match, request.user):
         return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
 
     if not match.acta_html:

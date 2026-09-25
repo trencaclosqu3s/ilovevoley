@@ -5,11 +5,11 @@ import uuid
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count, Prefetch, Q
 from django.http import Http404, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -17,6 +17,7 @@ from ilovevoley.competitions.models import League, Match
 from ilovevoley.core.mixins import get_club_team_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
+from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import (
     can_moderate_images,
     tenant_access_required,
@@ -207,9 +208,9 @@ def video_bulk_create(request):
 
 @tenant_access_required()
 def video_detail(request, video_id):
-    video = get_object_or_404(Video, id=video_id)
-    if video.organization != request.tenant and not request.user.is_superuser:
-        raise Http404
+    video = get_tenant_object_or_404(
+        Video.objects, request.tenant, user=request.user, id=video_id
+    )
 
     # Manejar envío de comentarios
     if request.method == 'POST':
@@ -1095,15 +1096,13 @@ def image_bulk_upload(request):
 @tenant_access_required()
 def image_detail(request, image_id):
     """Vista de detalle de imagen"""
-    image = get_object_or_404(
+    image = get_tenant_object_or_404(
         Image.objects.select_related(
             'match__home_team', 'match__away_team', 'match__league',
             'uploaded_by', 'moderated_by'
         ).prefetch_related('categories'),
-        id=image_id
+        request.tenant, user=request.user, id=image_id,
     )
-    if image.organization != request.tenant and not request.user.is_superuser:
-        raise Http404
 
     # Solo mostrar imágenes aprobadas a usuarios normales (managers/admins del tenant pueden ver pendientes)
     if not user_is_tenant_manager(request.user, request.tenant) and image.status != 'approved':
@@ -1111,7 +1110,7 @@ def image_detail(request, image_id):
         return redirect('content:image_gallery')
     
     # Imágenes relacionadas del mismo partido
-    related_images = Image.objects.filter(
+    related_images = Image.objects.for_tenant(request.tenant).filter(
         match=image.match,
         status='approved'
     ).exclude(id=image.id)[:6]
@@ -1127,12 +1126,12 @@ def image_detail(request, image_id):
 @tenant_access_required()
 def match_images(request, match_id):
     """Vista de imágenes de un partido específico"""
-    match = get_object_or_404(
+    match = get_tenant_object_or_404(
         Match.objects.select_related('home_team', 'away_team', 'league'),
-        id=match_id
+        request.tenant, user=request.user, id=match_id,
     )
     
-    images = Image.objects.filter(
+    images = Image.objects.for_tenant(request.tenant).filter(
         match=match,
         status='approved'
     ).select_related('uploaded_by').order_by('-upload_date')
@@ -1156,7 +1155,7 @@ def match_images(request, match_id):
 def album_group_images(request, album_group_id):
     """Vista de imágenes de un álbum de grupo (sin partido)"""
     # album_group_id ya viene como UUID desde la URL (gracias al path converter <uuid:album_group_id>)
-    images = Image.objects.filter(
+    images = Image.objects.for_tenant(request.tenant).filter(
         album_group_id=album_group_id,
         status='approved'
     ).select_related('uploaded_by').prefetch_related('categories').order_by('-upload_date')
@@ -1202,9 +1201,8 @@ def image_moderation(request):
     images = Image.objects.select_related(
         'match__home_team', 'match__away_team', 'match__league',
         'uploaded_by'
-    ).prefetch_related('categories').filter(
-        organization=request.tenant,
-        status='pending'
+    ).prefetch_related('categories').filter(status='pending').for_tenant(
+        request.tenant
     ).order_by('upload_date')
     
     # Paginación
@@ -1223,11 +1221,8 @@ def image_moderation(request):
 @tenant_access_required(staff=True)
 def image_moderate_action(request, image_id):
     """Acción de moderación individual acotada al tenant actual."""
-    image = get_object_or_404(
-        Image,
-        id=image_id,
-        organization=request.tenant,
-        status='pending'
+    image = get_tenant_object_or_404(
+        Image.objects, request.tenant, id=image_id, status='pending'
     )
     
     if request.method == 'POST':
@@ -1261,9 +1256,6 @@ def image_moderate_action(request, image_id):
 @tenant_access_required(staff=True)
 def image_moderate_bulk(request):
     """Moderación masiva de imágenes acotada al tenant actual."""
-    if not can_moderate_images(request.user, request.tenant):
-        raise PermissionDenied
-
     if request.method == 'POST':
         action = request.POST.get('action')
         image_ids = request.POST.getlist('image_ids')
@@ -1271,21 +1263,22 @@ def image_moderate_bulk(request):
         
         if action in ['approve', 'reject'] and image_ids:
             images = Image.objects.filter(
-                id__in=image_ids,
-                organization=request.tenant,
-                status='pending'
-            )
+                id__in=image_ids, status='pending'
+            ).for_tenant(request.tenant)
             count = 0
             for image in images:
-                moderate_image(
-                    actor=request.user,
-                    tenant=request.tenant,
-                    image=image,
-                    decision=action,
-                    notes=notes,
-                    validate_permission=False,
-                )
-                count += 1
+                try:
+                    moderate_image(
+                        actor=request.user,
+                        tenant=request.tenant,
+                        image=image,
+                        decision=action,
+                        notes=notes,
+                        validate_permission=False,
+                    )
+                    count += 1
+                except ValueError:
+                    continue
             
             action_text = 'aprobadas' if action == 'approve' else 'rechazadas'
             messages.success(request, f'{count} imágenes {action_text}.')

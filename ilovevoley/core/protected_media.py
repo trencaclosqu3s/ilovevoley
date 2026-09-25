@@ -16,6 +16,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404, HttpResponse
 
 from .tenant_utils import (
+    can_moderate_images,
     tenant_access_required,
     user_is_tenant_staff,
 )
@@ -45,7 +46,7 @@ def _image_is_allowed(image, user, tenant):
         raise Http404
     if image.status == 'approved':
         return True
-    if user_is_tenant_staff(user, tenant):
+    if can_moderate_images(user, tenant):
         return True
     return image.uploaded_by_id == user.pk
 
