@@ -3,13 +3,9 @@ from django.db import models
 
 
 def person_photo_upload_path(instance, filename):
-    """Generar path para la subida de fotos de personas"""
-    import os
-    from django.utils.text import slugify
-    
-    ext = filename.split('.')[-1]
-    safe_name = slugify(f"{instance.first_name}_{instance.last_name}")
-    return f'people/{safe_name}_{instance.id}.{ext}'
+    """Generar path para la subida de fotos de personas con identificador UUID"""
+    from ilovevoley.videos.utils import build_uuid_upload_path
+    return build_uuid_upload_path('people', filename)
 
 
 class Person(models.Model):
@@ -102,6 +98,13 @@ class Person(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+    def save(self, *args, **kwargs):
+        # Sanear foto automáticamente a nivel de modelo ante cualquier nueva subida
+        if self.photo and not getattr(self.photo, '_committed', True):
+            from ilovevoley.videos.utils import sanitize_image
+            self.photo = sanitize_image(self.photo, max_size=2048)
+        super().save(*args, **kwargs)
 
     @property
     def full_name(self):

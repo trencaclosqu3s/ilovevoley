@@ -197,9 +197,10 @@ def person_create(request):
                     # Decodificar imagen
                     data = base64.b64decode(imgstr)
                     
-                    # Crear archivo temporal
-                    filename = f"person_{uuid.uuid4().hex[:8]}.{ext}"
-                    photo_file = ContentFile(data, name=filename)
+                    # Crear archivo temporal saneado
+                    raw_file = ContentFile(data, name=f"person.{ext}")
+                    from ilovevoley.videos.utils import sanitize_image
+                    photo_file = sanitize_image(raw_file, max_size=2048)
                     
                     # Asignar la foto recortada
                     person.photo = photo_file
@@ -259,9 +260,10 @@ def person_edit(request, person_id):
                     # Decodificar imagen
                     data = base64.b64decode(imgstr)
                     
-                    # Crear archivo
-                    filename = f"person_{person.id}_{uuid.uuid4().hex[:8]}.{ext}"
-                    photo_file = ContentFile(data, name=filename)
+                    # Crear archivo saneado
+                    raw_file = ContentFile(data, name=f"person.{ext}")
+                    from ilovevoley.videos.utils import sanitize_image
+                    photo_file = sanitize_image(raw_file, max_size=2048)
                     
                     # Asignar la imagen recortada al person
                     person.photo = photo_file

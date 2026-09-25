@@ -71,9 +71,10 @@ def profile_edit(request):
                     # Decodificar imagen
                     data = base64.b64decode(imgstr)
                     
-                    # Crear archivo
-                    filename = f"avatar_{request.user.id}_{uuid.uuid4().hex[:8]}.{ext}"
-                    avatar_file = ContentFile(data, name=filename)
+                    # Crear archivo saneado
+                    raw_file = ContentFile(data, name=f"avatar.{ext}")
+                    from ilovevoley.videos.utils import sanitize_image
+                    avatar_file = sanitize_image(raw_file, max_size=1024)
                     
                     # Asignar la imagen recortada al usuario
                     request.user.avatar = avatar_file

@@ -81,7 +81,12 @@ class PersonForm(forms.ModelForm):
             # Validar tipo de archivo
             if not photo.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 raise forms.ValidationError('Formato no válido. Use JPG, PNG o WebP')
-        
+
+            from django.core.files.uploadedfile import UploadedFile
+            if isinstance(photo, UploadedFile):
+                from ilovevoley.videos.utils import sanitize_image
+                photo = sanitize_image(photo, max_size=2048)
+
         return photo
 
 

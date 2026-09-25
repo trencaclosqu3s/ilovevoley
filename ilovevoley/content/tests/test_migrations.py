@@ -72,3 +72,80 @@ class ContentSeasonBackfillMigrationTest(TransactionTestCase):
         self.assertEqual(img_free.season.name, '2020-21')
         # Vídeo sin partido: se infiere de la fecha de subida (hoy).
         self.assertIsNotNone(video_free.season_id)
+
+
+class PurgeExifGpsMetadataMigrationTest(TransactionTestCase):
+    """Verifica que la migración purgue coordenadas GPS de imágenes existentes en almacenamiento."""
+
+    migrate_from = ('content', '0004_remove_image_videos_imag_year_e48770_idx_and_more')
+    migrate_to = ('content', '0005_purge_exif_gps_metadata')
+
+    def setUp(self):
+        super().setUp()
+        self.executor = MigrationExecutor(connection)
+        self.executor.migrate([self.migrate_from])
+        self.executor.loader.build_graph()
+
+        old_apps = self.executor.loader.project_state([self.migrate_from]).apps
+        leaf_apps = self.executor.loader.project_state(self.executor.loader.graph.leaf_nodes()).apps
+
+        User = leaf_apps.get_model('users', 'User')
+        user = User.objects.create(username='migration-test-user')
+
+        Image = old_apps.get_model('content', 'Image')
+        Person = leaf_apps.get_model('rosters', 'Person')
+
+        from io import BytesIO
+        from PIL import Image as PILImage
+        from PIL.ExifTags import Base, GPS
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        img = PILImage.new('RGB', (100, 100), color='purple')
+        exif = img.getexif()
+        gps_ifd = exif.get_ifd(Base.GPSInfo)
+        gps_ifd[GPS.GPSLatitude] = (39.5, 2.6, 0.0)
+        gps_ifd[GPS.GPSLongitude] = (2.6, 39.5, 0.0)
+        buf = BytesIO()
+        img.save(buf, format='JPEG', exif=exif)
+        buf.seek(0)
+
+        self.img_path = default_storage.save('test_mig_img.jpg', ContentFile(buf.getvalue()))
+        self.photo_path = default_storage.save('test_mig_person.jpg', ContentFile(buf.getvalue()))
+
+        Image.objects.create(
+            image=self.img_path,
+            title='Foto existente con GPS',
+            uploaded_by_id=user.id,
+        )
+        Person.objects.create(
+            first_name='Lucas',
+            last_name='Test',
+            photo=self.photo_path,
+        )
+
+    def tearDown(self):
+        from django.core.files.storage import default_storage
+        if hasattr(self, 'img_path') and default_storage.exists(self.img_path):
+            default_storage.delete(self.img_path)
+        if hasattr(self, 'photo_path') and default_storage.exists(self.photo_path):
+            default_storage.delete(self.photo_path)
+        self.executor.loader.build_graph()
+        self.executor.migrate(self.executor.loader.graph.leaf_nodes())
+        super().tearDown()
+
+    def test_purge_exif_gps_metadata(self):
+        from PIL import Image as PILImage
+        from PIL.ExifTags import Base
+        from django.core.files.storage import default_storage
+
+        self.executor.loader.build_graph()
+        self.executor.migrate([self.migrate_to])
+
+        with default_storage.open(self.img_path, 'rb') as f:
+            sanitized_img = PILImage.open(f)
+            self.assertEqual(dict(sanitized_img.getexif().get_ifd(Base.GPSInfo)), {})
+
+        with default_storage.open(self.photo_path, 'rb') as f:
+            sanitized_photo = PILImage.open(f)
+            self.assertEqual(dict(sanitized_photo.getexif().get_ifd(Base.GPSInfo)), {})
