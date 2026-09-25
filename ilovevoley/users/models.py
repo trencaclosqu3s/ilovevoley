@@ -45,6 +45,12 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+    def save(self, *args, **kwargs):
+        # Sanear avatar automáticamente a nivel de modelo ante cualquier nueva subida
+        from ilovevoley.videos.utils import sanitize_model_image_field
+        sanitize_model_image_field(self, 'avatar', max_size=1024)
+        super().save(*args, **kwargs)
     
     def get_or_create_calendar_token(self):
         """Genera un token de calendario si no existe y lo retorna"""

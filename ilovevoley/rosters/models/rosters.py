@@ -100,6 +100,12 @@ class Person(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
 
+    def save(self, *args, **kwargs):
+        # Sanear foto automáticamente a nivel de modelo ante cualquier nueva subida
+        from ilovevoley.videos.utils import sanitize_model_image_field
+        sanitize_model_image_field(self, 'photo', max_size=2048)
+        super().save(*args, **kwargs)
+
     @property
     def full_name(self):
         """Devuelve el nombre completo"""
