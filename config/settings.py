@@ -235,6 +235,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Medios privados: nginx reenvía /media/ a Django y este autoriza y delega la
+# entrega del archivo vía X-Accel-Redirect a la zona interna /protected-media/.
+# En desarrollo (DEBUG) se sirve directamente con FileResponse.
+PROTECTED_MEDIA_USE_X_ACCEL = env_config('PROTECTED_MEDIA_USE_X_ACCEL', default=not DEBUG, cast=bool)
+PROTECTED_MEDIA_INTERNAL_URL = '/protected-media/'
+
 # Configuración de subida de archivos
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10MB
