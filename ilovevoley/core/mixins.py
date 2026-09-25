@@ -65,6 +65,42 @@ def get_club_team_filter(tenant):
     return q
 
 
+def tenant_owns_match(tenant, match, user=None):
+    """Indica si el partido pertenece a un equipo del club del tenant.
+
+    Un superusuario global accede a cualquier partido (moderación). Los tenants
+    sin club vinculado se resuelven por nombre de equipo, igual que el resto de
+    filtros de la app.
+    """
+    if user is not None and user.is_superuser:
+        return True
+    if tenant is None or match is None:
+        return False
+    from ilovevoley.competitions.models import Match
+
+    return (
+        Match.all_objects
+        .filter(pk=match.pk)
+        .filter(get_club_team_filter(tenant))
+        .exists()
+    )
+
+
+def tenant_owns_league(tenant, league, user=None):
+    """Indica si la liga es visible para el club del tenant.
+
+    Reutiliza ``League.objects.for_tenant`` para no duplicar la lógica de
+    pertenencia. Un superusuario global accede a cualquier liga.
+    """
+    if user is not None and user.is_superuser:
+        return True
+    if tenant is None or league is None:
+        return False
+    from ilovevoley.competitions.models import League
+
+    return League.objects.for_tenant(tenant).filter(pk=league.pk).exists()
+
+
 def get_club_team_name_filter(tenant):
     """Retorna un Q que filtra equipos (Team) del club del tenant.
 

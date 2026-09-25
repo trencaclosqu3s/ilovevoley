@@ -1,15 +1,12 @@
+import uuid
+
 from django.conf import settings
 from django.db import models
 
 
 def person_photo_upload_path(instance, filename):
-    """Generar path para la subida de fotos de personas"""
-    import os
-    from django.utils.text import slugify
-    
-    ext = filename.split('.')[-1]
-    safe_name = slugify(f"{instance.first_name}_{instance.last_name}")
-    return f'people/{safe_name}_{instance.id}.{ext}'
+    """Generar un path aleatorio e inextensible para la foto de una persona."""
+    return f'people/{uuid.uuid4().hex}.jpg'
 
 
 class Person(models.Model):
@@ -115,6 +112,12 @@ class Person(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+    def save(self, *args, **kwargs):
+        # Sanear foto automáticamente a nivel de modelo ante cualquier nueva subida
+        from ilovevoley.videos.utils import sanitize_model_image_field
+        sanitize_model_image_field(self, 'photo', max_size=2048)
+        super().save(*args, **kwargs)
 
     @property
     def full_name(self):

@@ -113,6 +113,6 @@ class UserProfileForm(forms.ModelForm):
             # Validar tipo de archivo
             if not avatar.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif')):
                 raise forms.ValidationError('Formato no válido. Use JPG, PNG, WebP o HEIC')
-        
+
         return avatar
 
