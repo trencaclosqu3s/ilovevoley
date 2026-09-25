@@ -55,6 +55,16 @@ class Person(models.Model):
         help_text='Número de teléfono (opcional)'
     )
     
+    # Pertenencia a la organización (tenant). Determina la visibilidad y
+    # edición de la ficha: cada persona pertenece a un único club.
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.PROTECT,
+        related_name='people',
+        verbose_name='Organización',
+        help_text='Club/organización al que pertenece la ficha'
+    )
+
     # Vinculación con usuario de la plataforma
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
