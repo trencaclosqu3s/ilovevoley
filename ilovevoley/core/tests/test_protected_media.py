@@ -103,7 +103,7 @@ class ProtectedMediaTests(TestCase):
 
 
 @override_settings(
-    ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'],
+    ALLOWED_HOSTS=['testclub.ilovevoley.es', 'noclub.ilovevoley.es', 'localhost'],
     PROTECTED_MEDIA_USE_X_ACCEL=True,
 )
 class ProtectedPersonMediaTests(TestCase):
@@ -131,6 +131,12 @@ class ProtectedPersonMediaTests(TestCase):
         )
         PlayerRole.objects.create(person=self.foreign_person, team=other_team, season=self.season)
 
+        noclub_org = Organization.objects.create(slug='noclub', name='Sin Club')
+        self.noclub_member = User.objects.create_user(username='noclub', password='pass')
+        Membership.objects.create(
+            user=self.noclub_member, organization=noclub_org, is_approved=True
+        )
+
     def test_member_can_see_person_of_linked_club(self):
         self.client.force_login(self.member)
         response = self.client.get('/media/people/ana_1.jpg', HTTP_HOST='testclub.ilovevoley.es')
@@ -145,6 +151,17 @@ class ProtectedPersonMediaTests(TestCase):
     def test_anonymous_person_photo_is_forbidden(self):
         response = self.client.get('/media/people/ana_1.jpg', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 403)
+
+    def test_tenant_without_club_cannot_see_person_with_roles(self):
+        self.client.force_login(self.noclub_member)
+        response = self.client.get('/media/people/ana_1.jpg', HTTP_HOST='noclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 404)
+
+    def test_tenant_without_club_can_see_person_without_roles(self):
+        Person.objects.create(first_name='Sin', last_name='Rol', photo='people/sinrol_1.jpg')
+        self.client.force_login(self.noclub_member)
+        response = self.client.get('/media/people/sinrol_1.jpg', HTTP_HOST='noclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
 
 
 class PublicMediaDevTests(TestCase):

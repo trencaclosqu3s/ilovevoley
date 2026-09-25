@@ -9,6 +9,7 @@ sensibles (logos de organizaciones y avatares) siguen sirviéndose estáticos.
 import mimetypes
 import os
 from pathlib import Path
+from urllib.parse import quote
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
@@ -54,7 +55,9 @@ def _person_is_allowed(person, user, tenant):
         return True
     club_id = tenant.club_id
     if club_id is None:
-        return True
+        # Tenant sin club federado: solo se permiten fichas sin roles, que no
+        # revelan afiliación a ningún club concreto.
+        return not (person.player_roles.exists() or person.staff_roles.exists())
     has_roles = person.player_roles.exists() or person.staff_roles.exists()
     if not has_roles:
         return True
@@ -91,7 +94,7 @@ def _serve(path):
     if _use_x_accel():
         response = HttpResponse(content_type=content_type)
         prefix = getattr(settings, 'PROTECTED_MEDIA_INTERNAL_URL', '/protected-media/')
-        response['X-Accel-Redirect'] = f'{prefix}{path}'
+        response['X-Accel-Redirect'] = f'{prefix}{quote(path, safe="/")}'
     else:
         base = Path(settings.MEDIA_ROOT).resolve()
         full = (base / path).resolve()
