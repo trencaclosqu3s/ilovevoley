@@ -283,6 +283,7 @@ class CompetitionsTenantIsolationTests(TestCase):
             is_active=True, visibility_type='main', is_our_team_related=True,
         )
         self.league.categories.add(self.category)
+        self.other_league.categories.add(self.category)
 
         self.match = Match.objects.create(
             league=self.league, home_team=self.team, away_team=self.other_team,
