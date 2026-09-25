@@ -1,11 +1,12 @@
+import uuid
+
 from django.conf import settings
 from django.db import models
 
 
 def person_photo_upload_path(instance, filename):
-    """Generar path para la subida de fotos de personas con identificador UUID"""
-    from ilovevoley.videos.utils import build_uuid_upload_path
-    return build_uuid_upload_path('people', filename)
+    """Generar un path aleatorio e inextensible para la foto de una persona."""
+    return f'people/{uuid.uuid4().hex}.jpg'
 
 
 class Person(models.Model):

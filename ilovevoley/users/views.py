@@ -4,9 +4,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_POST
-from django.core.files.base import ContentFile
-import base64
-import uuid
+from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
 from ilovevoley.core.tenant_utils import user_has_approved_membership
 from .forms import UserProfileForm, ParentInfoForm
 
@@ -62,23 +60,11 @@ def profile_edit(request):
         if form.is_valid():
             # Procesar imagen recortada si está presente
             cropped_avatar_data = request.POST.get('cropped_avatar_data')
-            if cropped_avatar_data and cropped_avatar_data.startswith('data:image'):
+            if cropped_avatar_data:
                 try:
-                    # Extraer datos base64
-                    format_str, imgstr = cropped_avatar_data.split(';base64,')
-                    ext = format_str.split('/')[-1]
-                    
-                    # Decodificar imagen
-                    data = base64.b64decode(imgstr)
-                    
-                    # Crear archivo
-                    avatar_file = ContentFile(data, name=f"avatar.{ext}")
-                    
-                    # Asignar la imagen recortada al usuario (se sanea en User.save)
-                    request.user.avatar = avatar_file
-                    
-                except Exception as e:
-                    messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
+                    request.user.avatar = decode_cropped_image(cropped_avatar_data)
+                except InvalidImageError as e:
+                    messages.error(request, str(e))
                     return render(request, 'users/profile_edit.html', {'form': form})
             
             form.save()
