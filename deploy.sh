@@ -17,10 +17,9 @@ export GIT_SHA=$(git rev-parse --short HEAD)
 echo "🏗️  Reconstruyendo imágenes..."
 docker compose build
 
-# Reiniciar servicios
-echo "♻️  Reiniciando servicios..."
-docker compose down
-docker compose up -d
+# Actualizar y reiniciar contenedores
+echo "♻️  Actualizando servicios (mínimo downtime)..."
+docker compose up -d --remove-orphans
 
 # Esperar a que los servicios inicien
 echo "⏳ Esperando a que los servicios inicien..."

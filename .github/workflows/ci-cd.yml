@@ -1,12 +1,14 @@
-name: Tests
+name: CI / CD
 
 on:
   push:
     branches: [main, 'refactor/**', 'feature/**']
   pull_request:
+    branches: [main]
 
 jobs:
   test:
+    name: Tests & Comprobaciones
     runs-on: ubuntu-latest
 
     services:
@@ -56,3 +58,21 @@ jobs:
 
       - name: Tests
         run: python -m pytest --create-db -v
+
+  deploy:
+    name: Despliegue en Producción
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Desplegar en servidor vía SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            cd "${{ secrets.DEPLOY_PATH }}"
+            ./deploy.sh
