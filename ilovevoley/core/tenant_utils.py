@@ -106,6 +106,17 @@ def user_is_tenant_staff(user, tenant):
     return user.is_staff and user_has_approved_membership(user, tenant)
 
 
+def can_moderate_images(user, tenant=None):
+    """Determina si un usuario tiene permisos para moderar imágenes en un tenant o globalmente."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    if not tenant:
+        return False
+    return user_is_tenant_manager(user, tenant) or user_is_tenant_staff(user, tenant)
+
+
 def approve_user_membership(user, tenant=None):
     """Aprueba al usuario globalmente y su membresía en el tenant indicado (o todas las pendientes)."""
     from ilovevoley.users.models import Membership
@@ -145,7 +156,7 @@ def tenant_access_required(*, manager=False, staff=False):
             if request.user.is_superuser:
                 return view_func(request, *args, **kwargs)
             if staff:
-                if not user_is_tenant_staff(request.user, tenant):
+                if not (user_is_tenant_staff(request.user, tenant) or user_is_tenant_manager(request.user, tenant)):
                     raise PermissionDenied
             elif manager:
                 if not user_is_tenant_manager(request.user, tenant):
@@ -155,3 +166,4 @@ def tenant_access_required(*, manager=False, staff=False):
             return view_func(request, *args, **kwargs)
         return wrapper
     return decorator
+

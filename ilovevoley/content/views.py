@@ -17,8 +17,14 @@ from ilovevoley.competitions.models import League, Match
 from ilovevoley.core.mixins import get_club_team_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
-from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
+from ilovevoley.core.tenant_utils import (
+    can_moderate_images,
+    tenant_access_required,
+    user_is_tenant_manager,
+)
 from ilovevoley.teams.models import Team
+from .services import moderate_image
+
 from ilovevoley.videos.utils import (
     check_image_with_vision_api,
     process_uploaded_image,
@@ -1192,11 +1198,14 @@ def album_group_images(request, album_group_id):
 
 @tenant_access_required(staff=True)
 def image_moderation(request):
-    """Vista de moderación para admins"""
+    """Vista de moderación para admins y managers del tenant actual."""
     images = Image.objects.select_related(
         'match__home_team', 'match__away_team', 'match__league',
         'uploaded_by'
-    ).prefetch_related('categories').filter(status='pending').order_by('upload_date')
+    ).prefetch_related('categories').filter(
+        organization=request.tenant,
+        status='pending'
+    ).order_by('upload_date')
     
     # Paginación
     paginator = Paginator(images, 20)
@@ -1213,8 +1222,13 @@ def image_moderation(request):
 
 @tenant_access_required(staff=True)
 def image_moderate_action(request, image_id):
-    """Acción de moderación individual"""
-    image = get_object_or_404(Image, id=image_id, status='pending')
+    """Acción de moderación individual acotada al tenant actual."""
+    image = get_object_or_404(
+        Image,
+        id=image_id,
+        organization=request.tenant,
+        status='pending'
+    )
     
     if request.method == 'POST':
         form = ImageModerationForm(request.POST, instance=image)
@@ -1222,10 +1236,12 @@ def image_moderate_action(request, image_id):
             action = form.cleaned_data['action']
             notes = form.cleaned_data['moderation_notes']
             
-            image.moderate(
-                moderator=request.user,
-                approved=(action == 'approve'),
-                notes=notes
+            moderate_image(
+                actor=request.user,
+                tenant=request.tenant,
+                image=image,
+                decision=action,
+                notes=notes,
             )
             
             action_text = 'aprobada' if action == 'approve' else 'rechazada'
@@ -1244,25 +1260,31 @@ def image_moderate_action(request, image_id):
 
 @tenant_access_required(staff=True)
 def image_moderate_bulk(request):
-    """Moderación masiva de imágenes"""
+    """Moderación masiva de imágenes acotada al tenant actual."""
     if request.method == 'POST':
         action = request.POST.get('action')
         image_ids = request.POST.getlist('image_ids')
         notes = request.POST.get('notes', '')
         
         if action in ['approve', 'reject'] and image_ids:
-            images = Image.objects.filter(id__in=image_ids, status='pending')
-            approved = (action == 'approve')
-            
+            images = Image.objects.filter(
+                id__in=image_ids,
+                organization=request.tenant,
+                status='pending'
+            )
+            count = 0
             for image in images:
-                image.moderate(
-                    moderator=request.user,
-                    approved=approved,
-                    notes=notes
+                moderate_image(
+                    actor=request.user,
+                    tenant=request.tenant,
+                    image=image,
+                    decision=action,
+                    notes=notes,
                 )
+                count += 1
             
-            action_text = 'aprobadas' if approved else 'rechazadas'
-            messages.success(request, f'{images.count()} imágenes {action_text}.')
+            action_text = 'aprobadas' if action == 'approve' else 'rechazadas'
+            messages.success(request, f'{count} imágenes {action_text}.')
         
         return redirect('content:image_moderation')
     
@@ -1270,12 +1292,21 @@ def image_moderate_bulk(request):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser, login_url='/')
 @require_POST
 def moderate_image_api(request, image_id):
-    """API para moderar una imagen vía AJAX"""
+    """API para moderar una imagen vía AJAX con aislamiento por organización."""
+    tenant = getattr(request, 'tenant', None)
+    if not can_moderate_images(request.user, tenant):
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+
     try:
-        image = Image.objects.get(id=image_id, status='pending')
+        if tenant is not None:
+            image = Image.objects.get(id=image_id, organization=tenant, status='pending')
+        elif request.user.is_superuser:
+            image = Image.objects.get(id=image_id, status='pending')
+        else:
+            return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+
         action = request.POST.get('action')  # 'approve' o 'reject'
         notes = request.POST.get('notes', '')
         
@@ -1285,15 +1316,15 @@ def moderate_image_api(request, image_id):
                 'error': 'Acción no válida'
             }, status=400)
         
-        # Usar el método existente de moderación
-        approved = (action == 'approve')
-        image.moderate(
-            moderator=request.user,
-            approved=approved,
-            notes=notes
+        moderate_image(
+            actor=request.user,
+            tenant=tenant,
+            image=image,
+            decision=action,
+            notes=notes,
         )
         
-        action_text = 'aprobada' if approved else 'rechazada'
+        action_text = 'aprobada' if action == 'approve' else 'rechazada'
         
         return JsonResponse({
             'success': True,
@@ -1313,6 +1344,7 @@ def moderate_image_api(request, image_id):
             'success': False,
             'error': 'Error interno del servidor'
         }, status=500)
+
 
 
 __all__ = [
