@@ -7,20 +7,23 @@ from datetime import datetime, timedelta
 import requests as http_requests
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Case, CharField, Q, Value, When
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from unidecode import unidecode as _uni
 
-from ilovevoley.core.mixins import get_club_team_filter
+from ilovevoley.core.mixins import (
+    get_club_team_filter,
+    tenant_owns_league,
+    tenant_owns_match,
+)
 from ilovevoley.core.models import Category
 from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
 from ilovevoley.rosters.models import PlayerRole
 from ilovevoley.teams.models import Team
-from ilovevoley.videos.scraping import parse_acta_lineup
+from ilovevoley.videos.scraping import parse_acta_lineup, validate_volleyball_score
 from .forms import FriendlyMatchForm, MatchResultForm
 from .models import League, Match, Standing
 
@@ -85,6 +88,8 @@ def league_list(request):
 def league_detail(request, league_id):
     """Vista detallada de una liga con partidos y clasificación"""
     league = get_object_or_404(League, id=league_id, is_active=True)
+    if not tenant_owns_league(request.tenant, league, request.user):
+        raise Http404
 
     # NUEVO: Lógica de filtrado por fases
     show_all_phases = request.GET.get('all_phases', '1') == '1'
@@ -100,12 +105,15 @@ def league_detail(request, league_id):
         matches = Match.objects.filter(league_id__in=league_ids)
         display_league = league.root_league
     elif selected_phase:
-        # Mostrar fase específica
+        # Mostrar fase específica (solo si pertenece al tenant)
         try:
-            phase_league = League.objects.get(id=selected_phase)
+            phase_league = League.objects.get(id=selected_phase, is_active=True)
+        except (League.DoesNotExist, ValueError):
+            phase_league = None
+        if phase_league is not None and tenant_owns_league(request.tenant, phase_league, request.user):
             matches = Match.objects.filter(league=phase_league)
             display_league = phase_league
-        except League.DoesNotExist:
+        else:
             matches = Match.objects.filter(league=league)
             display_league = league
     else:
@@ -156,6 +164,8 @@ def match_detail(request, match_id):
         Match.objects.select_related('home_team', 'away_team', 'league'),
         id=match_id
     )
+    if not tenant_owns_match(request.tenant, match, request.user):
+        raise Http404
 
     # Obtener videos del partido
     videos = match.videos.select_related('created_by', 'category').all()
@@ -322,7 +332,7 @@ def friendly_match_create(request):
     })
 
 
-@login_required
+@tenant_access_required(manager=True)
 def ajax_search_teams(request):
     """Vista AJAX para buscar equipos con autocompletado inteligente"""
     query = request.GET.get('q', '').strip()
@@ -371,8 +381,11 @@ def ajax_add_match_result(request, match_id):
         return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
     try:
-        match = Match.objects.get(id=match_id)
+        match = Match.objects.select_related('league').get(id=match_id)
     except Match.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
+
+    if not tenant_owns_match(request.tenant, match, request.user):
         return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
 
     # Verificar que el partido no tenga resultado ya
@@ -393,6 +406,13 @@ def ajax_add_match_result(request, match_id):
     form = MatchResultForm(data, instance=match)
 
     if form.is_valid():
+        home_score = form.cleaned_data['home_score']
+        away_score = form.cleaned_data['away_score']
+        if match.league and not validate_volleyball_score(home_score, away_score, match.league):
+            return JsonResponse({
+                'success': False,
+                'error': 'Marcador inválido para el formato de la liga.',
+            }, status=400)
         try:
             match = form.save()
             return JsonResponse({
@@ -426,6 +446,9 @@ def ajax_acta_lineup(request, match_id):
     try:
         match = Match.objects.select_related('home_team', 'away_team').get(id=match_id)
     except Match.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
+
+    if not tenant_owns_match(request.tenant, match, request.user):
         return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
 
     if not match.acta_html:
@@ -635,7 +658,7 @@ def standings_view(request):
     })
 
 
-@login_required
+@tenant_access_required()
 def ajax_matches_by_category(request):
     """Vista AJAX para obtener partidos filtrados por categoría"""
     category_id = request.GET.get('category_id')
@@ -679,7 +702,7 @@ def ajax_matches_by_category(request):
     })
 
 
-@login_required
+@tenant_access_required(manager=True)
 def ajax_teams_by_league_category(request):
     """Vista AJAX para obtener equipos filtrados por categoría de liga (para admin)"""
     league_id = request.GET.get('league_id')
