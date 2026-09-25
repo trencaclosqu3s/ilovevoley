@@ -54,8 +54,11 @@ class User(AbstractUser):
         return self.calendar_token
     
     
-    def can_edit_person(self, person):
+    def can_edit_person(self, person, tenant=None):
         """Verifica si el usuario puede editar una ficha específica"""
+        if self.is_superuser:
+            return True
+
         # El propio usuario puede editar su ficha si está vinculada
         if person.user == self:
             return True
@@ -64,9 +67,11 @@ class User(AbstractUser):
         if person in self.children.all():
             return True
             
-        # Los administradores pueden editar cualquier ficha
-        if self.is_staff:
-            return True
+        # Managers/admins del tenant pueden editar fichas que pertenezcan a su tenant
+        if tenant:
+            from ilovevoley.core.tenant_utils import person_belongs_to_tenant, user_is_tenant_manager
+            if user_is_tenant_manager(self, tenant) and person_belongs_to_tenant(person, tenant):
+                return True
             
         return False
 

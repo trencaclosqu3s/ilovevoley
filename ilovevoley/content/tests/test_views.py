@@ -107,6 +107,22 @@ class ContentViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'content/image_moderation.html')
 
+        # Tenant admin pasa con 200 sin ser superusuario
+        from ilovevoley.users.models import Membership
+        self.user.is_superuser = False
+        self.user.save()
+        Membership.objects.filter(user=self.user, organization=self.org).update(role='admin')
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+
+        # Usuario con is_staff=True pero rol member en el tenant recibe 403
+        Membership.objects.filter(user=self.user, organization=self.org).update(role='member')
+        self.user.is_staff = True
+        self.user.save()
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 403)
+
+
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
 class ContentSeasonFilterTests(TestCase):

@@ -85,15 +85,12 @@ def user_is_tenant_manager(user, tenant):
         return False
     from ilovevoley.users.models import Membership
 
-    if Membership.objects.filter(
+    return Membership.objects.filter(
         user=user,
         organization=tenant,
         is_approved=True,
         role__in=['manager', 'admin'],
-    ).exists():
-        return True
-    # Compatibilidad con el grupo global durante la transición
-    return user.groups.filter(name='VideoManagers').exists()
+    ).exists()
 
 
 def user_is_tenant_staff(user, tenant):
@@ -103,7 +100,14 @@ def user_is_tenant_staff(user, tenant):
         return True
     if not tenant:
         return False
-    return user.is_staff and user_has_approved_membership(user, tenant)
+    from ilovevoley.users.models import Membership
+
+    return Membership.objects.filter(
+        user=user,
+        organization=tenant,
+        is_approved=True,
+        role='admin',
+    ).exists()
 
 
 def approve_user_membership(user, tenant=None):
@@ -155,3 +159,56 @@ def tenant_access_required(*, manager=False, staff=False):
             return view_func(request, *args, **kwargs)
         return wrapper
     return decorator
+
+
+def team_belongs_to_tenant(team, tenant):
+    """Comprueba si un equipo pertenece al club u organización del tenant mediante FK explícita."""
+    if not team or not tenant:
+        return False
+    from ilovevoley.core.mixins import get_tenant_club
+    club = get_tenant_club(tenant)
+    if club is None or team.club_id is None:
+        return False
+    return team.club_id == club.id
+
+
+def person_belongs_to_tenant(person, tenant):
+    """Comprueba si una persona pertenece a un tenant o puede ser gestionada por él.
+
+    Una persona pertenece al tenant si:
+    1. Tiene roles (jugador o staff) en equipos pertenecientes al tenant.
+    2. Su usuario vinculado tiene membresía aprobada en el tenant.
+    3. Está vinculada como hijo/a de un usuario con membresía aprobada en el tenant.
+
+    Si no cumple ninguna de estas condiciones verificables, retorna False para evitar IDOR
+    cross-tenant sobre fichas huérfanas sin roles.
+    """
+    if not person or not tenant:
+        return False
+
+    player_roles = list(person.player_roles.select_related('team').all())
+    staff_roles = list(person.staff_roles.select_related('team').all())
+    all_roles = player_roles + staff_roles
+
+    if all_roles:
+        return any(team_belongs_to_tenant(role.team, tenant) for role in all_roles)
+
+    from ilovevoley.users.models import Membership
+
+    if person.user_id:
+        return Membership.objects.filter(
+            user_id=person.user_id,
+            organization=tenant,
+            is_approved=True,
+        ).exists()
+
+    if Membership.objects.filter(
+        user__children=person,
+        organization=tenant,
+        is_approved=True,
+    ).exists():
+        return True
+
+    return False
+
+

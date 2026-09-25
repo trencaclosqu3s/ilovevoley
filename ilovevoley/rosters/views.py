@@ -6,14 +6,18 @@ from django.contrib import messages
 from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from ilovevoley.core.mixins import get_club_team_name_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
-from ilovevoley.core.tenant_utils import tenant_access_required
+from ilovevoley.core.tenant_utils import (
+    person_belongs_to_tenant,
+    team_belongs_to_tenant,
+    tenant_access_required,
+)
 from ilovevoley.teams.models import Team
 from .forms import PersonForm, PlayerRoleForm, StaffRoleForm
 from .models import Person, PlayerRole, StaffRole
@@ -159,13 +163,15 @@ def person_detail(request, person_id):
         ),
         id=person_id
     )
+    if not request.user.is_superuser and not person_belongs_to_tenant(person, request.tenant):
+        raise Http404
     
     # Obtener roles activos e inactivos
     player_roles = person.player_roles.select_related('team__category').order_by('-is_active', 'team__name')
     staff_roles = person.staff_roles.select_related('team__category').order_by('-is_active', 'team__name')
     
     # Verificar permisos de edición
-    can_edit = request.user.can_edit_person(person)
+    can_edit = request.user.can_edit_person(person, tenant=request.tenant)
     
     context = {
         'person': person,
@@ -236,9 +242,11 @@ def person_create(request):
 def person_edit(request, person_id):
     """Vista para editar una persona existente"""
     person = get_object_or_404(Person, id=person_id)
+    if not request.user.is_superuser and not person_belongs_to_tenant(person, request.tenant):
+        raise Http404
     
     # Verificar permisos
-    can_edit = request.user.can_edit_person(person)
+    can_edit = request.user.can_edit_person(person, tenant=request.tenant)
     
     if not can_edit:
         messages.error(request, 'No tienes permisos para editar esta persona.')
@@ -298,9 +306,11 @@ def person_edit(request, person_id):
 def player_role_create(request, person_id):
     """Vista para agregar un rol de jugador a una persona"""
     person = get_object_or_404(Person, id=person_id)
+    if not request.user.is_superuser and not person_belongs_to_tenant(person, request.tenant):
+        raise Http404
     
     # Verificar permisos
-    can_edit = request.user.is_staff or request.user == person.user
+    can_edit = request.user.can_edit_person(person, tenant=request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para agregar roles a esta persona.')
         return redirect('rosters:person_detail', person_id=person.id)
@@ -331,9 +341,11 @@ def player_role_create(request, person_id):
 def staff_role_create(request, person_id):
     """Vista para agregar un rol de staff a una persona"""
     person = get_object_or_404(Person, id=person_id)
+    if not request.user.is_superuser and not person_belongs_to_tenant(person, request.tenant):
+        raise Http404
     
     # Verificar permisos
-    can_edit = request.user.is_staff or request.user == person.user
+    can_edit = request.user.can_edit_person(person, tenant=request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para agregar roles a esta persona.')
         return redirect('rosters:person_detail', person_id=person.id)
@@ -364,9 +376,11 @@ def staff_role_create(request, person_id):
 def player_role_edit(request, role_id):
     """Vista para editar un rol de jugador"""
     player_role = get_object_or_404(PlayerRole.objects.select_related('person', 'team'), id=role_id)
+    if not request.user.is_superuser and not team_belongs_to_tenant(player_role.team, request.tenant):
+        raise Http404
     
     # Verificar permisos
-    can_edit = request.user.is_staff or request.user == player_role.person.user
+    can_edit = request.user.can_edit_person(player_role.person, tenant=request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para editar este rol.')
         return redirect('rosters:person_detail', person_id=player_role.person.id)
@@ -396,9 +410,11 @@ def player_role_edit(request, role_id):
 def staff_role_edit(request, role_id):
     """Vista para editar un rol de staff"""
     staff_role = get_object_or_404(StaffRole.objects.select_related('person', 'team'), id=role_id)
+    if not request.user.is_superuser and not team_belongs_to_tenant(staff_role.team, request.tenant):
+        raise Http404
     
     # Verificar permisos
-    can_edit = request.user.is_staff or request.user == staff_role.person.user
+    can_edit = request.user.can_edit_person(staff_role.person, tenant=request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para editar este rol.')
         return redirect('rosters:person_detail', person_id=staff_role.person.id)
@@ -428,10 +444,12 @@ def staff_role_edit(request, role_id):
 @require_POST
 def player_role_toggle_active(request, role_id):
     """Vista AJAX para activar/desactivar rol de jugador"""
-    player_role = get_object_or_404(PlayerRole, id=role_id)
+    player_role = get_object_or_404(PlayerRole.objects.select_related('person', 'team'), id=role_id)
+    if not request.user.is_superuser and not team_belongs_to_tenant(player_role.team, request.tenant):
+        raise Http404
     
     # Verificar permisos
-    can_edit = request.user.is_staff or request.user == player_role.person.user
+    can_edit = request.user.can_edit_person(player_role.person, tenant=request.tenant)
     if not can_edit:
         return JsonResponse({'success': False, 'error': 'Sin permisos'}, status=403)
     
@@ -448,10 +466,12 @@ def player_role_toggle_active(request, role_id):
 @require_POST
 def staff_role_toggle_active(request, role_id):
     """Vista AJAX para activar/desactivar rol de staff"""
-    staff_role = get_object_or_404(StaffRole, id=role_id)
+    staff_role = get_object_or_404(StaffRole.objects.select_related('person', 'team'), id=role_id)
+    if not request.user.is_superuser and not team_belongs_to_tenant(staff_role.team, request.tenant):
+        raise Http404
     
     # Verificar permisos
-    can_edit = request.user.is_staff or request.user == staff_role.person.user
+    can_edit = request.user.can_edit_person(staff_role.person, tenant=request.tenant)
     if not can_edit:
         return JsonResponse({'success': False, 'error': 'Sin permisos'}, status=403)
     
