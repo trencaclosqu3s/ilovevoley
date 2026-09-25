@@ -273,10 +273,10 @@ class Image(models.Model):
         changed = set()
 
         # Sanear imagen automáticamente a nivel de modelo ante cualquier nueva subida
-        if self.image and not getattr(self.image, '_committed', True):
-            from ilovevoley.videos.utils import sanitize_image
-            original_ext = getattr(self.image, 'name', '')
-            self.image = sanitize_image(self.image, max_size=2560)
+        from ilovevoley.videos.utils import sanitize_model_image_field
+        original_ext = getattr(self.image, 'name', '') if self.image else ''
+        sanitized = sanitize_model_image_field(self, 'image', max_size=2560)
+        if sanitized:
             if not self.original_format and original_ext:
                 self.original_format = os.path.splitext(original_ext)[1].lower().lstrip('.')
                 changed.add('original_format')

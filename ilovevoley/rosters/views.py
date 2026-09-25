@@ -197,12 +197,10 @@ def person_create(request):
                     # Decodificar imagen
                     data = base64.b64decode(imgstr)
                     
-                    # Crear archivo temporal saneado
-                    raw_file = ContentFile(data, name=f"person.{ext}")
-                    from ilovevoley.videos.utils import sanitize_image
-                    photo_file = sanitize_image(raw_file, max_size=2048)
+                    # Crear archivo temporal
+                    photo_file = ContentFile(data, name=f"person.{ext}")
                     
-                    # Asignar la foto recortada
+                    # Asignar la foto recortada (se sanea en Person.save)
                     person.photo = photo_file
                     
                 except Exception as e:
@@ -260,12 +258,10 @@ def person_edit(request, person_id):
                     # Decodificar imagen
                     data = base64.b64decode(imgstr)
                     
-                    # Crear archivo saneado
-                    raw_file = ContentFile(data, name=f"person.{ext}")
-                    from ilovevoley.videos.utils import sanitize_image
-                    photo_file = sanitize_image(raw_file, max_size=2048)
+                    # Crear archivo
+                    photo_file = ContentFile(data, name=f"person.{ext}")
                     
-                    # Asignar la imagen recortada al person
+                    # Asignar la imagen recortada al person (se sanea en Person.save)
                     person.photo = photo_file
                     
                 except Exception as e:

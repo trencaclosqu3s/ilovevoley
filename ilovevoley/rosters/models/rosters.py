@@ -101,9 +101,8 @@ class Person(models.Model):
 
     def save(self, *args, **kwargs):
         # Sanear foto automáticamente a nivel de modelo ante cualquier nueva subida
-        if self.photo and not getattr(self.photo, '_committed', True):
-            from ilovevoley.videos.utils import sanitize_image
-            self.photo = sanitize_image(self.photo, max_size=2048)
+        from ilovevoley.videos.utils import sanitize_model_image_field
+        sanitize_model_image_field(self, 'photo', max_size=2048)
         super().save(*args, **kwargs)
 
     @property

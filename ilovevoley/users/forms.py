@@ -114,10 +114,5 @@ class UserProfileForm(forms.ModelForm):
             if not avatar.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif')):
                 raise forms.ValidationError('Formato no válido. Use JPG, PNG, WebP o HEIC')
 
-            from django.core.files.uploadedfile import UploadedFile
-            if isinstance(avatar, UploadedFile):
-                from ilovevoley.videos.utils import sanitize_image
-                avatar = sanitize_image(avatar, max_size=1024)
-
         return avatar
 

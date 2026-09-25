@@ -71,12 +71,10 @@ def profile_edit(request):
                     # Decodificar imagen
                     data = base64.b64decode(imgstr)
                     
-                    # Crear archivo saneado
-                    raw_file = ContentFile(data, name=f"avatar.{ext}")
-                    from ilovevoley.videos.utils import sanitize_image
-                    avatar_file = sanitize_image(raw_file, max_size=1024)
+                    # Crear archivo
+                    avatar_file = ContentFile(data, name=f"avatar.{ext}")
                     
-                    # Asignar la imagen recortada al usuario
+                    # Asignar la imagen recortada al usuario (se sanea en User.save)
                     request.user.avatar = avatar_file
                     
                 except Exception as e:
