@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Editar Perfil - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-3xl">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Editar Perfil</h1>
+                <p class="text-gray-600">Actualiza tu información personal y preferencias</p>
+            </div>
+            <a href="{% url 'profile' %}" class="text-csj-purple hover:text-csj-purple-dark font-semibold">
+                ← Volver al Perfil
+            </a>
+        </div>
+    </div>
+
+    <!-- Formulario -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="p-4 bg-red-100 text-red-800 rounded-lg">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <!-- Avatar / Foto de Perfil -->
+            <div class="border-b border-gray-200 pb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-3">
+                    {{ form.avatar.label }} <span class="text-gray-500 font-normal">(opcional)</span>
+                </label>
+                
+                <div class="flex items-start space-x-6">
+                    <!-- Preview del avatar -->
+                    <div class="flex-shrink-0">
+                        {% if user.avatar %}
+                            <img id="avatar-preview" src="{{ user.avatar.url }}" alt="{{ user.username }}" class="w-32 h-32 rounded-lg object-cover border-4 border-gray-200 shadow-md">
+                        {% else %}
+                            <div id="avatar-preview" class="w-32 h-32 rounded-lg bg-gradient-to-br from-csj-purple to-csj-purple-dark flex items-center justify-center text-white text-5xl font-bold border-4 border-gray-200 shadow-md">
+                                <svg class="w-16 h-16 text-white opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Controles de subida -->
+                    <div class="flex-1">
+                        {{ form.avatar }}
+                        <input type="hidden" id="cropped-avatar" name="cropped_avatar_data" />
+                        
+                        <!-- Área de drag & drop -->
+                        <div id="drop-area" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-csj-purple transition-colors cursor-pointer bg-gray-50">
+                            <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <div class="space-y-1 text-sm">
+                                <label for="{{ form.avatar.id_for_label }}" class="relative cursor-pointer rounded-md font-medium text-csj-purple hover:text-csj-purple-dark focus-within:outline-none">
+                                    <span>Subir una foto</span>
+                                </label>
+                                <p class="text-gray-500">o arrastra y suelta aquí</p>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">JPG, PNG, WebP, HEIC hasta 5MB</p>
+                        </div>
+                        
+                        {% if form.avatar.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.avatar.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.avatar.help_text %}
+                            <p class="mt-2 text-xs text-gray-500">{{ form.avatar.help_text }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal para recorte de imagen -->
+            <div id="crop-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+                <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">Recortar Imagen de Perfil</h3>
+                        <p class="text-sm text-gray-600 mt-1">Ajusta la imagen para que se vea perfecta en tu perfil</p>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="crop-container">
+                            <img id="crop-image" src="" alt="Imagen a recortar" style="max-width: 100%; max-height: 400px;">
+                        </div>
+                    </div>
+                    
+                    <div class="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+                        <button type="button" id="cancel-crop" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition">
+                            Cancelar
+                        </button>
+                        <div class="space-x-3">
+                            <button type="button" id="reset-crop" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition">
+                                Reiniciar
+                            </button>
+                            <button type="button" id="apply-crop" class="px-4 py-2 bg-csj-purple hover:bg-csj-purple-dark text-white font-medium rounded-lg transition">
+                                Aplicar Recorte
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Usuario -->
+            <div>
+                <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.username.label }}
+                </label>
+                {{ form.username }}
+                {% if form.username.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Email (readonly) -->
+            <div>
+                <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.email.label }}
+                </label>
+                {{ form.email }}
+                {% if form.email.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-xs text-gray-500">El email no se puede modificar una vez creada la cuenta</p>
+            </div>
+
+            <!-- Nombre -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.first_name.label }}
+                    </label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.first_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Apellidos -->
+                <div>
+                    <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.last_name.label }}
+                    </label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.last_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Información Familiar -->
+            <div>
+                <label for="{{ form.parent_info.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.parent_info.label }}
+                </label>
+                {{ form.parent_info }}
+                {% if form.parent_info.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.parent_info.errors.0 }}</p>
+                {% endif %}
+                {% if form.parent_info.help_text %}
+                    <p class="mt-1 text-xs text-gray-500">{{ form.parent_info.help_text }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Categorías de Interés -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-3">
+                    {{ form.preferred_categories.label }}
+                </label>
+                <div class="space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200 max-h-60 overflow-y-auto">
+                    {% for choice in form.preferred_categories %}
+                        <div class="flex items-center">
+                            {{ choice.tag }}
+                            <label for="{{ choice.id_for_label }}" class="ml-2 block text-sm text-gray-700 cursor-pointer">
+                                {{ choice.choice_label }}
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% if form.preferred_categories.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.preferred_categories.errors.0 }}</p>
+                {% endif %}
+                {% if form.preferred_categories.help_text %}
+                    <p class="mt-1 text-xs text-gray-500">{{ form.preferred_categories.help_text }}</p>
+                {% endif %}
+            </div>
+
+
+            <!-- Nota informativa sobre categorías -->
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            Las categorías de interés te permiten personalizar el contenido que ves, pero no limitan tu acceso a otras categorías.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                <a href="{% url 'profile' %}" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-semibold transition">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-6 py-3 bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Cargar Cropper.js -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
+<style>
+    /* Estilos adicionales para el modal de recorte */
+    .crop-container {
+        max-width: 100%;
+        max-height: 400px;
+        margin: 0 auto;
+    }
+    
+    #crop-image {
+        max-width: 100%;
+        max-height: 400px;
+        border-radius: 8px;
+    }
+    
+    /* Personalizar los controles del cropper */
+    .cropper-crop-box {
+        border: 2px solid #8B5CF6 !important;
+    }
+    
+    .cropper-view-box {
+        outline: 1px solid rgba(139, 92, 246, 0.75) !important;
+    }
+    
+    .cropper-face {
+        background-color: rgba(139, 92, 246, 0.1) !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+        #crop-modal .max-w-2xl {
+            max-width: 95vw !important;
+        }
+        
+        .crop-container {
+            max-height: 300px;
+        }
+        
+        #crop-image {
+            max-height: 300px;
+        }
+    }
+    
+    /* Highlight del área de drag & drop */
+    #drop-area.highlight {
+        border-color: #8B5CF6;
+        background-color: rgba(139, 92, 246, 0.05);
+    }
+</style>
+
+<script>
+    let cropper = null;
+    let currentFile = null;
+    const avatarInput = document.getElementById('{{ form.avatar.id_for_label }}');
+    const dropArea = document.getElementById('drop-area');
+    
+    // ========== DRAG & DROP ==========
+    
+    // Prevenir comportamiento por defecto en toda la página
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    // Highlight al arrastrar sobre el área
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight(e) {
+        dropArea.classList.add('highlight');
+    }
+    
+    function unhighlight(e) {
+        dropArea.classList.remove('highlight');
+    }
+    
+    // Manejar drop
+    dropArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+            handleFile(files[0]);
+        }
+    }
+    
+    // Click en el área para abrir selector de archivos
+    dropArea.addEventListener('click', function(e) {
+        if (e.target === dropArea || e.target.closest('#drop-area')) {
+            avatarInput.click();
+        }
+    });
+    
+    // ========== MANEJO DE ARCHIVO ==========
+    
+    avatarInput.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            handleFile(file);
+        }
+    });
+    
+    function handleFile(file) {
+        // Validar que es una imagen o HEIC
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
+        
+        const fileName = file.name.toLowerCase();
+        const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+        const hasValidType = validTypes.includes(file.type);
+        
+        if (!hasValidType && !hasValidExtension) {
+            alert('Formato no válido. Use JPG, PNG, WebP o HEIC');
+            return;
+        }
+        
+        // Validar tamaño (5MB máximo)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('El archivo es demasiado grande. Tamaño máximo: 5MB');
+            return;
+        }
+        
+        currentFile = file;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            showCropModal(e.target.result);
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    // ========== CROPPER ==========
+    
+    function showCropModal(imageSrc) {
+        const modal = document.getElementById('crop-modal');
+        const cropImage = document.getElementById('crop-image');
+        
+        // Destruir cropper anterior si existe
+        if (cropper) {
+            cropper.destroy();
+        }
+        
+        // Configurar imagen
+        cropImage.src = imageSrc;
+        
+        // Mostrar modal
+        modal.classList.remove('hidden');
+        
+        // Inicializar cropper después de que la imagen se cargue
+        cropImage.onload = function() {
+            cropper = new Cropper(cropImage, {
+                aspectRatio: 1, // Proporción cuadrada para avatar
+                viewMode: 2, // Restringir el recorte al canvas
+                dragMode: 'move',
+                autoCropArea: 0.8,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false,
+                minCanvasWidth: 200,
+                minCanvasHeight: 200,
+                minCropBoxWidth: 100,
+                minCropBoxHeight: 100
+            });
+        };
+    }
+    
+    // Botón cancelar
+    document.getElementById('cancel-crop').addEventListener('click', function() {
+        closeCropModal();
+        avatarInput.value = '';
+    });
+    
+    // Botón reiniciar
+    document.getElementById('reset-crop').addEventListener('click', function() {
+        if (cropper) {
+            cropper.reset();
+        }
+    });
+    
+    // Botón aplicar recorte
+    document.getElementById('apply-crop').addEventListener('click', function() {
+        if (cropper) {
+            const canvas = cropper.getCroppedCanvas({
+                width: 400,
+                height: 400,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high'
+            });
+            
+            canvas.toBlob(function(blob) {
+                // Crear URL para preview
+                const previewUrl = URL.createObjectURL(blob);
+                updateAvatarPreview(previewUrl);
+                
+                // Guardar datos del recorte en base64
+                const base64Data = canvas.toDataURL('image/jpeg', 0.9);
+                document.getElementById('cropped-avatar').value = base64Data;
+                
+                closeCropModal();
+            }, 'image/jpeg', 0.9);
+        }
+    });
+    
+    function updateAvatarPreview(imageSrc) {
+        const previewContainer = document.getElementById('avatar-preview');
+        
+        // Si es un div (sin avatar), reemplazar con img
+        if (previewContainer.tagName === 'DIV') {
+            const img = document.createElement('img');
+            img.id = 'avatar-preview';
+            img.src = imageSrc;
+            img.alt = 'Vista previa';
+            img.className = 'w-32 h-32 rounded-lg object-cover border-4 border-gray-200 shadow-md';
+            previewContainer.parentNode.replaceChild(img, previewContainer);
+        } else {
+            previewContainer.src = imageSrc;
+        }
+    }
+    
+    function closeCropModal() {
+        const modal = document.getElementById('crop-modal');
+        modal.classList.add('hidden');
+        
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+    }
+    
+    // Cerrar modal al hacer clic fuera
+    document.getElementById('crop-modal').addEventListener('click', function(event) {
+        if (event.target === this) {
+            document.getElementById('cancel-crop').click();
+        }
+    });
+    
+    // Cerrar modal con tecla Escape
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && !document.getElementById('crop-modal').classList.contains('hidden')) {
+            document.getElementById('cancel-crop').click();
+        }
+    });
+
+
+</script>
+
+{% endblock %}
+
+

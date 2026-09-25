@@ -1,0 +1,49 @@
+# Config for Dependabot updates. See Documentation here:
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Update GitHub Actions in workflows
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+
+  # Update Docker base images (Dockerfile, Dockerfile.alpine, Dockerfile.rag)
+  - package-ecosystem: 'docker'
+    directories:
+      - '/'
+    schedule:
+      interval: 'weekly'
+    # Only patch updates automatically — avoid unexpected Python version jumps
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - 'version-update:semver-major'
+          - 'version-update:semver-minor'
+    groups:
+      docker:
+        patterns:
+          - '*'
+
+  # Update Docker Compose files (docker-compose.yml, docker-compose.dev.yml)
+  - package-ecosystem: 'docker-compose'
+    directories:
+      - '/'
+    schedule:
+      interval: 'weekly'
+
+  # Update Python dependencies (requirements.txt)
+  - package-ecosystem: 'pip'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      python:
+        update-types:
+          - 'minor'
+          - 'patch'

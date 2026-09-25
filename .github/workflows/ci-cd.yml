@@ -1,0 +1,82 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main, 'refactor/**', 'feature/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Tests & Comprobaciones
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: volleyvideos
+          POSTGRES_USER: volleyuser
+          POSTGRES_PASSWORD: volleypass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: clave-solo-para-ci
+      DEBUG: 'True'
+      DB_HOST: localhost
+      DB_NAME: volleyvideos
+      DB_USER: volleyuser
+      DB_PASSWORD: volleypass
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Instalar dependencias del sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libheif-dev libde265-dev pkg-config
+
+      - name: Instalar dependencias Python
+        run: pip install -r requirements-dev.txt
+
+      - name: Comprobaciones de Django
+        run: python manage.py check
+
+      - name: No debe haber migraciones pendientes de generar
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Tests
+        run: python -m pytest --create-db -v
+
+  deploy:
+    name: Despliegue en Producción
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Desplegar en servidor vía SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            cd "${{ secrets.DEPLOY_PATH }}"
+            ./deploy.sh

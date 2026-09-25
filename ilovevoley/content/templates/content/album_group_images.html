@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Álbum de Imágenes{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-full overflow-hidden">
+    <div class="bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6 max-w-full">
+    <!-- Cabecera del álbum -->
+    <div class="border-b border-gray-200 pb-3 sm:pb-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
+        <div class="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-between sm:items-start">
+            <div class="flex-1 min-w-0 w-full sm:w-auto">
+                <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-2 break-words">
+                    <i class="fas fa-images mr-2"></i>{{ album.album_name }}
+                </h1>
+                <div class="flex flex-col space-y-1 sm:space-y-0 sm:flex-row sm:items-center text-gray-600 sm:space-x-3 lg:space-x-4">
+                    <div class="flex items-center min-w-0">
+                        <i class="fas fa-calendar-alt mr-1 sm:mr-2 text-xs sm:text-sm flex-shrink-0"></i>
+                        <span class="text-xs sm:text-sm lg:text-base truncate">{{ album.upload_date|date:"d/m/Y" }}</span>
+                    </div>
+                    {% if album.image_type %}
+                        <div class="flex items-center min-w-0">
+                            <i class="fas fa-image mr-1 sm:mr-2 text-xs sm:text-sm flex-shrink-0"></i>
+                            <span class="text-xs sm:text-sm lg:text-base truncate">{{ album.image_type }}</span>
+                        </div>
+                    {% endif %}
+                    <div class="flex items-center min-w-0">
+                        <i class="fas fa-images mr-1 sm:mr-2 text-xs sm:text-sm flex-shrink-0"></i>
+                        <span class="text-xs sm:text-sm lg:text-base truncate">{{ total_images }} imagen{{ total_images|pluralize:"es" }}</span>
+                    </div>
+                </div>
+                
+                {% if album.categories.exists %}
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        {% for category in album.categories.all %}
+                            <span class="bg-csj-purple bg-opacity-10 text-csj-purple px-2 py-1 rounded text-xs font-medium">
+                                {{ category.name }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="flex flex-col sm:items-end space-y-2 flex-shrink-0">
+                <a href="{% url 'content:image_bulk_upload' %}?album_group_id={{ album.album_group_id }}"
+                   class="inline-flex items-center px-3 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm">
+                    <i class="fas fa-plus mr-2"></i>Agregar más fotos
+                </a>
+                <a href="{% url 'content:image_gallery' %}"
+                   class="inline-flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 text-sm">
+                    <i class="fas fa-arrow-left mr-2"></i>Volver a la galería
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grid de imágenes -->
+    {% if page_obj %}
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+            {% for image in page_obj %}
+                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+                    <div class="aspect-square relative">
+                        <img src="{{ image.image.url }}" 
+                             alt="{{ image.title }}" 
+                             class="w-full h-full object-cover cursor-pointer"
+                             onclick="openLightbox('{{ image.image.url }}', '{{ image.title|escapejs }}', {{ image.id }})"
+                             loading="lazy">
+                    </div>
+                    <div class="p-2 sm:p-3">
+                        <h3 class="font-semibold text-gray-900 mb-1 truncate text-xs sm:text-sm">{{ image.title }}</h3>
+                        {% if image.description %}
+                            <p class="text-xs text-gray-600 truncate mb-1">{{ image.description }}</p>
+                        {% endif %}
+                        <div class="flex justify-between items-center text-xs text-gray-500">
+                            <span><i class="fas fa-user mr-1"></i>{{ image.uploaded_by.username }}</span>
+                            <span>{{ image.upload_date|date:"d/m/Y" }}</span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+            <div class="flex justify-center mt-6 sm:mt-8 mb-4">
+                <nav class="flex items-center space-x-1 sm:space-x-2 flex-wrap justify-center">
+                    <!-- Botón anterior -->
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" 
+                           class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                            ← Anterior
+                        </a>
+                    {% else %}
+                        <span class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed">
+                            ← Anterior
+                        </span>
+                    {% endif %}
+
+                    <!-- Páginas numeradas -->
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <!-- Página actual -->
+                            <span class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-csj-purple border border-csj-purple rounded-md">
+                                {{ num }}
+                            </span>
+                        {% else %}
+                            <!-- Páginas no activas -->
+                            <a href="?page={{ num }}" 
+                               class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                                {{ num }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+
+                    <!-- Botón siguiente -->
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" 
+                           class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple bg-white border border-csj-purple rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                            Siguiente →
+                        </a>
+                    {% else %}
+                        <span class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed">
+                            Siguiente →
+                        </span>
+                    {% endif %}
+                </nav>
+            </div>
+            
+            <!-- Info de paginación -->
+            <div class="text-center text-xs sm:text-sm text-gray-500 mb-4 px-2">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} imágenes totales)
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-8 sm:py-12 px-4">
+            <i class="fas fa-images text-gray-400 text-4xl sm:text-6xl mb-4"></i>
+            <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-2">No hay imágenes en este álbum</h3>
+        </div>
+    {% endif %}
+    </div>
+</div>
+
+{% load static %}
+<script src="{% static 'js/lightbox.js' %}"></script>
+
+<script>
+// Serializar todas las imágenes del álbum para navegación
+const allAlbumImages = [
+    {% for image in all_images %}
+    {
+        id: {{ image.id }},
+        url: '{{ image.image.url }}',
+        title: '{{ image.title|escapejs }}',
+        description: '{{ image.description|escapejs }}',
+        user: '{{ image.uploaded_by.username|escapejs }}',
+        date: '{{ image.upload_date|date:"d/m/Y" }}',
+        detailUrl: '{% url "content:image_detail" image.id %}'
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+// Inicializar lightbox con navegación habilitada
+const albumLightbox = new ImageLightbox({
+    showNavigation: true
+});
+
+// Sobreescribir función global para usar navegación completa
+function openLightbox(imageUrl, title, imageId, description = '', user = '', date = '') {
+    const imageData = {
+        id: imageId,
+        url: imageUrl,
+        title: title,
+        description: description,
+        user: user,
+        date: date,
+        detailUrl: `/videos/imagenes/${imageId}/`
+    };
+    albumLightbox.open(imageData, allAlbumImages);
+}
+</script>
+{% endblock %}

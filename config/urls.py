@@ -1,5 +1,5 @@
 """
-URL configuration for videosvoley project.
+URL configuration for ilovevoley project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.2/topics/http/urls/
@@ -18,27 +18,31 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import RedirectView
-from django.contrib.auth.decorators import login_required
-from videosvoley.core.moderation_views import moderate_user, moderate_image
+from ilovevoley.core.moderation_views import moderate_user, moderate_image
+from ilovevoley.core.views import landing
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     path('accounts/', include('allauth.urls')),
-    path('videos/', include('videosvoley.videos.urls', namespace='videos')),
-    path('core/', include('videosvoley.core.urls', namespace='core')),
-    path('rag/', include('videosvoley.rag.urls', namespace='rag')),
-    path('', include('videosvoley.users.urls')),
+    # Alias para /videos/ preservando bookmarks hacia content:video_list y rutas legacy
+    path('videos/', include('ilovevoley.videos.urls', namespace='videos')),
+    path('rosters/', include('ilovevoley.rosters.urls', namespace='rosters')),
+    path('content/', include('ilovevoley.content.urls', namespace='content')),
+    path('teams/', include('ilovevoley.teams.urls', namespace='teams')),
+    path('competitions/', include('ilovevoley.competitions.urls', namespace='competitions')),
+    path('core/', include('ilovevoley.core.urls', namespace='core')),
+    path('', include('ilovevoley.users.urls')),
     # Rutas de moderación con tokens seguros
     path('moderate/user/<str:token>/', moderate_user, name='moderate_user'),
     path('moderate/image/<str:token>/', moderate_image, name='moderate_image'),
-    path('', login_required(RedirectView.as_view(url='/videos/', permanent=False))),
+    # Landing page and tenant redirect
+    path('', landing, name='landing'),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     # Test URLs para ver las páginas de error
-    from videosvoley.core.views import test_400, test_403, test_404, test_500
+    from ilovevoley.core.views import test_400, test_403, test_404, test_500
     urlpatterns += [
         path('test-error/400/', test_400, name='test_400'),
         path('test-error/403/', test_403, name='test_403'),
@@ -47,7 +51,7 @@ if settings.DEBUG:
     ]
 
 # Custom error handlers
-handler400 = 'videosvoley.core.views.custom_400'
-handler403 = 'videosvoley.core.views.custom_403'
-handler404 = 'videosvoley.core.views.custom_404'
-handler500 = 'videosvoley.core.views.custom_500'
+handler400 = 'ilovevoley.core.views.custom_400'
+handler403 = 'ilovevoley.core.views.custom_403'
+handler404 = 'ilovevoley.core.views.custom_404'
+handler500 = 'ilovevoley.core.views.custom_500'

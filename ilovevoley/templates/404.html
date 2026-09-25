@@ -1,0 +1,139 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Fuera de la cancha | I Love Voley</title>
+    <link rel="icon" type="image/png" href="{% static 'images/logo_app.png' %}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'csj-purple': '#9B7FBF',
+                        'csj-yellow': '#F4D47C',
+                        'csj-purple-dark': '#7B5FA0',
+                        'csj-yellow-dark': '#E5C05A',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes bounce-volleyball {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        .volleyball-bounce {
+            animation: bounce-volleyball 2s ease-in-out infinite;
+        }
+        
+        .ascii-art {
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+            white-space: pre;
+            font-size: 0.65rem;
+        }
+        
+        @media (min-width: 640px) {
+            .ascii-art {
+                font-size: 0.75rem;
+            }
+        }
+        
+        @media (min-width: 768px) {
+            .ascii-art {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-50 via-yellow-50 to-purple-100 min-h-screen flex items-center justify-center px-4">
+    <div class="max-w-3xl w-full">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 md:p-12 border-t-4 border-csj-purple">
+            <!-- Emoji animado -->
+            <div class="text-center mb-6 volleyball-bounce">
+                <span class="text-6xl sm:text-7xl md:text-8xl">🏐</span>
+            </div>
+            
+            <!-- Arte ASCII de pelota de voleibol -->
+            <div class="bg-gray-50 rounded-lg p-4 mb-6 overflow-x-auto">
+                <div class="ascii-art text-gray-700 text-center">
+          .-""""-.
+       .'        '.
+      /   ◯  ◯   \
+     |    ____    |
+     |   /    \   |
+     |  |  🏐  |  |
+     |   \____/   |
+      \          /
+       '.      .'
+         '----'
+                </div>
+            </div>
+            
+            <!-- Título del error -->
+            <div class="text-center mb-6">
+                <h1 class="text-5xl sm:text-6xl font-bold text-csj-purple mb-2">404</h1>
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">¡Has fallado el saque!</h2>
+                <p class="text-lg text-gray-600">La página que buscas se ha ido fuera de la cancha 🏐</p>
+            </div>
+            
+            <!-- Mensaje divertido -->
+            <div class="bg-csj-yellow bg-opacity-20 border-l-4 border-csj-yellow rounded-lg p-4 mb-8">
+                <p class="text-gray-700 text-center italic">
+                    "No encontramos esa página... ¡Parece que el líbero no llegó a esa recepción!"
+                </p>
+            </div>
+            
+            <!-- Información útil -->
+            <div class="bg-gray-50 rounded-lg p-6 mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">¿Qué puedes hacer?</h3>
+                <ul class="space-y-2 text-gray-600">
+                    <li class="flex items-start">
+                        <span class="text-csj-purple mr-2">•</span>
+                        <span>Verifica que la URL esté escrita correctamente</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-csj-purple mr-2">•</span>
+                        <span>Vuelve a la página principal para hacer un nuevo saque</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-csj-purple mr-2">•</span>
+                        <span>Usa el menú de navegación para encontrar lo que buscas</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Botones de acción -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{% url 'content:video_list' %}" 
+                   class="bg-csj-purple hover:bg-csj-purple-dark text-white font-bold py-3 px-8 rounded-lg transition-colors text-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                    🏠 Volver a Inicio
+                </a>
+                <button onclick="window.history.back()" 
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-8 rounded-lg transition-colors text-center shadow hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
+                    ← Página Anterior
+                </button>
+            </div>
+            
+            <!-- Footer divertido -->
+            <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+                <p class="text-sm text-gray-500">
+                    <span class="font-semibold text-csj-purple">Tip del entrenador:</span> 
+                    Recuerda siempre calentar antes de navegar 😉
+                </p>
+            </div>
+        </div>
+        
+        <!-- Logo/Branding -->
+        <div class="text-center mt-6">
+            <p class="text-sm text-gray-600">
+                Una producción de <span class="font-bold text-csj-purple">I Love Voley</span>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

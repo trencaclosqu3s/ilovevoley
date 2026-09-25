@@ -1,0 +1,140 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 - Zona restringida | I Love Voley</title>
+    <link rel="icon" type="image/png" href="{% static 'images/logo_app.png' %}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'csj-purple': '#9B7FBF',
+                        'csj-yellow': '#F4D47C',
+                        'csj-purple-dark': '#7B5FA0',
+                        'csj-yellow-dark': '#E5C05A',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes block {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .block-hands {
+            animation: block 1.5s ease-in-out infinite;
+        }
+        
+        .ascii-art {
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+            white-space: pre;
+            font-size: 0.65rem;
+        }
+        
+        @media (min-width: 640px) {
+            .ascii-art {
+                font-size: 0.75rem;
+            }
+        }
+        
+        @media (min-width: 768px) {
+            .ascii-art {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-100 min-h-screen flex items-center justify-center px-4">
+    <div class="max-w-3xl w-full">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 md:p-12 border-t-4 border-orange-500">
+            <!-- Emoji animado -->
+            <div class="text-center mb-6 block-hands">
+                <span class="text-6xl sm:text-7xl md:text-8xl">🙅‍♂️</span>
+            </div>
+            
+            <!-- Arte ASCII de bloqueo -->
+            <div class="bg-orange-50 rounded-lg p-4 mb-6 overflow-x-auto">
+                <div class="ascii-art text-orange-600 text-center">
+      \\  ||  //
+       \\ || //
+        \\||//
+       ---🏐---
+        //||\\
+       // || \\
+      //  ||  \\
+   
+   ¡BLOQUEADO!
+                </div>
+            </div>
+            
+            <!-- Título del error -->
+            <div class="text-center mb-6">
+                <h1 class="text-5xl sm:text-6xl font-bold text-orange-500 mb-2">403</h1>
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">¡Bloqueo triple!</h2>
+                <p class="text-lg text-gray-600">Tu remate ha sido bloqueado en la red 🚫</p>
+            </div>
+            
+            <!-- Mensaje divertido -->
+            <div class="bg-orange-100 border-l-4 border-orange-500 rounded-lg p-4 mb-8">
+                <p class="text-gray-700 text-center italic">
+                    "¡No puedes pasar! El bloqueo está bien colocado y no tienes permiso para acceder aquí."
+                </p>
+            </div>
+            
+            <!-- Información útil -->
+            <div class="bg-gray-50 rounded-lg p-6 mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">¿Por qué no puedo entrar?</h3>
+                <ul class="space-y-2 text-gray-600">
+                    <li class="flex items-start">
+                        <span class="text-orange-500 mr-2">•</span>
+                        <span>No tienes los permisos necesarios para acceder a esta página</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-orange-500 mr-2">•</span>
+                        <span>Es posible que necesites iniciar sesión o estar en un grupo específico</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-orange-500 mr-2">•</span>
+                        <span>Si crees que deberías tener acceso, contacta con el administrador</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Botones de acción -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{% url 'content:video_list' %}" 
+                   class="bg-csj-purple hover:bg-csj-purple-dark text-white font-bold py-3 px-8 rounded-lg transition-colors text-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                    🏠 Volver a Inicio
+                </a>
+                {% if not user.is_authenticated %}
+                <a href="{% url 'account_login' %}" 
+                   class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-lg transition-colors text-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                    🔑 Iniciar Sesión
+                </a>
+                {% endif %}
+            </div>
+            
+            <!-- Footer divertido -->
+            <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+                <p class="text-sm text-gray-500">
+                    <span class="font-semibold text-orange-500">Consejo táctico:</span> 
+                    A veces es mejor hacer una finta que intentar pasar por la fuerza 😉
+                </p>
+            </div>
+        </div>
+        
+        <!-- Logo/Branding -->
+        <div class="text-center mt-6">
+            <p class="text-sm text-gray-600">
+                Una producción de <span class="font-bold text-csj-purple">I Love Voley</span>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

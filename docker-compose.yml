@@ -1,8 +1,8 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:18-alpine
     volumes:
-      - /opt/videosvoley/postgres:/var/lib/postgresql/data
+      - /opt/videosvoley/postgres:/var/lib/postgresql
     environment:
       POSTGRES_DB: ${DB_NAME:-volleyvideos}
       POSTGRES_USER: ${DB_USER:-volleyuser}
@@ -12,7 +12,7 @@ services:
       - app-network
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: unless-stopped
     networks:
       - app-network
@@ -31,6 +31,8 @@ services:
       - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
       - REDIS_URL=redis://redis:6379/0
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
+      - SENTRY_RELEASE=${GIT_SHA:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
     depends_on:
       - db
       - redis
@@ -40,7 +42,7 @@ services:
 
   celery:
     build: .
-    command: celery -A config worker -l info
+    command: celery -A config worker -l info --pool=solo
     volumes:
       - .:/app
     environment:
@@ -49,6 +51,12 @@ services:
       - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
       - REDIS_URL=redis://redis:6379/0
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
+      - OMP_NUM_THREADS=1
+      - OPENBLAS_NUM_THREADS=1
+      - TOKENIZERS_PARALLELISM=false
+      - MALLOC_TRIM_THRESHOLD_=100
+      - SENTRY_RELEASE=${GIT_SHA:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
     depends_on:
       - db
       - redis
@@ -68,6 +76,8 @@ services:
       - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
       - REDIS_URL=redis://redis:6379/0
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
+      - SENTRY_RELEASE=${GIT_SHA:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
     depends_on:
       - db
       - redis
@@ -92,18 +102,20 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+      - webproxy
 
   certbot:
-    image: certbot/certbot
+    image: certbot/dns-ovh
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
+      - ./certbot/ovh.ini:/opt/ovh.ini:ro
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     networks:
       - app-network
 
-volumes:
-
 networks:
   app-network:
     driver: bridge
+  webproxy:
+    external: true

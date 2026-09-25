@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Autenticación - I Love Voley{% endblock %}</title>
+    {% load static %}
+    <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
+    <link rel="icon" type="image/png" href="{% static 'images/logo_app.png' %}">
+
+    <meta property="og:image" content="{{ tenant_share_image }}">
+    <meta property="og:title" content="{% if tenant %}{{ tenant.name }}{% else %}I Love Voley{% endif %}">
+    <meta property="og:description" content="Vídeos y resultados de {% if tenant %}{{ tenant.name }}{% else %}tu club{% endif %} en I Love Voley.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <style>
+      :root {
+        --brand: {{ tenant_color }};
+        --brand-dark: {{ tenant_color_dark }};
+      }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'csj-purple': 'var(--brand)',
+                        'csj-yellow': '#F4D47C',
+                        'csj-purple-dark': 'var(--brand-dark)',
+                        'csj-yellow-dark': '#E5C05A',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body.auth-bg {
+            background: linear-gradient(
+                135deg,
+                color-mix(in srgb, var(--brand) 14%, #ffffff) 0%,
+                #fafafa 48%,
+                color-mix(in srgb, var(--brand) 12%, #f3f4f6) 100%
+            );
+        }
+
+        /* Optimización de formularios para móviles */
+        input[type="text"], 
+        input[type="email"], 
+        input[type="password"], 
+        input[type="url"], 
+        textarea, 
+        select {
+            min-height: 44px !important;
+            font-size: 16px !important; /* Previene zoom en iOS */
+            padding: 12px 16px !important;
+            border: 2px solid #e5e7eb !important;
+            border-radius: 8px !important;
+            width: 100% !important;
+            transition: all 0.2s ease !important;
+        }
+        
+        input[type="text"]:focus, 
+        input[type="email"]:focus, 
+        input[type="password"]:focus, 
+        input[type="url"]:focus, 
+        textarea:focus, 
+        select:focus {
+            outline: none !important;
+            border-color: var(--brand) !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 20%, transparent) !important;
+        }
+        
+        /* Mejorar interacciones táctiles */
+        .touch-manipulation {
+            touch-action: manipulation;
+        }
+    </style>
+    
+    <!-- Notyf CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    
+    <!-- Notyf JS -->
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="auth-bg min-h-screen flex flex-col">
+    
+    <!-- Header minimalista -->
+    <div class="absolute top-4 left-4 sm:top-6 sm:left-6 z-10">
+        <div class="flex items-center space-x-2">
+            <span class="text-2xl">🏐</span>
+            <div>
+                <h1 class="text-lg font-bold text-csj-purple">I Love Voley</h1>
+                <p class="text-xs text-gray-500 hidden sm:block">{% if tenant %}{{ tenant.name }}{% else %}I Love Voley{% endif %}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido principal -->
+    <div class="flex-grow flex items-center justify-center p-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer simplificado para páginas de autenticación -->
+    <footer class="py-4 text-center">
+        <div class="text-xs text-gray-600 space-y-1">
+            <p>
+                <a href="{% url 'core:about' %}" class="text-csj-purple hover:text-csj-purple-dark font-medium transition-colors">
+                    Quiénes Somos
+                </a>
+            </p>
+            <p class="text-gray-500">
+                © {% now "Y" %} Desarrollado con 💜 por <a href="https://www.instagram.com/trencaclosques/" target="_blank" rel="noopener" class="font-semibold text-csj-purple hover:text-csj-purple-dark transition-colors">trencaclosques</a>
+            </p>
+            <p class="text-gray-400">
+                Proyecto sin ánimo de lucro · Para la comunidad del voley balear
+            </p>
+        </div>
+    </footer>
+
+    <!-- Toast Notifications Script -->
+    <script>
+        const brandColor = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim() || '#9B7FBF';
+
+        // Inicializar Notyf con colores del tenant
+        const notyf = new Notyf({
+            duration: 4000,
+            position: {
+                x: 'right',
+                y: 'top'
+            },
+            types: [
+                {
+                    type: 'warning',
+                    background: '#F4D47C',
+                    icon: {
+                        className: 'notyf__icon--warning',
+                        tagName: 'span',
+                        text: '⚠',
+                        color: '#FFFFFF'
+                    }
+                },
+                {
+                    type: 'info',
+                    background: brandColor,
+                    icon: {
+                        className: 'notyf__icon--info',
+                        tagName: 'span',
+                        text: 'ℹ',
+                        color: '#FFFFFF'
+                    }
+                }
+            ]
+        });
+
+        // Función para mostrar mensajes de Django como toast
+        function showDjangoMessages() {
+            {% if messages %}
+                {% for message in messages %}
+                    {% if message.tags == 'success' %}
+                        notyf.success('{{ message|escapejs }}');
+                    {% elif message.tags == 'error' %}
+                        notyf.error('{{ message|escapejs }}');
+                    {% elif message.tags == 'warning' %}
+                        notyf.open({
+                            type: 'warning',
+                            message: '{{ message|escapejs }}'
+                        });
+                    {% elif message.tags == 'info' %}
+                        notyf.open({
+                            type: 'info',
+                            message: '{{ message|escapejs }}'
+                        });
+                    {% else %}
+                        notyf.open({
+                            type: 'info',
+                            message: '{{ message|escapejs }}'
+                        });
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        }
+
+        // Ejecutar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            showDjangoMessages();
+        });
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

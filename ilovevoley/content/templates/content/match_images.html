@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Imágenes - {{ match.home_team_display }} vs {{ match.away_team_display }}{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-full overflow-hidden">
+    <div class="bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6 max-w-full">
+    <!-- Cabecera del partido -->
+    <div class="border-b border-gray-200 pb-3 sm:pb-4 lg:pb-6 mb-3 sm:mb-4 lg:mb-6">
+        <div class="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-between sm:items-start">
+            <div class="flex-1 min-w-0 w-full sm:w-auto">
+                <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-2 break-words">
+                    {{ match.home_team_display }} vs {{ match.away_team_display }}
+                </h1>
+                <div class="flex flex-col space-y-1 sm:space-y-0 sm:flex-row sm:items-center text-gray-600 sm:space-x-3 lg:space-x-4">
+                    <div class="flex items-center min-w-0">
+                        <i class="fas fa-calendar-alt mr-1 sm:mr-2 text-xs sm:text-sm flex-shrink-0"></i>
+                        <span class="text-xs sm:text-sm lg:text-base truncate">{{ match.match_date|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    {% if match.venue %}
+                        <div class="flex items-center min-w-0">
+                            <i class="fas fa-map-marker-alt mr-1 sm:mr-2 text-xs sm:text-sm flex-shrink-0"></i>
+                            <span class="text-xs sm:text-sm lg:text-base truncate">{{ match.venue }}</span>
+                        </div>
+                    {% endif %}
+                    <div class="flex items-center min-w-0">
+                        <i class="fas fa-trophy mr-1 sm:mr-2 text-xs sm:text-sm flex-shrink-0"></i>
+                        <span class="text-xs sm:text-sm lg:text-base truncate">{{ match.league.name }}</span>
+                    </div>
+                </div>
+                
+                {% if match.is_finished %}
+                    <div class="mt-2">
+                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
+                            Resultado: {{ match.result_display }}
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="flex flex-col sm:items-end space-y-2 flex-shrink-0">
+                <!-- Menú desplegable de subida -->
+                <div class="relative inline-block">
+                    <button id="upload-menu-btn-{{ match.id }}"
+                            class="inline-flex items-center px-2 py-1 sm:px-2.5 bg-csj-purple text-white rounded-md hover:bg-purple-700 transition-colors duration-200 text-xs">
+                        <i class="fas fa-plus mr-1 text-xs"></i>Subir imagen
+                        <svg class="w-2.5 h-2.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    
+                    <div id="upload-menu-{{ match.id }}"
+                         class="hidden absolute mt-2 w-44 sm:w-48 lg:w-56 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 right-0 max-w-[calc(100vw-1rem)]">
+                        <div class="py-1 min-w-full">
+                            <a href="{% url 'content:image_upload' %}?match={{ match.id }}" 
+                               class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 whitespace-nowrap">
+                                <svg class="w-3 h-3 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                Subir una imagen
+                            </a>
+                            <a href="{% url 'content:image_bulk_upload' %}?match={{ match.id }}" 
+                               class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 whitespace-nowrap">
+                                <svg class="w-3 h-3 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                                </svg>
+                                Subir múltiples imágenes
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-xs text-gray-600">
+                    {{ total_images }} imagen{{ total_images|pluralize:"es" }} total{{ total_images|pluralize:"es" }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navegación -->
+    <div class="mb-4 sm:mb-6">
+        <nav class="text-xs sm:text-sm" aria-label="Breadcrumb">
+            <ol class="flex items-center space-x-1 sm:space-x-2 overflow-x-auto pb-1">
+                <li class="flex-shrink-0">
+                    <a href="{% url 'content:image_gallery' %}" class="text-csj-purple hover:text-purple-700 whitespace-nowrap">
+                        Galería
+                    </a>
+                </li>
+                <li class="flex-shrink-0">
+                    <i class="fas fa-chevron-right text-gray-400 mx-1 sm:mx-2 text-xs"></i>
+                </li>
+                <li class="flex-shrink-0">
+                    <a href="{% url 'competitions:match_detail' match.id %}" class="text-csj-purple hover:text-purple-700 whitespace-nowrap">
+                        Partido
+                    </a>
+                </li>
+                <li class="flex-shrink-0">
+                    <i class="fas fa-chevron-right text-gray-400 mx-1 sm:mx-2 text-xs"></i>
+                </li>
+                <li class="text-gray-500 flex-shrink-0 whitespace-nowrap">Imágenes</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Grid de Imágenes -->
+    {% if page_obj %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 w-full">
+            {% for image in page_obj %}
+                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 w-full">
+                    <div class="aspect-square relative">
+                        <img src="{{ image.image.url }}" 
+                             alt="{{ image.title }}" 
+                             class="w-full h-full object-cover cursor-pointer"
+                             onclick="openLightbox('{{ image.image.url }}', '{{ image.title|escapejs }}', {{ image.id }})"
+                             loading="lazy">
+                    </div>
+                    
+                    <div class="p-2 sm:p-3 lg:p-4">
+                        <h3 class="font-semibold text-gray-900 mb-2 break-words text-xs sm:text-sm lg:text-base">{{ image.title }}</h3>
+                        
+                        {% if image.description %}
+                            <p class="text-xs text-gray-600 mb-2 line-clamp-2 break-words">{{ image.description }}</p>
+                        {% endif %}
+                        
+                        <div class="flex flex-col space-y-1 text-xs text-gray-500">
+                            <span class="truncate"><i class="fas fa-user mr-1"></i>{{ image.uploaded_by.username }}</span>
+                            <span>{{ image.upload_date|date:"d/m/Y" }}</span>
+                        </div>
+                        
+                        <div class="mt-2">
+                            <a href="{% url 'content:image_detail' image.id %}" 
+                               class="text-csj-purple hover:text-purple-700 text-xs sm:text-sm">
+                                Ver detalles <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+            <div class="mt-8 flex justify-center">
+                <nav class="flex items-center space-x-2">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" 
+                           class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Anterior
+                        </a>
+                    {% endif %}
+
+                    <span class="px-3 py-2 text-sm font-medium text-gray-700">
+                        Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                    </span>
+
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" 
+                           class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Siguiente
+                        </a>
+                    {% endif %}
+                </nav>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-8 sm:py-12">
+            <i class="fas fa-images text-gray-400 text-4xl sm:text-6xl mb-4"></i>
+            <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-2">No hay imágenes de este partido</h3>
+            <p class="text-sm sm:text-base text-gray-600 mb-4">Sé el primero en subir imágenes de este partido.</p>
+            <a href="{% url 'content:image_upload' %}?match={{ match.id }}" 
+               class="bg-csj-purple text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm">
+                <i class="fas fa-plus mr-1"></i>Subir primera imagen
+            </a>
+        </div>
+    {% endif %}
+    </div>
+</div>
+
+<!-- Lightbox Modal -->
+{% load static %}
+<script src="{% static 'js/lightbox.js' %}"></script>
+
+<script>
+// Serializar todas las imágenes del partido para navegación
+const allMatchImages = [
+    {% for image in all_images %}
+    {
+        id: {{ image.id }},
+        url: '{{ image.image.url }}',
+        title: '{{ image.title|escapejs }}',
+        description: '{{ image.description|escapejs }}',
+        user: '{{ image.uploaded_by.username|escapejs }}',
+        date: '{{ image.upload_date|date:"d/m/Y" }}',
+        detailUrl: '{% url "content:image_detail" image.id %}'
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+// Inicializar lightbox con navegación habilitada
+const matchLightbox = new ImageLightbox({
+    showNavigation: true
+});
+
+// Sobreescribir función global
+function openLightbox(imageUrl, title, imageId, description = '', user = '', date = '') {
+    const imageData = {
+        id: imageId,
+        url: imageUrl,
+        title: title,
+        description: description,
+        user: user,
+        date: date,
+        detailUrl: `/videos/imagenes/${imageId}/`
+    };
+    matchLightbox.open(imageData, allMatchImages);
+}
+</script>
+
+<script>
+// Menú desplegable de subida de imágenes
+document.addEventListener('DOMContentLoaded', function() {
+    const menuBtn = document.getElementById('upload-menu-btn-{{ match.id }}');
+    const menu = document.getElementById('upload-menu-{{ match.id }}');
+    
+    if (menuBtn && menu) {
+        function positionDropdown() {
+            if (menu.classList.contains('hidden')) return;
+            
+            const viewportWidth = window.innerWidth;
+            
+            // En móvil, alinear al lado derecho del botón para evitar overflow
+            if (viewportWidth < 640) {
+                menu.style.left = 'auto';
+                menu.style.right = '0';
+                menu.style.transform = 'none';
+                menu.style.width = 'auto';
+                menu.style.minWidth = '200px';
+                menu.style.maxWidth = 'calc(100vw - 1rem)';
+            } else {
+                // En desktop, alinear a la derecha
+                menu.style.left = 'auto';
+                menu.style.right = '0';
+                menu.style.transform = 'none';
+                menu.style.width = '11rem'; // w-44
+            }
+        }
+        
+        menuBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            menu.classList.toggle('hidden');
+            
+            // Reposicionar después de mostrar
+            if (!menu.classList.contains('hidden')) {
+                requestAnimationFrame(() => {
+                    positionDropdown();
+                });
+            }
+        });
+        
+        // Reposicionar al redimensionar ventana
+        window.addEventListener('resize', positionDropdown);
+        
+        // Cerrar al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!menu.contains(e.target) && !menuBtn.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ image.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Navegación -->
+    <div class="mb-6">
+        <a href="{% url 'content:image_gallery' %}" class="text-csj-purple hover:text-purple-700">
+            <i class="fas fa-arrow-left mr-2"></i>Volver a la galería
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Imagen principal -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div class="relative">
+                    <img src="{{ image.image.url }}" 
+                         alt="{{ image.title }}" 
+                         class="w-full h-auto">
+                    
+                    <!-- Badge de estado para admins -->
+                    {% if user.is_staff and image.status != 'approved' %}
+                        <div class="absolute top-4 right-4">
+                            <span class="px-3 py-1 text-sm font-semibold rounded-full
+                                {% if image.status == 'pending' %}bg-yellow-100 text-yellow-800
+                                {% elif image.status == 'rejected' %}bg-red-100 text-red-800
+                                {% endif %}">
+                                {% if image.status == 'pending' %}Pendiente de moderación
+                                {% elif image.status == 'rejected' %}Rechazada
+                                {% endif %}
+                            </span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Información lateral -->
+        <div class="space-y-6">
+            <!-- Información básica -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <h1 class="text-2xl font-bold text-gray-900 mb-4">{{ image.title }}</h1>
+                
+                {% if image.description %}
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Descripción</h3>
+                        <p class="text-gray-600">{{ image.description }}</p>
+                    </div>
+                {% endif %}
+
+                <div class="space-y-3">
+                    {% if image.match %}
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-700">Partido</h3>
+                            <div class="flex items-center mt-1">
+                                <i class="fas fa-calendar-alt text-gray-400 mr-2"></i>
+                                <a href="{% url 'competitions:match_detail' image.match.id %}" class="text-csj-purple hover:text-purple-700">
+                                    {{ image.match.home_team_display }} vs {{ image.match.away_team_display }}
+                                </a>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-1">
+                                {{ image.match.match_date|date:"d/m/Y H:i" }}
+                                {% if image.match.venue %} • {{ image.match.venue }}{% endif %}
+                            </p>
+                        </div>
+                    {% endif %}
+
+                    {% if image.category %}
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-700">Categoría</h3>
+                            <div class="flex items-center mt-1">
+                                <i class="fas fa-tag text-gray-400 mr-2"></i>
+                                <span class="text-gray-900">{{ image.category.name }}</span>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700">Temporada</h3>
+                        <div class="flex items-center mt-1">
+                            <i class="fas fa-calendar text-gray-400 mr-2"></i>
+                            <span class="text-gray-900">{{ image.season|default:"—" }}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700">Subida por</h3>
+                        <div class="flex items-center mt-1">
+                            <i class="fas fa-user text-gray-400 mr-2"></i>
+                            <span class="text-gray-900">{{ image.uploaded_by.username }}</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">{{ image.upload_date|date:"d/m/Y H:i" }}</p>
+                    </div>
+
+                    {% if user.is_staff and image.moderated_by %}
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-700">Moderada por</h3>
+                            <div class="flex items-center mt-1">
+                                <i class="fas fa-user-check text-gray-400 mr-2"></i>
+                                <span class="text-gray-900">{{ image.moderated_by.username }}</span>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-1">{{ image.moderation_date|date:"d/m/Y H:i" }}</p>
+                            {% if image.moderation_notes %}
+                                <p class="text-sm text-gray-600 mt-1 italic">{{ image.moderation_notes }}</p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Acciones para admins -->
+                {% if user.is_staff and image.status == 'pending' %}
+                    <div class="border-t pt-4 mt-6">
+                        <h3 class="text-sm font-medium text-gray-700 mb-3">Acciones de moderación</h3>
+                        <div class="flex space-x-2">
+                            <a href="{% url 'content:image_moderate_action' image.id %}" 
+                               class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">
+                                <i class="fas fa-check mr-1"></i>Moderar
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Información técnica para admins -->
+            {% if user.is_staff %}
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Información técnica</h3>
+                    
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">ID:</span>
+                            <span class="text-gray-900">{{ image.id }}</span>
+                        </div>
+                        
+                        {% if image.vision_api_checked %}
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Vision API:</span>
+                                <span class="text-{{ image.vision_api_safe|yesno:'green,red' }}-600">
+                                    {{ image.vision_api_safe|yesno:'Segura,Insegura' }}
+                                </span>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Archivo:</span>
+                            <a href="{{ image.image.url }}" target="_blank" class="text-csj-purple hover:text-purple-700">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Imágenes relacionadas -->
+    {% if related_images %}
+        <div class="mt-12">
+            <h2 class="text-xl font-bold text-gray-900 mb-6">Más imágenes de este partido</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {% for related_image in related_images %}
+                    <a href="{% url 'content:image_detail' related_image.id %}" 
+                       class="block bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
+                        <div class="aspect-square">
+                            <img src="{{ related_image.image.url }}" 
+                                 alt="{{ related_image.title }}" 
+                                 class="w-full h-full object-cover">
+                        </div>
+                        <div class="p-2">
+                            <p class="text-sm font-medium text-gray-900 truncate">{{ related_image.title }}</p>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+            
+            {% if image.match %}
+                <div class="text-center mt-6">
+                    <a href="{% url 'content:match_images' image.match.id %}" 
+                       class="text-csj-purple hover:text-purple-700">
+                        Ver todas las imágenes de este partido <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

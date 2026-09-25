@@ -1,0 +1,742 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Subir Múltiples Imágenes{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <!-- Header -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Subir Múltiples Imágenes</h1>
+                    <p class="text-gray-600 mt-1">
+                        {% if existing_album %}
+                            Agregar imágenes al álbum "{{ existing_album.album_name }}"
+                        {% else %}
+                            Sube varias imágenes a la vez con datos compartidos
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="{% url 'content:image_upload' %}" class="text-csj-purple hover:text-csj-purple-dark">
+                    <i class="fas fa-image mr-2"></i>Subida Individual
+                </a>
+            </div>
+
+            <!-- Banner de álbum existente -->
+            {% if existing_album %}
+            <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <i class="fas fa-info-circle text-blue-600 mr-3"></i>
+                    <div>
+                        <p class="text-sm font-medium text-blue-900">
+                            Agregando imágenes a álbum existente
+                        </p>
+                        <p class="text-xs text-blue-700 mt-1">
+                            {{ existing_album.album_name }} • {{ existing_album.image_count }} imagen(es) actual(es)
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <form method="post" enctype="multipart/form-data" id="bulk-upload-form">
+            {% csrf_token %}
+            
+            <!-- Zona de Drag & Drop para Múltiples Archivos -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Imágenes <span class="text-red-500">*</span>
+                </label>
+                
+                <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-csj-purple transition-colors duration-200 cursor-pointer">
+                    <div id="drop-zone-content">
+                        <i class="fas fa-cloud-upload-alt text-gray-400 text-4xl mb-4"></i>
+                        <p class="text-gray-600 mb-2">Arrastra tus imágenes aquí o haz clic para seleccionar</p>
+                        <p class="text-sm text-gray-500">Formatos: JPG, PNG, WebP, HEIC • Máximo 10MB por imagen</p>
+                        <p class="text-sm text-gray-500 mt-1">Puedes seleccionar hasta 20 imágenes a la vez</p>
+                    </div>
+                </div>
+                
+                <input type="file" 
+                       name="images" 
+                       id="images-input" 
+                       multiple 
+                       accept="image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif"
+                       class="hidden">
+                
+                <!-- Preview de imágenes seleccionadas -->
+                <div id="images-preview" class="mt-4 hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-medium text-gray-700">
+                            <span id="images-count">0</span> imagen(es) seleccionada(s)
+                        </h3>
+                        <button type="button" onclick="clearAllImages()" class="text-red-500 hover:text-red-700 text-sm">
+                            <i class="fas fa-times mr-1"></i>Limpiar todo
+                        </button>
+                    </div>
+                    <div id="images-grid" class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+                        <!-- Las previews se insertarán aquí dinámicamente -->
+                    </div>
+                    <div id="processing-indicator" class="hidden mt-2 text-center text-sm text-gray-500">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>Procesando imágenes...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Datos Compartidos -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h3 class="text-sm font-semibold text-blue-900 mb-3">
+                    <i class="fas fa-share-alt mr-2"></i>Datos Compartidos (aplicados a todas las imágenes)
+                </h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Tipo de Imagen -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Tipo de Imagen <span class="text-red-500">*</span>
+                        </label>
+                        <select name="image_type" id="id_image_type" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                            {% for value, label in image_types %}
+                                <option value="{{ value }}" {% if value == 'match' %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Temporada -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Temporada
+                        </label>
+                        <select name="season"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                            <option value="">Inferir de la fecha de subida</option>
+                            {% for season in seasons %}
+                                <option value="{{ season.id }}" {% if current_season and season.id == current_season.id %}selected{% endif %}>{{ season.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Partido (opcional) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Partido (opcional)
+                        </label>
+                        <select name="match" id="id_match"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                            <option value="">Seleccionar partido (opcional)</option>
+                            {% for match in recent_matches %}
+                                <option value="{{ match.id }}" {% if selected_match and selected_match.id == match.id %}selected{% endif %}>
+                                    {{ match.home_team_display }} vs {{ match.away_team_display }} - {{ match.match_date|date:"d/m/Y" }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Las categorías se asignarán automáticamente desde el partido</p>
+                    </div>
+
+                    <!-- Campo oculto para álbum existente -->
+                    {% if existing_album %}
+                    <input type="hidden" name="existing_album_id" value="{{ existing_album.album_group_id }}">
+                    {% endif %}
+
+                    <!-- Agrupar en álbum (solo si no hay partido Y no hay álbum existente) -->
+                    <div id="album-group-container" class="{% if selected_match or existing_album %}hidden{% endif %}">
+                        <label class="flex items-center space-x-2 cursor-pointer mb-2">
+                            <input type="checkbox" 
+                                   name="create_album" 
+                                   id="id_create_album"
+                                   class="w-4 h-4 text-csj-purple border-gray-300 rounded focus:ring-csj-purple">
+                            <span class="text-sm font-medium text-gray-700">
+                                Agrupar todas las imágenes en un álbum
+                            </span>
+                        </label>
+                        <div id="album-name-container" class="ml-6 hidden">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">
+                                Nombre del álbum <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" 
+                                   name="album_name" 
+                                   id="id_album_name"
+                                   placeholder="Ej: Entrenamiento Senior, Celebración Final..."
+                                   maxlength="200"
+                                   class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                            <p class="text-xs text-gray-500 mt-1">
+                                El nombre aparecerá en la galería de álbumes
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Etiquetas compartidas -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Etiquetas (opcional)
+                        </label>
+                        <input type="text" 
+                               name="tags" 
+                               placeholder="victoria, gol, celebración (separadas por comas)"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    </div>
+                </div>
+                
+                <!-- Categorías (opcional) -->
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Categorías (opcional)
+                    </label>
+                    <p class="text-xs text-gray-500 mb-3">
+                        Si seleccionas un partido, las categorías se asignarán automáticamente. 
+                        Si no, puedes seleccionar manualmente las categorías aquí.
+                    </p>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {% for category in categories %}
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" 
+                                       name="categories" 
+                                       value="{{ category.id }}"
+                                       class="w-4 h-4 text-csj-purple border-gray-300 rounded focus:ring-csj-purple">
+                                <span class="text-sm text-gray-700">{{ category.name }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Datos Individuales (se mostrarán después de seleccionar imágenes) -->
+            <div id="individual-data" class="hidden">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                    <h3 class="text-sm font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-edit mr-2"></i>Datos Individuales (opcional)
+                    </h3>
+                    <p class="text-xs text-gray-600 mb-4">
+                        Puedes personalizar el título y descripción de cada imagen. Si no lo haces, se usará el nombre del archivo.
+                    </p>
+                    
+                    <div id="individual-fields" class="space-y-4">
+                        <!-- Los campos individuales se insertarán aquí dinámicamente -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex items-center justify-between pt-4 border-t">
+                <a href="{% url 'content:image_gallery' %}" class="text-gray-600 hover:text-gray-800">
+                    <i class="fas fa-arrow-left mr-2"></i>Volver a la galería
+                </a>
+                
+                <button type="submit" 
+                        id="submit-btn"
+                        disabled
+                        class="px-6 py-2 bg-csj-purple text-white rounded-lg hover:bg-csj-purple-dark transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed">
+                    <i class="fas fa-upload mr-2"></i>Subir Imágenes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let selectedFiles = [];
+let previewCache = new Map(); // Cache para previews optimizados
+let isProcessing = false;
+
+// Elementos del DOM
+const dropZone = document.getElementById('drop-zone');
+const imagesInput = document.getElementById('images-input');
+const imagesPreview = document.getElementById('images-preview');
+const imagesGrid = document.getElementById('images-grid');
+const imagesCount = document.getElementById('images-count');
+const individualData = document.getElementById('individual-data');
+const individualFields = document.getElementById('individual-fields');
+const submitBtn = document.getElementById('submit-btn');
+
+// Detectar si es móvil
+const isMobile = window.innerWidth <= 768;
+
+// Drag & Drop
+dropZone.addEventListener('click', () => imagesInput.click());
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('border-csj-purple', 'bg-purple-50');
+});
+
+dropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-csj-purple', 'bg-purple-50');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-csj-purple', 'bg-purple-50');
+    
+    const files = Array.from(e.dataTransfer.files);
+    handleFiles(files);
+});
+
+imagesInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    handleFiles(files);
+});
+
+function handleFiles(files) {
+    if (isProcessing) return;
+    
+    isProcessing = true;
+    selectedFiles = [];
+    
+    // Mostrar indicador de procesamiento
+    const processingIndicator = document.getElementById('processing-indicator');
+    if (processingIndicator) {
+        processingIndicator.classList.remove('hidden');
+    }
+    
+    // Validar archivos de forma más eficiente
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
+    
+    const validFiles = [];
+    const errors = [];
+    
+    Array.from(files).forEach((file) => {
+        const fileName = file.name.toLowerCase();
+        const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+        const hasValidType = validTypes.includes(file.type);
+        
+        if (!hasValidType && !hasValidExtension) {
+            errors.push(`${file.name} no es una imagen válida`);
+            return;
+        }
+        
+        if (file.size > 10 * 1024 * 1024) {
+            errors.push(`${file.name} es demasiado grande (máx 10MB)`);
+            return;
+        }
+        
+        validFiles.push(file);
+    });
+    
+    // Mostrar errores si los hay
+    if (errors.length > 0) {
+        alert(errors.slice(0, 3).join('\n') + (errors.length > 3 ? `\n... y ${errors.length - 3} más` : ''));
+    }
+    
+    // Limitar a 20 imágenes
+    if (validFiles.length > 20) {
+        alert('Máximo 20 imágenes permitidas. Se seleccionarán las primeras 20.');
+        selectedFiles = validFiles.slice(0, 20);
+    } else {
+        selectedFiles = validFiles;
+    }
+    
+    if (selectedFiles.length > 0) {
+        // Procesar de forma asíncrona para no bloquear la UI
+        requestAnimationFrame(async () => {
+            await displayPreviewsOptimized();
+            createIndividualFieldsOptimized();
+            submitBtn.disabled = false;
+            isProcessing = false;
+            
+            // Ocultar indicador de procesamiento
+            if (processingIndicator) {
+                processingIndicator.classList.add('hidden');
+            }
+        });
+    } else {
+        clearAllImages();
+        isProcessing = false;
+        
+        // Ocultar indicador de procesamiento
+        if (processingIndicator) {
+            processingIndicator.classList.add('hidden');
+        }
+    }
+}
+
+function createOptimizedPreview(file, maxSize = isMobile ? 200 : 300) {
+    return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = () => {
+            // Calcular dimensiones manteniendo aspect ratio
+            let { width, height } = img;
+            if (width > height) {
+                if (width > maxSize) {
+                    height = (height * maxSize) / width;
+                    width = maxSize;
+                }
+            } else {
+                if (height > maxSize) {
+                    width = (width * maxSize) / height;
+                    height = maxSize;
+                }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Dibujar imagen redimensionada
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Convertir a data URL con calidad optimizada
+            const dataUrl = canvas.toDataURL('image/jpeg', isMobile ? 0.7 : 0.8);
+            resolve(dataUrl);
+        };
+        
+        img.src = URL.createObjectURL(file);
+    });
+}
+
+async function displayPreviewsOptimized() {
+    imagesGrid.innerHTML = '';
+    imagesCount.textContent = selectedFiles.length;
+    imagesPreview.classList.remove('hidden');
+    document.getElementById('drop-zone-content').classList.add('hidden');
+    
+    // Mostrar solo las primeras 6 previews en móvil para mejor rendimiento
+    const maxPreviews = isMobile ? 6 : selectedFiles.length;
+    const filesToShow = selectedFiles.slice(0, maxPreviews);
+    
+    // Crear placeholders para las imágenes restantes
+    if (selectedFiles.length > maxPreviews) {
+        const remainingDiv = document.createElement('div');
+        remainingDiv.className = 'relative group flex items-center justify-center bg-gray-100 rounded-lg';
+        remainingDiv.innerHTML = `
+            <div class="text-center">
+                <i class="fas fa-images text-gray-400 text-2xl mb-2"></i>
+                <p class="text-xs text-gray-600">+${selectedFiles.length - maxPreviews} más</p>
+            </div>
+        `;
+        imagesGrid.appendChild(remainingDiv);
+    }
+    
+    // Procesar previews de forma asíncrona con delay para no bloquear la UI
+    for (let i = 0; i < filesToShow.length; i++) {
+        const file = filesToShow[i];
+        const index = i;
+        
+        // Crear placeholder inmediatamente
+        const previewDiv = document.createElement('div');
+        previewDiv.className = 'relative group';
+        previewDiv.innerHTML = `
+            <div class="aspect-square rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                <i class="fas fa-spinner fa-spin text-gray-400"></i>
+            </div>
+            <p class="text-xs text-gray-600 mt-1 truncate" title="${file.name}">${file.name}</p>
+        `;
+        imagesGrid.appendChild(previewDiv);
+        
+        // Procesar imagen en background con delay para no bloquear
+        setTimeout(async () => {
+            try {
+                const dataUrl = await createOptimizedPreview(file);
+                
+                // Actualizar preview cuando esté listo
+                previewDiv.innerHTML = `
+                    <div class="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                        <img src="${dataUrl}" 
+                             alt="${file.name}" 
+                             class="w-full h-full object-cover"
+                             loading="lazy">
+                    </div>
+                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all rounded-lg flex items-center justify-center">
+                        <button type="button" 
+                                onclick="removeImage(${index})"
+                                class="opacity-0 group-hover:opacity-100 bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600 transition-all">
+                            <i class="fas fa-trash mr-1"></i>Eliminar
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-600 mt-1 truncate" title="${file.name}">${file.name}</p>
+                `;
+            } catch (error) {
+                console.error('Error procesando preview:', error);
+                previewDiv.innerHTML = `
+                    <div class="aspect-square rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-red-400"></i>
+                    </div>
+                    <p class="text-xs text-red-600 mt-1 truncate" title="${file.name}">Error</p>
+                `;
+            }
+        }, i * 50); // Delay de 50ms entre cada imagen para no bloquear la UI
+    }
+}
+
+function createIndividualFieldsOptimized() {
+    individualFields.innerHTML = '';
+    individualData.classList.remove('hidden');
+    
+    // En móvil, mostrar solo los primeros 3 campos individuales para mejor rendimiento
+    const maxFields = isMobile ? 3 : selectedFiles.length;
+    const filesToShow = selectedFiles.slice(0, maxFields);
+    
+    filesToShow.forEach((file, index) => {
+        const fieldDiv = document.createElement('div');
+        fieldDiv.className = 'border border-gray-200 rounded-lg p-3';
+        
+        const defaultTitle = file.name.replace(/\.[^/.]+$/, '');
+        
+        fieldDiv.innerHTML = `
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 w-12 h-12 bg-gray-100 rounded overflow-hidden">
+                    <img src="${URL.createObjectURL(file)}" 
+                         alt="${file.name}" 
+                         class="w-full h-full object-cover"
+                         loading="lazy">
+                </div>
+                <div class="flex-1 grid grid-cols-1 gap-2">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">
+                            Título
+                        </label>
+                        <input type="text" 
+                               name="title_${index}" 
+                               value="${defaultTitle}"
+                               placeholder="Título de la imagen"
+                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-csj-purple focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">
+                            Descripción (opcional)
+                        </label>
+                        <input type="text" 
+                               name="description_${index}" 
+                               placeholder="Descripción breve"
+                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-csj-purple focus:border-transparent">
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        individualFields.appendChild(fieldDiv);
+    });
+    
+    // Si hay más archivos, mostrar mensaje
+    if (selectedFiles.length > maxFields) {
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'text-center text-sm text-gray-500 py-2';
+        infoDiv.innerHTML = `
+            <i class="fas fa-info-circle mr-1"></i>
+            Los títulos y descripciones de las ${selectedFiles.length - maxFields} imágenes restantes se generarán automáticamente.
+        `;
+        individualFields.appendChild(infoDiv);
+    }
+}
+
+function removeImage(index) {
+    if (isProcessing) return;
+    
+    selectedFiles.splice(index, 1);
+    
+    if (selectedFiles.length > 0) {
+        requestAnimationFrame(() => {
+            displayPreviewsOptimized();
+            createIndividualFieldsOptimized();
+        });
+    } else {
+        clearAllImages();
+    }
+}
+
+function clearAllImages() {
+    selectedFiles = [];
+    previewCache.clear();
+    imagesInput.value = '';
+    imagesPreview.classList.add('hidden');
+    individualData.classList.add('hidden');
+    document.getElementById('drop-zone-content').classList.remove('hidden');
+    imagesGrid.innerHTML = '';
+    individualFields.innerHTML = '';
+    submitBtn.disabled = true;
+}
+
+// Lógica de categorías: deshabilitar si hay partido seleccionado
+const matchSelect = document.getElementById('id_match');
+const categoryCheckboxes = document.querySelectorAll('input[name="categories"]');
+const albumGroupContainer = document.getElementById('album-group-container');
+const createAlbumCheckbox = document.getElementById('id_create_album');
+const hasExistingAlbum = {{ existing_album|yesno:"true,false" }};
+
+function updateCategoriesState() {
+    const hasMatch = matchSelect.value !== '';
+    const albumNameContainer = document.getElementById('album-name-container');
+    const albumNameInput = document.getElementById('id_album_name');
+
+    // Mostrar/ocultar opción de crear álbum (solo si no hay partido Y no hay álbum existente)
+    if (albumGroupContainer) {
+        if (hasMatch || hasExistingAlbum) {
+            albumGroupContainer.classList.add('hidden');
+            if (createAlbumCheckbox) createAlbumCheckbox.checked = false;
+            if (albumNameContainer) albumNameContainer.classList.add('hidden');
+            if (albumNameInput) albumNameInput.value = '';
+        } else {
+            albumGroupContainer.classList.remove('hidden');
+        }
+    }
+    
+    categoryCheckboxes.forEach(checkbox => {
+        if (hasMatch) {
+            checkbox.disabled = true;
+            checkbox.checked = false;
+            checkbox.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.remove('cursor-pointer');
+        } else {
+            checkbox.disabled = false;
+            checkbox.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.add('cursor-pointer');
+        }
+    });
+}
+
+// Mostrar/ocultar campo de nombre según checkbox
+if (createAlbumCheckbox) {
+    createAlbumCheckbox.addEventListener('change', function() {
+        const albumNameContainer = document.getElementById('album-name-container');
+        const albumNameInput = document.getElementById('id_album_name');
+        
+        if (this.checked) {
+            if (albumNameContainer) albumNameContainer.classList.remove('hidden');
+            if (albumNameInput) albumNameInput.required = true;
+        } else {
+            if (albumNameContainer) albumNameContainer.classList.add('hidden');
+            if (albumNameInput) {
+                albumNameInput.required = false;
+                albumNameInput.value = '';
+            }
+        }
+    });
+}
+
+// Actualizar estado al cambiar partido
+matchSelect.addEventListener('change', updateCategoriesState);
+
+// Estado inicial
+updateCategoriesState();
+
+// Prevenir envío del formulario si no hay imágenes
+document.getElementById('bulk-upload-form').addEventListener('submit', (e) => {
+    if (selectedFiles.length === 0) {
+        e.preventDefault();
+        alert('Por favor, selecciona al menos una imagen.');
+        return false;
+    }
+    
+    // Validar que si se marca crear álbum, tenga nombre
+    if (createAlbumCheckbox && createAlbumCheckbox.checked) {
+        const albumNameInput = document.getElementById('id_album_name');
+        if (!albumNameInput || !albumNameInput.value.trim()) {
+            e.preventDefault();
+            alert('Por favor, ingresa un nombre para el álbum.');
+            albumNameInput.focus();
+            return false;
+        }
+    }
+    
+    // Crear un DataTransfer para asignar los archivos al input
+    const dataTransfer = new DataTransfer();
+    selectedFiles.forEach(file => dataTransfer.items.add(file));
+    imagesInput.files = dataTransfer.files;
+    
+    // Mostrar indicador de carga
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Subiendo...';
+});
+
+// Limpiar URLs de objetos cuando se cierre la página
+window.addEventListener('beforeunload', () => {
+    previewCache.clear();
+});
+</script>
+
+<style>
+.aspect-square {
+    aspect-ratio: 1 / 1;
+}
+
+/* Optimizaciones para móvil */
+@media (max-width: 768px) {
+    .grid-cols-2 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    
+    .grid-cols-3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    /* Reducir padding en móvil */
+    .p-6 {
+        padding: 1rem;
+    }
+    
+    .p-8 {
+        padding: 1.5rem;
+    }
+    
+    /* Optimizar transiciones */
+    .transition-all {
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    
+    /* Mejorar rendimiento de hover en móvil */
+    .group:hover .group-hover\:opacity-100 {
+        opacity: 1;
+    }
+    
+    /* Reducir tamaño de texto en móvil */
+    .text-2xl {
+        font-size: 1.5rem;
+    }
+    
+    .text-4xl {
+        font-size: 2rem;
+    }
+}
+
+/* Optimizaciones de rendimiento */
+img {
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+/* Mejorar rendimiento de scroll */
+.overflow-hidden {
+    contain: layout style paint;
+}
+
+/* Optimizar animaciones */
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Reducir repaints */
+.relative {
+    contain: layout;
+}
+
+/* Optimizar grid en móvil */
+@media (max-width: 640px) {
+    .grid {
+        display: grid;
+        gap: 0.5rem;
+    }
+    
+    .grid-cols-2 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+{% endblock %}

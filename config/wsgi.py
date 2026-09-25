@@ -1,5 +1,5 @@
 """
-WSGI config for videosvoley project.
+WSGI config for ilovevoley project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
