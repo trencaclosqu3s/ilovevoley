@@ -56,11 +56,14 @@ class Person(models.Model):
     )
     
     # Pertenencia a la organización (tenant). Determina la visibilidad y
-    # edición de la ficha: cada persona pertenece a un único club.
+    # edición de la ficha. Queda nula en fichas heredadas que no se pudieron
+    # resolver de forma inequívoca (quedan ocultas en todos los tenants).
     organization = models.ForeignKey(
         'core.Organization',
         on_delete=models.PROTECT,
         related_name='people',
+        null=True,
+        blank=True,
         verbose_name='Organización',
         help_text='Club/organización al que pertenece la ficha'
     )
