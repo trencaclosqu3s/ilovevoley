@@ -91,6 +91,12 @@ class ProtectedMediaTests(TestCase):
         response = self.client.get('/media/secret.txt', HTTP_HOST=HOST)
         self.assertEqual(response.status_code, 404)
 
+    def test_superuser_without_tenant_can_access(self):
+        su = get_user_model().objects.create_superuser(username='root', password='pass')
+        self.client.force_login(su)
+        response = self.client.get('/media/images/2025/06/pending.jpg', HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 200)
+
     def test_path_traversal_is_denied(self):
         self.client.force_login(self.member)
         response = self.client.get('/media/images/../secret.txt', HTTP_HOST=HOST)

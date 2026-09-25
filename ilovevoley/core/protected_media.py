@@ -32,7 +32,7 @@ def _normalize(path):
     if not path or path.startswith('/') or '\\' in path:
         raise Http404
     normalized = os.path.normpath(path).replace(os.sep, '/')
-    if normalized.startswith('..') or normalized.startswith('/'):
+    if normalized.startswith('..'):
         raise Http404
     return normalized
 
@@ -111,7 +111,7 @@ def _serve(path):
 
 @tenant_access_required(api=True)
 def _serve_protected(request, path):
-    _authorize(path, request.user, request.tenant)
+    _authorize(path, request.user, getattr(request, 'tenant', None))
     return _serve(path)
 
 
