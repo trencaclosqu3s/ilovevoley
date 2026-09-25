@@ -46,9 +46,9 @@ def decode_cropped_image(data_uri, *, max_size=MAX_IMAGE_UPLOAD_SIZE, filename=N
         raise InvalidImageError('La imagen no se pudo decodificar.') from None
 
     if len(raw) > max_size:
-        max_mb = max_size // (1024 * 1024)
+        max_mb = round(max_size / (1024 * 1024), 1)
         raise InvalidImageError(
-            f'El archivo es demasiado grande. Tamaño máximo: {max_mb}MB.'
+            f'El archivo es demasiado grande. Tamaño máximo: {max_mb:g}MB.'
         )
 
     try:
