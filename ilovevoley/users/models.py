@@ -45,6 +45,12 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+    def save(self, *args, **kwargs):
+        # Sanear avatar automáticamente a nivel de modelo ante cualquier nueva subida
+        from ilovevoley.videos.utils import sanitize_model_image_field
+        sanitize_model_image_field(self, 'avatar', max_size=1024)
+        super().save(*args, **kwargs)
     
     def get_or_create_calendar_token(self):
         """Genera un token de calendario si no existe y lo retorna"""
@@ -54,20 +60,27 @@ class User(AbstractUser):
         return self.calendar_token
     
     
-    def can_edit_person(self, person):
-        """Verifica si el usuario puede editar una ficha específica"""
+    def can_edit_person(self, person, tenant=None):
+        """Verifica si el usuario puede editar una ficha específica.
+
+        El permiso de staff es por tenant: ``is_staff`` global sin membresía en
+        la organización de la ficha no concede edición.
+        """
+        from ilovevoley.core.tenant_utils import user_is_tenant_staff
+
         # El propio usuario puede editar su ficha si está vinculada
         if person.user == self:
             return True
-        
+
         # Los padres pueden editar las fichas de sus hijos
         if person in self.children.all():
             return True
-            
-        # Los administradores pueden editar cualquier ficha
-        if self.is_staff:
+
+        # El staff solo puede editar fichas de su organización
+        tenant = tenant or person.organization
+        if user_is_tenant_staff(self, tenant):
             return True
-            
+
         return False
 
 

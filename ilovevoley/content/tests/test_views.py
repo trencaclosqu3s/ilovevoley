@@ -316,3 +316,59 @@ class ImageModerationTenantIsolationTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
 
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class ImageUploadSanitizationViewTests(TestCase):
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
+        User = get_user_model()
+        self.user = User.objects.create_user(username='uploader', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+        self.season = Season.objects.create(
+            name='2026-27', start_year=2026, end_year=2027, is_current=True
+        )
+
+    def test_image_upload_view_sanitizes_exif_gps_and_assigns_uuid(self):
+        import uuid
+        from io import BytesIO
+        from PIL import Image as PILImage
+        from PIL.ExifTags import Base, GPS
+
+        img = PILImage.new('RGB', (100, 100), color='red')
+        exif = img.getexif()
+        gps_ifd = exif.get_ifd(Base.GPSInfo)
+        gps_ifd[GPS.GPSLatitude] = (40.4168, 0, 0)
+        gps_ifd[GPS.GPSLongitude] = (3.7038, 0, 0)
+        buf = BytesIO()
+        img.save(buf, format='JPEG', exif=exif)
+        buf.seek(0)
+
+        uploaded = SimpleUploadedFile('foto_movil.jpg', buf.read(), content_type='image/jpeg')
+
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('content:image_upload'),
+            {
+                'image': uploaded,
+                'title': 'Foto con GPS subida',
+                'image_type': 'training',
+                'season': self.season.id,
+            },
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+
+        created = Image.objects.get(title='Foto con GPS subida')
+        # Check that filename in storage uses UUID
+        filename = created.image.name.split('/')[-1]
+        base_name = filename.split('.')[0]
+        self.assertEqual(uuid.UUID(base_name).hex, base_name)
+
+        # Check that EXIF/GPS info is stripped
+        created.image.open()
+        saved_img = PILImage.open(created.image)
+        self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
+
+
+
