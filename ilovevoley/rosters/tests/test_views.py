@@ -1,7 +1,13 @@
+import base64
+import shutil
+import tempfile
+from io import BytesIO
+
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.rosters import forms as rosters_forms
@@ -90,3 +96,67 @@ class RosterViewUrlTests(TestCase):
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Laura')
+
+
+def _png_data_uri():
+    buffer = BytesIO()
+    Image.new('RGB', (8, 8), (10, 120, 200)).save(buffer, format='PNG')
+    encoded = base64.b64encode(buffer.getvalue()).decode()
+    return f'data:image/png;base64,{encoded}'
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class PersonPhotoUploadSecurityTests(TestCase):
+    """La foto recortada debe ser una imagen real y guardarse siempre como .jpg."""
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+
+        self.media_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media_root, ignore_errors=True)
+        self.media_override = override_settings(MEDIA_ROOT=self.media_root)
+        self.media_override.enable()
+        self.addCleanup(self.media_override.disable)
+
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='testclub',
+            name='Test Club',
+            club_team_names={'1': 'Test Club'},
+            is_active=True,
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(
+            user=self.user, organization=self.org, is_approved=True
+        )
+        self.client.force_login(self.user)
+
+    def _post(self, photo_payload):
+        return self.client.post(
+            reverse('rosters:person_create'),
+            {
+                'first_name': 'Ana',
+                'last_name': 'Pérez',
+                'cropped_photo_data': photo_payload,
+            },
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+    def test_html_injected_as_photo_is_not_stored(self):
+        payload = base64.b64encode(b'<script>alert(document.domain)</script>').decode()
+
+        response = self._post(f'data:image/html;base64,{payload}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Person.objects.filter(first_name='Ana').exists())
+
+    def test_valid_photo_is_stored_as_jpg(self):
+        response = self._post(_png_data_uri())
+
+        self.assertEqual(response.status_code, 302)
+        person = Person.objects.get(first_name='Ana')
+        self.assertTrue(person.photo.name.startswith('people/'))
+        self.assertTrue(person.photo.name.endswith('.jpg'))
+        with Image.open(person.photo.path) as image:
+            self.assertEqual(image.format, 'JPEG')

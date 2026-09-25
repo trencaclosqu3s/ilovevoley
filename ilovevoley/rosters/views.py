@@ -1,15 +1,13 @@
-import base64
 import logging
-import uuid
 
 from django.contrib import messages
-from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
 from ilovevoley.core.mixins import get_club_team_name_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
@@ -188,25 +186,12 @@ def person_create(request):
             
             # Procesar imagen recortada si está presente
             cropped_photo_data = request.POST.get('cropped_photo_data')
-            if cropped_photo_data and cropped_photo_data.startswith('data:image'):
+            if cropped_photo_data:
                 try:
-                    # Extraer datos base64
-                    format_str, imgstr = cropped_photo_data.split(';base64,')
-                    ext = format_str.split('/')[-1]
-                    
-                    # Decodificar imagen
-                    data = base64.b64decode(imgstr)
-                    
-                    # Crear archivo temporal
-                    filename = f"person_{uuid.uuid4().hex[:8]}.{ext}"
-                    photo_file = ContentFile(data, name=filename)
-                    
-                    # Asignar la foto recortada
-                    person.photo = photo_file
-                    
-                except Exception as e:
-                    logger.error(f'Error al procesar la imagen recortada: {str(e)}')
-                    messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
+                    person.photo = decode_cropped_image(cropped_photo_data)
+                except InvalidImageError as e:
+                    logger.warning(f'Imagen recortada rechazada: {e}')
+                    messages.error(request, str(e))
                     return render(request, 'rosters/person_form.html', {
                         'form': form,
                         'title': 'Agregar Nueva Persona',
@@ -250,25 +235,12 @@ def person_edit(request, person_id):
         if form.is_valid():
             # Procesar imagen recortada si está presente
             cropped_photo_data = request.POST.get('cropped_photo_data')
-            if cropped_photo_data and cropped_photo_data.startswith('data:image'):
+            if cropped_photo_data:
                 try:
-                    # Extraer datos base64
-                    format_str, imgstr = cropped_photo_data.split(';base64,')
-                    ext = format_str.split('/')[-1]
-                    
-                    # Decodificar imagen
-                    data = base64.b64decode(imgstr)
-                    
-                    # Crear archivo
-                    filename = f"person_{person.id}_{uuid.uuid4().hex[:8]}.{ext}"
-                    photo_file = ContentFile(data, name=filename)
-                    
-                    # Asignar la imagen recortada al person
-                    person.photo = photo_file
-                    
-                except Exception as e:
-                    logger.error(f'Error al procesar la imagen recortada: {str(e)}')
-                    messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
+                    person.photo = decode_cropped_image(cropped_photo_data)
+                except InvalidImageError as e:
+                    logger.warning(f'Imagen recortada rechazada: {e}')
+                    messages.error(request, str(e))
                     return render(request, 'rosters/person_form.html', {
                         'form': form,
                         'person': person,
