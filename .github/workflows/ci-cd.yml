@@ -63,6 +63,10 @@ jobs:
     name: Despliegue en Producción
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - name: Desplegar en servidor vía SSH
