@@ -148,7 +148,7 @@ withdrawn_matches = Match.all_objects.filter(
 
 ### Verificación
 ```python
-from ilovevoley.videos.models import Match
+from ilovevoley.competitions.models import Match
 
 # objects (excluye withdrawn)
 normal_count = Match.objects.count()

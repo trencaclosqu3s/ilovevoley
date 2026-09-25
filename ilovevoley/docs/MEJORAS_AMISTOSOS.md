@@ -249,7 +249,8 @@ Cuando vinculas una imagen a un partido amistoso:
 ### Verificación desde Django Shell:
 
 ```python
-from ilovevoley.videos.models import Match, Video, Image
+from ilovevoley.competitions.models import Match
+from ilovevoley.content.models import Video, Image
 
 # Ver partido amistoso
 friendly = Match.objects.filter(is_friendly=True).first()

@@ -72,15 +72,16 @@ docker-compose exec web python manage.py setup_league \
 
 ### 2. Desde Django Admin
 
-1. Ir a `/admin/videos/league/add/`
+1. Ir a `/admin/competitions/league/add/`
 2. Completar los campos:
    - **Nombre**: Nombre descriptivo de la liga
    - **Federation ID**: ID usado en las URLs de la federación
-   - **Temporada**: Ej: "2024-25"
+   - **Temporada**: Seleccionar o crear la `Season` correspondiente (ej: "2024-25")
    - **Tipo de competición**: regular, playoff, cup, friendly
    - **URL base**: URL base del sitio (por defecto: https://www.voleibolib.net)
 
-3. Crear endpoints en `/admin/videos/scrapingendpoint/add/`:
+> [!NOTE]
+> Al guardar la liga en el admin, **los 3 endpoints básicos se crean automáticamente**. Si necesitas personalizarlos, puedes gestionarlos en `/admin/competitions/scrapingendpoint/`.
 
    **Para Clasificaciones:**
    - Liga: (seleccionar la liga creada)
@@ -137,8 +138,8 @@ El sistema incluye validación inteligente de resultados según el formato de la
 
 ```python
 # Ejecutar en Django shell para limpiar resultados inválidos existentes
-from ilovevoley.videos.models import Match
-from ilovevoley.videos.scraping import validate_volleyball_score
+from ilovevoley.competitions.models import Match
+from ilovevoley.videos.scraping.parsers import validate_volleyball_score
 from django.db import transaction
 
 # Buscar partidos con resultados inválidos
@@ -423,8 +424,8 @@ curl "https://www.voleibolib.net/JSON/get_clubes.asp"
 curl "https://www.voleibolib.net/JSON/get_datos_club.asp?id=1"
 
 # Verificar matching desde Django shell
-docker-compose exec web python manage.py shell
->>> from ilovevoley.videos.models import Team, Club
+docker compose -f docker-compose.dev.yml run --rm web python manage.py shell
+>>> from ilovevoley.teams.models import Team, Club
 >>> # Ver equipos sin club
 >>> Team.objects.filter(club__isnull=True)
 >>> # Ver clubes disponibles
@@ -446,15 +447,16 @@ docker-compose exec web python manage.py shell
 ```bash
 # Eliminar liga y todos sus datos relacionados
 # (Cuidado: esto borra todo)
-docker-compose exec web python manage.py shell
->>> from ilovevoley.videos.models import League, Club
+docker compose -f docker-compose.dev.yml run --rm web python manage.py shell
+>>> from ilovevoley.competitions.models import League
+>>> from ilovevoley.teams.models import Club
 >>> League.objects.get(federation_id='7998').delete()
 
 # Eliminar todos los clubes (mantiene equipos)
 >>> Club.objects.all().delete()
 
 # Resetear asociaciones Club-Team
->>> from ilovevoley.videos.models import Team
+>>> from ilovevoley.teams.models import Team
 >>> Team.objects.update(club=None, sponsor_name='')
 ```
 

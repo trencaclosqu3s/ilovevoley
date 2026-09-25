@@ -200,8 +200,8 @@ export AUTO_MODERATION_ENABLED=true  # Para auto-aprobación
 3. **Verificación Manual con Vision API**:
    ```python
    # En Django shell
-   from ilovevoley.videos.utils import check_image_with_vision_api
-   from ilovevoley.videos.models import Image
+   from ilovevoley.content.utils import check_image_with_vision_api
+   from ilovevoley.content.models import Image
    
    image = Image.objects.get(id=1)
    result = check_image_with_vision_api(image.image)
@@ -213,19 +213,22 @@ export AUTO_MODERATION_ENABLED=true  # Para auto-aprobación
 ### URLs Principales
 
 ```python
-# Galería
-/videos/imagenes/                    # Lista de imágenes
-/videos/imagenes/subir/              # Formulario de subida
-/videos/imagenes/<id>/               # Detalle de imagen
-/videos/partidos/<id>/imagenes/      # Imágenes de un partido
+# Galería (app content)
+/content/imagenes/                     # Galería de imágenes (agrupada por álbumes)
+/content/imagenes/individual/          # Galería de imágenes individuales
+/content/imagenes/subir/               # Formulario de subida drag & drop
+/content/imagenes/subir-multiples/     # Subida múltiple
+/content/imagenes/<id>/                # Detalle de imagen
+/content/partidos/<id>/imagenes/       # Imágenes de un partido
+/content/imagenes/album/<uuid>/        # Imágenes de un álbum grupal
 
-# Moderación (admin)
-/videos/admin/imagenes/moderar/      # Panel de moderación
-/videos/admin/imagenes/<id>/moderar/ # Moderar imagen específica
-/videos/admin/imagenes/moderar-masivo/ # Moderación masiva
+# Moderación
+/content/admin/imagenes/moderar/       # Panel de moderación de imágenes
+/content/admin/imagenes/<id>/moderar/  # Moderar imagen específica
+/core/moderacion/                      # Panel de moderación global (usuarios e imágenes)
 ```
 
-### Modelo de Datos
+### Modelo de Datos (`ilovevoley.content.models.Image`)
 
 ```python
 class Image(models.Model):
@@ -237,20 +240,29 @@ class Image(models.Model):
     # Tipo y etiquetas
     image_type = models.CharField(max_length=20, choices=IMAGE_TYPES, default='other')
     tags = models.CharField(max_length=500, blank=True)  # Etiquetas manuales
-    auto_tags = models.JSONField(default=list, blank=True)  # Etiquetas automáticas
+    auto_tags = models.JSONField(default=list, blank=True)  # Etiquetas automáticas (Vision API)
     
-    # Relaciones (ahora opcionales)
-    match = models.ForeignKey('Match', on_delete=models.CASCADE, null=True, blank=True)
-    category = models.ForeignKey(Category, null=True, blank=True)
-    year = models.IntegerField()
+    # Relaciones
+    match = models.ForeignKey('competitions.Match', on_delete=models.CASCADE, null=True, blank=True)
+    categories = models.ManyToManyField('core.Category', blank=True)
+    season = models.ForeignKey('core.Season', on_delete=models.SET_NULL, null=True, blank=True)
+    organization = models.ForeignKey('core.Organization', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Álbumes
+    album_group_id = models.UUIDField(null=True, blank=True)
+    album_name = models.CharField(max_length=100, blank=True)
+    
+    # Conversión HEIC
+    original_format = models.CharField(max_length=10, blank=True)
+    was_converted = models.BooleanField(default=False)
     
     # Usuario
-    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     upload_date = models.DateTimeField(auto_now_add=True)
     
     # Moderación
     status = models.CharField(choices=MODERATION_STATUS, default='pending')
-    moderated_by = models.ForeignKey(User, null=True, blank=True)
+    moderated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True)
     moderation_date = models.DateTimeField(null=True, blank=True)
     moderation_notes = models.TextField(blank=True)
     
@@ -298,9 +310,10 @@ docker-compose exec web python manage.py autotag_images --help
 
 ```python
 # Aprobar todas las imágenes pendientes
-from ilovevoley.videos.models import Image
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+from ilovevoley.content.models import Image
 
+User = get_user_model()
 admin_user = User.objects.filter(is_staff=True).first()
 pending_images = Image.objects.filter(status='pending')
 
@@ -314,8 +327,8 @@ print(f"Aprobadas {pending_images.count()} imágenes")
 
 ```python
 # Verificar imágenes pendientes con Vision API
-from ilovevoley.videos.models import Image
-from ilovevoley.videos.utils import check_image_with_vision_api
+from ilovevoley.content.models import Image
+from ilovevoley.content.utils import check_image_with_vision_api
 
 for image in Image.objects.filter(vision_api_checked=False):
     try:

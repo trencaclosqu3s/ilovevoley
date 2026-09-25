@@ -106,17 +106,19 @@ Se autentica con Google
     └─ No → Crea cuenta automática → Pending approval
 ```
 
-### Flujo con Sistema de Aprobación
+### Flujo con Sistema de Aprobación y Membresías
 
-Por seguridad, **todas las cuentas nuevas** (tanto con Google como con registro normal) requieren aprobación de un administrador:
+Por seguridad, **todas las cuentas nuevas** (tanto con Google como con registro normal) requieren aprobación previa para acceder al contenido del club:
 
-1. Usuario se registra (Google o formulario)
-2. Se crea la cuenta con `is_approved=False`
-3. Se muestra página de "Pendiente de aprobación"
-4. Se envía notificación por email al admin (si está configurado)
-5. Admin aprueba la cuenta desde `/admin/`
-6. Usuario recibe email de aprobación (si está configurado)
-7. Usuario puede iniciar sesión
+1. El usuario se registra (vía Google OAuth o formulario).
+2. Se crea la cuenta y su `Membership` para la organización actual con estado pendiente.
+3. Se muestra la página de "Pendiente de aprobación" (`/pending-approval/`).
+4. Se envía notificación por email a los administradores y managers correspondientes.
+5. **Aprobación descentralizada**:
+   - Los **managers o administradores del club** pueden aprobar la membresía directamente desde el panel `/core/moderacion/` de su organización, o mediante el enlace seguro con token del email.
+   - Los **superusuarios** pueden además aprobar cuentas globales desde el panel de administración general (`/admin/`).
+6. El usuario recibe un email de confirmación (si está configurado).
+7. El usuario queda habilitado para interactuar y visualizar el contenido privado de la organización.
 
 ---
 

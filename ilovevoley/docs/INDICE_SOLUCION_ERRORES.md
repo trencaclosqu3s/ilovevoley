@@ -4,36 +4,22 @@
 
 **¿Tienes errores 500 en producción?** → Empieza aquí:
 
-1. **[README_ERRORES_PRODUCCION.md](README_ERRORES_PRODUCCION.md)** ⭐ **EMPIEZA AQUÍ**
-   - Guía visual con flujo de resolución
+1. **[DIAGNOSTICO_ERRORES_PRODUCCION.md](DIAGNOSTICO_ERRORES_PRODUCCION.md)** ⭐ **GUÍA TÉCNICA PRINCIPAL**
+   - Análisis de causas raíz (Google OAuth, Sites framework, Vision API)
    - Comandos específicos para cada problema
-   - Checklist de verificación
-
-2. **[SOLUCION_RAPIDA.md](SOLUCION_RAPIDA.md)** ⚡ **5-10 minutos**
-   - Pasos inmediatos para solucionar
-   - Soluciones temporales y permanentes
-   - Comandos copy-paste listos para usar
+   - Checklist de verificación y prevención
 
 ---
 
-## 📖 Documentación Completa
+## 📖 Documentación
 
-### Para Usuarios
-
-| Archivo | Propósito | Tiempo |
-|---------|-----------|--------|
-| **[README_ERRORES_PRODUCCION.md](README_ERRORES_PRODUCCION.md)** | Punto de entrada principal | 5 min |
-| **[SOLUCION_RAPIDA.md](SOLUCION_RAPIDA.md)** | Guía paso a paso | 10 min |
-| **check_config.sh** | Script de diagnóstico automático | 2 min |
-
-### Para Desarrolladores
+### Para Administradores y Desarrolladores
 
 | Archivo | Propósito |
 |---------|-----------|
-| **[DIAGNOSTICO_ERRORES_PRODUCCION.md](DIAGNOSTICO_ERRORES_PRODUCCION.md)** | Análisis técnico completo |
-| **[RESUMEN_MEJORAS.md](RESUMEN_MEJORAS.md)** | Cambios implementados en el código |
-| **config/logging_production.py** | Configuración de logging |
-| **env.production.example** | Ejemplo de configuración de producción |
+| **[DIAGNOSTICO_ERRORES_PRODUCCION.md](DIAGNOSTICO_ERRORES_PRODUCCION.md)** | Análisis técnico completo y resolución de errores |
+| **[RESUMEN_MEJORAS.md](RESUMEN_MEJORAS.md)** | Resumen de cambios y protecciones aplicadas |
+| **config/logging_production.py** | Configuración de logging de producción |
 
 ---
 
@@ -74,24 +60,24 @@ ilovevoley/
 
 ### Error 500: Login con Google
 
-**Archivo**: [SOLUCION_RAPIDA.md#para-google-oauth](SOLUCION_RAPIDA.md#para-google-oauth)
+**Documento**: [DIAGNOSTICO_ERRORES_PRODUCCION.md](DIAGNOSTICO_ERRORES_PRODUCCION.md)
 
-**Causa más probable**: Site.domain incorrecto
+**Causa más probable**: `Site.domain` incorrecto o callback OAuth no registrado
 
 **Solución rápida**:
 ```bash
-python manage.py shell -c "from django.contrib.sites.models import Site; s=Site.objects.get(id=1); s.domain='tu-dominio.com'; s.save()"
+python manage.py shell -c "from django.contrib.sites.models import Site; s=Site.objects.get(id=1); s.domain='ilovevoley.es'; s.save()"
 ```
 
 ---
 
 ### Error 500: Subida de Imágenes
 
-**Archivo**: [SOLUCION_RAPIDA.md#para-google-vision-api](SOLUCION_RAPIDA.md#para-google-vision-api)
+**Documento**: [DIAGNOSTICO_ERRORES_PRODUCCION.md](DIAGNOSTICO_ERRORES_PRODUCCION.md)
 
 **Causa más probable**: Credenciales de Vision API no configuradas
 
-**Solución rápida** (deshabilitar):
+**Solución rápida** (deshabilitar mientras se configuran):
 ```bash
 # En .env:
 GOOGLE_VISION_ENABLED=False
@@ -103,17 +89,16 @@ AUTO_MODERATION_ENABLED=False
 ## 📋 Flujo de Trabajo Recomendado
 
 ```
-1. Leer README_ERRORES_PRODUCCION.md (5 min)
+1. Consultar DIAGNOSTICO_ERRORES_PRODUCCION.md
    ↓
-2. Ejecutar: bash check_config.sh (2 min)
+2. Ejecutar chequeo de configuración:
+   docker compose run --rm web python manage.py check_production_config
    ↓
 3. Seguir instrucciones específicas del diagnóstico
    ↓
-4. Aplicar soluciones de SOLUCION_RAPIDA.md (5-10 min)
+4. Verificar en navegador
    ↓
-5. Verificar en navegador (1 min)
-   ↓
-6. ✅ Problema resuelto
+5. ✅ Problema resuelto
 ```
 
 ---
