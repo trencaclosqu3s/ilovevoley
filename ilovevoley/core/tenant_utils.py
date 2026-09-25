@@ -1,7 +1,7 @@
 from functools import wraps
 
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
@@ -133,14 +133,26 @@ def reject_user_membership(user, tenant):
     ).delete()
 
 
-def tenant_access_required(*, manager=False, staff=False):
-    """Requiere tenant, login y membresía aprobada (u opciones manager/staff)."""
+def tenant_access_required(*, manager=False, staff=False, api=False):
+    """Requiere tenant, login y membresía aprobada (u opciones manager/staff).
+
+    Con ``api=True`` el acceso denegado responde 403 en lugar de redirigir, y
+    los superusuarios pasan aunque no haya tenant resuelto (p. ej. peticiones
+    internas de medios servidas por nginx con X-Accel-Redirect).
+    """
     def decorator(view_func):
-        @login_required
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
+            if api and request.user.is_authenticated and request.user.is_superuser:
+                return view_func(request, *args, **kwargs)
+            if not request.user.is_authenticated:
+                if api:
+                    raise PermissionDenied
+                return redirect_to_login(request.get_full_path())
             tenant = getattr(request, 'tenant', None)
             if not tenant:
+                if api:
+                    raise PermissionDenied
                 return redirect('landing')
             if request.user.is_superuser:
                 return view_func(request, *args, **kwargs)
@@ -151,6 +163,8 @@ def tenant_access_required(*, manager=False, staff=False):
                 if not user_is_tenant_manager(request.user, tenant):
                     raise PermissionDenied
             elif not user_has_approved_membership(request.user, tenant):
+                if api:
+                    raise PermissionDenied
                 return redirect('/pending-approval/')
             return view_func(request, *args, **kwargs)
         return wrapper
