@@ -186,6 +186,136 @@ class ContentSeasonFilterTests(TestCase):
         self.assertEqual(self._titles(response), {'Actual'})
 
 
+@override_settings(ALLOWED_HOSTS=['cluba.ilovevoley.es', 'clubb.ilovevoley.es', 'localhost'])
+class ImageModerationTenantIsolationTests(TestCase):
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org_a = Organization.objects.create(slug='cluba', name='Club A', is_active=True)
+        self.org_b = Organization.objects.create(slug='clubb', name='Club B', is_active=True)
+
+        User = get_user_model()
+        self.staff_a = User.objects.create_user(username='staff_a', password='pass', is_staff=True)
+        Membership.objects.create(
+            user=self.staff_a, organization=self.org_a, is_approved=True
+        )
+
+        self.manager_a = User.objects.create_user(username='manager_a', password='pass')
+        Membership.objects.create(
+            user=self.manager_a, organization=self.org_a, role='manager', is_approved=True
+        )
+
+        self.member_a = User.objects.create_user(username='member_a', password='pass')
+        Membership.objects.create(
+            user=self.member_a, organization=self.org_a, role='member', is_approved=True
+        )
+
+        self.user_b = User.objects.create_user(username='user_b', password='pass')
+        Membership.objects.create(
+            user=self.user_b, organization=self.org_b, is_approved=True
+        )
+
+        self.image_a = Image.objects.create(
+            image=SimpleUploadedFile('a.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Imagen Club A',
+            uploaded_by=self.staff_a,
+            organization=self.org_a,
+            status='pending',
+        )
+        self.image_b = Image.objects.create(
+            image=SimpleUploadedFile('b.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Imagen Club B',
+            uploaded_by=self.user_b,
+            organization=self.org_b,
+            status='pending',
+        )
+
+    def test_image_moderation_view_only_lists_images_for_current_tenant(self):
+        self.client.force_login(self.staff_a)
+        url = reverse('content:image_moderation')
+        response = self.client.get(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+
+        images = list(response.context['page_obj'].object_list)
+        self.assertIn(self.image_a, images)
+        self.assertNotIn(self.image_b, images)
+        self.assertEqual(response.context['pending_count'], 1)
+
+    def test_image_moderate_action_returns_404_for_other_tenant_image(self):
+        self.client.force_login(self.staff_a)
+        url = reverse('content:image_moderate_action', args=[self.image_b.id])
+        response = self.client.get(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 404)
+
+        # POST también debe fallar con 404
+        post_response = self.client.post(
+            url, {'action': 'approve', 'moderation_notes': 'intento'}, HTTP_HOST='cluba.ilovevoley.es'
+        )
+        self.assertEqual(post_response.status_code, 404)
+        self.image_b.refresh_from_db()
+        self.assertEqual(self.image_b.status, 'pending')
+
+    def test_image_moderate_action_allows_own_tenant_image(self):
+        self.client.force_login(self.staff_a)
+        url = reverse('content:image_moderate_action', args=[self.image_a.id])
+        response = self.client.post(
+            url, {'action': 'approve', 'moderation_notes': 'Aprobada OK'}, HTTP_HOST='cluba.ilovevoley.es'
+        )
+        self.assertRedirects(response, reverse('content:image_moderation'))
+        self.image_a.refresh_from_db()
+        self.assertEqual(self.image_a.status, 'approved')
+        self.assertEqual(self.image_a.moderated_by, self.staff_a)
+        self.assertEqual(self.image_a.moderation_notes, 'Aprobada OK')
+
+    def test_image_moderate_bulk_only_modifies_own_tenant_images(self):
+        self.client.force_login(self.staff_a)
+        url = reverse('content:image_moderate_bulk')
+        response = self.client.post(
+            url,
+            {
+                'action': 'approve',
+                'image_ids': [self.image_a.id, self.image_b.id],
+                'notes': 'Bulk test',
+            },
+            HTTP_HOST='cluba.ilovevoley.es',
+        )
+        self.assertRedirects(response, reverse('content:image_moderation'))
+
+        self.image_a.refresh_from_db()
+        self.assertEqual(self.image_a.status, 'approved')
+
+        # image_b debe permanecer intacta en pending
+        self.image_b.refresh_from_db()
+        self.assertEqual(self.image_b.status, 'pending')
+        self.assertIsNone(self.image_b.moderated_by)
+
+    def test_moderate_image_api_returns_404_for_other_tenant_image(self):
+        self.client.force_login(self.staff_a)
+        url = reverse('content:moderate_image_api', args=[self.image_b.id])
+        response = self.client.post(url, {'action': 'approve'}, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 404)
+
+        self.image_b.refresh_from_db()
+        self.assertEqual(self.image_b.status, 'pending')
+
+    def test_moderate_image_api_allows_tenant_staff_or_manager(self):
+        self.client.force_login(self.manager_a)
+        url = reverse('content:moderate_image_api', args=[self.image_a.id])
+        response = self.client.post(url, {'action': 'approve'}, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+
+        self.image_a.refresh_from_db()
+        self.assertEqual(self.image_a.status, 'approved')
+        self.assertEqual(self.image_a.moderated_by, self.manager_a)
+
+    def test_moderate_image_api_denies_unauthorized_member(self):
+        self.client.force_login(self.member_a)
+        url = reverse('content:moderate_image_api', args=[self.image_a.id])
+        response = self.client.post(url, {'action': 'approve'}, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 403)
+
+
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
 class ImageUploadSanitizationViewTests(TestCase):
     def setUp(self):
@@ -239,5 +369,6 @@ class ImageUploadSanitizationViewTests(TestCase):
         created.image.open()
         saved_img = PILImage.open(created.image)
         self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
+
 
 
