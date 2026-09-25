@@ -1261,6 +1261,9 @@ def image_moderate_action(request, image_id):
 @tenant_access_required(staff=True)
 def image_moderate_bulk(request):
     """Moderación masiva de imágenes acotada al tenant actual."""
+    if not can_moderate_images(request.user, request.tenant):
+        raise PermissionDenied
+
     if request.method == 'POST':
         action = request.POST.get('action')
         image_ids = request.POST.getlist('image_ids')
@@ -1280,6 +1283,7 @@ def image_moderate_bulk(request):
                     image=image,
                     decision=action,
                     notes=notes,
+                    validate_permission=False,
                 )
                 count += 1
             

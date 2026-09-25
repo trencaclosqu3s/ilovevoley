@@ -4,7 +4,7 @@ from django.core.exceptions import PermissionDenied
 from ilovevoley.core.tenant_utils import can_moderate_images
 
 
-def moderate_image(actor, tenant, image, decision, notes=''):
+def moderate_image(actor, tenant, image, decision, notes='', validate_permission=True):
     """Modera una imagen aplicando validación estricta de tenant y permisos.
 
     Args:
@@ -13,6 +13,7 @@ def moderate_image(actor, tenant, image, decision, notes=''):
         image: Instancia de Image a moderar.
         decision: 'approve', 'reject', True o False.
         notes: Notas u observaciones de la moderación.
+        validate_permission: Si es True, comprueba los permisos del actor contra el tenant.
 
     Returns:
         Image: La instancia moderada y guardada.
@@ -25,17 +26,17 @@ def moderate_image(actor, tenant, image, decision, notes=''):
         raise PermissionDenied("Se requiere autenticación para moderar.")
 
     # Validar permisos generales de moderación
-    if not can_moderate_images(actor, tenant):
+    if validate_permission and not can_moderate_images(actor, tenant):
         raise PermissionDenied("No tienes permisos para moderar imágenes en esta organización.")
 
     # Aislamiento multi-tenant: si hay tenant, la imagen debe pertenecer estrictamente a él
     if tenant is not None:
         if image.organization_id != tenant.id:
             raise PermissionDenied("No puedes moderar una imagen perteneciente a otra organización.")
-    else:
-        # Sin tenant en el contexto, solo un superusuario puede moderar imágenes
-        if not actor.is_superuser:
-            raise PermissionDenied("Solo un superusuario puede moderar imágenes a nivel global.")
+    elif not actor.is_superuser:
+        raise PermissionDenied("Solo un superusuario puede moderar imágenes a nivel global.")
+
+
 
     # Validar estado de la imagen
     if image.status != 'pending':
