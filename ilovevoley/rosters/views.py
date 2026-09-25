@@ -254,6 +254,10 @@ def person_edit(request, person_id):
         form = PersonForm(request.POST, request.FILES, instance=person)
         
         if form.is_valid():
+            # PersonForm no expone organization, pero se reafirma el tenant para
+            # que un POST manipulado no pueda reasignar la ficha de club.
+            person.organization = request.tenant
+
             # Procesar imagen recortada si está presente
             cropped_photo_data = request.POST.get('cropped_photo_data')
             if cropped_photo_data and cropped_photo_data.startswith('data:image'):

@@ -189,6 +189,17 @@ class RostersTenantIsolationTests(TestCase):
         created = Person.objects.get(first_name='Nueva', last_name='Ficha')
         self.assertEqual(created.organization, self.org_a)
 
+    def test_person_edit_ignora_organizacion_enviada_por_cliente(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(
+            reverse('rosters:person_edit', args=[self.person_a.id]),
+            {'first_name': 'Ana', 'last_name': 'Propia', 'organization': self.org_b.id},
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        self.person_a.refresh_from_db()
+        self.assertEqual(self.person_a.organization, self.org_a)
+
     def test_staff_global_sin_membresia_no_edita_otra_organizacion(self):
         # Tiene is_staff y membresía en A, pero ninguna en B.
         self.assertFalse(self.staff.can_edit_person(self.person_b, self.org_b))
