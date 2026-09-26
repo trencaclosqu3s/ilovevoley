@@ -39,9 +39,10 @@ El middleware [`TenantMiddleware`](file:///Users/jamartinmari/PycharmProjects/vi
 
 1. Extrae el host de `request.META['HTTP_HOST']`.
 2. Si la petición accede al dominio raíz sin subdominio (ej: `ilovevoley.es`), `request.tenant` es `None` y se muestra la landing general.
-3. Si la petición accede a un subdominio (ej: `santjosep.ilovevoley.es`), busca la organización activa por `slug`.
-4. Si el subdominio no existe o está inactivo, devuelve `404 Not Found`.
-5. Rutas globales (como la suscripción a calendarios ICS) están exentas de la restricción de tenant.
+3. Si la petición accede a un subdominio reservado (ej: `www.ilovevoley.es`), emite una redirección permanente HTTP 301 al dominio raíz manteniendo ruta y query params.
+4. Si la petición accede al subdominio de un club (ej: `santjosep.ilovevoley.es`), busca la organización activa por `slug`.
+5. Si el subdominio no existe o está inactivo, devuelve `404 Not Found`.
+6. Rutas globales (como la suscripción a calendarios ICS) están exentas de la restricción de tenant.
 
 ## 🛡️ Moderación Descentralizada de Membresías
 

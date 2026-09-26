@@ -1,15 +1,14 @@
+import uuid
+
 from django.conf import settings
 from django.db import models
 
+from ilovevoley.core.tenancy import OrganizationTenantQuerySet, PersonRoleTenantQuerySet
+
 
 def person_photo_upload_path(instance, filename):
-    """Generar path para la subida de fotos de personas"""
-    import os
-    from django.utils.text import slugify
-    
-    ext = filename.split('.')[-1]
-    safe_name = slugify(f"{instance.first_name}_{instance.last_name}")
-    return f'people/{safe_name}_{instance.id}.{ext}'
+    """Generar un path aleatorio e inextensible para la foto de una persona."""
+    return f'people/{uuid.uuid4().hex}.jpg'
 
 
 class Person(models.Model):
@@ -55,6 +54,19 @@ class Person(models.Model):
         help_text='Número de teléfono (opcional)'
     )
     
+    # Pertenencia a la organización (tenant). Determina la visibilidad y
+    # edición de la ficha. Queda nula en fichas heredadas que no se pudieron
+    # resolver de forma inequívoca (quedan ocultas en todos los tenants).
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.PROTECT,
+        related_name='people',
+        null=True,
+        blank=True,
+        verbose_name='Organización',
+        help_text='Club/organización al que pertenece la ficha'
+    )
+
     # Vinculación con usuario de la plataforma
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -81,6 +93,8 @@ class Person(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
 
+    objects = OrganizationTenantQuerySet.as_manager()
+
     class Meta:
         db_table = 'videos_person'
         ordering = ['last_name', 'first_name']
@@ -102,6 +116,12 @@ class Person(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+    def save(self, *args, **kwargs):
+        # Sanear foto automáticamente a nivel de modelo ante cualquier nueva subida
+        from ilovevoley.videos.utils import sanitize_model_image_field
+        sanitize_model_image_field(self, 'photo', max_size=2048)
+        super().save(*args, **kwargs)
 
     @property
     def full_name(self):
@@ -222,6 +242,8 @@ class PlayerRole(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
 
+    objects = PersonRoleTenantQuerySet.as_manager()
+
     class Meta:
         db_table = 'videos_playerrole'
         ordering = ['team', 'jersey_number', 'person__last_name', 'person__first_name']
@@ -312,6 +334,8 @@ class StaffRole(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
+
+    objects = PersonRoleTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_staffrole'

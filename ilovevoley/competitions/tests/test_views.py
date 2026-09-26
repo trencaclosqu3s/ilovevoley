@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -138,6 +139,59 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'competitions/calendar.html')
 
+    def test_calendar_invalid_month_or_year_redirects_without_500(self):
+        """year/month inválidos no deben tumbar la vista con HTTP 500."""
+        self.client.force_login(self.user)
+        url = reverse('competitions:calendar_view')
+        for params in (
+            {'month': '13'},
+            {'year': 'abc'},
+            {'month': '0'},
+            {'year': '99999', 'month': '1'},
+            {'year': '9999', 'month': '12'},
+            {'year': '1', 'month': '1'},
+        ):
+            with self.subTest(params=params):
+                response = self.client.get(
+                    url, params, HTTP_HOST='testclub.ilovevoley.es'
+                )
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.url, url)
+
+    def test_calendar_month_filter_uses_sargable_datetime_range(self):
+        """El rango del mes debe filtrar por match_date, no por DATE(match_date)."""
+        self.client.force_login(self.user)
+        in_month = Match.objects.create(
+            league=self.league,
+            home_team=self.team,
+            away_team=self.rival_team,
+            match_date=timezone.make_aware(datetime(2026, 3, 15, 18, 0)),
+            round_number=2,
+            status='scheduled',
+        )
+        next_month = Match.objects.create(
+            league=self.league,
+            home_team=self.team,
+            away_team=self.rival_team,
+            match_date=timezone.make_aware(datetime(2026, 4, 1, 0, 0)),
+            round_number=3,
+            status='scheduled',
+        )
+        url = reverse('competitions:calendar_view')
+        response = self.client.get(
+            url,
+            {'year': '2026', 'month': '3', 'all_teams': '1', 'show_all': '1'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        matches = list(response.context['matches'])
+        self.assertIn(in_month, matches)
+        self.assertNotIn(next_month, matches)
+        sql = str(response.context['matches'].query).lower()
+        self.assertNotIn('::date', sql)
+        self.assertIn('"match_date" >=', sql)
+        self.assertIn('"match_date" <', sql)
+
     def test_competitions_standings_view_url_resolves_and_renders(self):
         self.client.force_login(self.user)
         url = reverse('competitions:standings_view')
@@ -256,3 +310,210 @@ class CompetitionsViewUrlTests(TestCase):
             response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
             self.assertEqual(response.status_code, 302)
             self.assertIn('/accounts/login/', response.url)
+
+    def test_calendar_embeds_matches_via_json_script_not_innerhtml_literals(self):
+        """DOM-XSS (#89): datos de partido van en json_script; el modal escapa HTML."""
+        import json
+        import re
+
+        xss_name = '<img src=x onerror=alert(1)>'
+        self.rival_team.name = xss_name
+        self.rival_team.save()
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('competitions:calendar_view'),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn('id="calendar-data"', content)
+        self.assertNotIn("home_team: '{{", content)
+        self.assertIn('${esc(match.home_team)}', content)
+        self.assertIn('${esc(match.away_team)}', content)
+        # json_script escapa < como \\u003C: el payload crudo no debe aparecer en el HTML
+        self.assertNotIn(xss_name, content)
+        self.assertIn('\\u003Cimg', content)
+
+        match_script = re.search(
+            r'<script[^>]*id="calendar-data"[^>]*>(.*?)</script>',
+            content,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match_script)
+        payload = json.loads(match_script.group(1))
+        calendar_match = next(m for m in payload['matches'] if m['id'] == self.match.id)
+        self.assertEqual(calendar_match['away_team'], xss_name)
+        self.assertEqual(calendar_match['round_number'], 1)
+        self.assertIsInstance(calendar_match['round_number'], int)
+
+    def test_friendly_match_form_builds_autocomplete_without_team_innerhtml(self):
+        """DOM-XSS (#89): el autocompletado no interpola nombres en innerHTML."""
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('competitions:friendly_match_create'),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertNotIn('${team.name}', content)
+        self.assertNotIn('${team.display}', content)
+        self.assertNotIn('${teamName}', content)
+        self.assertIn('textContent', content)
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'rivalclub.ilovevoley.es'])
+class CompetitionsTenantIsolationTests(TestCase):
+    """Aísla ligas y partidos por club para impedir acceso cruzado entre tenants."""
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        User = get_user_model()
+
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club', is_active=True,
+        )
+        self.other_org = Organization.objects.create(
+            slug='rivalclub', name='Rival Club', is_active=True,
+        )
+
+        self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-A')
+        self.other_club = Club.objects.create(official_name='Club Rival', federation_id='CLUB-B')
+        self.org.club = self.club
+        self.org.save(update_fields=['club'])
+        self.other_org.club = self.other_club
+        self.other_org.save(update_fields=['club'])
+
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(
+            name='Test Senior', category=self.category, club=self.club,
+            federation_id='TEAM-A1', is_active=True,
+        )
+        self.other_team = Team.objects.create(
+            name='Rival Senior', category=self.category, club=self.other_club,
+            federation_id='TEAM-B1', is_active=True,
+        )
+        self.foreign_team = Team.objects.create(
+            name='Foreign Senior', category=self.category, club=None,
+            federation_id='TEAM-C1', is_active=True,
+        )
+
+        self.manager = User.objects.create_user(username='manager', password='pass')
+        Membership.objects.create(
+            user=self.manager, organization=self.org, is_approved=True, role='manager',
+        )
+        self.member = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(
+            user=self.member, organization=self.org, is_approved=True, role='member',
+        )
+
+        season = Season.objects.resolve('2026-2027')
+        self.league = League.objects.create(
+            name='Liga Propia', federation_id='LEAGUE-A', season=season,
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+        self.other_league = League.objects.create(
+            name='Liga Ajena', federation_id='LEAGUE-B', season=season,
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+        self.league.categories.add(self.category)
+        self.other_league.categories.add(self.category)
+
+        self.match = Match.objects.create(
+            league=self.league, home_team=self.team, away_team=self.other_team,
+            match_date=timezone.now(), round_number=1, status='scheduled',
+        )
+        self.other_match = Match.objects.create(
+            league=self.other_league, home_team=self.other_team, away_team=self.foreign_team,
+            match_date=timezone.now(), round_number=1, status='scheduled',
+            acta_html='http://example.invalid/acta',
+        )
+
+    def test_match_detail_blocks_foreign_match(self):
+        self.client.force_login(self.manager)
+        own = self.client.get(
+            reverse('competitions:match_detail', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(own.status_code, 200)
+
+        foreign = self.client.get(
+            reverse('competitions:match_detail', args=[self.other_match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(foreign.status_code, 404)
+
+    def test_league_detail_blocks_foreign_league(self):
+        self.client.force_login(self.manager)
+        own = self.client.get(
+            reverse('competitions:league_detail', args=[self.league.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(own.status_code, 200)
+
+        foreign = self.client.get(
+            reverse('competitions:league_detail', args=[self.other_league.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(foreign.status_code, 404)
+
+    def test_add_match_result_blocks_foreign_match(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_add_match_result', args=[self.other_match.id]),
+            data={'home_score': 3, 'away_score': 1},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+        self.other_match.refresh_from_db()
+        self.assertIsNone(self.other_match.home_score)
+        self.assertEqual(self.other_match.status, 'scheduled')
+
+    def test_add_match_result_accepts_valid_score_for_own_match(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_add_match_result', args=[self.match.id]),
+            data={'home_score': 3, 'away_score': 1},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.home_score, 3)
+        self.assertEqual(self.match.away_score, 1)
+        self.assertEqual(self.match.status, 'finished')
+
+    def test_add_match_result_rejects_invalid_score(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_add_match_result', args=[self.match.id]),
+            data={'home_score': 2, 'away_score': 0},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.match.refresh_from_db()
+        self.assertIsNone(self.match.home_score)
+        self.assertEqual(self.match.status, 'scheduled')
+
+    def test_acta_lineup_blocks_foreign_match(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('competitions:ajax_acta_lineup', args=[self.other_match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_team_search_requires_tenant_manager(self):
+        url = reverse('competitions:ajax_search_teams')
+        self.client.force_login(self.member)
+        denied = self.client.get(url, {'q': 'Test'}, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(denied.status_code, 403)
+
+        self.client.force_login(self.manager)
+        allowed = self.client.get(url, {'q': 'Test'}, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(allowed.status_code, 200)

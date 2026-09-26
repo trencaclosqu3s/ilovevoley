@@ -48,10 +48,10 @@ class ParentInfoForm(forms.ModelForm):
 
 class UserProfileForm(forms.ModelForm):
     """Formulario para editar perfil de usuario incluyendo preferencias de categorías"""
-    
+
     class Meta:
         model = User
-        fields = ['avatar', 'username', 'email', 'first_name', 'last_name', 'parent_info', 'preferred_categories']
+        fields = ['avatar', 'username', 'first_name', 'last_name', 'parent_info', 'preferred_categories']
         widgets = {
             'avatar': forms.FileInput(attrs={
                 'class': 'hidden',
@@ -69,9 +69,6 @@ class UserProfileForm(forms.ModelForm):
             'username': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
             }),
-            'email': forms.EmailInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
-            }),
             'first_name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
             }),
@@ -82,7 +79,6 @@ class UserProfileForm(forms.ModelForm):
         labels = {
             'avatar': 'Foto de Perfil',
             'username': 'Nombre de Usuario',
-            'email': 'Correo Electrónico',
             'first_name': 'Nombre',
             'last_name': 'Apellidos',
             'parent_info': 'Información Familiar',
@@ -95,14 +91,6 @@ class UserProfileForm(forms.ModelForm):
             'preferred_categories': 'Selecciona las categorías de contenido que te interesan'
         }
 
-    def __init__(self, *args, **kwargs):
-        super(UserProfileForm, self).__init__(*args, **kwargs)
-        # Hacer que el email no sea editable una vez creado
-        if self.instance and self.instance.pk:
-            self.fields['email'].widget.attrs['readonly'] = True
-            
-
-
     def clean_avatar(self):
         avatar = self.cleaned_data.get('avatar')
         if avatar:
@@ -113,6 +101,6 @@ class UserProfileForm(forms.ModelForm):
             # Validar tipo de archivo
             if not avatar.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif')):
                 raise forms.ValidationError('Formato no válido. Use JPG, PNG, WebP o HEIC')
-        
+
         return avatar
 

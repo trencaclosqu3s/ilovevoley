@@ -31,3 +31,6 @@ certbot/
 docker/
 chroma_db/
 
+
+# Credenciales GCP: se montan en runtime, nunca dentro de la imagen
+*.json
