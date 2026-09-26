@@ -1,7 +1,7 @@
 from django.db import IntegrityError
 from django.test import TestCase
 
-from ilovevoley.core.models import Season
+from ilovevoley.core.models import Organization, Season
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
 from ilovevoley.teams.models import Team
 
@@ -10,8 +10,11 @@ class PlayerRoleSeasonConstraintTests(TestCase):
     """Los roles se identifican por temporada: mismo jugador/dorsal en otra temporada es válido."""
 
     def setUp(self):
+        self.org = Organization.objects.create(slug='club', name='Club')
         self.team = Team.objects.create(name='Infantil', federation_id='T-INF')
-        self.person = Person.objects.create(first_name='Mario', last_name='Perez')
+        self.person = Person.objects.create(
+            first_name='Mario', last_name='Perez', organization=self.org,
+        )
         self.past = Season.objects.resolve('2025-26')
         self.current = Season.objects.resolve('2026-27')
 
@@ -26,7 +29,9 @@ class PlayerRoleSeasonConstraintTests(TestCase):
             PlayerRole.objects.create(person=self.person, team=self.team, season=self.past, jersey_number=8)
 
     def test_dorsal_duplicado_en_la_misma_temporada_falla(self):
-        other = Person.objects.create(first_name='Luis', last_name='Gomez')
+        other = Person.objects.create(
+            first_name='Luis', last_name='Gomez', organization=self.org,
+        )
         PlayerRole.objects.create(person=self.person, team=self.team, season=self.past, jersey_number=7)
         with self.assertRaises(IntegrityError):
             PlayerRole.objects.create(person=other, team=self.team, season=self.past, jersey_number=7)
@@ -34,8 +39,11 @@ class PlayerRoleSeasonConstraintTests(TestCase):
 
 class StaffRoleSeasonConstraintTests(TestCase):
     def setUp(self):
+        self.org = Organization.objects.create(slug='club-s', name='Club S')
         self.team = Team.objects.create(name='Infantil', federation_id='T-INF-S')
-        self.person = Person.objects.create(first_name='Ana', last_name='Lopez')
+        self.person = Person.objects.create(
+            first_name='Ana', last_name='Lopez', organization=self.org,
+        )
         self.past = Season.objects.resolve('2025-26')
         self.current = Season.objects.resolve('2026-27')
 

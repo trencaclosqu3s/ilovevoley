@@ -1,7 +1,13 @@
+import base64
+import shutil
+import tempfile
+from io import BytesIO
+
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.rosters import forms as rosters_forms
@@ -66,6 +72,7 @@ class RosterViewUrlTests(TestCase):
         self.person = Person.objects.create(
             first_name='Laura',
             last_name='García',
+            organization=self.org,
         )
         self.player_role = PlayerRole.objects.create(
             person=self.person,
@@ -239,4 +246,202 @@ class RosterViewUrlTests(TestCase):
         self.assertFalse(team_belongs_to_tenant(orphan_team, self.org))
 
 
+def _png_data_uri():
+    buffer = BytesIO()
+    Image.new('RGB', (8, 8), (10, 120, 200)).save(buffer, format='PNG')
+    encoded = base64.b64encode(buffer.getvalue()).decode()
+    return f'data:image/png;base64,{encoded}'
 
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class PersonPhotoUploadSecurityTests(TestCase):
+    """La foto recortada debe ser una imagen real y guardarse siempre como .jpg."""
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+
+        self.media_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media_root, ignore_errors=True)
+        self.media_override = override_settings(MEDIA_ROOT=self.media_root)
+        self.media_override.enable()
+        self.addCleanup(self.media_override.disable)
+
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='testclub',
+            name='Test Club',
+            club_team_names={'1': 'Test Club'},
+            is_active=True,
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(
+            user=self.user, organization=self.org, is_approved=True
+        )
+        self.client.force_login(self.user)
+
+    def _post(self, photo_payload):
+        return self.client.post(
+            reverse('rosters:person_create'),
+            {
+                'first_name': 'Ana',
+                'last_name': 'Pérez',
+                'cropped_photo_data': photo_payload,
+            },
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+    def test_html_injected_as_photo_is_not_stored(self):
+        payload = base64.b64encode(b'<script>alert(document.domain)</script>').decode()
+
+        response = self._post(f'data:image/html;base64,{payload}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Person.objects.filter(first_name='Ana').exists())
+
+    def test_valid_photo_is_stored_as_jpg(self):
+        response = self._post(_png_data_uri())
+
+        self.assertEqual(response.status_code, 302)
+        person = Person.objects.get(first_name='Ana')
+        self.assertTrue(person.photo.name.startswith('people/'))
+        self.assertTrue(person.photo.name.endswith('.jpg'))
+        with Image.open(person.photo.path) as image:
+            self.assertEqual(image.format, 'JPEG')
+
+
+@override_settings(ALLOWED_HOSTS=['club-a.ilovevoley.es', 'club-b.ilovevoley.es', 'localhost'])
+class RostersTenantIsolationTests(TestCase):
+    """Las fichas y roles quedan aislados por organización del tenant activo."""
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org_a = Organization.objects.create(
+            slug='club-a', name='Club A', club_team_names={'1': 'Club A'}, is_active=True,
+        )
+        self.org_b = Organization.objects.create(
+            slug='club-b', name='Club B', club_team_names={'1': 'Club B'}, is_active=True,
+        )
+        User = get_user_model()
+        self.member = User.objects.create_user(username='member-a', password='pass')
+        Membership.objects.create(
+            user=self.member, organization=self.org_a, is_approved=True,
+        )
+        self.staff = User.objects.create_user(username='staff', password='pass', is_staff=True)
+        Membership.objects.create(
+            user=self.staff, organization=self.org_a, is_approved=True, role='manager',
+        )
+        self.person_a = Person.objects.create(
+            first_name='Ana', last_name='Propia', organization=self.org_a,
+        )
+        self.person_b = Person.objects.create(
+            first_name='Bea', last_name='Ajena', organization=self.org_b,
+        )
+        season = Season.objects.resolve('2025-26')
+        self.team_a = Team.objects.create(
+            name='Club A Senior', federation_id='TEAM-A1', is_active=True,
+        )
+        self.team_b = Team.objects.create(
+            name='Club B Junior', federation_id='TEAM-B1', is_active=True,
+        )
+        PlayerRole.objects.create(
+            person=self.person_a, team=self.team_a, season=season, jersey_number=3,
+        )
+        # Rol cruzado heredado: no debe mostrarse en el tenant A.
+        PlayerRole.objects.create(
+            person=self.person_a, team=self.team_b, season=season, jersey_number=4,
+        )
+
+    def test_person_list_solo_muestra_fichas_del_club(self):
+        self.client.force_login(self.member)
+        response = self.client.get(
+            reverse('rosters:person_list'), HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertContains(response, 'Propia')
+        self.assertNotContains(response, 'Ajena')
+
+    def test_person_detail_de_otro_club_devuelve_404(self):
+        self.client.force_login(self.member)
+        response = self.client.get(
+            reverse('rosters:person_detail', args=[self.person_b.id]),
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_person_edit_de_otro_club_devuelve_404(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(
+            reverse('rosters:person_edit', args=[self.person_b.id]),
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_player_role_create_de_otro_club_devuelve_404(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(
+            reverse('rosters:player_role_create', args=[self.person_b.id]),
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_person_detail_no_muestra_roles_de_otro_club(self):
+        self.client.force_login(self.member)
+        response = self.client.get(
+            reverse('rosters:person_detail', args=[self.person_a.id]),
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Club A Senior')
+        self.assertNotContains(response, 'Club B Junior')
+
+    def test_person_create_ignora_organizacion_enviada_por_cliente(self):
+        self.client.force_login(self.member)
+        response = self.client.post(
+            reverse('rosters:person_create'),
+            {'first_name': 'Nueva', 'last_name': 'Ficha', 'organization': self.org_b.id},
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        created = Person.objects.get(first_name='Nueva', last_name='Ficha')
+        self.assertEqual(created.organization, self.org_a)
+
+    def test_person_edit_ignora_organizacion_enviada_por_cliente(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(
+            reverse('rosters:person_edit', args=[self.person_a.id]),
+            {'first_name': 'Ana', 'last_name': 'Propia', 'organization': self.org_b.id},
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        self.person_a.refresh_from_db()
+        self.assertEqual(self.person_a.organization, self.org_a)
+
+    def test_staff_global_sin_membresia_no_edita_otra_organizacion(self):
+        # Tiene is_staff y membresía en A, pero ninguna en B.
+        self.assertFalse(self.staff.can_edit_person(self.person_b, self.org_b))
+        # Y sí puede sobre las fichas de su propia organización.
+        self.assertTrue(self.staff.can_edit_person(self.person_a, self.org_a))
+
+    def test_miembro_sin_staff_no_edita_ficha_del_club(self):
+        self.assertFalse(self.member.can_edit_person(self.person_a, self.org_a))
+
+    def test_staff_global_con_rol_miembro_no_edita_ficha_del_club(self):
+        User = get_user_model()
+        from ilovevoley.users.models import Membership
+        staff_member = User.objects.create_user(
+            username='staff-member', password='pass', is_staff=True
+        )
+        Membership.objects.create(
+            user=staff_member, organization=self.org_a, role='member', is_approved=True,
+        )
+        self.assertFalse(staff_member.can_edit_person(self.person_a, self.org_a))
+
+    def test_staff_global_sin_membresia_no_accede_a_editar_en_otro_club(self):
+        # El decorador de tenant corta al no tener membresía aprobada en B.
+        self.client.force_login(self.staff)
+        response = self.client.get(
+            reverse('rosters:person_edit', args=[self.person_b.id]),
+            HTTP_HOST='club-b.ilovevoley.es',
+        )
+        self.assertNotEqual(response.status_code, 200)

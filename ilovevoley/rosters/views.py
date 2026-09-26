@@ -1,21 +1,18 @@
-import base64
 import logging
-import uuid
 
 from django.contrib import messages
-from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
 from ilovevoley.core.mixins import get_club_team_name_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenant_utils import (
     person_belongs_to_tenant,
-    team_belongs_to_tenant,
     tenant_access_required,
 )
 from ilovevoley.teams.models import Team
@@ -112,8 +109,11 @@ def roster_overview(request):
 @tenant_access_required()
 def person_list(request):
     """Vista de listado de personas del club"""
-    # Obtener todas las personas activas con sus roles
-    people = Person.objects.filter(is_active=True).prefetch_related(
+    # Solo fichas del club del tenant activo
+    people = Person.objects.filter(
+        organization=request.tenant,
+        is_active=True,
+    ).prefetch_related(
         'player_roles__team__category',
         'staff_roles__team__category'
     ).order_by('last_name', 'first_name')
@@ -139,10 +139,11 @@ def person_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Enriquecer con info de roles
+    # Enriquecer con info de roles, solo de equipos del club del tenant
+    tenant_teams = Team.objects.filter(get_club_team_name_filter(request.tenant))
     for person in page_obj:
-        person.active_player_roles = person.get_player_roles()
-        person.active_staff_roles = person.get_staff_roles()
+        person.active_player_roles = person.get_player_roles().filter(team__in=tenant_teams)
+        person.active_staff_roles = person.get_staff_roles().filter(team__in=tenant_teams)
     
     context = {
         'page_obj': page_obj,
@@ -157,7 +158,7 @@ def person_list(request):
 def person_detail(request, person_id):
     """Vista de detalle de una persona"""
     person = get_object_or_404(
-        Person.objects.prefetch_related(
+        Person.objects.filter(organization=request.tenant).prefetch_related(
             'player_roles__team__category',
             'staff_roles__team__category'
         ),
@@ -166,12 +167,13 @@ def person_detail(request, person_id):
     if not request.user.is_superuser and not person_belongs_to_tenant(person, request.tenant):
         raise Http404
     
-    # Obtener roles activos e inactivos
-    player_roles = person.player_roles.select_related('team__category').order_by('-is_active', 'team__name')
-    staff_roles = person.staff_roles.select_related('team__category').order_by('-is_active', 'team__name')
+    # Roles visibles solo en equipos del club del tenant
+    tenant_teams = Team.objects.filter(get_club_team_name_filter(request.tenant))
+    player_roles = person.player_roles.filter(team__in=tenant_teams).select_related('team__category').order_by('-is_active', 'team__name')
+    staff_roles = person.staff_roles.filter(team__in=tenant_teams).select_related('team__category').order_by('-is_active', 'team__name')
     
     # Verificar permisos de edición
-    can_edit = request.user.can_edit_person(person, tenant=request.tenant)
+    can_edit = request.user.can_edit_person(person, request.tenant)
     
     context = {
         'person': person,
@@ -191,28 +193,16 @@ def person_create(request):
         
         if form.is_valid():
             person = form.save(commit=False)
+            person.organization = request.tenant
             
             # Procesar imagen recortada si está presente
             cropped_photo_data = request.POST.get('cropped_photo_data')
-            if cropped_photo_data and cropped_photo_data.startswith('data:image'):
+            if cropped_photo_data:
                 try:
-                    # Extraer datos base64
-                    format_str, imgstr = cropped_photo_data.split(';base64,')
-                    ext = format_str.split('/')[-1]
-                    
-                    # Decodificar imagen
-                    data = base64.b64decode(imgstr)
-                    
-                    # Crear archivo temporal
-                    filename = f"person_{uuid.uuid4().hex[:8]}.{ext}"
-                    photo_file = ContentFile(data, name=filename)
-                    
-                    # Asignar la foto recortada
-                    person.photo = photo_file
-                    
-                except Exception as e:
-                    logger.error(f'Error al procesar la imagen recortada: {str(e)}')
-                    messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
+                    person.photo = decode_cropped_image(cropped_photo_data)
+                except InvalidImageError as e:
+                    logger.warning(f'Imagen recortada rechazada: {e}')
+                    messages.error(request, str(e))
                     return render(request, 'rosters/person_form.html', {
                         'form': form,
                         'title': 'Agregar Nueva Persona',
@@ -241,12 +231,10 @@ def person_create(request):
 @tenant_access_required()
 def person_edit(request, person_id):
     """Vista para editar una persona existente"""
-    person = get_object_or_404(Person, id=person_id)
-    if not request.user.is_superuser and not person_belongs_to_tenant(person, request.tenant):
-        raise Http404
+    person = get_object_or_404(Person.objects.filter(organization=request.tenant), id=person_id)
     
     # Verificar permisos
-    can_edit = request.user.can_edit_person(person, tenant=request.tenant)
+    can_edit = request.user.can_edit_person(person, request.tenant)
     
     if not can_edit:
         messages.error(request, 'No tienes permisos para editar esta persona.')
@@ -256,27 +244,18 @@ def person_edit(request, person_id):
         form = PersonForm(request.POST, request.FILES, instance=person)
         
         if form.is_valid():
+            # PersonForm no expone organization, pero se reafirma el tenant para
+            # que un POST manipulado no pueda reasignar la ficha de club.
+            person.organization = request.tenant
+
             # Procesar imagen recortada si está presente
             cropped_photo_data = request.POST.get('cropped_photo_data')
-            if cropped_photo_data and cropped_photo_data.startswith('data:image'):
+            if cropped_photo_data:
                 try:
-                    # Extraer datos base64
-                    format_str, imgstr = cropped_photo_data.split(';base64,')
-                    ext = format_str.split('/')[-1]
-                    
-                    # Decodificar imagen
-                    data = base64.b64decode(imgstr)
-                    
-                    # Crear archivo
-                    filename = f"person_{person.id}_{uuid.uuid4().hex[:8]}.{ext}"
-                    photo_file = ContentFile(data, name=filename)
-                    
-                    # Asignar la imagen recortada al person
-                    person.photo = photo_file
-                    
-                except Exception as e:
-                    logger.error(f'Error al procesar la imagen recortada: {str(e)}')
-                    messages.error(request, f'Error al procesar la imagen recortada: {str(e)}')
+                    person.photo = decode_cropped_image(cropped_photo_data)
+                except InvalidImageError as e:
+                    logger.warning(f'Imagen recortada rechazada: {e}')
+                    messages.error(request, str(e))
                     return render(request, 'rosters/person_form.html', {
                         'form': form,
                         'person': person,
@@ -305,12 +284,10 @@ def person_edit(request, person_id):
 @tenant_access_required()
 def player_role_create(request, person_id):
     """Vista para agregar un rol de jugador a una persona"""
-    person = get_object_or_404(Person, id=person_id)
-    if not request.user.is_superuser and not person_belongs_to_tenant(person, request.tenant):
-        raise Http404
+    person = get_object_or_404(Person.objects.filter(organization=request.tenant), id=person_id)
     
     # Verificar permisos
-    can_edit = request.user.can_edit_person(person, tenant=request.tenant)
+    can_edit = request.user.can_edit_person(person, request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para agregar roles a esta persona.')
         return redirect('rosters:person_detail', person_id=person.id)
@@ -340,12 +317,10 @@ def player_role_create(request, person_id):
 @tenant_access_required()
 def staff_role_create(request, person_id):
     """Vista para agregar un rol de staff a una persona"""
-    person = get_object_or_404(Person, id=person_id)
-    if not request.user.is_superuser and not person_belongs_to_tenant(person, request.tenant):
-        raise Http404
+    person = get_object_or_404(Person.objects.filter(organization=request.tenant), id=person_id)
     
     # Verificar permisos
-    can_edit = request.user.can_edit_person(person, tenant=request.tenant)
+    can_edit = request.user.can_edit_person(person, request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para agregar roles a esta persona.')
         return redirect('rosters:person_detail', person_id=person.id)
@@ -375,12 +350,13 @@ def staff_role_create(request, person_id):
 @tenant_access_required()
 def player_role_edit(request, role_id):
     """Vista para editar un rol de jugador"""
-    player_role = get_object_or_404(PlayerRole.objects.select_related('person', 'team'), id=role_id)
-    if not request.user.is_superuser and not team_belongs_to_tenant(player_role.team, request.tenant):
-        raise Http404
+    player_role = get_object_or_404(
+        PlayerRole.objects.filter(person__organization=request.tenant).select_related('person', 'team'),
+        id=role_id,
+    )
     
     # Verificar permisos
-    can_edit = request.user.can_edit_person(player_role.person, tenant=request.tenant)
+    can_edit = request.user.can_edit_person(player_role.person, request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para editar este rol.')
         return redirect('rosters:person_detail', person_id=player_role.person.id)
@@ -409,12 +385,13 @@ def player_role_edit(request, role_id):
 @tenant_access_required()
 def staff_role_edit(request, role_id):
     """Vista para editar un rol de staff"""
-    staff_role = get_object_or_404(StaffRole.objects.select_related('person', 'team'), id=role_id)
-    if not request.user.is_superuser and not team_belongs_to_tenant(staff_role.team, request.tenant):
-        raise Http404
+    staff_role = get_object_or_404(
+        StaffRole.objects.filter(person__organization=request.tenant).select_related('person', 'team'),
+        id=role_id,
+    )
     
     # Verificar permisos
-    can_edit = request.user.can_edit_person(staff_role.person, tenant=request.tenant)
+    can_edit = request.user.can_edit_person(staff_role.person, request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para editar este rol.')
         return redirect('rosters:person_detail', person_id=staff_role.person.id)
@@ -444,12 +421,12 @@ def staff_role_edit(request, role_id):
 @require_POST
 def player_role_toggle_active(request, role_id):
     """Vista AJAX para activar/desactivar rol de jugador"""
-    player_role = get_object_or_404(PlayerRole.objects.select_related('person', 'team'), id=role_id)
-    if not request.user.is_superuser and not team_belongs_to_tenant(player_role.team, request.tenant):
-        raise Http404
+    player_role = get_object_or_404(
+        PlayerRole.objects.filter(person__organization=request.tenant), id=role_id
+    )
     
     # Verificar permisos
-    can_edit = request.user.can_edit_person(player_role.person, tenant=request.tenant)
+    can_edit = request.user.can_edit_person(player_role.person, request.tenant)
     if not can_edit:
         return JsonResponse({'success': False, 'error': 'Sin permisos'}, status=403)
     
@@ -466,12 +443,12 @@ def player_role_toggle_active(request, role_id):
 @require_POST
 def staff_role_toggle_active(request, role_id):
     """Vista AJAX para activar/desactivar rol de staff"""
-    staff_role = get_object_or_404(StaffRole.objects.select_related('person', 'team'), id=role_id)
-    if not request.user.is_superuser and not team_belongs_to_tenant(staff_role.team, request.tenant):
-        raise Http404
+    staff_role = get_object_or_404(
+        StaffRole.objects.filter(person__organization=request.tenant), id=role_id
+    )
     
     # Verificar permisos
-    can_edit = request.user.can_edit_person(staff_role.person, tenant=request.tenant)
+    can_edit = request.user.can_edit_person(staff_role.person, request.tenant)
     if not can_edit:
         return JsonResponse({'success': False, 'error': 'Sin permisos'}, status=403)
     

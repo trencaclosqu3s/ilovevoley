@@ -152,8 +152,8 @@ class TeamRosterSeasonFilterTests(TestCase):
         )
         self.current = Season.objects.create(name='2026-27', start_year=2026, end_year=2027, is_current=True)
         self.past = Season.objects.create(name='2025-26', start_year=2025, end_year=2026)
-        actual = Person.objects.create(first_name='Actual', last_name='Uno')
-        pasado = Person.objects.create(first_name='Pasado', last_name='Dos')
+        actual = Person.objects.create(first_name='Actual', last_name='Uno', organization=self.org)
+        pasado = Person.objects.create(first_name='Pasado', last_name='Dos', organization=self.org)
         PlayerRole.objects.create(person=actual, team=self.team, season=self.current, jersey_number=1)
         PlayerRole.objects.create(person=pasado, team=self.team, season=self.past, jersey_number=2)
 

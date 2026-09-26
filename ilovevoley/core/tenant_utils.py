@@ -1,7 +1,7 @@
 from functools import wraps
 
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
@@ -110,6 +110,17 @@ def user_is_tenant_staff(user, tenant):
     ).exists()
 
 
+def can_moderate_images(user, tenant=None):
+    """Determina si un usuario tiene permisos para moderar imágenes en un tenant o globalmente."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    if not tenant:
+        return False
+    return user_is_tenant_manager(user, tenant) or user_is_tenant_staff(user, tenant)
+
+
 def approve_user_membership(user, tenant=None):
     """Aprueba al usuario globalmente y su membresía en el tenant indicado (o todas las pendientes)."""
     from ilovevoley.users.models import Membership
@@ -137,24 +148,38 @@ def reject_user_membership(user, tenant):
     ).delete()
 
 
-def tenant_access_required(*, manager=False, staff=False):
-    """Requiere tenant, login y membresía aprobada (u opciones manager/staff)."""
+def tenant_access_required(*, manager=False, staff=False, api=False):
+    """Requiere tenant, login y membresía aprobada (u opciones manager/staff).
+
+    Con ``api=True`` el acceso denegado responde 403 en lugar de redirigir, y
+    los superusuarios pasan aunque no haya tenant resuelto (p. ej. peticiones
+    internas de medios servidas por nginx con X-Accel-Redirect).
+    """
     def decorator(view_func):
-        @login_required
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
+            if api and request.user.is_authenticated and request.user.is_superuser:
+                return view_func(request, *args, **kwargs)
+            if not request.user.is_authenticated:
+                if api:
+                    raise PermissionDenied
+                return redirect_to_login(request.get_full_path())
             tenant = getattr(request, 'tenant', None)
             if not tenant:
+                if api:
+                    raise PermissionDenied
                 return redirect('landing')
             if request.user.is_superuser:
                 return view_func(request, *args, **kwargs)
             if staff:
-                if not user_is_tenant_staff(request.user, tenant):
+                if not (user_is_tenant_staff(request.user, tenant) or user_is_tenant_manager(request.user, tenant)):
                     raise PermissionDenied
             elif manager:
                 if not user_is_tenant_manager(request.user, tenant):
                     raise PermissionDenied
             elif not user_has_approved_membership(request.user, tenant):
+                if api:
+                    raise PermissionDenied
                 return redirect('/pending-approval/')
             return view_func(request, *args, **kwargs)
         return wrapper
@@ -176,15 +201,19 @@ def person_belongs_to_tenant(person, tenant):
     """Comprueba si una persona pertenece a un tenant o puede ser gestionada por él.
 
     Una persona pertenece al tenant si:
-    1. Tiene roles (jugador o staff) en equipos pertenecientes al tenant.
-    2. Su usuario vinculado tiene membresía aprobada en el tenant.
-    3. Está vinculada como hijo/a de un usuario con membresía aprobada en el tenant.
+    1. Su organization FK coincide con el tenant.
+    2. Tiene roles (jugador o staff) en equipos pertenecientes al tenant.
+    3. Su usuario vinculado tiene membresía aprobada en el tenant.
+    4. Está vinculada como hijo/a de un usuario con membresía aprobada en el tenant.
 
     Si no cumple ninguna de estas condiciones verificables, retorna False para evitar IDOR
     cross-tenant sobre fichas huérfanas sin roles.
     """
     if not person or not tenant:
         return False
+
+    if getattr(person, 'organization_id', None) is not None:
+        return person.organization_id == tenant.id
 
     player_roles = list(person.player_roles.select_related('team').all())
     staff_roles = list(person.staff_roles.select_related('team').all())
@@ -210,5 +239,4 @@ def person_belongs_to_tenant(person, tenant):
         return True
 
     return False
-
 

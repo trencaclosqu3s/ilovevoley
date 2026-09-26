@@ -14,7 +14,9 @@ class RoleFormDuplicateValidationTests(TestCase):
             slug='club', name='Club', club_team_names={'1': 'Club'},
         )
         self.team = Team.objects.create(name='Club Senior', federation_id='T-F')
-        self.person = Person.objects.create(first_name='Ana', last_name='Gomez')
+        self.person = Person.objects.create(
+            first_name='Ana', last_name='Gomez', organization=self.org,
+        )
         self.season = Season.objects.resolve('2025-26')
 
     def test_staff_role_duplicado_no_valida(self):
