@@ -201,7 +201,6 @@ class ContentSeasonFilterTests(TestCase):
         )
         self.assertEqual(self._titles(response), {'Actual'})
 
-
 @override_settings(ALLOWED_HOSTS=['cluba.ilovevoley.es', 'clubb.ilovevoley.es', 'localhost'])
 class ImageModerationTenantIsolationTests(TestCase):
     def setUp(self):
@@ -438,5 +437,125 @@ class ImageUploadSanitizationViewTests(TestCase):
         self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
 
 
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'otherclub.ilovevoley.es', 'localhost'])
+class GalleryQueryOptimizationTests(TestCase):
+    """Stats, álbumes y tags de galería acotados al tenant y sin escanear todo en Python."""
 
+    def setUp(self):
+        from datetime import datetime, timezone as dt_timezone
+        from ilovevoley.users.models import Membership
+        from ilovevoley.competitions.models import League, Match
+        from ilovevoley.teams.models import Team
 
+        cache.clear()
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
+        self.other = Organization.objects.create(slug='otherclub', name='Other Club', is_active=True)
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+        self.season = Season.objects.create(
+            name='2026-27', start_year=2026, end_year=2027, is_current=True
+        )
+        self.league = League.objects.create(
+            name='Liga Test', federation_id='LIG-G', season=self.season,
+        )
+        self.team_a = Team.objects.create(name='A', federation_id='G-A')
+        self.team_b = Team.objects.create(name='B', federation_id='G-B')
+        self.match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=datetime(2026, 10, 1, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='G-M1',
+        )
+        self.match2 = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=datetime(2026, 9, 1, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='G-M2',
+        )
+
+    def _img(self, org, **kwargs):
+        kwargs.setdefault('uploaded_by', self.user)
+        kwargs.setdefault('status', 'approved')
+        kwargs.setdefault('season', self.season)
+        kwargs.setdefault('organization', org)
+        kwargs.setdefault(
+            'image',
+            SimpleUploadedFile(f'{kwargs.get("title", "x")}.jpg', TINY_GIF, content_type='image/jpeg'),
+        )
+        return Image.objects.create(**kwargs)
+
+    def test_gallery_stats_scoped_to_tenant(self):
+        self._img(self.org, title='ours', status='approved')
+        self._img(self.org, title='pending-ours', status='pending')
+        self._img(self.other, title='theirs', status='approved')
+        self._img(self.other, title='pending-theirs', status='pending')
+        self._img(self.org, title='ours-match', match=self.match)
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('content:image_gallery_individual') + '?season=',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total_images'], 2)
+        self.assertEqual(response.context['pending_images'], 1)
+        self.assertEqual(response.context['images_with_match'], 1)
+        self.assertEqual(response.context['images_without_match'], 1)
+
+    def test_albums_view_aggregates_match_images_and_paginates(self):
+        import uuid
+        for i in range(5):
+            self._img(self.org, title=f'm1-{i}', match=self.match)
+        for i in range(3):
+            self._img(self.org, title=f'm2-{i}', match=self.match2)
+        group_id = uuid.uuid4()
+        for i in range(2):
+            self._img(
+                self.org, title=f'ag-{i}', album_group_id=group_id, album_name='Entrenamiento',
+            )
+        self._img(self.org, title='single')
+        # Ruido de otra org: no debe aparecer ni inflar conteos
+        self._img(self.other, title='other-match', match=self.match)
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('content:image_gallery') + '?season=',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        items = list(response.context['page_obj'].object_list)
+        self.assertEqual(len(items), 4)  # 2 álbumes partido + 1 grupo + 1 single
+        match_album = next(i for i in items if i['type'] == 'album' and i['match'].id == self.match.id)
+        self.assertEqual(match_album['image_count'], 5)
+        self.assertLessEqual(len(match_album['images']), 4)
+        self.assertEqual(response.context['total_albums'], 3)
+        self.assertEqual(response.context['total_single_images'], 1)
+        self.assertEqual(response.context['total_images'], 11)  # solo org propia aprobadas
+
+    def test_popular_tags_scoped_to_tenant_and_cached(self):
+        self._img(self.org, title='t1', tags='saque, bloqueo', auto_tags=['voleibol'])
+        self._img(self.org, title='t2', tags='saque', auto_tags=[])
+        self._img(self.other, title='t3', tags='ajeno, saque', auto_tags=['otro'])
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('content:image_gallery_individual') + '?season=',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        tags = response.context['popular_tags']
+        self.assertIn('saque', tags)
+        self.assertIn('bloqueo', tags)
+        self.assertIn('voleibol', tags)
+        self.assertNotIn('ajeno', tags)
+        self.assertNotIn('otro', tags)
+
+        # Segunda petición no debe recalcular: cambiar datos no invalida hasta TTL
+        self._img(self.org, title='t4', tags='nuevo-tag')
+        response2 = self.client.get(
+            reverse('content:image_gallery_individual') + '?season=',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertNotIn('nuevo-tag', response2.context['popular_tags'])
