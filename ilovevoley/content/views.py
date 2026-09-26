@@ -28,7 +28,6 @@ from .services import moderate_image
 
 from ilovevoley.videos.utils import (
     check_image_with_vision_api,
-    process_uploaded_image,
     process_vision_tags_for_volleyball,
 )
 from .forms import (
@@ -594,45 +593,6 @@ def image_upload(request):
             image.uploaded_by = request.user
             image.organization = request.tenant
 
-            # Procesar imagen (convertir HEIC si es necesario)
-            try:
-                uploaded_file = request.FILES.get('image')
-                if uploaded_file:
-                    processed_file, original_ext, was_converted = process_uploaded_image(uploaded_file)
-                    
-                    # Actualizar el archivo en la instancia
-                    image.image = processed_file
-                    image.original_format = original_ext.lstrip('.')
-                    image.was_converted = was_converted
-                    
-                    if was_converted:
-                        logger.info(f"Imagen convertida de {original_ext} a JPEG para usuario {request.user.username}")
-                        
-            except Exception as e:
-                logger.error(f"Error procesando imagen: {str(e)}")
-                messages.error(request, f'Error al procesar la imagen: {str(e)}')
-                
-                # Preparar recent_matches con la misma lógica
-                club_query = get_club_team_filter(request.tenant)
-                now = timezone.now()
-                past_matches = Match.objects.select_related(
-                    'home_team', 'away_team', 'league'
-                ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
-                next_match = Match.objects.select_related(
-                    'home_team', 'away_team', 'league'
-                ).filter(club_query, match_date__gte=now).order_by('match_date').first()
-                
-                if next_match:
-                    recent_matches = list(past_matches) + [next_match]
-                    recent_matches.sort(key=lambda x: x.match_date, reverse=True)
-                else:
-                    recent_matches = list(past_matches)
-                
-                return render(request, 'content/image_upload.html', {
-                    'form': form,
-                    'recent_matches': recent_matches
-                })
-            
             # Si el usuario es superuser, aprobar directamente sin pasar por Vision API
             if request.user.is_superuser:
                 image.status = 'approved'
@@ -874,38 +834,28 @@ def image_bulk_upload(request):
         
         for idx, uploaded_file in enumerate(uploaded_files):
             try:
-                # Optimizar para móvil si es necesario
-                processed_file, original_ext, was_converted = process_uploaded_image(
-                    uploaded_file, 
-                    optimize_for_mobile=is_mobile_request
-                )
+                # Validar tipo y tamaño de archivo
+                content_type = getattr(uploaded_file, 'content_type', '') or ''
+                if not content_type.startswith('image/'):
+                    errors.append(f'{uploaded_file.name}: No es una imagen válida')
+                    continue
+                
+                if uploaded_file.size > 10 * 1024 * 1024:  # 10MB
+                    errors.append(f'{uploaded_file.name}: Archivo demasiado grande (máx 10MB)')
+                    continue
                 
                 # Obtener título y descripción individual
                 title = request.POST.get(f'title_{idx}', uploaded_file.name.rsplit('.', 1)[0])
                 description = request.POST.get(f'description_{idx}', '')
                 
-                # Validar archivo procesado
-                if not processed_file.content_type.startswith('image/'):
-                    errors.append(f'{uploaded_file.name}: No es una imagen válida')
-                    continue
-                
-                if processed_file.size > 10 * 1024 * 1024:  # 10MB
-                    errors.append(f'{uploaded_file.name}: Archivo demasiado grande (máx 10MB)')
-                    continue
-                
                 # Crear imagen
                 image = Image(
-                    image=processed_file,
+                    image=uploaded_file,
                     title=title,
                     description=description,
                     tags=shared_tags,
-                    original_format=original_ext.lstrip('.'),
-                    was_converted=was_converted,
                     **shared_data
                 )
-                
-                if was_converted:
-                    logger.info(f"Imagen {uploaded_file.name} convertida de {original_ext} a JPEG")
                 
                 # Si el usuario es superuser, aprobar directamente sin pasar por Vision API
                 if request.user.is_superuser:

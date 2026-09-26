@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from ilovevoley.content.models import Image
 from ilovevoley.core.email_utils import send_notification_email
+from ilovevoley.core.image_utils import image_to_data_uri
 from ilovevoley.core.models import Organization
 from ilovevoley.core.tenant_utils import (
     approve_user_membership,
@@ -316,6 +317,8 @@ def moderate_image(request, token):
             'message': 'No tienes permisos suficientes para moderar esta imagen.'
         }, status=403)
 
+    image_data_uri = image_to_data_uri(image.image)
+
     action = token_data.action
     if action not in ['approve', 'reject']:
         return HttpResponseBadRequest("Acción inválida")
@@ -327,7 +330,8 @@ def moderate_image(request, token):
             'already_moderated': True,
             'message': f'La imagen "{image.title}" ya fue {status_text} anteriormente.',
             'item_type': 'imagen',
-            'image': image
+            'image': image,
+            'image_data_uri': image_data_uri,
         })
 
     # GET: Pantalla de confirmación
@@ -336,6 +340,7 @@ def moderate_image(request, token):
             'item_type': 'imagen',
             'action': action,
             'target_image': image,
+            'image_data_uri': image_data_uri,
             'tenant': tenant,
             'token': token,
         })
@@ -377,7 +382,8 @@ def moderate_image(request, token):
             'action': 'aprobada',
             'message': f'La imagen "{image.title}" ha sido aprobada correctamente y el usuario ha sido notificado.',
             'item_type': 'imagen',
-            'image': image
+            'image': image,
+            'image_data_uri': image_data_uri,
         })
 
     elif action == 'reject':
@@ -408,5 +414,6 @@ def moderate_image(request, token):
             'action': 'rechazada',
             'message': f'La imagen "{image.title}" ha sido rechazada y el usuario ha sido notificado.',
             'item_type': 'imagen',
-            'image': image
+            'image': image,
+            'image_data_uri': image_data_uri,
         })

@@ -6,7 +6,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from ilovevoley.content.models import Image
 from ilovevoley.core.models import Organization, Season
-from ilovevoley.rosters.models import Person, PlayerRole
+from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
 from ilovevoley.teams.models import Club, Team
 from ilovevoley.users.models import Membership
 
@@ -168,6 +168,30 @@ class ProtectedPersonMediaTests(TestCase):
         self.client.force_login(self.noclub_member)
         response = self.client.get('/media/people/sinrol_1.jpg', HTTP_HOST='noclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
+
+    def test_member_can_see_person_with_inactive_role_of_linked_club(self):
+        inactive_player = Person.objects.create(
+            first_name='Marta', last_name='Inactiva', photo='people/marta_inactive.jpg'
+        )
+        PlayerRole.objects.create(
+            person=inactive_player, team=self.team, season=self.season, is_active=False
+        )
+        inactive_staff = Person.objects.create(
+            first_name='Carlos', last_name='StaffInactivo', photo='people/carlos_inactive.jpg'
+        )
+        StaffRole.objects.create(
+            person=inactive_staff, team=self.team, season=self.season, is_active=False, role='coach'
+        )
+
+        self.client.force_login(self.member)
+
+        response_player = self.client.get('/media/people/marta_inactive.jpg', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response_player.status_code, 200)
+        self.assertEqual(response_player['X-Accel-Redirect'], '/protected-media/people/marta_inactive.jpg')
+
+        response_staff = self.client.get('/media/people/carlos_inactive.jpg', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response_staff.status_code, 200)
+        self.assertEqual(response_staff['X-Accel-Redirect'], '/protected-media/people/carlos_inactive.jpg')
 
 
 class PublicMediaDevTests(TestCase):

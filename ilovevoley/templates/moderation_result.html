@@ -42,7 +42,10 @@
                             <li><strong>Subida por:</strong> {{ image.uploaded_by.username }}</li>
                             <li><strong>Tipo:</strong> {{ image.get_image_type_display }}</li>
                         </ul>
-                        {% if image.image %}
+                        {% if image_data_uri %}
+                            <img src="{{ image_data_uri }}" alt="{{ image.title }}" 
+                                 class="max-w-full h-auto rounded border border-gray-300 shadow-sm">
+                        {% elif image.image %}
                             <img src="{{ image.image.url }}" alt="{{ image.title }}" 
                                  class="max-w-full h-auto rounded border border-gray-300 shadow-sm">
                         {% endif %}
