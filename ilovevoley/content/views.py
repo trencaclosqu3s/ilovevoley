@@ -1,13 +1,14 @@
-from collections import Counter
+from collections import Counter, defaultdict
 import logging
 import uuid
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Max, Prefetch, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -36,6 +37,150 @@ from .forms import (
 from .models import Comment, Image, Video
 
 logger = logging.getLogger(__name__)
+
+POPULAR_TAGS_CACHE_TTL = 3600
+
+
+def get_popular_tags(organization, limit=15):
+    """Top tags for suggestions; cached per tenant to avoid scanning images each request."""
+    cache_key = f'gallery:popular_tags:{organization.pk}'
+
+    def _compute():
+        qs = Image.objects.filter(organization=organization, status='approved')
+        manual_tags = []
+        for tags in qs.exclude(tags='').values_list('tags', flat=True):
+            manual_tags.extend(
+                [tag.strip().lower() for tag in tags.split(',') if tag.strip()]
+            )
+        auto_tags = []
+        for auto in qs.exclude(auto_tags=[]).values_list('auto_tags', flat=True):
+            if isinstance(auto, list):
+                auto_tags.extend([tag.lower() for tag in auto])
+        all_tags = manual_tags + auto_tags
+        if not all_tags:
+            return []
+        return [tag for tag, _count in Counter(all_tags).most_common(limit)]
+
+    return cache.get_or_set(cache_key, _compute, POPULAR_TAGS_CACHE_TTL)
+
+
+def gallery_image_stats(organization):
+    """Approved/pending/match counts scoped to the current tenant."""
+    base = Image.objects.filter(organization=organization)
+    approved = base.filter(status='approved')
+    return {
+        'total_images': approved.count(),
+        'pending_images': base.filter(status='pending').count(),
+        'images_with_match': approved.filter(match__isnull=False).count(),
+        'images_without_match': approved.filter(match__isnull=True).count(),
+    }
+
+
+def build_album_gallery_page(images_qs, page_number, per_page=12):
+    """
+    Aggregate albums in SQL, paginate lightweight group rows, hydrate covers for the page.
+    Returns (page_obj, total_albums, total_single_images).
+    """
+    # Clear ORDER BY so GROUP BY aggregations stay valid in PostgreSQL.
+    images_qs = images_qs.order_by()
+
+    match_groups = list(
+        images_qs.filter(match__isnull=False)
+        .values('match_id')
+        .annotate(image_count=Count('id'), sort_date=Max('match__match_date'))
+    )
+    for group in match_groups:
+        group['type'] = 'album'
+
+    album_groups = list(
+        images_qs.filter(match__isnull=True, album_group_id__isnull=False)
+        .values('album_group_id')
+        .annotate(
+            image_count=Count('id'),
+            sort_date=Max('upload_date'),
+            album_name=Max('album_name'),
+        )
+    )
+    for group in album_groups:
+        group['type'] = 'album_group'
+
+    singles = list(
+        images_qs.filter(match__isnull=True, album_group_id__isnull=True)
+        .values('id', 'upload_date')
+    )
+    for single in singles:
+        single['type'] = 'single'
+        single['image_count'] = 1
+        single['sort_date'] = single['upload_date']
+
+    all_items = match_groups + album_groups + singles
+    all_items.sort(key=lambda item: item['sort_date'] or timezone.now(), reverse=True)
+
+    paginator = Paginator(all_items, per_page)
+    page_obj = paginator.get_page(page_number)
+    page_rows = list(page_obj.object_list)
+
+    match_ids = [row['match_id'] for row in page_rows if row['type'] == 'album']
+    group_ids = [row['album_group_id'] for row in page_rows if row['type'] == 'album_group']
+    single_ids = [row['id'] for row in page_rows if row['type'] == 'single']
+
+    matches = {
+        match.id: match
+        for match in Match.objects.filter(pk__in=match_ids).select_related(
+            'home_team', 'away_team', 'league'
+        )
+    }
+
+    covers_by_match = defaultdict(list)
+    if match_ids:
+        for image in images_qs.filter(match_id__in=match_ids).order_by('-upload_date'):
+            bucket = covers_by_match[image.match_id]
+            if len(bucket) < 4:
+                bucket.append(image)
+
+    covers_by_group = defaultdict(list)
+    if group_ids:
+        for image in (
+            images_qs.filter(album_group_id__in=group_ids)
+            .prefetch_related('categories')
+            .order_by('-upload_date')
+        ):
+            bucket = covers_by_group[image.album_group_id]
+            if len(bucket) < 4:
+                bucket.append(image)
+
+    singles_map = {
+        image.id: image
+        for image in images_qs.filter(pk__in=single_ids).prefetch_related('categories')
+    } if single_ids else {}
+
+    hydrated = []
+    for row in page_rows:
+        if row['type'] == 'album':
+            hydrated.append({
+                'type': 'album',
+                'match': matches[row['match_id']],
+                'images': covers_by_match[row['match_id']],
+                'image_count': row['image_count'],
+            })
+        elif row['type'] == 'album_group':
+            hydrated.append({
+                'type': 'album_group',
+                'album_group_id': row['album_group_id'],
+                'album_name': row['album_name'] or 'Álbum',
+                'images': covers_by_group[row['album_group_id']],
+                'image_count': row['image_count'],
+                'upload_date': row['sort_date'],
+            })
+        else:
+            hydrated.append({
+                'type': 'single',
+                'image': singles_map[row['id']],
+                'image_count': 1,
+            })
+
+    page_obj.object_list = hydrated
+    return page_obj, len(match_groups) + len(album_groups), len(singles)
 
 
 @tenant_access_required()
@@ -306,51 +451,26 @@ def image_gallery(request):
     paginator = Paginator(images, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
-    # Estadísticas para la vista
-    total_images = Image.objects.filter(status='approved').count()
-    pending_images = Image.objects.filter(status='pending').count()
-    images_with_match = Image.objects.filter(status='approved', match__isnull=False).count()
-    images_without_match = Image.objects.filter(status='approved', match__isnull=True).count()
-    
-    # Obtener etiquetas populares para sugerencias
-    popular_tags = []
-    try:
-        # Recopilar todas las etiquetas manuales
-        manual_tags = []
-        for image in Image.objects.filter(status='approved').exclude(tags=''):
-            manual_tags.extend([tag.strip().lower() for tag in image.tags.split(',') if tag.strip()])
-        
-        # Recopilar etiquetas automáticas
-        auto_tags = []
-        for image in Image.objects.filter(status='approved').exclude(auto_tags=[]):
-            if isinstance(image.auto_tags, list):
-                auto_tags.extend([tag.lower() for tag in image.auto_tags])
-        
-        # Combinar y contar frecuencias
-        all_tags = manual_tags + auto_tags
-        if all_tags:
-            tag_counts = Counter(all_tags)
-            popular_tags = [tag for tag, count in tag_counts.most_common(15)]
-    except Exception as e:
-        print(f"Error obteniendo etiquetas populares: {e}")
-    
+
+    stats = gallery_image_stats(request.tenant)
+    popular_tags = get_popular_tags(request.tenant)
+
     context = {
         'page_obj': page_obj,
         'filter_form': filter_form,
         'seasons': Season.objects.all(),
         'selected_season': selected_season,
-        'total_images': total_images,
-        'pending_images': pending_images,
-        'images_with_match': images_with_match,
-        'images_without_match': images_without_match,
+        'total_images': stats['total_images'],
+        'pending_images': stats['pending_images'],
+        'images_with_match': stats['images_with_match'],
+        'images_without_match': stats['images_without_match'],
         'popular_tags': popular_tags,
         'current_filters': request.GET.dict(),
         'show_all': show_all,
         'has_preferences': request.user.preferred_categories.exists(),
         'view_mode': 'individual',
     }
-    
+
     return render(request, 'content/image_gallery.html', context)
 
 
@@ -429,142 +549,19 @@ def image_gallery_albums(request):
     if season_filter:
         images = images.filter(season=season_filter)
 
-    # Agrupar imágenes por partido
-    albums = []
-    
-    # Obtener imágenes con partido
-    images_with_match = images.filter(match__isnull=False)
-    
-    # Agrupar por partido
-    match_groups = {}
-    for image in images_with_match:
-        match_id = image.match.id
-        if match_id not in match_groups:
-            match_groups[match_id] = {
-                'match': image.match,
-                'images': [],
-                'image_count': 0
-            }
-        match_groups[match_id]['images'].append(image)
-        match_groups[match_id]['image_count'] += 1
-    
-    # Convertir a lista y ordenar por fecha del partido
-    albums = list(match_groups.values())
-    albums.sort(key=lambda x: x['match'].match_date, reverse=True)
-    
-    # Obtener imágenes sin partido
-    images_without_match = images.filter(match__isnull=True)
-    
-    # Agrupar imágenes sin partido por album_group_id
-    album_group_groups = {}
-    single_images = []
-    
-    for image in images_without_match:
-        if image.album_group_id:
-            # Agrupar por album_group_id
-            group_id = str(image.album_group_id)
-            if group_id not in album_group_groups:
-                album_group_groups[group_id] = {
-                    'album_group_id': image.album_group_id,
-                    'album_name': image.album_name or 'Álbum',
-                    'images': [],
-                    'image_count': 0,
-                    'upload_date': image.upload_date  # Usar fecha de primera imagen para ordenar
-                }
-            album_group_groups[group_id]['images'].append(image)
-            album_group_groups[group_id]['image_count'] += 1
-            # Actualizar fecha si es más reciente (para ordenar por la más reciente)
-            if image.upload_date > album_group_groups[group_id]['upload_date']:
-                album_group_groups[group_id]['upload_date'] = image.upload_date
-        else:
-            # Imagen individual sin grupo
-            single_images.append(image)
-    
-    # Convertir grupos de album_group_id a lista de álbumes
-    album_groups = list(album_group_groups.values())
-    album_groups.sort(key=lambda x: x['upload_date'], reverse=True)
-    
-    # Paginación para álbumes - mezclar álbumes de partidos, álbumes de grupos e imágenes individuales
-    all_items = []
-    
-    # Agregar álbumes de partidos
-    for album in albums:
-        all_items.append({
-            'type': 'album',
-            'match': album['match'],
-            'images': album['images'],
-            'image_count': album['image_count']
-        })
-    
-    # Agregar álbumes de grupos (sin partido)
-    for album_group in album_groups:
-        all_items.append({
-            'type': 'album_group',
-            'album_group_id': album_group['album_group_id'],
-            'album_name': album_group['album_name'],
-            'images': album_group['images'],
-            'image_count': album_group['image_count'],
-            'upload_date': album_group['upload_date']
-        })
-    
-    # Agregar imágenes individuales
-    for image in single_images:
-        all_items.append({
-            'type': 'single',
-            'image': image,
-            'image_count': 1
-        })
-    
-    # Ordenar por fecha
-    def get_sort_date(item):
-        if item['type'] == 'album':
-            return item['match'].match_date
-        elif item['type'] == 'album_group':
-            return item['upload_date']
-        else:
-            return item['image'].upload_date
-    
-    all_items.sort(key=get_sort_date, reverse=True)
-    
-    paginator = Paginator(all_items, 12)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    # Estadísticas para la vista
-    total_images = Image.objects.filter(status='approved').count()
-    pending_images = Image.objects.filter(status='pending').count()
-    total_albums = len(albums) + len(album_groups)  # Incluir álbumes de grupos
-    total_single_images = len(single_images)
-    
-    # Obtener etiquetas populares para sugerencias
-    popular_tags = []
-    try:
-        # Recopilar todas las etiquetas manuales
-        manual_tags = []
-        for image in Image.objects.filter(status='approved').exclude(tags=''):
-            manual_tags.extend([tag.strip().lower() for tag in image.tags.split(',') if tag.strip()])
-        
-        # Recopilar etiquetas automáticas
-        auto_tags = []
-        for image in Image.objects.filter(status='approved').exclude(auto_tags=[]):
-            if isinstance(image.auto_tags, list):
-                auto_tags.extend([tag.lower() for tag in image.auto_tags])
-        
-        # Combinar y contar frecuencias
-        all_tags = manual_tags + auto_tags
-        if all_tags:
-            tag_counts = Counter(all_tags)
-            popular_tags = [tag for tag, count in tag_counts.most_common(15)]
-    except Exception as e:
-        print(f"Error obteniendo etiquetas populares: {e}")
-    
+    page_obj, total_albums, total_single_images = build_album_gallery_page(
+        images, request.GET.get('page')
+    )
+    stats = gallery_image_stats(request.tenant)
+    popular_tags = get_popular_tags(request.tenant)
+
     context = {
         'page_obj': page_obj,
         'filter_form': filter_form,
         'seasons': Season.objects.all(),
         'selected_season': selected_season,
-        'total_images': total_images,
-        'pending_images': pending_images,
+        'total_images': stats['total_images'],
+        'pending_images': stats['pending_images'],
         'total_albums': total_albums,
         'total_single_images': total_single_images,
         'popular_tags': popular_tags,
@@ -573,7 +570,7 @@ def image_gallery_albums(request):
         'has_preferences': request.user.preferred_categories.exists(),
         'view_mode': 'albums',
     }
-    
+
     return render(request, 'content/image_gallery.html', context)
 
 
