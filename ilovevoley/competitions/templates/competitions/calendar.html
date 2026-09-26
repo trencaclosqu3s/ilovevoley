@@ -394,9 +394,9 @@
                                 <!-- Acciones -->
                                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2 w-full sm:w-auto">
                                     <!-- Indicador de videos -->
-                                    {% if match.videos.exists %}
+                                    {% if match.videos_count %}
                                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-csj-yellow dark:bg-csj-yellow-dark bg-opacity-30 dark:bg-opacity-40 text-csj-yellow-dark dark:text-csj-yellow">
-                                            📹 {{ match.videos.count }} video{{ match.videos.count|pluralize }}
+                                            📹 {{ match.videos_count }} video{{ match.videos_count|pluralize }}
                                         </span>
                                     {% endif %}
                                     
