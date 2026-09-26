@@ -1,5 +1,6 @@
 import os
 import re
+import uuid
 
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
@@ -7,6 +8,7 @@ from django.db import models
 from django.utils import timezone
 
 from ilovevoley.core.models import Season
+from ilovevoley.core.tenancy import OrganizationTenantQuerySet
 
 
 def infer_season(match, when):
@@ -44,6 +46,8 @@ class Video(models.Model):
         related_name='videos',
         verbose_name='Organización',
     )
+
+    objects = OrganizationTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_video'
@@ -111,13 +115,10 @@ class Comment(models.Model):
 
 
 def image_upload_path(instance, filename):
-    """Genera ruta de subida para imágenes organizadas por año y mes"""
-    year = timezone.now().year
-    month = timezone.now().month
-    # Mantener extensión original pero limpiar el nombre
-    name, ext = os.path.splitext(filename)
-    clean_name = re.sub(r'[^a-zA-Z0-9_-]', '_', name)
-    return f'images/{year}/{month:02d}/{clean_name}{ext}'
+    """Genera ruta de subida para imágenes organizadas por año y mes con identificador UUID"""
+    from ilovevoley.videos.utils import build_uuid_upload_path
+    now = timezone.now()
+    return build_uuid_upload_path(f'images/{now.year}/{now.month:02d}', filename)
 
 
 class Image(models.Model):
@@ -251,6 +252,8 @@ class Image(models.Model):
         verbose_name='Organización',
     )
 
+    objects = OrganizationTenantQuerySet.as_manager()
+
     class Meta:
         db_table = 'videos_image'
         ordering = ['-upload_date']
@@ -273,6 +276,18 @@ class Image(models.Model):
         # Determinar si es una creación nueva
         is_new = self.pk is None
         changed = set()
+
+        # Sanear imagen automáticamente a nivel de modelo ante cualquier nueva subida
+        from ilovevoley.videos.utils import sanitize_model_image_field
+        original_ext = getattr(self.image, 'name', '') if self.image else ''
+        sanitized = sanitize_model_image_field(self, 'image', max_size=2560)
+        if sanitized:
+            if not self.original_format and original_ext:
+                self.original_format = os.path.splitext(original_ext)[1].lower().lstrip('.')
+                changed.add('original_format')
+            if not self.was_converted and self.original_format not in ['jpg', 'jpeg']:
+                self.was_converted = True
+                changed.add('was_converted')
 
         # Auto-asignar temporada si no se especifica: del partido o de la fecha
         if self.season_id is None:

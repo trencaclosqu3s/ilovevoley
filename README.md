@@ -10,7 +10,7 @@ Plataforma web Django para la gestión integral de vídeos, imágenes, competici
 - **Gestión de Vídeos**: Subida y organización de vídeos de YouTube, transmisiones en directo, categorización y vinculación inteligente a partidos.
 - **Gestión de Imágenes**: Sistema con 6 tipos de imagen, álbumes grupales, subida drag & drop, soporte para formato HEIC (conversión automática), etiquetado manual y automático con Google Vision API.
 - **Competiciones y Scraping Federativo**: Importación automatizada de ligas, equipos, calendarios, actas y clasificaciones (voleibolib / RFEVB) con validación estricta de marcadores de voleibol según el formato de competición.
-- **Integración con Calendarios**: Sincronización automática de partidos con Google Calendar para usuarios y feed ICS por usuario para suscripción en dispositivos móviles.
+- **Integración con Calendarios**: Feed ICS por usuario para que el calendario de partidos se suscriba en Google Calendar, Outlook o el móvil.
 - **Sistema de Usuarios y Moderación**: Autenticación Google OAuth, membresías por club (`Membership`) y moderación descentralizada que permite a los managers de cada club aprobar a sus propios miembros desde `/core/moderacion/`.
 - **Comentarios y Comunidad**: Interacción moderada entre usuarios aprobados.
 
@@ -22,7 +22,7 @@ Plataforma web Django para la gestión integral de vídeos, imágenes, competici
 - **IA y Visión**: Google Cloud Vision API
 - **Procesamiento de Imágenes**: Pillow y pillow-heif (soporte HEIC)
 - **Tareas Asíncronas**: Celery con Redis y django-celery-beat (16 tareas programadas)
-- **Suscripciones de Calendario**: Google Calendar API y django-ical (formato ICS)
+- **Suscripciones de Calendario**: django-ical (feed ICS por usuario)
 - **Scraping**: BeautifulSoup4 y requests
 - **Monitorización**: Sentry SDK
 - **Containerización**: Docker y Docker Compose

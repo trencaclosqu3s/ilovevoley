@@ -71,6 +71,8 @@ TENANT_EXEMPT_PREFIXES = (
     '/videos/calendario/suscripcion/',
 )
 
+RESERVED_SUBDOMAINS = {'www'}
+
 
 class TenantMiddleware:
     """
@@ -82,12 +84,15 @@ class TenantMiddleware:
     """
 
     PASSTHROUGH = False
+    RESERVED_SUBDOMAINS = RESERVED_SUBDOMAINS
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        host = request.META.get('HTTP_HOST', '').split(':')[0]
+        host_header = request.META.get('HTTP_HOST', '')
+        host = host_header.split(':')[0].lower()
+        port = host_header.split(':')[1] if ':' in host_header else ''
         parts = host.split('.')
         root_domain = '.'.join(parts[-2:]) if len(parts) >= 2 else host
 
@@ -98,6 +103,11 @@ class TenantMiddleware:
                 request.tenant = None
         else:
             subdomain = parts[0]
+            if subdomain in self.RESERVED_SUBDOMAINS:
+                port_suffix = f":{port}" if port and port not in ('80', '443') else ""
+                target_url = f"{request.scheme}://{root_domain}{port_suffix}{request.get_full_path()}"
+                return redirect(target_url, permanent=True)
+
             request.tenant = get_organization_by_slug(subdomain)
             if request.tenant is None:
                 if self.PASSTHROUGH:

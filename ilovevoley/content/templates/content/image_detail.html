@@ -22,7 +22,7 @@
                          class="w-full h-auto">
                     
                     <!-- Badge de estado para admins -->
-                    {% if user.is_staff and image.status != 'approved' %}
+                    {% if is_tenant_manager and image.status != 'approved' %}
                         <div class="absolute top-4 right-4">
                             <span class="px-3 py-1 text-sm font-semibold rounded-full
                                 {% if image.status == 'pending' %}bg-yellow-100 text-yellow-800
@@ -95,7 +95,7 @@
                         <p class="text-sm text-gray-500 mt-1">{{ image.upload_date|date:"d/m/Y H:i" }}</p>
                     </div>
 
-                    {% if user.is_staff and image.moderated_by %}
+                    {% if is_tenant_manager and image.moderated_by %}
                         <div>
                             <h3 class="text-sm font-medium text-gray-700">Moderada por</h3>
                             <div class="flex items-center mt-1">
@@ -110,13 +110,13 @@
                     {% endif %}
                 </div>
 
-                <!-- Acciones para admins -->
-                {% if user.is_staff and image.status == 'pending' %}
+                <!-- Acciones para admins y managers -->
+                {% if is_tenant_manager and image.status == 'pending' %}
                     <div class="border-t pt-4 mt-6">
                         <h3 class="text-sm font-medium text-gray-700 mb-3">Acciones de moderación</h3>
                         <div class="flex space-x-2">
                             <a href="{% url 'content:image_moderate_action' image.id %}" 
-                               class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">
+                                class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">
                                 <i class="fas fa-check mr-1"></i>Moderar
                             </a>
                         </div>
@@ -125,7 +125,7 @@
             </div>
 
             <!-- Información técnica para admins -->
-            {% if user.is_staff %}
+            {% if is_tenant_manager %}
                 <div class="bg-white rounded-lg shadow-sm p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">Información técnica</h3>
                     

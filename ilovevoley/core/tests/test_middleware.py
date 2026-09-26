@@ -54,6 +54,44 @@ class TenantMiddlewareTest(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/')
 
+    def test_middleware_redirects_reserved_subdomain_www_to_root_domain(self):
+        from ilovevoley.core.middleware import TenantMiddleware
+
+        factory = RequestFactory()
+        request = factory.get('/competitions/ligas/?season=2025-26', secure=True)
+        request.META['HTTP_HOST'] = 'www.ilovevoley.es'
+
+        middleware = TenantMiddleware(lambda r: type('R', (), {'status_code': 200})())
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.url, 'https://ilovevoley.es/competitions/ligas/?season=2025-26')
+
+    def test_middleware_redirects_www_case_insensitive_and_preserves_port(self):
+        from ilovevoley.core.middleware import TenantMiddleware
+
+        factory = RequestFactory()
+        request = factory.get('/videos/?filter=all')
+        request.META['HTTP_HOST'] = 'WWW.ilovevoley.es:8000'
+
+        middleware = TenantMiddleware(lambda r: type('R', (), {'status_code': 200})())
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.url, 'http://ilovevoley.es:8000/videos/?filter=all')
+
+    def test_middleware_unknown_subdomain_returns_404(self):
+        from ilovevoley.core.middleware import TenantMiddleware
+
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.META['HTTP_HOST'] = 'unknownclub.ilovevoley.es'
+
+        middleware = TenantMiddleware(lambda r: type('R', (), {'status_code': 200})())
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 404)
+
 
 class Error404TrackingMiddlewareTest(TestCase):
     def setUp(self):

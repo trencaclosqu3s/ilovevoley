@@ -345,7 +345,7 @@ def optimize_image_for_web(image_file, max_width=1920, quality=85):
 
 def convert_heic_to_jpeg(heic_file, max_size=2048, quality=85):
     """
-    Convierte una imagen HEIC a JPEG de forma optimizada para móvil
+    Convierte una imagen HEIC a JPEG de forma optimizada para móvil delegando en sanitize_image.
 
     Args:
         heic_file: Archivo HEIC (UploadedFile o path)
@@ -355,55 +355,9 @@ def convert_heic_to_jpeg(heic_file, max_size=2048, quality=85):
     Returns:
         BytesIO: Imagen convertida a JPEG
     """
-    try:
-        from PIL import Image
-        from pillow_heif import register_heif_opener
-        from io import BytesIO
-
-        # Registrar el opener de HEIF en Pillow
-        register_heif_opener()
-
-        # Abrir imagen HEIC
-        if hasattr(heic_file, 'file'):
-            img = Image.open(heic_file.file)
-        elif hasattr(heic_file, 'read'):
-            img = Image.open(heic_file)
-        else:
-            img = Image.open(heic_file)
-
-        # Redimensionar si es muy grande (optimización para móvil)
-        if max(img.size) > max_size:
-            img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-
-        # Convertir a RGB si es necesario
-        if img.mode in ('RGBA', 'LA', 'P'):
-            # Crear fondo blanco para transparencias
-            background = Image.new('RGB', img.size, (255, 255, 255))
-            if img.mode == 'RGBA' or img.mode == 'LA':
-                background.paste(img, mask=img.split()[-1])  # Usar canal alpha como máscara
-            else:
-                background.paste(img)
-            img = background
-        elif img.mode != 'RGB':
-            img = img.convert('RGB')
-
-        # Guardar como JPEG en memoria con optimizaciones
-        output = BytesIO()
-
-        # Intentar preservar EXIF (solo si no es muy grande)
-        exif_data = img.info.get('exif', None)
-        if exif_data and len(exif_data) < 65536:  # Limitar tamaño EXIF
-            img.save(output, format='JPEG', quality=quality, exif=exif_data, optimize=True, progressive=True)
-        else:
-            img.save(output, format='JPEG', quality=quality, optimize=True, progressive=True)
-
-        output.seek(0)
-        return output
-
-    except ImportError:
-        raise Exception("pillow-heif no está instalado. Ejecuta: pip install pillow-heif")
-    except Exception as e:
-        raise Exception(f"Error convirtiendo HEIC a JPEG: {str(e)}")
+    sanitized = sanitize_image(heic_file, max_size=max_size, quality=quality)
+    sanitized.seek(0)
+    return sanitized.file
 
 
 def extract_frame_from_live_photo(video_file):
@@ -446,9 +400,116 @@ def extract_frame_from_live_photo(video_file):
         return None
 
 
+def sanitize_image(image_file, max_size=2560, quality=85):
+    """
+    Sanea una imagen eliminando metadatos EXIF/GPS, normalizando la orientación
+    y redimensionando si excede el tamaño máximo.
+
+    Args:
+        image_file: Django UploadedFile, File, BytesIO, o path
+        max_size: Tamaño máximo de la imagen (por defecto 2560px)
+        quality: Calidad JPEG (por defecto 85)
+
+    Returns:
+        InMemoryUploadedFile: Imagen saneada en memoria con identificador UUID y sin EXIF
+    """
+    try:
+        from PIL import Image, ImageOps
+        from io import BytesIO
+        import uuid
+        from django.core.files.uploadedfile import InMemoryUploadedFile
+
+        try:
+            from pillow_heif import register_heif_opener
+            register_heif_opener()
+        except ImportError:
+            pass
+
+        # Abrir imagen
+        if hasattr(image_file, 'file'):
+            img = Image.open(image_file.file)
+        elif hasattr(image_file, 'read'):
+            img = Image.open(image_file)
+        else:
+            img = Image.open(image_file)
+
+        # Corregir orientación física según EXIF antes de purgar metadatos
+        img = ImageOps.exif_transpose(img) or img
+
+        # Redimensionar si supera límites razonables
+        if max(img.size) > max_size:
+            img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+
+        # Convertir a RGB (manejando transparencia con fondo blanco)
+        if img.mode in ('RGBA', 'LA', 'P'):
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode in ('RGBA', 'LA'):
+                background.paste(img, mask=img.split()[-1])
+            else:
+                rgba = img.convert('RGBA')
+                background.paste(rgba, mask=rgba.split()[-1])
+            img = background
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        # Guardar como JPEG en memoria sin ningún parámetro de metadatos EXIF
+        output = BytesIO()
+        img.save(output, format='JPEG', quality=quality, optimize=True, progressive=True)
+        output.seek(0)
+
+        # Generar nombre UUID no predecible
+        uuid_filename = f"{uuid.uuid4().hex}.jpg"
+        field_name = getattr(image_file, 'field_name', None)
+
+        return InMemoryUploadedFile(
+            output,
+            field_name=field_name,
+            name=uuid_filename,
+            content_type='image/jpeg',
+            size=output.getbuffer().nbytes,
+            charset=None,
+        )
+
+    except Exception as e:
+        raise RuntimeError(f"Error saneando imagen: {str(e)}") from e
+
+
+def build_uuid_upload_path(base_dir, filename):
+    """
+    Construye una ruta con prefijo base_dir y nombre de archivo UUID no predecible.
+    Reutiliza el UUID si ya es válido, y normaliza extensiones HEIC/HEIF a .jpg.
+    """
+    import os
+    import uuid
+
+    name, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    if not ext or ext in ['.heic', '.heif']:
+        ext = '.jpg'
+    try:
+        uuid_hex = uuid.UUID(name).hex
+    except (ValueError, AttributeError):
+        uuid_hex = uuid.uuid4().hex
+    return f"{base_dir.rstrip('/')}/{uuid_hex}{ext}"
+
+
+def sanitize_model_image_field(instance, field_name, max_size=2560):
+    """
+    Sanea un campo de imagen de un modelo Django si se le ha asignado un nuevo archivo
+    no guardado en almacenamiento (_committed=False).
+    """
+    field = getattr(instance, field_name, None)
+    if field and not getattr(field, '_committed', True):
+        sanitized = sanitize_image(field, max_size=max_size)
+        setattr(instance, field_name, sanitized)
+        return sanitized
+    return None
+
+
 def process_uploaded_image(uploaded_file, optimize_for_mobile=True):
     """
-    Procesa una imagen subida, convirtiendo HEIC si es necesario y optimizando para móvil
+    Procesa una imagen subida mediante el pipeline centralizado de saneamiento:
+    elimina metadatos EXIF/GPS, normaliza orientación y formato, y asigna identificador UUID.
 
     Args:
         uploaded_file: Django UploadedFile
@@ -457,40 +518,18 @@ def process_uploaded_image(uploaded_file, optimize_for_mobile=True):
     Returns:
         tuple: (processed_file, original_extension, was_converted)
     """
-    from django.core.files.uploadedfile import InMemoryUploadedFile
     import os
 
-    # Obtener extensión original
     original_name = uploaded_file.name
     original_ext = os.path.splitext(original_name)[1].lower()
 
-    # Si es HEIC, convertir a JPEG con optimizaciones
-    if original_ext in ['.heic', '.heif']:
-        try:
-            # Usar parámetros optimizados para móvil
-            max_size = 2048 if optimize_for_mobile else 4096
-            quality = 85 if optimize_for_mobile else 95
+    max_size = 2048 if optimize_for_mobile else 2560
+    quality = 85 if optimize_for_mobile else 90
 
-            jpeg_data = convert_heic_to_jpeg(uploaded_file, max_size=max_size, quality=quality)
+    sanitized_file = sanitize_image(uploaded_file, max_size=max_size, quality=quality)
+    was_converted = original_ext not in ['.jpg', '.jpeg']
 
-            # Crear nuevo UploadedFile con el JPEG
-            new_name = os.path.splitext(original_name)[0] + '.jpg'
-            converted_file = InMemoryUploadedFile(
-                jpeg_data,
-                field_name=uploaded_file.field_name,
-                name=new_name,
-                content_type='image/jpeg',
-                size=jpeg_data.getbuffer().nbytes,
-                charset=None
-            )
-
-            return converted_file, original_ext, True
-
-        except Exception as e:
-            raise Exception(f"No se pudo convertir HEIC: {str(e)}")
-
-    # Si no es HEIC, retornar tal cual
-    return uploaded_file, original_ext, False
+    return sanitized_file, original_ext, was_converted
 
 
 def is_live_photo_video(filename):
