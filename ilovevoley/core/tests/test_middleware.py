@@ -228,31 +228,40 @@ class Error404TrackingMiddlewareTest(TestCase):
 
         request = self.factory.get('/some-path/?token=hidden')
 
-        with patch('ilovevoley.core.middleware.send_mail') as mock_send_mail:
+        # El middleware encola la alerta; el envío SMTP ocurre en la tarea Celery.
+        with patch('ilovevoley.core.tasks.send_404_immediate_alert_task.delay') as mock_delay:
             r1 = send_404_immediate_alert(request, threshold=3)
             self.assertFalse(r1)
-            mock_send_mail.assert_not_called()
+            mock_delay.assert_not_called()
 
             r2 = send_404_immediate_alert(request, threshold=3)
             self.assertFalse(r2)
-            mock_send_mail.assert_not_called()
+            mock_delay.assert_not_called()
 
             r3 = send_404_immediate_alert(request, threshold=3)
             self.assertTrue(r3)
-            mock_send_mail.assert_called_once()
-            call_kwargs = mock_send_mail.call_args[1]
-            self.assertNotIn('token=hidden', call_kwargs['html_message'])
-            self.assertIn('/some-path/', call_kwargs['html_message'])
+            mock_delay.assert_called_once()
+            count, hour, last_url, recipients = mock_delay.call_args[0]
+            self.assertEqual(count, 3)
+            self.assertNotIn('token=hidden', last_url)
+            self.assertIn('/some-path/', last_url)
+            self.assertIn('admin_alert_404@example.com', recipients)
 
 
 class CacheSettingsTest(TestCase):
     def test_redis_cache_configured(self):
+        """Prod define Redis; pytest usa LocMem vía config.settings_test."""
+        import config.settings as prod_settings
         from django.conf import settings
-        self.assertIn('default', settings.CACHES)
+
         self.assertEqual(
-            settings.CACHES['default']['BACKEND'],
+            prod_settings.CACHES['default']['BACKEND'],
             'django.core.cache.backends.redis.RedisCache',
         )
         self.assertTrue(
-            settings.CACHES['default']['LOCATION'].startswith('redis://')
+            prod_settings.CACHES['default']['LOCATION'].startswith('redis://')
+        )
+        self.assertEqual(
+            settings.CACHES['default']['BACKEND'],
+            'django.core.cache.backends.locmem.LocMemCache',
         )

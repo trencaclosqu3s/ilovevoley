@@ -28,10 +28,16 @@ class MigrateVideoManagersToMembershipTest(TransactionTestCase):
         self.org1 = Organization.objects.create(slug='club1', name='Club 1', default_home='videos')
         self.org2 = Organization.objects.create(slug='club2', name='Club 2', default_home='videos')
 
-        # Usuario 1: en VideoManagers con membership 'member' en org1
+        # Usuario 1: VideoManagers + member en org1 con contenido allí → manager
         self.user1 = User.objects.create_user(username='vm_user1', password='pass')
         self.user1.groups.add(vm_group)
         Membership.objects.create(user=self.user1, organization_id=self.org1.id, role='member', is_approved=True)
+        Video.objects.create(
+            title='Video Org1',
+            youtube_url='https://youtu.be/org1',
+            created_by=self.user1,
+            organization_id=self.org1.id,
+        )
 
         # Usuario 2: en VideoManagers sin membership pero con Video en org2
         self.user2 = User.objects.create_user(username='vm_user2', password='pass')
@@ -47,6 +53,13 @@ class MigrateVideoManagersToMembershipTest(TransactionTestCase):
         self.user3 = User.objects.create_user(username='normal_user', password='pass')
         Membership.objects.create(user=self.user3, organization_id=self.org1.id, role='member', is_approved=True)
 
+        # Usuario 4: VideoManagers + member en org2 sin contenido allí → no se eleva
+        self.user4 = User.objects.create_user(username='vm_no_content', password='pass')
+        self.user4.groups.add(vm_group)
+        Membership.objects.create(
+            user=self.user4, organization_id=self.org2.id, role='member', is_approved=True
+        )
+
     def tearDown(self):
         self.executor.loader.build_graph()
         self.executor.migrate(self.executor.loader.graph.leaf_nodes())
@@ -58,9 +71,10 @@ class MigrateVideoManagersToMembershipTest(TransactionTestCase):
         new_apps = self.executor.loader.project_state([self.migrate_to]).apps
         Membership = new_apps.get_model('users', 'Membership')
 
-        # user1 debe haber sido ascendido a manager en org1
+        # user1 debe haber sido ascendido a manager en org1 (tiene contenido allí)
         m1 = Membership.objects.get(user_id=self.user1.id, organization_id=self.org1.id)
         self.assertEqual(m1.role, 'manager')
+        self.assertTrue(m1.is_approved)
 
         # user2 debe tener una membership de manager en org2
         m2 = Membership.objects.get(user_id=self.user2.id, organization_id=self.org2.id)
@@ -70,3 +84,14 @@ class MigrateVideoManagersToMembershipTest(TransactionTestCase):
         # user3 debe seguir siendo member
         m3 = Membership.objects.get(user_id=self.user3.id, organization_id=self.org1.id)
         self.assertEqual(m3.role, 'member')
+
+        # user4: VideoManager sin contenido en org2 no se eleva cross-tenant
+        m4 = Membership.objects.get(user_id=self.user4.id, organization_id=self.org2.id)
+        self.assertEqual(m4.role, 'member')
+
+        Group = new_apps.get_model('auth', 'Group')
+        vm_group = Group.objects.get(name='VideoManagers')
+        remaining = set(vm_group.user_set.values_list('id', flat=True))
+        self.assertNotIn(self.user1.id, remaining)
+        self.assertNotIn(self.user2.id, remaining)
+        self.assertNotIn(self.user4.id, remaining)
