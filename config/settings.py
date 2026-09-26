@@ -36,6 +36,13 @@ ALLOWED_HOSTS = env_config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0
 ALLOWED_HOSTS += ['aerologic-nonfluent-jase.ngrok-free.dev']
 CSRF_TRUSTED_ORIGINS = env_config('CSRF_TRUSTED_ORIGINS', default='https://aerologic-nonfluent-jase.ngrok-free.dev', cast=lambda v: [s.strip() for s in v.split(',')])
 
+# Dominios oficiales de federación permitidos al descargar actas (mitigación SSRF).
+ACTA_ALLOWED_HOSTS = env_config(
+    'ACTA_ALLOWED_HOSTS',
+    default='federatio.com,voleibolib.net,voleibolib.es,rfevb.com',
+    cast=lambda v: [s.strip() for s in v.split(',') if s.strip()],
+)
+
 
 # Application definition
 

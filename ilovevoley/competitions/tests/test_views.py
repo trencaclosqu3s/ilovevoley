@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -203,6 +205,35 @@ class CompetitionsViewUrlTests(TestCase):
         r = self.client.get(url_search, {'q': 'Test'}, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(r.status_code, 200)
         self.assertIn('teams', r.json())
+
+    def test_ajax_acta_lineup_rechaza_esquema_no_https(self):
+        self.client.force_login(self.user)
+        self.match.acta_html = 'http://127.0.0.1:8000/admin/'
+        self.match.save(update_fields=['acta_html'])
+        url = reverse('competitions:ajax_acta_lineup', args=[self.match.id])
+
+        with patch('ilovevoley.core.security.requests.get') as mock_get:
+            response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+
+        self.assertEqual(response.status_code, 400)
+        mock_get.assert_not_called()
+
+    @patch('ilovevoley.core.security.socket.getaddrinfo')
+    def test_ajax_acta_lineup_rechaza_host_que_resuelve_a_ip_privada(self, mock_dns):
+        import socket as _socket
+        mock_dns.return_value = [
+            (_socket.AF_INET, _socket.SOCK_STREAM, 6, '', ('10.0.0.5', 443)),
+        ]
+        self.client.force_login(self.user)
+        self.match.acta_html = 'https://federatio.com/actas/1/acta.html'
+        self.match.save(update_fields=['acta_html'])
+        url = reverse('competitions:ajax_acta_lineup', args=[self.match.id])
+
+        with patch('ilovevoley.core.security.requests.get') as mock_get:
+            response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+
+        self.assertEqual(response.status_code, 400)
+        mock_get.assert_not_called()
 
     def test_backwards_compatible_videos_urls_render(self):
         self.client.force_login(self.user)
