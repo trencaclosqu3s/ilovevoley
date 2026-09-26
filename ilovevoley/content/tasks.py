@@ -21,4 +21,10 @@ def generate_image_thumbnails_task(image_id):
         logger.warning('Imagen %s no encontrada para generar miniaturas', image_id)
         return {'generated': 0}
 
-    return {'generated': len(generate_image_thumbnails(image))}
+    try:
+        return {'generated': len(generate_image_thumbnails(image))}
+    except Exception:
+        # Un original corrupto o un fallo de storage no debe quedar en silencio:
+        # la galería cae al original y aquí queda la traza para investigar.
+        logger.exception('Fallo generando miniaturas de la imagen %s', image_id)
+        return {'generated': 0, 'error': 'thumbnail_generation_failed'}

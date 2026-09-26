@@ -1,6 +1,7 @@
 import shutil
 import tempfile
 from io import BytesIO
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -8,7 +9,7 @@ from django.template.loader import render_to_string
 from django.test import TestCase, override_settings
 
 from ilovevoley.content.models import Image
-from ilovevoley.content.thumbnails import generate_image_thumbnails
+from ilovevoley.content.thumbnails import generate_image_thumbnails, schedule_thumbnail_generation
 
 
 def _jpeg_bytes(width, height):
@@ -106,3 +107,49 @@ class ThumbnailGenerationTests(TestCase):
         self.assertIn('srcset=', html)
         self.assertIn('image/webp', html)
         self.assertIn('400w', html)
+
+    @override_settings(THUMBNAIL_GENERATION_ASYNC=False)
+    def test_schedule_genera_en_linea_si_no_es_async(self):
+        image = self._create_image()
+
+        schedule_thumbnail_generation(image)
+
+        image.refresh_from_db()
+        self.assertTrue(image.thumbnail_small)
+
+    @override_settings(THUMBNAIL_GENERATION_ASYNC=True)
+    def test_schedule_encola_la_tarea_en_async(self):
+        image = self._create_image()
+
+        with patch('ilovevoley.content.tasks.generate_image_thumbnails_task.delay') as delay:
+            schedule_thumbnail_generation(image)
+
+        delay.assert_called_once_with(image.pk)
+        image.refresh_from_db()
+        self.assertFalse(image.thumbnail_small)
+
+    @override_settings(THUMBNAIL_GENERATION_ASYNC=True)
+    def test_schedule_cae_a_sincrono_si_el_broker_falla(self):
+        image = self._create_image()
+
+        with patch(
+            'ilovevoley.content.tasks.generate_image_thumbnails_task.delay',
+            side_effect=OSError('broker caído'),
+        ):
+            schedule_thumbnail_generation(image)
+
+        image.refresh_from_db()
+        self.assertTrue(image.thumbnail_small)
+
+    def test_task_registra_el_error_sin_propagarlo(self):
+        from ilovevoley.content import tasks as content_tasks
+
+        image = self._create_image()
+        with patch(
+            'ilovevoley.content.thumbnails.generate_image_thumbnails',
+            side_effect=RuntimeError('original corrupto'),
+        ):
+            result = content_tasks.generate_image_thumbnails_task(image.pk)
+
+        self.assertEqual(result['generated'], 0)
+        self.assertEqual(result['error'], 'thumbnail_generation_failed')

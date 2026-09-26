@@ -345,11 +345,6 @@ class Image(models.Model):
         return self._variant_url(self.thumbnail_small) or self._original_url
 
     @property
-    def thumbnail_url_large(self):
-        """URL de la miniatura 1600px WebP o, si no existe, la original."""
-        return self._variant_url(self.thumbnail_large) or self._original_url
-
-    @property
     def thumbnail_srcset(self):
         """srcset WebP (400w/1600w) para el atributo de la etiqueta <img>."""
         return self._build_srcset(
