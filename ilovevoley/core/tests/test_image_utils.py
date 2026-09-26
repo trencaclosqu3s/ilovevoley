@@ -54,3 +54,20 @@ class DecodeCroppedImageTests(SimpleTestCase):
     def test_non_data_uri_is_rejected(self):
         with self.assertRaises(InvalidImageError):
             decode_cropped_image('https://example.com/photo.jpg')
+
+
+class ImageToDataUriTests(SimpleTestCase):
+    def test_converts_content_file_to_data_uri(self):
+        from django.core.files.base import ContentFile
+        from ilovevoley.core.image_utils import image_to_data_uri
+
+        cf = ContentFile(b'\xff\xd8\xff\xe0\x00\x10JFIF', name='test.jpg')
+        uri = image_to_data_uri(cf)
+        self.assertIsNotNone(uri)
+        self.assertTrue(uri.startswith('data:image/jpeg;base64,'))
+
+    def test_returns_none_on_none_or_missing_file(self):
+        from ilovevoley.core.image_utils import image_to_data_uri
+
+        self.assertIsNone(image_to_data_uri(None))
+

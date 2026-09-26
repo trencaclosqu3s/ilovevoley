@@ -70,3 +70,28 @@ def decode_cropped_image(data_uri, *, max_size=MAX_IMAGE_UPLOAD_SIZE, filename=N
 
     output.seek(0)
     return ContentFile(output.read(), name=filename or f'{uuid.uuid4().hex}.jpg')
+
+
+def image_to_data_uri(file_or_field):
+    """
+    Convierte un archivo o campo ImageField de Django en un string data-URI (base64).
+    Retorna None si el archivo no existe o no se puede leer.
+    """
+    if not file_or_field:
+        return None
+    try:
+        import mimetypes
+        file_or_field.open('rb')
+        try:
+            content = file_or_field.read()
+        finally:
+            file_or_field.close()
+        if not content:
+            return None
+        name = getattr(file_or_field, 'name', '') or ''
+        mime_type = mimetypes.guess_type(name)[0] or 'image/jpeg'
+        encoded = base64.b64encode(content).decode('ascii')
+        return f"data:{mime_type};base64,{encoded}"
+    except Exception:
+        return None
+

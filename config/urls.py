@@ -17,7 +17,6 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
-from django.conf.urls.static import static
 from ilovevoley.core.moderation_views import moderate_user, moderate_image
 from ilovevoley.core.protected_media import protected_media
 from ilovevoley.core.views import landing
@@ -43,7 +42,6 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     # Test URLs para ver las páginas de error
     from ilovevoley.core.views import test_400, test_403, test_404, test_500
     urlpatterns += [

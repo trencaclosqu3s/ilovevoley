@@ -398,5 +398,45 @@ class ImageUploadSanitizationViewTests(TestCase):
         saved_img = PILImage.open(created.image)
         self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
 
+    def test_image_bulk_upload_view_sanitizes_exif_and_assigns_uuid(self):
+        import uuid
+        from io import BytesIO
+        from PIL import Image as PILImage
+        from PIL.ExifTags import Base, GPS
+
+        img = PILImage.new('RGB', (100, 100), color='blue')
+        exif = img.getexif()
+        gps_ifd = exif.get_ifd(Base.GPSInfo)
+        gps_ifd[GPS.GPSLatitude] = (39.5696, 0, 0)
+        gps_ifd[GPS.GPSLongitude] = (2.6502, 0, 0)
+        buf = BytesIO()
+        img.save(buf, format='JPEG', exif=exif)
+        buf.seek(0)
+
+        uploaded = SimpleUploadedFile('masiva.jpg', buf.read(), content_type='image/jpeg')
+
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('content:image_bulk_upload'),
+            {
+                'images': [uploaded],
+                'title_0': 'Foto masiva test',
+                'image_type': 'training',
+                'season': self.season.id,
+            },
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+
+        created = Image.objects.get(title='Foto masiva test')
+        filename = created.image.name.split('/')[-1]
+        base_name = filename.split('.')[0]
+        self.assertEqual(uuid.UUID(base_name).hex, base_name)
+
+        created.image.open()
+        saved_img = PILImage.open(created.image)
+        self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
+
+
 
 

@@ -63,9 +63,9 @@ def _person_is_allowed(person, user, tenant):
     if not has_roles:
         return True
     return person.player_roles.filter(
-        is_active=True, team__club_id=club_id
+        team__club_id=club_id
     ).exists() or person.staff_roles.filter(
-        is_active=True, team__club_id=club_id
+        team__club_id=club_id
     ).exists()
 
 

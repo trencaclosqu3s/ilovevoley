@@ -1,3 +1,4 @@
+from io import BytesIO
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -5,6 +6,7 @@ from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core import mail
 from unittest.mock import patch
+from PIL import Image as PILImage
 
 from ilovevoley.core.models import Organization
 from ilovevoley.users.models import Membership
@@ -72,7 +74,10 @@ class ModerationViewsSecurityTest(TestCase):
         )
 
         # Pending image to be moderated
-        test_file = SimpleUploadedFile("test.jpg", b"\x47\x49\x46\x38\x39\x61", content_type="image/jpeg")
+        buf = BytesIO()
+        PILImage.new('RGB', (10, 10), color='green').save(buf, format='JPEG')
+        buf.seek(0)
+        test_file = SimpleUploadedFile("test.jpg", buf.read(), content_type="image/jpeg")
         self.pending_image = Image.objects.create(
             title="Test Pending Image",
             image=test_file,
@@ -125,6 +130,9 @@ class ModerationViewsSecurityTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Confirmar')
+        self.assertIn('image_data_uri', response.context)
+        self.assertTrue(response.context['image_data_uri'].startswith('data:image/'))
+        self.assertContains(response, response.context['image_data_uri'])
         self.pending_image.refresh_from_db()
         self.assertEqual(self.pending_image.status, 'pending')
 
@@ -178,6 +186,9 @@ class ModerationViewsSecurityTest(TestCase):
         response = self.client.post(url)
 
         self.assertEqual(response.status_code, 200)
+        self.assertIn('image_data_uri', response.context)
+        self.assertTrue(response.context['image_data_uri'].startswith('data:image/'))
+        self.assertContains(response, response.context['image_data_uri'])
         self.pending_image.refresh_from_db()
         self.assertEqual(self.pending_image.status, 'approved')
         self.assertEqual(self.pending_image.moderated_by, self.manager_org1)
@@ -218,8 +229,11 @@ class ModerationViewsSecurityTest(TestCase):
             self.assertEqual(response.status_code, 400)
 
     def test_image_uploaded_signal_generates_absolute_urls_and_scoped_recipients(self):
+        buf = BytesIO()
+        PILImage.new('RGB', (10, 10), color='green').save(buf, format='JPEG')
+        buf.seek(0)
+        test_file = SimpleUploadedFile("signal_test.jpg", buf.read(), content_type="image/jpeg")
         mail.outbox.clear()
-        test_file = SimpleUploadedFile("signal_test.jpg", b"\x47\x49\x46\x38\x39\x61", content_type="image/jpeg")
         new_image = Image.objects.create(
             title="Signal Test Image",
             image=test_file,
