@@ -60,6 +60,19 @@ def build_tenant_url(slug, request=None):
     return f'{protocol}://{slug}.{base_domain}/'
 
 
+def build_absolute_url(path, tenant=None, request=None):
+    """
+    Construye una URL absoluta considerando el tenant (subdominio) o el dominio base.
+    """
+    protocol = 'https' if not settings.DEBUG else 'http'
+    if tenant and getattr(tenant, 'slug', None):
+        base = build_tenant_url(tenant.slug, request)
+        return f"{base.rstrip('/')}/{path.lstrip('/')}"
+    base_domain = get_tenant_base_domain(request)
+    return f"{protocol}://{base_domain}/{path.lstrip('/')}"
+
+
+
 def user_has_approved_membership(user, tenant):
     if not user.is_authenticated:
         return False
