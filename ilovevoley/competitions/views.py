@@ -227,8 +227,6 @@ def calendar_view(request):
     except (ValueError, TypeError, OverflowError):
         return redirect('competitions:calendar_view')
 
-    end_date = next_month_start - timedelta(days=1)
-
     monthly_matches = matches.filter(
         match_date__gte=start_date,
         match_date__lt=next_month_start,
