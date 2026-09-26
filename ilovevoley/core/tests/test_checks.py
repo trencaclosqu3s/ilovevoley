@@ -31,20 +31,20 @@ class CheckSocialauthConfigTests(TestCase):
         assert check_socialauth_config in deployment_checks
 
     def test_unmigrated_database_returns_warning_cleanly(self):
-        """When django_site table does not exist, return W007 without raising DB exceptions."""
+        """When django_site table does not exist, return W012 without raising DB exceptions."""
         with patch.object(connection.introspection, "table_names", return_value=[]):
             warnings = check_socialauth_config(None)
 
         assert len(warnings) == 1
-        assert warnings[0].id == "ilovevoley.W007"
+        assert warnings[0].id == "ilovevoley.W012"
 
     def test_unmigrated_table_does_not_abort_atomic_transaction(self):
-        """Simulating missing table inside an atomic transaction must not abort the transaction."""
+        """Introspecting missing table inside an atomic transaction must not abort the transaction."""
         with transaction.atomic():
             with patch.object(connection.introspection, "table_names", return_value=[]):
                 warnings = check_socialauth_config(None)
             assert len(warnings) == 1
-            assert warnings[0].id == "ilovevoley.W007"
+            assert warnings[0].id == "ilovevoley.W012"
 
             # Must still be able to execute queries in this transaction
             with connection.cursor() as cursor:
@@ -113,6 +113,14 @@ class CheckSocialauthConfigTests(TestCase):
         warnings = check_socialauth_config(None)
         assert warnings == []
 
+    def test_site_does_not_exist_triggers_w007(self):
+        """When Site table exists but Site record does not exist, return W007."""
+        Site.objects.filter(id=settings.SITE_ID).delete()
+
+        warnings = check_socialauth_config(None)
+        warning_ids = [w.id for w in warnings]
+        assert "ilovevoley.W007" in warning_ids
+
     def test_manage_check_does_not_execute_socialauth_check(self):
         """Standard manage.py check does not run check_socialauth_config because it is a deploy check."""
         import io
@@ -126,6 +134,7 @@ class CheckSocialauthConfigTests(TestCase):
         assert "ilovevoley.W005" not in output
         assert "ilovevoley.W006" not in output
         assert "ilovevoley.W007" not in output
+        assert "ilovevoley.W012" not in output
 
     def test_manage_check_deploy_executes_socialauth_check(self):
         """Deployment check (manage.py check --deploy) executes check_socialauth_config."""

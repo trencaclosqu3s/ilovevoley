@@ -47,33 +47,39 @@ def check_google_vision_config(app_configs, **kwargs):
     return warnings
 
 
+def _table_exists(db_alias, model):
+    """Verifica si la tabla del modelo existe en la base de datos indicada."""
+    from django.db import connections
+    from django.db.utils import DatabaseError
+
+    conn = connections[db_alias]
+    try:
+        with conn.cursor() as cursor:
+            tables = set(conn.introspection.table_names(cursor))
+        return model._meta.db_table in tables
+    except DatabaseError:
+        return False
+
+
 @register(Tags.compatibility, deploy=True)
 def check_socialauth_config(app_configs, databases=None, **kwargs):
     """Verificar configuración de django-allauth y Sites en despliegue"""
     warnings = []
 
     from django.contrib.sites.models import Site
-    from django.db import connections, router
+    from django.db import router
     from django.db.utils import DatabaseError
 
     site_db = router.db_for_read(Site)
     if databases is not None and site_db not in databases:
         return []
 
-    conn = connections[site_db]
-    try:
-        with conn.cursor() as cursor:
-            tables = set(conn.introspection.table_names(cursor))
-    except DatabaseError:
-        return warnings
-
-    site_table = Site._meta.db_table
-    if site_table not in tables:
+    if not _table_exists(site_db, Site):
         warnings.append(
             Warning(
-                f'La tabla de Sites ({site_table}) no existe en la base de datos',
+                f'La tabla de Sites ({Site._meta.db_table}) no existe en la base de datos',
                 hint='Ejecutar: python manage.py migrate',
-                id='ilovevoley.W007',
+                id='ilovevoley.W012',
             )
         )
         return warnings
@@ -110,15 +116,7 @@ def check_socialauth_config(app_configs, databases=None, **kwargs):
         if databases is not None and social_db not in databases:
             return warnings
 
-        social_conn = connections[social_db]
-        try:
-            with social_conn.cursor() as cursor:
-                social_tables = set(social_conn.introspection.table_names(cursor))
-        except DatabaseError:
-            return warnings
-
-        app_table = SocialApp._meta.db_table
-        if app_table not in social_tables:
+        if not _table_exists(social_db, SocialApp):
             return warnings
 
         google_apps = list(SocialApp.objects.using(social_db).filter(provider='google'))
