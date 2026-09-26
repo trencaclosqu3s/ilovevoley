@@ -6,12 +6,12 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count, F, Max, Q, Window
 from django.db.models.functions import RowNumber
 from django.http import Http404, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -19,11 +19,17 @@ from ilovevoley.competitions.models import League, Match
 from ilovevoley.core.mixins import get_club_team_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
-from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
+from ilovevoley.core.tenancy import get_tenant_object_or_404
+from ilovevoley.core.tenant_utils import (
+    can_moderate_images,
+    tenant_access_required,
+    user_is_tenant_manager,
+)
 from ilovevoley.teams.models import Team
+from .services import moderate_image
+
 from ilovevoley.videos.utils import (
     check_image_with_vision_api,
-    process_uploaded_image,
     process_vision_tags_for_volleyball,
 )
 from .forms import (
@@ -361,9 +367,9 @@ def video_bulk_create(request):
 
 @tenant_access_required()
 def video_detail(request, video_id):
-    video = get_object_or_404(Video, id=video_id)
-    if video.organization != request.tenant and not request.user.is_superuser:
-        raise Http404
+    video = get_tenant_object_or_404(
+        Video.objects, request.tenant, user=request.user, id=video_id
+    )
 
     # Manejar envío de comentarios
     if request.method == 'POST':
@@ -599,45 +605,6 @@ def image_upload(request):
             image.uploaded_by = request.user
             image.organization = request.tenant
 
-            # Procesar imagen (convertir HEIC si es necesario)
-            try:
-                uploaded_file = request.FILES.get('image')
-                if uploaded_file:
-                    processed_file, original_ext, was_converted = process_uploaded_image(uploaded_file)
-                    
-                    # Actualizar el archivo en la instancia
-                    image.image = processed_file
-                    image.original_format = original_ext.lstrip('.')
-                    image.was_converted = was_converted
-                    
-                    if was_converted:
-                        logger.info(f"Imagen convertida de {original_ext} a JPEG para usuario {request.user.username}")
-                        
-            except Exception as e:
-                logger.error(f"Error procesando imagen: {str(e)}")
-                messages.error(request, f'Error al procesar la imagen: {str(e)}')
-                
-                # Preparar recent_matches con la misma lógica
-                club_query = get_club_team_filter(request.tenant)
-                now = timezone.now()
-                past_matches = Match.objects.select_related(
-                    'home_team', 'away_team', 'league'
-                ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
-                next_match = Match.objects.select_related(
-                    'home_team', 'away_team', 'league'
-                ).filter(club_query, match_date__gte=now).order_by('match_date').first()
-                
-                if next_match:
-                    recent_matches = list(past_matches) + [next_match]
-                    recent_matches.sort(key=lambda x: x.match_date, reverse=True)
-                else:
-                    recent_matches = list(past_matches)
-                
-                return render(request, 'content/image_upload.html', {
-                    'form': form,
-                    'recent_matches': recent_matches
-                })
-            
             # Si el usuario es superuser, aprobar directamente sin pasar por Vision API
             if request.user.is_superuser:
                 image.status = 'approved'
@@ -879,38 +846,28 @@ def image_bulk_upload(request):
         
         for idx, uploaded_file in enumerate(uploaded_files):
             try:
-                # Optimizar para móvil si es necesario
-                processed_file, original_ext, was_converted = process_uploaded_image(
-                    uploaded_file, 
-                    optimize_for_mobile=is_mobile_request
-                )
+                # Validar tipo y tamaño de archivo
+                content_type = getattr(uploaded_file, 'content_type', '') or ''
+                if not content_type.startswith('image/'):
+                    errors.append(f'{uploaded_file.name}: No es una imagen válida')
+                    continue
+                
+                if uploaded_file.size > 10 * 1024 * 1024:  # 10MB
+                    errors.append(f'{uploaded_file.name}: Archivo demasiado grande (máx 10MB)')
+                    continue
                 
                 # Obtener título y descripción individual
                 title = request.POST.get(f'title_{idx}', uploaded_file.name.rsplit('.', 1)[0])
                 description = request.POST.get(f'description_{idx}', '')
                 
-                # Validar archivo procesado
-                if not processed_file.content_type.startswith('image/'):
-                    errors.append(f'{uploaded_file.name}: No es una imagen válida')
-                    continue
-                
-                if processed_file.size > 10 * 1024 * 1024:  # 10MB
-                    errors.append(f'{uploaded_file.name}: Archivo demasiado grande (máx 10MB)')
-                    continue
-                
                 # Crear imagen
                 image = Image(
-                    image=processed_file,
+                    image=uploaded_file,
                     title=title,
                     description=description,
                     tags=shared_tags,
-                    original_format=original_ext.lstrip('.'),
-                    was_converted=was_converted,
                     **shared_data
                 )
-                
-                if was_converted:
-                    logger.info(f"Imagen {uploaded_file.name} convertida de {original_ext} a JPEG")
                 
                 # Si el usuario es superuser, aprobar directamente sin pasar por Vision API
                 if request.user.is_superuser:
@@ -1101,23 +1058,21 @@ def image_bulk_upload(request):
 @tenant_access_required()
 def image_detail(request, image_id):
     """Vista de detalle de imagen"""
-    image = get_object_or_404(
+    image = get_tenant_object_or_404(
         Image.objects.select_related(
             'match__home_team', 'match__away_team', 'match__league',
             'uploaded_by', 'moderated_by'
         ).prefetch_related('categories'),
-        id=image_id
+        request.tenant, user=request.user, id=image_id,
     )
-    if image.organization != request.tenant and not request.user.is_superuser:
-        raise Http404
 
-    # Solo mostrar imágenes aprobadas a usuarios normales
-    if not request.user.is_staff and image.status != 'approved':
+    # Solo mostrar imágenes aprobadas a usuarios normales (managers/admins del tenant pueden ver pendientes)
+    if not user_is_tenant_manager(request.user, request.tenant) and image.status != 'approved':
         messages.error(request, 'Imagen no disponible.')
         return redirect('content:image_gallery')
     
     # Imágenes relacionadas del mismo partido
-    related_images = Image.objects.filter(
+    related_images = Image.objects.for_tenant(request.tenant).filter(
         match=image.match,
         status='approved'
     ).exclude(id=image.id)[:6]
@@ -1133,12 +1088,12 @@ def image_detail(request, image_id):
 @tenant_access_required()
 def match_images(request, match_id):
     """Vista de imágenes de un partido específico"""
-    match = get_object_or_404(
+    match = get_tenant_object_or_404(
         Match.objects.select_related('home_team', 'away_team', 'league'),
-        id=match_id
+        request.tenant, user=request.user, id=match_id,
     )
     
-    images = Image.objects.filter(
+    images = Image.objects.for_tenant(request.tenant).filter(
         match=match,
         status='approved'
     ).select_related('uploaded_by').order_by('-upload_date')
@@ -1162,7 +1117,7 @@ def match_images(request, match_id):
 def album_group_images(request, album_group_id):
     """Vista de imágenes de un álbum de grupo (sin partido)"""
     # album_group_id ya viene como UUID desde la URL (gracias al path converter <uuid:album_group_id>)
-    images = Image.objects.filter(
+    images = Image.objects.for_tenant(request.tenant).filter(
         album_group_id=album_group_id,
         status='approved'
     ).select_related('uploaded_by').prefetch_related('categories').order_by('-upload_date')
@@ -1204,11 +1159,13 @@ def album_group_images(request, album_group_id):
 
 @tenant_access_required(staff=True)
 def image_moderation(request):
-    """Vista de moderación para admins"""
+    """Vista de moderación para admins y managers del tenant actual."""
     images = Image.objects.select_related(
         'match__home_team', 'match__away_team', 'match__league',
         'uploaded_by'
-    ).prefetch_related('categories').filter(status='pending').order_by('upload_date')
+    ).prefetch_related('categories').filter(status='pending').for_tenant(
+        request.tenant
+    ).order_by('upload_date')
     
     # Paginación
     paginator = Paginator(images, 20)
@@ -1225,8 +1182,10 @@ def image_moderation(request):
 
 @tenant_access_required(staff=True)
 def image_moderate_action(request, image_id):
-    """Acción de moderación individual"""
-    image = get_object_or_404(Image, id=image_id, status='pending')
+    """Acción de moderación individual acotada al tenant actual."""
+    image = get_tenant_object_or_404(
+        Image.objects, request.tenant, id=image_id, status='pending'
+    )
     
     if request.method == 'POST':
         form = ImageModerationForm(request.POST, instance=image)
@@ -1234,10 +1193,12 @@ def image_moderate_action(request, image_id):
             action = form.cleaned_data['action']
             notes = form.cleaned_data['moderation_notes']
             
-            image.moderate(
-                moderator=request.user,
-                approved=(action == 'approve'),
-                notes=notes
+            moderate_image(
+                actor=request.user,
+                tenant=request.tenant,
+                image=image,
+                decision=action,
+                notes=notes,
             )
             
             action_text = 'aprobada' if action == 'approve' else 'rechazada'
@@ -1256,25 +1217,33 @@ def image_moderate_action(request, image_id):
 
 @tenant_access_required(staff=True)
 def image_moderate_bulk(request):
-    """Moderación masiva de imágenes"""
+    """Moderación masiva de imágenes acotada al tenant actual."""
     if request.method == 'POST':
         action = request.POST.get('action')
         image_ids = request.POST.getlist('image_ids')
         notes = request.POST.get('notes', '')
         
         if action in ['approve', 'reject'] and image_ids:
-            images = Image.objects.filter(id__in=image_ids, status='pending')
-            approved = (action == 'approve')
-            
+            images = Image.objects.filter(
+                id__in=image_ids, status='pending'
+            ).for_tenant(request.tenant)
+            count = 0
             for image in images:
-                image.moderate(
-                    moderator=request.user,
-                    approved=approved,
-                    notes=notes
-                )
+                try:
+                    moderate_image(
+                        actor=request.user,
+                        tenant=request.tenant,
+                        image=image,
+                        decision=action,
+                        notes=notes,
+                        validate_permission=False,
+                    )
+                    count += 1
+                except ValueError:
+                    continue
             
-            action_text = 'aprobadas' if approved else 'rechazadas'
-            messages.success(request, f'{images.count()} imágenes {action_text}.')
+            action_text = 'aprobadas' if action == 'approve' else 'rechazadas'
+            messages.success(request, f'{count} imágenes {action_text}.')
         
         return redirect('content:image_moderation')
     
@@ -1282,12 +1251,21 @@ def image_moderate_bulk(request):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser, login_url='/')
 @require_POST
 def moderate_image_api(request, image_id):
-    """API para moderar una imagen vía AJAX"""
+    """API para moderar una imagen vía AJAX con aislamiento por organización."""
+    tenant = getattr(request, 'tenant', None)
+    if not can_moderate_images(request.user, tenant):
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+
     try:
-        image = Image.objects.get(id=image_id, status='pending')
+        if tenant is not None:
+            image = Image.objects.get(id=image_id, organization=tenant, status='pending')
+        elif request.user.is_superuser:
+            image = Image.objects.get(id=image_id, status='pending')
+        else:
+            return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+
         action = request.POST.get('action')  # 'approve' o 'reject'
         notes = request.POST.get('notes', '')
         
@@ -1297,15 +1275,15 @@ def moderate_image_api(request, image_id):
                 'error': 'Acción no válida'
             }, status=400)
         
-        # Usar el método existente de moderación
-        approved = (action == 'approve')
-        image.moderate(
-            moderator=request.user,
-            approved=approved,
-            notes=notes
+        moderate_image(
+            actor=request.user,
+            tenant=tenant,
+            image=image,
+            decision=action,
+            notes=notes,
         )
         
-        action_text = 'aprobada' if approved else 'rechazada'
+        action_text = 'aprobada' if action == 'approve' else 'rechazada'
         
         return JsonResponse({
             'success': True,
@@ -1325,6 +1303,7 @@ def moderate_image_api(request, image_id):
             'success': False,
             'error': 'Error interno del servidor'
         }, status=500)
+
 
 
 __all__ = [

@@ -27,8 +27,8 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <!-- Grupo izquierdo: Botón amistoso y filtros -->
             <div class="flex items-center gap-2 sm:gap-3">
-                <!-- Botón para crear partido amistoso (solo staff/VideoManagers) -->
-                {% if user.is_staff or user.groups.all|length > 0 %}
+                <!-- Botón para crear partido amistoso (solo managers/admins del tenant) -->
+                {% if is_tenant_manager %}
                 <a href="{% url 'competitions:friendly_match_create' %}" 
                    class="flex items-center px-3 sm:px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition text-sm font-medium">
                     <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -297,7 +297,7 @@
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                                                     {{ match.result_display }}
                                                 </span>
-                                            {% elif user.is_staff or user.groups.all|length > 0 %}
+                                            {% elif is_tenant_manager %}
                                                 {% if match.match_date.date <= today %}
                                                     <button onclick="openResultModal({{ match.id }}, '{{ match.home_team_display|escapejs }}', '{{ match.away_team_display|escapejs }}')" 
                                                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white transition shadow-sm">
@@ -531,32 +531,18 @@
 </div>
 
 <script>
-// Datos de partidos para JavaScript
-window.calendarData = {
-    matches: [
-        {% for match in matches %}
-        {
-            id: {{ match.id }},
-            day: {{ match.match_date.day }},
-            date: '{{ match.match_date|date:"d/m/Y" }}',
-            time: '{% if match.match_date|date:"H:i" == "00:00" %}Sin horario confirmado{% else %}{{ match.match_date|date:"H:i" }}{% endif %}',
-            home_team: '{{ match.home_team_display|escapejs }}',
-            away_team: '{{ match.away_team_display|escapejs }}',
-            home_team_logo: '{% if match.home_team and match.home_team.display_logo %}{{ match.home_team.display_logo|escapejs }}{% endif %}',
-            away_team_logo: '{% if match.away_team and match.away_team.display_logo %}{{ match.away_team.display_logo|escapejs }}{% endif %}',
-            league: '{% if match.league %}{{ match.league.name|escapejs }}{% endif %}',
-            category: '{% if match.league %}{% for category in match.league.categories.all %}{{ category.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}',
-            venue: '{% if match.venue %}{{ match.venue|escapejs }}{% endif %}',
-            city: '{% if match.city %}{{ match.city|escapejs }}{% endif %}',
-            result: '{% if match.is_finished %}{{ match.result_display }}{% endif %}',
-            videos_count: {{ match.videos.count }},
-            round_number: {{ match.round_number }},
-            is_friendly: {% if match.is_friendly %}true{% else %}false{% endif %},
-            club_team_name: '{{ club_team_name|escapejs }}'
-        }{% if not forloop.last %},{% endif %}
-        {% endfor %}
-    ]
-};
+{{ matches_json|json_script:"calendar-data" }}
+window.calendarData = JSON.parse(document.getElementById('calendar-data').textContent);
+
+function esc(value) {
+    if (value == null) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 function showDayMatches(day, monthName, year) {
     const matches = window.calendarData.matches.filter(match => match.day === day);
@@ -588,30 +574,30 @@ function showDayMatches(day, monthName, year) {
                 <div class="flex flex-col sm:flex-row justify-between items-start gap-3">
                     <div class="flex-1">
                         <div class="flex items-center space-x-2 mb-2">
-                            <span class="text-sm text-gray-600">${match.time}</span>
-                            ${match.is_friendly ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">🏐 Amistoso</span>' : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">J${match.round_number}</span>`}
-                            ${match.category ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">${match.category}</span>` : ''}
+                            <span class="text-sm text-gray-600">${esc(match.time)}</span>
+                            ${match.is_friendly ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">🏐 Amistoso</span>' : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">J${esc(match.round_number)}</span>`}
+                            ${match.category ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">${esc(match.category)}</span>` : ''}
                         </div>
                         <div class="font-semibold text-gray-900 mb-1 flex items-center gap-2">
                             <div class="flex items-center space-x-2">
-                                ${match.home_team_logo ? `<img src="${match.home_team_logo}" alt="${match.home_team}" class="w-5 h-5 object-contain rounded-sm" onerror="this.style.display='none'">` : ''}
-                                <span class="${isClubMatch && match.home_team.includes(match.club_team_name) ? 'text-purple-600' : ''}">${match.home_team}</span>
+                                ${match.home_team_logo ? `<img src="${esc(match.home_team_logo)}" alt="${esc(match.home_team)}" class="w-5 h-5 object-contain rounded-sm" onerror="this.style.display='none'">` : ''}
+                                <span class="${isClubMatch && match.home_team.includes(match.club_team_name) ? 'text-purple-600' : ''}">${esc(match.home_team)}</span>
                             </div>
                             <span class="text-gray-500">vs</span>
                             <div class="flex items-center space-x-2">
-                                ${match.away_team_logo ? `<img src="${match.away_team_logo}" alt="${match.away_team}" class="w-5 h-5 object-contain rounded-sm" onerror="this.style.display='none'">` : ''}
-                                <span class="${isClubMatch && match.away_team.includes(match.club_team_name) ? 'text-purple-600' : ''}">${match.away_team}</span>
+                                ${match.away_team_logo ? `<img src="${esc(match.away_team_logo)}" alt="${esc(match.away_team)}" class="w-5 h-5 object-contain rounded-sm" onerror="this.style.display='none'">` : ''}
+                                <span class="${isClubMatch && match.away_team.includes(match.club_team_name) ? 'text-purple-600' : ''}">${esc(match.away_team)}</span>
                             </div>
                         </div>
-                        ${match.result ? `<div class="text-sm text-green-600 font-medium">Resultado: ${match.result}</div>` : ''}
+                        ${match.result ? `<div class="text-sm text-green-600 font-medium">Resultado: ${esc(match.result)}</div>` : ''}
                         <div class="text-sm text-gray-600">
-                            <span>${match.league}</span>
-                            ${match.venue ? ` • 📍 ${match.venue}${match.city ? ' - ' + match.city : ''}` : ''}
+                            <span>${esc(match.league)}</span>
+                            ${match.venue ? ` • 📍 ${esc(match.venue)}${match.city ? ' - ' + esc(match.city) : ''}` : ''}
                         </div>
                     </div>
                     <div class="flex items-center space-x-2">
-                        ${match.videos_count > 0 ? `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">📹 ${match.videos_count} video${match.videos_count > 1 ? 's' : ''}</span>` : ''}
-                        <a href="/videos/partidos/${match.id}/" class="inline-flex items-center px-3 py-2 border border-purple-600 text-sm font-medium rounded-md text-purple-600 hover:bg-purple-600 hover:text-white transition">
+                        ${match.videos_count > 0 ? `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">📹 ${esc(match.videos_count)} video${match.videos_count > 1 ? 's' : ''}</span>` : ''}
+                        <a href="/videos/partidos/${esc(match.id)}/" class="inline-flex items-center px-3 py-2 border border-purple-600 text-sm font-medium rounded-md text-purple-600 hover:bg-purple-600 hover:text-white transition">
                             Ver detalles
                         </a>
                     </div>

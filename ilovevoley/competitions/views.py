@@ -7,24 +7,62 @@ from datetime import datetime, timedelta
 import requests as http_requests
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Case, CharField, Q, Value, When
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from unidecode import unidecode as _uni
 
-from ilovevoley.core.mixins import get_club_team_filter
+from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category
+from ilovevoley.core.security import UnsafeURL, safe_get
+from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
 from ilovevoley.rosters.models import PlayerRole
 from ilovevoley.teams.models import Team
-from ilovevoley.videos.scraping import parse_acta_lineup
+from ilovevoley.videos.scraping import parse_acta_lineup, validate_volleyball_score
 from .forms import FriendlyMatchForm, MatchResultForm
 from .models import League, Match, Standing
 
 logger = logging.getLogger(__name__)
+
+
+def build_calendar_matches_payload(matches, club_team_name):
+    """Serializa partidos del calendario para json_script (evita DOM-XSS vía escapejs+innerHTML)."""
+    payload = []
+    for match in matches:
+        local_dt = timezone.localtime(match.match_date)
+        time_str = local_dt.strftime('%H:%M')
+        categories = ''
+        if match.league_id:
+            categories = ', '.join(c.name for c in match.league.categories.all())
+        home_logo = ''
+        away_logo = ''
+        if match.home_team_id and match.home_team.display_logo:
+            home_logo = match.home_team.display_logo
+        if match.away_team_id and match.away_team.display_logo:
+            away_logo = match.away_team.display_logo
+        payload.append({
+            'id': match.id,
+            'day': local_dt.day,
+            'date': local_dt.strftime('%d/%m/%Y'),
+            'time': 'Sin horario confirmado' if time_str == '00:00' else time_str,
+            'home_team': match.home_team_display,
+            'away_team': match.away_team_display,
+            'home_team_logo': home_logo,
+            'away_team_logo': away_logo,
+            'league': match.league.name if match.league_id else '',
+            'category': categories,
+            'venue': match.venue or '',
+            'city': match.city or '',
+            'result': match.result_display if match.is_finished else '',
+            'videos_count': match.videos.count(),
+            'round_number': match.round_number,
+            'is_friendly': match.is_friendly,
+            'club_team_name': club_team_name or '',
+        })
+    return {'matches': payload}
 
 
 @tenant_access_required()
@@ -84,7 +122,9 @@ def league_list(request):
 @tenant_access_required()
 def league_detail(request, league_id):
     """Vista detallada de una liga con partidos y clasificación"""
-    league = get_object_or_404(League, id=league_id, is_active=True)
+    league = get_tenant_object_or_404(
+        League.objects, request.tenant, user=request.user, id=league_id, is_active=True
+    )
 
     # NUEVO: Lógica de filtrado por fases
     show_all_phases = request.GET.get('all_phases', '1') == '1'
@@ -100,12 +140,18 @@ def league_detail(request, league_id):
         matches = Match.objects.filter(league_id__in=league_ids)
         display_league = league.root_league
     elif selected_phase:
-        # Mostrar fase específica
+        # Mostrar fase específica (solo si pertenece al tenant)
+        phase_league = None
         try:
-            phase_league = League.objects.get(id=selected_phase)
+            phase_league = League.objects.for_tenant(request.tenant).filter(
+                id=selected_phase, is_active=True
+            ).first()
+        except (TypeError, ValueError):
+            phase_league = None
+        if phase_league is not None:
             matches = Match.objects.filter(league=phase_league)
             display_league = phase_league
-        except League.DoesNotExist:
+        else:
             matches = Match.objects.filter(league=league)
             display_league = league
     else:
@@ -152,9 +198,9 @@ def league_detail(request, league_id):
 @tenant_access_required()
 def match_detail(request, match_id):
     """Vista detallada de un partido con sus videos e imágenes"""
-    match = get_object_or_404(
+    match = get_tenant_object_or_404(
         Match.objects.select_related('home_team', 'away_team', 'league'),
-        id=match_id
+        request.tenant, user=request.user, id=match_id,
     )
 
     # Obtener videos del partido
@@ -207,24 +253,25 @@ def calendar_view(request):
     categories = Category.objects.filter(is_active=True).order_by('name')
 
     # Obtener el mes actual o el solicitado
-    year = int(request.GET.get('year', timezone.now().year))
-    month = int(request.GET.get('month', timezone.now().month))
-
-    # Filtrar partidos del mes seleccionado
-    start_date = datetime(year, month, 1)
-    if month == 12:
-        end_date = datetime(year + 1, 1, 1) - timedelta(days=1)
-    else:
-        end_date = datetime(year, month + 1, 1) - timedelta(days=1)
+    try:
+        year = int(request.GET.get('year', timezone.now().year))
+        month = int(request.GET.get('month', timezone.now().month))
+        start_date = timezone.make_aware(datetime(year, month, 1))
+        if month == 12:
+            next_month_start = timezone.make_aware(datetime(year + 1, 1, 1))
+        else:
+            next_month_start = timezone.make_aware(datetime(year, month + 1, 1))
+        prev_month = start_date - timedelta(days=1)
+    except (ValueError, TypeError, OverflowError):
+        return redirect('competitions:calendar_view')
 
     monthly_matches = matches.filter(
-        match_date__date__gte=start_date.date(),
-        match_date__date__lte=end_date.date()
+        match_date__gte=start_date,
+        match_date__lt=next_month_start,
     )
 
     # Navegación de meses
-    prev_month = start_date - timedelta(days=1)
-    next_month = end_date + timedelta(days=1)
+    next_month = next_month_start
 
     # Generar grid del calendario
     cal = calendar.Calendar(firstweekday=0)  # Lunes como primer día
@@ -271,8 +318,12 @@ def calendar_view(request):
         9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
     }
 
+    club_team_name = get_primary_club_team_name(request.tenant)
+
     return render(request, 'competitions/calendar.html', {
         'matches': monthly_matches,
+        'matches_json': build_calendar_matches_payload(monthly_matches, club_team_name),
+        'club_team_name': club_team_name,
         'leagues': leagues,
         'categories': categories,
         'selected_league': league_filter,
@@ -322,7 +373,7 @@ def friendly_match_create(request):
     })
 
 
-@login_required
+@tenant_access_required(manager=True)
 def ajax_search_teams(request):
     """Vista AJAX para buscar equipos con autocompletado inteligente"""
     query = request.GET.get('q', '').strip()
@@ -371,7 +422,7 @@ def ajax_add_match_result(request, match_id):
         return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
     try:
-        match = Match.objects.get(id=match_id)
+        match = Match.objects.for_tenant(request.tenant).select_related('league').get(id=match_id)
     except Match.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
 
@@ -393,6 +444,13 @@ def ajax_add_match_result(request, match_id):
     form = MatchResultForm(data, instance=match)
 
     if form.is_valid():
+        home_score = form.cleaned_data['home_score']
+        away_score = form.cleaned_data['away_score']
+        if match.league and not validate_volleyball_score(home_score, away_score, match.league):
+            return JsonResponse({
+                'success': False,
+                'error': 'Marcador inválido para el formato de la liga.',
+            }, status=400)
         try:
             match = form.save()
             return JsonResponse({
@@ -424,7 +482,9 @@ def ajax_acta_lineup(request, match_id):
     enriquecidos con datos de Person/PlayerRole donde haya coincidencia de dorsal.
     """
     try:
-        match = Match.objects.select_related('home_team', 'away_team').get(id=match_id)
+        match = Match.objects.for_tenant(request.tenant).select_related(
+            'home_team', 'away_team'
+        ).get(id=match_id)
     except Match.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
 
@@ -432,8 +492,12 @@ def ajax_acta_lineup(request, match_id):
         return JsonResponse({'success': False, 'error': 'Este partido no tiene acta disponible'}, status=404)
 
     try:
-        response = http_requests.get(match.acta_html, timeout=10)
-        response.raise_for_status()
+        acta_content = safe_get(
+            match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
+        )
+    except UnsafeURL as e:
+        logger.warning(f"URL de acta rechazada para el partido {match_id}: {e}")
+        return JsonResponse({'success': False, 'error': 'La URL del acta no es válida'}, status=400)
     except http_requests.exceptions.Timeout:
         return JsonResponse({'success': False, 'error': 'Tiempo de espera agotado al obtener el acta'}, status=504)
     except http_requests.exceptions.RequestException as e:
@@ -443,7 +507,7 @@ def ajax_acta_lineup(request, match_id):
     try:
         # Pasar bytes para que BeautifulSoup detecte el charset del meta tag
         # (evita que requests decodifique mal UTF-8 como Latin-1)
-        lineup_data = parse_acta_lineup(response.content)
+        lineup_data = parse_acta_lineup(acta_content)
     except Exception as e:
         logger.error(f"Error parseando acta del partido {match_id}: {e}")
         return JsonResponse({'success': False, 'error': 'Error al procesar el acta'}, status=500)
@@ -635,7 +699,7 @@ def standings_view(request):
     })
 
 
-@login_required
+@tenant_access_required()
 def ajax_matches_by_category(request):
     """Vista AJAX para obtener partidos filtrados por categoría"""
     category_id = request.GET.get('category_id')
@@ -679,7 +743,7 @@ def ajax_matches_by_category(request):
     })
 
 
-@login_required
+@tenant_access_required(manager=True)
 def ajax_teams_by_league_category(request):
     """Vista AJAX para obtener equipos filtrados por categoría de liga (para admin)"""
     league_id = request.GET.get('league_id')
