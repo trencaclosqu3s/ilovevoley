@@ -43,8 +43,7 @@
                             <li><strong>Tipo:</strong> {{ image.get_image_type_display }}</li>
                         </ul>
                         {% if image.image %}
-                            <img src="{{ image.image.url }}" alt="{{ image.title }}" 
-                                 class="max-w-full h-auto rounded border border-gray-300 shadow-sm">
+                            {% include 'content/_thumbnail.html' with image=image css_class="max-w-full h-auto rounded border border-gray-300 shadow-sm" sizes="(min-width: 768px) 720px, 100vw" loading="eager" %}
                         {% endif %}
                     </div>
                 {% endif %}

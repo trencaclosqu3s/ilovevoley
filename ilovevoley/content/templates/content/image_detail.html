@@ -17,9 +17,7 @@
         <div class="lg:col-span-2">
             <div class="bg-white rounded-lg shadow-sm overflow-hidden">
                 <div class="relative">
-                    <img src="{{ image.image.url }}" 
-                         alt="{{ image.title }}" 
-                         class="w-full h-auto">
+                    {% include 'content/_thumbnail.html' with image=image css_class="w-full h-auto" sizes="(min-width: 1024px) 66vw, 100vw" loading="eager" %}
                     
                     <!-- Badge de estado para admins -->
                     {% if user.is_staff and image.status != 'approved' %}
@@ -165,9 +163,7 @@
                     <a href="{% url 'content:image_detail' related_image.id %}" 
                        class="block bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
                         <div class="aspect-square">
-                            <img src="{{ related_image.image.url }}" 
-                                 alt="{{ related_image.title }}" 
-                                 class="w-full h-full object-cover">
+                            {% include 'content/_thumbnail.html' with image=related_image css_class="w-full h-full object-cover" sizes="(min-width: 1024px) 16vw, (min-width: 768px) 33vw, 50vw" %}
                         </div>
                         <div class="p-2">
                             <p class="text-sm font-medium text-gray-900 truncate">{{ related_image.title }}</p>

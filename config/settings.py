@@ -283,6 +283,9 @@ CELERY_TIMEZONE = 'UTC'
 # Celery Beat Configuration (Periodic Tasks)
 CELERY_BEAT_SCHEDULE = {}
 
+# Miniaturas responsivas de imágenes: en producción se generan en background
+THUMBNAIL_GENERATION_ASYNC = env_config('THUMBNAIL_GENERATION_ASYNC', default=not DEBUG, cast=bool)
+
 # Admin URL Configuration
 # En producción (DEBUG=False) usa la URL cifrada del .env
 # En desarrollo (DEBUG=True) siempre usa 'admin/' para facilitar el desarrollo
