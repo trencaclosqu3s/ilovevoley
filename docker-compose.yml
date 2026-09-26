@@ -18,10 +18,15 @@ services:
       - app-network
 
   web:
-    build: .
+    build:
+      context: .
+      target: runtime
+    security_opt:
+      - no-new-privileges:true
+    env_file: .env
     command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3
     volumes:
-      - .:/app
+      - ./voley-474111-a4a6b029e20b.json:/app/voley-474111-a4a6b029e20b.json:ro
       - /opt/videosvoley/media:/app/media
       - /opt/videosvoley/static:/app/staticfiles
     environment:
@@ -41,10 +46,15 @@ services:
       - app-network
 
   celery:
-    build: .
+    build:
+      context: .
+      target: runtime
+    security_opt:
+      - no-new-privileges:true
+    env_file: .env
     command: celery -A config worker -l info --pool=solo
     volumes:
-      - .:/app
+      - ./voley-474111-a4a6b029e20b.json:/app/voley-474111-a4a6b029e20b.json:ro
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY}
@@ -66,10 +76,15 @@ services:
       - app-network
 
   celery-beat:
-    build: .
+    build:
+      context: .
+      target: runtime
+    security_opt:
+      - no-new-privileges:true
+    env_file: .env
     command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
-      - .:/app
+      - ./voley-474111-a4a6b029e20b.json:/app/voley-474111-a4a6b029e20b.json:ro
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY}
