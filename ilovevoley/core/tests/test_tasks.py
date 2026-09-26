@@ -253,16 +253,15 @@ class P1P2NotificationTasksTest(TestCase):
         from ilovevoley.core.middleware import send_404_immediate_alert
 
         request = MagicMock()
-        request.get_full_path.return_value = '/gone'
+        request.path = '/gone'
 
         with patch(
             'ilovevoley.core.middleware.get_admin_emails', return_value=['root@test.com']
         ), patch(
-            'ilovevoley.core.middleware.cache'
-        ) as mock_cache, patch(
+            'ilovevoley.core.middleware._atomic_incr', return_value=10
+        ), patch(
             'ilovevoley.core.tasks.send_404_immediate_alert_task.delay'
         ) as mock_delay:
-            mock_cache.get.return_value = 9  # next increment hits threshold 10
             result = send_404_immediate_alert(request, threshold=10)
 
         self.assertTrue(result)

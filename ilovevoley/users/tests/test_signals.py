@@ -170,8 +170,33 @@ class SignupNotificationTest(TestCase):
             )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertIn('Nuevo usuario pendiente', mail.outbox[0].subject)
+        # Con ACCOUNT_EMAIL_VERIFICATION='optional' el alta envía además el
+        # correo de verificación: aquí se cuenta solo el aviso de alta.
+        notifications = [m for m in mail.outbox if 'Nuevo usuario pendiente' in m.subject]
+        self.assertEqual(len(notifications), 1)
+
+    def test_local_signup_offers_email_verification(self):
+        self.client.post(
+            '/accounts/signup/',
+            {
+                'username': 'nuevo',
+                'email': 'nuevo@test.com',
+                'password1': 'ComplexPass123!',
+                'password2': 'ComplexPass123!',
+                'parent_info': 'Madre de Pepito',
+            },
+            HTTP_HOST='cluba.ilovevoley.es',
+        )
+
+        from allauth.account.models import EmailAddress
+
+        address = EmailAddress.objects.get(user__username='nuevo')
+        self.assertFalse(address.verified)
+        verify_mails = [
+            m for m in mail.outbox
+            if m.to == ['nuevo@test.com'] and '/accounts/confirm-email/' in m.body
+        ]
+        self.assertEqual(len(verify_mails), 1)
 
 
 @override_settings(

@@ -1,15 +1,17 @@
-from collections import Counter
+from collections import Counter, defaultdict
 import logging
 import uuid
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.core.exceptions import ValidationError
+from django.core.cache import cache
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, F, Max, Q, Window
+from django.db.models.functions import RowNumber
 from django.http import Http404, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -17,10 +19,15 @@ from ilovevoley.competitions.models import League, Match
 from ilovevoley.core.mixins import get_club_team_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
-from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
+from ilovevoley.core.tenancy import get_tenant_object_or_404
+from ilovevoley.core.tenant_utils import (
+    can_moderate_images,
+    tenant_access_required,
+    user_is_tenant_manager,
+)
 from ilovevoley.teams.models import Team
 from ilovevoley.core.email_utils import enqueue_on_commit
-from ilovevoley.videos.utils import process_uploaded_image
+from .services import moderate_image
 from .forms import (
     CommentForm,
     ImageFilterForm,
@@ -31,8 +38,167 @@ from .forms import (
     VideoForm,
 )
 from .models import Comment, Image, Video
+from .thumbnails import schedule_thumbnail_generation
 
 logger = logging.getLogger(__name__)
+
+POPULAR_TAGS_CACHE_TTL = 3600
+
+
+def get_popular_tags(organization, limit=15):
+    """Top tags for suggestions; cached per tenant to avoid scanning images each request."""
+    cache_key = f'gallery:popular_tags:{organization.pk}'
+
+    def _compute():
+        qs = Image.objects.filter(organization=organization, status='approved')
+        manual_tags = []
+        for tags in qs.exclude(tags='').values_list('tags', flat=True):
+            manual_tags.extend(
+                [tag.strip().lower() for tag in tags.split(',') if tag.strip()]
+            )
+        auto_tags = []
+        for auto in qs.exclude(auto_tags=[]).values_list('auto_tags', flat=True):
+            if isinstance(auto, list):
+                auto_tags.extend([tag.lower() for tag in auto])
+        all_tags = manual_tags + auto_tags
+        if not all_tags:
+            return []
+        return [tag for tag, _count in Counter(all_tags).most_common(limit)]
+
+    return cache.get_or_set(cache_key, _compute, POPULAR_TAGS_CACHE_TTL)
+
+
+def gallery_image_stats(organization):
+    """Approved/pending/match counts scoped to the current tenant."""
+    stats = Image.objects.filter(organization=organization).aggregate(
+        total_images=Count('pk', filter=Q(status='approved')),
+        pending_images=Count('pk', filter=Q(status='pending')),
+        images_with_match=Count(
+            'pk', filter=Q(status='approved', match__isnull=False)
+        ),
+        images_without_match=Count(
+            'pk', filter=Q(status='approved', match__isnull=True)
+        ),
+    )
+    return stats
+
+
+def _covers_by(images_qs, field, ids, *, prefetch=()):
+    """Top 4 images per group in one SQL query (ROW_NUMBER + qualify subquery)."""
+    if not ids:
+        return {}
+    qs = (
+        images_qs.filter(**{f'{field}__in': ids})
+        .annotate(
+            rn=Window(
+                RowNumber(),
+                partition_by=[F(field)],
+                order_by=F('upload_date').desc(),
+            )
+        )
+        .filter(rn__lte=4)
+        .order_by(field, '-upload_date')
+    )
+    if prefetch:
+        qs = qs.prefetch_related(*prefetch)
+    buckets = defaultdict(list)
+    for image in qs:
+        buckets[getattr(image, field)].append(image)
+    return buckets
+
+
+def build_album_gallery_page(images_qs, page_number, per_page=12):
+    """
+    Aggregate albums in SQL, paginate lightweight group rows, hydrate covers for the page.
+    Returns (page_obj, total_albums, total_single_images).
+    """
+    # Clear ORDER BY so GROUP BY aggregations stay valid in PostgreSQL.
+    images_qs = images_qs.order_by()
+
+    match_groups = list(
+        images_qs.filter(match__isnull=False)
+        .values('match_id')
+        .annotate(image_count=Count('id'), sort_date=Max('match__match_date'))
+    )
+    for group in match_groups:
+        group['type'] = 'album'
+
+    album_groups = list(
+        images_qs.filter(match__isnull=True, album_group_id__isnull=False)
+        .values('album_group_id')
+        .annotate(
+            image_count=Count('id'),
+            sort_date=Max('upload_date'),
+            album_name=Max('album_name'),
+        )
+    )
+    for group in album_groups:
+        group['type'] = 'album_group'
+
+    singles = list(
+        images_qs.filter(match__isnull=True, album_group_id__isnull=True)
+        .values('id', 'upload_date')
+    )
+    for single in singles:
+        single['type'] = 'single'
+        single['image_count'] = 1
+        single['sort_date'] = single['upload_date']
+
+    all_items = match_groups + album_groups + singles
+    all_items.sort(key=lambda item: item['sort_date'] or timezone.now(), reverse=True)
+
+    paginator = Paginator(all_items, per_page)
+    page_obj = paginator.get_page(page_number)
+    page_rows = list(page_obj.object_list)
+
+    match_ids = [row['match_id'] for row in page_rows if row['type'] == 'album']
+    group_ids = [row['album_group_id'] for row in page_rows if row['type'] == 'album_group']
+    single_ids = [row['id'] for row in page_rows if row['type'] == 'single']
+
+    matches = {
+        match.id: match
+        for match in Match.objects.filter(pk__in=match_ids).select_related(
+            'home_team', 'away_team', 'league'
+        )
+    }
+
+    covers_by_match = _covers_by(images_qs, 'match_id', match_ids)
+    covers_by_group = _covers_by(
+        images_qs, 'album_group_id', group_ids, prefetch=('categories',)
+    )
+
+    singles_map = {
+        image.id: image
+        for image in images_qs.filter(pk__in=single_ids).prefetch_related('categories')
+    } if single_ids else {}
+
+    hydrated = []
+    for row in page_rows:
+        if row['type'] == 'album':
+            hydrated.append({
+                'type': 'album',
+                'match': matches[row['match_id']],
+                'images': covers_by_match[row['match_id']],
+                'image_count': row['image_count'],
+            })
+        elif row['type'] == 'album_group':
+            hydrated.append({
+                'type': 'album_group',
+                'album_group_id': row['album_group_id'],
+                'album_name': row['album_name'] or 'Álbum',
+                'images': covers_by_group[row['album_group_id']],
+                'image_count': row['image_count'],
+                'upload_date': row['sort_date'],
+            })
+        else:
+            hydrated.append({
+                'type': 'single',
+                'image': singles_map[row['id']],
+                'image_count': 1,
+            })
+
+    page_obj.object_list = hydrated
+    return page_obj, len(match_groups) + len(album_groups), len(singles)
 
 
 @tenant_access_required()
@@ -198,9 +364,9 @@ def video_bulk_create(request):
 
 @tenant_access_required()
 def video_detail(request, video_id):
-    video = get_object_or_404(Video, id=video_id)
-    if video.organization != request.tenant and not request.user.is_superuser:
-        raise Http404
+    video = get_tenant_object_or_404(
+        Video.objects, request.tenant, user=request.user, id=video_id
+    )
 
     # Manejar envío de comentarios
     if request.method == 'POST':
@@ -303,51 +469,26 @@ def image_gallery(request):
     paginator = Paginator(images, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
-    # Estadísticas para la vista
-    total_images = Image.objects.filter(status='approved').count()
-    pending_images = Image.objects.filter(status='pending').count()
-    images_with_match = Image.objects.filter(status='approved', match__isnull=False).count()
-    images_without_match = Image.objects.filter(status='approved', match__isnull=True).count()
-    
-    # Obtener etiquetas populares para sugerencias
-    popular_tags = []
-    try:
-        # Recopilar todas las etiquetas manuales
-        manual_tags = []
-        for image in Image.objects.filter(status='approved').exclude(tags=''):
-            manual_tags.extend([tag.strip().lower() for tag in image.tags.split(',') if tag.strip()])
-        
-        # Recopilar etiquetas automáticas
-        auto_tags = []
-        for image in Image.objects.filter(status='approved').exclude(auto_tags=[]):
-            if isinstance(image.auto_tags, list):
-                auto_tags.extend([tag.lower() for tag in image.auto_tags])
-        
-        # Combinar y contar frecuencias
-        all_tags = manual_tags + auto_tags
-        if all_tags:
-            tag_counts = Counter(all_tags)
-            popular_tags = [tag for tag, count in tag_counts.most_common(15)]
-    except Exception as e:
-        print(f"Error obteniendo etiquetas populares: {e}")
-    
+
+    stats = gallery_image_stats(request.tenant)
+    popular_tags = get_popular_tags(request.tenant)
+
     context = {
         'page_obj': page_obj,
         'filter_form': filter_form,
         'seasons': Season.objects.all(),
         'selected_season': selected_season,
-        'total_images': total_images,
-        'pending_images': pending_images,
-        'images_with_match': images_with_match,
-        'images_without_match': images_without_match,
+        'total_images': stats['total_images'],
+        'pending_images': stats['pending_images'],
+        'images_with_match': stats['images_with_match'],
+        'images_without_match': stats['images_without_match'],
         'popular_tags': popular_tags,
         'current_filters': request.GET.dict(),
         'show_all': show_all,
         'has_preferences': request.user.preferred_categories.exists(),
         'view_mode': 'individual',
     }
-    
+
     return render(request, 'content/image_gallery.html', context)
 
 
@@ -426,142 +567,19 @@ def image_gallery_albums(request):
     if season_filter:
         images = images.filter(season=season_filter)
 
-    # Agrupar imágenes por partido
-    albums = []
-    
-    # Obtener imágenes con partido
-    images_with_match = images.filter(match__isnull=False)
-    
-    # Agrupar por partido
-    match_groups = {}
-    for image in images_with_match:
-        match_id = image.match.id
-        if match_id not in match_groups:
-            match_groups[match_id] = {
-                'match': image.match,
-                'images': [],
-                'image_count': 0
-            }
-        match_groups[match_id]['images'].append(image)
-        match_groups[match_id]['image_count'] += 1
-    
-    # Convertir a lista y ordenar por fecha del partido
-    albums = list(match_groups.values())
-    albums.sort(key=lambda x: x['match'].match_date, reverse=True)
-    
-    # Obtener imágenes sin partido
-    images_without_match = images.filter(match__isnull=True)
-    
-    # Agrupar imágenes sin partido por album_group_id
-    album_group_groups = {}
-    single_images = []
-    
-    for image in images_without_match:
-        if image.album_group_id:
-            # Agrupar por album_group_id
-            group_id = str(image.album_group_id)
-            if group_id not in album_group_groups:
-                album_group_groups[group_id] = {
-                    'album_group_id': image.album_group_id,
-                    'album_name': image.album_name or 'Álbum',
-                    'images': [],
-                    'image_count': 0,
-                    'upload_date': image.upload_date  # Usar fecha de primera imagen para ordenar
-                }
-            album_group_groups[group_id]['images'].append(image)
-            album_group_groups[group_id]['image_count'] += 1
-            # Actualizar fecha si es más reciente (para ordenar por la más reciente)
-            if image.upload_date > album_group_groups[group_id]['upload_date']:
-                album_group_groups[group_id]['upload_date'] = image.upload_date
-        else:
-            # Imagen individual sin grupo
-            single_images.append(image)
-    
-    # Convertir grupos de album_group_id a lista de álbumes
-    album_groups = list(album_group_groups.values())
-    album_groups.sort(key=lambda x: x['upload_date'], reverse=True)
-    
-    # Paginación para álbumes - mezclar álbumes de partidos, álbumes de grupos e imágenes individuales
-    all_items = []
-    
-    # Agregar álbumes de partidos
-    for album in albums:
-        all_items.append({
-            'type': 'album',
-            'match': album['match'],
-            'images': album['images'],
-            'image_count': album['image_count']
-        })
-    
-    # Agregar álbumes de grupos (sin partido)
-    for album_group in album_groups:
-        all_items.append({
-            'type': 'album_group',
-            'album_group_id': album_group['album_group_id'],
-            'album_name': album_group['album_name'],
-            'images': album_group['images'],
-            'image_count': album_group['image_count'],
-            'upload_date': album_group['upload_date']
-        })
-    
-    # Agregar imágenes individuales
-    for image in single_images:
-        all_items.append({
-            'type': 'single',
-            'image': image,
-            'image_count': 1
-        })
-    
-    # Ordenar por fecha
-    def get_sort_date(item):
-        if item['type'] == 'album':
-            return item['match'].match_date
-        elif item['type'] == 'album_group':
-            return item['upload_date']
-        else:
-            return item['image'].upload_date
-    
-    all_items.sort(key=get_sort_date, reverse=True)
-    
-    paginator = Paginator(all_items, 12)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    # Estadísticas para la vista
-    total_images = Image.objects.filter(status='approved').count()
-    pending_images = Image.objects.filter(status='pending').count()
-    total_albums = len(albums) + len(album_groups)  # Incluir álbumes de grupos
-    total_single_images = len(single_images)
-    
-    # Obtener etiquetas populares para sugerencias
-    popular_tags = []
-    try:
-        # Recopilar todas las etiquetas manuales
-        manual_tags = []
-        for image in Image.objects.filter(status='approved').exclude(tags=''):
-            manual_tags.extend([tag.strip().lower() for tag in image.tags.split(',') if tag.strip()])
-        
-        # Recopilar etiquetas automáticas
-        auto_tags = []
-        for image in Image.objects.filter(status='approved').exclude(auto_tags=[]):
-            if isinstance(image.auto_tags, list):
-                auto_tags.extend([tag.lower() for tag in image.auto_tags])
-        
-        # Combinar y contar frecuencias
-        all_tags = manual_tags + auto_tags
-        if all_tags:
-            tag_counts = Counter(all_tags)
-            popular_tags = [tag for tag, count in tag_counts.most_common(15)]
-    except Exception as e:
-        print(f"Error obteniendo etiquetas populares: {e}")
-    
+    page_obj, total_albums, total_single_images = build_album_gallery_page(
+        images, request.GET.get('page')
+    )
+    stats = gallery_image_stats(request.tenant)
+    popular_tags = get_popular_tags(request.tenant)
+
     context = {
         'page_obj': page_obj,
         'filter_form': filter_form,
         'seasons': Season.objects.all(),
         'selected_season': selected_season,
-        'total_images': total_images,
-        'pending_images': pending_images,
+        'total_images': stats['total_images'],
+        'pending_images': stats['pending_images'],
         'total_albums': total_albums,
         'total_single_images': total_single_images,
         'popular_tags': popular_tags,
@@ -570,7 +588,7 @@ def image_gallery_albums(request):
         'has_preferences': request.user.preferred_categories.exists(),
         'view_mode': 'albums',
     }
-    
+
     return render(request, 'content/image_gallery.html', context)
 
 
@@ -584,45 +602,6 @@ def image_upload(request):
             image.uploaded_by = request.user
             image.organization = request.tenant
 
-            # Procesar imagen (convertir HEIC si es necesario)
-            try:
-                uploaded_file = request.FILES.get('image')
-                if uploaded_file:
-                    processed_file, original_ext, was_converted = process_uploaded_image(uploaded_file)
-                    
-                    # Actualizar el archivo en la instancia
-                    image.image = processed_file
-                    image.original_format = original_ext.lstrip('.')
-                    image.was_converted = was_converted
-                    
-                    if was_converted:
-                        logger.info(f"Imagen convertida de {original_ext} a JPEG para usuario {request.user.username}")
-                        
-            except Exception as e:
-                logger.error(f"Error procesando imagen: {str(e)}")
-                messages.error(request, f'Error al procesar la imagen: {str(e)}')
-                
-                # Preparar recent_matches con la misma lógica
-                club_query = get_club_team_filter(request.tenant)
-                now = timezone.now()
-                past_matches = Match.objects.select_related(
-                    'home_team', 'away_team', 'league'
-                ).filter(club_query, match_date__lt=now).order_by('-match_date')[:10]
-                next_match = Match.objects.select_related(
-                    'home_team', 'away_team', 'league'
-                ).filter(club_query, match_date__gte=now).order_by('match_date').first()
-                
-                if next_match:
-                    recent_matches = list(past_matches) + [next_match]
-                    recent_matches.sort(key=lambda x: x.match_date, reverse=True)
-                else:
-                    recent_matches = list(past_matches)
-                
-                return render(request, 'content/image_upload.html', {
-                    'form': form,
-                    'recent_matches': recent_matches
-                })
-            
             # Si el usuario es superuser, aprobar directamente sin pasar por Vision API
             enqueue_vision = False
             if request.user.is_superuser:
@@ -643,7 +622,12 @@ def image_upload(request):
             if enqueue_vision:
                 from ilovevoley.content.tasks import analyze_image_with_vision_task
                 enqueue_on_commit(analyze_image_with_vision_task, image.id, True)
-            
+
+            try:
+                schedule_thumbnail_generation(image)
+            except Exception as e:
+                logger.error(f"Error generando miniaturas para '{image.title}': {e}")
+
             # Asignar categorías
             categories_to_add = []
             
@@ -794,44 +778,30 @@ def image_bulk_upload(request):
         pending_ids = []
         vision_ids = []
 
-        # Detectar si es una petición móvil para optimizar procesamiento
-        user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
-        is_mobile_request = any(mobile in user_agent for mobile in ['mobile', 'android', 'iphone', 'ipad'])
-
         for idx, uploaded_file in enumerate(uploaded_files):
             try:
-                # Optimizar para móvil si es necesario
-                processed_file, original_ext, was_converted = process_uploaded_image(
-                    uploaded_file,
-                    optimize_for_mobile=is_mobile_request
-                )
+                # Validar tipo y tamaño de archivo
+                content_type = getattr(uploaded_file, 'content_type', '') or ''
+                if not content_type.startswith('image/'):
+                    errors.append(f'{uploaded_file.name}: No es una imagen válida')
+                    continue
+
+                if uploaded_file.size > 10 * 1024 * 1024:  # 10MB
+                    errors.append(f'{uploaded_file.name}: Archivo demasiado grande (máx 10MB)')
+                    continue
 
                 # Obtener título y descripción individual
                 title = request.POST.get(f'title_{idx}', uploaded_file.name.rsplit('.', 1)[0])
                 description = request.POST.get(f'description_{idx}', '')
 
-                # Validar archivo procesado
-                if not processed_file.content_type.startswith('image/'):
-                    errors.append(f'{uploaded_file.name}: No es una imagen válida')
-                    continue
-
-                if processed_file.size > 10 * 1024 * 1024:  # 10MB
-                    errors.append(f'{uploaded_file.name}: Archivo demasiado grande (máx 10MB)')
-                    continue
-
                 # Crear imagen
                 image = Image(
-                    image=processed_file,
+                    image=uploaded_file,
                     title=title,
                     description=description,
                     tags=shared_tags,
-                    original_format=original_ext.lstrip('.'),
-                    was_converted=was_converted,
                     **shared_data
                 )
-
-                if was_converted:
-                    logger.info(f"Imagen {uploaded_file.name} convertida de {original_ext} a JPEG")
 
                 # Si el usuario es superuser, aprobar directamente sin pasar por Vision API
                 enqueue_vision = False
@@ -856,6 +826,11 @@ def image_bulk_upload(request):
                     pending_ids.append(image.id)
                 if enqueue_vision:
                     vision_ids.append(image.id)
+
+                try:
+                    schedule_thumbnail_generation(image)
+                except Exception as e:
+                    logger.error(f"Error generando miniaturas para '{title}': {e}")
 
                 # Asignar categorías
                 categories_to_add = []
@@ -1010,23 +985,21 @@ def image_bulk_upload(request):
 @tenant_access_required()
 def image_detail(request, image_id):
     """Vista de detalle de imagen"""
-    image = get_object_or_404(
+    image = get_tenant_object_or_404(
         Image.objects.select_related(
             'match__home_team', 'match__away_team', 'match__league',
             'uploaded_by', 'moderated_by'
         ).prefetch_related('categories'),
-        id=image_id
+        request.tenant, user=request.user, id=image_id,
     )
-    if image.organization != request.tenant and not request.user.is_superuser:
-        raise Http404
 
-    # Solo mostrar imágenes aprobadas a usuarios normales
-    if not request.user.is_staff and image.status != 'approved':
+    # Solo mostrar imágenes aprobadas a usuarios normales (managers/admins del tenant pueden ver pendientes)
+    if not user_is_tenant_manager(request.user, request.tenant) and image.status != 'approved':
         messages.error(request, 'Imagen no disponible.')
         return redirect('content:image_gallery')
     
     # Imágenes relacionadas del mismo partido
-    related_images = Image.objects.filter(
+    related_images = Image.objects.for_tenant(request.tenant).filter(
         match=image.match,
         status='approved'
     ).exclude(id=image.id)[:6]
@@ -1042,12 +1015,12 @@ def image_detail(request, image_id):
 @tenant_access_required()
 def match_images(request, match_id):
     """Vista de imágenes de un partido específico"""
-    match = get_object_or_404(
+    match = get_tenant_object_or_404(
         Match.objects.select_related('home_team', 'away_team', 'league'),
-        id=match_id
+        request.tenant, user=request.user, id=match_id,
     )
     
-    images = Image.objects.filter(
+    images = Image.objects.for_tenant(request.tenant).filter(
         match=match,
         status='approved'
     ).select_related('uploaded_by').order_by('-upload_date')
@@ -1071,7 +1044,7 @@ def match_images(request, match_id):
 def album_group_images(request, album_group_id):
     """Vista de imágenes de un álbum de grupo (sin partido)"""
     # album_group_id ya viene como UUID desde la URL (gracias al path converter <uuid:album_group_id>)
-    images = Image.objects.filter(
+    images = Image.objects.for_tenant(request.tenant).filter(
         album_group_id=album_group_id,
         status='approved'
     ).select_related('uploaded_by').prefetch_related('categories').order_by('-upload_date')
@@ -1113,11 +1086,13 @@ def album_group_images(request, album_group_id):
 
 @tenant_access_required(staff=True)
 def image_moderation(request):
-    """Vista de moderación para admins"""
+    """Vista de moderación para admins y managers del tenant actual."""
     images = Image.objects.select_related(
         'match__home_team', 'match__away_team', 'match__league',
         'uploaded_by'
-    ).prefetch_related('categories').filter(status='pending').order_by('upload_date')
+    ).prefetch_related('categories').filter(status='pending').for_tenant(
+        request.tenant
+    ).order_by('upload_date')
     
     # Paginación
     paginator = Paginator(images, 20)
@@ -1134,8 +1109,10 @@ def image_moderation(request):
 
 @tenant_access_required(staff=True)
 def image_moderate_action(request, image_id):
-    """Acción de moderación individual"""
-    image = get_object_or_404(Image, id=image_id, status='pending')
+    """Acción de moderación individual acotada al tenant actual."""
+    image = get_tenant_object_or_404(
+        Image.objects, request.tenant, id=image_id, status='pending'
+    )
     
     if request.method == 'POST':
         form = ImageModerationForm(request.POST, instance=image)
@@ -1143,10 +1120,12 @@ def image_moderate_action(request, image_id):
             action = form.cleaned_data['action']
             notes = form.cleaned_data['moderation_notes']
             
-            image.moderate(
-                moderator=request.user,
-                approved=(action == 'approve'),
-                notes=notes
+            moderate_image(
+                actor=request.user,
+                tenant=request.tenant,
+                image=image,
+                decision=action,
+                notes=notes,
             )
             
             action_text = 'aprobada' if action == 'approve' else 'rechazada'
@@ -1165,25 +1144,33 @@ def image_moderate_action(request, image_id):
 
 @tenant_access_required(staff=True)
 def image_moderate_bulk(request):
-    """Moderación masiva de imágenes"""
+    """Moderación masiva de imágenes acotada al tenant actual."""
     if request.method == 'POST':
         action = request.POST.get('action')
         image_ids = request.POST.getlist('image_ids')
         notes = request.POST.get('notes', '')
         
         if action in ['approve', 'reject'] and image_ids:
-            images = Image.objects.filter(id__in=image_ids, status='pending')
-            approved = (action == 'approve')
-            
+            images = Image.objects.filter(
+                id__in=image_ids, status='pending'
+            ).for_tenant(request.tenant)
+            count = 0
             for image in images:
-                image.moderate(
-                    moderator=request.user,
-                    approved=approved,
-                    notes=notes
-                )
+                try:
+                    moderate_image(
+                        actor=request.user,
+                        tenant=request.tenant,
+                        image=image,
+                        decision=action,
+                        notes=notes,
+                        validate_permission=False,
+                    )
+                    count += 1
+                except ValueError:
+                    continue
             
-            action_text = 'aprobadas' if approved else 'rechazadas'
-            messages.success(request, f'{images.count()} imágenes {action_text}.')
+            action_text = 'aprobadas' if action == 'approve' else 'rechazadas'
+            messages.success(request, f'{count} imágenes {action_text}.')
         
         return redirect('content:image_moderation')
     
@@ -1191,12 +1178,21 @@ def image_moderate_bulk(request):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser, login_url='/')
 @require_POST
 def moderate_image_api(request, image_id):
-    """API para moderar una imagen vía AJAX"""
+    """API para moderar una imagen vía AJAX con aislamiento por organización."""
+    tenant = getattr(request, 'tenant', None)
+    if not can_moderate_images(request.user, tenant):
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+
     try:
-        image = Image.objects.get(id=image_id, status='pending')
+        if tenant is not None:
+            image = Image.objects.get(id=image_id, organization=tenant, status='pending')
+        elif request.user.is_superuser:
+            image = Image.objects.get(id=image_id, status='pending')
+        else:
+            return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+
         action = request.POST.get('action')  # 'approve' o 'reject'
         notes = request.POST.get('notes', '')
         
@@ -1206,15 +1202,15 @@ def moderate_image_api(request, image_id):
                 'error': 'Acción no válida'
             }, status=400)
         
-        # Usar el método existente de moderación
-        approved = (action == 'approve')
-        image.moderate(
-            moderator=request.user,
-            approved=approved,
-            notes=notes
+        moderate_image(
+            actor=request.user,
+            tenant=tenant,
+            image=image,
+            decision=action,
+            notes=notes,
         )
         
-        action_text = 'aprobada' if approved else 'rechazada'
+        action_text = 'aprobada' if action == 'approve' else 'rechazada'
         
         return JsonResponse({
             'success': True,
@@ -1234,6 +1230,7 @@ def moderate_image_api(request, image_id):
             'success': False,
             'error': 'Error interno del servidor'
         }, status=500)
+
 
 
 __all__ = [

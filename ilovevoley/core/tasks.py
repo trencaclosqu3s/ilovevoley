@@ -15,14 +15,19 @@ User = get_user_model()
 @shared_task(name='notify_image_pending')
 def notify_image_pending_task(image_id):
     """Send pending-image moderation email for a single Image."""
+    from django.urls import reverse
+
     from ilovevoley.content.models import Image
     from ilovevoley.core.moderation_views import generate_moderation_token
+    from ilovevoley.core.tenant_utils import build_absolute_url
 
     if not settings.EMAIL_NOTIFICATIONS.get('image_pending', True):
         return False
 
     try:
-        image = Image.objects.select_related('uploaded_by', 'match__league').get(pk=image_id)
+        image = Image.objects.select_related(
+            'uploaded_by', 'organization', 'match__league'
+        ).get(pk=image_id)
     except Image.DoesNotExist:
         logger.warning('notify_image_pending: image %s gone', image_id)
         return False
@@ -30,8 +35,13 @@ def notify_image_pending_task(image_id):
     if image.status != 'pending':
         return False
 
-    approve_token = generate_moderation_token('image', image.id, 'approve')
-    reject_token = generate_moderation_token('image', image.id, 'reject')
+    tenant = image.organization
+    approve_token = generate_moderation_token(
+        'image', image.id, 'approve', tenant_id=image.organization_id
+    )
+    reject_token = generate_moderation_token(
+        'image', image.id, 'reject', tenant_id=image.organization_id
+    )
 
     embedded_images = {}
     attachments = []
@@ -44,19 +54,24 @@ def notify_image_pending_task(image_id):
         except Exception:
             logger.warning('notify_image_pending: could not read file for image %s', image_id)
 
+    approve_path = reverse('moderate_image', kwargs={'token': approve_token})
+    reject_path = reverse('moderate_image', kwargs={'token': reject_token})
+    admin_rel_path = f"/{settings.ADMIN_URL.rstrip('/')}/content/image/{image.id}/change/"
+
     context = {
         'image': image,
         'user': image.uploaded_by,
-        'site_name': 'I Love Voley',
-        'admin_url': f'/admin/videos/image/{image.id}/change/',
+        'site_name': tenant.name if tenant else 'I Love Voley',
+        'admin_url': build_absolute_url(admin_rel_path),
         'image_cid': 'pending_image' if embedded_images else None,
-        'approve_url': f'/moderate/image/{approve_token}/',
-        'reject_url': f'/moderate/image/{reject_token}/',
+        'approve_url': build_absolute_url(approve_path, tenant=tenant),
+        'reject_url': build_absolute_url(reject_path, tenant=tenant),
     }
     return send_notification_email(
         subject=f'Nueva imagen pendiente de moderación: {image.title}',
         template_name='emails/image_pending.html',
         context=context,
+        recipient_list=get_moderation_recipients(tenant),
         attachments=attachments or None,
         embedded_images=embedded_images or None,
     )
@@ -72,24 +87,26 @@ def notify_images_pending_batch_task(image_ids):
 
     images = list(
         Image.objects.filter(id__in=image_ids, status='pending')
-        .select_related('uploaded_by')
+        .select_related('uploaded_by', 'organization')
         .order_by('id')
     )
     if not images:
         return False
 
     uploader = images[0].uploaded_by
+    tenant = images[0].organization
     context = {
         'images': images,
         'count': len(images),
         'user': uploader,
-        'site_name': 'I Love Voley',
+        'site_name': tenant.name if tenant else 'I Love Voley',
         'moderation_url': '/core/moderacion/',
     }
     return send_notification_email(
         subject=f'{len(images)} nuevas imágenes pendientes de moderación',
         template_name='emails/images_pending_batch.html',
         context=context,
+        recipient_list=get_moderation_recipients(tenant),
     )
 
 
@@ -215,7 +232,7 @@ def send_404_immediate_alert_task(count, hour, last_url, recipient_list):
 
 
 @shared_task(name='notify_user_moderation_result')
-def notify_user_moderation_result_task(user_id, approved, site_url=None):
+def notify_user_moderation_result_task(user_id, approved, site_url=None, site_name=None):
     try:
         user = User.objects.get(pk=user_id)
     except User.DoesNotExist:
@@ -223,13 +240,14 @@ def notify_user_moderation_result_task(user_id, approved, site_url=None):
     if not user.email:
         return False
 
+    resolved_site_name = site_name or 'I Love Voley'
     if approved:
         return send_notification_email(
             subject='Tu cuenta ha sido aprobada en I Love Voley',
             template_name='emails/user_approved.html',
             context={
                 'user': user,
-                'site_name': 'I Love Voley',
+                'site_name': resolved_site_name,
                 'site_url': site_url or '/',
             },
             recipient_list=[user.email],
@@ -237,13 +255,13 @@ def notify_user_moderation_result_task(user_id, approved, site_url=None):
     return send_notification_email(
         subject='Actualización de tu solicitud en I Love Voley',
         template_name='emails/user_rejected.html',
-        context={'user': user, 'site_name': 'I Love Voley'},
+        context={'user': user, 'site_name': resolved_site_name},
         recipient_list=[user.email],
     )
 
 
 @shared_task(name='notify_image_moderation_result')
-def notify_image_moderation_result_task(image_id, approved):
+def notify_image_moderation_result_task(image_id, approved, site_name=None):
     from ilovevoley.content.models import Image
 
     try:
@@ -264,7 +282,7 @@ def notify_image_moderation_result_task(image_id, approved):
         context={
             'image': image,
             'user': image.uploaded_by,
-            'site_name': 'I Love Voley',
+            'site_name': site_name or 'I Love Voley',
             'is_approved': approved,
             'moderation_notes': image.moderation_notes,
         },

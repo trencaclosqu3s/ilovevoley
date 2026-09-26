@@ -17,8 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
-from django.conf.urls.static import static
 from ilovevoley.core.moderation_views import moderate_user, moderate_image
+from ilovevoley.core.protected_media import protected_media
 from ilovevoley.core.views import landing
 
 urlpatterns = [
@@ -35,12 +35,13 @@ urlpatterns = [
     # Rutas de moderación con tokens seguros
     path('moderate/user/<str:token>/', moderate_user, name='moderate_user'),
     path('moderate/image/<str:token>/', moderate_image, name='moderate_image'),
+    # Medios privados servidos vía X-Accel-Redirect (nginx) o FileResponse en dev
+    path('media/<path:path>', protected_media, name='protected_media'),
     # Landing page and tenant redirect
     path('', landing, name='landing'),
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     # Test URLs para ver las páginas de error
     from ilovevoley.core.views import test_400, test_403, test_404, test_500
     urlpatterns += [

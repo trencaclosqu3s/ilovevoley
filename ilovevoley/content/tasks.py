@@ -1,10 +1,12 @@
-"""Celery tasks for content moderation (Google Vision, issue #114)."""
+"""Tareas Celery de la app content (Vision + miniaturas)."""
 import logging
 
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
 
+from ilovevoley.content.models import Image
+from ilovevoley.content.thumbnails import generate_image_thumbnails
 from ilovevoley.videos.utils import (
     check_image_with_vision_api,
     process_vision_tags_for_volleyball,
@@ -21,7 +23,6 @@ def analyze_image_with_vision_task(image_id, notify_if_pending=True):
     Auto-approve uses a conditional UPDATE so a concurrent human moderation
     decision is never overwritten after the Vision API round-trip.
     """
-    from ilovevoley.content.models import Image
     from ilovevoley.core.email_utils import send_notification_email
     from ilovevoley.core.tasks import notify_image_pending_task
 
@@ -108,3 +109,24 @@ def analyze_image_with_vision_task(image_id, notify_if_pending=True):
     if notify_if_pending and image.status == 'pending':
         notify_image_pending_task(image_id)
     return True
+
+
+@shared_task(name='generate_image_thumbnails_task')
+def generate_image_thumbnails_task(image_id):
+    """Genera las miniaturas responsivas de una imagen por su id.
+
+    El nombre es explícito porque las filas de PeriodicTask dependen de él.
+    """
+    try:
+        image = Image.objects.get(pk=image_id)
+    except Image.DoesNotExist:
+        logger.warning('Imagen %s no encontrada para generar miniaturas', image_id)
+        return {'generated': 0}
+
+    try:
+        return {'generated': len(generate_image_thumbnails(image))}
+    except Exception:
+        # Un original corrupto o un fallo de storage debe quedar trazado y marcar
+        # la tarea como fallida (Sentry/monitorización), no pasar en silencio.
+        logger.exception('Fallo generando miniaturas de la imagen %s', image_id)
+        raise

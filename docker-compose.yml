@@ -18,10 +18,15 @@ services:
       - app-network
 
   web:
-    build: .
+    build:
+      context: .
+      target: runtime
+    security_opt:
+      - no-new-privileges:true
+    env_file: .env
     command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3
     volumes:
-      - .:/app
+      - ./voley-474111-a4a6b029e20b.json:/app/voley-474111-a4a6b029e20b.json:ro
       - /opt/videosvoley/media:/app/media
       - /opt/videosvoley/static:/app/staticfiles
     environment:
@@ -30,6 +35,7 @@ services:
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
       - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
       - REDIS_URL=redis://redis:6379/0
+      - REDIS_CACHE_URL=${REDIS_CACHE_URL:-redis://redis:6379/1}
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
       - SENTRY_RELEASE=${GIT_SHA:-}
       - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
@@ -41,15 +47,21 @@ services:
       - app-network
 
   celery:
-    build: .
+    build:
+      context: .
+      target: runtime
+    security_opt:
+      - no-new-privileges:true
+    env_file: .env
     command: celery -A config worker -l info --pool=solo
     volumes:
-      - .:/app
+      - ./voley-474111-a4a6b029e20b.json:/app/voley-474111-a4a6b029e20b.json:ro
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
       - REDIS_URL=redis://redis:6379/0
+      - REDIS_CACHE_URL=${REDIS_CACHE_URL:-redis://redis:6379/1}
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
       - OMP_NUM_THREADS=1
       - OPENBLAS_NUM_THREADS=1
@@ -66,15 +78,21 @@ services:
       - app-network
 
   celery-beat:
-    build: .
+    build:
+      context: .
+      target: runtime
+    security_opt:
+      - no-new-privileges:true
+    env_file: .env
     command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
-      - .:/app
+      - ./voley-474111-a4a6b029e20b.json:/app/voley-474111-a4a6b029e20b.json:ro
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
       - REDIS_URL=redis://redis:6379/0
+      - REDIS_CACHE_URL=${REDIS_CACHE_URL:-redis://redis:6379/1}
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
       - SENTRY_RELEASE=${GIT_SHA:-}
       - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}

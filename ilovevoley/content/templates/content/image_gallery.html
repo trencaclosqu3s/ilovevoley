@@ -191,7 +191,7 @@
                     {% endfor %}
                 </select>
             </div>
-            {% if user.is_staff %}
+            {% if is_tenant_manager %}
             <div>
                 {{ filter_form.status.label_tag }}
                 <select name="status" id="id_status"
@@ -264,7 +264,7 @@
                 <div class="w-full h-full grid grid-cols-2 gap-0.5 absolute inset-0">
                     {% for image in item.images|slice:":4" %}
                     <div class="relative overflow-hidden">
-                        <img src="{{ image.image.url }}" alt="{{ image.title }}" class="w-full h-full object-cover">
+                        {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover" sizes="(min-width: 1280px) 12vw, (min-width: 1024px) 16vw, (min-width: 640px) 25vw, 50vw" %}
                     </div>
                     {% endfor %}
                 </div>
@@ -320,7 +320,7 @@
                 <div class="w-full h-full grid grid-cols-2 gap-0.5 absolute inset-0">
                     {% for image in item.images|slice:":4" %}
                     <div class="relative overflow-hidden">
-                        <img src="{{ image.image.url }}" alt="{{ image.title }}" class="w-full h-full object-cover">
+                        {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover" sizes="(min-width: 1280px) 12vw, (min-width: 1024px) 16vw, (min-width: 640px) 25vw, 50vw" %}
                     </div>
                     {% endfor %}
                 </div>
@@ -382,13 +382,10 @@
         <!-- Imagen individual sin partido -->
         <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
             <div class="aspect-square relative">
-                <img src="{{ item.image.image.url }}" alt="{{ item.image.title }}"
-                    class="w-full h-full object-cover cursor-pointer"
-                    onclick="openLightbox('{{ item.image.image.url }}', '{{ item.image.title|escapejs }}', {{ item.image.id }})"
-                    loading="lazy">
+                {% include 'content/_thumbnail.html' with image=item.image css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" lightbox=True %}
 
                 <!-- Badge de estado (solo para admins) -->
-                {% if user.is_staff and item.image.status != 'approved' %}
+                {% if is_tenant_manager and item.image.status != 'approved' %}
                 <span class="absolute top-2 right-2 px-2 py-1 text-xs font-semibold rounded-full
                                         {% if item.image.status == 'pending' %}bg-yellow-100 text-yellow-800
                                         {% elif item.image.status == 'rejected' %}bg-red-100 text-red-800
@@ -426,12 +423,10 @@
         <!-- Vista individual tradicional -->
         <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
             <div class="aspect-square relative">
-                <img src="{{ item.image.url }}" alt="{{ item.title }}" class="w-full h-full object-cover cursor-pointer"
-                    onclick="openLightbox('{{ item.image.url }}', '{{ item.title|escapejs }}', {{ item.id }})"
-                    loading="lazy">
+                {% include 'content/_thumbnail.html' with image=item css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" lightbox=True %}
 
                 <!-- Badge de estado (solo para admins) -->
-                {% if user.is_staff and item.status != 'approved' %}
+                {% if is_tenant_manager and item.status != 'approved' %}
                 <span class="absolute top-2 right-2 px-2 py-1 text-xs font-semibold rounded-full
                                     {% if item.status == 'pending' %}bg-yellow-100 text-yellow-800
                                     {% elif item.status == 'rejected' %}bg-red-100 text-red-800

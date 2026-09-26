@@ -13,27 +13,13 @@
     <meta property="og:description" content="Vídeos y resultados de {% if tenant %}{{ tenant.name }}{% else %}tu club{% endif %} en I Love Voley.">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
     <style>
       :root {
         --brand: {{ tenant_color }};
         --brand-dark: {{ tenant_color_dark }};
       }
     </style>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'csj-purple': 'var(--brand)',
-                        'csj-yellow': '#F4D47C',
-                        'csj-purple-dark': 'var(--brand-dark)',
-                        'csj-yellow-dark': '#E5C05A',
-                    }
-                }
-            }
-        }
-    </script>
     
     <style>
         body.auth-bg {
