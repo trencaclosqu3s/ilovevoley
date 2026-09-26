@@ -107,6 +107,22 @@ class ContentViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'content/image_moderation.html')
 
+        # Tenant admin pasa con 200 sin ser superusuario
+        from ilovevoley.users.models import Membership
+        self.user.is_superuser = False
+        self.user.save()
+        Membership.objects.filter(user=self.user, organization=self.org).update(role='admin')
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+
+        # Usuario con is_staff=True pero rol member en el tenant recibe 403
+        Membership.objects.filter(user=self.user, organization=self.org).update(role='member')
+        self.user.is_staff = True
+        self.user.save()
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 403)
+
+
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
 class ContentSeasonFilterTests(TestCase):
@@ -197,7 +213,7 @@ class ImageModerationTenantIsolationTests(TestCase):
         User = get_user_model()
         self.staff_a = User.objects.create_user(username='staff_a', password='pass', is_staff=True)
         Membership.objects.create(
-            user=self.staff_a, organization=self.org_a, is_approved=True
+            user=self.staff_a, organization=self.org_a, role='admin', is_approved=True
         )
 
         self.manager_a = User.objects.create_user(username='manager_a', password='pass')
@@ -311,6 +327,18 @@ class ImageModerationTenantIsolationTests(TestCase):
 
     def test_moderate_image_api_denies_unauthorized_member(self):
         self.client.force_login(self.member_a)
+        url = reverse('content:moderate_image_api', args=[self.image_a.id])
+        response = self.client.post(url, {'action': 'approve'}, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 403)
+
+    def test_moderate_image_api_denies_global_staff_with_member_role(self):
+        User = get_user_model()
+        from ilovevoley.users.models import Membership
+        staff_member = User.objects.create_user(username='staff_member', password='pass', is_staff=True)
+        Membership.objects.create(
+            user=staff_member, organization=self.org_a, role='member', is_approved=True
+        )
+        self.client.force_login(staff_member)
         url = reverse('content:moderate_image_api', args=[self.image_a.id])
         response = self.client.post(url, {'action': 'approve'}, HTTP_HOST='cluba.ilovevoley.es')
         self.assertEqual(response.status_code, 403)

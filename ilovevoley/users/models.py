@@ -61,12 +61,9 @@ class User(AbstractUser):
     
     
     def can_edit_person(self, person, tenant=None):
-        """Verifica si el usuario puede editar una ficha específica.
-
-        El permiso de staff es por tenant: ``is_staff`` global sin membresía en
-        la organización de la ficha no concede edición.
-        """
-        from ilovevoley.core.tenant_utils import user_is_tenant_staff
+        """Verifica si el usuario puede editar una ficha específica."""
+        if self.is_superuser:
+            return True
 
         # El propio usuario puede editar su ficha si está vinculada
         if person.user == self:
@@ -76,10 +73,12 @@ class User(AbstractUser):
         if person in self.children.all():
             return True
 
-        # El staff solo puede editar fichas de su organización
-        tenant = tenant or person.organization
-        if user_is_tenant_staff(self, tenant):
-            return True
+        # Managers/admins del tenant pueden editar fichas que pertenezcan a su tenant
+        tenant = tenant or getattr(person, 'organization', None)
+        if tenant:
+            from ilovevoley.core.tenant_utils import person_belongs_to_tenant, user_is_tenant_manager
+            if user_is_tenant_manager(self, tenant) and person_belongs_to_tenant(person, tenant):
+                return True
 
         return False
 

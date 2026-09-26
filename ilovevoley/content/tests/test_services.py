@@ -30,7 +30,7 @@ class ModerateImageServiceTests(TestCase):
 
         self.staff_a = User.objects.create_user(username='staff_a', password='pass', is_staff=True)
         Membership.objects.create(
-            user=self.staff_a, organization=self.org_a, role='member', is_approved=True
+            user=self.staff_a, organization=self.org_a, role='admin', is_approved=True
         )
 
         self.member_a = User.objects.create_user(username='member_a', password='pass')
@@ -74,6 +74,23 @@ class ModerateImageServiceTests(TestCase):
         with self.assertRaises(PermissionDenied):
             moderate_image(
                 actor=self.member_a,
+                tenant=self.org_a,
+                image=self.image_a,
+                decision='approve',
+            )
+        self.image_a.refresh_from_db()
+        self.assertEqual(self.image_a.status, 'pending')
+
+    def test_global_staff_with_member_role_cannot_moderate_image(self):
+        staff_member = get_user_model().objects.create_user(
+            username='staff_member_no_role', password='pass', is_staff=True
+        )
+        Membership.objects.create(
+            user=staff_member, organization=self.org_a, role='member', is_approved=True
+        )
+        with self.assertRaises(PermissionDenied):
+            moderate_image(
+                actor=staff_member,
                 tenant=self.org_a,
                 image=self.image_a,
                 decision='approve',

@@ -1105,8 +1105,8 @@ def image_detail(request, image_id):
     if image.organization != request.tenant and not request.user.is_superuser:
         raise Http404
 
-    # Solo mostrar imágenes aprobadas a usuarios normales
-    if not request.user.is_staff and image.status != 'approved':
+    # Solo mostrar imágenes aprobadas a usuarios normales (managers/admins del tenant pueden ver pendientes)
+    if not user_is_tenant_manager(request.user, request.tenant) and image.status != 'approved':
         messages.error(request, 'Imagen no disponible.')
         return redirect('content:image_gallery')
     

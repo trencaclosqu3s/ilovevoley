@@ -3,7 +3,7 @@ import logging
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -11,7 +11,10 @@ from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
 from ilovevoley.core.mixins import get_club_team_name_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
-from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_staff
+from ilovevoley.core.tenant_utils import (
+    person_belongs_to_tenant,
+    tenant_access_required,
+)
 from ilovevoley.teams.models import Team
 from .forms import PersonForm, PlayerRoleForm, StaffRoleForm
 from .models import Person, PlayerRole, StaffRole
@@ -161,6 +164,8 @@ def person_detail(request, person_id):
         ),
         id=person_id
     )
+    if not request.user.is_superuser and not person_belongs_to_tenant(person, request.tenant):
+        raise Http404
     
     # Roles visibles solo en equipos del club del tenant
     tenant_teams = Team.objects.filter(get_club_team_name_filter(request.tenant))
@@ -282,7 +287,7 @@ def player_role_create(request, person_id):
     person = get_object_or_404(Person.objects.filter(organization=request.tenant), id=person_id)
     
     # Verificar permisos
-    can_edit = user_is_tenant_staff(request.user, request.tenant) or request.user == person.user
+    can_edit = request.user.can_edit_person(person, request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para agregar roles a esta persona.')
         return redirect('rosters:person_detail', person_id=person.id)
@@ -315,7 +320,7 @@ def staff_role_create(request, person_id):
     person = get_object_or_404(Person.objects.filter(organization=request.tenant), id=person_id)
     
     # Verificar permisos
-    can_edit = user_is_tenant_staff(request.user, request.tenant) or request.user == person.user
+    can_edit = request.user.can_edit_person(person, request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para agregar roles a esta persona.')
         return redirect('rosters:person_detail', person_id=person.id)
@@ -351,7 +356,7 @@ def player_role_edit(request, role_id):
     )
     
     # Verificar permisos
-    can_edit = user_is_tenant_staff(request.user, request.tenant) or request.user == player_role.person.user
+    can_edit = request.user.can_edit_person(player_role.person, request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para editar este rol.')
         return redirect('rosters:person_detail', person_id=player_role.person.id)
@@ -386,7 +391,7 @@ def staff_role_edit(request, role_id):
     )
     
     # Verificar permisos
-    can_edit = user_is_tenant_staff(request.user, request.tenant) or request.user == staff_role.person.user
+    can_edit = request.user.can_edit_person(staff_role.person, request.tenant)
     if not can_edit:
         messages.error(request, 'No tienes permisos para editar este rol.')
         return redirect('rosters:person_detail', person_id=staff_role.person.id)
@@ -421,7 +426,7 @@ def player_role_toggle_active(request, role_id):
     )
     
     # Verificar permisos
-    can_edit = user_is_tenant_staff(request.user, request.tenant) or request.user == player_role.person.user
+    can_edit = request.user.can_edit_person(player_role.person, request.tenant)
     if not can_edit:
         return JsonResponse({'success': False, 'error': 'Sin permisos'}, status=403)
     
@@ -443,7 +448,7 @@ def staff_role_toggle_active(request, role_id):
     )
     
     # Verificar permisos
-    can_edit = user_is_tenant_staff(request.user, request.tenant) or request.user == staff_role.person.user
+    can_edit = request.user.can_edit_person(staff_role.person, request.tenant)
     if not can_edit:
         return JsonResponse({'success': False, 'error': 'Sin permisos'}, status=403)
     
