@@ -228,19 +228,40 @@ class ModerationViewsSecurityTest(TestCase):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 400)
 
+    def test_inactive_tenant_token_does_not_approve_globally(self):
+        self.org1.is_active = False
+        self.org1.save(update_fields=['is_active'])
+        self.client.force_login(self.superuser)
+        token = generate_moderation_token(
+            'user', self.pending_user.id, 'approve', tenant_id=self.org1.id
+        )
+        url = reverse('moderate_user', kwargs={'token': token})
+
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, 'desactivada', status_code=400)
+
+        self.membership_org1.refresh_from_db()
+        self.membership_org2.refresh_from_db()
+        self.pending_user.refresh_from_db()
+        self.assertFalse(self.membership_org1.is_approved)
+        self.assertFalse(self.membership_org2.is_approved)
+        self.assertFalse(self.pending_user.is_approved)
+
     def test_image_uploaded_signal_generates_absolute_urls_and_scoped_recipients(self):
         buf = BytesIO()
         PILImage.new('RGB', (10, 10), color='green').save(buf, format='JPEG')
         buf.seek(0)
         test_file = SimpleUploadedFile("signal_test.jpg", buf.read(), content_type="image/jpeg")
         mail.outbox.clear()
-        new_image = Image.objects.create(
-            title="Signal Test Image",
-            image=test_file,
-            uploaded_by=self.regular_user,
-            organization=self.org1,
-            status='pending'
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            Image.objects.create(
+                title="Signal Test Image",
+                image=test_file,
+                uploaded_by=self.regular_user,
+                organization=self.org1,
+                status='pending'
+            )
 
         self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]

@@ -13,12 +13,12 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse
 
 from .tenant_utils import (
     can_moderate_images,
     tenant_access_required,
-    user_is_tenant_staff,
 )
 
 PUBLIC_PREFIXES = ('organizations/', 'avatars/')
@@ -54,6 +54,10 @@ def _image_is_allowed(image, user, tenant):
 def _person_is_allowed(person, user, tenant):
     if user.is_superuser:
         return True
+    # organization es el campo canónico de tenant; si está fijado, manda.
+    if person.organization_id is not None:
+        return person.organization_id == tenant.pk
+    # Fichas heredadas sin organization: visibilidad por roles del club.
     club_id = tenant.club_id
     if club_id is None:
         # Tenant sin club federado: solo se permiten fichas sin roles, que no
@@ -74,7 +78,15 @@ def _authorize(path, user, tenant):
     from ilovevoley.rosters.models import Person
 
     if path.startswith('images/'):
-        image = Image.objects.filter(image=path).only('status', 'organization', 'uploaded_by').first()
+        # Las miniaturas viven junto al original (…_400.webp) y se guardan en
+        # thumbnail_*; hay que autorizarlas por esos campos, no solo por image=.
+        image = Image.objects.filter(
+            Q(image=path)
+            | Q(thumbnail_small=path)
+            | Q(thumbnail_large=path)
+            | Q(thumbnail_small_avif=path)
+            | Q(thumbnail_large_avif=path)
+        ).only('status', 'organization', 'uploaded_by').first()
         if image is None:
             raise Http404
         if not _image_is_allowed(image, user, tenant):

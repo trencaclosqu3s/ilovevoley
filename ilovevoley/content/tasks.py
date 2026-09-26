@@ -37,6 +37,7 @@ def analyze_image_with_vision_task(image_id, notify_if_pending=True):
             notify_image_pending_task(image_id)
         return False
 
+    vision_ok = True
     try:
         vision_result = check_image_with_vision_api(
             image.image, extract_labels=True, extract_text=True
@@ -77,6 +78,7 @@ def analyze_image_with_vision_task(image_id, notify_if_pending=True):
         else:
             Image.objects.filter(pk=image.pk).update(**vision_fields)
     except Exception as e:
+        vision_ok = False
         logger.error(
             'Vision API error for image %s: %s', image_id, e, exc_info=True
         )
@@ -108,7 +110,7 @@ def analyze_image_with_vision_task(image_id, notify_if_pending=True):
     image.refresh_from_db()
     if notify_if_pending and image.status == 'pending':
         notify_image_pending_task(image_id)
-    return True
+    return vision_ok
 
 
 @shared_task(name='generate_image_thumbnails_task')

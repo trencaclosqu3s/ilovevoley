@@ -26,9 +26,11 @@ def test_manifest_storage_falls_back_when_not_in_manifest():
     """Verifica que si un archivo no está en el manifiesto, devuelve la URL original sin lanzar error."""
     from django.contrib.staticfiles.storage import staticfiles_storage
 
-    # Sin collectstatic previo, no debe lanzar ValueError
-    url = staticfiles_storage.url("images/logo_app.png")
-    assert url == "/static/images/logo_app.png"
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        with override_settings(STATIC_ROOT=tmp_dir):
+            # Manifest vacío / ausente: no debe lanzar ValueError
+            url = staticfiles_storage.url("images/logo_app.png")
+            assert url == "/static/images/logo_app.png"
 
 
 def test_manifest_storage_hashes_static_files():
