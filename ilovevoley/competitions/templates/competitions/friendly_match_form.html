@@ -278,30 +278,40 @@ class TeamAutocomplete {
     }
     
     displayResults(teams) {
+        this.resultsDiv.replaceChildren();
+
         if (teams.length === 0) {
-            this.resultsDiv.innerHTML = '<div class="autocomplete-item">No se encontraron equipos. Puedes escribir el nombre libremente.</div>';
+            const empty = document.createElement('div');
+            empty.className = 'autocomplete-item';
+            empty.textContent = 'No se encontraron equipos. Puedes escribir el nombre libremente.';
+            this.resultsDiv.appendChild(empty);
             this.resultsDiv.classList.remove('hidden');
             return;
         }
-        
-        this.resultsDiv.innerHTML = teams.map(team => `
-            <div class="autocomplete-item" data-team-id="${team.id}" data-team-name="${team.name}">
-                <div class="autocomplete-item-name">${team.name}</div>
-                <div class="autocomplete-item-detail">${team.display}</div>
-            </div>
-        `).join('');
-        
-        // Event listeners para seleccionar
-        this.resultsDiv.querySelectorAll('.autocomplete-item').forEach(item => {
+
+        teams.forEach(team => {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            item.dataset.teamId = team.id;
+            item.dataset.teamName = team.name;
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'autocomplete-item-name';
+            nameEl.textContent = team.name;
+
+            const detailEl = document.createElement('div');
+            detailEl.className = 'autocomplete-item-detail';
+            detailEl.textContent = team.display;
+
+            item.append(nameEl, detailEl);
             item.addEventListener('click', () => {
-                const teamId = item.dataset.teamId;
-                const teamName = item.dataset.teamName;
-                if (teamId) {
-                    this.selectTeam(teamId, teamName);
+                if (team.id) {
+                    this.selectTeam(String(team.id), team.name);
                 }
             });
+            this.resultsDiv.appendChild(item);
         });
-        
+
         this.resultsDiv.classList.remove('hidden');
     }
     
@@ -319,21 +329,20 @@ class TeamAutocomplete {
         // Emitir evento personalizado
         this.searchInput.dispatchEvent(new Event('teamSelected'));
         
-        // Mostrar badge de selección
+        // Mostrar badge de selección (textContent: evita DOM-XSS con nombres de equipo)
         const clearButtonId = `clear-${this.hiddenInput.id}`;
-        this.selectedDiv.innerHTML = `
-            <div class="selected-team-badge">
-                <span>✓ Equipo seleccionado: ${teamName}</span>
-                <button type="button" id="${clearButtonId}">
-                    ✕
-                </button>
-            </div>
-        `;
-        
-        // Agregar event listener al botón de limpiar
-        document.getElementById(clearButtonId).addEventListener('click', () => {
-            this.clearSelection();
-        });
+        this.selectedDiv.replaceChildren();
+        const badge = document.createElement('div');
+        badge.className = 'selected-team-badge';
+        const label = document.createElement('span');
+        label.textContent = '✓ Equipo seleccionado: ' + teamName;
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.id = clearButtonId;
+        clearBtn.textContent = '✕';
+        clearBtn.addEventListener('click', () => this.clearSelection());
+        badge.append(label, clearBtn);
+        this.selectedDiv.appendChild(badge);
         
         this.hideResults();
     }
