@@ -16,6 +16,7 @@ from unidecode import unidecode as _uni
 
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category
+from ilovevoley.core.security import UnsafeURL, safe_get
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
 from ilovevoley.rosters.models import PlayerRole
@@ -491,8 +492,12 @@ def ajax_acta_lineup(request, match_id):
         return JsonResponse({'success': False, 'error': 'Este partido no tiene acta disponible'}, status=404)
 
     try:
-        response = http_requests.get(match.acta_html, timeout=10)
-        response.raise_for_status()
+        acta_content = safe_get(
+            match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
+        )
+    except UnsafeURL as e:
+        logger.warning(f"URL de acta rechazada para el partido {match_id}: {e}")
+        return JsonResponse({'success': False, 'error': 'La URL del acta no es válida'}, status=400)
     except http_requests.exceptions.Timeout:
         return JsonResponse({'success': False, 'error': 'Tiempo de espera agotado al obtener el acta'}, status=504)
     except http_requests.exceptions.RequestException as e:
@@ -502,7 +507,7 @@ def ajax_acta_lineup(request, match_id):
     try:
         # Pasar bytes para que BeautifulSoup detecte el charset del meta tag
         # (evita que requests decodifique mal UTF-8 como Latin-1)
-        lineup_data = parse_acta_lineup(response.content)
+        lineup_data = parse_acta_lineup(acta_content)
     except Exception as e:
         logger.error(f"Error parseando acta del partido {match_id}: {e}")
         return JsonResponse({'success': False, 'error': 'Error al procesar el acta'}, status=500)

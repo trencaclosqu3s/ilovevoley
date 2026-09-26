@@ -40,6 +40,13 @@ CSRF_TRUSTED_ORIGINS = env_config(
     cast=lambda v: [s.strip() for s in v.split(',') if s.strip()],
 )
 
+# Dominios oficiales de federación permitidos al descargar actas (mitigación SSRF).
+ACTA_ALLOWED_HOSTS = env_config(
+    'ACTA_ALLOWED_HOSTS',
+    default='federatio.com,voleibolib.net,voleibolib.es,rfevb.com',
+    cast=lambda v: [s.strip() for s in v.split(',') if s.strip()],
+)
+
 
 # Application definition
 
