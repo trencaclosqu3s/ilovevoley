@@ -1,4 +1,4 @@
-from collections import Counter, defaultdict
+from collections import Counter
 import logging
 import uuid
 
@@ -66,14 +66,17 @@ def get_popular_tags(organization, limit=15):
 
 def gallery_image_stats(organization):
     """Approved/pending/match counts scoped to the current tenant."""
-    base = Image.objects.filter(organization=organization)
-    approved = base.filter(status='approved')
-    return {
-        'total_images': approved.count(),
-        'pending_images': base.filter(status='pending').count(),
-        'images_with_match': approved.filter(match__isnull=False).count(),
-        'images_without_match': approved.filter(match__isnull=True).count(),
-    }
+    stats = Image.objects.filter(organization=organization).aggregate(
+        total_images=Count('pk', filter=Q(status='approved')),
+        pending_images=Count('pk', filter=Q(status='pending')),
+        images_with_match=Count(
+            'pk', filter=Q(status='approved', match__isnull=False)
+        ),
+        images_without_match=Count(
+            'pk', filter=Q(status='approved', match__isnull=True)
+        ),
+    )
+    return stats
 
 
 def build_album_gallery_page(images_qs, page_number, per_page=12):
@@ -131,23 +134,21 @@ def build_album_gallery_page(images_qs, page_number, per_page=12):
         )
     }
 
-    covers_by_match = defaultdict(list)
-    if match_ids:
-        for image in images_qs.filter(match_id__in=match_ids).order_by('-upload_date'):
-            bucket = covers_by_match[image.match_id]
-            if len(bucket) < 4:
-                bucket.append(image)
-
-    covers_by_group = defaultdict(list)
-    if group_ids:
-        for image in (
-            images_qs.filter(album_group_id__in=group_ids)
+    # LIMIT 4 per group: cheaper than loading every image then discarding.
+    covers_by_match = {
+        match_id: list(
+            images_qs.filter(match_id=match_id).order_by('-upload_date')[:4]
+        )
+        for match_id in match_ids
+    }
+    covers_by_group = {
+        group_id: list(
+            images_qs.filter(album_group_id=group_id)
             .prefetch_related('categories')
-            .order_by('-upload_date')
-        ):
-            bucket = covers_by_group[image.album_group_id]
-            if len(bucket) < 4:
-                bucket.append(image)
+            .order_by('-upload_date')[:4]
+        )
+        for group_id in group_ids
+    }
 
     singles_map = {
         image.id: image
