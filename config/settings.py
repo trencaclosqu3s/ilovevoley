@@ -15,6 +15,7 @@ from pathlib import Path
 from decouple import config as env_config
 from django.templatetags.static import static
 from django.urls import reverse_lazy
+from django.utils.csp import CSP
 from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -127,7 +128,55 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if DEBUG else 'https'
 # Header de proxy SSL (necesario para que Django detecte HTTPS detrás de nginx)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# Cabeceras de transporte seguro y cookies (activas por defecto en producción)
+SESSION_COOKIE_SECURE = env_config('SESSION_COOKIE_SECURE', default=not DEBUG, cast=bool)
+CSRF_COOKIE_SECURE = env_config('CSRF_COOKIE_SECURE', default=not DEBUG, cast=bool)
+SESSION_COOKIE_HTTPONLY = True
 
+SECURE_SSL_REDIRECT = env_config('SECURE_SSL_REDIRECT', default=not DEBUG, cast=bool)
+SECURE_HSTS_SECONDS = env_config('SECURE_HSTS_SECONDS', default=31536000 if not DEBUG else 0, cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=not DEBUG, cast=bool)
+SECURE_HSTS_PRELOAD = env_config('SECURE_HSTS_PRELOAD', default=False, cast=bool)
+
+# Content Security Policy (CSP Report-Only nativo Django 6.0)
+SECURE_CSP = None
+SECURE_CSP_REPORT_ONLY = {
+    'default-src': [CSP.SELF],
+    'script-src': [
+        CSP.SELF,
+        CSP.UNSAFE_INLINE,
+        CSP.UNSAFE_EVAL,
+        'https://cdn.tailwindcss.com',
+        'https://cdn.jsdelivr.net',
+        'https://cdnjs.cloudflare.com',
+        'https://www.instagram.com',
+    ],
+    'style-src': [
+        CSP.SELF,
+        CSP.UNSAFE_INLINE,
+        'https://cdn.jsdelivr.net',
+        'https://cdnjs.cloudflare.com',
+    ],
+    'img-src': [
+        CSP.SELF,
+        'data:',
+        'blob:',
+        'https://*.googleusercontent.com',
+        'https://img.youtube.com',
+        'https://i.ytimg.com',
+    ],
+    'font-src': [CSP.SELF, 'data:'],
+    'frame-src': [
+        CSP.SELF,
+        'https://www.youtube.com',
+        'https://www.youtube-nocookie.com',
+        'https://www.instagram.com',
+    ],
+    'connect-src': [CSP.SELF],
+    'object-src': [CSP.NONE],
+    'base-uri': [CSP.SELF],
+    'form-action': [CSP.SELF],
+}
 
 # Adapters personalizados para suprimir mensajes
 ACCOUNT_ADAPTER = 'ilovevoley.users.adapters.CustomAccountAdapter'
@@ -139,6 +188,7 @@ ACCOUNT_SIGNUP_FORM_CLASS = 'ilovevoley.users.forms.CustomSignupForm'
 MIDDLEWARE = [
     'ilovevoley.core.middleware.TenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.csp.ContentSecurityPolicyMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -555,8 +605,8 @@ LOGGING = {
 }
 
 # Multi-tenant: cookie compartida entre subdominios en producción
-SESSION_COOKIE_DOMAIN = env_config('SESSION_COOKIE_DOMAIN', default=None)
-CSRF_COOKIE_DOMAIN = env_config('SESSION_COOKIE_DOMAIN', default=None)
+SESSION_COOKIE_DOMAIN = env_config('SESSION_COOKIE_DOMAIN', default=None if DEBUG else '.ilovevoley.es')
+CSRF_COOKIE_DOMAIN = env_config('SESSION_COOKIE_DOMAIN', default=None if DEBUG else '.ilovevoley.es')
 TENANT_BASE_DOMAIN = env_config('TENANT_BASE_DOMAIN', default='localhost:8000')
 
 # Sentry error tracking and performance monitoring
