@@ -337,7 +337,7 @@ class TailwindStaticCssTest(TestCase):
         fake_bin = pathlib.Path('/fake/bin/tailwindcss')
         fake_result = MagicMock(returncode=0, stderr='')
 
-        with patch('ilovevoley.core.management.commands.tailwind.ensure_binary', return_value=fake_bin) as mock_ensure, \
+        with patch('scripts.build_tailwind.ensure_binary', return_value=fake_bin) as mock_ensure, \
              patch('subprocess.run', return_value=fake_result) as mock_run:
             call_command('tailwind', 'build', stdout=out)
             mock_ensure.assert_called_once()
