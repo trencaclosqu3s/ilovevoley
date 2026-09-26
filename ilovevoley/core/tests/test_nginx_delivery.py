@@ -114,6 +114,11 @@ def _get_server_blocks(content: str):
     return blocks
 
 
+def _is_redirect_server(block: str) -> bool:
+    """True si el bloque server solo redirige (return 301) y no sirve contenido."""
+    return "return 301" in block and "location" not in block
+
+
 def test_nginx_conf_http2_configuration():
     """Verifica que HTTP/2 está habilitado para conexiones SSL en nginx.conf."""
     nginx_conf_path = Path(settings.BASE_DIR) / "nginx.conf"
@@ -126,8 +131,9 @@ def test_nginx_conf_http2_configuration():
     ssl_servers = [s for s in servers if "listen 443 ssl" in s]
     assert ssl_servers, "No se encontraron servidores escuchando en 443 ssl"
 
+    content_servers = [s for s in ssl_servers if not _is_redirect_server(s)]
     ilovevoley_ssl = next(
-        (s for s in ssl_servers if "ilovevoley.es" in s),
+        (s for s in content_servers if "ilovevoley.es" in s),
         None,
     )
     assert ilovevoley_ssl is not None, "Bloque server SSL para ilovevoley.es no encontrado"
@@ -141,7 +147,13 @@ def test_nginx_conf_static_cache_control_and_immutability():
 
     servers = _get_server_blocks(content)
     ilovevoley_ssl = next(
-        (s for s in servers if "listen 443 ssl" in s and "ilovevoley.es" in s),
+        (
+            s
+            for s in servers
+            if "listen 443 ssl" in s
+            and not _is_redirect_server(s)
+            and "ilovevoley.es" in s
+        ),
         None,
     )
     assert ilovevoley_ssl is not None, "Bloque server SSL para ilovevoley.es no encontrado"
