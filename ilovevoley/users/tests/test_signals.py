@@ -6,6 +6,11 @@ from allauth.account.signals import user_signed_up
 from ilovevoley.core.email_utils import get_moderation_recipients
 from ilovevoley.users.signals import send_new_user_notification
 
+CELERY_EAGER = {
+    'CELERY_TASK_ALWAYS_EAGER': True,
+    'CELERY_TASK_EAGER_PROPAGATES': True,
+}
+
 
 @override_settings(ALLOWED_HOSTS=['cluba.ilovevoley.es', 'clubb.ilovevoley.es'])
 class ModerationRecipientsTest(TestCase):
@@ -70,6 +75,7 @@ class ModerationRecipientsTest(TestCase):
     EMAIL_HOST_USER='noreply@test.com',
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
     EMAIL_NOTIFICATIONS={'new_user_pending': True},
+    **CELERY_EAGER,
 )
 class NewUserNotificationTest(TestCase):
     def setUp(self):
@@ -101,7 +107,8 @@ class NewUserNotificationTest(TestCase):
         return request
 
     def test_notification_goes_to_tenant_moderators_with_panel_link(self):
-        send_new_user_notification(self.pending_user, self._request())
+        with self.captureOnCommitCallbacks(execute=True):
+            send_new_user_notification(self.pending_user, self._request())
 
         self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]
@@ -117,6 +124,7 @@ class NewUserNotificationTest(TestCase):
     EMAIL_HOST_USER='noreply@test.com',
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
     EMAIL_NOTIFICATIONS={'new_user_pending': True},
+    **CELERY_EAGER,
 )
 class SignupNotificationTest(TestCase):
     """El alta avisa aunque no haya parent_info (caso OAuth auto-signup)."""
@@ -141,28 +149,29 @@ class SignupNotificationTest(TestCase):
         request = RequestFactory().get('/', HTTP_HOST='cluba.ilovevoley.es')
         request.tenant = self.org
 
-        user_signed_up.send(sender=User, request=request, user=user)
+        with self.captureOnCommitCallbacks(execute=True):
+            user_signed_up.send(sender=User, request=request, user=user)
 
         self.assertEqual(len(mail.outbox), 1)
         self.assertCountEqual(mail.outbox[0].to, ['root@test.com'])
 
     def test_traditional_signup_sends_single_notification(self):
-        response = self.client.post(
-            '/accounts/signup/',
-            {
-                'username': 'trad',
-                'email': 'trad@test.com',
-                'password1': 'ComplexPass123!',
-                'password2': 'ComplexPass123!',
-                'parent_info': 'Padre de Pepito',
-            },
-            HTTP_HOST='cluba.ilovevoley.es',
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                '/accounts/signup/',
+                {
+                    'username': 'trad',
+                    'email': 'trad@test.com',
+                    'password1': 'ComplexPass123!',
+                    'password2': 'ComplexPass123!',
+                    'parent_info': 'Padre de Pepito',
+                },
+                HTTP_HOST='cluba.ilovevoley.es',
+            )
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('Nuevo usuario pendiente', mail.outbox[0].subject)
-
 
 
 @override_settings(
@@ -171,6 +180,7 @@ class SignupNotificationTest(TestCase):
     EMAIL_HOST_USER='noreply@test.com',
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
     EMAIL_NOTIFICATIONS={'new_user_pending': True},
+    **CELERY_EAGER,
 )
 class MembershipPendingNotificationTest(TestCase):
     def setUp(self):
@@ -197,9 +207,10 @@ class MembershipPendingNotificationTest(TestCase):
     def test_new_pending_membership_of_approved_user_notifies_moderators(self):
         from ilovevoley.users.models import Membership
 
-        Membership.objects.create(
-            user=self.approved_user, organization=self.org, is_approved=False
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            Membership.objects.create(
+                user=self.approved_user, organization=self.org, is_approved=False
+            )
 
         self.assertEqual(len(mail.outbox), 1)
         self.assertCountEqual(mail.outbox[0].to, ['root@test.com', 'manager@test.com'])
@@ -213,9 +224,10 @@ class MembershipPendingNotificationTest(TestCase):
             username='newbie', password='pass', email='newbie@test.com',
             is_approved=False,
         )
-        Membership.objects.create(
-            user=new_user, organization=self.org, is_approved=False
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            Membership.objects.create(
+                user=new_user, organization=self.org, is_approved=False
+            )
 
         self.assertEqual(mail.outbox, [])
 
