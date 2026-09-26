@@ -8,6 +8,7 @@ from django.db import models
 from django.utils import timezone
 
 from ilovevoley.core.models import Season
+from ilovevoley.core.tenancy import OrganizationTenantQuerySet
 
 
 def infer_season(match, when):
@@ -45,6 +46,8 @@ class Video(models.Model):
         related_name='videos',
         verbose_name='Organización',
     )
+
+    objects = OrganizationTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_video'
@@ -248,6 +251,8 @@ class Image(models.Model):
         related_name='images',
         verbose_name='Organización',
     )
+
+    objects = OrganizationTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_image'

@@ -103,3 +103,24 @@ class TenantUtilsTest(TestCase):
         self.assertFalse(user_is_tenant_manager(admin_user, org_b))
         self.assertFalse(user_is_tenant_staff(admin_user, org_b))
 
+    def test_image_is_allowed_permits_tenant_manager_for_pending_image(self):
+        from ilovevoley.core.protected_media import _image_is_allowed
+        from ilovevoley.content.models import Image
+        from ilovevoley.core.models import Season
+        from ilovevoley.users.models import Membership
+
+        User = get_user_model()
+        mgr = User.objects.create_user(username='mgr_img', password='pass')
+        Membership.objects.create(user=mgr, organization=self.org, role='manager', is_approved=True)
+
+        season = Season.objects.resolve('2026-2027')
+        image = Image(
+            title='Pending test',
+            uploaded_by=self.user,
+            organization=self.org,
+            status='pending',
+            season=season,
+        )
+        self.assertTrue(_image_is_allowed(image, mgr, self.org))
+
+

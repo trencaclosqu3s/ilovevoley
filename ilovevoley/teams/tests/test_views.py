@@ -85,11 +85,11 @@ class TeamViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'teams/team_roster.html')
 
-    def test_team_roster_redirects_for_non_club_team(self):
+    def test_team_roster_devuelve_404_para_equipo_ajeno(self):
         self.client.force_login(self.user)
         url = reverse('teams:team_roster', args=[self.other_team.id])
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertRedirects(response, reverse('teams:team_list'))
+        self.assertEqual(response.status_code, 404)
 
     def test_teams_ajax_register_team_url_resolves_and_creates_team(self):
         self.client.force_login(self.user)
