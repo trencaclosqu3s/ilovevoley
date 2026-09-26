@@ -252,24 +252,25 @@ def calendar_view(request):
     categories = Category.objects.filter(is_active=True).order_by('name')
 
     # Obtener el mes actual o el solicitado
-    year = int(request.GET.get('year', timezone.now().year))
-    month = int(request.GET.get('month', timezone.now().month))
-
-    # Filtrar partidos del mes seleccionado
-    start_date = datetime(year, month, 1)
-    if month == 12:
-        end_date = datetime(year + 1, 1, 1) - timedelta(days=1)
-    else:
-        end_date = datetime(year, month + 1, 1) - timedelta(days=1)
+    try:
+        year = int(request.GET.get('year', timezone.now().year))
+        month = int(request.GET.get('month', timezone.now().month))
+        start_date = timezone.make_aware(datetime(year, month, 1))
+        if month == 12:
+            next_month_start = timezone.make_aware(datetime(year + 1, 1, 1))
+        else:
+            next_month_start = timezone.make_aware(datetime(year, month + 1, 1))
+        prev_month = start_date - timedelta(days=1)
+    except (ValueError, TypeError, OverflowError):
+        return redirect('competitions:calendar_view')
 
     monthly_matches = matches.filter(
-        match_date__date__gte=start_date.date(),
-        match_date__date__lte=end_date.date()
+        match_date__gte=start_date,
+        match_date__lt=next_month_start,
     )
 
     # Navegación de meses
-    prev_month = start_date - timedelta(days=1)
-    next_month = end_date + timedelta(days=1)
+    next_month = next_month_start
 
     # Generar grid del calendario
     cal = calendar.Calendar(firstweekday=0)  # Lunes como primer día
