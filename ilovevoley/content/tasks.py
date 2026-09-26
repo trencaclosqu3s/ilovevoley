@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 def analyze_image_with_vision_task(image_id, notify_if_pending=True):
     """
     Run Google Vision on a saved Image and optionally notify if still pending.
+
+    Auto-approve uses a conditional UPDATE so a concurrent human moderation
+    decision is never overwritten after the Vision API round-trip.
     """
     from ilovevoley.content.models import Image
     from ilovevoley.core.email_utils import send_notification_email
@@ -37,43 +40,54 @@ def analyze_image_with_vision_task(image_id, notify_if_pending=True):
         vision_result = check_image_with_vision_api(
             image.image, extract_labels=True, extract_text=True
         )
-        image.vision_api_checked = True
-        image.vision_api_safe = vision_result.get('safe', False)
-        image.vision_api_details = vision_result
-
+        vision_safe = vision_result.get('safe', False)
+        auto_tags = image.auto_tags or []
         detected_labels = vision_result.get('labels', [])
         detected_text = vision_result.get('text', '')
         if detected_labels or detected_text:
-            image.auto_tags = process_vision_tags_for_volleyball(
+            auto_tags = process_vision_tags_for_volleyball(
                 detected_labels, detected_text
             )
 
-        if (
-            vision_result.get('safe', False)
+        vision_fields = {
+            'vision_api_checked': True,
+            'vision_api_safe': vision_safe,
+            'vision_api_details': vision_result,
+            'auto_tags': auto_tags,
+        }
+
+        should_auto_approve = (
+            vision_safe
             and vision_result.get('details', {}).get('api_response_ok', False)
             and getattr(settings, 'AUTO_MODERATION_ENABLED', False)
-            and image.status == 'pending'
-        ):
-            image.status = 'approved'
-            image.moderated_by = image.uploaded_by
-            image.moderation_date = timezone.now()
-            image.moderation_notes = 'Auto-aprobada por Google Vision API'
+        )
 
-        image.save()
+        if should_auto_approve:
+            # Only approve if still pending — preserves concurrent human decisions.
+            updated = Image.objects.filter(pk=image.pk, status='pending').update(
+                **vision_fields,
+                status='approved',
+                moderated_by=image.uploaded_by,
+                moderation_date=timezone.now(),
+                moderation_notes='Auto-aprobada por Google Vision API',
+            )
+            if not updated:
+                Image.objects.filter(pk=image.pk).update(**vision_fields)
+        else:
+            Image.objects.filter(pk=image.pk).update(**vision_fields)
     except Exception as e:
         logger.error(
             'Vision API error for image %s: %s', image_id, e, exc_info=True
         )
-        image.vision_api_checked = False
-        image.vision_api_safe = False
-        image.vision_api_details = {
-            'error': str(e),
-            'api_response_ok': False,
-            'error_type': type(e).__name__,
-        }
-        image.save(update_fields=[
-            'vision_api_checked', 'vision_api_safe', 'vision_api_details',
-        ])
+        Image.objects.filter(pk=image.pk).update(
+            vision_api_checked=False,
+            vision_api_safe=False,
+            vision_api_details={
+                'error': str(e),
+                'api_response_ok': False,
+                'error_type': type(e).__name__,
+            },
+        )
 
         if not settings.DEBUG and settings.NOTIFICATION_EMAIL_ENABLED:
             try:

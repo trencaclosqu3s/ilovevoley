@@ -181,6 +181,42 @@ class AnalyzeImageVisionTaskTest(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('Needs review', mail.outbox[0].subject)
 
+    def test_vision_auto_approve_does_not_overwrite_human_rejection(self):
+        from unittest.mock import patch
+        from ilovevoley.content.tasks import analyze_image_with_vision_task
+
+        image = self.Image.objects.create(
+            image=SimpleUploadedFile('foto.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Race',
+            uploaded_by=self.uploader,
+            organization=self.org,
+            status='pending',
+        )
+
+        def vision_then_human_reject(image_file, extract_labels=True, extract_text=True):
+            # Simulate moderator rejecting while Vision API is in flight.
+            self.Image.objects.filter(pk=image.pk).update(
+                status='rejected',
+                moderation_notes='Rechazada por moderador',
+            )
+            return {
+                'safe': True,
+                'labels': ['volleyball'],
+                'text': '',
+                'details': {'api_response_ok': True},
+            }
+
+        with patch(
+            'ilovevoley.content.tasks.check_image_with_vision_api',
+            side_effect=vision_then_human_reject,
+        ):
+            analyze_image_with_vision_task(image.id, notify_if_pending=False)
+
+        image.refresh_from_db()
+        self.assertEqual(image.status, 'rejected')
+        self.assertEqual(image.moderation_notes, 'Rechazada por moderador')
+        self.assertTrue(image.vision_api_checked)
+
 
 @override_settings(
     NOTIFICATION_EMAIL_ENABLED=True,
