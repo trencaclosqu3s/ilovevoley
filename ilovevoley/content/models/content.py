@@ -265,6 +265,9 @@ class Image(models.Model):
             models.Index(fields=['album_group_id']),
             models.Index(fields=['upload_date']),
             models.Index(fields=['image_type']),
+            models.Index(fields=['organization', 'status', '-upload_date'], name='img_org_status_date_idx'),
+            models.Index(fields=['organization', 'match', 'status'], name='img_org_match_status_idx'),
+            models.Index(fields=['organization', 'album_group_id', 'status'], name='img_org_album_status_idx'),
         ]
 
     def __str__(self):
