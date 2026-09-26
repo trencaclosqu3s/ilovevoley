@@ -6,7 +6,9 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('content', '0004_remove_image_videos_imag_year_e48770_idx_and_more'),
+        # Depende de las dos hojas 0005 de develop para dejar un único leaf.
+        ('content', '0005_image_img_org_status_date_idx_and_more'),
+        ('content', '0005_purge_exif_gps_metadata'),
     ]
 
     operations = [
