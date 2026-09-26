@@ -212,11 +212,11 @@ class CompetitionsViewUrlTests(TestCase):
         self.match.save(update_fields=['acta_html'])
         url = reverse('competitions:ajax_acta_lineup', args=[self.match.id])
 
-        with patch('ilovevoley.core.security.requests.get') as mock_get:
+        with patch('ilovevoley.core.security.requests.Session') as mock_session_cls:
             response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
 
         self.assertEqual(response.status_code, 400)
-        mock_get.assert_not_called()
+        mock_session_cls.assert_not_called()
 
     @patch('ilovevoley.core.security.socket.getaddrinfo')
     def test_ajax_acta_lineup_rechaza_host_que_resuelve_a_ip_privada(self, mock_dns):
@@ -229,11 +229,11 @@ class CompetitionsViewUrlTests(TestCase):
         self.match.save(update_fields=['acta_html'])
         url = reverse('competitions:ajax_acta_lineup', args=[self.match.id])
 
-        with patch('ilovevoley.core.security.requests.get') as mock_get:
+        with patch('ilovevoley.core.security.requests.Session') as mock_session_cls:
             response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
 
         self.assertEqual(response.status_code, 400)
-        mock_get.assert_not_called()
+        mock_session_cls.assert_not_called()
 
     def test_backwards_compatible_videos_urls_render(self):
         self.client.force_login(self.user)
