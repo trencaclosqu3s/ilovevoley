@@ -1,0 +1,40 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ count }} imágenes pendientes - {{ site_name }}{% endblock %}
+
+{% block header_subtitle %}Lote de imágenes pendientes de moderación{% endblock %}
+
+{% block content %}
+    <div class="alert warning">
+        <h2 style="margin-top: 0;">📷 {{ count }} imagen{{ count|pluralize:"es" }} subida{{ count|pluralize:"s" }}</h2>
+        <p>
+            <strong>{{ user.username }}</strong> ha subido un lote de imágenes
+            que requieren moderación.
+        </p>
+    </div>
+
+    <h3>Imágenes del lote:</h3>
+    <table class="data-table">
+        <tr>
+            <th>#</th>
+            <th>Título</th>
+            <th>Tipo</th>
+        </tr>
+        {% for image in images %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ image.title }}</td>
+            <td>{{ image.get_image_type_display }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{ moderation_url }}" class="button"
+           style="background-color: #3498db; text-decoration: none; color: white;
+                  padding: 12px 30px; border-radius: 5px; display: inline-block;
+                  font-weight: bold; font-size: 16px;">
+            Ir al panel de moderación
+        </a>
+    </div>
+{% endblock %}

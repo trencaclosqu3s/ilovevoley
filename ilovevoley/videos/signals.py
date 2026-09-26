@@ -1,56 +1,25 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.conf import settings
-from .models import Image, Match, League, ScrapingEndpoint
-from ilovevoley.core.email_utils import send_notification_email
-from ilovevoley.core.moderation_views import generate_moderation_token
-import os
+from .models import Image, League, ScrapingEndpoint
+from ilovevoley.core.email_utils import enqueue_on_commit
+from ilovevoley.core.tasks import notify_image_pending_task
 
 
 @receiver(post_save, sender=Image)
 def image_uploaded_handler(sender, instance, created, **kwargs):
     """
-    Maneja cuando se sube una nueva imagen (pendiente de moderación)
+    Maneja cuando se sube una nueva imagen (pendiente de moderación).
+    El SMTP se encola en Celery tras el commit (issue #114).
     """
-    if created and instance.status == 'pending':
-        print(f"Nueva imagen subida: {instance.title} por {instance.uploaded_by.username}")
-        
-        # Enviar email de notificación a admins
-        if settings.EMAIL_NOTIFICATIONS.get('image_pending', True):
-            # Generar tokens de moderación
-            approve_token = generate_moderation_token('image', instance.id, 'approve')
-            reject_token = generate_moderation_token('image', instance.id, 'reject')
-            
-            # Preparar imagen para embeber (CID) y adjuntar
-            embedded_images = {}
-            attachments = []
-            if instance.image:
-                try:
-                    image_path = instance.image.path
-                    if os.path.exists(image_path):
-                        # Usar CID para embeber la imagen en el HTML
-                        embedded_images['pending_image'] = image_path
-                        # También adjuntar para que se pueda descargar
-                        attachments.append(image_path)
-                except Exception as e:
-                    print(f"No se pudo procesar la imagen: {str(e)}")
-            
-            context = {
-                'image': instance,
-                'user': instance.uploaded_by,
-                'site_name': 'I Love Voley',
-                'admin_url': f'/admin/videos/image/{instance.id}/change/',
-                'image_cid': 'pending_image' if embedded_images else None,  # CID para usar en el template
-                'approve_url': f'/moderate/image/{approve_token}/',
-                'reject_url': f'/moderate/image/{reject_token}/',
-            }
-            send_notification_email(
-                subject=f'Nueva imagen pendiente de moderación: {instance.title}',
-                template_name='emails/image_pending.html',
-                context=context,
-                attachments=attachments if attachments else None,
-                embedded_images=embedded_images if embedded_images else None
-            )
+    if not (created and instance.status == 'pending'):
+        return
+    if getattr(instance, '_skip_pending_email', False):
+        return
+    if not settings.EMAIL_NOTIFICATIONS.get('image_pending', True):
+        return
+
+    enqueue_on_commit(notify_image_pending_task, instance.id)
 
 
 # =============================================================================

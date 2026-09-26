@@ -1,0 +1,18 @@
+repos:
+  - repo: local
+    hooks:
+      - id: tailwind-compile
+        name: Compilar Tailwind CSS
+        entry: python3 scripts/build_tailwind.py build
+        language: system
+        files: ^(ilovevoley/.*\.(html|py|js)|tailwind\.config\.js|ilovevoley/static/css/input\.css)$
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: tailwind-stage
+        name: Stage Tailwind CSS compilado
+        entry: git add ilovevoley/static/css/app.css
+        language: system
+        files: ^(ilovevoley/.*\.(html|py|js)|tailwind\.config\.js|ilovevoley/static/css/input\.css)$
+        pass_filenames: false
+        stages: [pre-commit]

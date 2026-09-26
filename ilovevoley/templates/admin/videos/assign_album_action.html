@@ -9,7 +9,7 @@
     {% for obj in queryset %}
         <li style="display:inline-block; margin:4px;">
             {% if obj.image %}
-                <img src="{{ obj.image.url }}" alt="{{ obj.title }}"
+                <img src="{{ obj.thumbnail_url }}" alt="{{ obj.title }}"
                      style="width:60px; height:60px; object-fit:cover; border-radius:4px; vertical-align:middle;">
             {% endif %}
             <small style="display:block; text-align:center; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ obj.title|truncatechars:10 }}</small>

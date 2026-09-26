@@ -15,6 +15,7 @@ from django.views.decorators.http import require_POST
 from ilovevoley.content.models import Image
 from ilovevoley.core.tenant_utils import (
     approve_user_membership,
+    can_moderate_images,
     reject_user_membership,
     user_is_tenant_manager,
 )
@@ -148,9 +149,17 @@ def moderation_counts_api(request):
     else:
         pending_users_count = 0
 
-    # Las imágenes solo las modera un superuser
-    if request.user.is_superuser:
-        pending_images_count = Image.objects.filter(status='pending').count()
+    # Imágenes pendientes según permisos y alcance (tenant o global)
+    can_mod_images = can_moderate_images(request.user, tenant)
+    if can_mod_images:
+        if tenant:
+            pending_images_count = Image.objects.filter(
+                organization=tenant, status='pending'
+            ).count()
+        elif request.user.is_superuser:
+            pending_images_count = Image.objects.filter(status='pending').count()
+        else:
+            pending_images_count = 0
     else:
         pending_images_count = 0
 
@@ -185,11 +194,21 @@ def moderation_panel(request):
     else:
         pending_users = User.objects.none()
 
-    # Las imágenes pendientes solo se muestran a superusers
-    if is_superuser:
-        pending_images = Image.objects.filter(status='pending').select_related(
-            'uploaded_by', 'match__home_team', 'match__away_team', 'match__league'
-        ).prefetch_related('categories').order_by('upload_date')
+    # Las imágenes pendientes se acotan al tenant o al ámbito global según permisos
+    can_mod_images = can_moderate_images(request.user, tenant)
+    if can_mod_images:
+        if tenant:
+            pending_images = Image.objects.filter(
+                organization=tenant, status='pending'
+            ).select_related(
+                'uploaded_by', 'match__home_team', 'match__away_team', 'match__league'
+            ).prefetch_related('categories').order_by('upload_date')
+        elif is_superuser:
+            pending_images = Image.objects.filter(status='pending').select_related(
+                'uploaded_by', 'match__home_team', 'match__away_team', 'match__league'
+            ).prefetch_related('categories').order_by('upload_date')
+        else:
+            pending_images = Image.objects.none()
     else:
         pending_images = Image.objects.none()
 
@@ -198,7 +217,7 @@ def moderation_panel(request):
         'pending_images': pending_images,
         'pending_users_count': pending_users.count(),
         'pending_images_count': pending_images.count(),
-        'can_moderate_images': is_superuser,
+        'can_moderate_images': can_mod_images,
     }
 
     return render(request, 'core/moderation_panel.html', context)
@@ -223,17 +242,13 @@ def approve_user_api(request, user_id):
         approve_user_membership(user, tenant)
 
         # Enviar email de confirmación si está configurado
-        if getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
+        if getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False) and user.email:
             try:
-                from ilovevoley.core.email_utils import send_notification_email
-                send_notification_email(
-                    subject=f'Usuario aprobado - {user.username}',
-                    template_name='emails/user_approved.html',
-                    context={'user': user},
-                    recipient_list=[user.email] if user.email else []
-                )
+                from ilovevoley.core.email_utils import enqueue_on_commit
+                from ilovevoley.core.tasks import notify_user_moderation_result_task
+                enqueue_on_commit(notify_user_moderation_result_task, user.id, True)
             except Exception as e:
-                logger.warning(f"Error enviando email de aprobación: {e}")
+                logger.warning(f"Error encolando email de aprobación: {e}")
 
         return JsonResponse({
             'success': True,
@@ -280,20 +295,13 @@ def reject_user_api(request, user_id):
             reject_user_membership(user, tenant)
 
         # Enviar email de rechazo si está configurado
-        if getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
+        if getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False) and user.email:
             try:
-                from ilovevoley.core.email_utils import send_notification_email
-                send_notification_email(
-                    subject='Actualización de tu solicitud en I Love Voley',
-                    template_name='emails/user_rejected.html',
-                    context={
-                        'user': user,
-                        'site_name': 'I Love Voley',
-                    },
-                    recipient_list=[user.email] if user.email else []
-                )
+                from ilovevoley.core.email_utils import enqueue_on_commit
+                from ilovevoley.core.tasks import notify_user_moderation_result_task
+                enqueue_on_commit(notify_user_moderation_result_task, user.id, False)
             except Exception as e:
-                logger.warning(f"Error enviando email de rechazo: {e}")
+                logger.warning(f"Error encolando email de rechazo: {e}")
 
         return JsonResponse({
             'success': True,

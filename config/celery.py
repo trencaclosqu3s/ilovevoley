@@ -17,9 +17,11 @@ app.autodiscover_tasks()
 django.setup()
 
 try:
-    from ilovevoley.videos.tasks import *
+    from ilovevoley.videos.tasks import *  # noqa: F401,F403
+    import ilovevoley.core.tasks  # noqa: F401
+    import ilovevoley.content.tasks  # noqa: F401
 except ImportError as e:
-    print(f"Warning: Could not import video tasks: {e}")
+    print(f"Warning: Could not import tasks: {e}")
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):

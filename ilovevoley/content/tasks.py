@@ -1,0 +1,134 @@
+"""Tareas Celery de la app content (Vision + miniaturas)."""
+import logging
+
+from celery import shared_task
+from django.conf import settings
+from django.utils import timezone
+
+from ilovevoley.content.models import Image
+from ilovevoley.content.thumbnails import generate_image_thumbnails
+from ilovevoley.videos.utils import (
+    check_image_with_vision_api,
+    process_vision_tags_for_volleyball,
+)
+
+logger = logging.getLogger(__name__)
+
+
+@shared_task(name='analyze_image_with_vision')
+def analyze_image_with_vision_task(image_id, notify_if_pending=True):
+    """
+    Run Google Vision on a saved Image and optionally notify if still pending.
+
+    Auto-approve uses a conditional UPDATE so a concurrent human moderation
+    decision is never overwritten after the Vision API round-trip.
+    """
+    from ilovevoley.core.email_utils import send_notification_email
+    from ilovevoley.core.tasks import notify_image_pending_task
+
+    try:
+        image = Image.objects.select_related('uploaded_by').get(pk=image_id)
+    except Image.DoesNotExist:
+        logger.warning('analyze_image_with_vision: image %s gone', image_id)
+        return False
+
+    if not getattr(settings, 'GOOGLE_VISION_ENABLED', False):
+        if notify_if_pending and image.status == 'pending':
+            notify_image_pending_task(image_id)
+        return False
+
+    vision_ok = True
+    try:
+        vision_result = check_image_with_vision_api(
+            image.image, extract_labels=True, extract_text=True
+        )
+        vision_safe = vision_result.get('safe', False)
+        auto_tags = image.auto_tags or []
+        detected_labels = vision_result.get('labels', [])
+        detected_text = vision_result.get('text', '')
+        if detected_labels or detected_text:
+            auto_tags = process_vision_tags_for_volleyball(
+                detected_labels, detected_text
+            )
+
+        vision_fields = {
+            'vision_api_checked': True,
+            'vision_api_safe': vision_safe,
+            'vision_api_details': vision_result,
+            'auto_tags': auto_tags,
+        }
+
+        should_auto_approve = (
+            vision_safe
+            and vision_result.get('details', {}).get('api_response_ok', False)
+            and getattr(settings, 'AUTO_MODERATION_ENABLED', False)
+        )
+
+        if should_auto_approve:
+            # Only approve if still pending — preserves concurrent human decisions.
+            updated = Image.objects.filter(pk=image.pk, status='pending').update(
+                **vision_fields,
+                status='approved',
+                moderated_by=image.uploaded_by,
+                moderation_date=timezone.now(),
+                moderation_notes='Auto-aprobada por Google Vision API',
+            )
+            if not updated:
+                Image.objects.filter(pk=image.pk).update(**vision_fields)
+        else:
+            Image.objects.filter(pk=image.pk).update(**vision_fields)
+    except Exception as e:
+        vision_ok = False
+        logger.error(
+            'Vision API error for image %s: %s', image_id, e, exc_info=True
+        )
+        Image.objects.filter(pk=image.pk).update(
+            vision_api_checked=False,
+            vision_api_safe=False,
+            vision_api_details={
+                'error': str(e),
+                'api_response_ok': False,
+                'error_type': type(e).__name__,
+            },
+        )
+
+        if not settings.DEBUG and settings.NOTIFICATION_EMAIL_ENABLED:
+            try:
+                send_notification_email(
+                    subject='Error en Google Vision API',
+                    template_name='emails/vision_api_error.html',
+                    context={
+                        'error': str(e),
+                        'user': image.uploaded_by,
+                        'image_title': image.title,
+                    },
+                    recipient_list=getattr(settings, 'ADMIN_EMAIL_LIST', None),
+                )
+            except Exception as email_error:
+                logger.error('Failed to notify Vision API error: %s', email_error)
+
+    image.refresh_from_db()
+    if notify_if_pending and image.status == 'pending':
+        notify_image_pending_task(image_id)
+    return vision_ok
+
+
+@shared_task(name='generate_image_thumbnails_task')
+def generate_image_thumbnails_task(image_id):
+    """Genera las miniaturas responsivas de una imagen por su id.
+
+    El nombre es explícito porque las filas de PeriodicTask dependen de él.
+    """
+    try:
+        image = Image.objects.get(pk=image_id)
+    except Image.DoesNotExist:
+        logger.warning('Imagen %s no encontrada para generar miniaturas', image_id)
+        return {'generated': 0}
+
+    try:
+        return {'generated': len(generate_image_thumbnails(image))}
+    except Exception:
+        # Un original corrupto o un fallo de storage debe quedar trazado y marcar
+        # la tarea como fallida (Sentry/monitorización), no pasar en silencio.
+        logger.exception('Fallo generando miniaturas de la imagen %s', image_id)
+        raise

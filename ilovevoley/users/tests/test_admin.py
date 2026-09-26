@@ -1,4 +1,4 @@
-from django.test import TestCase, RequestFactory
+from django.test import TestCase, RequestFactory, override_settings
 from django.contrib.auth import get_user_model
 from django.contrib.admin.sites import AdminSite
 from django.core import mail
@@ -9,6 +9,10 @@ from ilovevoley.users.admin import UserAdmin
 
 User = get_user_model()
 
+CELERY_EAGER = {
+    'CELERY_TASK_ALWAYS_EAGER': True,
+    'CELERY_TASK_EAGER_PROPAGATES': True,
+}
 
 class AdminEmailUtilsTests(TestCase):
     def setUp(self):
@@ -146,6 +150,7 @@ class UserAdminEmailActionTests(TestCase):
         self.assertIn('Enviar correo', content)
         self.assertIn('carlos@example.com', content)
 
+    @override_settings(**CELERY_EAGER)
     def test_bulk_action_post_send_success(self):
         """Prueba el envío exitoso desde la acción masiva"""
         mail.outbox = []
@@ -160,7 +165,8 @@ class UserAdminEmailActionTests(TestCase):
         self._setup_request(request)
 
         qs = User.objects.filter(pk=self.user1.pk)
-        response = self.admin.send_email_action(request, qs)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.admin.send_email_action(request, qs)
 
         # Retorna None para que Django redirija al changelist
         self.assertIsNone(response)
@@ -179,6 +185,7 @@ class UserAdminEmailActionTests(TestCase):
         self.assertIn('Carlos Ruiz', content)
         self.assertIn('carlos@example.com', content)
 
+    @override_settings(**CELERY_EAGER)
     def test_detail_action_post_success(self):
         """Prueba el envío exitoso desde la acción de detalle"""
         mail.outbox = []
@@ -189,7 +196,8 @@ class UserAdminEmailActionTests(TestCase):
         })
         self._setup_request(request)
 
-        response = self.admin.send_email_detail_action(request, self.user1.pk)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.admin.send_email_detail_action(request, self.user1.pk)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ['carlos@example.com'])
