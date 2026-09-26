@@ -109,11 +109,7 @@
             {% for image in page_obj %}
                 <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 w-full">
                     <div class="aspect-square relative">
-                        <img src="{{ image.image.url }}" 
-                             alt="{{ image.title }}" 
-                             class="w-full h-full object-cover cursor-pointer"
-                             onclick="openLightbox('{{ image.image.url }}', '{{ image.title|escapejs }}', {{ image.id }})"
-                             loading="lazy">
+                        {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" lightbox=True %}
                     </div>
                     
                     <div class="p-2 sm:p-3 lg:p-4">

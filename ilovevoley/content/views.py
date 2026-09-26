@@ -42,6 +42,7 @@ from .forms import (
     VideoForm,
 )
 from .models import Comment, Image, Video
+from .thumbnails import schedule_thumbnail_generation
 
 logger = logging.getLogger(__name__)
 
@@ -691,7 +692,12 @@ def image_upload(request):
                             logger.error(f"Error al enviar notificación de error de Vision API: {email_error}")
             
             image.save()
-            
+
+            try:
+                schedule_thumbnail_generation(image)
+            except Exception as e:
+                logger.error(f"Error generando miniaturas para '{image.title}': {e}")
+
             # Asignar categorías
             categories_to_add = []
             
@@ -920,7 +926,12 @@ def image_bulk_upload(request):
                 
                 # Guardar imagen
                 image.save()
-                
+
+                try:
+                    schedule_thumbnail_generation(image)
+                except Exception as e:
+                    logger.error(f"Error generando miniaturas para '{title}': {e}")
+
                 # Asignar categorías
                 categories_to_add = []
                 

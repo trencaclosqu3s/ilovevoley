@@ -156,6 +156,36 @@ class Image(models.Model):
         help_text='Indica si la imagen fue convertida desde otro formato'
     )
 
+    # Miniaturas derivadas (WebP/AVIF) para galerías responsivas
+    thumbnail_small = models.ImageField(
+        upload_to='image_thumbnails/',
+        blank=True,
+        null=True,
+        editable=False,
+        verbose_name='Miniatura 400px WebP',
+    )
+    thumbnail_large = models.ImageField(
+        upload_to='image_thumbnails/',
+        blank=True,
+        null=True,
+        editable=False,
+        verbose_name='Miniatura 1600px WebP',
+    )
+    thumbnail_small_avif = models.ImageField(
+        upload_to='image_thumbnails/',
+        blank=True,
+        null=True,
+        editable=False,
+        verbose_name='Miniatura 400px AVIF',
+    )
+    thumbnail_large_avif = models.ImageField(
+        upload_to='image_thumbnails/',
+        blank=True,
+        null=True,
+        editable=False,
+        verbose_name='Miniatura 1600px AVIF',
+    )
+
     # Tipo y etiquetas
     image_type = models.CharField(
         max_length=20,
@@ -329,8 +359,45 @@ class Image(models.Model):
 
     @property
     def thumbnail_url(self):
-        """URL para thumbnail - se puede implementar con django-imagekit"""
+        """URL de la miniatura 400px WebP o, si no existe, la imagen original."""
+        return self._variant_url(self.thumbnail_small) or self._original_url
+
+    @property
+    def thumbnail_srcset(self):
+        """srcset WebP (400w/1600w) para el atributo de la etiqueta <img>."""
+        return self._build_srcset(
+            (self.thumbnail_small, 400),
+            (self.thumbnail_large, 1600),
+        )
+
+    @property
+    def thumbnail_srcset_avif(self):
+        """srcset AVIF (400w/1600w), vacío si no se generaron variantes AVIF."""
+        return self._build_srcset(
+            (self.thumbnail_small_avif, 400),
+            (self.thumbnail_large_avif, 1600),
+        )
+
+    @property
+    def _original_url(self):
         return self.image.url if self.image else None
+
+    @staticmethod
+    def _variant_url(field):
+        if field and field.name:
+            try:
+                return field.url
+            except ValueError:
+                return None
+        return None
+
+    def _build_srcset(self, *variants):
+        parts = []
+        for field, width in variants:
+            url = self._variant_url(field)
+            if url:
+                parts.append(f'{url} {width}w')
+        return ', '.join(parts)
 
     def moderate(self, moderator, approved=True, notes=''):
         """Helper para moderar la imagen"""
