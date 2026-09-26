@@ -165,3 +165,108 @@ def notify_membership_pending_task(membership_id):
         context=context,
         recipient_list=get_moderation_recipients(organization),
     )
+
+
+@shared_task(name='send_admin_email_to_users')
+def send_admin_email_to_users_task(
+    subject, message_body, recipient_ids, admin_user_id=None, send_copy=False
+):
+    from ilovevoley.core.email_utils import send_admin_email_to_users
+
+    recipients = User.objects.filter(pk__in=recipient_ids)
+    admin_user = None
+    if admin_user_id is not None:
+        try:
+            admin_user = User.objects.get(pk=admin_user_id)
+        except User.DoesNotExist:
+            admin_user = None
+    return send_admin_email_to_users(
+        subject=subject,
+        message_body=message_body,
+        recipients=recipients,
+        admin_user=admin_user,
+        send_copy=send_copy,
+    )
+
+
+@shared_task(name='send_404_immediate_alert')
+def send_404_immediate_alert_task(count, hour, last_url, recipient_list):
+    from django.core.mail import send_mail
+    from django.template.loader import render_to_string
+    from django.utils.html import strip_tags
+
+    context = {
+        'count': count,
+        'hour': hour,
+        'site_name': 'I Love Voley',
+        'last_url': last_url,
+    }
+    html_message = render_to_string('emails/404_alert.html', context)
+    plain_message = strip_tags(html_message)
+    send_mail(
+        subject=f'Alerta: {count} errores 404 en la última hora',
+        message=plain_message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=recipient_list,
+        html_message=html_message,
+        fail_silently=False,
+    )
+    return True
+
+
+@shared_task(name='notify_user_moderation_result')
+def notify_user_moderation_result_task(user_id, approved, site_url=None):
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return False
+    if not user.email:
+        return False
+
+    if approved:
+        return send_notification_email(
+            subject='Tu cuenta ha sido aprobada en I Love Voley',
+            template_name='emails/user_approved.html',
+            context={
+                'user': user,
+                'site_name': 'I Love Voley',
+                'site_url': site_url or '/',
+            },
+            recipient_list=[user.email],
+        )
+    return send_notification_email(
+        subject='Actualización de tu solicitud en I Love Voley',
+        template_name='emails/user_rejected.html',
+        context={'user': user, 'site_name': 'I Love Voley'},
+        recipient_list=[user.email],
+    )
+
+
+@shared_task(name='notify_image_moderation_result')
+def notify_image_moderation_result_task(image_id, approved):
+    from ilovevoley.content.models import Image
+
+    try:
+        image = Image.objects.select_related('uploaded_by').get(pk=image_id)
+    except Image.DoesNotExist:
+        return False
+    if not image.uploaded_by.email:
+        return False
+
+    return send_notification_email(
+        subject=(
+            f'Tu imagen "{image.title}" ha sido '
+            f'{"aprobada" if approved else "rechazada"}'
+        ),
+        template_name=(
+            'emails/image_approved.html' if approved else 'emails/image_rejected.html'
+        ),
+        context={
+            'image': image,
+            'user': image.uploaded_by,
+            'site_name': 'I Love Voley',
+            'is_approved': approved,
+            'moderation_notes': image.moderation_notes,
+        },
+        recipient_list=[image.uploaded_by.email],
+    )

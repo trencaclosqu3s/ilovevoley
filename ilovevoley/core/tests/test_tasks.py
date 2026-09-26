@@ -180,3 +180,55 @@ class AnalyzeImageVisionTaskTest(TestCase):
         self.assertEqual(image.status, 'pending')
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('Needs review', mail.outbox[0].subject)
+
+
+@override_settings(
+    NOTIFICATION_EMAIL_ENABLED=True,
+    EMAIL_HOST_USER='noreply@test.com',
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    **CELERY_EAGER,
+)
+class P1P2NotificationTasksTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='member', password='pass', email='member@test.com', is_approved=True
+        )
+        mail.outbox = []
+
+    def test_notify_user_moderation_result_approved(self):
+        from ilovevoley.core.tasks import notify_user_moderation_result_task
+
+        notify_user_moderation_result_task(self.user.id, True, 'http://example.test/')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('aprobada', mail.outbox[0].subject.lower())
+        self.assertEqual(mail.outbox[0].to, ['member@test.com'])
+
+    def test_send_404_alert_task_sends_mail(self):
+        from ilovevoley.core.tasks import send_404_immediate_alert_task
+
+        send_404_immediate_alert_task(10, '12:00', '/missing', ['root@test.com'])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('404', mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ['root@test.com'])
+
+    def test_send_404_immediate_alert_enqueues_without_blocking(self):
+        from unittest.mock import MagicMock, patch
+        from ilovevoley.core.middleware import send_404_immediate_alert
+
+        request = MagicMock()
+        request.get_full_path.return_value = '/gone'
+
+        with patch(
+            'ilovevoley.core.middleware.get_admin_emails', return_value=['root@test.com']
+        ), patch(
+            'ilovevoley.core.middleware.cache'
+        ) as mock_cache, patch(
+            'ilovevoley.core.tasks.send_404_immediate_alert_task.delay'
+        ) as mock_delay:
+            mock_cache.get.return_value = 9  # next increment hits threshold 10
+            result = send_404_immediate_alert(request, threshold=10)
+
+        self.assertTrue(result)
+        mock_delay.assert_called_once()
+        self.assertEqual(mail.outbox, [])
