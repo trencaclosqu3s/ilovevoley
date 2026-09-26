@@ -357,6 +357,17 @@ CELERY_TIMEZONE = 'UTC'
 # Celery Beat Configuration (Periodic Tasks)
 CELERY_BEAT_SCHEDULE = {}
 
+# Cache Configuration
+# Redis backend centralizado (DB 1 reservada para caché, DB 0 para Celery)
+REDIS_CACHE_URL = env_config('REDIS_CACHE_URL', default='redis://redis:6379/1')
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_CACHE_URL,
+    }
+}
+
 # Admin URL Configuration
 # En producción (DEBUG=False) usa la URL cifrada del .env
 # En desarrollo (DEBUG=True) siempre usa 'admin/' para facilitar el desarrollo
