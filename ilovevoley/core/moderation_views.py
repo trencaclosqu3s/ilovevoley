@@ -145,6 +145,32 @@ def can_moderate(user, item_type, item, tenant=None):
     return user.is_staff
 
 
+def _resolve_token_tenant(token_data):
+    """Resuelve el tenant declarado en el token.
+
+    Returns:
+        (tenant, ok): ``ok`` es False si el token trae ``tenant_id`` pero la
+        organización no existe o está inactiva (no degradar a acción global).
+    """
+    if not token_data.tenant_id:
+        return None, True
+    tenant = Organization.objects.filter(id=token_data.tenant_id).first()
+    if tenant is None or not tenant.is_active:
+        return None, False
+    return tenant, True
+
+
+def _inactive_tenant_response(request):
+    return render(request, 'moderation_result.html', {
+        'success': False,
+        'error': 'Organización no disponible',
+        'message': (
+            'La organización de este enlace de moderación no existe '
+            'o está desactivada. El enlace ya no es válido.'
+        ),
+    }, status=400)
+
+
 @login_required
 def moderate_user(request, token):
     """
@@ -171,9 +197,9 @@ def moderate_user(request, token):
         }, status=400)
 
     user = get_object_or_404(User, id=token_data.item_id)
-    tenant = None
-    if token_data.tenant_id:
-        tenant = Organization.objects.filter(id=token_data.tenant_id, is_active=True).first()
+    tenant, tenant_ok = _resolve_token_tenant(token_data)
+    if not tenant_ok:
+        return _inactive_tenant_response(request)
 
     if not can_moderate(request.user, 'user', user, tenant):
         return render(request, 'moderation_result.html', {
@@ -304,10 +330,10 @@ def moderate_image(request, token):
         }, status=400)
 
     image = get_object_or_404(Image, id=token_data.item_id)
-    tenant = image.organization or (
-        Organization.objects.filter(id=token_data.tenant_id, is_active=True).first()
-        if token_data.tenant_id else None
-    )
+    token_tenant, tenant_ok = _resolve_token_tenant(token_data)
+    if not tenant_ok:
+        return _inactive_tenant_response(request)
+    tenant = image.organization or token_tenant
 
     if not can_moderate(request.user, 'image', image, tenant):
         return render(request, 'moderation_result.html', {

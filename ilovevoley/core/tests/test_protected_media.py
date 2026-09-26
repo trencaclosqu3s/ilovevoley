@@ -62,6 +62,25 @@ class ProtectedMediaTests(TestCase):
         )
         self.assertEqual(response['X-Content-Type-Options'], 'nosniff')
 
+    def test_member_gets_thumbnail_variant_via_x_accel(self):
+        thumb_path = 'images/2025/06/approved_400.webp'
+        self.approved.thumbnail_small = thumb_path
+        self.approved.save(update_fields=['thumbnail_small'])
+        self.client.force_login(self.member)
+        response = self.client.get(f'/media/{thumb_path}', HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response['X-Accel-Redirect'], f'/protected-media/{thumb_path}'
+        )
+
+    def test_member_cannot_see_other_tenant_thumbnail(self):
+        thumb_path = 'images/2025/06/foreign_400.webp'
+        self.foreign.thumbnail_small = thumb_path
+        self.foreign.save(update_fields=['thumbnail_small'])
+        self.client.force_login(self.member)
+        response = self.client.get(f'/media/{thumb_path}', HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 404)
+
     def test_member_cannot_see_pending_image(self):
         self.client.force_login(self.member)
         response = self.client.get('/media/images/2025/06/pending.jpg', HTTP_HOST=HOST)
@@ -168,6 +187,18 @@ class ProtectedPersonMediaTests(TestCase):
         self.client.force_login(self.noclub_member)
         response = self.client.get('/media/people/sinrol_1.jpg', HTTP_HOST='noclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
+
+    def test_member_cannot_see_person_of_other_organization_without_roles(self):
+        other_org = Organization.objects.create(slug='otra', name='Otra', is_active=True)
+        Person.objects.create(
+            first_name='Eva',
+            last_name='Ajena',
+            photo='people/eva_ajena.jpg',
+            organization=other_org,
+        )
+        self.client.force_login(self.member)
+        response = self.client.get('/media/people/eva_ajena.jpg', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 404)
 
     def test_member_can_see_person_with_inactive_role_of_linked_club(self):
         inactive_player = Person.objects.create(

@@ -95,12 +95,18 @@ def notify_images_pending_batch_task(image_ids):
 
     uploader = images[0].uploaded_by
     tenant = images[0].organization
+    from django.urls import reverse
+
+    from ilovevoley.core.tenant_utils import build_absolute_url
+
     context = {
         'images': images,
         'count': len(images),
         'user': uploader,
         'site_name': tenant.name if tenant else 'I Love Voley',
-        'moderation_url': '/core/moderacion/',
+        'moderation_url': build_absolute_url(
+            reverse('core:moderation_panel'), tenant=tenant
+        ),
     }
     return send_notification_email(
         subject=f'{len(images)} nuevas imágenes pendientes de moderación',

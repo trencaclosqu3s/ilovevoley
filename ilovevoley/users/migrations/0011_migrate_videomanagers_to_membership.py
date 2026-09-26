@@ -14,15 +14,8 @@ def migrate_videomanagers_to_membership(apps, schema_editor):
     except Group.DoesNotExist:
         return
 
-    users = group.user_set.all()
+    users = list(group.user_set.all())
     for user in users:
-        # 1. Actualizar cualquier membresía existente con rol 'member' a 'manager'
-        Membership.objects.filter(
-            user=user,
-            role='member',
-        ).update(role='manager')
-
-        # 2. Asegurar membresía de manager en organizaciones donde ha creado contenido
         org_ids = set(
             Video.objects.filter(created_by=user, organization__isnull=False)
             .values_list('organization_id', flat=True)
@@ -32,12 +25,22 @@ def migrate_videomanagers_to_membership(apps, schema_editor):
             .values_list('organization_id', flat=True)
         )
 
-        for org_id in org_ids:
-            Membership.objects.get_or_create(
+        if org_ids:
+            # Solo elevar en organizaciones donde el usuario creó contenido.
+            Membership.objects.filter(
                 user=user,
-                organization_id=org_id,
-                defaults={'role': 'manager', 'is_approved': True},
-            )
+                role='member',
+                organization_id__in=org_ids,
+            ).update(role='manager', is_approved=True)
+
+            for org_id in org_ids:
+                Membership.objects.get_or_create(
+                    user=user,
+                    organization_id=org_id,
+                    defaults={'role': 'manager', 'is_approved': True},
+                )
+
+        group.user_set.remove(user)
 
 
 def reverse_migration(apps, schema_editor):
