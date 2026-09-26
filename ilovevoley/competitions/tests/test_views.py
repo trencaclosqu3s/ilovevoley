@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -135,6 +137,52 @@ class CompetitionsViewUrlTests(TestCase):
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'competitions/calendar.html')
+
+    def test_calendar_invalid_month_or_year_redirects_without_500(self):
+        """year/month inválidos no deben tumbar la vista con HTTP 500."""
+        self.client.force_login(self.user)
+        url = reverse('competitions:calendar_view')
+        for params in ({'month': '13'}, {'year': 'abc'}, {'month': '0'}, {'year': '99999', 'month': '1'}):
+            with self.subTest(params=params):
+                response = self.client.get(
+                    url, params, HTTP_HOST='testclub.ilovevoley.es'
+                )
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.url, url)
+
+    def test_calendar_month_filter_uses_sargable_datetime_range(self):
+        """El rango del mes debe filtrar por match_date, no por DATE(match_date)."""
+        self.client.force_login(self.user)
+        in_month = Match.objects.create(
+            league=self.league,
+            home_team=self.team,
+            away_team=self.rival_team,
+            match_date=timezone.make_aware(datetime(2026, 3, 15, 18, 0)),
+            round_number=2,
+            status='scheduled',
+        )
+        next_month = Match.objects.create(
+            league=self.league,
+            home_team=self.team,
+            away_team=self.rival_team,
+            match_date=timezone.make_aware(datetime(2026, 4, 1, 0, 0)),
+            round_number=3,
+            status='scheduled',
+        )
+        url = reverse('competitions:calendar_view')
+        response = self.client.get(
+            url,
+            {'year': '2026', 'month': '3', 'all_teams': '1', 'show_all': '1'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        matches = list(response.context['matches'])
+        self.assertIn(in_month, matches)
+        self.assertNotIn(next_month, matches)
+        sql = str(response.context['matches'].query).lower()
+        self.assertNotIn('::date', sql)
+        self.assertIn('"match_date" >=', sql)
+        self.assertIn('"match_date" <', sql)
 
     def test_competitions_standings_view_url_resolves_and_renders(self):
         self.client.force_login(self.user)
