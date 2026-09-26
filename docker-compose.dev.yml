@@ -8,12 +8,12 @@ services:
       - POSTGRES_USER=volleyuser
       - POSTGRES_PASSWORD=volleypass
     ports:
-      - "5434:5432"
+      - "${DEV_DB_PORT:-5434}:5432"
 
   redis:
     image: redis:8-alpine
     ports:
-      - "${REDIS_PORT:-6381}:6379"
+      - "${DEV_REDIS_PORT:-6379}:6379"
 
   web:
     build: .

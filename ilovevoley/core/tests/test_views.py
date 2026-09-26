@@ -74,9 +74,13 @@ class LandingViewTest(TestCase):
         self.org.save()
         response = self.client.get('/accounts/login/', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '--brand: #112233')
-        self.assertContains(response, '--brand-dark: #445566')
-        self.assertContains(response, "'csj-purple': 'var(--brand)'")
+        content = response.content.decode('utf-8')
+        self.assertIn('--brand: #112233', content)
+        self.assertIn('--brand-dark: #445566', content)
+        self.assertIn('css/app.css', content)
+        css_idx = content.find('css/app.css')
+        style_idx = content.find('--brand: #112233')
+        self.assertLess(css_idx, style_idx, "app.css debe cargarse antes del <style> del tenant")
 
 
 class CoreReExportCompatibilityTest(TestCase):
@@ -360,4 +364,66 @@ class TenantManagerModerationTest(TestCase):
         pending_images = list(response.context['pending_images'])
         self.assertIn(img_a, pending_images)
         self.assertNotIn(img_b, pending_images)
+
+
+class TailwindStaticCssTest(TestCase):
+    """Verifica que las plantillas y páginas de error no usan Tailwind Play CDN y cargan el CSS estático compilado."""
+
+    def test_pages_do_not_load_tailwind_play_cdn(self):
+        from django.template.loader import render_to_string
+
+        templates_to_check = [
+            'base.html',
+            'base_auth.html',
+            '400.html',
+            '403.html',
+            '404.html',
+            '500.html',
+        ]
+        context = {
+            'tenant_color': '#9B7FBF',
+            'tenant_color_dark': '#7B5FA0',
+        }
+
+        for tmpl in templates_to_check:
+            with self.subTest(template=tmpl):
+                rendered = render_to_string(tmpl, context)
+                self.assertNotIn(
+                    'cdn.tailwindcss.com',
+                    rendered,
+                    f'Plantilla {tmpl} todavía referencia cdn.tailwindcss.com',
+                )
+                self.assertIn(
+                    'css/app.css',
+                    rendered,
+                    f'Plantilla {tmpl} no referencia el CSS estático compilado css/app.css',
+                )
+
+    def test_compiled_css_file_exists_and_contains_brand_classes(self):
+        import pathlib
+        from django.conf import settings
+
+        app_css_path = pathlib.Path(settings.BASE_DIR) / 'ilovevoley' / 'static' / 'css' / 'app.css'
+        self.assertTrue(app_css_path.exists(), 'El archivo app.css no existe')
+        self.assertGreater(app_css_path.stat().st_size, 1024, 'El archivo app.css está vacío o es demasiado pequeño')
+
+        content = app_css_path.read_text(encoding='utf-8')
+        self.assertIn('csj-purple', content)
+
+    def test_management_command_tailwind_build(self):
+        import pathlib
+        from io import StringIO
+        from unittest.mock import MagicMock, patch
+        from django.core.management import call_command
+
+        out = StringIO()
+        fake_bin = pathlib.Path('/fake/bin/tailwindcss')
+        fake_result = MagicMock(returncode=0, stderr='')
+
+        with patch('scripts.build_tailwind.ensure_binary', return_value=fake_bin) as mock_ensure, \
+             patch('subprocess.run', return_value=fake_result) as mock_run:
+            call_command('tailwind', 'build', stdout=out)
+            mock_ensure.assert_called_once()
+            mock_run.assert_called_once()
+            self.assertIn('Tailwind CSS compilado con éxito', out.getvalue())
 
