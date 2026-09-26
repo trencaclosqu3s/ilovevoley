@@ -226,6 +226,57 @@ class CompetitionsViewUrlTests(TestCase):
             self.assertEqual(response.status_code, 302)
             self.assertIn('/accounts/login/', response.url)
 
+    def test_calendar_embeds_matches_via_json_script_not_innerhtml_literals(self):
+        """DOM-XSS (#89): datos de partido van en json_script; el modal escapa HTML."""
+        import json
+        import re
+
+        xss_name = '<img src=x onerror=alert(1)>'
+        self.rival_team.name = xss_name
+        self.rival_team.save()
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('competitions:calendar_view'),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn('id="calendar-data"', content)
+        self.assertNotIn("home_team: '{{", content)
+        self.assertIn('${esc(match.home_team)}', content)
+        self.assertIn('${esc(match.away_team)}', content)
+        # json_script escapa < como \\u003C: el payload crudo no debe aparecer en el HTML
+        self.assertNotIn(xss_name, content)
+        self.assertIn('\\u003Cimg', content)
+
+        match_script = re.search(
+            r'<script[^>]*id="calendar-data"[^>]*>(.*?)</script>',
+            content,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match_script)
+        payload = json.loads(match_script.group(1))
+        calendar_match = next(m for m in payload['matches'] if m['id'] == self.match.id)
+        self.assertEqual(calendar_match['away_team'], xss_name)
+        self.assertEqual(calendar_match['round_number'], 1)
+        self.assertIsInstance(calendar_match['round_number'], int)
+
+    def test_friendly_match_form_builds_autocomplete_without_team_innerhtml(self):
+        """DOM-XSS (#89): el autocompletado no interpola nombres en innerHTML."""
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('competitions:friendly_match_create'),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertNotIn('${team.name}', content)
+        self.assertNotIn('${team.display}', content)
+        self.assertNotIn('${teamName}', content)
+        self.assertIn('textContent', content)
+
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'rivalclub.ilovevoley.es'])
 class CompetitionsTenantIsolationTests(TestCase):

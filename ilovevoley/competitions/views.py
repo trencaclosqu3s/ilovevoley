@@ -14,7 +14,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from unidecode import unidecode as _uni
 
-from ilovevoley.core.mixins import get_club_team_filter
+from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
@@ -25,6 +25,43 @@ from .forms import FriendlyMatchForm, MatchResultForm
 from .models import League, Match, Standing
 
 logger = logging.getLogger(__name__)
+
+
+def build_calendar_matches_payload(matches, club_team_name):
+    """Serializa partidos del calendario para json_script (evita DOM-XSS vía escapejs+innerHTML)."""
+    payload = []
+    for match in matches:
+        local_dt = timezone.localtime(match.match_date)
+        time_str = local_dt.strftime('%H:%M')
+        categories = ''
+        if match.league_id:
+            categories = ', '.join(c.name for c in match.league.categories.all())
+        home_logo = ''
+        away_logo = ''
+        if match.home_team_id and match.home_team.display_logo:
+            home_logo = match.home_team.display_logo
+        if match.away_team_id and match.away_team.display_logo:
+            away_logo = match.away_team.display_logo
+        payload.append({
+            'id': match.id,
+            'day': local_dt.day,
+            'date': local_dt.strftime('%d/%m/%Y'),
+            'time': 'Sin horario confirmado' if time_str == '00:00' else time_str,
+            'home_team': match.home_team_display,
+            'away_team': match.away_team_display,
+            'home_team_logo': home_logo,
+            'away_team_logo': away_logo,
+            'league': match.league.name if match.league_id else '',
+            'category': categories,
+            'venue': match.venue or '',
+            'city': match.city or '',
+            'result': match.result_display if match.is_finished else '',
+            'videos_count': match.videos.count(),
+            'round_number': match.round_number,
+            'is_friendly': match.is_friendly,
+            'club_team_name': club_team_name or '',
+        })
+    return {'matches': payload}
 
 
 @tenant_access_required()
@@ -279,8 +316,12 @@ def calendar_view(request):
         9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
     }
 
+    club_team_name = get_primary_club_team_name(request.tenant)
+
     return render(request, 'competitions/calendar.html', {
         'matches': monthly_matches,
+        'matches_json': build_calendar_matches_payload(monthly_matches, club_team_name),
+        'club_team_name': club_team_name,
         'leagues': leagues,
         'categories': categories,
         'selected_league': league_filter,
