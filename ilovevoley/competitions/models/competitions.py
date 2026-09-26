@@ -311,6 +311,10 @@ class Match(models.Model):
         ordering = ['match_date']
         verbose_name = 'Partido'
         verbose_name_plural = 'Partidos'
+        indexes = [
+            models.Index(fields=['match_date'], name='match_date_idx'),
+            models.Index(fields=['league', 'match_date'], name='match_league_date_idx'),
+        ]
 
     def __str__(self):
         base = f'{self.home_team_display} vs {self.away_team_display} - {self.match_date.strftime("%d/%m/%Y")}'
