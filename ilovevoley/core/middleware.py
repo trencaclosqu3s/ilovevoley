@@ -276,26 +276,15 @@ def send_404_immediate_alert(request, threshold=10):
         
         # Si supera el umbral, enviar alerta
         if current_count == threshold:  # Solo enviar una vez por hora
-            context = {
-                'count': current_count,
-                'hour': datetime.now().strftime('%H:00'),
-                'site_name': 'I Love Voley',
-                'last_url': sanitize_path(request.path),
-            }
-            
-            html_message = render_to_string('emails/404_alert.html', context)
-            plain_message = strip_tags(html_message)
-            
-            send_mail(
-                subject=f'Alerta: {current_count} errores 404 en la última hora',
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=admin_emails,
-                html_message=html_message,
-                fail_silently=False,
+            from ilovevoley.core.tasks import send_404_immediate_alert_task
+
+            send_404_immediate_alert_task.delay(
+                current_count,
+                datetime.now().strftime('%H:00'),
+                sanitize_path(request.path),
+                admin_emails,
             )
-            
-            logger.warning(f"Alerta 404 enviada: {current_count} errores")
+            logger.warning(f"Alerta 404 encolada: {current_count} errores")
             return True
             
     except Exception as e:

@@ -4,8 +4,8 @@ from django.urls import reverse
 from allauth.account.signals import user_signed_up
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from ilovevoley.core.email_utils import get_moderation_recipients, send_notification_email
-from ilovevoley.core.tenant_utils import build_tenant_url
+from ilovevoley.core.email_utils import enqueue_on_commit
+from ilovevoley.core.tasks import notify_membership_pending_task, notify_new_user_pending_task
 from ilovevoley.users.models import Membership
 
 User = get_user_model()
@@ -22,20 +22,14 @@ def send_new_user_notification(user, request, is_oauth=False):
         return
 
     tenant = getattr(request, 'tenant', None)
-
-    context = {
-        'user': user,
-        'site_name': 'I Love Voley',
-        'tenant': tenant,
-        'is_oauth': is_oauth,
-        'moderation_url': request.build_absolute_uri(reverse('core:moderation_panel')),
-    }
-
-    send_notification_email(
-        subject=f'Nuevo usuario pendiente de aprobación: {user.username}',
-        template_name='emails/new_user_pending.html',
-        context=context,
-        recipient_list=get_moderation_recipients(tenant),
+    moderation_url = request.build_absolute_uri(reverse('core:moderation_panel'))
+    tenant_id = tenant.id if tenant is not None else None
+    enqueue_on_commit(
+        notify_new_user_pending_task,
+        user.id,
+        tenant_id,
+        moderation_url,
+        is_oauth,
     )
 
 
@@ -73,20 +67,4 @@ def membership_pending_handler(sender, instance, created, **kwargs):
     if not user.is_approved:
         return
 
-    organization = instance.organization
-    context = {
-        'user': user,
-        'tenant': organization,
-        'membership': instance,
-        'site_name': 'I Love Voley',
-        'moderation_url': f'{build_tenant_url(organization.slug)}{reverse("core:moderation_panel").lstrip("/")}',
-    }
-
-    send_notification_email(
-        subject=f'Nueva membresía pendiente: {user.username} en {organization.name}',
-        template_name='emails/new_membership_pending.html',
-        context=context,
-        recipient_list=get_moderation_recipients(organization),
-    )
-
-
+    enqueue_on_commit(notify_membership_pending_task, instance.id)

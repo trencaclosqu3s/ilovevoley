@@ -3,12 +3,21 @@ Utilidades comunes para envío de emails y notificaciones
 """
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail, EmailMultiAlternatives
+from django.db import transaction
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils.html import strip_tags
 import os
 
 User = get_user_model()
+
+
+def enqueue_on_commit(task, *args, **kwargs):
+    """Enqueue a Celery task after the current DB transaction commits."""
+    def _run():
+        task.delay(*args, **kwargs)
+
+    transaction.on_commit(_run)
 
 
 def get_admin_emails():

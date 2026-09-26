@@ -8,7 +8,6 @@ from django.utils.html import format_html, mark_safe
 from unfold.admin import ModelAdmin
 from unfold.decorators import action
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
-from ilovevoley.core.email_utils import send_admin_email_to_users
 from .models import Membership, User
 
 
@@ -129,35 +128,39 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
                     'site_name': getattr(settings, 'SITE_NAME', 'I Love Voley'),
                 })
 
-            result = send_admin_email_to_users(
-                subject=subject,
-                message_body=message,
-                recipients=selected_users,
-                admin_user=request.user,
-                send_copy=send_copy,
+            recipient_ids = list(selected_users.values_list('pk', flat=True))
+            with_email_count = selected_users.exclude(email='').exclude(email__isnull=True).count()
+            skipped = selected_users.count() - with_email_count
+
+            from ilovevoley.core.email_utils import enqueue_on_commit
+            from ilovevoley.core.tasks import send_admin_email_to_users_task
+
+            enqueue_on_commit(
+                send_admin_email_to_users_task,
+                subject,
+                message,
+                recipient_ids,
+                request.user.pk,
+                send_copy,
             )
 
-            sent_count = result['sent_count']
-            if sent_count > 0:
-                copy_msg = f' (Se envió una copia a {request.user.email})' if (send_copy and getattr(request.user, 'email', None)) else ''
+            if with_email_count > 0:
+                copy_msg = (
+                    f' (Se encoló copia a {request.user.email})'
+                    if (send_copy and getattr(request.user, 'email', None))
+                    else ''
+                )
                 self.message_user(
                     request,
-                    f'✅ Correo enviado correctamente a {sent_count} usuario(s).{copy_msg}',
-                    level=messages.SUCCESS
+                    f'Correo encolado para {with_email_count} usuario(s).{copy_msg}',
+                    level=messages.SUCCESS,
                 )
 
-            if result['skipped_no_email_count'] > 0:
+            if skipped > 0:
                 self.message_user(
                     request,
-                    f'⚠️ {result["skipped_no_email_count"]} usuario(s) fueron omitidos porque no tienen correo registrado.',
-                    level=messages.WARNING
-                )
-
-            if result['failed_count'] > 0:
-                self.message_user(
-                    request,
-                    f'❌ Falló el envío a {result["failed_count"]} usuario(s). Errores: {"; ".join(result["errors"])}',
-                    level=messages.ERROR
+                    f'⚠️ {skipped} usuario(s) fueron omitidos porque no tienen correo registrado.',
+                    level=messages.WARNING,
                 )
 
             return None
@@ -224,29 +227,28 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
                     'site_name': getattr(settings, 'SITE_NAME', 'I Love Voley'),
                 })
 
-            result = send_admin_email_to_users(
-                subject=subject,
-                message_body=message,
-                recipients=[user],
-                admin_user=request.user,
-                send_copy=send_copy,
+            from ilovevoley.core.email_utils import enqueue_on_commit
+            from ilovevoley.core.tasks import send_admin_email_to_users_task
+
+            enqueue_on_commit(
+                send_admin_email_to_users_task,
+                subject,
+                message,
+                [user.pk],
+                request.user.pk,
+                send_copy,
             )
 
-            if result['sent_count'] > 0:
-                copy_msg = f' (Se envió una copia a {request.user.email})' if (send_copy and getattr(request.user, 'email', None)) else ''
-                self.message_user(
-                    request,
-                    f'✅ Correo enviado correctamente a {user.email}.{copy_msg}',
-                    level=messages.SUCCESS
-                )
-            else:
-                err = result['errors'][0] if result['errors'] else 'Error desconocido'
-                self.message_user(
-                    request,
-                    f'❌ No se pudo enviar el correo a {user.email}: {err}',
-                    level=messages.ERROR
-                )
-
+            copy_msg = (
+                f' (Se encoló copia a {request.user.email})'
+                if (send_copy and getattr(request.user, 'email', None))
+                else ''
+            )
+            self.message_user(
+                request,
+                f'Correo encolado para {user.email}.{copy_msg}',
+                level=messages.SUCCESS,
+            )
             return redirect(success_url)
 
         users_with_email = [user] if (user.email and user.email.strip()) else []

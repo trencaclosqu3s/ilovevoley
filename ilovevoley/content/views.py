@@ -26,12 +26,8 @@ from ilovevoley.core.tenant_utils import (
     user_is_tenant_manager,
 )
 from ilovevoley.teams.models import Team
+from ilovevoley.core.email_utils import enqueue_on_commit
 from .services import moderate_image
-
-from ilovevoley.videos.utils import (
-    check_image_with_vision_api,
-    process_vision_tags_for_volleyball,
-)
 from .forms import (
     CommentForm,
     ImageFilterForm,
@@ -607,6 +603,7 @@ def image_upload(request):
             image.organization = request.tenant
 
             # Si el usuario es superuser, aprobar directamente sin pasar por Vision API
+            enqueue_vision = False
             if request.user.is_superuser:
                 image.status = 'approved'
                 image.moderated_by = request.user
@@ -616,82 +613,15 @@ def image_upload(request):
                 image.vision_api_safe = True
                 image.vision_api_details = {'skipped': 'Superuser approval - bypassed Vision API'}
                 logger.info(f"Imagen aprobada automáticamente para superusuario {request.user.username}")
-            # Procesar con Google Vision API si está habilitado
             elif getattr(settings, 'GOOGLE_VISION_ENABLED', False):
-                try:
-                    logger.info(f"Procesando imagen con Google Vision API para usuario {request.user.username}")
-                    vision_result = check_image_with_vision_api(image.image, extract_labels=True, extract_text=True)
-                    
-                    image.vision_api_checked = True
-                    image.vision_api_safe = vision_result.get('safe', False)
-                    image.vision_api_details = vision_result
-                    
-                    # Procesar etiquetas automáticas si se detectaron
-                    detected_labels = vision_result.get('labels', [])
-                    detected_text = vision_result.get('text', '')
-                    
-                    if detected_labels or detected_text:
-                        auto_tags = process_vision_tags_for_volleyball(detected_labels, detected_text)
-                        # Establecer las etiquetas automáticas directamente
-                        image.auto_tags = auto_tags
-                        logger.info(f"Etiquetas detectadas: {auto_tags}")
-                    
-                    # Auto-aprobar SOLO si es segura, la API funcionó correctamente y la moderación automática está habilitada
-                    if (vision_result.get('safe', False) and 
-                        vision_result.get('details', {}).get('api_response_ok', False) and
-                        getattr(settings, 'AUTO_MODERATION_ENABLED', False)):
-                        image.status = 'approved'
-                        image.moderated_by = request.user
-                        image.moderation_date = timezone.now()
-                        image.moderation_notes = 'Auto-aprobada por Google Vision API'
-                        logger.info(f"Imagen auto-aprobada para usuario {request.user.username}")
-                    else:
-                        logger.info(f"Imagen requiere moderación manual (safe={vision_result.get('safe')}, auto_mod={getattr(settings, 'AUTO_MODERATION_ENABLED', False)})")
-                        
-                except Exception as e:
-                    # Log error detallado y marcar como que requiere revisión manual
-                    logger.error(
-                        f"Error en Vision API al procesar imagen para usuario {request.user.username}: {str(e)}", 
-                        exc_info=True,
-                        extra={
-                            'user': request.user.username,
-                            'image_title': image.title if hasattr(image, 'title') else 'N/A'
-                        }
-                    )
-                    
-                    image.vision_api_checked = False
-                    image.vision_api_safe = False
-                    image.vision_api_details = {
-                        'error': str(e), 
-                        'api_response_ok': False,
-                        'error_type': type(e).__name__
-                    }
-                    
-                    # En desarrollo, mostrar el error al usuario
-                    if settings.DEBUG:
-                        messages.warning(
-                            request, 
-                            f'Error al procesar con Vision API: {str(e)}. La imagen quedará pendiente de moderación manual.'
-                        )
-                    
-                    # En producción, enviar notificación a admins si está configurado
-                    if not settings.DEBUG and settings.NOTIFICATION_EMAIL_ENABLED:
-                        try:
-                            from ilovevoley.core.email_utils import send_notification_email
-                            send_notification_email(
-                                subject='Error en Google Vision API',
-                                template_name='emails/vision_api_error.html',
-                                context={
-                                    'error': str(e),
-                                    'user': request.user,
-                                    'image_title': image.title if hasattr(image, 'title') else 'N/A',
-                                },
-                                recipient_list=settings.ADMIN_EMAIL_LIST
-                            )
-                        except Exception as email_error:
-                            logger.error(f"Error al enviar notificación de error de Vision API: {email_error}")
-            
+                # Vision en Celery tras commit; el signal no debe avisar hasta el resultado
+                image._skip_pending_email = True
+                enqueue_vision = True
+
             image.save()
+            if enqueue_vision:
+                from ilovevoley.content.tasks import analyze_image_with_vision_task
+                enqueue_on_commit(analyze_image_with_vision_task, image.id, True)
 
             try:
                 schedule_thumbnail_generation(image)
@@ -845,11 +775,9 @@ def image_bulk_upload(request):
         # Procesar cada imagen de forma optimizada
         success_count = 0
         errors = []
-        
-        # Detectar si es una petición móvil para optimizar procesamiento
-        user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
-        is_mobile_request = any(mobile in user_agent for mobile in ['mobile', 'android', 'iphone', 'ipad'])
-        
+        pending_ids = []
+        vision_ids = []
+
         for idx, uploaded_file in enumerate(uploaded_files):
             try:
                 # Validar tipo y tamaño de archivo
@@ -857,15 +785,15 @@ def image_bulk_upload(request):
                 if not content_type.startswith('image/'):
                     errors.append(f'{uploaded_file.name}: No es una imagen válida')
                     continue
-                
+
                 if uploaded_file.size > 10 * 1024 * 1024:  # 10MB
                     errors.append(f'{uploaded_file.name}: Archivo demasiado grande (máx 10MB)')
                     continue
-                
+
                 # Obtener título y descripción individual
                 title = request.POST.get(f'title_{idx}', uploaded_file.name.rsplit('.', 1)[0])
                 description = request.POST.get(f'description_{idx}', '')
-                
+
                 # Crear imagen
                 image = Image(
                     image=uploaded_file,
@@ -874,8 +802,9 @@ def image_bulk_upload(request):
                     tags=shared_tags,
                     **shared_data
                 )
-                
+
                 # Si el usuario es superuser, aprobar directamente sin pasar por Vision API
+                enqueue_vision = False
                 if request.user.is_superuser:
                     image.status = 'approved'
                     image.moderated_by = request.user
@@ -885,47 +814,18 @@ def image_bulk_upload(request):
                     image.vision_api_safe = True
                     image.vision_api_details = {'skipped': 'Superuser approval - bypassed Vision API'}
                     logger.info(f"Imagen aprobada automáticamente para superusuario {request.user.username}")
-                # Procesar con Google Vision API si está habilitado (solo si no es móvil para mejor rendimiento)
-                elif (getattr(settings, 'GOOGLE_VISION_ENABLED', False) and 
-                    not is_mobile_request and 
-                    len(uploaded_files) <= 5):  # Limitar Vision API en carga múltiple
-                    try:
-                        vision_result = check_image_with_vision_api(image.image, extract_labels=True, extract_text=True)
-                        
-                        image.vision_api_checked = True
-                        image.vision_api_safe = vision_result.get('safe', False)
-                        image.vision_api_details = vision_result
-                        
-                        # Procesar etiquetas automáticas
-                        detected_labels = vision_result.get('labels', [])
-                        detected_text = vision_result.get('text', '')
-                        
-                        if detected_labels or detected_text:
-                            auto_tags = process_vision_tags_for_volleyball(detected_labels, detected_text)
-                            image.auto_tags = auto_tags
-                        
-                        # Auto-aprobar si es segura
-                        if (vision_result.get('safe', False) and 
-                            vision_result.get('details', {}).get('api_response_ok', False) and
-                            getattr(settings, 'AUTO_MODERATION_ENABLED', False)):
-                            image.status = 'approved'
-                            image.moderated_by = request.user
-                            image.moderation_date = timezone.now()
-                            image.moderation_notes = 'Auto-aprobada por Google Vision API'
-                            
-                    except Exception as e:
-                        logger.error(f"Error en Vision API para {uploaded_file.name}: {str(e)}")
-                        image.vision_api_checked = False
-                        image.vision_api_safe = False
-                        image.vision_api_details = {'error': str(e), 'api_response_ok': False}
                 else:
-                    # En móvil o carga múltiple, saltar Vision API para mejor rendimiento
-                    image.vision_api_checked = False
-                    image.vision_api_safe = True  # Asumir seguro para no bloquear
-                    image.vision_api_details = {'skipped': 'Mobile or bulk upload optimization'}
-                
+                    # Bulk: nunca N emails individuales; Vision en background si está habilitado
+                    image._skip_pending_email = True
+                    if getattr(settings, 'GOOGLE_VISION_ENABLED', False):
+                        enqueue_vision = True
+
                 # Guardar imagen
                 image.save()
+                if image.status == 'pending':
+                    pending_ids.append(image.id)
+                if enqueue_vision:
+                    vision_ids.append(image.id)
 
                 try:
                     schedule_thumbnail_generation(image)
@@ -934,7 +834,7 @@ def image_bulk_upload(request):
 
                 # Asignar categorías
                 categories_to_add = []
-                
+
                 # Prioridad 1: Si hay match, usar categorías del partido
                 if 'match' in shared_data and shared_data['match']:
                     match = shared_data['match']
@@ -944,36 +844,52 @@ def image_bulk_upload(request):
                         categories_to_add.append(match.away_team.category)
                     if match.league:
                         categories_to_add.extend(list(match.league.categories.all()))
-                
+
                 # Prioridad 2: Si no hay match, usar categorías seleccionadas manualmente
                 if not categories_to_add:
                     category_ids = request.POST.getlist('categories')
                     if category_ids:
                         categories_to_add = Category.objects.filter(id__in=category_ids)
-                
+
                 # Asignar categorías (eliminar duplicados)
                 if categories_to_add:
                     # Convertir a set para eliminar duplicados, luego a list
                     unique_categories = list(set(categories_to_add))
                     image.categories.set(unique_categories)
-                
+
                 success_count += 1
                 logger.info(f"Imagen subida exitosamente: {title} por {request.user.username}")
-                
+
             except Exception as e:
                 logger.error(f"Error procesando {uploaded_file.name}: {str(e)}")
                 errors.append(f'{uploaded_file.name}: {str(e)}')
-        
+
+        if vision_ids or pending_ids:
+            from ilovevoley.content.tasks import analyze_image_with_vision_task
+            from ilovevoley.core.tasks import notify_images_pending_batch_task
+
+            vision_ids_copy = list(vision_ids)
+            pending_ids_copy = list(pending_ids)
+
+            def _enqueue_bulk_followups():
+                for image_id in vision_ids_copy:
+                    analyze_image_with_vision_task.delay(image_id, False)
+                if pending_ids_copy and settings.EMAIL_NOTIFICATIONS.get('image_pending', True):
+                    notify_images_pending_batch_task.delay(pending_ids_copy)
+
+            from django.db import transaction
+            transaction.on_commit(_enqueue_bulk_followups)
+
         # Mensajes de resultado
         if success_count > 0:
             messages.success(request, f'✅ {success_count} imagen(es) subida(s) correctamente.')
-        
+
         if errors:
             for error in errors[:5]:  # Mostrar máximo 5 errores
                 messages.warning(request, error)
             if len(errors) > 5:
                 messages.warning(request, f'... y {len(errors) - 5} error(es) más.')
-        
+
         if success_count > 0:
             # Redirigir al álbum si se agregaron fotos a uno existente
             existing_album_id = request.POST.get('existing_album_id')

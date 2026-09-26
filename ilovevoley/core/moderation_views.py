@@ -14,9 +14,13 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
 from ilovevoley.content.models import Image
-from ilovevoley.core.email_utils import send_notification_email
+from ilovevoley.core.email_utils import enqueue_on_commit
 from ilovevoley.core.image_utils import image_to_data_uri
 from ilovevoley.core.models import Organization
+from ilovevoley.core.tasks import (
+    notify_image_moderation_result_task,
+    notify_user_moderation_result_task,
+)
 from ilovevoley.core.tenant_utils import (
     approve_user_membership,
     build_absolute_url,
@@ -229,16 +233,13 @@ def moderate_user(request, token):
         # Enviar email de aprobación al usuario
         if user.email:
             site_url = build_absolute_url('/', tenant=tenant, request=request)
-            context = {
-                'user': user,
-                'site_name': tenant.name if tenant else 'I Love Voley',
-                'site_url': site_url,
-            }
-            send_notification_email(
-                subject='Tu cuenta ha sido aprobada en I Love Voley',
-                template_name='emails/user_approved.html',
-                context=context,
-                recipient_list=[user.email]
+            site_name = tenant.name if tenant else 'I Love Voley'
+            enqueue_on_commit(
+                notify_user_moderation_result_task,
+                user.id,
+                True,
+                site_url,
+                site_name,
             )
 
         org_msg = f" en {tenant.name}" if tenant else ""
@@ -258,15 +259,13 @@ def moderate_user(request, token):
             user.save(update_fields=['is_active'])
 
         if user.email:
-            context = {
-                'user': user,
-                'site_name': tenant.name if tenant else 'I Love Voley',
-            }
-            send_notification_email(
-                subject='Actualización de tu solicitud en I Love Voley',
-                template_name='emails/user_rejected.html',
-                context=context,
-                recipient_list=[user.email]
+            site_name = tenant.name if tenant else 'I Love Voley'
+            enqueue_on_commit(
+                notify_user_moderation_result_task,
+                user.id,
+                False,
+                None,
+                site_name,
             )
 
         org_msg = f" en {tenant.name}" if tenant else ""
@@ -363,18 +362,9 @@ def moderate_image(request, token):
         )
 
         if image.uploaded_by.email:
-            context = {
-                'image': image,
-                'user': image.uploaded_by,
-                'site_name': tenant.name if tenant else 'I Love Voley',
-                'is_approved': True,
-                'moderation_notes': image.moderation_notes,
-            }
-            send_notification_email(
-                subject=f'Tu imagen "{image.title}" ha sido aprobada',
-                template_name='emails/image_approved.html',
-                context=context,
-                recipient_list=[image.uploaded_by.email]
+            site_name = tenant.name if tenant else 'I Love Voley'
+            enqueue_on_commit(
+                notify_image_moderation_result_task, image.id, True, site_name
             )
 
         return render(request, 'moderation_result.html', {
@@ -395,18 +385,9 @@ def moderate_image(request, token):
         )
 
         if image.uploaded_by.email:
-            context = {
-                'image': image,
-                'user': image.uploaded_by,
-                'site_name': tenant.name if tenant else 'I Love Voley',
-                'is_approved': False,
-                'moderation_notes': image.moderation_notes,
-            }
-            send_notification_email(
-                subject=f'Tu imagen "{image.title}" ha sido rechazada',
-                template_name='emails/image_rejected.html',
-                context=context,
-                recipient_list=[image.uploaded_by.email]
+            site_name = tenant.name if tenant else 'I Love Voley'
+            enqueue_on_commit(
+                notify_image_moderation_result_task, image.id, False, site_name
             )
 
         return render(request, 'moderation_result.html', {
