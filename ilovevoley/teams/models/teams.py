@@ -1,5 +1,7 @@
 from django.db import models
 
+from ilovevoley.core.tenancy import TeamTenantQuerySet
+
 
 class Club(models.Model):
     federation_id = models.CharField(max_length=200, unique=True)
@@ -91,6 +93,8 @@ class Team(models.Model):
         blank=True,
         help_text='Fecha estimada de finalización si es variante temporal'
     )
+
+    objects = TeamTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_team'

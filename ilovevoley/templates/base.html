@@ -187,8 +187,7 @@
                                 <a href="javascript:void(0)"
                                     onclick="openLightbox('{{ img.image.url }}', '{{ img.title|escapejs }}', {{ img.id }}, '{{ img.description|escapejs }}', '{{ img.uploaded_by.username|escapejs }}', '{{ img.upload_date|date:'d/m/Y' }}')"
                                     class="block aspect-square overflow-hidden rounded-lg hover:ring-2 hover:ring-csj-purple transition-all duration-200 group">
-                                    <img src="{{ img.thumbnail_url }}" alt="{{ img.title }}"
-                                        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                                    {% include 'content/_thumbnail.html' with image=img css_class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, 33vw" %}
                                 </a>
                                 {% empty %}
                                 <div class="col-span-3 text-center py-8">
