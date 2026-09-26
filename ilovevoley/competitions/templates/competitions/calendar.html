@@ -27,8 +27,8 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <!-- Grupo izquierdo: Botón amistoso y filtros -->
             <div class="flex items-center gap-2 sm:gap-3">
-                <!-- Botón para crear partido amistoso (solo staff/VideoManagers) -->
-                {% if user.is_staff or user.groups.all|length > 0 %}
+                <!-- Botón para crear partido amistoso (solo managers/admins del tenant) -->
+                {% if is_tenant_manager %}
                 <a href="{% url 'competitions:friendly_match_create' %}" 
                    class="flex items-center px-3 sm:px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition text-sm font-medium">
                     <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -297,7 +297,7 @@
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                                                     {{ match.result_display }}
                                                 </span>
-                                            {% elif user.is_staff or user.groups.all|length > 0 %}
+                                            {% elif is_tenant_manager %}
                                                 {% if match.match_date.date <= today %}
                                                     <button onclick="openResultModal({{ match.id }}, '{{ match.home_team_display|escapejs }}', '{{ match.away_team_display|escapejs }}')" 
                                                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white transition shadow-sm">

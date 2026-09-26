@@ -1,8 +1,10 @@
 from django.db import models
 
+from ilovevoley.core.tenancy import MatchTenantQuerySet, TenantQuerySet
 
-class LeagueManager(models.Manager):
-    """Manager personalizado para League con métodos de filtrado"""
+
+class LeagueQuerySet(TenantQuerySet):
+    """QuerySet de League con los filtros de visibilidad y de tenant."""
 
     def visible_in_app(self):
         """Ligas que deben mostrarse en la aplicación principal"""
@@ -21,6 +23,8 @@ class LeagueManager(models.Manager):
         """
         from ilovevoley.core.mixins import get_club_team_filter, get_tenant_club
 
+        if tenant is None:
+            return self.none()
         qs = self.visible_in_app()
         if get_tenant_club(tenant) is None:
             return qs
@@ -51,6 +55,10 @@ class LeagueManager(models.Manager):
     def all_for_admin(self):
         """Todas las ligas para el admin"""
         return self.all()
+
+
+# Nombre público histórico del manager (reexportado por ``videos.models``).
+LeagueManager = models.Manager.from_queryset(LeagueQuerySet)
 
 
 class League(models.Model):
@@ -233,13 +241,13 @@ class League(models.Model):
             return Match.objects.filter(league_id__in=league_ids)
 
 
-class MatchManager(models.Manager):
-    """Manager personalizado que excluye partidos withdrawn por defecto"""
+class MatchManager(models.Manager.from_queryset(MatchTenantQuerySet)):
+    """Manager por defecto: excluye withdrawn y acota por club del tenant."""
     def get_queryset(self):
         return super().get_queryset().exclude(status='withdrawn')
 
 
-class MatchAllManager(models.Manager):
+class MatchAllManager(models.Manager.from_queryset(MatchTenantQuerySet)):
     """Manager que incluye TODOS los partidos, incluyendo withdrawn"""
     pass
 

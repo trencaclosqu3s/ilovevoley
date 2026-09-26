@@ -32,3 +32,95 @@ class TenantUtilsTest(TestCase):
         self.org.save()
         invalidate_organization_cache('club')
         self.assertIsNone(get_organization_by_slug('club'))
+
+    def test_videomanagers_group_member_without_membership_has_no_tenant_permissions(self):
+        from django.contrib.auth.models import Group
+        from ilovevoley.core.models import Organization
+        from ilovevoley.core.tenant_utils import user_is_tenant_manager, user_is_tenant_staff
+
+        org_b = Organization.objects.create(slug='club-b', name='Club B')
+        User = get_user_model()
+        vm_user = User.objects.create_user(username='vm_user', password='pass')
+        group, _ = Group.objects.get_or_create(name='VideoManagers')
+        vm_user.groups.add(group)
+
+        self.assertFalse(user_is_tenant_manager(vm_user, org_b))
+        self.assertFalse(user_is_tenant_staff(vm_user, org_b))
+
+    def test_videomanagers_member_with_regular_membership_is_not_manager(self):
+        from django.contrib.auth.models import Group
+        from ilovevoley.core.models import Organization
+        from ilovevoley.core.tenant_utils import user_is_tenant_manager, user_is_tenant_staff
+        from ilovevoley.users.models import Membership
+
+        org_b = Organization.objects.create(slug='club-b', name='Club B')
+        User = get_user_model()
+        vm_user = User.objects.create_user(username='vm_regular', password='pass')
+        group, _ = Group.objects.get_or_create(name='VideoManagers')
+        vm_user.groups.add(group)
+        Membership.objects.create(user=vm_user, organization=org_b, role='member', is_approved=True)
+
+        self.assertFalse(user_is_tenant_manager(vm_user, org_b))
+        self.assertFalse(user_is_tenant_staff(vm_user, org_b))
+
+    def test_is_staff_user_with_regular_membership_is_not_tenant_staff(self):
+        from ilovevoley.core.tenant_utils import user_is_tenant_manager, user_is_tenant_staff
+        from ilovevoley.users.models import Membership
+
+        User = get_user_model()
+        staff_user = User.objects.create_user(username='django_staff', password='pass', is_staff=True)
+        Membership.objects.create(user=staff_user, organization=self.org, role='member', is_approved=True)
+
+        self.assertFalse(user_is_tenant_staff(staff_user, self.org))
+        self.assertFalse(user_is_tenant_manager(staff_user, self.org))
+
+    def test_tenant_manager_has_manager_access_only_in_their_tenant(self):
+        from ilovevoley.core.models import Organization
+        from ilovevoley.core.tenant_utils import user_is_tenant_manager, user_is_tenant_staff
+        from ilovevoley.users.models import Membership
+
+        org_b = Organization.objects.create(slug='club-b', name='Club B')
+        User = get_user_model()
+        mgr_user = User.objects.create_user(username='mgr_user', password='pass')
+        Membership.objects.create(user=mgr_user, organization=self.org, role='manager', is_approved=True)
+
+        self.assertTrue(user_is_tenant_manager(mgr_user, self.org))
+        self.assertFalse(user_is_tenant_staff(mgr_user, self.org))
+        self.assertFalse(user_is_tenant_manager(mgr_user, org_b))
+
+    def test_tenant_admin_has_both_manager_and_staff_access(self):
+        from ilovevoley.core.models import Organization
+        from ilovevoley.core.tenant_utils import user_is_tenant_manager, user_is_tenant_staff
+        from ilovevoley.users.models import Membership
+
+        org_b = Organization.objects.create(slug='club-b', name='Club B')
+        User = get_user_model()
+        admin_user = User.objects.create_user(username='admin_user', password='pass')
+        Membership.objects.create(user=admin_user, organization=self.org, role='admin', is_approved=True)
+
+        self.assertTrue(user_is_tenant_manager(admin_user, self.org))
+        self.assertTrue(user_is_tenant_staff(admin_user, self.org))
+        self.assertFalse(user_is_tenant_manager(admin_user, org_b))
+        self.assertFalse(user_is_tenant_staff(admin_user, org_b))
+
+    def test_image_is_allowed_permits_tenant_manager_for_pending_image(self):
+        from ilovevoley.core.protected_media import _image_is_allowed
+        from ilovevoley.content.models import Image
+        from ilovevoley.core.models import Season
+        from ilovevoley.users.models import Membership
+
+        User = get_user_model()
+        mgr = User.objects.create_user(username='mgr_img', password='pass')
+        Membership.objects.create(user=mgr, organization=self.org, role='manager', is_approved=True)
+
+        season = Season.objects.resolve('2026-2027')
+        image = Image(
+            title='Pending test',
+            uploaded_by=self.user,
+            organization=self.org,
+            status='pending',
+            season=season,
+        )
+        self.assertTrue(_image_is_allowed(image, mgr, self.org))
+
+

@@ -1,11 +1,20 @@
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
+from ilovevoley.content.models import Image
 from ilovevoley.core import views as core_views
 from ilovevoley.videos.views import moderation as vid_moderation
 from ilovevoley.videos.views import pages as vid_pages
+
+TINY_GIF = (
+    b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
+    b'\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00'
+    b'\x00\x02\x02D\x01\x00;'
+)
+
 
 
 @override_settings(ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'])
@@ -277,3 +286,78 @@ class TenantManagerModerationTest(TestCase):
             reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
         )
         self.assertEqual(response.status_code, 403)
+
+    def test_manager_panel_scopes_pending_images_to_tenant(self):
+        img_a = Image.objects.create(
+            image=SimpleUploadedFile('a.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Imagen A',
+            uploaded_by=self.manager,
+            organization=self.org_a,
+            status='pending',
+        )
+        img_b = Image.objects.create(
+            image=SimpleUploadedFile('b.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Imagen B',
+            uploaded_by=self.pending_b,
+            organization=self.org_b,
+            status='pending',
+        )
+        self.client.force_login(self.manager)
+        url = reverse('core:moderation_panel')
+        response = self.client.get(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['can_moderate_images'])
+        pending_images = list(response.context['pending_images'])
+        self.assertIn(img_a, pending_images)
+        self.assertNotIn(img_b, pending_images)
+        self.assertEqual(response.context['pending_images_count'], 1)
+
+    def test_manager_counts_api_scopes_pending_images_to_tenant(self):
+        Image.objects.create(
+            image=SimpleUploadedFile('a.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Imagen A',
+            uploaded_by=self.manager,
+            organization=self.org_a,
+            status='pending',
+        )
+        Image.objects.create(
+            image=SimpleUploadedFile('b.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Imagen B',
+            uploaded_by=self.pending_b,
+            organization=self.org_b,
+            status='pending',
+        )
+        self.client.force_login(self.manager)
+        url = reverse('core:moderation_counts_api')
+        response = self.client.get(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['pending_images'], 1)
+        self.assertEqual(data['pending_users'], 1)
+        self.assertEqual(data['total_pending'], 2)
+
+    def test_superuser_on_tenant_subdomain_scopes_pending_images_to_tenant(self):
+        User = get_user_model()
+        superuser = User.objects.create_superuser(username='super_admin', password='pass')
+        img_a = Image.objects.create(
+            image=SimpleUploadedFile('a.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Imagen A',
+            uploaded_by=self.manager,
+            organization=self.org_a,
+            status='pending',
+        )
+        img_b = Image.objects.create(
+            image=SimpleUploadedFile('b.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Imagen B',
+            uploaded_by=self.pending_b,
+            organization=self.org_b,
+            status='pending',
+        )
+        self.client.force_login(superuser)
+        url = reverse('core:moderation_panel')
+        response = self.client.get(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        pending_images = list(response.context['pending_images'])
+        self.assertIn(img_a, pending_images)
+        self.assertNotIn(img_b, pending_images)
+

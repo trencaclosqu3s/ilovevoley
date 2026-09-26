@@ -81,7 +81,7 @@ class PersonForm(forms.ModelForm):
             # Validar tipo de archivo
             if not photo.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 raise forms.ValidationError('Formato no válido. Use JPG, PNG o WebP')
-        
+
         return photo
 
 

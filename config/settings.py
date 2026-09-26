@@ -15,6 +15,7 @@ from pathlib import Path
 from decouple import config as env_config
 from django.templatetags.static import static
 from django.urls import reverse_lazy
+from django.utils.csp import CSP
 from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -27,14 +28,17 @@ AUTH_USER_MODEL = 'users.User'
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env_config('SECRET_KEY', default='django-insecure-x*bcpy_nb811_5s6+7*-0y&mzj36^+v$6rzwglc0v)0j+njp(g')
+SECRET_KEY = env_config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env_config('DEBUG', default=True, cast=bool)
+DEBUG = env_config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = env_config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0', cast=lambda v: [s.strip() for s in v.split(',')])
-ALLOWED_HOSTS += ['aerologic-nonfluent-jase.ngrok-free.dev']
-CSRF_TRUSTED_ORIGINS = env_config('CSRF_TRUSTED_ORIGINS', default='https://aerologic-nonfluent-jase.ngrok-free.dev', cast=lambda v: [s.strip() for s in v.split(',')])
+CSRF_TRUSTED_ORIGINS = env_config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='',
+    cast=lambda v: [s.strip() for s in v.split(',') if s.strip()],
+)
 
 
 # Application definition
@@ -86,21 +90,25 @@ ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 
 # Suprimir mensajes automáticos de allauth
 ACCOUNT_SESSION_REMEMBER = None
-SOCIALACCOUNT_AUTO_SIGNUP = True
-ACCOUNT_EMAIL_VERIFICATION = 'none'
+
+# Verificación de email opcional: los registros locales reciben el correo de
+# verificación, pero pueden entrar sin confirmarlo. La autenticación por email
+# de un login social solo se permite si la cuenta local verificó su email
+# (ver CustomSocialAccountAdapter.authenticate_by_email), de modo que una
+# cuenta local no verificada no puede absorber el login social de la víctima.
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 
 # Configurar qué mensajes de allauth mostrar
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 
 # Configuración para login con Google
+SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-crear cuenta si no existe
 SOCIALACCOUNT_QUERY_EMAIL = True
 SOCIALACCOUNT_EMAIL_REQUIRED = True
-SOCIALACCOUNT_STORE_TOKENS = True
-SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-crear cuenta si no existe
-ACCOUNT_EMAIL_VERIFICATION = 'none'  # No requerir verificación de email
-SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Permitir login automático si el email coincide
-SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # Conectar automáticamente si el email existe
+SOCIALACCOUNT_STORE_TOKENS = False  # No almacenar access/refresh tokens de Google
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Permitir login si el email coincide con una cuenta local verificada
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # Vincular la cuenta social a la local verificada
 
 # Configuración de Google Calendar API
 # Scopes básicos para todos los usuarios
@@ -115,7 +123,6 @@ SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': GOOGLE_BASIC_SCOPES,  # Solo scopes básicos por defecto
         'AUTH_PARAMS': {
-            'access_type': 'offline',
             'prompt': 'consent'
         }
     }
@@ -127,7 +134,55 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if DEBUG else 'https'
 # Header de proxy SSL (necesario para que Django detecte HTTPS detrás de nginx)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# Cabeceras de transporte seguro y cookies (activas por defecto en producción)
+SESSION_COOKIE_SECURE = env_config('SESSION_COOKIE_SECURE', default=not DEBUG, cast=bool)
+CSRF_COOKIE_SECURE = env_config('CSRF_COOKIE_SECURE', default=not DEBUG, cast=bool)
+SESSION_COOKIE_HTTPONLY = True
 
+SECURE_SSL_REDIRECT = env_config('SECURE_SSL_REDIRECT', default=not DEBUG, cast=bool)
+SECURE_HSTS_SECONDS = env_config('SECURE_HSTS_SECONDS', default=31536000 if not DEBUG else 0, cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=not DEBUG, cast=bool)
+SECURE_HSTS_PRELOAD = env_config('SECURE_HSTS_PRELOAD', default=False, cast=bool)
+
+# Content Security Policy (CSP Report-Only nativo Django 6.0)
+SECURE_CSP = None
+SECURE_CSP_REPORT_ONLY = {
+    'default-src': [CSP.SELF],
+    'script-src': [
+        CSP.SELF,
+        CSP.UNSAFE_INLINE,
+        CSP.UNSAFE_EVAL,
+        'https://cdn.tailwindcss.com',
+        'https://cdn.jsdelivr.net',
+        'https://cdnjs.cloudflare.com',
+        'https://www.instagram.com',
+    ],
+    'style-src': [
+        CSP.SELF,
+        CSP.UNSAFE_INLINE,
+        'https://cdn.jsdelivr.net',
+        'https://cdnjs.cloudflare.com',
+    ],
+    'img-src': [
+        CSP.SELF,
+        'data:',
+        'blob:',
+        'https://*.googleusercontent.com',
+        'https://img.youtube.com',
+        'https://i.ytimg.com',
+    ],
+    'font-src': [CSP.SELF, 'data:'],
+    'frame-src': [
+        CSP.SELF,
+        'https://www.youtube.com',
+        'https://www.youtube-nocookie.com',
+        'https://www.instagram.com',
+    ],
+    'connect-src': [CSP.SELF],
+    'object-src': [CSP.NONE],
+    'base-uri': [CSP.SELF],
+    'form-action': [CSP.SELF],
+}
 
 # Adapters personalizados para suprimir mensajes
 ACCOUNT_ADAPTER = 'ilovevoley.users.adapters.CustomAccountAdapter'
@@ -139,6 +194,7 @@ ACCOUNT_SIGNUP_FORM_CLASS = 'ilovevoley.users.forms.CustomSignupForm'
 MIDDLEWARE = [
     'ilovevoley.core.middleware.TenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.csp.ContentSecurityPolicyMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -179,7 +235,12 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': env_config('DB_NAME', default='volleyvideos'),
         'USER': env_config('DB_USER', default='volleyuser'),
-        'PASSWORD': env_config('DB_PASSWORD', default='volleypass'),
+        # Required when DEBUG=False; local default only for docker-compose.dev.
+        'PASSWORD': (
+            env_config('DB_PASSWORD', default='volleypass')
+            if DEBUG
+            else env_config('DB_PASSWORD')
+        ),
         'HOST': env_config('DB_HOST', default='db'),
         'PORT': env_config('DB_PORT', default='5432'),
     }
@@ -234,6 +295,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Medios privados: nginx reenvía /media/ a Django y este autoriza y delega la
+# entrega del archivo vía X-Accel-Redirect a la zona interna /protected-media/.
+# En desarrollo (DEBUG) se sirve directamente con FileResponse.
+PROTECTED_MEDIA_USE_X_ACCEL = env_config('PROTECTED_MEDIA_USE_X_ACCEL', default=not DEBUG, cast=bool)
+PROTECTED_MEDIA_INTERNAL_URL = '/protected-media/'
 
 # Configuración de subida de archivos
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
@@ -555,8 +622,8 @@ LOGGING = {
 }
 
 # Multi-tenant: cookie compartida entre subdominios en producción
-SESSION_COOKIE_DOMAIN = env_config('SESSION_COOKIE_DOMAIN', default=None)
-CSRF_COOKIE_DOMAIN = env_config('SESSION_COOKIE_DOMAIN', default=None)
+SESSION_COOKIE_DOMAIN = env_config('SESSION_COOKIE_DOMAIN', default=None if DEBUG else '.ilovevoley.es')
+CSRF_COOKIE_DOMAIN = env_config('SESSION_COOKIE_DOMAIN', default=None if DEBUG else '.ilovevoley.es')
 TENANT_BASE_DOMAIN = env_config('TENANT_BASE_DOMAIN', default='localhost:8000')
 
 # Sentry error tracking and performance monitoring
