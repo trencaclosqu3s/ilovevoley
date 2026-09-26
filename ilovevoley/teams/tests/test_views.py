@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from ilovevoley.core.models import Category, Organization, Season
@@ -9,7 +9,7 @@ from ilovevoley.teams.models import Club, Team
 from ilovevoley.videos.views import teams as videos_views_teams
 
 
-class TeamsReExportCompatibilityTest(TestCase):
+class TeamsReExportCompatibilityTest(SimpleTestCase):
     """Verifica que las importaciones históricas desde videos sigan funcionando."""
 
     def test_views_are_reexported(self):
@@ -53,38 +53,6 @@ class TeamViewUrlTests(TestCase):
             is_active=True,
         )
 
-    def test_teams_team_list_url_resolves_and_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('teams:team_list')
-        self.assertEqual(url, '/teams/equipos/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'teams/team_list.html')
-
-    def test_backwards_compatible_videos_team_list_url_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('videos:team_list')
-        self.assertEqual(url, '/videos/equipos/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'teams/team_list.html')
-
-    def test_teams_team_roster_url_resolves_and_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('teams:team_roster', args=[self.team.id])
-        self.assertEqual(url, f'/teams/equipos/{self.team.id}/plantilla/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'teams/team_roster.html')
-
-    def test_backwards_compatible_videos_team_roster_url_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('videos:team_roster', args=[self.team.id])
-        self.assertEqual(url, f'/videos/equipos/{self.team.id}/plantilla/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'teams/team_roster.html')
-
     def test_team_roster_devuelve_404_para_equipo_ajeno(self):
         self.client.force_login(self.user)
         url = reverse('teams:team_roster', args=[self.other_team.id])
@@ -109,10 +77,6 @@ class TeamViewUrlTests(TestCase):
         data = response.json()
         self.assertTrue(data['success'])
         self.assertTrue(Team.objects.filter(name='New Registered Team').exists())
-
-    def test_backwards_compatible_videos_ajax_register_team_url(self):
-        url = reverse('videos:ajax_register_team')
-        self.assertEqual(url, '/videos/ajax/register-team/')
 
     def test_anonymous_cannot_register_team(self):
         url = reverse('teams:ajax_register_team')

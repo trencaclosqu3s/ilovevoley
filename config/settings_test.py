@@ -11,3 +11,8 @@ CACHES = {
 # Run Celery tasks inline so tests do not need a broker/worker.
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# Fast password hasher for tests to avoid PBKDF2 iteration overhead
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.MD5PasswordHasher',
+]
