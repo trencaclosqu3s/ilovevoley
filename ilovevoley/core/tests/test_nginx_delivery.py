@@ -115,9 +115,9 @@ def _get_server_blocks(content: str):
 
 
 def _get_ssl_server_for_host(servers, hostname: str):
-    """Devuelve el primer bloque server SSL cuyo server_name incluye hostname."""
+    """Devuelve el primer bloque server SSL de contenido (con location) cuyo server_name incluye hostname."""
     for block in servers:
-        if "listen 443 ssl" not in block:
+        if "listen 443 ssl" not in block or "location" not in block:
             continue
         match = re.search(r"server_name\s+([^;]+);", block)
         if match and hostname in match.group(1).split():
