@@ -25,8 +25,10 @@ El paquete raíz es `ilovevoley`. La lógica se divide en apps de dominio:
   álbumes grupales (`album_group_id`), etiquetado automático y moderación con
   Google Vision API, vinculados a `Season` y filtrados por temporada activa.
 - **`users`**: Modelo `User` personalizado, membresías por club (`Membership` con
-  roles `admin`, `manager`, `member`), autenticación Google OAuth y sincronización
-  de partidos con Google Calendar.
+  roles `admin`, `manager`, `member`), autenticación Google OAuth (solo para
+  identificar al usuario, sin tokens: `SOCIALACCOUNT_STORE_TOKENS = False`) y
+  suscripción de partidos por feed iCal (`calendar_token`), no por la API de
+  Google Calendar.
 - **`videos`**: Paquete legado que se mantiene **exclusivamente** como capa de
   compatibilidad para URLs antiguas y las tareas periódicas Celery. Nuevos modelos
   o vistas deben ir a su app de dominio correspondiente.

@@ -71,6 +71,27 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         Permitir auto-signup para usuarios de Google
         """
         return True
+
+    def authenticate_by_email(self, sociallogin):
+        """
+        Solo autenticar contra una cuenta local si su email está verificado.
+
+        Evita el pre-secuestro: un atacante puede registrar el email de una
+        víctima sin verificar y esperar a que la víctima entre con Google para
+        absorber ese login. Si el email local no está verificado, no se
+        reutiliza esa cuenta y el login social sigue su flujo normal, sin
+        vincularse silenciosamente.
+        """
+        from allauth.account.models import EmailAddress
+
+        result = super().authenticate_by_email(sociallogin)
+        if not result:
+            return None
+        user, email = result
+        is_verified = EmailAddress.objects.filter(
+            user=user, email__iexact=email, verified=True
+        ).exists()
+        return result if is_verified else None
     
     def populate_user(self, request, sociallogin, data):
         """

@@ -90,21 +90,25 @@ ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 
 # Suprimir mensajes automáticos de allauth
 ACCOUNT_SESSION_REMEMBER = None
-SOCIALACCOUNT_AUTO_SIGNUP = True
-ACCOUNT_EMAIL_VERIFICATION = 'none'
+
+# Verificación de email opcional: los registros locales reciben el correo de
+# verificación, pero pueden entrar sin confirmarlo. La autenticación por email
+# de un login social solo se permite si la cuenta local verificó su email
+# (ver CustomSocialAccountAdapter.authenticate_by_email), de modo que una
+# cuenta local no verificada no puede absorber el login social de la víctima.
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 
 # Configurar qué mensajes de allauth mostrar
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 
 # Configuración para login con Google
+SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-crear cuenta si no existe
 SOCIALACCOUNT_QUERY_EMAIL = True
 SOCIALACCOUNT_EMAIL_REQUIRED = True
-SOCIALACCOUNT_STORE_TOKENS = True
-SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-crear cuenta si no existe
-ACCOUNT_EMAIL_VERIFICATION = 'none'  # No requerir verificación de email
-SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Permitir login automático si el email coincide
-SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # Conectar automáticamente si el email existe
+SOCIALACCOUNT_STORE_TOKENS = False  # No almacenar access/refresh tokens de Google
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Permitir login si el email coincide con una cuenta local verificada
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # Vincular la cuenta social a la local verificada
 
 # Configuración de Google Calendar API
 # Scopes básicos para todos los usuarios
@@ -119,7 +123,6 @@ SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': GOOGLE_BASIC_SCOPES,  # Solo scopes básicos por defecto
         'AUTH_PARAMS': {
-            'access_type': 'offline',
             'prompt': 'consent'
         }
     }
