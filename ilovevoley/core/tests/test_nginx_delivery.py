@@ -114,6 +114,17 @@ def _get_server_blocks(content: str):
     return blocks
 
 
+def _get_ssl_server_for_host(servers, hostname: str):
+    """Devuelve el primer bloque server SSL de contenido (con location) cuyo server_name incluye hostname."""
+    for block in servers:
+        if "listen 443 ssl" not in block or "location" not in block:
+            continue
+        match = re.search(r"server_name\s+([^;]+);", block)
+        if match and hostname in match.group(1).split():
+            return block
+    return None
+
+
 def test_nginx_conf_http2_configuration():
     """Verifica que HTTP/2 está habilitado para conexiones SSL en nginx.conf."""
     nginx_conf_path = Path(settings.BASE_DIR) / "nginx.conf"
@@ -126,10 +137,7 @@ def test_nginx_conf_http2_configuration():
     ssl_servers = [s for s in servers if "listen 443 ssl" in s]
     assert ssl_servers, "No se encontraron servidores escuchando en 443 ssl"
 
-    ilovevoley_ssl = next(
-        (s for s in ssl_servers if "ilovevoley.es" in s),
-        None,
-    )
+    ilovevoley_ssl = _get_ssl_server_for_host(ssl_servers, "ilovevoley.es")
     assert ilovevoley_ssl is not None, "Bloque server SSL para ilovevoley.es no encontrado"
     assert "http2 on;" in ilovevoley_ssl, "http2 on; no está en el bloque server SSL de ilovevoley.es"
 
@@ -140,10 +148,7 @@ def test_nginx_conf_static_cache_control_and_immutability():
     content = nginx_conf_path.read_text(encoding="utf-8")
 
     servers = _get_server_blocks(content)
-    ilovevoley_ssl = next(
-        (s for s in servers if "listen 443 ssl" in s and "ilovevoley.es" in s),
-        None,
-    )
+    ilovevoley_ssl = _get_ssl_server_for_host(servers, "ilovevoley.es")
     assert ilovevoley_ssl is not None, "Bloque server SSL para ilovevoley.es no encontrado"
 
     assert "location /static/" in ilovevoley_ssl
