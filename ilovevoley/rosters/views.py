@@ -2,7 +2,7 @@ import logging
 
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
@@ -25,9 +25,17 @@ def roster_overview(request):
     # Obtener categorías del usuario para filtrar
     user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
 
-    # Query base para equipos del club
+    # Temporada a mostrar (activa por defecto)
+    season_filter, selected_season = resolve_season_filter(request)
+
+    role_filter = {"is_active": True}
+    if season_filter is not None:
+        role_filter["season"] = season_filter
+
+    # Query base para equipos del club; los roles se prefetchean ya filtrados
     teams_query = Team.objects.select_related("category", "club").prefetch_related(
-        "player_roles__person", "staff_roles__person"
+        Prefetch("player_roles", queryset=PlayerRole.objects.filter(**role_filter).select_related("person")),
+        Prefetch("staff_roles", queryset=StaffRole.objects.filter(**role_filter).select_related("person")),
     ).filter(is_active=True).for_tenant(request.tenant)
     
     # Filtrar por categorías preferidas del usuario
@@ -41,12 +49,9 @@ def roster_overview(request):
     
     teams = teams_query.order_by("category__name", "name")
 
-    # Temporada a mostrar (activa por defecto)
-    season_filter, selected_season = resolve_season_filter(request)
-
     # Estadísticas generales
     total_stats = {
-        "total_teams": teams.count(),
+        "total_teams": len(teams),
         "total_players": 0,
         "total_staff": 0,
         "teams_with_good_roster": 0,  # Equipos con 8+ jugadores (buen número para rotaciones)
@@ -54,15 +59,8 @@ def roster_overview(request):
     }
     
     for team in teams:
-        # Usar nueva estructura Person-Role evaluada en memoria para evitar N+1 queries
-        active_player_roles = [
-            r for r in team.player_roles.all()
-            if r.is_active and (season_filter is None or r.season_id == season_filter.pk)
-        ]
-        active_staff_roles = [
-            r for r in team.staff_roles.all()
-            if r.is_active and (season_filter is None or r.season_id == season_filter.pk)
-        ]
+        active_player_roles = team.player_roles.all()
+        active_staff_roles = team.staff_roles.all()
         
         team.active_players_count = len(active_player_roles)
         team.active_staff_count = len(active_staff_roles)

@@ -8,7 +8,8 @@ import requests as http_requests
 from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Case, CharField, Q, Value, When
+from django.core.cache import cache
+from django.db.models import Case, CharField, Count, Q, Value, When
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -57,7 +58,7 @@ def build_calendar_matches_payload(matches, club_team_name):
             'venue': match.venue or '',
             'city': match.city or '',
             'result': match.result_display if match.is_finished else '',
-            'videos_count': match.videos.count(),
+            'videos_count': match.videos_count,
             'round_number': match.round_number,
             'is_friendly': match.is_friendly,
             'club_team_name': club_team_name or '',
@@ -228,9 +229,12 @@ def calendar_view(request):
     category_filter = request.GET.get('category')
 
     # Consulta base de partidos (withdrawn excluidos automáticamente por el manager)
+    # distinct=True: los filtros por categoría hacen JOIN M2M y duplicarían el conteo
     matches = Match.objects.select_related(
-        'home_team', 'away_team', 'league'
-    ).prefetch_related('league__categories').order_by('match_date')
+        'home_team__club', 'away_team__club', 'league'
+    ).prefetch_related('league__categories').annotate(
+        videos_count=Count('videos', distinct=True)
+    ).order_by('match_date')
 
     # Filtrar por equipo del club por defecto
     if not show_all_teams:
@@ -383,7 +387,7 @@ def ajax_search_teams(request):
         return JsonResponse({'teams': []})
 
     # Buscar equipos existentes
-    teams_query = Team.objects.filter(name__icontains=query)
+    teams_query = Team.objects.select_related('category', 'club').filter(name__icontains=query)
 
     # Filtrar por categoría si se especifica
     if category_id:
@@ -491,26 +495,31 @@ def ajax_acta_lineup(request, match_id):
     if not match.acta_html:
         return JsonResponse({'success': False, 'error': 'Este partido no tiene acta disponible'}, status=404)
 
-    try:
-        acta_content = safe_get(
-            match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
-        )
-    except UnsafeURL as e:
-        logger.warning(f"URL de acta rechazada para el partido {match_id}: {e}")
-        return JsonResponse({'success': False, 'error': 'La URL del acta no es válida'}, status=400)
-    except http_requests.exceptions.Timeout:
-        return JsonResponse({'success': False, 'error': 'Tiempo de espera agotado al obtener el acta'}, status=504)
-    except http_requests.exceptions.RequestException as e:
-        logger.warning(f"Error obteniendo acta del partido {match_id}: {e}")
-        return JsonResponse({'success': False, 'error': 'No se pudo acceder al acta oficial'}, status=502)
+    # Solo se cachea el parseo correcto; los errores de red se reintentan en la siguiente petición.
+    cache_key = f"acta_lineup:{match.acta_html}"
+    lineup_data = cache.get(cache_key)
+    if lineup_data is None:
+        try:
+            acta_content = safe_get(
+                match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
+            )
+        except UnsafeURL as e:
+            logger.warning(f"URL de acta rechazada para el partido {match_id}: {e}")
+            return JsonResponse({'success': False, 'error': 'La URL del acta no es válida'}, status=400)
+        except http_requests.exceptions.Timeout:
+            return JsonResponse({'success': False, 'error': 'Tiempo de espera agotado al obtener el acta'}, status=504)
+        except http_requests.exceptions.RequestException as e:
+            logger.warning(f"Error obteniendo acta del partido {match_id}: {e}")
+            return JsonResponse({'success': False, 'error': 'No se pudo acceder al acta oficial'}, status=502)
 
-    try:
-        # Pasar bytes para que BeautifulSoup detecte el charset del meta tag
-        # (evita que requests decodifique mal UTF-8 como Latin-1)
-        lineup_data = parse_acta_lineup(acta_content)
-    except Exception as e:
-        logger.error(f"Error parseando acta del partido {match_id}: {e}")
-        return JsonResponse({'success': False, 'error': 'Error al procesar el acta'}, status=500)
+        try:
+            # Pasar bytes para que BeautifulSoup detecte el charset del meta tag
+            # (evita que requests decodifique mal UTF-8 como Latin-1)
+            lineup_data = parse_acta_lineup(acta_content)
+        except Exception as e:
+            logger.error(f"Error parseando acta del partido {match_id}: {e}")
+            return JsonResponse({'success': False, 'error': 'Error al procesar el acta'}, status=500)
+        cache.set(cache_key, lineup_data, 60 * 60 * 24)
 
     # Pre-fetch todos los PlayerRole activos de ambos equipos en una sola query
     roles_lookup = {}  # {(team_id, jersey_number): role}

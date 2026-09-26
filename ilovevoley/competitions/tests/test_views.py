@@ -3,7 +3,9 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -191,6 +193,60 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertNotIn('::date', sql)
         self.assertIn('"match_date" >=', sql)
         self.assertIn('"match_date" <', sql)
+
+    def _count_queries(self, url, params=None):
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(url, params or {}, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        return len(ctx), response
+
+    def test_calendar_queries_do_not_grow_with_matches(self):
+        from ilovevoley.content.models import Video
+        self.client.force_login(self.user)
+        url = reverse('competitions:calendar_view')
+        Video.objects.create(title='v1', youtube_url='https://youtu.be/a', match=self.match, created_by=self.user)
+        baseline, _ = self._count_queries(url)
+
+        for i in range(3):
+            m = Match.objects.create(
+                league=self.league, home_team=self.team, away_team=self.rival_team,
+                match_date=self.match.match_date, round_number=i + 2, status='scheduled',
+            )
+            for j in range(2):
+                Video.objects.create(title=f'v{i}{j}', youtube_url='https://youtu.be/b', match=m, created_by=self.user)
+
+        with_more, response = self._count_queries(url)
+        self.assertEqual(with_more, baseline)
+        self.assertContains(response, '2 videos')
+
+    def test_search_teams_queries_do_not_grow_with_results(self):
+        self.client.force_login(self.user)
+        url = reverse('competitions:ajax_search_teams')
+        baseline, _ = self._count_queries(url, {'q': 'Senior'})
+
+        for i in range(3):
+            club = Club.objects.create(official_name=f'Club {i}', federation_id=f'CLUB-{i}')
+            Team.objects.create(name=f'Otro {i} Senior', category=self.category, club=club, federation_id=f'T-{i}')
+
+        with_more, response = self._count_queries(url, {'q': 'Senior'})
+        self.assertEqual(with_more, baseline)
+        self.assertEqual(len(response.json()['teams']), 5)
+
+    def test_acta_lineup_is_fetched_once_and_cached(self):
+        self.client.force_login(self.user)
+        self.match.acta_html = 'https://federacion.example/acta/1'
+        self.match.save(update_fields=['acta_html'])
+        parsed = {
+            'sets': [], 'home_team': 'A', 'away_team': 'B', 'home_captain': None, 'away_captain': None,
+            'home_convocados': [], 'away_convocados': [],
+        }
+        url = reverse('competitions:ajax_acta_lineup', args=[self.match.id])
+        with patch.object(comp_views, 'safe_get', return_value=b'<html></html>') as get, \
+                patch.object(comp_views, 'parse_acta_lineup', return_value=parsed):
+            for _ in range(2):
+                r = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+                self.assertEqual(r.status_code, 200)
+        get.assert_called_once()
 
     def test_competitions_standings_view_url_resolves_and_renders(self):
         self.client.force_login(self.user)

@@ -70,7 +70,7 @@ class User(AbstractUser):
             return True
 
         # Los padres pueden editar las fichas de sus hijos
-        if person in self.children.all():
+        if self.children.filter(pk=person.pk).exists():
             return True
 
         # Managers/admins del tenant pueden editar fichas que pertenezcan a su tenant
