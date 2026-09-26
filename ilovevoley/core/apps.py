@@ -11,3 +11,7 @@ class CoreConfig(AppConfig):
             from . import tasks
         except ImportError:
             pass
+        try:
+            from . import checks
+        except ImportError:
+            pass
