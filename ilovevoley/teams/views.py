@@ -1,12 +1,12 @@
 import logging
 
-from django.contrib import messages
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import render
 
-from ilovevoley.core.mixins import get_club_team_name_filter, get_club_team_names
+from ilovevoley.core.mixins import get_club_team_name_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
+from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import tenant_access_required
 from ilovevoley.rosters.models import PlayerRole, StaffRole
 from ilovevoley.teams.models import Club, Team
@@ -143,18 +143,10 @@ def team_list(request):
 @tenant_access_required()
 def team_roster(request, team_id):
     """Vista de plantilla de un equipo específico"""
-    team = get_object_or_404(
+    team = get_tenant_object_or_404(
         Team.objects.select_related("category", "club"),
-        id=team_id
+        request.tenant, user=request.user, id=team_id,
     )
-    
-    # Verificar que sea un equipo del club
-    club_names = get_club_team_names(request.tenant)
-    is_club_team = any(name.lower() in team.name.lower() for name in club_names)
-    
-    if not is_club_team:
-        messages.error(request, "Este equipo no pertenece al club.")
-        return redirect("teams:team_list")
     
     # Temporada a mostrar (activa por defecto)
     season_filter, selected_season = resolve_season_filter(request)

@@ -47,53 +47,45 @@ def check_google_vision_config(app_configs, **kwargs):
     return warnings
 
 
-@register(Tags.compatibility)
-def check_socialauth_config(app_configs, **kwargs):
-    """Verificar configuración de django-allauth y Sites"""
-    warnings = []
-    
-    from django.contrib.sites.models import Site
-    
+def _table_exists(db_alias, model):
+    """Verifica si la tabla del modelo existe en la base de datos indicada."""
+    from django.db import connections
+    from django.db.utils import DatabaseError
+
+    conn = connections[db_alias]
     try:
-        site = Site.objects.get(id=settings.SITE_ID)
-        
-        # Verificar que el dominio no sea el por defecto
-        if site.domain in ['example.com', 'localhost', '127.0.0.1']:
-            warnings.append(
-                Warning(
-                    f'Site domain está configurado como "{site.domain}" - esto puede causar problemas con OAuth en producción',
-                    hint='Actualizar el dominio: python manage.py shell -> Site.objects.get(id=1).update(domain="tu-dominio.com")',
-                    id='ilovevoley.W004',
-                )
+        with conn.cursor() as cursor:
+            tables = set(conn.introspection.table_names(cursor))
+        return model._meta.db_table in tables
+    except DatabaseError:
+        return False
+
+
+@register(Tags.compatibility, deploy=True)
+def check_socialauth_config(app_configs, databases=None, **kwargs):
+    """Verificar configuración de django-allauth y Sites en despliegue"""
+    warnings = []
+
+    from django.contrib.sites.models import Site
+    from django.db import router
+    from django.db.utils import DatabaseError
+
+    site_db = router.db_for_read(Site)
+    if databases is not None and site_db not in databases:
+        return []
+
+    if not _table_exists(site_db, Site):
+        warnings.append(
+            Warning(
+                f'La tabla de Sites ({Site._meta.db_table}) no existe en la base de datos',
+                hint='Ejecutar: python manage.py migrate',
+                id='ilovevoley.W012',
             )
-        
-        # Verificar que hay al menos una SocialApp configurada
-        try:
-            from allauth.socialaccount.models import SocialApp
-            google_apps = SocialApp.objects.filter(provider='google')
-            
-            if not google_apps.exists():
-                warnings.append(
-                    Warning(
-                        'No hay aplicaciones de Google OAuth configuradas',
-                        hint='Configurar en /admin/socialaccount/socialapp/',
-                        id='ilovevoley.W005',
-                    )
-                )
-            else:
-                # Verificar que el site actual está asociado
-                for app in google_apps:
-                    if not app.sites.filter(id=settings.SITE_ID).exists():
-                        warnings.append(
-                            Warning(
-                                f'La aplicación de Google OAuth "{app.name}" no está asociada al site actual',
-                                hint=f'Añadir el site "{site.domain}" a la aplicación en /admin/socialaccount/socialapp/{app.id}/change/',
-                                id='ilovevoley.W006',
-                            )
-                        )
-        except ImportError:
-            pass  # allauth no instalado
-            
+        )
+        return warnings
+
+    try:
+        site = Site.objects.using(site_db).get(id=settings.SITE_ID)
     except Site.DoesNotExist:
         warnings.append(
             Warning(
@@ -102,10 +94,57 @@ def check_socialauth_config(app_configs, **kwargs):
                 id='ilovevoley.W007',
             )
         )
-    except Exception as e:
-        # Si hay error de base de datos (ej: durante migraciones), ignorar
+        return warnings
+    except DatabaseError:
+        return warnings
+
+    # Verificar que el dominio no sea el por defecto
+    if site.domain in ['example.com', 'localhost', '127.0.0.1']:
+        warnings.append(
+            Warning(
+                f'Site domain está configurado como "{site.domain}" - esto puede causar problemas con OAuth en producción',
+                hint='Actualizar el dominio: python manage.py shell -> Site.objects.get(id=1).update(domain="tu-dominio.com")',
+                id='ilovevoley.W004',
+            )
+        )
+
+    # Verificar que hay al menos una SocialApp configurada
+    try:
+        from allauth.socialaccount.models import SocialApp
+
+        social_db = router.db_for_read(SocialApp)
+        if databases is not None and social_db not in databases:
+            return warnings
+
+        if not _table_exists(social_db, SocialApp):
+            return warnings
+
+        google_apps = list(SocialApp.objects.using(social_db).filter(provider='google'))
+
+        if not google_apps:
+            warnings.append(
+                Warning(
+                    'No hay aplicaciones de Google OAuth configuradas',
+                    hint='Configurar en /admin/socialaccount/socialapp/',
+                    id='ilovevoley.W005',
+                )
+            )
+        else:
+            # Verificar que el site actual está asociado
+            for app in google_apps:
+                if not app.sites.filter(id=settings.SITE_ID).exists():
+                    warnings.append(
+                        Warning(
+                            f'La aplicación de Google OAuth "{app.name}" no está asociada al site actual',
+                            hint=f'Añadir el site "{site.domain}" a la aplicación en /admin/socialaccount/socialapp/{app.id}/change/',
+                            id='ilovevoley.W006',
+                        )
+                    )
+    except ImportError:
+        pass  # allauth no instalado
+    except DatabaseError:
         pass
-    
+
     return warnings
 
 

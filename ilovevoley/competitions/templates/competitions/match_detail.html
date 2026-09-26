@@ -92,7 +92,7 @@
                         </svg>
                         {{ match.result_display }}
                     </div>
-                {% elif user.is_staff or user.groups.all|length > 0 %}
+                {% elif is_tenant_manager %}
                     {% if match.match_date.date <= today %}
                         <button onclick="openResultModal({{ match.id }}, '{{ match.home_team_display|escapejs }}', '{{ match.away_team_display|escapejs }}')" 
                                 class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white transition shadow-md">

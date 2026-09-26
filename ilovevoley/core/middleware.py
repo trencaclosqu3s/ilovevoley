@@ -1,4 +1,6 @@
 import logging
+import re
+from urllib.parse import urlsplit, urlunsplit
 from datetime import datetime, timedelta
 from collections import defaultdict
 from django.http import Http404, HttpResponseNotFound
@@ -14,9 +16,62 @@ from .tenant_utils import get_organization_by_slug
 
 logger = logging.getLogger(__name__)
 
+# Patrones para sanitizar tokens y credenciales sensibles en URLs
+SENSITIVE_URL_PATTERNS = [
+    (re.compile(r'(/moderate/(?:user|image)/)[^/]+(/?)'), r'\1[REDACTED]\2'),
+    (re.compile(r'(/calendario/suscripcion/)[^/]+(/?)'), r'\1[REDACTED]\2'),
+    (re.compile(r'(/accounts/password/reset/key/)[^/]+(/?)'), r'\1[REDACTED]\2'),
+    (re.compile(r'(/accounts/confirm-email/)[^/]+(/?)'), r'\1[REDACTED]\2'),
+]
+
+
+def sanitize_path(url_or_path: str) -> str:
+    """
+    Sanitiza una ruta o URL eliminando query strings y redactando tokens sensibles.
+    """
+    if not url_or_path:
+        return ''
+    parsed = urlsplit(url_or_path)
+    path = parsed.path or url_or_path
+
+    for pattern, replacement in SENSITIVE_URL_PATTERNS:
+        path = pattern.sub(replacement, path)
+
+    return path
+
+
+def sanitize_referer(referer: str) -> str:
+    """
+    Sanitiza el referer eliminando query strings y redactando tokens sensibles.
+    """
+    if not referer:
+        return ''
+    parsed = urlsplit(referer)
+    sanitized_path = sanitize_path(parsed.path)
+    if parsed.scheme and parsed.netloc:
+        return urlunsplit((parsed.scheme, parsed.netloc, sanitized_path, '', ''))
+    return sanitized_path
+
+
+def _atomic_incr(cache_key: str, timeout: int = 3600) -> int:
+    """
+    Incrementa atómicamente un contador en cache.
+    Si la clave no existe, la inicializa en 0 con el timeout indicado y la incrementa a 1.
+    """
+    try:
+        return cache.incr(cache_key)
+    except ValueError:
+        cache.add(cache_key, 0, timeout)
+        try:
+            return cache.incr(cache_key)
+        except ValueError:
+            return 1
+
 TENANT_EXEMPT_PREFIXES = (
     '/videos/calendario/suscripcion/',
 )
+
+RESERVED_SUBDOMAINS = {'www'}
 
 
 class TenantMiddleware:
@@ -29,12 +84,15 @@ class TenantMiddleware:
     """
 
     PASSTHROUGH = False
+    RESERVED_SUBDOMAINS = RESERVED_SUBDOMAINS
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        host = request.META.get('HTTP_HOST', '').split(':')[0]
+        host_header = request.META.get('HTTP_HOST', '')
+        host = host_header.split(':')[0].lower()
+        port = host_header.split(':')[1] if ':' in host_header else ''
         parts = host.split('.')
         root_domain = '.'.join(parts[-2:]) if len(parts) >= 2 else host
 
@@ -45,6 +103,11 @@ class TenantMiddleware:
                 request.tenant = None
         else:
             subdomain = parts[0]
+            if subdomain in self.RESERVED_SUBDOMAINS:
+                port_suffix = f":{port}" if port and port not in ('80', '443') else ""
+                target_url = f"{request.scheme}://{root_domain}{port_suffix}{request.get_full_path()}"
+                return redirect(target_url, permanent=True)
+
             request.tenant = get_organization_by_slug(subdomain)
             if request.tenant is None:
                 if self.PASSTHROUGH:
@@ -81,31 +144,38 @@ class Error404TrackingMiddleware:
         Registra un error 404 en cache para reporte posterior
         """
         try:
+            sanitized_url = sanitize_path(request.path)
             # Obtener información del error
             error_data = {
-                'url': request.get_full_path(),
+                'url': sanitized_url,
                 'method': request.method,
                 'ip': self.get_client_ip(request),
                 'user_agent': request.META.get('HTTP_USER_AGENT', '')[:200],
-                'referer': request.META.get('HTTP_REFERER', ''),
+                'referer': sanitize_referer(request.META.get('HTTP_REFERER', '')),
                 'timestamp': datetime.now().isoformat(),
                 'user': str(request.user) if request.user.is_authenticated else 'Anonymous',
             }
-            
+
+            # Contador atómico diario de errores 404
+            daily_count_key = f"404_count_{datetime.now().strftime('%Y%m%d')}"
+            _atomic_incr(daily_count_key, timeout=60 * 60 * 48)
+
             # Guardar en cache para reporte diario
             cache_key = f"404_errors_{datetime.now().strftime('%Y%m%d')}"
             errors_today = cache.get(cache_key, [])
             errors_today.append(error_data)
-            
+
             # Mantener solo últimos 100 errores del día
             if len(errors_today) > 100:
                 errors_today = errors_today[-100:]
-            
+
             # Guardar por 48 horas
             cache.set(cache_key, errors_today, 60 * 60 * 48)
-            
+
             logger.warning(f"404 Error: {error_data['url']} from {error_data['ip']}")
-            
+
+            send_404_immediate_alert(request)
+
         except Exception as e:
             logger.error(f"Error logging 404: {str(e)}")
     
@@ -148,7 +218,9 @@ def send_404_daily_report():
             grouped_errors[error['url']].append(error)
         
         # Preparar estadísticas
-        total_errors = len(errors)
+        daily_count_key = f"404_count_{yesterday.strftime('%Y%m%d')}"
+        daily_count = cache.get(daily_count_key)
+        total_errors = daily_count if daily_count is not None else len(errors)
         unique_urls = len(grouped_errors)
         top_errors = sorted(
             grouped_errors.items(), 
@@ -198,10 +270,9 @@ def send_404_immediate_alert(request, threshold=10):
         if not admin_emails:
             return False
             
-        # Contar errores en la última hora
+        # Contar errores en la última hora usando incremento atómico
         cache_key = f"404_count_{datetime.now().strftime('%Y%m%d_%H')}"
-        current_count = cache.get(cache_key, 0) + 1
-        cache.set(cache_key, current_count, 60 * 60)  # 1 hora
+        current_count = _atomic_incr(cache_key, timeout=60 * 60)
         
         # Si supera el umbral, enviar alerta
         if current_count == threshold:  # Solo enviar una vez por hora
@@ -209,7 +280,7 @@ def send_404_immediate_alert(request, threshold=10):
                 'count': current_count,
                 'hour': datetime.now().strftime('%H:00'),
                 'site_name': 'I Love Voley',
-                'last_url': request.get_full_path(),
+                'last_url': sanitize_path(request.path),
             }
             
             html_message = render_to_string('emails/404_alert.html', context)
