@@ -142,7 +142,14 @@ class CompetitionsViewUrlTests(TestCase):
         """year/month inválidos no deben tumbar la vista con HTTP 500."""
         self.client.force_login(self.user)
         url = reverse('competitions:calendar_view')
-        for params in ({'month': '13'}, {'year': 'abc'}, {'month': '0'}, {'year': '99999', 'month': '1'}):
+        for params in (
+            {'month': '13'},
+            {'year': 'abc'},
+            {'month': '0'},
+            {'year': '99999', 'month': '1'},
+            {'year': '9999', 'month': '12'},
+            {'year': '1', 'month': '1'},
+        ):
             with self.subTest(params=params):
                 response = self.client.get(
                     url, params, HTTP_HOST='testclub.ilovevoley.es'

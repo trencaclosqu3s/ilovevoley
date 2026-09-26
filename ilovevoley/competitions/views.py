@@ -219,13 +219,14 @@ def calendar_view(request):
         year = int(request.GET.get('year', timezone.now().year))
         month = int(request.GET.get('month', timezone.now().month))
         start_date = timezone.make_aware(datetime(year, month, 1))
+        if month == 12:
+            next_month_start = timezone.make_aware(datetime(year + 1, 1, 1))
+        else:
+            next_month_start = timezone.make_aware(datetime(year, month + 1, 1))
+        prev_month = start_date - timedelta(days=1)
     except (ValueError, TypeError, OverflowError):
         return redirect('competitions:calendar_view')
 
-    if month == 12:
-        next_month_start = timezone.make_aware(datetime(year + 1, 1, 1))
-    else:
-        next_month_start = timezone.make_aware(datetime(year, month + 1, 1))
     end_date = next_month_start - timedelta(days=1)
 
     monthly_matches = matches.filter(
@@ -234,8 +235,7 @@ def calendar_view(request):
     )
 
     # Navegación de meses
-    prev_month = start_date - timedelta(days=1)
-    next_month = end_date + timedelta(days=1)
+    next_month = next_month_start
 
     # Generar grid del calendario
     cal = calendar.Calendar(firstweekday=0)  # Lunes como primer día
