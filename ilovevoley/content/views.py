@@ -1,4 +1,4 @@
-from collections import Counter
+from collections import Counter, defaultdict
 import logging
 import uuid
 
@@ -8,7 +8,8 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Count, Max, Prefetch, Q
+from django.db.models import Count, F, Max, Q, Window
+from django.db.models.functions import RowNumber
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -79,6 +80,30 @@ def gallery_image_stats(organization):
     return stats
 
 
+def _covers_by(images_qs, field, ids, *, prefetch=()):
+    """Top 4 images per group in one SQL query (ROW_NUMBER + qualify subquery)."""
+    if not ids:
+        return {}
+    qs = (
+        images_qs.filter(**{f'{field}__in': ids})
+        .annotate(
+            rn=Window(
+                RowNumber(),
+                partition_by=[F(field)],
+                order_by=F('upload_date').desc(),
+            )
+        )
+        .filter(rn__lte=4)
+        .order_by(field, '-upload_date')
+    )
+    if prefetch:
+        qs = qs.prefetch_related(*prefetch)
+    buckets = defaultdict(list)
+    for image in qs:
+        buckets[getattr(image, field)].append(image)
+    return buckets
+
+
 def build_album_gallery_page(images_qs, page_number, per_page=12):
     """
     Aggregate albums in SQL, paginate lightweight group rows, hydrate covers for the page.
@@ -134,21 +159,10 @@ def build_album_gallery_page(images_qs, page_number, per_page=12):
         )
     }
 
-    # LIMIT 4 per group: cheaper than loading every image then discarding.
-    covers_by_match = {
-        match_id: list(
-            images_qs.filter(match_id=match_id).order_by('-upload_date')[:4]
-        )
-        for match_id in match_ids
-    }
-    covers_by_group = {
-        group_id: list(
-            images_qs.filter(album_group_id=group_id)
-            .prefetch_related('categories')
-            .order_by('-upload_date')[:4]
-        )
-        for group_id in group_ids
-    }
+    covers_by_match = _covers_by(images_qs, 'match_id', match_ids)
+    covers_by_group = _covers_by(
+        images_qs, 'album_group_id', group_ids, prefetch=('categories',)
+    )
 
     singles_map = {
         image.id: image
