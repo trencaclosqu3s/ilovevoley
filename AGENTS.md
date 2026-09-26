@@ -98,3 +98,5 @@ la de la librería?
 **Admin**: saltar configuración de `ModelAdmin` y CRUD estándar; testear solo
 métodos con lógica, `get_queryset()` complejos, acciones custom y `save_model()`
 con validación.
+
+Guía completa y criterios detallados en: `docs/ai-guidelines/testing-guidelines.md`.

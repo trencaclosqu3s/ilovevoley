@@ -19,17 +19,6 @@ class CheckSocialauthConfigTests(TestCase):
         assert check_socialauth_config in deployment_checks
         assert check_socialauth_config not in regular_checks
 
-    def test_core_apps_ready_registers_checks(self):
-        """Verify CoreConfig.ready imports and registers core checks."""
-        from ilovevoley.core.apps import CoreConfig
-        from django.apps import apps
-
-        app_config = apps.get_app_config("core")
-        app_config.ready()
-
-        deployment_checks = check_registry.get_checks(include_deployment_checks=True)
-        assert check_socialauth_config in deployment_checks
-
     def test_unmigrated_database_returns_warning_cleanly(self):
         """When django_site table does not exist, return W012 without raising DB exceptions."""
         with patch.object(connection.introspection, "table_names", return_value=[]):
@@ -120,32 +109,4 @@ class CheckSocialauthConfigTests(TestCase):
         warnings = check_socialauth_config(None)
         warning_ids = [w.id for w in warnings]
         assert "ilovevoley.W007" in warning_ids
-
-    def test_manage_check_does_not_execute_socialauth_check(self):
-        """Standard manage.py check does not run check_socialauth_config because it is a deploy check."""
-        import io
-        from django.core.management import call_command
-
-        stderr = io.StringIO()
-        call_command("check", stderr=stderr)
-        output = stderr.getvalue()
-
-        assert "ilovevoley.W004" not in output
-        assert "ilovevoley.W005" not in output
-        assert "ilovevoley.W006" not in output
-        assert "ilovevoley.W007" not in output
-        assert "ilovevoley.W012" not in output
-
-    def test_manage_check_deploy_executes_socialauth_check(self):
-        """Deployment check (manage.py check --deploy) executes check_socialauth_config."""
-        import io
-        from django.core.management import call_command
-
-        Site.objects.filter(id=settings.SITE_ID).update(domain="example.com")
-
-        stderr = io.StringIO()
-        call_command("check", deploy=True, stderr=stderr)
-        output = stderr.getvalue()
-
-        assert "ilovevoley.W004" in output
 

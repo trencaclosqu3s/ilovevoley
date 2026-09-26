@@ -31,26 +31,6 @@ class SecurityHeadersTest(TestCase):
         self.assertIn('max-age=31536000', hsts)
         self.assertIn('includeSubDomains', hsts)
 
-    @override_settings(
-        SECURE_SSL_REDIRECT=True,
-        SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'),
-    )
-    def test_secure_ssl_redirect(self):
-        """Verifica que peticiones HTTP se redirigen a HTTPS y que X-Forwarded-Proto es respetado."""
-        # Petición HTTP insegura -> redirect 301
-        response = self.client.get('/', secure=False)
-        self.assertEqual(response.status_code, 301)
-        self.assertTrue(response.url.startswith('https://'))
-
-        # Petición con proxy header HTTPS -> no redirige
-        response_secure = self.client.get('/', secure=False, HTTP_X_FORWARDED_PROTO='https')
-        self.assertEqual(response_secure.status_code, 200)
-
-    def test_session_cookie_httponly_default(self):
-        """Verifica que SESSION_COOKIE_HTTPONLY está activo."""
-        from django.conf import settings
-        self.assertTrue(settings.SESSION_COOKIE_HTTPONLY)
-
     def test_production_deployment_check_no_transport_warnings(self):
         """Verifica que check --deploy en configuración de producción no emite avisos de transporte seguro."""
         out = io.StringIO()

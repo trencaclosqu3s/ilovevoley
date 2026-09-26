@@ -5,7 +5,7 @@ from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
@@ -18,7 +18,7 @@ from ilovevoley.videos.forms import rosters as vid_forms_rosters
 from ilovevoley.videos.views import rosters as vid_views_rosters
 
 
-class RostersReExportCompatibilityTest(TestCase):
+class RostersReExportCompatibilityTest(SimpleTestCase):
     """Verifica que las importaciones históricas desde videos sigan funcionando."""
 
     def test_forms_are_reexported(self):

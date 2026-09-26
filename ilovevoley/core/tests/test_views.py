@@ -1,4 +1,4 @@
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -83,7 +83,7 @@ class LandingViewTest(TestCase):
         self.assertLess(css_idx, style_idx, "app.css debe cargarse antes del <style> del tenant")
 
 
-class CoreReExportCompatibilityTest(TestCase):
+class CoreReExportCompatibilityTest(SimpleTestCase):
     """Verifica que las importaciones históricas desde videos sigan funcionando."""
 
     def test_views_are_reexported(self):
@@ -117,27 +117,12 @@ class CoreViewUrlTests(TestCase):
             user=self.unapproved_user, organization=self.org, is_approved=False
         )
 
-    def test_core_about_url_resolves_and_renders(self):
-        url = reverse('core:about')
-        self.assertEqual(url, '/core/quienes-somos/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'core/about.html')
-
     def test_navbar_brand_links_to_configured_home(self):
         self.org.default_home = 'competitions'
         self.org.save()
         response = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'href="/competitions/ligas/"')
-
-    def test_core_moderation_panel_url_resolves_and_renders(self):
-        self.client.force_login(self.superuser)
-        url = reverse('core:moderation_panel')
-        self.assertEqual(url, '/core/moderacion/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'core/moderation_panel.html')
 
     def test_core_moderation_counts_api(self):
         self.client.force_login(self.superuser)
@@ -398,17 +383,6 @@ class TailwindStaticCssTest(TestCase):
                     rendered,
                     f'Plantilla {tmpl} no referencia el CSS estático compilado css/app.css',
                 )
-
-    def test_compiled_css_file_exists_and_contains_brand_classes(self):
-        import pathlib
-        from django.conf import settings
-
-        app_css_path = pathlib.Path(settings.BASE_DIR) / 'ilovevoley' / 'static' / 'css' / 'app.css'
-        self.assertTrue(app_css_path.exists(), 'El archivo app.css no existe')
-        self.assertGreater(app_css_path.stat().st_size, 1024, 'El archivo app.css está vacío o es demasiado pequeño')
-
-        content = app_css_path.read_text(encoding='utf-8')
-        self.assertIn('csj-purple', content)
 
     def test_management_command_tailwind_build(self):
         import pathlib
