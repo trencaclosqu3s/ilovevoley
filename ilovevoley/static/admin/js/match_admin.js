@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const currentAwayTeam = awayTeamSelect.value;
         
         // Hacer petición AJAX
-        const url = `/videos/ajax/teams-by-league-category/?league_id=${leagueId}&filter_by_category=${filterByCategory}`;
+        const url = `/competitions/ajax/teams-by-league-category/?league_id=${leagueId}&filter_by_category=${filterByCategory}`;
         
         fetch(url)
             .then(response => response.json())

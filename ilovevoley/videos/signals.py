@@ -1,9 +1,13 @@
+import logging
+
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.conf import settings
 from .models import Image, League, ScrapingEndpoint
 from ilovevoley.core.email_utils import enqueue_on_commit
 from ilovevoley.core.tasks import notify_image_pending_task
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=Image)
@@ -74,9 +78,11 @@ def create_default_scraping_endpoints(sender, instance, created, **kwargs):
         
         if endpoint_created:
             created_count += 1
-            print(f"✓ Endpoint creado automáticamente: {endpoint.get_endpoint_type_display()} para {instance.name}")
-    
+
     if created_count > 0:
-        print(f"✓ Liga '{instance.name}' configurada con {created_count} endpoints de scraping")
-    else:
-        print(f"ℹ Liga '{instance.name}' ya tenía endpoints configurados")
+        logger.info(
+            "Configurados %d endpoints de scraping para la liga '%s' (id=%s)",
+            created_count,
+            instance.name,
+            instance.pk,
+        )
