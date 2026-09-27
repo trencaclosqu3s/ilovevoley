@@ -127,6 +127,53 @@
         </div>
     </div>
 
+    <!-- Estadísticas de actas -->
+    {% if player_stats %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+            <div class="border-l-4 border-csj-purple dark:border-csj-yellow pl-4">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">📊 Estadísticas</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Histórico a partir de las actas federativas</p>
+            </div>
+
+            <form method="get" class="flex items-center gap-2">
+                <label for="season" class="text-sm font-medium text-gray-700 dark:text-gray-300">Temporada</label>
+                <select name="season" id="season" onchange="this.form.submit()" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    <option value="" {% if not stat_season %}selected{% endif %}>Todas las temporadas</option>
+                    {% for season in seasons %}
+                        <option value="{{ season.id }}" {% if stat_season and stat_season.id == season.id %}selected{% endif %}>
+                            {{ season.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ player_stats.convocatorias }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Convocatorias</p>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ player_stats.partidos_jugados }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Partidos jugados</p>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ player_stats.titularidades }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Titularidades</p>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ player_stats.sets_disputados }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Sets disputados</p>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ player_stats.sets_titular }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Sets como titular</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Roles de Jugador -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         <div class="flex justify-between items-center mb-4">

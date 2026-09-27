@@ -12,7 +12,7 @@ from .models import Comment, Image, Video
 class VideoForm(forms.ModelForm):
     class Meta:
         model = Video
-        fields = ['title', 'youtube_url', 'description', 'category', 'match', 'season']
+        fields = ['title', 'youtube_url', 'description', 'category', 'match', 'set_number', 'season']
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
@@ -33,6 +33,11 @@ class VideoForm(forms.ModelForm):
             'match': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
             }),
+            'set_number': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'min': 1,
+                'placeholder': 'Ej: 1 (opcional)',
+            }),
             'season': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
             }),
@@ -43,6 +48,7 @@ class VideoForm(forms.ModelForm):
             'description': 'Descripción',
             'category': 'Categoría',
             'match': 'Partido (opcional)',
+            'set_number': 'Set (opcional)',
             'season': 'Temporada (opcional)',
         }
 
@@ -52,6 +58,7 @@ class VideoForm(forms.ModelForm):
         # Hacer el campo match opcional
         self.fields['match'].required = False
         self.fields['season'].required = False
+        self.fields['set_number'].required = False
         if not self.instance.pk:
             self.fields['season'].initial = Season.objects.current()
 
@@ -141,7 +148,7 @@ class ImageUploadForm(forms.ModelForm):
     
     class Meta:
         model = Image
-        fields = ['image', 'title', 'description', 'image_type', 'categories', 'tags', 'match', 'season']
+        fields = ['image', 'title', 'description', 'image_type', 'categories', 'tags', 'match', 'set_number', 'season']
         widgets = {
             'image': forms.FileInput(attrs={
                 'class': 'hidden',
@@ -174,6 +181,12 @@ class ImageUploadForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'id': 'id_match'
             }),
+            'set_number': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
+                'min': 1,
+                'id': 'id_set_number',
+                'placeholder': 'Ej: 1 (opcional)',
+            }),
             'season': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'id': 'id_season'
@@ -187,6 +200,7 @@ class ImageUploadForm(forms.ModelForm):
             'categories': 'Categorías',
             'tags': 'Etiquetas',
             'match': 'Partido (opcional)',
+            'set_number': 'Set (opcional)',
             'season': 'Temporada (opcional)',
         }
 
@@ -200,6 +214,7 @@ class ImageUploadForm(forms.ModelForm):
         self.fields['tags'].required = False
         self.fields['match'].required = False
         self.fields['season'].required = False
+        self.fields['set_number'].required = False
         if not self.instance.pk:
             self.fields['season'].initial = Season.objects.current()
 
@@ -431,6 +446,16 @@ class VideoEntryForm(forms.Form):
         widget=forms.URLInput(attrs={
             'class': INPUT_CSS,
             'placeholder': 'https://www.youtube.com/watch?v=...',
+        }),
+    )
+    set_number = forms.IntegerField(
+        required=False,
+        min_value=1,
+        label='Set (opcional)',
+        widget=forms.NumberInput(attrs={
+            'class': INPUT_CSS,
+            'min': 1,
+            'placeholder': 'Set',
         }),
     )
 

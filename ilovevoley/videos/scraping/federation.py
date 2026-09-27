@@ -13,6 +13,7 @@ from django.utils import timezone
 import requests
 from unidecode import unidecode
 
+from ilovevoley.competitions.services.delta_detector import detect_and_record_match_changes
 from ..models import League, Match, ScrapingEndpoint, Standing, Team
 from .base import ScrapingError, validate_volleyball_score
 from .parsers import (
@@ -23,6 +24,7 @@ from .parsers import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 
 class FederationScraper:
@@ -264,8 +266,12 @@ class FederationScraper:
                     ).first()
 
                 if match:
+                    # Detectar y registrar modificaciones federativas
+                    detect_and_record_match_changes(match, match_data)
+
                     # Actualizar partido existente
                     match.home_score = match_data['home_score']
+
                     match.away_score = match_data['away_score']
                     match.status = match_data['status']
                     match.venue = match_data.get('venue', '')
@@ -622,8 +628,11 @@ class FederationScraper:
                     
                     if home_score is not None and away_score is not None:
                         if validate_volleyball_score(home_score, away_score, self.league):
+                            # Detectar y registrar modificaciones federativas
+                            detect_and_record_match_changes(existing_match, match_data)
                             # Solo actualizar resultado y estado
                             existing_match.home_score = home_score
+
                             existing_match.away_score = away_score
                             existing_match.status = match_data.get('status', 'finished')
                             existing_match.save()
@@ -676,7 +685,11 @@ class FederationScraper:
             
             # Crear o actualizar el partido con merge inteligente
             if existing_match:
+                # Detectar y registrar modificaciones federativas
+                detect_and_record_match_changes(existing_match, match_data)
+
                 # Si el partido estaba withdrawn pero ahora los equipos son activos, reactivarlo
+
                 if existing_match.status == 'withdrawn' and home_team.is_active and away_team.is_active:
                     existing_match.status = 'scheduled'
                     existing_match.save()

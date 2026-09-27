@@ -1,4 +1,5 @@
 import calendar
+import hashlib
 import json
 import logging
 import re as _re
@@ -10,23 +11,47 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.core.cache import cache
 from django.db.models import Case, CharField, Count, Q, Value, When
-from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.http import Http404, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from unidecode import unidecode as _uni
+from django.views.decorators.http import require_POST
 
+from ilovevoley.competitions.result_card import extract_set_scores, render_result_card
+from ilovevoley.content.models import Image
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
-from ilovevoley.core.models import Category
+from ilovevoley.core.models import Category, Season
+from ilovevoley.core.protected_media import serve_protected_file
+from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.security import UnsafeURL, safe_get
 from ilovevoley.core.tenancy import get_tenant_object_or_404
-from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
+from ilovevoley.core.tenant_utils import (
+    build_absolute_url,
+    tenant_access_required,
+    user_is_tenant_manager,
+)
 from ilovevoley.rosters.models import PlayerRole
 from ilovevoley.teams.models import Team
 from ilovevoley.videos.scraping import parse_acta_lineup, validate_volleyball_score
 from .forms import FriendlyMatchForm, MatchResultForm
-from .models import League, Match, Standing
+from .models import League, Match, MatchChangeLog, MatchShareLink, Standing
+from .services.lineups import resolve_acta_team, store_match_lineups
+from .share import (
+    ALLOWED_HOURS,
+    create_match_share_link,
+    default_hours,
+    get_match_set_labels,
+    group_match_media,
+    resolve_match_share_link,
+    revoke_match_share_link,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _acta_lineup_cache_key(acta_url: str) -> str:
+    """Clave corta y segura para backends con límite (p. ej. Memcached)."""
+    digest = hashlib.md5(acta_url.encode(), usedforsecurity=False).hexdigest()
+    return f'acta_lineup:{digest}'
 
 
 def build_calendar_matches_payload(matches, club_team_name):
@@ -160,8 +185,8 @@ def league_detail(request, league_id):
         matches = Match.objects.filter(league=league)
         display_league = league
 
-    # Aplicar select_related y prefetch_related
-    matches = matches.select_related('home_team', 'away_team', 'league').prefetch_related('videos').order_by('-match_date')
+    # Aplicar select_related
+    matches = matches.select_related('home_team', 'away_team', 'league').order_by('-match_date')
 
     # Obtener clasificación (solo de la liga específica o root)
     standings = display_league.standings.select_related('team').order_by('position')
@@ -177,6 +202,12 @@ def league_detail(request, league_id):
 
     available_rounds = matches.values_list('round_number', flat=True).distinct().order_by('round_number')
 
+    # Total de vídeos de la liga: una sola consulta agregada, sin cargar los vídeos
+    total_videos = matches.aggregate(total=Count('videos', distinct=True))['total'] or 0
+
+    # Indicador de vídeos por partido sin prefetch: anotación distinct=True (ver #108)
+    matches = matches.annotate(videos_count=Count('videos', distinct=True))
+
     # Paginación
     paginator = Paginator(matches, 20)
     page_number = request.GET.get('page')
@@ -189,6 +220,7 @@ def league_detail(request, league_id):
         'show_all_phases': show_all_phases,
         'selected_phase': selected_phase,
         'page_obj': page_obj,
+        'total_videos': total_videos,
         'standings': standings,
         'available_rounds': available_rounds,
         'selected_round': round_filter,
@@ -204,19 +236,120 @@ def match_detail(request, match_id):
         request.tenant, user=request.user, id=match_id,
     )
 
-    # Obtener videos del partido
-    videos = match.videos.select_related('created_by', 'category').all()
+    # Obtener videos del partido filtrados por tenant
+    videos = match.videos.select_related('created_by', 'category').filter(organization=request.tenant)
 
-    # Obtener imágenes aprobadas del partido
-    images = match.images.filter(status='approved').select_related('uploaded_by').all()
+    # Obtener imágenes aprobadas del partido filtradas por tenant
+    images = match.images.filter(status='approved', organization=request.tenant).select_related('uploaded_by').all()
+
+    can_manage = user_is_tenant_manager(request.user, request.tenant)
+
+    # Enlaces de compartición (solo relevantes para managers)
+    share_links = []
+    if can_manage:
+        for link in match.share_links.filter(organization=request.tenant):
+            share_links.append({
+                'link': link,
+                'url': build_absolute_url(
+                    f'p/partido/{link.token}/', tenant=request.tenant, request=request
+                ),
+            })
 
     return render(request, 'competitions/match_detail.html', {
         'match': match,
         'videos': videos,
         'images': images,
         'today': timezone.now().date(),
-        'can_manage_videos': user_is_tenant_manager(request.user, request.tenant),
+        'can_manage_videos': can_manage,
+        'share_links': share_links,
+        'share_hours_choices': ALLOWED_HOURS,
+        'share_default_hours': default_hours(),
     })
+
+
+def _load_set_scores_for_card(match):
+    """Devuelve los parciales del acta o una lista vacía si no están disponibles.
+
+    Prioriza el JSON ya persistido en ``Match.acta_data``; solo descarga y parsea
+    el HTML como fallback para actas antiguas sin JSON guardado.
+    """
+    if match.acta_data is not None:
+        return extract_set_scores(
+            match.acta_data,
+            home_name=match.home_team_display,
+            away_name=match.away_team_display,
+        )
+    if not match.acta_html:
+        return []
+
+    cache_key = _acta_lineup_cache_key(match.acta_html)
+    try:
+        lineup_data = cache.get(cache_key)
+        if lineup_data is None:
+            acta_content = safe_get(
+                match.acta_html,
+                allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
+            )
+            lineup_data = parse_acta_lineup(acta_content)
+            cache.set(cache_key, lineup_data, 60 * 60 * 24)
+
+        return extract_set_scores(
+            lineup_data,
+            home_name=match.home_team_display,
+            away_name=match.away_team_display,
+        )
+    except Exception as exc:
+        logger.warning(
+            'Acta no disponible para tarjeta del partido %s: %s',
+            match.id,
+            exc,
+        )
+        return []
+
+
+@tenant_access_required()
+def match_result_card(request, match_id):
+    """Genera un PNG de resultado cuadrado o vertical para compartir."""
+    try:
+        match = get_tenant_object_or_404(
+            Match.objects.select_related(
+                'home_team',
+                'home_team__club',
+                'away_team',
+                'away_team__club',
+                'league',
+            ),
+            request.tenant,
+            user=request.user,
+            id=match_id,
+        )
+    except Http404:
+        return JsonResponse({'error': 'Partido no encontrado'}, status=404)
+
+    card_format = request.GET.get('format', 'square')
+    if card_format not in ('square', 'story'):
+        return JsonResponse({'error': 'Formato de tarjeta no válido'}, status=400)
+    if (
+        match.status != 'finished'
+        or match.home_score is None
+        or match.away_score is None
+    ):
+        return JsonResponse(
+            {'error': 'No se puede compartir un partido sin resultado finalizado'},
+            status=400,
+        )
+
+    png = render_result_card(
+        match=match,
+        organization=request.tenant,
+        card_format=card_format,
+        sets=_load_set_scores_for_card(match),
+    )
+    response = HttpResponse(png, content_type='image/png')
+    response['Content-Disposition'] = (
+        f'attachment; filename="resultado-{match.id}-{card_format}.png"'
+    )
+    return response
 
 
 @tenant_access_required()
@@ -419,12 +552,10 @@ def ajax_search_teams(request):
     return JsonResponse({'teams': teams_data})
 
 
+@require_POST
 @tenant_access_required(manager=True)
 def ajax_add_match_result(request, match_id):
     """Vista AJAX para agregar resultado de partido"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
-
     try:
         match = Match.objects.for_tenant(request.tenant).select_related('league').get(id=match_id)
     except Match.DoesNotExist:
@@ -464,8 +595,12 @@ def ajax_add_match_result(request, match_id):
                 'home_score': match.home_score,
                 'away_score': match.away_score
             })
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': f'Error al guardar: {str(e)}'}, status=500)
+        except Exception:
+            logger.exception("Error al guardar resultado del partido %s", match_id)
+            return JsonResponse({
+                'success': False,
+                'error': 'Error interno al guardar el resultado.',
+            }, status=500)
     else:
         # Recopilar errores del formulario
         errors = {}
@@ -495,31 +630,37 @@ def ajax_acta_lineup(request, match_id):
     if not match.acta_html:
         return JsonResponse({'success': False, 'error': 'Este partido no tiene acta disponible'}, status=404)
 
-    # Solo se cachea el parseo correcto; los errores de red se reintentan en la siguiente petición.
-    cache_key = f"acta_lineup:{match.acta_html}"
-    lineup_data = cache.get(cache_key)
+    # El acta se persiste en el partido: una vez parseada no se vuelve a
+    # descargar y queda disponible para los históricos por jugador.
+    lineup_data = match.acta_data
     if lineup_data is None:
-        try:
-            acta_content = safe_get(
-                match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
-            )
-        except UnsafeURL as e:
-            logger.warning(f"URL de acta rechazada para el partido {match_id}: {e}")
-            return JsonResponse({'success': False, 'error': 'La URL del acta no es válida'}, status=400)
-        except http_requests.exceptions.Timeout:
-            return JsonResponse({'success': False, 'error': 'Tiempo de espera agotado al obtener el acta'}, status=504)
-        except http_requests.exceptions.RequestException as e:
-            logger.warning(f"Error obteniendo acta del partido {match_id}: {e}")
-            return JsonResponse({'success': False, 'error': 'No se pudo acceder al acta oficial'}, status=502)
+        # Solo se cachea el parseo correcto; los errores de red se reintentan en la siguiente petición.
+        cache_key = _acta_lineup_cache_key(match.acta_html)
+        lineup_data = cache.get(cache_key)
+        if lineup_data is None:
+            try:
+                acta_content = safe_get(
+                    match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
+                )
+            except UnsafeURL as e:
+                logger.warning(f"URL de acta rechazada para el partido {match_id}: {e}")
+                return JsonResponse({'success': False, 'error': 'La URL del acta no es válida'}, status=400)
+            except http_requests.exceptions.Timeout:
+                return JsonResponse({'success': False, 'error': 'Tiempo de espera agotado al obtener el acta'}, status=504)
+            except http_requests.exceptions.RequestException as e:
+                logger.warning(f"Error obteniendo acta del partido {match_id}: {e}")
+                return JsonResponse({'success': False, 'error': 'No se pudo acceder al acta oficial'}, status=502)
 
-        try:
-            # Pasar bytes para que BeautifulSoup detecte el charset del meta tag
-            # (evita que requests decodifique mal UTF-8 como Latin-1)
-            lineup_data = parse_acta_lineup(acta_content)
-        except Exception as e:
-            logger.error(f"Error parseando acta del partido {match_id}: {e}")
-            return JsonResponse({'success': False, 'error': 'Error al procesar el acta'}, status=500)
-        cache.set(cache_key, lineup_data, 60 * 60 * 24)
+            try:
+                # Pasar bytes para que BeautifulSoup detecte el charset del meta tag
+                # (evita que requests decodifique mal UTF-8 como Latin-1)
+                lineup_data = parse_acta_lineup(acta_content)
+            except Exception as e:
+                logger.error(f"Error parseando acta del partido {match_id}: {e}")
+                return JsonResponse({'success': False, 'error': 'Error al procesar el acta'}, status=500)
+            cache.set(cache_key, lineup_data, 60 * 60 * 24)
+
+        store_match_lineups(match, lineup_data)
 
     # Pre-fetch todos los PlayerRole activos de ambos equipos en una sola query
     roles_lookup = {}  # {(team_id, jersey_number): role}
@@ -545,12 +686,7 @@ def ajax_acta_lineup(request, match_id):
 
     def _match_team(name_acta):
         """Determina si name_acta corresponde al equipo local o visitante por solapamiento de palabras."""
-        def words(s):
-            return set(_uni(s or '').upper().split())
-        n = words(name_acta)
-        nh = words(match.home_team.name if match.home_team else '')
-        na = words(match.away_team.name if match.away_team else '')
-        return match.home_team if len(n & nh) >= len(n & na) else match.away_team
+        return resolve_acta_team(name_acta, match.home_team, match.away_team)
 
     def _enrich_convocados(raw_list, team):
         """["1 Raya", ...] → [{number, name_acta, person}]"""
@@ -766,15 +902,15 @@ def ajax_teams_by_league_category(request):
             league_categories = league.categories.all()
             if league_categories.exists():
                 # Filtrar equipos por las categorías de la liga
-                teams = Team.objects.filter(category__in=league_categories).order_by('name')
+                teams = Team.objects.select_related('category').filter(category__in=league_categories).order_by('name')
             else:
                 # Si la liga no tiene categorías, mostrar todos
-                teams = Team.objects.all().order_by('name')
+                teams = Team.objects.select_related('category').all().order_by('name')
         except League.DoesNotExist:
-            teams = Team.objects.all().order_by('name')
+            teams = Team.objects.select_related('category').all().order_by('name')
     else:
         # Sin filtrado o sin liga, mostrar todos los equipos
-        teams = Team.objects.all().order_by('name')
+        teams = Team.objects.select_related('category').all().order_by('name')
 
     # Formatear respuesta
     teams_data = []
@@ -793,10 +929,175 @@ def ajax_teams_by_league_category(request):
     })
 
 
+@require_POST
+@tenant_access_required(manager=True)
+def match_share_create(request, match_id):
+    """Crea un enlace público temporal para el partido."""
+    match = get_tenant_object_or_404(
+        Match.objects,
+        request.tenant, user=request.user, id=match_id,
+    )
+    hours = request.POST.get('hours')
+    create_match_share_link(match, request.tenant, request.user, hours=hours)
+    messages.success(request, 'Enlace para compartir creado.')
+    return redirect('competitions:match_detail', match_id=match.id)
+
+
+@tenant_access_required(manager=True)
+@require_POST
+def match_share_revoke(request, match_id, link_id):
+    """Revoca un enlace público del partido."""
+    match = get_tenant_object_or_404(
+        Match.objects, request.tenant, user=request.user, id=match_id
+    )
+    link = get_object_or_404(
+        MatchShareLink, id=link_id, match=match, organization=request.tenant
+    )
+    revoke_match_share_link(link)
+    messages.success(request, 'Enlace revocado.')
+    return redirect('competitions:match_detail', match_id=match.id)
+
+
+def public_match_timeline(request, token):
+    """Ficha multimedia pública de un partido a partir de un enlace temporal."""
+    link = resolve_match_share_link(token)
+    if link is None:
+        raise Http404
+    match = link.match
+
+    # Aislamiento de tenant: el enlace solo expone medios de su organización (los medios sin organización no se comparten públicamente por precaución).
+    videos = list(
+        match.videos.filter(organization_id=link.organization_id)
+        .order_by('-created_at')
+    )
+    images = list(
+        match.images.filter(status='approved', organization_id=link.organization_id)
+        .order_by('-upload_date')
+    )
+    groups = group_match_media(videos, images, get_match_set_labels(match))
+    has_media = any(group['videos'] or group['images'] for group in groups)
+
+    response = render(request, 'competitions/public_match_timeline.html', {
+        'link': link,
+        'match': match,
+        'groups': groups,
+        'has_media': has_media,
+    })
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Robots-Tag'] = 'noindex, nofollow'
+    return response
+
+
+_VARIANT_FIELDS = {
+    'thumb': 'thumbnail_small',
+    'large': 'thumbnail_large',
+    'orig': 'image',
+}
+
+
+def public_match_media(request, token, image_id):
+    """Sirve una imagen aprobada del partido para un enlace temporal válido."""
+    link = resolve_match_share_link(token)
+    if link is None:
+        raise Http404
+
+    image = Image.objects.filter(
+        id=image_id,
+        match=link.match,
+        status='approved',
+        organization_id=link.organization_id,
+    ).only(
+        'image', 'thumbnail_small', 'thumbnail_large',
+    ).first()
+    if image is None:
+        raise Http404
+
+    field_name = _VARIANT_FIELDS.get(request.GET.get('v', 'thumb'), 'thumbnail_small')
+    file_field = getattr(image, field_name, None) or image.image
+    if not file_field or not file_field.name:
+        raise Http404
+
+    response = serve_protected_file(file_field.name)
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Robots-Tag'] = 'noindex, nofollow'
+    return response
+@tenant_access_required(manager=True)
+def match_changes_review(request):
+    """Panel de revisión de modificaciones federativas para directores/managers del club."""
+    tenant = request.tenant
+    season, selected_season_id = resolve_season_filter(request)
+
+    qs = MatchChangeLog.objects.for_tenant(tenant).select_related(
+        'match', 'match__league', 'match__home_team', 'match__away_team', 'reviewed_by'
+    )
+
+    if season:
+        qs = qs.filter(match__league__season=season)
+
+    status_filter = request.GET.get('status', 'pending')
+    if status_filter == 'pending':
+        qs = qs.filter(reviewed=False)
+    elif status_filter == 'reviewed':
+        qs = qs.filter(reviewed=True)
+
+    change_type = request.GET.get('type')
+    if change_type:
+        qs = qs.filter(change_type=change_type)
+
+    paginator = Paginator(qs, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    all_seasons = Season.objects.all().order_by('-start_year')
+
+    pending_count = MatchChangeLog.objects.for_tenant(tenant)
+    if season:
+        pending_count = pending_count.filter(match__league__season=season)
+    pending_count = pending_count.filter(reviewed=False).count()
+
+    context = {
+        'page_obj': page_obj,
+        'changes': page_obj.object_list,
+        'status_filter': status_filter,
+        'selected_type': change_type or '',
+        'selected_season_id': selected_season_id,
+        'seasons': all_seasons,
+        'pending_count': pending_count,
+        'change_types': MatchChangeLog.CHANGE_TYPES,
+    }
+    return render(request, 'competitions/match_changes_review.html', context)
+
+
+@require_POST
+@tenant_access_required(manager=True, api=True)
+def ajax_mark_change_reviewed(request, log_id):
+    """Marca una modificación federativa como revisada por el director/manager actual."""
+    tenant = getattr(request, 'tenant', None)
+    log = get_object_or_404(MatchChangeLog.objects.for_tenant(tenant), pk=log_id)
+
+    log.reviewed = True
+    log.reviewed_by = request.user
+    log.reviewed_at = timezone.now()
+    log.save(update_fields=['reviewed', 'reviewed_by', 'reviewed_at'])
+
+    return JsonResponse({
+        'status': 'success',
+        'log_id': log.id,
+        'reviewed': True,
+        'reviewed_by': request.user.get_full_name() or request.user.username,
+        'reviewed_at': log.reviewed_at.strftime('%d/%m/%Y %H:%M'),
+    })
+
+
 __all__ = [
     'league_list',
     'league_detail',
     'match_detail',
+    'match_share_create',
+    'match_share_revoke',
+    'public_match_timeline',
+    'public_match_media',
+    'match_result_card',
     'calendar_view',
     'friendly_match_create',
     'ajax_search_teams',
@@ -805,4 +1106,6 @@ __all__ = [
     'standings_view',
     'ajax_matches_by_category',
     'ajax_teams_by_league_category',
+    'match_changes_review',
+    'ajax_mark_change_reviewed',
 ]

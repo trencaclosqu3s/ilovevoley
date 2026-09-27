@@ -12,14 +12,15 @@ def tenant_context(request):
     
     is_manager = False
     is_admin = False
-    if request.user.is_authenticated:
-        if request.user.is_superuser:
+    user = getattr(request, 'user', None)
+    if user and user.is_authenticated:
+        if user.is_superuser:
             is_manager = True
             is_admin = True
         elif org:
             from ilovevoley.users.models import Membership
             membership = Membership.objects.filter(
-                user=request.user,
+                user=user,
                 organization=org,
                 is_approved=True,
             ).values_list('role', flat=True).first()

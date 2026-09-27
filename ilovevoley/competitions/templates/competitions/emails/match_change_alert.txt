@@ -1,0 +1,19 @@
+Aviso de Modificación Federativa de Partido
+=============================================
+
+{% if is_test_mode %}[MODO PRUEBAS / SIMULACIÓN]{% endif %}
+
+Partido: {{ match.home_team_display }} vs {{ match.away_team_display }}
+{% if match.league %}Competición: {{ match.league.name }}{% endif %}
+
+Se han detectado las siguientes variaciones oficiales:
+{% for change in changes %}
+- {{ change.get_change_type_display }} ({{ change.field_name }}):
+  Anterior: {{ change.old_value|default:"(vacío)" }}
+  Nuevo:    {{ change.new_value|default:"(vacío)" }}
+{% endfor %}
+
+{% if match_url %}
+Puedes consultar los detalles del partido aquí:
+{{ match_url }}
+{% endif %}

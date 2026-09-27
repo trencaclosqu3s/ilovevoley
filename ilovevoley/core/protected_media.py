@@ -122,6 +122,16 @@ def _serve(path):
     return response
 
 
+def serve_protected_file(path):
+    """API pública para servir un fichero privado ya autorizado.
+
+    Normaliza la ruta y delega en la entrega (``X-Accel-Redirect`` en producción,
+    ``FileResponse`` en desarrollo). La autorización es responsabilidad de quien
+    llama: esta función solo entrega el fichero indicado.
+    """
+    return _serve(_normalize(path))
+
+
 @tenant_access_required(api=True)
 def _serve_protected(request, path):
     _authorize(path, request.user, getattr(request, 'tenant', None))

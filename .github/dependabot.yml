@@ -13,7 +13,7 @@ updates:
         patterns:
           - '*'
 
-  # Update Docker base images (Dockerfile, Dockerfile.alpine, Dockerfile.rag)
+  # Update Docker base images (Dockerfile)
   - package-ecosystem: 'docker'
     directories:
       - '/'

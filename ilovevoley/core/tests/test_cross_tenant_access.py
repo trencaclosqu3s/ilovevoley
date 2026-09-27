@@ -172,8 +172,8 @@ class CrossTenantAccessTests(TestCase):
             ('team_roster', self.member_a, reverse('teams:team_roster', args=[self.team_b.id])),
             ('person_detail', self.member_a, reverse('rosters:person_detail', args=[self.person_b.id])),
             ('person_edit', self.member_a, reverse('rosters:person_edit', args=[self.person_b.id])),
-            ('player_role_edit', self.member_a, reverse('rosters:player_role_edit', args=[self.player_role_b.id])),
-            ('staff_role_edit', self.member_a, reverse('rosters:staff_role_edit', args=[self.staff_role_b.id])),
+            ('player_role_edit', self.manager_a, reverse('rosters:player_role_edit', args=[self.player_role_b.id])),
+            ('staff_role_edit', self.manager_a, reverse('rosters:staff_role_edit', args=[self.staff_role_b.id])),
         ]
         for label, user, url in cases:
             with self.subTest(endpoint=label):
@@ -234,6 +234,9 @@ class CrossTenantAccessTests(TestCase):
         self.person_b.refresh_from_db()
         self.assertEqual(self.person_b.first_name, 'Bea')
 
+        # Los roles deportivos exigen manager (PR #200); un manager legítimo de A
+        # sigue sin poder tocar los roles de B (404).
+        self.client.force_login(self.manager_a)
         response = self.client.post(
             reverse('rosters:player_role_create', args=[self.person_b.id]),
             data={'team': self.team_b.id, 'season': self.player_role_b.season_id},

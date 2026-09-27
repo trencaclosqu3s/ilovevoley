@@ -5,6 +5,7 @@ from django.core.cache import cache
 from django.http import HttpResponseNotFound
 from ilovevoley.core.middleware import (
     Error404TrackingMiddleware,
+    get_client_ip,
     send_404_daily_report,
     send_404_immediate_alert,
 )
@@ -246,6 +247,70 @@ class Error404TrackingMiddlewareTest(TestCase):
             self.assertNotIn('token=hidden', last_url)
             self.assertIn('/some-path/', last_url)
             self.assertIn('admin_alert_404@example.com', recipients)
+
+    def test_sanitize_path_redacts_share_token(self):
+        from ilovevoley.core.middleware import sanitize_path
+        self.assertEqual(
+            sanitize_path('/p/partido/123e4567-e89b-12d3-a456-426614174000/'),
+            '/p/partido/[REDACTED]/',
+        )
+        self.assertEqual(
+            sanitize_path('/p/partido/123e4567-e89b-12d3-a456-426614174000/media/5/'),
+            '/p/partido/[REDACTED]/media/5/',
+        )
+
+
+class GetClientIPTests(TestCase):
+    """La IP fiable es la que añade nginx al final; lo forjado por el cliente se descarta."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _request(self, remote_addr='172.18.0.5', forwarded_for=None):
+        request = self.factory.get('/')
+        request.META['REMOTE_ADDR'] = remote_addr
+        if forwarded_for is not None:
+            request.META['HTTP_X_FORWARDED_FOR'] = forwarded_for
+        return request
+
+    def test_discards_forged_prefix_and_returns_real_client(self):
+        request = self._request(forwarded_for='9.9.9.9, 203.0.113.7')
+        self.assertEqual(get_client_ip(request), '203.0.113.7')
+
+    def test_discards_every_forged_entry(self):
+        request = self._request(forwarded_for='9.9.9.9, 8.8.8.8, 203.0.113.7')
+        self.assertEqual(get_client_ip(request), '203.0.113.7')
+
+    def test_never_returns_internal_docker_ip_when_header_present(self):
+        request = self._request(remote_addr='172.18.0.5', forwarded_for='9.9.9.9, 203.0.113.7')
+        self.assertNotEqual(get_client_ip(request), '172.18.0.5')
+        self.assertEqual(get_client_ip(request), '203.0.113.7')
+
+    def test_falls_back_to_remote_addr_without_header(self):
+        request = self._request(remote_addr='203.0.113.7')
+        self.assertEqual(get_client_ip(request), '203.0.113.7')
+
+    def test_skips_malformed_entries(self):
+        request = self._request(forwarded_for='not-an-ip, , 203.0.113.7')
+        self.assertEqual(get_client_ip(request), '203.0.113.7')
+
+    def test_handles_ipv4_with_port_and_bracketed_ipv6(self):
+        self.assertEqual(get_client_ip(self._request(forwarded_for='203.0.113.7:443')), '203.0.113.7')
+        self.assertEqual(get_client_ip(self._request(forwarded_for='[2001:db8::1]:443')), '2001:db8::1')
+
+    def test_normalizes_ipv6(self):
+        request = self._request(forwarded_for='2001:0db8::0001')
+        self.assertEqual(get_client_ip(request), '2001:db8::1')
+
+    @override_settings(TRUSTED_PROXY_COUNT=2)
+    def test_respects_configured_proxy_count(self):
+        request = self._request(forwarded_for='9.9.9.9, 203.0.113.7, 10.0.0.1')
+        self.assertEqual(get_client_ip(request), '203.0.113.7')
+
+    @override_settings(TRUSTED_PROXY_COUNT=2)
+    def test_chain_shorter_than_proxy_count_falls_back_to_remote_addr(self):
+        request = self._request(remote_addr='172.18.0.5', forwarded_for='203.0.113.7')
+        self.assertEqual(get_client_ip(request), '172.18.0.5')
 
 
 class CacheSettingsTest(TestCase):

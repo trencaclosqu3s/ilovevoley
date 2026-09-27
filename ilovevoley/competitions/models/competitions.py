@@ -1,6 +1,11 @@
+import uuid
+
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from ilovevoley.core.tenancy import MatchTenantQuerySet, TenantQuerySet
+
 
 
 class LeagueQuerySet(TenantQuerySet):
@@ -313,6 +318,10 @@ class Match(models.Model):
 
     # Información de acta oficial
     acta_html = models.CharField(max_length=200, blank=True, verbose_name='Acta HTML')
+    acta_data = models.JSONField(
+        null=True, blank=True, verbose_name='Acta parseada',
+        help_text='JSON estructurado del acta federativa (convocados, alineaciones y sets)',
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -485,3 +494,152 @@ class Standing(models.Model):
     @property
     def point_difference(self):
         return self.points_for - self.points_against
+
+
+class MatchShareLink(models.Model):
+    """Enlace público temporal y revocable para compartir la ficha de un partido."""
+
+    match = models.ForeignKey(
+        Match, on_delete=models.CASCADE, related_name='share_links'
+    )
+    organization = models.ForeignKey(
+        'core.Organization', on_delete=models.CASCADE, related_name='match_share_links'
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='match_share_links'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Enlace de partido'
+        verbose_name_plural = 'Enlaces de partido'
+        indexes = [
+            models.Index(fields=['match', '-created_at'], name='share_match_created_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.match} → {self.token}'
+
+    @property
+    def is_active(self):
+        return self.revoked_at is None and self.expires_at > timezone.now()
+
+    def revoke(self):
+        self.revoked_at = timezone.now()
+        self.save(update_fields=['revoked_at'])
+
+
+class MatchLineup(models.Model):
+    """Aparición de un deportista en un partido, derivada del acta federativa.
+
+    Se crea una fila por (partido, equipo, dorsal) al persistir el JSON del
+    acta. ``person`` queda vacío cuando el dorsal del acta no casa con ningún
+    ``PlayerRole`` del equipo en la temporada; estos registros se conservan
+    para poder re-resolverlos si más adelante se registra la plantilla.
+    """
+
+    match = models.ForeignKey(Match, on_delete=models.CASCADE, related_name='match_lineups')
+    team = models.ForeignKey('teams.Team', on_delete=models.CASCADE, related_name='match_lineups')
+    person = models.ForeignKey(
+        'rosters.Person', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='match_lineups', verbose_name='Deportista',
+    )
+
+    jersey_number = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Dorsal')
+    name_acta = models.CharField(max_length=200, blank=True, verbose_name='Nombre en acta')
+
+    is_convocado = models.BooleanField(default=False, verbose_name='Convocado')
+    sets_played = models.PositiveSmallIntegerField(default=0, verbose_name='Sets jugados')
+    sets_started = models.PositiveSmallIntegerField(default=0, verbose_name='Sets como titular')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'videos_matchlineup'
+        ordering = ['match', 'team', 'jersey_number']
+        verbose_name = 'Alineación de partido'
+        verbose_name_plural = 'Alineaciones de partido'
+        indexes = [
+            models.Index(fields=['person', 'match'], name='lineup_person_match_idx'),
+            models.Index(fields=['team', 'match'], name='lineup_team_match_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['match', 'team', 'jersey_number'],
+                name='unique_lineup_jersey_per_match',
+                condition=models.Q(jersey_number__isnull=False),
+            ),
+        ]
+
+    def __str__(self):
+        quien = self.person.full_name if self.person else self.name_acta or 'Sin identificar'
+        dorsal = f' #{self.jersey_number}' if self.jersey_number else ''
+        return f'{quien}{dorsal} - {self.match_id}'
+
+
+class MatchChangeLogQuerySet(TenantQuerySet):
+    """QuerySet de MatchChangeLog con ámbito de tenant a través de sus partidos."""
+
+    def for_tenant(self, tenant):
+        if tenant is None:
+            return self.none()
+        return self.filter(match__in=Match.all_objects.for_tenant(tenant))
+
+
+
+MatchChangeLogManager = models.Manager.from_queryset(MatchChangeLogQuerySet)
+
+
+class MatchChangeLog(models.Model):
+    CHANGE_TYPES = [
+        ('datetime', 'Fecha / Hora'),
+        ('venue', 'Sede / Pabellón'),
+        ('status', 'Estado'),
+        ('score', 'Tanteo / Resultado'),
+        ('other', 'Otro'),
+    ]
+
+    match = models.ForeignKey(Match, on_delete=models.CASCADE, related_name='change_logs')
+    change_type = models.CharField(max_length=20, choices=CHANGE_TYPES, default='other')
+    field_name = models.CharField(max_length=50)
+    old_value = models.TextField(blank=True)
+    new_value = models.TextField(blank=True)
+    is_last_minute = models.BooleanField(
+        default=False,
+        help_text='Indica si el cambio se detectó con menos de 7 días de antelación al partido'
+    )
+    detected_at = models.DateTimeField(auto_now_add=True)
+    notified = models.BooleanField(default=False)
+    notified_at = models.DateTimeField(null=True, blank=True)
+    reviewed = models.BooleanField(default=False)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_match_changes',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    objects = MatchChangeLogManager()
+
+    class Meta:
+        db_table = 'videos_matchchangelog'
+        ordering = ['-detected_at']
+        verbose_name = 'Modificación de Partido'
+        verbose_name_plural = 'Modificaciones de Partidos'
+        indexes = [
+            models.Index(fields=['match', 'detected_at'], name='match_change_match_idx'),
+            models.Index(fields=['is_last_minute', 'notified'], name='match_change_notif_idx'),
+            # Panel de revisión: filtros primarios son reviewed + orden -detected_at.
+            models.Index(fields=['reviewed', '-detected_at'], name='match_change_review_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.match} - {self.get_change_type_display()} ({self.field_name}): {self.old_value} -> {self.new_value}'

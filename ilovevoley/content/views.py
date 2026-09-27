@@ -12,8 +12,10 @@ from django.db.models import Count, F, Max, Q, Window
 from django.db.models.functions import RowNumber
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from ilovevoley.competitions.models import League, Match
 from ilovevoley.core.mixins import get_club_team_filter
@@ -43,6 +45,15 @@ from .thumbnails import schedule_thumbnail_generation
 logger = logging.getLogger(__name__)
 
 POPULAR_TAGS_CACHE_TTL = 3600
+
+
+def _coerce_set_number(raw):
+    """Convierte el valor de un formulario a un set válido (>=1) o None."""
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value >= 1 else None
 
 
 def get_popular_tags(organization, limit=15):
@@ -331,6 +342,7 @@ def video_bulk_create(request):
                         youtube_url=entry['youtube_url'],
                         match=match,
                         category=category,
+                        set_number=entry.get('set_number'),
                         created_by=request.user,
                         organization=request.tenant,
                     )
@@ -728,6 +740,7 @@ def image_bulk_upload(request):
             'uploaded_by': request.user,
             'image_type': request.POST.get('image_type', 'other'),
             'season_id': season_id,
+            'set_number': _coerce_set_number(request.POST.get('set_number')),
             'organization': request.tenant,
         }
         
@@ -1034,7 +1047,8 @@ def match_images(request, match_id):
         'match': match,
         'page_obj': page_obj,
         'all_images': images,
-        'total_images': images.count(),
+        'total_images': page_obj.paginator.count,
+        'download_zip_url': reverse('content:match_album_zip', args=[match.id]),
     }
 
     return render(request, 'content/match_images.html', context)
@@ -1064,7 +1078,6 @@ def album_group_images(request, album_group_id):
     album_info = {
         'album_group_id': album_group_id,
         'album_name': first_image.album_name or 'Álbum',
-        'image_count': images.count(),
         'upload_date': first_image.upload_date,
         'categories': first_image.categories.all(),
         'image_type': first_image.get_image_type_display(),
@@ -1074,7 +1087,10 @@ def album_group_images(request, album_group_id):
         'album': album_info,
         'page_obj': page_obj,
         'all_images': images,
-        'total_images': images.count(),
+        'total_images': page_obj.paginator.count,
+        'download_zip_url': reverse(
+            'content:album_group_zip', args=[album_group_id],
+        ),
     }
 
     return render(request, 'content/album_group_images.html', context)
@@ -1101,7 +1117,7 @@ def image_moderation(request):
     
     context = {
         'page_obj': page_obj,
-        'pending_count': images.count(),
+        'pending_count': page_obj.paginator.count,
     }
     
     return render(request, 'content/image_moderation.html', context)
@@ -1177,6 +1193,7 @@ def image_moderate_bulk(request):
     return redirect('content:image_moderation')
 
 
+@ratelimit(key='user_or_ip', rate='30/m', block=True)
 @login_required
 @require_POST
 def moderate_image_api(request, image_id):

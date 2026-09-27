@@ -279,7 +279,7 @@ function openLightbox(imageUrl, title, imageId, description = '', user = '', dat
         description: description,
         user: user,
         date: date,
-        detailUrl: `/videos/imagenes/${imageId}/`
+        detailUrl: `/content/imagenes/${imageId}/`
     };
     
     globalLightbox.open(imageData);

@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ match.home_team_display }} vs {{ match.away_team_display }} - Multimedia{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+        <div class="bg-csj-purple text-white px-4 sm:px-6 py-5">
+            <p class="text-xs uppercase tracking-widest opacity-80 mb-1">
+                {% if match.league_id %}{{ match.league.name }}{% endif %}
+                {% if match.match_date %} · {{ match.match_date|date:"d/m/Y" }}{% endif %}
+            </p>
+            <h1 class="text-xl sm:text-2xl font-bold">
+                {{ match.home_team_display }} <span class="opacity-70">vs</span> {{ match.away_team_display }}
+            </h1>
+            <p class="text-2xl sm:text-3xl font-black mt-2">{{ match.result_display }}</p>
+        </div>
+    </div>
+
+    {% for group in groups %}
+        {% if group.videos or group.images %}
+        <section class="mb-8">
+            <h2 class="text-lg sm:text-xl font-bold text-gray-800 mb-3 flex items-center">
+                <span class="inline-block w-2 h-2 rounded-full bg-csj-purple mr-2"></span>{{ group.label }}
+            </h2>
+
+            {% if group.videos %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                {% for video in group.videos %}
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <button type="button"
+                            class="video-launch relative block w-full aspect-video bg-black group"
+                            data-embed="{{ video.get_embed_url }}"
+                            aria-label="Reproducir {{ video.title }}">
+                        {% if video.get_thumbnail_url %}
+                            <img src="{{ video.get_thumbnail_url }}" alt="{{ video.title }}"
+                                 loading="lazy" class="absolute inset-0 w-full h-full object-cover">
+                        {% endif %}
+                        <span class="absolute inset-0 flex items-center justify-center">
+                            <span class="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center text-csj-purple text-2xl shadow-lg group-hover:scale-110 transition">▶</span>
+                        </span>
+                    </button>
+                    <div class="p-3">
+                        <h3 class="font-semibold text-gray-800 text-sm sm:text-base">{{ video.title }}</h3>
+                        {% if video.description %}
+                            <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ video.description }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if group.images %}
+            <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {% for image in group.images %}
+                <a href="{% url 'public:match_media' link.token image.id %}?v=orig"
+                   target="_blank" rel="noopener"
+                   class="block aspect-square rounded-lg overflow-hidden bg-gray-100">
+                    <img src="{% url 'public:match_media' link.token image.id %}?v=thumb"
+                         alt="{{ image.title }}" loading="lazy"
+                         class="w-full h-full object-cover hover:scale-105 transition">
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+    {% endfor %}
+
+    {% if not has_media %}
+        <p class="text-center text-gray-500 py-12">Todavía no hay contenido multimedia para este partido.</p>
+    {% endif %}
+
+    <p class="text-center text-xs text-gray-400 py-6">
+        Enlace temporal{% if link.expires_at %} · caduca el {{ link.expires_at|date:"d/m/Y H:i" }}{% endif %}
+    </p>
+</div>
+
+<script>
+    document.querySelectorAll('.video-launch').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var iframe = document.createElement('iframe');
+            var embedUrl = btn.dataset.embed;
+            iframe.src = embedUrl + (embedUrl.indexOf('?') >= 0 ? '&' : '?') + 'autoplay=1';
+            iframe.className = 'w-full aspect-video';
+            iframe.setAttribute('frameborder', '0');
+            iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+            iframe.setAttribute('allowfullscreen', '');
+            btn.replaceWith(iframe);
+        });
+    });
+</script>
+{% endblock %}
