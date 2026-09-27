@@ -134,7 +134,7 @@ def generate_image_thumbnails_task(image_id):
         raise
 
 
-@shared_task(name='build_album_zip', queue='media')
+@shared_task(name='build_album_zip')
 def build_album_zip_task(job_id, organization_id, scope, scope_id):
     """Comprime imágenes aprobadas de un partido o álbum en un ZIP temporal.
 
