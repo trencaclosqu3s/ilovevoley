@@ -47,7 +47,7 @@ RUN chmod +x /entrypoint.sh
 USER appuser
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "30", "--max-requests", "1000", "--max-requests-jitter", "100", "--access-logfile", "-"]
 
 # --- dev: último stage para que `build: .` sin target (docker-compose.dev.yml)
 # siga teniendo pytest. Producción construye con `target: runtime`.
