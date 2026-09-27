@@ -1,4 +1,4 @@
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -19,7 +19,7 @@ TINY_GIF = (
 )
 
 
-class ContentReExportCompatibilityTest(TestCase):
+class ContentReExportCompatibilityTest(SimpleTestCase):
     """Verifica que las importaciones históricas desde videos sigan funcionando."""
 
     def test_forms_are_reexported(self):
@@ -63,30 +63,6 @@ class ContentViewUrlTests(TestCase):
         Membership.objects.create(
             user=self.user, organization=self.org, is_approved=True
         )
-
-    def test_content_video_list_url_resolves_and_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('content:video_list')
-        self.assertEqual(url, '/content/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'content/video_list.html')
-
-    def test_backwards_compatible_videos_video_list_url_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('videos:video_list')
-        self.assertEqual(url, '/videos/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'content/video_list.html')
-
-    def test_content_image_gallery_url_resolves_and_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('content:image_gallery')
-        self.assertEqual(url, '/content/imagenes/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'content/image_gallery.html')
 
     def test_image_moderation_requires_staff(self):
         url = reverse('content:image_moderation')

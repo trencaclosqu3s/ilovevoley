@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import connection
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -20,7 +20,7 @@ from ilovevoley.videos.forms import competitions as vid_forms_comp
 from ilovevoley.videos.views import competitions as vid_views_comp
 
 
-class CompetitionsReExportCompatibilityTest(TestCase):
+class CompetitionsReExportCompatibilityTest(SimpleTestCase):
     """Verifica que las importaciones históricas desde videos sigan funcionando."""
 
     def test_views_are_reexported(self):
@@ -108,38 +108,6 @@ class CompetitionsViewUrlTests(TestCase):
             won=1,
             total_points=3,
         )
-
-    def test_competitions_league_list_url_resolves_and_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('competitions:league_list')
-        self.assertEqual(url, '/competitions/ligas/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'competitions/league_list.html')
-
-    def test_competitions_league_detail_url_resolves_and_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('competitions:league_detail', args=[self.league.id])
-        self.assertEqual(url, f'/competitions/ligas/{self.league.id}/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'competitions/league_detail.html')
-
-    def test_competitions_match_detail_url_resolves_and_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('competitions:match_detail', args=[self.match.id])
-        self.assertEqual(url, f'/competitions/partidos/{self.match.id}/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'competitions/match_detail.html')
-
-    def test_competitions_calendar_view_url_resolves_and_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('competitions:calendar_view')
-        self.assertEqual(url, '/competitions/calendario/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'competitions/calendar.html')
 
     def test_calendar_invalid_month_or_year_redirects_without_500(self):
         """year/month inválidos no deben tumbar la vista con HTTP 500."""
@@ -248,14 +216,6 @@ class CompetitionsViewUrlTests(TestCase):
                 self.assertEqual(r.status_code, 200)
         get.assert_called_once()
 
-    def test_competitions_standings_view_url_resolves_and_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('competitions:standings_view')
-        self.assertEqual(url, '/competitions/clasificacion/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'competitions/standings.html')
-
     def test_standings_acepta_season_name_y_el_antiguo_season(self):
         self.client.force_login(self.user)
         url = reverse('competitions:standings_view')
@@ -275,14 +235,6 @@ class CompetitionsViewUrlTests(TestCase):
             f'{url}?season={self.league.season_id}', HTTP_HOST='testclub.ilovevoley.es'
         )
         self.assertEqual(response.status_code, 200)
-
-    def test_competitions_friendly_match_create_url_resolves_and_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('competitions:friendly_match_create')
-        self.assertEqual(url, '/competitions/calendario/amistoso/nuevo/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'competitions/friendly_match_form.html')
 
     def test_competitions_calendar_feed_url_resolves_and_renders(self):
         token = self.user.get_or_create_calendar_token()

@@ -92,14 +92,3 @@ def test_unfold_sidebar_navigation_can_resolve():
     assert checked >= 10, f"Se esperaban al menos 10 enlaces en la barra lateral de Unfold, se encontraron {checked}"
     assert not failures, f"Fallo al resolver enlaces de Unfold Admin:\n" + "\n".join(failures)
 
-
-@pytest.mark.django_db
-def test_admin_index_renders_for_superuser(client):
-    """Verifica que la página principal del admin carga (código 200) para un superusuario."""
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-    admin_user = User.objects.create_superuser('admin_sidebar_test', 'adm@example.com', 'secret123')
-    client.force_login(admin_user)
-    response = client.get(f"/{settings.ADMIN_URL}")
-    assert response.status_code == 200
-

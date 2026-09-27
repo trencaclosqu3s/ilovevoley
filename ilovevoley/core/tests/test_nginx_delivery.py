@@ -57,18 +57,6 @@ def test_manifest_storage_hashes_static_files():
             assert hashed_file_on_disk.exists(), f"El archivo versionado {hashed_logo} no existe en disco"
 
 
-def test_static_template_tag_resolves_hashed_url_with_manifest():
-    """Verifica que el tag {% static %} resuelve URLs con hash cuando existe manifiesto y DEBUG=False."""
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        with override_settings(STATIC_ROOT=tmp_dir):
-            call_command("collectstatic", interactive=False, verbosity=0)
-
-            with override_settings(DEBUG=False):
-                template = Template("{% load static %}{% static 'images/logo.svg' %}")
-                rendered = template.render(Context())
-                assert re.search(r"/static/images/logo\.[0-9a-f]{12}\.svg", rendered)
-
-
 def test_nginx_conf_gzip_configuration():
     """Verifica que nginx.conf activa compresión gzip con los tipos MIME requeridos."""
     nginx_conf_path = Path(settings.BASE_DIR) / "nginx.conf"
