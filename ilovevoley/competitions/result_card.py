@@ -12,7 +12,7 @@ from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
 from unidecode import unidecode
 
-from ilovevoley.core.security import UnsafeURL, safe_get
+from ilovevoley.core.security import safe_get
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ def fetch_logo_bytes(url: str | None, *, timeout: float = 5) -> bytes | None:
             timeout=timeout,
             max_bytes=2 * 1024 * 1024,
         )
-    except (UnsafeURL, OSError, ValueError, Exception) as exc:
+    except Exception as exc:
         logger.warning('No se pudo descargar logo %s: %s', url, exc)
         return None
 
@@ -144,9 +144,10 @@ def _org_logo_bytes(organization) -> bytes | None:
         return None
     try:
         logo.open('rb')
-        data = logo.read()
-        logo.close()
-        return data
+        try:
+            return logo.read()
+        finally:
+            logo.close()
     except Exception:
         return None
 

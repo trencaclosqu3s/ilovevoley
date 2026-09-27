@@ -1,4 +1,5 @@
 import calendar
+import hashlib
 import json
 import logging
 import re as _re
@@ -28,6 +29,12 @@ from .forms import FriendlyMatchForm, MatchResultForm
 from .models import League, Match, Standing
 
 logger = logging.getLogger(__name__)
+
+
+def _acta_lineup_cache_key(acta_url: str) -> str:
+    """Clave corta y segura para backends con límite (p. ej. Memcached)."""
+    digest = hashlib.md5(acta_url.encode(), usedforsecurity=False).hexdigest()
+    return f'acta_lineup:{digest}'
 
 
 def build_calendar_matches_payload(matches, club_team_name):
@@ -225,7 +232,7 @@ def _load_set_scores_for_card(match):
     if not match.acta_html:
         return []
 
-    cache_key = f'acta_lineup:{match.acta_html}'
+    cache_key = _acta_lineup_cache_key(match.acta_html)
     try:
         lineup_data = cache.get(cache_key)
         if lineup_data is None:
@@ -572,7 +579,7 @@ def ajax_acta_lineup(request, match_id):
         return JsonResponse({'success': False, 'error': 'Este partido no tiene acta disponible'}, status=404)
 
     # Solo se cachea el parseo correcto; los errores de red se reintentan en la siguiente petición.
-    cache_key = f"acta_lineup:{match.acta_html}"
+    cache_key = _acta_lineup_cache_key(match.acta_html)
     lineup_data = cache.get(cache_key)
     if lineup_data is None:
         try:
