@@ -143,11 +143,14 @@ def build_album_zip_task(job_id, organization_id, scope, scope_id):
     from ilovevoley.content.album_zip import (
         REL_DIR,
         build_album_zip_file,
+        cleanup_expired_album_zips,
         get_job_state,
         job_dest_path,
         mark_job_failed,
         mark_job_ready,
     )
+
+    cleanup_expired_album_zips()
 
     state = get_job_state(job_id)
     if not state:
@@ -173,10 +176,22 @@ def build_album_zip_task(job_id, organization_id, scope, scope_id):
             mark_job_failed(job_id, 'empty')
             return {'ok': False, 'reason': 'empty'}
         rel_path = f'{REL_DIR}/{job_id}.zip'
-        mark_job_ready(job_id, rel_path, filename)
+        mark_job_ready(job_id, organization_id, rel_path, filename)
         return {'ok': True, 'count': count, 'path': rel_path}
     except Exception as exc:
         if dest.exists():
             dest.unlink(missing_ok=True)
         mark_job_failed(job_id, exc)
         raise
+
+
+@shared_task(name='cleanup_expired_album_zips')
+def cleanup_expired_album_zips_task():
+    """Elimina ZIPs temporales caducados bajo MEDIA_ROOT/tmp/album_zips/.
+
+    El nombre es explícito porque las filas de PeriodicTask dependen de él.
+    """
+    from ilovevoley.content.album_zip import cleanup_expired_album_zips
+
+    removed = cleanup_expired_album_zips()
+    return {'removed': removed}

@@ -1,9 +1,9 @@
 """Vistas HTTP para solicitud, estado y descarga de ZIP de álbum (#127)."""
-import mimetypes
 from urllib.parse import quote
 
 from django.conf import settings
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.utils.text import get_valid_filename
 from django.views.decorators.http import require_GET, require_POST
 
 from ilovevoley.competitions.models import Match
@@ -55,9 +55,9 @@ def request_match_album_zip(request, match_id):
         request.tenant, user=request.user, id=match_id,
     )
     qs = _approved_match_qs(request.tenant, match)
-    home = getattr(match, 'home_team_display', None) or 'local'
-    away = getattr(match, 'away_team_display', None) or 'visitante'
-    filename = f'partido-{match.id}-{home}-vs-{away}.zip'.replace('/', '-')
+    home = getattr(match.home_team, 'name', None) or 'local'
+    away = getattr(match.away_team, 'name', None) or 'visitante'
+    filename = get_valid_filename(f'partido-{match.id}-{home}-vs-{away}.zip')
     return _enqueue(
         request, scope='match', scope_id=match.id, filename=filename, queryset=qs,
     )
@@ -70,8 +70,8 @@ def request_album_group_zip(request, album_group_id):
     if not qs.exists():
         raise Http404('Álbum no encontrado')
     album_name = qs.first().album_name or 'album'
-    safe_name = ''.join(c if c.isalnum() or c in '-_ ' else '-' for c in album_name).strip()
-    filename = f'album-{safe_name or album_group_id}.zip'
+    safe_name = get_valid_filename(album_name) or str(album_group_id)
+    filename = get_valid_filename(f'album-{safe_name}.zip')
     return _enqueue(
         request,
         scope='album_group',
@@ -107,9 +107,11 @@ def album_zip_download(request):
     parsed = parse_download_token(token)
     if parsed is None:
         raise Http404
-    job_id, rel_path, filename = parsed
+    job_id, organization_id, rel_path, filename = parsed
+    if organization_id != request.tenant.pk:
+        raise Http404
     state = get_job_state(job_id)
-    if state and state.get('organization_id') != request.tenant.pk:
+    if state is not None and state.get('organization_id') != request.tenant.pk:
         raise Http404
     try:
         full = safe_resolve_media_path(rel_path)
@@ -118,14 +120,19 @@ def album_zip_download(request):
     if not full.is_file():
         raise Http404
 
-    content_type = mimetypes.guess_type(filename)[0] or 'application/zip'
-    disposition = f'attachment; filename="{filename}"'
     if _use_x_accel():
-        response = HttpResponse(content_type=content_type)
+        response = HttpResponse(content_type='application/zip')
         prefix = getattr(settings, 'PROTECTED_MEDIA_INTERNAL_URL', '/protected-media/')
         response['X-Accel-Redirect'] = f'{prefix}{quote(rel_path, safe="/")}'
+        response['Content-Disposition'] = (
+            f'attachment; filename="{get_valid_filename(filename)}"'
+        )
     else:
-        response = FileResponse(full.open('rb'), content_type=content_type)
-    response['Content-Disposition'] = disposition
+        response = FileResponse(
+            full.open('rb'),
+            as_attachment=True,
+            filename=get_valid_filename(filename),
+            content_type='application/zip',
+        )
     response['X-Content-Type-Options'] = 'nosniff'
     return response

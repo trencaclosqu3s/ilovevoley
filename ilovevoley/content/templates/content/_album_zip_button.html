@@ -28,7 +28,13 @@
         return statusTemplate.replace('00000000-0000-0000-0000-000000000000', jobId);
     }
 
-    async function poll(jobId) {
+    async function poll(jobId, attemptsLeft) {
+        if (attemptsLeft <= 0) {
+            label.textContent = 'Descargar álbum en ZIP';
+            btn.disabled = false;
+            alert('La preparación del ZIP está tardando demasiado. Inténtalo de nuevo.');
+            return;
+        }
         const res = await fetch(statusUrl(jobId), {
             headers: { 'Accept': 'application/json' },
             credentials: 'same-origin',
@@ -48,7 +54,7 @@
             return;
         }
         label.textContent = 'Preparando ZIP…';
-        setTimeout(function () { poll(jobId); }, 2000);
+        setTimeout(function () { poll(jobId, attemptsLeft - 1); }, 2000);
     }
 
     btn.addEventListener('click', async function () {
@@ -67,7 +73,7 @@
             if (!res.ok) {
                 throw new Error(data.error || 'No se pudo iniciar la descarga');
             }
-            await poll(data.job_id);
+            await poll(data.job_id, 30);
         } catch (err) {
             label.textContent = 'Descargar álbum en ZIP';
             btn.disabled = false;

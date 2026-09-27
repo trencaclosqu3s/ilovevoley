@@ -186,13 +186,37 @@ class AlbumZipFlowTests(TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_signed_token_expires(self):
-        from django.core.signing import SignatureExpired
+        from django.core.signing import TimestampSigner
 
+        from ilovevoley.content.album_zip import ALBUM_ZIP_SALT, parse_download_token
+
+        token = TimestampSigner(salt=ALBUM_ZIP_SALT).sign(
+            'job-1|1|tmp/album_zips/job-1.zip|a.zip'
+        )
+        self.assertIsNone(parse_download_token(token, max_age=-1))
+
+    def test_download_rejects_other_tenant_even_without_cache(self):
+        """El organization_id va en el token: sin state en cache no hay bypass."""
         from ilovevoley.content.album_zip import (
+            REL_DIR,
+            build_album_zip_file,
+            job_dest_path,
             sign_download_token,
-            unsign_download_token,
         )
 
-        token = sign_download_token('job-1', 'tmp/album_zips/job-1.zip', 'a.zip')
-        with self.assertRaises(SignatureExpired):
-            unsign_download_token(token, max_age=-1)
+        self._img(title='a', match=self.match)
+        job_id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+        dest = job_dest_path(job_id)
+        build_album_zip_file(
+            queryset=Image.objects.filter(match=self.match, organization=self.org),
+            dest_path=dest,
+        )
+        rel_path = f'{REL_DIR}/{job_id}.zip'
+        token = sign_download_token(job_id, self.org.pk, rel_path, 'partido.zip')
+        url = reverse('content:album_zip_download') + f'?token={token}'
+
+        other_user = get_user_model().objects.create_user(username='other', password='pass')
+        Membership.objects.create(user=other_user, organization=self.other, is_approved=True)
+        self.client.force_login(other_user)
+        response = self.client.get(url, HTTP_HOST='other.ilovevoley.es')
+        self.assertEqual(response.status_code, 404)
