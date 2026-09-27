@@ -5,9 +5,13 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
 
+from ilovevoley.core.security import safe_get
+from ilovevoley.videos.scraping import parse_acta_lineup
+
 from .models import MatchShareLink
 
 ALLOWED_HOURS = (24, 48, 72, 168)
+SET_LABELS_CACHE_TTL = 60 * 60 * 24
 
 
 def default_hours():
@@ -84,5 +88,21 @@ def _build_group(number, set_labels, videos, images):
 
 
 def get_match_set_labels(match):
-    """Etiquetas de set del acta (base: vacío; enriquecido en Task 7)."""
-    return {}
+    """Títulos de set del acta oficial (cacheados 24 h). {} si no hay acta o falla."""
+    if not match.acta_html:
+        return {}
+    cache_key = f'match_set_labels:{match.acta_html}'
+    labels = cache.get(cache_key)
+    if labels is not None:
+        return labels
+    try:
+        content = safe_get(match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS)
+        data = parse_acta_lineup(content)
+    except Exception:
+        return {}
+    labels = {
+        index: ((set_data.get('title') or '').strip() or f'Set {index}')
+        for index, set_data in enumerate(data.get('sets', []), start=1)
+    }
+    cache.set(cache_key, labels, SET_LABELS_CACHE_TTL)
+    return labels

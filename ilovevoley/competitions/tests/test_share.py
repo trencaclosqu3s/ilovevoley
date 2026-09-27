@@ -1,5 +1,6 @@
 import uuid
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -339,3 +340,38 @@ class PublicMatchMediaViewTest(TestCase):
         self.assertTrue(orig['X-Accel-Redirect'].endswith(image.image.name))
         self.assertNotEqual(orig['X-Accel-Redirect'], thumb['X-Accel-Redirect'])
         self.assertEqual(unknown['X-Accel-Redirect'], thumb['X-Accel-Redirect'])
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'], ACTA_ALLOWED_HOSTS=['fed.example.com'])
+class MatchSetLabelsTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.league = League.objects.create(
+            name='Liga Test', federation_id='L1',
+            season=Season.objects.resolve('2026-2027'), is_active=True,
+        )
+        self.match = Match.objects.create(
+            league=self.league, match_date=timezone.now(), status='finished',
+            acta_html='https://fed.example.com/acta/1',
+        )
+
+    def test_returns_empty_without_acta(self):
+        from ilovevoley.competitions.share import get_match_set_labels
+        self.match.acta_html = ''
+        self.assertEqual(get_match_set_labels(self.match), {})
+
+    @patch('ilovevoley.competitions.share.safe_get')
+    @patch('ilovevoley.competitions.share.parse_acta_lineup')
+    def test_returns_labels_from_acta(self, mock_parse, mock_get):
+        from ilovevoley.competitions.share import get_match_set_labels
+        mock_parse.return_value = {'sets': [{'title': 'Set 1'}, {'title': 'Set 2'}]}
+        labels = get_match_set_labels(self.match)
+        self.assertEqual(labels, {1: 'Set 1', 2: 'Set 2'})
+        mock_get.assert_called_once()
+
+    @patch('ilovevoley.competitions.share.safe_get', side_effect=Exception('boom'))
+    def test_returns_empty_on_fetch_error(self, mock_get):
+        from ilovevoley.competitions.share import get_match_set_labels
+        self.assertEqual(get_match_set_labels(self.match), {})
