@@ -10,7 +10,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.core.cache import cache
 from django.db.models import Case, CharField, Count, Q, Value, When
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -34,6 +34,9 @@ from .share import (
     ALLOWED_HOURS,
     create_match_share_link,
     default_hours,
+    get_match_set_labels,
+    group_match_media,
+    resolve_match_share_link,
     revoke_match_share_link,
 )
 
@@ -849,12 +852,36 @@ def match_share_revoke(request, match_id, link_id):
     return redirect('competitions:match_detail', match_id=match.id)
 
 
+def public_match_timeline(request, token):
+    """Ficha multimedia pública de un partido a partir de un enlace temporal."""
+    link = resolve_match_share_link(token)
+    if link is None:
+        raise Http404
+    match = link.match
+
+    videos = list(match.videos.select_related('created_by').order_by('-created_at'))
+    images = list(
+        match.images.filter(status='approved').select_related('uploaded_by').order_by('-upload_date')
+    )
+    groups = group_match_media(videos, images, get_match_set_labels(match))
+
+    response = render(request, 'competitions/public_match_timeline.html', {
+        'link': link,
+        'match': match,
+        'groups': groups,
+    })
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Robots-Tag'] = 'noindex, nofollow'
+    return response
+
+
 __all__ = [
     'league_list',
     'league_detail',
     'match_detail',
     'match_share_create',
     'match_share_revoke',
+    'public_match_timeline',
     'calendar_view',
     'friendly_match_create',
     'ajax_search_teams',

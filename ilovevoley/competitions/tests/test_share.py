@@ -144,3 +144,52 @@ class MatchShareManagerViewsTest(TestCase):
         self.assertEqual(response.status_code, 302)
         link.refresh_from_db()
         self.assertIsNotNone(link.revoked_at)
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class PublicTimelineViewTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
+        User = get_user_model()
+        self.user = User.objects.create_user(username='manager', password='pass')
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-T')
+        self.home = Team.objects.create(name='Test Senior', category=self.category, club=self.club, federation_id='T1')
+        self.away = Team.objects.create(name='Rival Senior', category=self.category, federation_id='T2')
+        self.league = League.objects.create(
+            name='Liga Test', federation_id='L1',
+            season=Season.objects.resolve('2026-2027'), is_active=True,
+        )
+        self.match = Match.objects.create(
+            league=self.league, home_team=self.home, away_team=self.away,
+            match_date=timezone.now(), status='finished', home_score=3, away_score=1,
+        )
+        self.link = create_match_share_link(self.match, self.org, self.user, hours=48)
+
+    def test_public_timeline_renders_without_login(self):
+        from django.urls import reverse
+        response = self.client.get(
+            reverse('public:match_timeline', args=[self.link.token]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.home.name)
+        self.assertEqual(response['Cache-Control'], 'private, no-store')
+
+    def test_public_timeline_404_for_revoked_link(self):
+        from django.urls import reverse
+        revoke_match_share_link(self.link)
+        response = self.client.get(
+            reverse('public:match_timeline', args=[self.link.token]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_public_timeline_404_for_unknown_token(self):
+        from django.urls import reverse
+        response = self.client.get(
+            reverse('public:match_timeline', args=[uuid.uuid4()]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
