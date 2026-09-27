@@ -44,9 +44,11 @@ def extract_set_scores(
             if points is None:
                 continue
             name_words = words(team.get('name') or '')
-            if home_words and len(name_words & home_words) >= max(1, len(home_words) // 2):
+            home_match = len(name_words & home_words)
+            away_match = len(name_words & away_words)
+            if home_match > away_match:
                 home_points = int(points)
-            elif away_words and len(name_words & away_words) >= max(1, len(away_words) // 2):
+            elif away_match > home_match:
                 away_points = int(points)
         if home_points is not None and away_points is not None:
             scores.append((home_points, away_points))
@@ -143,8 +145,16 @@ def render_result_card(
     crest_size = 220 if card_format == 'square' else 280
     home_logo_url = getattr(getattr(match, 'home_team', None), 'display_logo', None)
     away_logo_url = getattr(getattr(match, 'away_team', None), 'display_logo', None)
-    home_crest = _open_logo(fetcher(home_logo_url), crest_size)
-    away_crest = _open_logo(fetcher(away_logo_url), crest_size)
+    try:
+        home_logo = fetcher(home_logo_url)
+    except Exception:
+        home_logo = None
+    try:
+        away_logo = fetcher(away_logo_url)
+    except Exception:
+        away_logo = None
+    home_crest = _open_logo(home_logo, crest_size)
+    away_crest = _open_logo(away_logo, crest_size)
 
     font_lg = _load_font(_FONT_BOLD, 96 if card_format == 'square' else 110)
     font_md = _load_font(_FONT_BOLD, 42)
