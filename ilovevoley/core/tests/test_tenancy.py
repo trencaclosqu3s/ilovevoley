@@ -9,7 +9,7 @@ from django.http import Http404
 from django.test import TestCase
 from django.utils import timezone
 
-from ilovevoley.competitions.models import League, Match
+from ilovevoley.competitions.models import League, Match, Standing
 from ilovevoley.content.models import Image, Video
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.core.tenancy import get_tenant_object_or_404
@@ -65,6 +65,9 @@ class TenantQuerysetTests(TestCase):
             league=cls.league_a, home_team=cls.team_a, away_team=cls.neutral_team,
             match_date=timezone.now(), status='withdrawn',
         )
+        cls.standing_a = Standing.objects.create(league=cls.league_a, team=cls.team_a, position=1)
+        cls.standing_b = Standing.objects.create(league=cls.league_b, team=cls.team_b, position=1)
+
 
         cls.user = User.objects.create_user(username='member', password='pass')
         cls.superuser = User.objects.create_superuser(username='root', password='pass')
@@ -130,11 +133,17 @@ class TenantQuerysetTests(TestCase):
         orphan = Person.objects.create(first_name='Sin', last_name='Club', organization=None)
         self.assertNotIn(orphan, Person.objects.for_tenant(self.org_a))
 
+    def test_standing_for_tenant_only_returns_own_club_standings(self):
+        self.assertEqual(list(Standing.objects.for_tenant(self.org_a)), [self.standing_a])
+        self.assertNotIn(self.standing_b, Standing.objects.for_tenant(self.org_a))
+
     def test_for_tenant_without_tenant_returns_nothing(self):
         self.assertFalse(Match.objects.for_tenant(None).exists())
         self.assertFalse(League.objects.for_tenant(None).exists())
+        self.assertFalse(Standing.objects.for_tenant(None).exists())
         self.assertFalse(Video.objects.for_tenant(None).exists())
         self.assertFalse(Team.objects.for_tenant(None).exists())
+
 
     def test_object_or_404_returns_own_object(self):
         obj = get_tenant_object_or_404(Video.objects, self.org_a, user=self.user, id=self.video_a.id)

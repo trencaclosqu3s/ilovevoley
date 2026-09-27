@@ -554,3 +554,57 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.client.force_login(self.manager)
         allowed = self.client.get(url, {'q': 'Test'}, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(allowed.status_code, 200)
+
+    def test_standings_view_excludes_other_tenant_leagues_and_standings(self):
+        Standing.objects.create(
+            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
+        )
+        Standing.objects.create(
+            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
+        )
+        self.member.preferred_categories.add(self.category)
+        self.client.force_login(self.member)
+        response = self.client.get(
+            reverse('competitions:standings_view'),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Liga Propia')
+        self.assertNotContains(response, 'Liga Ajena')
+        self.assertIn('Liga Propia', response.context['standings_by_league'])
+        self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
+
+    def test_standings_view_show_archived_and_season_filter_exclude_other_tenant(self):
+        Standing.objects.create(
+            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
+        )
+        Standing.objects.create(
+            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
+        )
+        self.client.force_login(self.member)
+        url = reverse('competitions:standings_view')
+
+        for params in ('?show_archived=1', '?season_name=2026-27', '?show_archived=1&season_name=2026-27'):
+            with self.subTest(params=params):
+                response = self.client.get(f'{url}{params}', HTTP_HOST='testclub.ilovevoley.es')
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'Liga Propia')
+                self.assertNotContains(response, 'Liga Ajena')
+                self.assertIn('Liga Propia', response.context['standings_by_league'])
+                self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
+
+    def test_standings_view_does_not_leak_when_rival_team_shares_substring_in_name(self):
+        # Equipo con club rival pero cuyo nombre contiene el prefijo del tenant
+        rival_with_similar_name = Team.objects.create(
+            name='Test Club Impostor', category=self.category, club=self.other_club,
+            federation_id='TEAM-IMPOSTOR', is_active=True,
+        )
+        Standing.objects.create(
+            league=self.other_league, team=rival_with_similar_name, position=1, played=1, won=1, total_points=3,
+        )
+        self.client.force_login(self.member)
+        response = self.client.get(reverse('competitions:standings_view'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
+
+
