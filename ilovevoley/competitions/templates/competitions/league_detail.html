@@ -326,7 +326,7 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for standing in standings %}
-                            <tr class="{% if 'SANT JOSEP' in standing.team.name %}bg-csj-purple bg-opacity-5 border-l-4 border-csj-purple{% endif %}">
+                            <tr class="{% if 'SANT JOSEP' in standing.team.name %}bg-csj-purple bg-opacity-10 border-l-4 border-csj-purple{% endif %}">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                                     {{ standing.position }}
                                     {% if standing.position <= 3 %}
@@ -337,7 +337,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium {% if 'SANT JOSEP' in standing.team.name %}text-csj-purple{% else %}text-gray-900{% endif %}">
+                                    <div class="text-sm font-medium text-gray-900{% if 'SANT JOSEP' in standing.team.name %} font-bold{% endif %}">
                                         {{ standing.team.name }}
                                         {% if 'SANT JOSEP' in standing.team.name %}🏐{% endif %}
                                     </div>
@@ -349,7 +349,7 @@
                                     {{ standing.sets_for }}-{{ standing.sets_against }}
                                     <div class="text-xs text-gray-500">({% if standing.set_difference > 0 %}+{% endif %}{{ standing.set_difference }})</div>
                                 </td>
-                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-bold {% if 'SANT JOSEP' in standing.team.name %}text-csj-purple{% else %}text-gray-900{% endif %}">
+                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900">
                                     {{ standing.total_points }}
                                 </td>
                             </tr>
