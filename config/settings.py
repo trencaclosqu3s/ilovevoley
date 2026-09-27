@@ -318,6 +318,10 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 PROTECTED_MEDIA_USE_X_ACCEL = env_config('PROTECTED_MEDIA_USE_X_ACCEL', default=not DEBUG, cast=bool)
 PROTECTED_MEDIA_INTERNAL_URL = '/protected-media/'
 
+# Enlaces públicos temporales de partido
+MATCH_SHARE_LINK_DEFAULT_HOURS = env_config('MATCH_SHARE_LINK_DEFAULT_HOURS', default=48, cast=int)
+MATCH_SHARE_LINK_MAX_HOURS = env_config('MATCH_SHARE_LINK_MAX_HOURS', default=720, cast=int)
+
 # Configuración de subida de archivos
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10MB

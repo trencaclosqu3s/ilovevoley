@@ -4,6 +4,7 @@ from .competitions import (
     Match,
     MatchAllManager,
     MatchManager,
+    MatchShareLink,
     ScrapingEndpoint,
     Standing,
 )
@@ -14,6 +15,7 @@ __all__ = [
     'Match',
     'MatchAllManager',
     'MatchManager',
+    'MatchShareLink',
     'ScrapingEndpoint',
     'Standing',
 ]

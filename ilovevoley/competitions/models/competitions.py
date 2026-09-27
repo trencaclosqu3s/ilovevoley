@@ -1,4 +1,8 @@
+import uuid
+
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from ilovevoley.core.tenancy import MatchTenantQuerySet, TenantQuerySet
 
@@ -485,3 +489,40 @@ class Standing(models.Model):
     @property
     def point_difference(self):
         return self.points_for - self.points_against
+
+
+class MatchShareLink(models.Model):
+    """Enlace público temporal y revocable para compartir la ficha de un partido."""
+
+    match = models.ForeignKey(
+        Match, on_delete=models.CASCADE, related_name='share_links'
+    )
+    organization = models.ForeignKey(
+        'core.Organization', on_delete=models.CASCADE, related_name='match_share_links'
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='match_share_links'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Enlace de partido'
+        verbose_name_plural = 'Enlaces de partido'
+        indexes = [
+            models.Index(fields=['match', '-created_at'], name='share_match_created_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.match} → {self.token}'
+
+    @property
+    def is_active(self):
+        return self.revoked_at is None and self.expires_at > timezone.now()
+
+    def revoke(self):
+        self.revoked_at = timezone.now()
+        self.save(update_fields=['revoked_at'])
