@@ -325,6 +325,10 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 PROTECTED_MEDIA_USE_X_ACCEL = env_config('PROTECTED_MEDIA_USE_X_ACCEL', default=not DEBUG, cast=bool)
 PROTECTED_MEDIA_INTERNAL_URL = '/protected-media/'
 
+# Enlace firmado de descarga de ZIP de álbum (segundos). El archivo temporal
+# vive como máximo este tiempo; no hay almacenamiento permanente de ZIPs.
+ALBUM_ZIP_LINK_MAX_AGE = env_config('ALBUM_ZIP_LINK_MAX_AGE', default=24 * 3600, cast=int)
+
 # Configuración de subida de archivos
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10MB

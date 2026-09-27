@@ -40,6 +40,7 @@
             </div>
             
             <div class="flex flex-col sm:items-end space-y-2 flex-shrink-0">
+                {% include 'content/_album_zip_button.html' with download_zip_url=download_zip_url total_images=total_images %}
                 <!-- Menú desplegable de subida -->
                 <div class="relative inline-block">
                     <button id="upload-menu-btn-{{ match.id }}"
