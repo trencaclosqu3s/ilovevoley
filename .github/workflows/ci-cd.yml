@@ -36,9 +36,18 @@ jobs:
       DB_PASSWORD: volleypass
 
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout código fuente
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-python@v6
+      - name: Detección de secretos con Gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configurar Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.13'
           cache: pip
@@ -51,8 +60,21 @@ jobs:
       - name: Instalar dependencias Python
         run: pip install -r requirements-dev.txt
 
+      - name: Auditoría de vulnerabilidades en dependencias
+        run: pip-audit -r requirements.txt
+
+      - name: Análisis estático de seguridad con Bandit
+        run: bandit -r config ilovevoley -x '*/tests/*'
+
       - name: Comprobaciones de Django
         run: python manage.py check
+
+      - name: Verificación de configuración de despliegue
+        env:
+          DEBUG: 'False'
+          SECRET_KEY: django-ci-deploy-check-secret-key-with-50-characters-and-high-entropy
+          ALLOWED_HOSTS: localhost,127.0.0.1
+        run: python manage.py check --deploy
 
       - name: No debe haber migraciones pendientes de generar
         run: python manage.py makemigrations --check --dry-run
@@ -71,7 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Desplegar en servidor vía SSH
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
