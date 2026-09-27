@@ -1,3 +1,4 @@
+import ipaddress
 import logging
 import re
 from urllib.parse import urlsplit, urlunsplit
@@ -51,6 +52,40 @@ def sanitize_referer(referer: str) -> str:
     if parsed.scheme and parsed.netloc:
         return urlunsplit((parsed.scheme, parsed.netloc, sanitized_path, '', ''))
     return sanitized_path
+
+
+def _parse_ip(value):
+    """Normaliza una entrada de X-Forwarded-For; devuelve None si no es una IP."""
+    if not value:
+        return None
+    value = value.strip().strip('"')
+    if value.startswith('[') and ']' in value:
+        value = value[1:value.index(']')]
+    elif value.count(':') == 1 and '.' in value:
+        value = value.split(':', 1)[0]
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError:
+        return None
+
+
+def get_client_ip(request):
+    """Devuelve la IP real del cliente validando la cadena X-Forwarded-For.
+
+    nginx es el único proxy de confianza y añade la IP del peer al final de la
+    cabecera ($proxy_add_x_forwarded_for), por lo que la IP fiable está a
+    TRUSTED_PROXY_COUNT posiciones desde la derecha. Todo lo que el cliente
+    inyecte a la izquierda de esa posición se descarta, evitando el spoofing.
+    """
+    proxy_count = getattr(settings, 'TRUSTED_PROXY_COUNT', 1)
+    forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
+
+    if forwarded_for and proxy_count > 0:
+        chain = [ip for ip in (_parse_ip(part) for part in forwarded_for.split(',')) if ip]
+        if len(chain) >= proxy_count:
+            return chain[-proxy_count]
+
+    return _parse_ip(request.META.get('REMOTE_ADDR', '')) or ''
 
 
 def _atomic_incr(cache_key: str, timeout: int = 3600) -> int:
@@ -149,7 +184,7 @@ class Error404TrackingMiddleware:
             error_data = {
                 'url': sanitized_url,
                 'method': request.method,
-                'ip': self.get_client_ip(request),
+                'ip': get_client_ip(request),
                 'user_agent': request.META.get('HTTP_USER_AGENT', '')[:200],
                 'referer': sanitize_referer(request.META.get('HTTP_REFERER', '')),
                 'timestamp': datetime.now().isoformat(),
@@ -178,17 +213,6 @@ class Error404TrackingMiddleware:
 
         except Exception as e:
             logger.error(f"Error logging 404: {str(e)}")
-    
-    def get_client_ip(self, request):
-        """
-        Obtiene la IP real del cliente
-        """
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
 
 
 def send_404_daily_report():

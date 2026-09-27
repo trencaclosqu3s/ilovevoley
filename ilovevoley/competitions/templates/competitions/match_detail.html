@@ -92,6 +92,30 @@
                         </svg>
                         {{ match.result_display }}
                     </div>
+                    <div id="result-card-actions"
+                         class="flex flex-wrap items-center gap-2 mt-2"
+                         data-card-url="{% url 'competitions:match_result_card' match.id %}">
+                        <button type="button"
+                                data-card-format="square"
+                                class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
+                            Compartir 1:1
+                        </button>
+                        <button type="button"
+                                data-card-format="story"
+                                class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
+                            Compartir Story
+                        </button>
+                        <button type="button"
+                                data-card-format="square"
+                                class="result-card-download inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                            Descargar 1:1
+                        </button>
+                        <button type="button"
+                                data-card-format="story"
+                                class="result-card-download inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                            Descargar Story
+                        </button>
+                    </div>
                 {% elif is_tenant_manager %}
                     {% if match.match_date.date <= today %}
                         <button onclick="openResultModal({{ match.id }}, '{{ match.home_team_display|escapejs }}', '{{ match.away_team_display|escapejs }}')" 
@@ -590,6 +614,108 @@ function closeImageLightbox() {
     closeLightbox();
 }
 
+(function() {
+    const root = document.getElementById('result-card-actions');
+    if (!root) return;
+
+    const baseUrl = root.dataset.cardUrl;
+
+    const GENERIC_ERROR = 'No se pudo generar la tarjeta. Inténtalo de nuevo';
+
+    async function fetchCard(format) {
+        let response;
+        try {
+            response = await fetch(`${baseUrl}?format=${encodeURIComponent(format)}`);
+        } catch (_) {
+            // Fallo de red: el mensaje nativo del navegador está en inglés.
+            throw new Error(GENERIC_ERROR);
+        }
+        const contentType = response.headers.get('Content-Type') || '';
+
+        if (!response.ok) {
+            let message = 'No se pudo generar la tarjeta';
+            if (contentType.includes('application/json')) {
+                try {
+                    const data = await response.json();
+                    if (data.error) message = data.error;
+                } catch (_) {
+                    // Conserva el mensaje genérico si la respuesta JSON no es válida.
+                }
+            }
+            throw new Error(message);
+        }
+
+        return {
+            blob: await response.blob(),
+            filename: `resultado-{{ match.id }}-${format}.png`
+        };
+    }
+
+    function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function showCardError(error) {
+        if (window.showToast) {
+            window.showToast('error', (error && error.message) || GENERIC_ERROR);
+        }
+    }
+
+    async function downloadCard(format) {
+        try {
+            const { blob, filename } = await fetchCard(format);
+            downloadBlob(blob, filename);
+            if (window.showToast) window.showToast('info', 'Imagen descargada');
+        } catch (error) {
+            showCardError(error);
+        }
+    }
+
+    async function shareCard(format) {
+        try {
+            const { blob, filename } = await fetchCard(format);
+            const file = new File([blob], filename, { type: 'image/png' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Resultado',
+                        text: '{{ match.home_team_display|escapejs }} {{ match.result_display|escapejs }} {{ match.away_team_display|escapejs }}'
+                    });
+                    return;
+                } catch (error) {
+                    if (error && error.name === 'AbortError') return;
+                }
+            }
+
+            downloadBlob(blob, filename);
+            if (window.showToast) window.showToast('info', 'Imagen descargada');
+        } catch (error) {
+            showCardError(error);
+        }
+    }
+
+    root.querySelectorAll('.result-card-share').forEach(function(button) {
+        button.addEventListener('click', function() {
+            shareCard(button.dataset.cardFormat);
+        });
+    });
+
+    root.querySelectorAll('.result-card-download').forEach(function(button) {
+        button.addEventListener('click', function() {
+            downloadCard(button.dataset.cardFormat);
+        });
+    });
+})();
+
 // Variables globales para el modal de resultado
 let currentMatchId = null;
 
@@ -1028,7 +1154,7 @@ function openPlayerModal(player) {
 
     // Enlace a ficha
     if (p.id) {
-        document.getElementById('playerProfileUrl').href = '/videos/personas/' + p.id + '/';
+        document.getElementById('playerProfileUrl').href = '/rosters/personas/' + p.id + '/';
         document.getElementById('playerProfileLink').classList.remove('hidden');
     } else {
         document.getElementById('playerProfileLink').classList.add('hidden');

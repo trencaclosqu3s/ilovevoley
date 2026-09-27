@@ -59,13 +59,7 @@
                     {% endif %}
                     <div>
                         <div class="text-2xl font-bold">
-                            {% with total_videos=0 %}
-                                {% for match in page_obj.paginator.object_list %}
-                                    {% if match.videos.exists %}
-                                        {{ total_videos|add:match.videos.count }}
-                                    {% endif %}
-                                {% endfor %}
-                            {% endwith %}
+                            {{ total_videos }}
                         </div>
                         <div class="text-xs opacity-80">Videos</div>
                     </div>
@@ -221,9 +215,9 @@
                             <!-- Acciones -->
                             <div class="flex items-center space-x-3">
                                 <!-- Indicador de videos -->
-                                {% if match.videos.exists %}
+                                {% if match.videos_count %}
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-yellow bg-opacity-30 text-csj-yellow-dark">
-                                        📹 {{ match.videos.count }} video{{ match.videos.count|pluralize }}
+                                        📹 {{ match.videos_count }} video{{ match.videos_count|pluralize }}
                                     </span>
                                 {% endif %}
                                 

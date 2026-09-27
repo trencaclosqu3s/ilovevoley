@@ -177,11 +177,11 @@ def person_detail(request, person_id):
     return render(request, 'rosters/person_detail.html', context)
 
 
-@tenant_access_required()
+@tenant_access_required(manager=True)
 def person_create(request):
     """Vista para crear una nueva persona"""
     if request.method == 'POST':
-        form = PersonForm(request.POST, request.FILES)
+        form = PersonForm(request.POST, request.FILES, organization=request.tenant)
         
         if form.is_valid():
             person = form.save(commit=False)
@@ -235,7 +235,9 @@ def person_edit(request, person_id):
         return redirect('rosters:person_detail', person_id=person.id)
     
     if request.method == 'POST':
-        form = PersonForm(request.POST, request.FILES, instance=person)
+        form = PersonForm(
+            request.POST, request.FILES, instance=person, organization=request.tenant,
+        )
         
         if form.is_valid():
             # PersonForm no expone organization, pero se reafirma el tenant para

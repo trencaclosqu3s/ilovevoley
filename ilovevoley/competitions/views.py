@@ -1,4 +1,5 @@
 import calendar
+import hashlib
 import json
 import logging
 import re as _re
@@ -10,12 +11,14 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.core.cache import cache
 from django.db.models import Case, CharField, Count, Q, Value, When
-from django.http import JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from unidecode import unidecode as _uni
 
+from ilovevoley.competitions.result_card import extract_set_scores, render_result_card
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
@@ -30,6 +33,12 @@ from .models import League, Match, MatchChangeLog, Standing
 
 
 logger = logging.getLogger(__name__)
+
+
+def _acta_lineup_cache_key(acta_url: str) -> str:
+    """Clave corta y segura para backends con límite (p. ej. Memcached)."""
+    digest = hashlib.md5(acta_url.encode(), usedforsecurity=False).hexdigest()
+    return f'acta_lineup:{digest}'
 
 
 def build_calendar_matches_payload(matches, club_team_name):
@@ -163,8 +172,8 @@ def league_detail(request, league_id):
         matches = Match.objects.filter(league=league)
         display_league = league
 
-    # Aplicar select_related y prefetch_related
-    matches = matches.select_related('home_team', 'away_team', 'league').prefetch_related('videos').order_by('-match_date')
+    # Aplicar select_related
+    matches = matches.select_related('home_team', 'away_team', 'league').order_by('-match_date')
 
     # Obtener clasificación (solo de la liga específica o root)
     standings = display_league.standings.select_related('team').order_by('position')
@@ -180,6 +189,12 @@ def league_detail(request, league_id):
 
     available_rounds = matches.values_list('round_number', flat=True).distinct().order_by('round_number')
 
+    # Total de vídeos de la liga: una sola consulta agregada, sin cargar los vídeos
+    total_videos = matches.aggregate(total=Count('videos', distinct=True))['total'] or 0
+
+    # Indicador de vídeos por partido sin prefetch: anotación distinct=True (ver #108)
+    matches = matches.annotate(videos_count=Count('videos', distinct=True))
+
     # Paginación
     paginator = Paginator(matches, 20)
     page_number = request.GET.get('page')
@@ -192,6 +207,7 @@ def league_detail(request, league_id):
         'show_all_phases': show_all_phases,
         'selected_phase': selected_phase,
         'page_obj': page_obj,
+        'total_videos': total_videos,
         'standings': standings,
         'available_rounds': available_rounds,
         'selected_round': round_filter,
@@ -220,6 +236,81 @@ def match_detail(request, match_id):
         'today': timezone.now().date(),
         'can_manage_videos': user_is_tenant_manager(request.user, request.tenant),
     })
+
+
+def _load_set_scores_for_card(match):
+    """Devuelve los parciales del acta o una lista vacía si no están disponibles."""
+    if not match.acta_html:
+        return []
+
+    cache_key = _acta_lineup_cache_key(match.acta_html)
+    try:
+        lineup_data = cache.get(cache_key)
+        if lineup_data is None:
+            acta_content = safe_get(
+                match.acta_html,
+                allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
+            )
+            lineup_data = parse_acta_lineup(acta_content)
+            cache.set(cache_key, lineup_data, 60 * 60 * 24)
+
+        return extract_set_scores(
+            lineup_data,
+            home_name=match.home_team_display,
+            away_name=match.away_team_display,
+        )
+    except Exception as exc:
+        logger.warning(
+            'Acta no disponible para tarjeta del partido %s: %s',
+            match.id,
+            exc,
+        )
+        return []
+
+
+@tenant_access_required()
+def match_result_card(request, match_id):
+    """Genera un PNG de resultado cuadrado o vertical para compartir."""
+    try:
+        match = get_tenant_object_or_404(
+            Match.objects.select_related(
+                'home_team',
+                'home_team__club',
+                'away_team',
+                'away_team__club',
+                'league',
+            ),
+            request.tenant,
+            user=request.user,
+            id=match_id,
+        )
+    except Http404:
+        return JsonResponse({'error': 'Partido no encontrado'}, status=404)
+
+    card_format = request.GET.get('format', 'square')
+    if card_format not in ('square', 'story'):
+        return JsonResponse({'error': 'Formato de tarjeta no válido'}, status=400)
+    if (
+        match.status != 'finished'
+        or match.home_score is None
+        or match.away_score is None
+    ):
+        return JsonResponse(
+            {'error': 'No se puede compartir un partido sin resultado finalizado'},
+            status=400,
+        )
+
+    png = render_result_card(
+        match=match,
+        organization=request.tenant,
+        card_format=card_format,
+        sets=_load_set_scores_for_card(match),
+    )
+    response = HttpResponse(png, content_type='image/png')
+    response['Content-Disposition'] = (
+        f'attachment; filename="resultado-{match.id}-{card_format}.png"'
+    )
+    return response
 
 
 @tenant_access_required()
@@ -422,12 +513,10 @@ def ajax_search_teams(request):
     return JsonResponse({'teams': teams_data})
 
 
+@require_POST
 @tenant_access_required(manager=True)
 def ajax_add_match_result(request, match_id):
     """Vista AJAX para agregar resultado de partido"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
-
     try:
         match = Match.objects.for_tenant(request.tenant).select_related('league').get(id=match_id)
     except Match.DoesNotExist:
@@ -467,8 +556,12 @@ def ajax_add_match_result(request, match_id):
                 'home_score': match.home_score,
                 'away_score': match.away_score
             })
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': f'Error al guardar: {str(e)}'}, status=500)
+        except Exception:
+            logger.exception("Error al guardar resultado del partido %s", match_id)
+            return JsonResponse({
+                'success': False,
+                'error': 'Error interno al guardar el resultado.',
+            }, status=500)
     else:
         # Recopilar errores del formulario
         errors = {}
@@ -499,7 +592,7 @@ def ajax_acta_lineup(request, match_id):
         return JsonResponse({'success': False, 'error': 'Este partido no tiene acta disponible'}, status=404)
 
     # Solo se cachea el parseo correcto; los errores de red se reintentan en la siguiente petición.
-    cache_key = f"acta_lineup:{match.acta_html}"
+    cache_key = _acta_lineup_cache_key(match.acta_html)
     lineup_data = cache.get(cache_key)
     if lineup_data is None:
         try:
@@ -868,6 +961,7 @@ __all__ = [
     'league_list',
     'league_detail',
     'match_detail',
+    'match_result_card',
     'calendar_view',
     'friendly_match_create',
     'ajax_search_teams',

@@ -1,8 +1,11 @@
 from django.test import SimpleTestCase, TestCase, override_settings
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from datetime import datetime, timedelta
+from email.utils import parseaddr
 
 from ilovevoley.content.models import Image
 from ilovevoley.core import views as core_views
@@ -351,6 +354,63 @@ class TenantManagerModerationTest(TestCase):
         self.assertNotIn(img_b, pending_images)
 
 
+@override_settings(
+    ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'],
+    DEBUG=False,
+    SECURE_SSL_REDIRECT=False,
+    TENANT_BASE_DOMAIN='ilovevoley.es',
+    SECURITY_CONTACT_EMAIL='Seguridad <security@example.com>',
+)
+class SeoEndpointsTest(TestCase):
+    """Endpoints estándar de bots, navegadores y seguridad."""
+
+    def test_robots_txt_allows_landing_and_blocks_private_routes(self):
+        response = self.client.get('/robots.txt', HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response['Content-Type'].startswith('text/plain'))
+        body = response.content.decode()
+        self.assertIn('User-agent: *', body)
+        for path in (
+            '/admin/', '/accounts/', '/media/', '/moderate/',
+            '/videos/calendario/suscripcion/',
+            '/competitions/calendario/suscripcion/',
+        ):
+            self.assertIn(f'Disallow: {path}', body)
+        self.assertIn('Sitemap: https://ilovevoley.es/sitemap.xml', body)
+
+    def test_sitemap_lists_only_public_pages(self):
+        response = self.client.get('/sitemap.xml', HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response['Content-Type'].startswith('application/xml'))
+        body = response.content.decode()
+        self.assertIn('<loc>https://ilovevoley.es/</loc>', body)
+        self.assertIn('<loc>https://ilovevoley.es/core/quienes-somos/</loc>', body)
+        self.assertNotIn('/content/', body)
+        self.assertNotIn('/accounts/', body)
+
+    def test_favicon_redirects_to_static_svg(self):
+        response = self.client.get('/favicon.ico', HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 301)
+        self.assertIn('favicon.svg', response.url)
+
+    def test_security_txt_has_contact_and_future_expiry(self):
+        response = self.client.get('/.well-known/security.txt', HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response['Content-Type'].startswith('text/plain'))
+        body = response.content.decode()
+        self.assertIn('Contact: mailto:security@example.com', body)
+        expires_line = next(l for l in body.splitlines() if l.startswith('Expires:'))
+        expires = datetime.strptime(expires_line.split(': ', 1)[1], '%Y-%m-%dT%H:%M:%SZ')
+        self.assertGreater(expires, datetime.now() + timedelta(days=300))
+
+    @override_settings(SECURITY_CONTACT_EMAIL='')
+    def test_security_txt_falls_back_to_default_from_email_when_empty(self):
+        response = self.client.get('/.well-known/security.txt', HTTP_HOST='ilovevoley.es')
+        body = response.content.decode()
+        default_address = parseaddr(settings.DEFAULT_FROM_EMAIL)[1]
+        self.assertIn(f'Contact: mailto:{default_address}', body)
+
+
 class TailwindStaticCssTest(TestCase):
     """Verifica que las plantillas y páginas de error no usan Tailwind Play CDN y cargan el CSS estático compilado."""
 
@@ -363,6 +423,7 @@ class TailwindStaticCssTest(TestCase):
             '400.html',
             '403.html',
             '404.html',
+            '429.html',
             '500.html',
         ]
         context = {
@@ -400,4 +461,31 @@ class TailwindStaticCssTest(TestCase):
             mock_ensure.assert_called_once()
             mock_run.assert_called_once()
             self.assertIn('Tailwind CSS compilado con éxito', out.getvalue())
+
+
+class HealthzViewTest(TestCase):
+    def test_healthz_success(self):
+        for path in ('/healthz', '/healthz/'):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json(), {'status': 'ok'})
+
+    def test_healthz_database_error(self):
+        from unittest.mock import patch
+        from django.db import OperationalError
+
+        with patch('django.db.connection.cursor', side_effect=OperationalError('connection refused')):
+            response = self.client.get('/healthz')
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(response.json(), {'status': 'error'})
+
+    @override_settings(
+        SECURE_SSL_REDIRECT=True,
+        SECURE_REDIRECT_EXEMPT=[r'^healthz/?$'],
+        ALLOWED_HOSTS=['localhost', '127.0.0.1', 'testserver'],
+    )
+    def test_healthz_exempt_from_ssl_redirect(self):
+        response = self.client.get('/healthz', secure=False)
+        self.assertEqual(response.status_code, 200)
+
 

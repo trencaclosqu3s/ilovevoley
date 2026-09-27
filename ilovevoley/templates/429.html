@@ -1,0 +1,126 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>429 - Tiempo de descanso | I Love Voley</title>
+    <link rel="icon" type="image/png" href="{% static 'images/logo_app.png' %}">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <style>
+        @keyframes pulse-clock {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .clock-pulse {
+            animation: pulse-clock 1.5s ease-in-out infinite;
+        }
+        
+        .ascii-art {
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+            white-space: pre;
+            font-size: 0.65rem;
+        }
+        
+        @media (min-width: 640px) {
+            .ascii-art {
+                font-size: 0.75rem;
+            }
+        }
+        
+        @media (min-width: 768px) {
+            .ascii-art {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 min-h-screen flex items-center justify-center px-4">
+    <div class="max-w-3xl w-full">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 md:p-12 border-t-4 border-amber-500">
+            <!-- Emoji animado -->
+            <div class="text-center mb-6 clock-pulse">
+                <span class="text-6xl sm:text-7xl md:text-8xl">⏱️</span>
+            </div>
+            
+            <!-- Arte ASCII de tiempo muerto -->
+            <div class="bg-amber-50 rounded-lg p-4 mb-6 overflow-x-auto">
+                <div class="ascii-art text-amber-700 text-center">
+   ┌─────────┐
+   │ 00 : 30 │
+   └─────────┘
+      \   /
+       \ /
+        T
+     ¡TIEMPO!
+                </div>
+            </div>
+            
+            <!-- Título del error -->
+            <div class="text-center mb-6">
+                <h1 class="text-5xl sm:text-6xl font-bold text-amber-600 mb-2">429</h1>
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">¡Tiempo de descanso!</h2>
+                <p class="text-lg text-gray-600">Has enviado demasiadas peticiones en muy poco tiempo 🛑</p>
+            </div>
+            
+            <!-- Mensaje -->
+            <div class="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-4 mb-8">
+                <p class="text-gray-700 text-center italic">
+                    "¡El árbitro pita tiempo técnico! Tu ritmo de juego es demasiado rápido para el marcador."
+                </p>
+            </div>
+            
+            <!-- Información útil -->
+            <div class="bg-gray-50 rounded-lg p-6 mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">¿Qué significa esto?</h3>
+                <ul class="space-y-2 text-gray-600">
+                    <li class="flex items-start">
+                        <span class="text-amber-500 mr-2">•</span>
+                        <span>Hemos detectado un volumen alto de solicitudes repetidas desde tu conexión.</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-amber-500 mr-2">•</span>
+                        <span>Para proteger la seguridad de la plataforma y de tu cuenta, hemos pausado temporalmente las peticiones.</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-amber-500 mr-2">•</span>
+                        <span>Por favor, espera unos 60 segundos antes de volver a intentarlo.</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-amber-500 mr-2">•</span>
+                        <span>Si estabas iniciando sesión o recuperando contraseña, comprueba tus datos con calma.</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Botones de acción -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{% url 'content:video_list' %}" 
+                   class="bg-csj-purple hover:bg-csj-purple-dark text-white font-bold py-3 px-8 rounded-lg transition-colors text-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                    🏠 Volver a Inicio
+                </a>
+                <button onclick="window.location.reload()" 
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-8 rounded-lg transition-colors text-center shadow hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
+                    🔄 Reintentar
+                </button>
+            </div>
+            
+            <!-- Footer divertido -->
+            <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+                <p class="text-sm text-gray-500">
+                    <span class="font-semibold text-amber-600">Regla básica:</span> 
+                    En voleibol, los tiempos muertos permiten reorganizar la estrategia y recuperar el aliento 🏐
+                </p>
+            </div>
+        </div>
+        
+        <!-- Logo/Branding -->
+        <div class="text-center mt-6">
+            <p class="text-sm text-gray-600">
+                Una producción de <span class="font-bold text-csj-purple">I Love Voley</span>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

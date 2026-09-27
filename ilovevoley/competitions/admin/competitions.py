@@ -3,7 +3,6 @@ from django.contrib.admin import helpers
 from django.shortcuts import render
 from django.utils import timezone
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 from unfold.admin import ModelAdmin, TabularInline
 
 from ilovevoley.content.admin.content import ImageInline
@@ -94,7 +93,10 @@ class LeagueAdmin(ModelAdmin):
                 slugs.append(org.slug)
 
         if not slugs:
-            return mark_safe('<span style="color:#b45309;">Ninguna organización con club participa</span>')
+            return format_html(
+                '<span style="color:#b45309;">{}</span>',
+                'Ninguna organización con club participa',
+            )
         labels = ', '.join(slugs)
         if obj.is_our_team_related:
             return format_html('<span style="color:#15803d;">Participan: {}</span>', labels)

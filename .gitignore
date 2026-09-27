@@ -1,5 +1,11 @@
 .superpowers/
 
+# IDE metadata (PyCharm/VSCode)
+.idea/
+
+# RAG local config (puede exponer IPs de red interna)
+.env.rag
+
 # Google Cloud Credentials (NEVER COMMIT)
 *.json
 google-credentials.json
