@@ -35,8 +35,8 @@ urlpatterns = [
     path('favicon.ico', favicon, name='favicon'),
     path('.well-known/security.txt', security_txt, name='security_txt'),
     path('accounts/', include('allauth.urls')),
-    # Alias para /videos/ preservando bookmarks hacia content:video_list y rutas legacy
-    path('videos/', include('ilovevoley.videos.urls', namespace='videos')),
+    # Redirecciones 301 de las rutas legadas /videos/ a sus apps de dominio
+    path('videos/', include('ilovevoley.videos.urls')),
     path('rosters/', include('ilovevoley.rosters.urls', namespace='rosters')),
     path('content/', include('ilovevoley.content.urls', namespace='content')),
     path('teams/', include('ilovevoley.teams.urls', namespace='teams')),
