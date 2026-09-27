@@ -117,6 +117,23 @@ def about(request):
     return render(request, 'core/about.html', context)
 
 
+def healthz(request):
+    """
+    Health check endpoint for deployment validation and uptime monitoring.
+    Verifies database connectivity.
+    """
+    from django.db import connection
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        return JsonResponse({'status': 'ok'}, status=200)
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return JsonResponse({'status': 'error'}, status=503)
+
+
+
 def _can_moderate_memberships(request):
     """True si el usuario es superuser o manager/admin aprobado del tenant actual."""
     return user_is_tenant_manager(request.user, getattr(request, 'tenant', None))
@@ -333,6 +350,7 @@ __all__ = [
     'test_500',
     'landing',
     'about',
+    'healthz',
     'moderation_counts_api',
     'moderation_panel',
     'approve_user_api',

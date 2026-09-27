@@ -24,9 +24,10 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# postgresql-client aporta pg_isready para entrypoint.sh
+# postgresql-client aporta pg_isready para entrypoint.sh, curl para healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN adduser --disabled-password --gecos '' --uid 1000 appuser
