@@ -375,3 +375,10 @@ class MatchSetLabelsTest(TestCase):
     def test_returns_empty_on_fetch_error(self, mock_get):
         from ilovevoley.competitions.share import get_match_set_labels
         self.assertEqual(get_match_set_labels(self.match), {})
+
+    @patch('ilovevoley.competitions.share.safe_get')
+    @patch('ilovevoley.competitions.share.parse_acta_lineup')
+    def test_returns_empty_when_parse_result_is_not_a_dict(self, mock_parse, mock_get):
+        from ilovevoley.competitions.share import get_match_set_labels
+        mock_parse.return_value = None
+        self.assertEqual(get_match_set_labels(self.match), {})

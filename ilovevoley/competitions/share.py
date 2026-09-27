@@ -98,11 +98,11 @@ def get_match_set_labels(match):
     try:
         content = safe_get(match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS)
         data = parse_acta_lineup(content)
+        labels = {
+            index: ((set_data.get('title') or '').strip() or f'Set {index}')
+            for index, set_data in enumerate(data.get('sets', []), start=1)
+        }
     except Exception:
         return {}
-    labels = {
-        index: ((set_data.get('title') or '').strip() or f'Set {index}')
-        for index, set_data in enumerate(data.get('sets', []), start=1)
-    }
     cache.set(cache_key, labels, SET_LABELS_CACHE_TTL)
     return labels
