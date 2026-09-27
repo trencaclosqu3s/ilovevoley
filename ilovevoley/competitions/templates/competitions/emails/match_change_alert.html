@@ -1,0 +1,66 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Modificación federativa: {{ match.home_team_display }} vs {{ match.away_team_display }}{% endblock %}
+
+{% block header_title %}
+    🏐 Modificación de Partido
+{% endblock %}
+
+{% block content %}
+    {% if is_test_mode %}
+    <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 20px; border-radius: 4px;">
+        <strong style="color: #92400e;">⚠️ Modo de pruebas activo</strong>
+        <p style="margin: 4px 0 0 0; color: #b45309; font-size: 13px;">
+            Este correo se envía únicamente a la dirección de prueba o superusuarios para validación previa al envío a delegados.
+        </p>
+    </div>
+    {% endif %}
+
+    <div style="margin-bottom: 20px;">
+        <h2 style="color: #1e293b; margin-top: 0; font-size: 18px;">
+            {{ match.home_team_display }} vs {{ match.away_team_display }}
+        </h2>
+        {% if match.league %}
+        <p style="color: #64748b; font-size: 14px; margin: 2px 0;">
+            <strong>Competición:</strong> {{ match.league.name }}
+        </p>
+        {% endif %}
+    </div>
+
+    <p style="color: #334155; line-height: 1.5;">
+        Se han detectado variaciones federativas oficiales para este encuentro:
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+        <thead>
+            <tr style="background-color: #f1f5f9; text-align: left; border-bottom: 2px solid #cbd5e1;">
+                <th style="padding: 10px; color: #475569;">Tipo</th>
+                <th style="padding: 10px; color: #475569;">Valor Anterior</th>
+                <th style="padding: 10px; color: #475569;">Nuevo Valor Oficial</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for change in changes %}
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 10px; font-weight: bold; color: #334155;">
+                    {{ change.get_change_type_display }}
+                </td>
+                <td style="padding: 10px; color: #ef4444; text-decoration: line-through;">
+                    {{ change.old_value|default:"—" }}
+                </td>
+                <td style="padding: 10px; color: #16a34a; font-weight: bold;">
+                    {{ change.new_value|default:"—" }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="text-align: center; margin-top: 30px;">
+        {% if match_url %}
+        <a href="{{ match_url }}" class="button" style="background-color: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">
+            Ver Partido en la Plataforma
+        </a>
+        {% endif %}
+    </div>
+{% endblock %}
