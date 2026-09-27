@@ -49,8 +49,9 @@ def _roles_lookup(match):
     season = match.league.season if match.league_id else None
     if season is not None:
         roles = roles.filter(season=season)
-    # Ante un dorsal repetido en la misma temporada, el rol activo gana.
-    roles = roles.order_by('is_active')
+    # Ante un dorsal repetido en la misma temporada, el rol activo gana; a
+    # igualdad, el más reciente (id mayor) para que el orden sea determinista.
+    roles = roles.order_by('is_active', '-id')
     return {
         (role.team_id, role.jersey_number): role
         for role in roles.select_related('person')
