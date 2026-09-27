@@ -1,9 +1,50 @@
+from datetime import date
+
 from django.db import IntegrityError
 from django.test import TestCase
 
 from ilovevoley.core.models import Organization, Season
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
 from ilovevoley.teams.models import Team
+
+
+class PersonIdentityConstraintTests(TestCase):
+    """La identidad (nombre + fecha de nacimiento) es única dentro de cada organización."""
+
+    def setUp(self):
+        self.org_a = Organization.objects.create(slug='org-a', name='Org A')
+        self.org_b = Organization.objects.create(slug='org-b', name='Org B')
+
+    def test_misma_persona_en_dos_organizaciones(self):
+        Person.objects.create(
+            first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1),
+            organization=self.org_a,
+        )
+        person_b = Person.objects.create(
+            first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1),
+            organization=self.org_b,
+        )
+        self.assertEqual(person_b.organization, self.org_b)
+
+    def test_duplicado_en_la_misma_organizacion_falla(self):
+        Person.objects.create(
+            first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1),
+            organization=self.org_a,
+        )
+        with self.assertRaises(IntegrityError):
+            Person.objects.create(
+                first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1),
+                organization=self.org_a,
+            )
+
+    def test_duplicado_entre_fichas_sin_organizacion_falla(self):
+        Person.objects.create(
+            first_name='Sin', last_name='Club', birth_date=date(2010, 5, 1),
+        )
+        with self.assertRaises(IntegrityError):
+            Person.objects.create(
+                first_name='Sin', last_name='Club', birth_date=date(2010, 5, 1),
+            )
 
 
 class PlayerRoleSeasonConstraintTests(TestCase):

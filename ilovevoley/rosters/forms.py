@@ -62,15 +62,27 @@ class PersonForm(forms.ModelForm):
             'notes': 'Información adicional que consideres relevante (opcional)',
         }
     
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, organization=None, **kwargs):
         super().__init__(*args, **kwargs)
+        # La organización no se expone en el formulario, pero la identidad es
+        # por tenant: se fija en la instancia antes de validar para que el
+        # UniqueConstraint se compruebe contra el club correcto y no globalmente.
+        if organization is not None:
+            self.instance.organization = organization
         # Hacer campos opcionales
         self.fields['birth_date'].required = False
         self.fields['photo'].required = False
         self.fields['email'].required = False
         self.fields['phone'].required = False
         self.fields['notes'].required = False
-    
+
+    def _get_validation_exclusions(self):
+        # `organization` no es un campo del formulario; sin esto quedaría
+        # excluido y el UniqueConstraint (que ahora lo incluye) no se validaría.
+        exclude = super()._get_validation_exclusions()
+        exclude.discard('organization')
+        return exclude
+
     def clean_photo(self):
         photo = self.cleaned_data.get('photo')
         if photo:

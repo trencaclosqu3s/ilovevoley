@@ -318,6 +318,19 @@ class ImageModerationTenantIsolationTests(TestCase):
         response = self.client.post(url, {'action': 'approve'}, HTTP_HOST='cluba.ilovevoley.es')
         self.assertEqual(response.status_code, 403)
 
+    @override_settings(RATELIMIT_ENABLE=True, RATELIMIT_USE_CACHE='default')
+    def test_moderate_image_api_rate_limiting(self):
+        cache.clear()
+        self.client.force_login(self.manager_a)
+        url = reverse('content:moderate_image_api', args=[self.image_a.id])
+        for _ in range(30):
+            response = self.client.post(url, {'action': 'invalid'}, HTTP_HOST='cluba.ilovevoley.es')
+            self.assertNotEqual(response.status_code, 429)
+
+        blocked_response = self.client.post(url, {'action': 'invalid'}, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(blocked_response.status_code, 429)
+        self.assertEqual(blocked_response['Content-Type'], 'application/json')
+
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
 class ImageUploadSanitizationViewTests(TestCase):

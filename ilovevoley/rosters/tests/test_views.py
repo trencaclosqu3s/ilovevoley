@@ -1,4 +1,5 @@
 import base64
+import re
 import shutil
 import tempfile
 from io import BytesIO
@@ -7,9 +8,11 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 
 from ilovevoley.core.models import Category, Organization, Season
+from ilovevoley.competitions.models import League, Match, MatchLineup
 from ilovevoley.rosters import forms as rosters_forms
 from ilovevoley.rosters import views as rosters_views
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
@@ -276,7 +279,7 @@ class PersonPhotoUploadSecurityTests(TestCase):
         User = get_user_model()
         self.user = User.objects.create_user(username='member', password='pass')
         Membership.objects.create(
-            user=self.user, organization=self.org, is_approved=True
+            user=self.user, organization=self.org, is_approved=True, role='manager'
         )
         self.client.force_login(self.user)
 
@@ -331,6 +334,10 @@ class RostersTenantIsolationTests(TestCase):
         self.staff = User.objects.create_user(username='staff', password='pass', is_staff=True)
         Membership.objects.create(
             user=self.staff, organization=self.org_a, is_approved=True, role='manager',
+        )
+        self.manager = User.objects.create_user(username='manager-a', password='pass')
+        Membership.objects.create(
+            user=self.manager, organization=self.org_a, is_approved=True, role='manager',
         )
         self.person_a = Person.objects.create(
             first_name='Ana', last_name='Propia', organization=self.org_a,
@@ -395,8 +402,55 @@ class RostersTenantIsolationTests(TestCase):
         self.assertContains(response, 'Club A Senior')
         self.assertNotContains(response, 'Club B Junior')
 
-    def test_person_create_ignora_organizacion_enviada_por_cliente(self):
+    def test_basic_member_cannot_access_person_create(self):
         self.client.force_login(self.member)
+        url = reverse('rosters:person_create')
+        response_get = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
+        self.assertEqual(response_get.status_code, 403)
+
+        response_post = self.client.post(
+            url,
+            {'first_name': 'Invalido', 'last_name': 'Miembro'},
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response_post.status_code, 403)
+
+    def test_person_create_misma_identidad_en_dos_tenants(self):
+        User = get_user_model()
+        from ilovevoley.users.models import Membership
+        manager_b = User.objects.create_user(username='manager-b', password='pass')
+        Membership.objects.create(
+            user=manager_b, organization=self.org_b, is_approved=True, role='manager',
+        )
+        payload = {
+            'first_name': 'Ana', 'last_name': 'Gomez', 'birth_date': '2010-05-01',
+        }
+
+        self.client.force_login(self.manager)
+        response_a = self.client.post(
+            reverse('rosters:person_create'), payload,
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response_a.status_code, 302)
+
+        self.client.force_login(manager_b)
+        response_b = self.client.post(
+            reverse('rosters:person_create'), payload,
+            HTTP_HOST='club-b.ilovevoley.es',
+        )
+        self.assertEqual(response_b.status_code, 302)
+
+        identities = Person.objects.filter(
+            first_name='Ana', last_name='Gomez', birth_date='2010-05-01',
+        )
+        self.assertEqual(identities.count(), 2)
+        self.assertEqual(
+            set(identities.values_list('organization_id', flat=True)),
+            {self.org_a.id, self.org_b.id},
+        )
+
+    def test_person_create_ignora_organizacion_enviada_por_cliente(self):
+        self.client.force_login(self.manager)
         response = self.client.post(
             reverse('rosters:person_create'),
             {'first_name': 'Nueva', 'last_name': 'Ficha', 'organization': self.org_b.id},
@@ -405,6 +459,22 @@ class RostersTenantIsolationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         created = Person.objects.get(first_name='Nueva', last_name='Ficha')
         self.assertEqual(created.organization, self.org_a)
+
+    def test_person_list_add_button_visibility_for_tenant_manager(self):
+        url = reverse('rosters:person_list')
+        create_url = reverse('rosters:person_create')
+
+        self.client.force_login(self.member)
+        response = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
+        self.assertNotContains(response, create_url)
+        response_empty = self.client.get(f'{url}?search=inexistente', HTTP_HOST='club-a.ilovevoley.es')
+        self.assertNotContains(response_empty, create_url)
+
+        self.client.force_login(self.manager)
+        response = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
+        self.assertContains(response, create_url)
+        response_empty = self.client.get(f'{url}?search=inexistente', HTTP_HOST='club-a.ilovevoley.es')
+        self.assertContains(response_empty, create_url)
 
     def test_person_edit_ignora_organizacion_enviada_por_cliente(self):
         self.client.force_login(self.staff)
@@ -445,3 +515,105 @@ class RostersTenantIsolationTests(TestCase):
             HTTP_HOST='club-b.ilovevoley.es',
         )
         self.assertNotEqual(response.status_code, 200)
+
+    def test_staff_role_form_button_has_accessible_contrast(self):
+        """El botón de guardar rol de staff usa texto oscuro sobre amarillo (sin text-white)."""
+        self.client.force_login(self.staff)
+        response = self.client.get(
+            reverse('rosters:staff_role_create', args=[self.person_a.id]),
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        match = re.search(r'<button\b[^>]*type=["\']submit["\'][^>]*>', content)
+        self.assertIsNotNone(match, 'No se encontró el botón de submit')
+        button_tag = match.group(0)
+        self.assertIn('bg-csj-yellow', button_tag)
+        self.assertIn('text-gray-900', button_tag)
+        self.assertNotIn('text-white', button_tag)
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class PersonDetailStatsTests(TestCase):
+    """Las estadísticas de la ficha salen de las actas y respetan el tenant."""
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-T')
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club', club=self.club,
+            club_team_names={'1': 'Test Club'}, is_active=True,
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member_stats', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(
+            name='Test Club Senior', category=self.category,
+            club=self.club, federation_id='TEAM-1', is_active=True,
+        )
+        self.rival = Team.objects.create(
+            name='Rival', category=self.category, federation_id='TEAM-2', is_active=True,
+        )
+        self.season = Season.objects.resolve('2025-26')
+        self.league = League.objects.create(
+            name='Liga', federation_id='L-1', season=self.season,
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+        self.person = Person.objects.create(
+            first_name='Laura', last_name='García', organization=self.org,
+        )
+        PlayerRole.objects.create(
+            person=self.person, team=self.team, season=self.season,
+            jersey_number=7, is_active=True,
+        )
+        self.match = Match.objects.create(
+            league=self.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now(), round_number=1, status='finished',
+        )
+
+    def _lineup(self, team, person, **kwargs):
+        defaults = dict(
+            match=self.match, team=team, person=person, jersey_number=7,
+            is_convocado=True, sets_played=0, sets_started=0,
+        )
+        defaults.update(kwargs)
+        return MatchLineup.objects.create(**defaults)
+
+    def test_person_detail_muestra_las_estadisticas(self):
+        self._lineup(self.team, self.person, sets_played=3, sets_started=2)
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('rosters:person_detail', args=[self.person.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['player_stats']['sets_disputados'], 3)
+        self.assertEqual(response.context['player_stats']['titularidades'], 1)
+        self.assertContains(response, 'Sets disputados')
+
+    def test_person_detail_no_cuenta_equipos_fuera_del_tenant(self):
+        self._lineup(self.team, self.person, sets_played=3, sets_started=3)
+        equipo_ajeno = Team.objects.create(
+            name='Ajeno', category=self.category, federation_id='TEAM-3', is_active=True,
+        )
+        self._lineup(equipo_ajeno, self.person, sets_played=5, sets_started=5)
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('rosters:person_detail', args=[self.person.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.context['player_stats']['sets_disputados'], 3)
+
+    def test_person_detail_sin_actas_no_muestra_el_bloque(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('rosters:person_detail', args=[self.person.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context['player_stats'])
+        self.assertNotContains(response, 'Sets disputados')

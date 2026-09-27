@@ -105,12 +105,17 @@ class Person(models.Model):
             models.Index(fields=['is_active']),
             models.Index(fields=['created_at']),
         ]
-        # Evitar duplicados exactos
+        # Evitar duplicados exactos dentro de cada organización. La identidad
+        # es por tenant, de modo que la misma persona pueda tener ficha en dos
+        # clubes. Las fichas heredadas sin organización (organization NULL)
+        # forman su propio grupo (nulls_distinct=False), conservando la
+        # deduplicación global entre ellas.
         constraints = [
             models.UniqueConstraint(
-                fields=['first_name', 'last_name', 'birth_date'],
+                fields=['organization', 'first_name', 'last_name', 'birth_date'],
                 name='unique_person_identity',
-                condition=models.Q(birth_date__isnull=False)
+                condition=models.Q(birth_date__isnull=False),
+                nulls_distinct=False,
             )
         ]
 

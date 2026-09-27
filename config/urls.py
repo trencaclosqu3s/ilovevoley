@@ -15,17 +15,45 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from ilovevoley.core.moderation_views import moderate_user, moderate_image
 from ilovevoley.core.protected_media import protected_media
-from ilovevoley.core.views import landing
+from ilovevoley.core.views import (
+    favicon,
+    healthz,
+    landing,
+    robots_txt,
+    security_txt,
+    sitemap_xml,
+)
+from ilovevoley.users.views import (
+    RatelimitedLoginView,
+    RatelimitedPasswordResetFromKeyView,
+    RatelimitedPasswordResetView,
+    RatelimitedSignupView,
+)
 
 urlpatterns = [
+    re_path(r'^healthz/?$', healthz, name='healthz'),
     path(settings.ADMIN_URL, admin.site.urls),
+    # SEO, bots y seguridad
+    path('robots.txt', robots_txt, name='robots_txt'),
+    path('sitemap.xml', sitemap_xml, name='sitemap_xml'),
+    path('favicon.ico', favicon, name='favicon'),
+    path('.well-known/security.txt', security_txt, name='security_txt'),
+    # Vistas de autenticación con rate limiting (prioritarias sobre allauth.urls)
+    path('accounts/login/', RatelimitedLoginView.as_view(), name='account_login'),
+    path('accounts/signup/', RatelimitedSignupView.as_view(), name='account_signup'),
+    path('accounts/password/reset/', RatelimitedPasswordResetView.as_view(), name='account_reset_password'),
+    re_path(
+        r'^accounts/password/reset/key/(?P<uidb36>[0-9A-Za-z]+)-(?P<key>.+)/$',
+        RatelimitedPasswordResetFromKeyView.as_view(),
+        name='account_reset_password_from_key',
+    ),
     path('accounts/', include('allauth.urls')),
-    # Alias para /videos/ preservando bookmarks hacia content:video_list y rutas legacy
-    path('videos/', include('ilovevoley.videos.urls', namespace='videos')),
+    # Redirecciones 301 de las rutas legadas /videos/ a sus apps de dominio
+    path('videos/', include('ilovevoley.videos.urls')),
     path('rosters/', include('ilovevoley.rosters.urls', namespace='rosters')),
     path('content/', include('ilovevoley.content.urls', namespace='content')),
     path('teams/', include('ilovevoley.teams.urls', namespace='teams')),
@@ -44,11 +72,12 @@ urlpatterns = [
 
 if settings.DEBUG:
     # Test URLs para ver las páginas de error
-    from ilovevoley.core.views import test_400, test_403, test_404, test_500
+    from ilovevoley.core.views import test_400, test_403, test_404, test_429, test_500
     urlpatterns += [
         path('test-error/400/', test_400, name='test_400'),
         path('test-error/403/', test_403, name='test_403'),
         path('test-error/404/', test_404, name='test_404'),
+        path('test-error/429/', test_429, name='test_429'),
         path('test-error/500/', test_500, name='test_500'),
     ]
 

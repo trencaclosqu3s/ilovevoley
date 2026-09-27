@@ -3,12 +3,12 @@ from django.contrib.admin import helpers
 from django.shortcuts import render
 from django.utils import timezone
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 from unfold.admin import ModelAdmin, TabularInline
 
 from ilovevoley.content.admin.content import ImageInline
 from ..forms import MatchAdminForm
-from ..models import League, Match, ScrapingEndpoint, Standing
+from ..models import League, Match, MatchChangeLog, ScrapingEndpoint, Standing
+
 
 
 @admin.register(League)
@@ -93,7 +93,10 @@ class LeagueAdmin(ModelAdmin):
                 slugs.append(org.slug)
 
         if not slugs:
-            return mark_safe('<span style="color:#b45309;">Ninguna organización con club participa</span>')
+            return format_html(
+                '<span style="color:#b45309;">{}</span>',
+                'Ninguna organización con club participa',
+            )
         labels = ', '.join(slugs)
         if obj.is_our_team_related:
             return format_html('<span style="color:#15803d;">Participan: {}</span>', labels)
@@ -443,3 +446,39 @@ class StandingAdmin(ModelAdmin):
             'classes': ('collapse',)
         })
     )
+
+
+@admin.register(MatchChangeLog)
+class MatchChangeLogAdmin(ModelAdmin):
+    list_display = (
+        'match', 'change_type_badge', 'field_name', 'old_value', 'new_value',
+        'is_last_minute', 'notified', 'reviewed', 'detected_at'
+    )
+    list_filter = ('change_type', 'is_last_minute', 'notified', 'reviewed', 'detected_at')
+    search_fields = ('match__home_team__name', 'match__away_team__name', 'field_name', 'old_value', 'new_value')
+    readonly_fields = ('detected_at', 'notified_at', 'reviewed_at')
+    actions = ['mark_as_reviewed']
+
+    def change_type_badge(self, obj):
+        colors = {
+            'datetime': 'background: #fee2e2; color: #991b1b;',
+            'venue': 'background: #fef3c7; color: #92400e;',
+            'status': 'background: #f3e8ff; color: #6b21a8;',
+            'score': 'background: #dbeafe; color: #1e40af;',
+            'other': 'background: #f3f4f6; color: #374151;',
+        }
+        style = colors.get(obj.change_type, colors['other'])
+        return format_html(
+            '<span style="padding: 2px 8px; border-radius: 4px; font-weight: 500; font-size: 11px; {}">{}</span>',
+            style,
+            obj.get_change_type_display(),
+        )
+    change_type_badge.short_description = 'Tipo'
+
+    def mark_as_reviewed(self, request, queryset):
+        """Marca las modificaciones seleccionadas como revisadas."""
+        now = timezone.now()
+        updated = queryset.update(reviewed=True, reviewed_by=request.user, reviewed_at=now)
+        self.message_user(request, f'{updated} modificación(es) marcada(s) como revisada(s).')
+    mark_as_reviewed.short_description = "Marcar modificaciones seleccionadas como revisadas"
+

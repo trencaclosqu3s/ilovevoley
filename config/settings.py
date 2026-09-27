@@ -141,12 +141,19 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if DEBUG else 'https'
 # Header de proxy SSL (necesario para que Django detecte HTTPS detrás de nginx)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# Número de proxies de confianza delante de Django que añaden X-Forwarded-For.
+# El ingress es nginx (usa $proxy_add_x_forwarded_for), que añade la IP del peer
+# al final de la cadena. Solo las entradas más a la derecha son fiables, así que
+# get_client_ip descarta lo que el cliente inyecte a la izquierda.
+TRUSTED_PROXY_COUNT = env_config('TRUSTED_PROXY_COUNT', default=1, cast=int)
+
 # Cabeceras de transporte seguro y cookies (activas por defecto en producción)
 SESSION_COOKIE_SECURE = env_config('SESSION_COOKIE_SECURE', default=not DEBUG, cast=bool)
 CSRF_COOKIE_SECURE = env_config('CSRF_COOKIE_SECURE', default=not DEBUG, cast=bool)
 SESSION_COOKIE_HTTPONLY = True
 
 SECURE_SSL_REDIRECT = env_config('SECURE_SSL_REDIRECT', default=not DEBUG, cast=bool)
+SECURE_REDIRECT_EXEMPT = [r'^healthz/?$']
 SECURE_HSTS_SECONDS = env_config('SECURE_HSTS_SECONDS', default=31536000 if not DEBUG else 0, cast=int)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=not DEBUG, cast=bool)
 SECURE_HSTS_PRELOAD = env_config('SECURE_HSTS_PRELOAD', default=False, cast=bool)
@@ -209,6 +216,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    'django_ratelimit.middleware.RatelimitMiddleware',
     'ilovevoley.core.middleware.Error404TrackingMiddleware',
 ]
 
@@ -322,6 +330,10 @@ PROTECTED_MEDIA_INTERNAL_URL = '/protected-media/'
 MATCH_SHARE_LINK_DEFAULT_HOURS = env_config('MATCH_SHARE_LINK_DEFAULT_HOURS', default=48, cast=int)
 MATCH_SHARE_LINK_MAX_HOURS = env_config('MATCH_SHARE_LINK_MAX_HOURS', default=720, cast=int)
 
+# Enlace firmado de descarga de ZIP de álbum (segundos). El archivo temporal
+# vive como máximo este tiempo; no hay almacenamiento permanente de ZIPs.
+ALBUM_ZIP_LINK_MAX_AGE = env_config('ALBUM_ZIP_LINK_MAX_AGE', default=24 * 3600, cast=int)
+
 # Configuración de subida de archivos
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10MB
@@ -346,6 +358,9 @@ EMAIL_HOST_PASSWORD = env_config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = env_config('DEFAULT_FROM_EMAIL', default='Admin I Love Voley <josealbertomartin@gmail.com>')
 SERVER_EMAIL = env_config('SERVER_EMAIL', default='Admin I Love Voley <josealbertomartin@gmail.com>')
 
+# Contacto de seguridad publicado en /.well-known/security.txt (acepta "Nombre <correo>")
+SECURITY_CONTACT_EMAIL = env_config('SECURITY_CONTACT_EMAIL', default=DEFAULT_FROM_EMAIL)
+
 # Notificaciones
 NOTIFICATION_EMAIL_ENABLED = env_config('NOTIFICATION_EMAIL_ENABLED', default=False, cast=bool)
 ADMIN_EMAIL_LIST = env_config('ADMIN_EMAIL_LIST', default='', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
@@ -360,19 +375,44 @@ EMAIL_NOTIFICATIONS = {
 }
 
 # Celery Configuration
+# Bases lógicas de Redis separadas: /0 broker, /1 resultados, /2 caché de Django.
 CELERY_BROKER_URL = env_config('REDIS_URL', default='redis://redis:6379/0')
-CELERY_RESULT_BACKEND = env_config('REDIS_URL', default='redis://redis:6379/0')
+CELERY_RESULT_BACKEND = env_config('REDIS_RESULT_URL', default='redis://redis:6379/1')
+
+# Colas separadas por tipo de carga para que un scraping colgado no bloquee
+# emails ni tareas de media. El worker de cada cola las consume por separado.
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_ROUTES = {
+    'notify_*': {'queue': 'default'},
+    'send_*': {'queue': 'default'},
+    'analyze_image_with_vision': {'queue': 'media'},
+    'generate_image_thumbnails_task': {'queue': 'media'},
+    'scrape_*': {'queue': 'scraping'},
+    'enrich_*': {'queue': 'scraping'},
+    'handle_withdrawn_teams': {'queue': 'scraping'},
+    'process_json_unified': {'queue': 'scraping'},
+}
+
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
+# Un scraping colgado se avisa (soft) a los 10 min y se mata (hard) a los 15.
+CELERY_TASK_SOFT_TIME_LIMIT = 600
+CELERY_TASK_TIME_LIMIT = 900
+
+# Entrega fiable: la tarea se ackea al completarse, no al recibirla.
+# Con prefetch=1 un worker no acapara tareas que otro podría atender.
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
 # Celery Beat Configuration (Periodic Tasks)
 CELERY_BEAT_SCHEDULE = {}
 
 # Cache Configuration
-# Redis backend centralizado (DB 1 reservada para caché, DB 0 para Celery)
-REDIS_CACHE_URL = env_config('REDIS_CACHE_URL', default='redis://redis:6379/1')
+# Redis backend centralizado (DB 2 reservada para caché de Django).
+REDIS_CACHE_URL = env_config('REDIS_CACHE_URL', default='redis://redis:6379/2')
 
 CACHES = {
     'default': {
@@ -380,6 +420,12 @@ CACHES = {
         'LOCATION': REDIS_CACHE_URL,
     }
 }
+
+# Rate limiting (django-ratelimit)
+RATELIMIT_ENABLE = env_config('RATELIMIT_ENABLE', default=True, cast=bool)
+RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_VIEW = 'ilovevoley.core.views.custom_429'
+RATELIMIT_IP_META_KEY = 'ilovevoley.core.ratelimit_utils.get_client_ip'
 
 # Miniaturas responsivas de imágenes: en producción se generan en background
 THUMBNAIL_GENERATION_ASYNC = env_config('THUMBNAIL_GENERATION_ASYNC', default=not DEBUG, cast=bool)
@@ -666,6 +712,10 @@ _configure_sentry(
     dsn=env_config('SENTRY_DSN', default=''),
     debug=DEBUG,
     traces_sample_rate=env_config('SENTRY_TRACES_SAMPLE_RATE', default=0.1, cast=float),
+    profiles_sample_rate=env_config('SENTRY_PROFILES_SAMPLE_RATE', default=0.1, cast=float),
+    # Auto-discovers the beat schedule, so the PeriodicTask rows in the DB
+    # (django-celery-beat) check in to Sentry Crons without hardcoding slugs.
+    monitor_beat_tasks=env_config('SENTRY_MONITOR_BEAT_TASKS', default=True, cast=bool),
     release=env_config('SENTRY_RELEASE', default=None),
     environment=env_config('SENTRY_ENVIRONMENT', default='production'),
 )

@@ -24,9 +24,10 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# postgresql-client aporta pg_isready para entrypoint.sh
+# postgresql-client aporta pg_isready para entrypoint.sh, curl para healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN adduser --disabled-password --gecos '' --uid 1000 appuser
@@ -47,7 +48,7 @@ RUN chmod +x /entrypoint.sh
 USER appuser
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "30", "--max-requests", "1000", "--max-requests-jitter", "100", "--access-logfile", "-"]
 
 # --- dev: último stage para que `build: .` sin target (docker-compose.dev.yml)
 # siga teniendo pytest. Producción construye con `target: runtime`.

@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import views_album_zip
 
 app_name = 'content'
 
@@ -17,7 +18,27 @@ urlpatterns = [
     path('imagenes/subir-multiples/', views.image_bulk_upload, name='image_bulk_upload'),
     path('imagenes/<int:image_id>/', views.image_detail, name='image_detail'),
     path('partidos/<int:match_id>/imagenes/', views.match_images, name='match_images'),
+    path(
+        'partidos/<int:match_id>/imagenes/zip/',
+        views_album_zip.request_match_album_zip,
+        name='match_album_zip',
+    ),
     path('imagenes/album/<uuid:album_group_id>/', views.album_group_images, name='album_group_images'),
+    path(
+        'imagenes/album/<uuid:album_group_id>/zip/',
+        views_album_zip.request_album_group_zip,
+        name='album_group_zip',
+    ),
+    path(
+        'imagenes/zip/<uuid:job_id>/',
+        views_album_zip.album_zip_status,
+        name='album_zip_status',
+    ),
+    path(
+        'imagenes/zip/download/',
+        views_album_zip.album_zip_download,
+        name='album_zip_download',
+    ),
     
     # URLs de moderación de imágenes
     path('admin/imagenes/moderar/', views.image_moderation, name='image_moderation'),

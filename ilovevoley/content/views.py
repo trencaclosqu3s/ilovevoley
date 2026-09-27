@@ -12,8 +12,10 @@ from django.db.models import Count, F, Max, Q, Window
 from django.db.models.functions import RowNumber
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from ilovevoley.competitions.models import League, Match
 from ilovevoley.core.mixins import get_club_team_filter
@@ -1046,6 +1048,7 @@ def match_images(request, match_id):
         'page_obj': page_obj,
         'all_images': images,
         'total_images': images.count(),
+        'download_zip_url': reverse('content:match_album_zip', args=[match.id]),
     }
 
     return render(request, 'content/match_images.html', context)
@@ -1086,6 +1089,9 @@ def album_group_images(request, album_group_id):
         'page_obj': page_obj,
         'all_images': images,
         'total_images': images.count(),
+        'download_zip_url': reverse(
+            'content:album_group_zip', args=[album_group_id],
+        ),
     }
 
     return render(request, 'content/album_group_images.html', context)
@@ -1188,6 +1194,7 @@ def image_moderate_bulk(request):
     return redirect('content:image_moderation')
 
 
+@ratelimit(key='user_or_ip', rate='30/m', block=True)
 @login_required
 @require_POST
 def moderate_image_api(request, image_id):
