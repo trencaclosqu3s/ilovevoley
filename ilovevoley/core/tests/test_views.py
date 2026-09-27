@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from datetime import datetime, timedelta
 
 from ilovevoley.content.models import Image
 from ilovevoley.core import views as core_views
@@ -349,6 +350,56 @@ class TenantManagerModerationTest(TestCase):
         pending_images = list(response.context['pending_images'])
         self.assertIn(img_a, pending_images)
         self.assertNotIn(img_b, pending_images)
+
+
+@override_settings(
+    ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'],
+    DEBUG=False,
+    SECURE_SSL_REDIRECT=False,
+    TENANT_BASE_DOMAIN='ilovevoley.es',
+    SECURITY_CONTACT_EMAIL='Seguridad <security@example.com>',
+)
+class SeoEndpointsTest(TestCase):
+    """Endpoints estándar de bots, navegadores y seguridad."""
+
+    def test_robots_txt_allows_landing_and_blocks_private_routes(self):
+        response = self.client.get('/robots.txt', HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response['Content-Type'].startswith('text/plain'))
+        body = response.content.decode()
+        self.assertIn('User-agent: *', body)
+        for path in (
+            '/admin/', '/accounts/', '/media/', '/moderate/',
+            '/videos/calendario/suscripcion/',
+            '/competitions/calendario/suscripcion/',
+        ):
+            self.assertIn(f'Disallow: {path}', body)
+        self.assertIn('Sitemap: https://ilovevoley.es/sitemap.xml', body)
+
+    def test_sitemap_lists_only_public_pages(self):
+        response = self.client.get('/sitemap.xml', HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response['Content-Type'].startswith('application/xml'))
+        body = response.content.decode()
+        self.assertIn('<loc>https://ilovevoley.es/</loc>', body)
+        self.assertIn('<loc>https://ilovevoley.es/core/quienes-somos/</loc>', body)
+        self.assertNotIn('/content/', body)
+        self.assertNotIn('/accounts/', body)
+
+    def test_favicon_redirects_to_static_svg(self):
+        response = self.client.get('/favicon.ico', HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 301)
+        self.assertIn('favicon.svg', response.url)
+
+    def test_security_txt_has_contact_and_future_expiry(self):
+        response = self.client.get('/.well-known/security.txt', HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response['Content-Type'].startswith('text/plain'))
+        body = response.content.decode()
+        self.assertIn('Contact: mailto:security@example.com', body)
+        expires_line = next(l for l in body.splitlines() if l.startswith('Expires:'))
+        expires = datetime.strptime(expires_line.split(': ', 1)[1], '%Y-%m-%dT%H:%M:%SZ')
+        self.assertGreater(expires, datetime.now() + timedelta(days=300))
 
 
 class TailwindStaticCssTest(TestCase):
