@@ -1,0 +1,79 @@
+{# Botón + polling para descargar álbum en ZIP. Requiere download_zip_url. #}
+{% if total_images %}
+{% csrf_token %}
+<button type="button"
+        id="album-zip-btn"
+        data-zip-url="{{ download_zip_url }}"
+        data-status-url-template="{% url 'content:album_zip_status' '00000000-0000-0000-0000-000000000000' %}"
+        class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors duration-200 text-sm disabled:opacity-60 disabled:cursor-wait">
+    <i class="fas fa-file-archive mr-2" aria-hidden="true"></i>
+    <span id="album-zip-btn-label">Descargar álbum en ZIP</span>
+</button>
+<script>
+(function () {
+    const btn = document.getElementById('album-zip-btn');
+    if (!btn) return;
+    const label = document.getElementById('album-zip-btn-label');
+    const startUrl = btn.dataset.zipUrl;
+    const statusTemplate = btn.dataset.statusUrlTemplate;
+
+    function csrfToken() {
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input && input.value) return input.value;
+        const match = document.cookie.match(/(?:^|; )csrftoken=([^;]*)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function statusUrl(jobId) {
+        return statusTemplate.replace('00000000-0000-0000-0000-000000000000', jobId);
+    }
+
+    async function poll(jobId) {
+        const res = await fetch(statusUrl(jobId), {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin',
+        });
+        if (!res.ok) throw new Error('Estado no disponible');
+        const data = await res.json();
+        if (data.status === 'ready' && data.download_url) {
+            label.textContent = 'Descargar álbum en ZIP';
+            btn.disabled = false;
+            window.location.href = data.download_url;
+            return;
+        }
+        if (data.status === 'failed') {
+            label.textContent = 'Descargar álbum en ZIP';
+            btn.disabled = false;
+            alert(data.error || 'No se pudo generar el ZIP.');
+            return;
+        }
+        label.textContent = 'Preparando ZIP…';
+        setTimeout(function () { poll(jobId); }, 2000);
+    }
+
+    btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        label.textContent = 'Preparando ZIP…';
+        try {
+            const res = await fetch(startUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': csrfToken(),
+                },
+                credentials: 'same-origin',
+            });
+            const data = await res.json().catch(function () { return {}; });
+            if (!res.ok) {
+                throw new Error(data.error || 'No se pudo iniciar la descarga');
+            }
+            await poll(data.job_id);
+        } catch (err) {
+            label.textContent = 'Descargar álbum en ZIP';
+            btn.disabled = false;
+            alert(err.message || 'Error al preparar el ZIP');
+        }
+    });
+})();
+</script>
+{% endif %}

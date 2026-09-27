@@ -132,3 +132,51 @@ def generate_image_thumbnails_task(image_id):
         # la tarea como fallida (Sentry/monitorización), no pasar en silencio.
         logger.exception('Fallo generando miniaturas de la imagen %s', image_id)
         raise
+
+
+@shared_task(name='build_album_zip')
+def build_album_zip_task(job_id, organization_id, scope, scope_id):
+    """Comprime imágenes aprobadas de un partido o álbum en un ZIP temporal.
+
+    El nombre es explícito porque las filas de PeriodicTask dependen de él.
+    """
+    from ilovevoley.content.album_zip import (
+        REL_DIR,
+        build_album_zip_file,
+        get_job_state,
+        job_dest_path,
+        mark_job_failed,
+        mark_job_ready,
+    )
+
+    state = get_job_state(job_id)
+    if not state:
+        logger.warning('build_album_zip: job %s missing from cache', job_id)
+        return {'ok': False, 'reason': 'missing_job'}
+
+    qs = Image.objects.filter(organization_id=organization_id, status='approved')
+    if scope == 'match':
+        qs = qs.filter(match_id=int(scope_id))
+    elif scope == 'album_group':
+        qs = qs.filter(album_group_id=scope_id)
+    else:
+        mark_job_failed(job_id, f'unknown scope {scope}')
+        return {'ok': False, 'reason': 'bad_scope'}
+
+    dest = job_dest_path(job_id)
+    filename = state.get('filename') or f'album-{job_id}.zip'
+    try:
+        count = build_album_zip_file(queryset=qs, dest_path=dest)
+        if count == 0:
+            if dest.exists():
+                dest.unlink(missing_ok=True)
+            mark_job_failed(job_id, 'empty')
+            return {'ok': False, 'reason': 'empty'}
+        rel_path = f'{REL_DIR}/{job_id}.zip'
+        mark_job_ready(job_id, rel_path, filename)
+        return {'ok': True, 'count': count, 'path': rel_path}
+    except Exception as exc:
+        if dest.exists():
+            dest.unlink(missing_ok=True)
+        mark_job_failed(job_id, exc)
+        raise
