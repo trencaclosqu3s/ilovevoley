@@ -141,6 +141,12 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if DEBUG else 'https'
 # Header de proxy SSL (necesario para que Django detecte HTTPS detrás de nginx)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# Número de proxies de confianza delante de Django que añaden X-Forwarded-For.
+# El ingress es nginx (usa $proxy_add_x_forwarded_for), que añade la IP del peer
+# al final de la cadena. Solo las entradas más a la derecha son fiables, así que
+# get_client_ip descarta lo que el cliente inyecte a la izquierda.
+TRUSTED_PROXY_COUNT = env_config('TRUSTED_PROXY_COUNT', default=1, cast=int)
+
 # Cabeceras de transporte seguro y cookies (activas por defecto en producción)
 SESSION_COOKIE_SECURE = env_config('SESSION_COOKIE_SECURE', default=not DEBUG, cast=bool)
 CSRF_COOKIE_SECURE = env_config('CSRF_COOKIE_SECURE', default=not DEBUG, cast=bool)
