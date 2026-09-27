@@ -708,6 +708,10 @@ _configure_sentry(
     dsn=env_config('SENTRY_DSN', default=''),
     debug=DEBUG,
     traces_sample_rate=env_config('SENTRY_TRACES_SAMPLE_RATE', default=0.1, cast=float),
+    profiles_sample_rate=env_config('SENTRY_PROFILES_SAMPLE_RATE', default=0.1, cast=float),
+    # Auto-discovers the beat schedule, so the PeriodicTask rows in the DB
+    # (django-celery-beat) check in to Sentry Crons without hardcoding slugs.
+    monitor_beat_tasks=env_config('SENTRY_MONITOR_BEAT_TASKS', default=True, cast=bool),
     release=env_config('SENTRY_RELEASE', default=None),
     environment=env_config('SENTRY_ENVIRONMENT', default='production'),
 )
