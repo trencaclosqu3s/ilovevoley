@@ -6,7 +6,7 @@ en la cola correcta y de que los workers las consuman por separado, así que
 este test fija el routing tarea -> cola.
 """
 from django.conf import settings
-from django.test import TestCase
+from django.test import SimpleTestCase
 
 from config.celery import app
 
@@ -44,7 +44,7 @@ QUEUE_BY_TASK = {
 }
 
 
-class CeleryQueueRoutingTest(TestCase):
+class CeleryQueueRoutingTest(SimpleTestCase):
     def test_every_task_routes_to_its_queue(self):
         for task_name, expected_queue in QUEUE_BY_TASK.items():
             route = app.amqp.router.route({}, task_name) or {}
