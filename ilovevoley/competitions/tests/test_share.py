@@ -294,6 +294,7 @@ class PublicMatchMediaViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response['X-Accel-Redirect'].startswith('/protected-media/'))
         self.assertEqual(response['Cache-Control'], 'private, no-store')
+        self.assertEqual(response['X-Robots-Tag'], 'noindex, nofollow')
 
     def test_404_for_revoked_link(self):
         from django.urls import reverse

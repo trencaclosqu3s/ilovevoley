@@ -19,7 +19,7 @@ from unidecode import unidecode as _uni
 from ilovevoley.content.models import Image
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category
-from ilovevoley.core.protected_media import _normalize, _serve
+from ilovevoley.core.protected_media import serve_protected_file
 from ilovevoley.core.security import UnsafeURL, safe_get
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import (
@@ -231,7 +231,7 @@ def match_detail(request, match_id):
     # Enlaces de compartición (solo relevantes para managers)
     share_links = []
     if can_manage_videos:
-        for link in match.share_links.filter(organization=request.tenant).select_related('created_by'):
+        for link in match.share_links.filter(organization=request.tenant):
             share_links.append({
                 'link': link,
                 'url': build_absolute_url(
@@ -830,7 +830,7 @@ def ajax_teams_by_league_category(request):
 def match_share_create(request, match_id):
     """Crea un enlace público temporal para el partido."""
     match = get_tenant_object_or_404(
-        Match.objects.select_related('home_team', 'away_team', 'league'),
+        Match.objects,
         request.tenant, user=request.user, id=match_id,
     )
     hours = request.POST.get('hours')
@@ -864,11 +864,11 @@ def public_match_timeline(request, token):
     # Aislamiento de tenant: el enlace solo expone medios de su organización (los medios sin organización no se comparten públicamente por precaución).
     videos = list(
         match.videos.filter(organization_id=link.organization_id)
-        .select_related('created_by').order_by('-created_at')
+        .order_by('-created_at')
     )
     images = list(
         match.images.filter(status='approved', organization_id=link.organization_id)
-        .select_related('uploaded_by').order_by('-upload_date')
+        .order_by('-upload_date')
     )
     groups = group_match_media(videos, images, get_match_set_labels(match))
     has_media = any(group['videos'] or group['images'] for group in groups)
@@ -913,8 +913,9 @@ def public_match_media(request, token, image_id):
     if not file_field or not file_field.name:
         raise Http404
 
-    response = _serve(_normalize(file_field.name))
+    response = serve_protected_file(file_field.name)
     response['Cache-Control'] = 'private, no-store'
+    response['X-Robots-Tag'] = 'noindex, nofollow'
     return response
 
 
