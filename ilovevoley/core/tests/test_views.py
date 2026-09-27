@@ -461,3 +461,30 @@ class TailwindStaticCssTest(TestCase):
             mock_run.assert_called_once()
             self.assertIn('Tailwind CSS compilado con éxito', out.getvalue())
 
+
+class HealthzViewTest(TestCase):
+    def test_healthz_success(self):
+        for path in ('/healthz', '/healthz/'):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json(), {'status': 'ok'})
+
+    def test_healthz_database_error(self):
+        from unittest.mock import patch
+        from django.db import OperationalError
+
+        with patch('django.db.connection.cursor', side_effect=OperationalError('connection refused')):
+            response = self.client.get('/healthz')
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(response.json(), {'status': 'error'})
+
+    @override_settings(
+        SECURE_SSL_REDIRECT=True,
+        SECURE_REDIRECT_EXEMPT=[r'^healthz/?$'],
+        ALLOWED_HOSTS=['localhost', '127.0.0.1', 'testserver'],
+    )
+    def test_healthz_exempt_from_ssl_redirect(self):
+        response = self.client.get('/healthz', secure=False)
+        self.assertEqual(response.status_code, 200)
+
+

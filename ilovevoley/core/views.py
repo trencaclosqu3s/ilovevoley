@@ -122,6 +122,22 @@ def about(request):
     return render(request, 'core/about.html', context)
 
 
+def healthz(request):
+    """
+    Health check endpoint for deployment validation and uptime monitoring.
+    Verifies database connectivity.
+    """
+    from django.db import connection
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        return JsonResponse({'status': 'ok'}, status=200)
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return JsonResponse({'status': 'error'}, status=503)
+
+
 def robots_txt(request):
     """robots.txt: permite la landing pública y bloquea rutas privadas."""
     admin_path = '/' + settings.ADMIN_URL.strip('/') + '/'
@@ -175,7 +191,6 @@ def security_txt(request):
         f'Canonical: {build_absolute_url(reverse("security_txt"), request=request)}',
     ]
     return HttpResponse('\n'.join(lines) + '\n', content_type='text/plain; charset=utf-8')
-
 
 def _can_moderate_memberships(request):
     """True si el usuario es superuser o manager/admin aprobado del tenant actual."""
@@ -393,6 +408,7 @@ __all__ = [
     'test_500',
     'landing',
     'about',
+    'healthz',
     'robots_txt',
     'sitemap_xml',
     'favicon',

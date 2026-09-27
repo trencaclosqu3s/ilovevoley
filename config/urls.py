@@ -15,12 +15,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from ilovevoley.core.moderation_views import moderate_user, moderate_image
 from ilovevoley.core.protected_media import protected_media
 from ilovevoley.core.views import (
     favicon,
+    healthz,
     landing,
     robots_txt,
     security_txt,
@@ -28,6 +29,7 @@ from ilovevoley.core.views import (
 )
 
 urlpatterns = [
+    re_path(r'^healthz/?$', healthz, name='healthz'),
     path(settings.ADMIN_URL, admin.site.urls),
     # SEO, bots y seguridad
     path('robots.txt', robots_txt, name='robots_txt'),

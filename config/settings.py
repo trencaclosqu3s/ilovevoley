@@ -147,6 +147,7 @@ CSRF_COOKIE_SECURE = env_config('CSRF_COOKIE_SECURE', default=not DEBUG, cast=bo
 SESSION_COOKIE_HTTPONLY = True
 
 SECURE_SSL_REDIRECT = env_config('SECURE_SSL_REDIRECT', default=not DEBUG, cast=bool)
+SECURE_REDIRECT_EXEMPT = [r'^healthz/?$']
 SECURE_HSTS_SECONDS = env_config('SECURE_HSTS_SECONDS', default=31536000 if not DEBUG else 0, cast=int)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=not DEBUG, cast=bool)
 SECURE_HSTS_PRELOAD = env_config('SECURE_HSTS_PRELOAD', default=False, cast=bool)
