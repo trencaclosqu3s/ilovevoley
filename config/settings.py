@@ -118,8 +118,7 @@ SOCIALACCOUNT_STORE_TOKENS = False  # No almacenar access/refresh tokens de Goog
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Permitir login si el email coincide con una cuenta local verificada
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # Vincular la cuenta social a la local verificada
 
-# Configuración de Google Calendar API
-# Scopes básicos para todos los usuarios
+# Scopes de Google para el login social (no se piden permisos de Calendar)
 GOOGLE_BASIC_SCOPES = [
     'profile',
     'email',
