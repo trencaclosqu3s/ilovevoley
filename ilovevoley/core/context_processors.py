@@ -14,8 +14,8 @@ def tenant_context(request):
     org = getattr(request, 'tenant', None)
     share_image_path = org.logo.url if org and org.logo else static('images/logo_app.png')
 
-    brand = org.primary_color if org else DEFAULT_BRAND
-    brand_dark = (org.secondary_color if org and org.secondary_color else DEFAULT_BRAND_DARK)
+    brand = org.primary_color if org and org.primary_color else DEFAULT_BRAND
+    brand_dark = org.secondary_color if org and org.secondary_color else DEFAULT_BRAND_DARK
     
     is_manager = False
     is_admin = False
