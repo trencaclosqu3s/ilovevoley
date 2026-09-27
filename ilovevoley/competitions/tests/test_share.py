@@ -14,6 +14,7 @@ from ilovevoley.competitions.share import (
     resolve_match_share_link,
     revoke_match_share_link,
 )
+from ilovevoley.content.models import Image
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.teams.models import Club, Team
 
@@ -174,6 +175,13 @@ class PublicTimelineViewTest(TestCase):
         )
         self.link = create_match_share_link(self.match, self.org, self.user, hours=48)
 
+    def _image(self, title, organization):
+        return Image.objects.create(
+            image=SimpleUploadedFile('x.jpg', TINY_GIF, content_type='image/jpeg'),
+            title=title, match=self.match, status='approved',
+            uploaded_by=self.user, organization=organization, image_type='match',
+        )
+
     def test_public_timeline_renders_without_login(self):
         from django.urls import reverse
         response = self.client.get(
@@ -183,6 +191,19 @@ class PublicTimelineViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.home.name)
         self.assertEqual(response['Cache-Control'], 'private, no-store')
+
+    def test_timeline_only_shows_media_of_the_link_organization(self):
+        from django.urls import reverse
+        self._image('Foto del club', self.org)
+        other_org = Organization.objects.create(slug='otherclub', name='Other Club', is_active=True)
+        self._image('Foto ajena', other_org)
+        response = self.client.get(
+            reverse('public:match_timeline', args=[self.link.token]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Foto del club')
+        self.assertNotContains(response, 'Foto ajena')
 
     def test_public_timeline_404_for_revoked_link(self):
         from django.urls import reverse
@@ -207,6 +228,7 @@ class PublicMatchMediaViewTest(TestCase):
     def setUp(self):
         cache.clear()
         self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
+        self.other_org = Organization.objects.create(slug='otherclub', name='Other Club', is_active=True)
         User = get_user_model()
         self.user = User.objects.create_user(username='manager', password='pass')
         self.category = Category.objects.create(name='Senior', is_active=True)
@@ -227,12 +249,13 @@ class PublicMatchMediaViewTest(TestCase):
         )
         self.link = create_match_share_link(self.match, self.org, self.user, hours=48)
 
-    def _image(self, match, status='approved'):
-        from ilovevoley.content.models import Image
+    def _image(self, match, status='approved', organization=None):
         return Image.objects.create(
             image=SimpleUploadedFile('foto.gif', TINY_GIF, content_type='image/gif'),
             title='Foto', match=match, status=status,
-            uploaded_by=self.user, organization=self.org, image_type='match',
+            uploaded_by=self.user,
+            organization=self.org if organization is None else organization,
+            image_type='match',
         )
 
     def test_serves_approved_image_of_the_match(self):
@@ -274,7 +297,16 @@ class PublicMatchMediaViewTest(TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_404_for_image_of_another_organization(self):
+    def test_404_for_image_of_a_different_organization(self):
+        from django.urls import reverse
+        image = self._image(self.match, organization=self.other_org)
+        response = self.client.get(
+            reverse('public:match_media', args=[self.link.token, image.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_404_for_image_without_organization(self):
         from django.urls import reverse
         image = self._image(self.match)
         image.organization = None
@@ -284,3 +316,26 @@ class PublicMatchMediaViewTest(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_media_variants_resolve_to_expected_field(self):
+        from django.urls import reverse
+        image = self._image(self.match)
+        image.thumbnail_small.name = 'images/small.gif'
+        image.thumbnail_large.name = 'images/large.gif'
+        image.save(update_fields=['thumbnail_small', 'thumbnail_large'])
+        url = reverse('public:match_media', args=[self.link.token, image.id])
+
+        thumb = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        large = self.client.get(url, {'v': 'large'}, HTTP_HOST='testclub.ilovevoley.es')
+        orig = self.client.get(url, {'v': 'orig'}, HTTP_HOST='testclub.ilovevoley.es')
+        unknown = self.client.get(url, {'v': 'unknown'}, HTTP_HOST='testclub.ilovevoley.es')
+
+        self.assertEqual(
+            [thumb.status_code, large.status_code, orig.status_code, unknown.status_code],
+            [200, 200, 200, 200],
+        )
+        self.assertTrue(thumb['X-Accel-Redirect'].endswith('images/small.gif'))
+        self.assertTrue(large['X-Accel-Redirect'].endswith('images/large.gif'))
+        self.assertTrue(orig['X-Accel-Redirect'].endswith(image.image.name))
+        self.assertNotEqual(orig['X-Accel-Redirect'], thumb['X-Accel-Redirect'])
+        self.assertEqual(unknown['X-Accel-Redirect'], thumb['X-Accel-Redirect'])

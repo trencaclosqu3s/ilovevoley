@@ -861,16 +861,23 @@ def public_match_timeline(request, token):
         raise Http404
     match = link.match
 
-    videos = list(match.videos.select_related('created_by').order_by('-created_at'))
+    # Aislamiento de tenant: el enlace solo expone medios de su organización (los medios sin organización no se comparten públicamente por precaución).
+    videos = list(
+        match.videos.filter(organization_id=link.organization_id)
+        .select_related('created_by').order_by('-created_at')
+    )
     images = list(
-        match.images.filter(status='approved').select_related('uploaded_by').order_by('-upload_date')
+        match.images.filter(status='approved', organization_id=link.organization_id)
+        .select_related('uploaded_by').order_by('-upload_date')
     )
     groups = group_match_media(videos, images, get_match_set_labels(match))
+    has_media = any(group['videos'] or group['images'] for group in groups)
 
     response = render(request, 'competitions/public_match_timeline.html', {
         'link': link,
         'match': match,
         'groups': groups,
+        'has_media': has_media,
     })
     response['Cache-Control'] = 'private, no-store'
     response['X-Robots-Tag'] = 'noindex, nofollow'
