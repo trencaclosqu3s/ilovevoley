@@ -538,12 +538,3 @@ class MatchLineup(models.Model):
         quien = self.person.full_name if self.person else self.name_acta or 'Sin identificar'
         dorsal = f' #{self.jersey_number}' if self.jersey_number else ''
         return f'{quien}{dorsal} - {self.match_id}'
-
-    @property
-    def is_titular(self):
-        """Ha salido en el sexteto inicial en al menos un set del partido."""
-        return self.sets_started > 0
-
-    @property
-    def played(self):
-        return self.sets_played > 0

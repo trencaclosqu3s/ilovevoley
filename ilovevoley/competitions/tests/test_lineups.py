@@ -119,6 +119,21 @@ class MatchLineupBuildingTests(TestCase):
         rows = {r.jersey_number: r for r in build_match_lineups(self.match, data)}
         self.assertEqual(rows[7].person_id, person.id)
 
+    def test_person_se_resuelve_aunque_el_rol_este_inactivo(self):
+        person = Person.objects.create(first_name='Baja', last_name='Temporada', organization=self.org)
+        PlayerRole.objects.create(
+            person=person, team=self.team, season=self.season,
+            jersey_number=7, is_active=False,
+        )
+        data = _lineup_data(
+            home_convocados=['7 Dorsal'],
+            sets=[_set('Set 1', [_entry('I', 7), _entry('II', 2), _entry('III', 3),
+                                 _entry('IV', 4), _entry('V', 5), _entry('VI', 6)], _six(11))],
+        )
+
+        rows = {r.jersey_number: r for r in build_match_lineups(self.match, data)}
+        self.assertEqual(rows[7].person_id, person.id)
+
     def test_no_mezcla_dorsal_de_otra_temporada(self):
         otro = Season.objects.resolve('2024-25')
         person = Person.objects.create(first_name='Vieja', last_name='Dorsal', organization=self.org)

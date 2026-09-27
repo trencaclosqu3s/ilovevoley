@@ -13,7 +13,7 @@ from unidecode import unidecode
 
 from ilovevoley.rosters.models import PlayerRole
 
-from ..models import MatchLineup
+from ..models import Match, MatchLineup
 
 _SET_POSITIONS = ('I', 'II', 'III', 'IV', 'V', 'VI')
 
@@ -39,16 +39,18 @@ def _roles_lookup(match):
 
     Se acota a la temporada de la liga cuando existe: un mismo dorsal cambia de
     dueño entre temporadas y sin ese filtro el histórico quedaría mal asignado.
+    No se filtra por ``is_active``: un rol desactivado al acabar la temporada
+    sigue siendo el dueño de ese dorsal en sus partidos.
     """
     teams = [t for t in (match.home_team, match.away_team) if t]
     if not teams:
         return {}
-    roles = PlayerRole.objects.filter(
-        team__in=teams, is_active=True, jersey_number__isnull=False,
-    )
+    roles = PlayerRole.objects.filter(team__in=teams, jersey_number__isnull=False)
     season = match.league.season if match.league_id else None
     if season is not None:
         roles = roles.filter(season=season)
+    # Ante un dorsal repetido en la misma temporada, el rol activo gana.
+    roles = roles.order_by('is_active')
     return {
         (role.team_id, role.jersey_number): role
         for role in roles.select_related('person')
@@ -128,7 +130,13 @@ def build_match_lineups(match, lineup_data):
 
 @transaction.atomic
 def store_match_lineups(match, lineup_data):
-    """Guarda el JSON del acta y reconstruye sus filas de alineación."""
+    """Guarda el JSON del acta y reconstruye sus filas de alineación.
+
+    Bloquea el partido para serializar dos peticiones simultáneas de la misma
+    acta: sin el lock, el delete + bulk_create puede chocar con la constraint
+    única por dorsal.
+    """
+    Match.all_objects.select_for_update().filter(pk=match.pk).first()
     match.acta_data = lineup_data
     match.save(update_fields=['acta_data', 'updated_at'])
     MatchLineup.objects.filter(match=match).delete()

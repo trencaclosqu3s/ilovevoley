@@ -498,7 +498,7 @@ def ajax_acta_lineup(request, match_id):
     # El acta se persiste en el partido: una vez parseada no se vuelve a
     # descargar y queda disponible para los históricos por jugador.
     lineup_data = match.acta_data
-    if not lineup_data:
+    if lineup_data is None:
         # Solo se cachea el parseo correcto; los errores de red se reintentan en la siguiente petición.
         cache_key = f"acta_lineup:{match.acta_html}"
         lineup_data = cache.get(cache_key)
