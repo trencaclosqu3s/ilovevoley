@@ -464,8 +464,12 @@ def ajax_add_match_result(request, match_id):
                 'home_score': match.home_score,
                 'away_score': match.away_score
             })
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': f'Error al guardar: {str(e)}'}, status=500)
+        except Exception:
+            logger.exception("Error al guardar resultado del partido %s", match_id)
+            return JsonResponse({
+                'success': False,
+                'error': 'Error interno al guardar el resultado.',
+            }, status=500)
     else:
         # Recopilar errores del formulario
         errors = {}

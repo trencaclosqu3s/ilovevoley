@@ -1,5 +1,6 @@
 from datetime import datetime, time, timedelta
 
+from django.conf import settings
 from django.db.models import Q
 from django.http import Http404
 from django.urls import reverse
@@ -82,8 +83,21 @@ class UserMatchesFeed(ICalFeed):
         ).distinct().order_by('match_date')
 
     def item_guid(self, item):
-        """ID único para cada evento (importante para actualizaciones)"""
-        return f'partido-{item.id}@videosvoley.com'
+        """
+        ID único para cada evento en el feed ICS (propiedad UID de RFC 5545).
+
+        NOTA DE COMPATIBILIDAD (Issue #105 / M-045):
+        Por defecto se mantiene el dominio '@videosvoley.com' como namespace del GUID.
+        Los clientes de calendario (Google Calendar, Apple Calendar, Outlook, etc.)
+        utilizan el UID como identificador único persistente para asociar eventos
+        existentes y actualizar cambios de fecha u hora sin duplicados.
+        Modificar este sufijo en producción provocaría que los calendarios ya suscritos
+        interpreten todos los partidos como eventos nuevos, duplicándolos en la agenda.
+        Se permite configurar un dominio alternativo mediante el setting
+        CALENDAR_FEED_DOMAIN para instalaciones nuevas o migraciones controladas.
+        """
+        domain = getattr(settings, 'CALENDAR_FEED_DOMAIN', 'videosvoley.com')
+        return f'partido-{item.id}@{domain}'
 
     def item_title(self, item):
         """Título del evento"""
