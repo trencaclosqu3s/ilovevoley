@@ -19,7 +19,7 @@ from unidecode import unidecode as _uni
 from ilovevoley.content.models import Image
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category
-from ilovevoley.core.protected_media import _serve
+from ilovevoley.core.protected_media import _normalize, _serve
 from ilovevoley.core.security import UnsafeURL, safe_get
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import (
@@ -231,7 +231,7 @@ def match_detail(request, match_id):
     # Enlaces de compartición (solo relevantes para managers)
     share_links = []
     if can_manage_videos:
-        for link in match.share_links.select_related('created_by').all():
+        for link in match.share_links.filter(organization=request.tenant).select_related('created_by'):
             share_links.append({
                 'link': link,
                 'url': build_absolute_url(
@@ -913,7 +913,7 @@ def public_match_media(request, token, image_id):
     if not file_field or not file_field.name:
         raise Http404
 
-    response = _serve(file_field.name)
+    response = _serve(_normalize(file_field.name))
     response['Cache-Control'] = 'private, no-store'
     return response
 

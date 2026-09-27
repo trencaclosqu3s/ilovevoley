@@ -154,6 +154,31 @@ class MatchShareManagerViewsTest(TestCase):
         link.refresh_from_db()
         self.assertIsNotNone(link.revoked_at)
 
+    def test_manager_does_not_see_other_tenant_links(self):
+        from django.urls import reverse
+        other_org = Organization.objects.create(slug='otherclub-x', name='Other X', is_active=True)
+        foreign_link = create_match_share_link(self.match, other_org, self.manager, hours=48)
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('competitions:match_detail', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(str(foreign_link.token), response.content.decode())
+
+    def test_manager_revoke_foreign_link_returns_404(self):
+        from django.urls import reverse
+        other_org = Organization.objects.create(slug='otherclub-x', name='Other X', is_active=True)
+        foreign_link = create_match_share_link(self.match, other_org, self.manager, hours=48)
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:match_share_revoke', args=[self.match.id, foreign_link.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+        foreign_link.refresh_from_db()
+        self.assertIsNone(foreign_link.revoked_at)
+
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
 class PublicTimelineViewTest(TestCase):
@@ -276,6 +301,27 @@ class PublicMatchMediaViewTest(TestCase):
         revoke_match_share_link(self.link)
         response = self.client.get(
             reverse('public:match_media', args=[self.link.token, image.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_404_for_expired_link(self):
+        from django.urls import reverse
+        image = self._image(self.match)
+        MatchShareLink.objects.filter(pk=self.link.pk).update(
+            expires_at=timezone.now() - timedelta(minutes=1)
+        )
+        response = self.client.get(
+            reverse('public:match_media', args=[self.link.token, image.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_404_for_unknown_token(self):
+        from django.urls import reverse
+        image = self._image(self.match)
+        response = self.client.get(
+            reverse('public:match_media', args=[uuid.uuid4(), image.id]),
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 404)

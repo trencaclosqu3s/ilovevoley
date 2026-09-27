@@ -295,7 +295,7 @@ class ImageAdmin(ModelAdmin):
 
     def unassign_match(self, request, queryset):
         """Quitar el partido de las imágenes seleccionadas."""
-        updated = queryset.filter(match__isnull=False).update(match=None)
+        updated = queryset.filter(match__isnull=False).update(match=None, set_number=None)
         if updated:
             self.message_user(request, f'{updated} foto(s) desasignada(s) de su partido.')
         else:
