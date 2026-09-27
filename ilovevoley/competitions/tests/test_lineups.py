@@ -135,15 +135,17 @@ class MatchLineupBuildingTests(TestCase):
         self.assertEqual(rows[7].person_id, person.id)
 
     def test_rol_activo_gana_ante_dorsal_repetido(self):
-        inactivo = Person.objects.create(first_name='Baja', last_name='Uno', organization=self.org)
+        # El activo se crea primero (id menor) para que el test no pase por azar
+        # de orden: la precedencia debe decidirla is_active, no el id.
         activo = Person.objects.create(first_name='Activa', last_name='Dos', organization=self.org)
-        PlayerRole.objects.create(
-            person=inactivo, team=self.team, season=self.season,
-            jersey_number=7, is_active=False,
-        )
+        inactivo = Person.objects.create(first_name='Baja', last_name='Uno', organization=self.org)
         PlayerRole.objects.create(
             person=activo, team=self.team, season=self.season,
             jersey_number=7, is_active=True,
+        )
+        PlayerRole.objects.create(
+            person=inactivo, team=self.team, season=self.season,
+            jersey_number=7, is_active=False,
         )
         data = _lineup_data(
             home_convocados=['7 Dorsal'],
@@ -153,6 +155,26 @@ class MatchLineupBuildingTests(TestCase):
 
         rows = {r.jersey_number: r for r in build_match_lineups(self.match, data)}
         self.assertEqual(rows[7].person_id, activo.id)
+
+    def test_entre_dorsal_repetido_gana_el_rol_mas_reciente(self):
+        antiguo = Person.objects.create(first_name='Antigua', last_name='Dorsal', organization=self.org)
+        reciente = Person.objects.create(first_name='Reciente', last_name='Dorsal', organization=self.org)
+        PlayerRole.objects.create(
+            person=antiguo, team=self.team, season=self.season,
+            jersey_number=7, is_active=False,
+        )
+        PlayerRole.objects.create(
+            person=reciente, team=self.team, season=self.season,
+            jersey_number=7, is_active=False,
+        )
+        data = _lineup_data(
+            home_convocados=['7 Dorsal'],
+            sets=[_set('Set 1', [_entry('I', 7), _entry('II', 2), _entry('III', 3),
+                                 _entry('IV', 4), _entry('V', 5), _entry('VI', 6)], _six(11))],
+        )
+
+        rows = {r.jersey_number: r for r in build_match_lineups(self.match, data)}
+        self.assertEqual(rows[7].person_id, reciente.id)
 
     def test_no_mezcla_dorsal_de_otra_temporada(self):
         otro = Season.objects.resolve('2024-25')
