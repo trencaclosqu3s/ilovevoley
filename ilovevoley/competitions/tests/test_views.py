@@ -730,6 +730,16 @@ class CompetitionsTenantIsolationTests(TestCase):
         )
         self.assertEqual(foreign.status_code, 404)
 
+    def test_match_detail_loads_lightbox_script_once(self):
+        """base.html ya carga lightbox.js; la ficha no debe duplicarlo (#209)."""
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('competitions:match_detail', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
+
     def test_match_detail_hides_foreign_org_media(self):
         """Vídeos e imágenes de otra organización no se listan en la ficha del partido (#200)."""
         from django.core.files.uploadedfile import SimpleUploadedFile

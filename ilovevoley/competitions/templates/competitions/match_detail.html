@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ match.home_team_display }} vs {{ match.away_team_display }} - Vídeos del Equipo{% endblock %}
+{% block title %}{{ match.home_team_display }} vs {{ match.away_team_display }} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -557,10 +557,6 @@
         </div>
     </div>
 </div>
-
-<!-- Lightbox Modal para Imágenes -->
-{% load static %}
-<script src="{% static 'js/lightbox.js' %}"></script>
 
 <!-- Modal para agregar resultado -->
 <div id="resultModal" class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 hidden z-50 flex items-center justify-center p-4">

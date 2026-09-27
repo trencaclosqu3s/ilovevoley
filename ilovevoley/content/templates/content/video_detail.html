@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% block title %}{{ video.title }}{% if tenant %} - {{ tenant.name }}{% endif %}{% endblock %}
+
 {% block content %}
 <div class="max-w-4xl mx-auto">
     <!-- Navegación de vuelta -->

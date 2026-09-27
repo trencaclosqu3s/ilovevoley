@@ -157,51 +157,54 @@ def team_roster(request, team_id):
     # Temporada a mostrar (activa por defecto)
     season_filter, selected_season = resolve_season_filter(request)
 
-    # Obtener jugadores activos ordenados por número de dorsal usando nueva estructura
-    player_roles = team.player_roles.filter(is_active=True)
-    staff_roles = team.staff_roles.filter(is_active=True)
+    # Plantilla base: roles activos de la temporada seleccionada. Es la misma
+    # regla que usan el listado de equipos y la vista general de plantillas, así
+    # que los contadores coinciden entre superficies.
+    roster_players = team.player_roles.filter(is_active=True)
+    roster_staff = team.staff_roles.filter(is_active=True)
     if season_filter:
-        player_roles = player_roles.filter(season=season_filter)
-        staff_roles = staff_roles.filter(season=season_filter)
-    player_roles = player_roles.select_related('person').order_by("jersey_number", "person__last_name", "person__first_name")
-    staff_roles = staff_roles.select_related('person').order_by("role", "person__last_name", "person__first_name")
-    
-    # Filtros opcionales
+        roster_players = roster_players.filter(season=season_filter)
+        roster_staff = roster_staff.filter(season=season_filter)
+    roster_players = roster_players.select_related('person')
+    roster_staff = roster_staff.select_related('person')
+
+    # Los filtros de posición/rol solo acotan las listas mostradas; las
+    # estadísticas de cabecera siguen reflejando la plantilla completa.
+    player_roles = roster_players.order_by("jersey_number", "person__last_name", "person__first_name")
+    staff_roles = roster_staff.order_by("role", "person__last_name", "person__first_name")
+
     position_filter = request.GET.get("position")
     if position_filter:
         player_roles = player_roles.filter(position=position_filter)
-    
+
     role_filter = request.GET.get("role")
     if role_filter:
         staff_roles = staff_roles.filter(role=role_filter)
-    
+
     # Estadísticas de la plantilla usando nueva estructura
     stats = {
-        "total_players": player_roles.count(),
-        "total_staff": staff_roles.count(),
+        "total_players": roster_players.count(),
+        "total_staff": roster_staff.count(),
         "players_with_jersey": 0,
         "positions_covered": 0,
         "positions_distribution": {},
         "roles_distribution": {},
     }
-    
+
     # Contar jugadores con dorsal asignado
-    stats["players_with_jersey"] = player_roles.filter(jersey_number__isnull=False).count()
-    
-    # Contar posiciones cubiertas (que tienen al menos un jugador)
+    stats["players_with_jersey"] = roster_players.filter(jersey_number__isnull=False).count()
+
+    # Posiciones cubiertas y distribución por posiciones (plantilla completa)
     positions_with_players = set()
-    for player_role in player_roles:
+    for player_role in roster_players:
         if player_role.position:
             positions_with_players.add(player_role.position)
-    stats["positions_covered"] = len(positions_with_players)
-    
-    # Distribución por posiciones
-    for player_role in player_roles:
         pos = player_role.get_position_display() if player_role.position else "Sin asignar"
         stats["positions_distribution"][pos] = stats["positions_distribution"].get(pos, 0) + 1
-    
-    # Distribución por roles del staff
-    for staff_role in staff_roles:
+    stats["positions_covered"] = len(positions_with_players)
+
+    # Distribución por roles del staff (plantilla completa)
+    for staff_role in roster_staff:
         role = staff_role.get_role_display()
         stats["roles_distribution"][role] = stats["roles_distribution"].get(role, 0) + 1
     
