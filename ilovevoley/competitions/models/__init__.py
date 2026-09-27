@@ -8,6 +8,7 @@ from .competitions import (
     MatchChangeLogQuerySet,
     MatchLineup,
     MatchManager,
+    MatchShareLink,
     ScrapingEndpoint,
     Standing,
 )
@@ -22,6 +23,7 @@ __all__ = [
     'MatchChangeLogQuerySet',
     'MatchLineup',
     'MatchManager',
+    'MatchShareLink',
     'ScrapingEndpoint',
     'Standing',
 ]

@@ -47,6 +47,15 @@ logger = logging.getLogger(__name__)
 POPULAR_TAGS_CACHE_TTL = 3600
 
 
+def _coerce_set_number(raw):
+    """Convierte el valor de un formulario a un set válido (>=1) o None."""
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value >= 1 else None
+
+
 def get_popular_tags(organization, limit=15):
     """Top tags for suggestions; cached per tenant to avoid scanning images each request."""
     cache_key = f'gallery:popular_tags:{organization.pk}'
@@ -333,6 +342,7 @@ def video_bulk_create(request):
                         youtube_url=entry['youtube_url'],
                         match=match,
                         category=category,
+                        set_number=entry.get('set_number'),
                         created_by=request.user,
                         organization=request.tenant,
                     )
@@ -730,6 +740,7 @@ def image_bulk_upload(request):
             'uploaded_by': request.user,
             'image_type': request.POST.get('image_type', 'other'),
             'season_id': season_id,
+            'set_number': _coerce_set_number(request.POST.get('set_number')),
             'organization': request.tenant,
         }
         

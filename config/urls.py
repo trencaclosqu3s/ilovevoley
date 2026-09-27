@@ -58,6 +58,7 @@ urlpatterns = [
     path('content/', include('ilovevoley.content.urls', namespace='content')),
     path('teams/', include('ilovevoley.teams.urls', namespace='teams')),
     path('competitions/', include('ilovevoley.competitions.urls', namespace='competitions')),
+    path('p/', include('ilovevoley.competitions.public_urls', namespace='public')),
     path('core/', include('ilovevoley.core.urls', namespace='core')),
     path('', include('ilovevoley.users.urls')),
     # Rutas de moderación con tokens seguros

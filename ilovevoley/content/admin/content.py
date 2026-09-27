@@ -14,8 +14,8 @@ from ilovevoley.competitions.models import Match
 
 @admin.register(Video)
 class VideoAdmin(ModelAdmin):
-    list_display = ('title', 'category', 'match', 'created_by', 'created_at')
-    list_filter = ('category', 'match__league', 'created_at')
+    list_display = ('title', 'category', 'match', 'set_number', 'created_by', 'created_at')
+    list_filter = ('category', 'match__league', 'set_number', 'created_at')
     search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name')
     readonly_fields = ('created_at',)
     autocomplete_fields = ('match',)
@@ -44,8 +44,8 @@ class ImageInline(TabularInline):
 
 @admin.register(Image)
 class ImageAdmin(ModelAdmin):
-    list_display = ('thumbnail_preview', 'title', 'match', 'album_display', 'categories_display_admin', 'status', 'uploaded_by', 'upload_date', 'moderated_by', 'original_format', 'was_converted')
-    list_filter = ('status', 'categories', 'season', 'upload_date', 'match__league', 'was_converted', 'original_format')
+    list_display = ('thumbnail_preview', 'title', 'match', 'set_number', 'album_display', 'categories_display_admin', 'status', 'uploaded_by', 'upload_date', 'moderated_by', 'original_format', 'was_converted')
+    list_filter = ('status', 'categories', 'season', 'set_number', 'upload_date', 'match__league', 'was_converted', 'original_format')
     search_fields = ('title', 'description', 'match__home_team__name', 'match__away_team__name', 'album_name')
     readonly_fields = ('upload_date', 'thumbnail_preview', 'vision_api_details', 'moderation_date', 'original_format', 'was_converted')
     date_hierarchy = 'upload_date'
@@ -57,7 +57,7 @@ class ImageAdmin(ModelAdmin):
             'fields': ('thumbnail_preview', 'image', 'title', 'description', 'image_type', 'tags', 'original_format', 'was_converted')
         }),
         ('Asociación', {
-            'fields': ('match', 'categories', 'season'),
+            'fields': ('match', 'set_number', 'categories', 'season'),
             'description': 'Categorías y temporada se asignan automáticamente desde el partido, pero puedes modificarlas'
         }),
         ('Moderación', {
@@ -295,7 +295,7 @@ class ImageAdmin(ModelAdmin):
 
     def unassign_match(self, request, queryset):
         """Quitar el partido de las imágenes seleccionadas."""
-        updated = queryset.filter(match__isnull=False).update(match=None)
+        updated = queryset.filter(match__isnull=False).update(match=None, set_number=None)
         if updated:
             self.message_user(request, f'{updated} foto(s) desasignada(s) de su partido.')
         else:

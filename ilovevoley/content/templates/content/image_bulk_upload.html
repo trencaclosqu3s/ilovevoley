@@ -137,6 +137,17 @@
                         <p class="text-xs text-gray-500 mt-1">Las categorías se asignarán automáticamente desde el partido</p>
                     </div>
 
+                    <!-- Set (opcional) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Set (opcional)
+                        </label>
+                        <input type="number" name="set_number" min="1"
+                               placeholder="Ej: 1"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                        <p class="text-xs text-gray-500 mt-1">Número de set al que pertenecen las fotos (si aplica)</p>
+                    </div>
+
                     <!-- Campo oculto para álbum existente -->
                     {% if existing_album %}
                     <input type="hidden" name="existing_album_id" value="{{ existing_album.album_group_id }}">

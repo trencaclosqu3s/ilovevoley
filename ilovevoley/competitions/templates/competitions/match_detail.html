@@ -478,6 +478,58 @@
         {% endif %}
     </div>
 
+    {% if can_manage_videos %}
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+            <h2 class="text-lg sm:text-xl font-bold text-gray-800">🔗 Compartir galería</h2>
+        </div>
+        <div class="p-4 sm:p-6 space-y-4">
+            <form method="post" action="{% url 'competitions:match_share_create' match.id %}" class="flex flex-col sm:flex-row gap-3 sm:items-end">
+                {% csrf_token %}
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Caducidad del enlace</label>
+                    <select name="hours" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                        {% for hours in share_hours_choices %}
+                            <option value="{{ hours }}" {% if hours == share_default_hours %}selected{% endif %}>
+                                {% if hours == 168 %}7 días{% else %}{{ hours }} horas{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-semibold transition touch-manipulation">
+                    Generar enlace
+                </button>
+            </form>
+
+            {% if share_links %}
+                <ul class="divide-y divide-gray-100 border border-gray-100 rounded-lg">
+                    {% for item in share_links %}
+                        <li class="p-3 flex flex-col sm:flex-row sm:items-center gap-2">
+                            <div class="flex-1 min-w-0">
+                                <input type="text" readonly value="{{ item.url }}"
+                                       class="w-full text-xs sm:text-sm bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600">
+                                <p class="text-xs text-gray-500 mt-1">
+                                    {% if item.link.revoked_at %}Revocado{% elif item.link.is_active %}Caduca {{ item.link.expires_at|date:"d/m/Y H:i" }}{% else %}Caducado{% endif %}
+                                </p>
+                            </div>
+                            {% if item.link.is_active %}
+                                <form method="post" action="{% url 'competitions:match_share_revoke' match.id item.link.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="text-red-600 hover:text-red-700 text-sm font-medium whitespace-nowrap">
+                                        Revocar
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-sm text-gray-500">No hay enlaces activos para este partido.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Navegación -->
     <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">🔗 Enlaces relacionados</h3>
