@@ -27,7 +27,8 @@ services:
       - DEBUG=True
       - DATABASE_URL=postgresql://volleyuser:volleypass@db:5432/volleyvideos
       - REDIS_URL=redis://redis:6379/0
-      - REDIS_CACHE_URL=redis://redis:6379/1
+      - REDIS_RESULT_URL=redis://redis:6379/1
+      - REDIS_CACHE_URL=redis://redis:6379/2
       - SECRET_KEY=change-me-in-production
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
       - OLLAMA_HOST=http://192.168.0.16:11434
@@ -37,14 +38,15 @@ services:
 
   celery:
     build: .
-    command: celery -A config worker -l info
+    command: celery -A config worker -l info -Q default,media,scraping
     volumes:
       - .:/app
     environment:
       - DEBUG=True
       - DATABASE_URL=postgresql://volleyuser:volleypass@db:5432/volleyvideos
       - REDIS_URL=redis://redis:6379/0
-      - REDIS_CACHE_URL=redis://redis:6379/1
+      - REDIS_RESULT_URL=redis://redis:6379/1
+      - REDIS_CACHE_URL=redis://redis:6379/2
       - SECRET_KEY=change-me-in-production
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
     depends_on:
@@ -61,7 +63,8 @@ services:
       - DEBUG=True
       - DATABASE_URL=postgresql://volleyuser:volleypass@db:5432/volleyvideos
       - REDIS_URL=redis://redis:6379/0
-      - REDIS_CACHE_URL=redis://redis:6379/1
+      - REDIS_RESULT_URL=redis://redis:6379/1
+      - REDIS_CACHE_URL=redis://redis:6379/2
       - SECRET_KEY=change-me-in-production
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
     depends_on:
