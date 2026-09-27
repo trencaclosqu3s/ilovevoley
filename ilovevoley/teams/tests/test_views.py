@@ -39,6 +39,12 @@ class TeamViewUrlTests(TestCase):
             official_name='Club Voleibol Test',
             federation_id='CLUB-TEST',
         )
+        self.org.club = self.club
+        self.org.save(update_fields=['club'])
+        self.manager = User.objects.create_user(username='manager', password='pass')
+        Membership.objects.create(
+            user=self.manager, organization=self.org, is_approved=True, role='manager'
+        )
         self.team = Team.objects.create(
             name='Test Club Senior',
             category=self.category,
@@ -60,7 +66,7 @@ class TeamViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_teams_ajax_register_team_url_resolves_and_creates_team(self):
-        self.client.force_login(self.user)
+        self.client.force_login(self.manager)
         url = reverse('teams:ajax_register_team')
         self.assertEqual(url, '/teams/ajax/register-team/')
 
@@ -77,6 +83,57 @@ class TeamViewUrlTests(TestCase):
         data = response.json()
         self.assertTrue(data['success'])
         self.assertTrue(Team.objects.filter(name='New Registered Team').exists())
+
+    def test_basic_member_cannot_register_team_returns_403(self):
+        self.client.force_login(self.user)
+        url = reverse('teams:ajax_register_team')
+        response = self.client.post(
+            url,
+            {'name': 'Team Member', 'category_id': self.category.id},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_get_method_rejected_with_405(self):
+        self.client.force_login(self.manager)
+        url = reverse('teams:ajax_register_team')
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 405)
+
+    def test_register_team_validates_name_syntax_and_length(self):
+        self.client.force_login(self.manager)
+        url = reverse('teams:ajax_register_team')
+        invalid_names = [
+            'A',  # Demasiado corto (<2)
+            'A' * 101,  # Demasiado largo (>100)
+            'Team\nNewline',  # Carácter de control \n
+            'Team\x00Null',  # Carácter de control \x00
+            'Team\tTab',  # Carácter de control \t
+        ]
+        for name in invalid_names:
+            response = self.client.post(
+                url,
+                {'name': name, 'category_id': self.category.id},
+                HTTP_HOST='testclub.ilovevoley.es',
+            )
+            self.assertEqual(response.status_code, 400, f"Expected 400 for invalid name: {name!r}")
+
+    def test_register_team_forces_tenant_club_ignoring_payload(self):
+        other_club = Club.objects.create(official_name='Other Club', federation_id='OTHER-CLUB')
+        self.client.force_login(self.manager)
+        url = reverse('teams:ajax_register_team')
+        response = self.client.post(
+            url,
+            {
+                'name': 'Tenant Team Protected',
+                'category_id': self.category.id,
+                'club_id': other_club.id,
+            },
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        team = Team.objects.get(name='Tenant Team Protected')
+        self.assertEqual(team.club, self.club)
 
     def test_anonymous_cannot_register_team(self):
         url = reverse('teams:ajax_register_team')

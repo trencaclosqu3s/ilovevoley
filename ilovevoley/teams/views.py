@@ -1,7 +1,9 @@
 import logging
+import re
 
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.views.decorators.http import require_POST
 
 from ilovevoley.core.mixins import get_club_team_name_filter
 from ilovevoley.core.models import Category, Season
@@ -13,37 +15,41 @@ from ilovevoley.teams.models import Club, Team
 
 logger = logging.getLogger(__name__)
 
+TEAM_NAME_REGEX = re.compile(r"^[\w \.\-'\(\)/&]{2,100}$", re.UNICODE)
 
-@tenant_access_required()
+
+@require_POST
+@tenant_access_required(manager=True)
 def ajax_register_team(request):
     """Vista AJAX para registrar un nuevo equipo desde el formulario de amistosos"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
-    
     try:
-        team_name = request.POST.get('name', '').strip()
+        raw_name = request.POST.get('name', '')
+        if not isinstance(raw_name, str):
+            raw_name = ''
+        team_name = raw_name.strip()
         category_id = request.POST.get('category_id', '').strip()
-        club_id = request.POST.get('club_id', '').strip()
-        
-        if not team_name:
-            return JsonResponse({'success': False, 'error': 'El nombre del equipo es requerido'})
-        
+
+        if (
+            not raw_name
+            or not team_name
+            or any(ord(c) < 32 or ord(c) == 127 for c in raw_name)
+            or len(team_name) < 2
+            or len(team_name) > 100
+            or not TEAM_NAME_REGEX.match(team_name)
+        ):
+            return JsonResponse({'success': False, 'error': 'Nombre de equipo no válido'}, status=400)
+
         if not category_id:
             return JsonResponse({'success': False, 'error': 'La categoría es requerida'})
-        
+
         # Validar categoría
         try:
             category = Category.objects.get(id=category_id, is_active=True)
         except Category.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'Categoría no válida'})
-        
-        # Validar club si se proporciona
-        club = None
-        if club_id:
-            try:
-                club = Club.objects.get(id=club_id)
-            except Club.DoesNotExist:
-                return JsonResponse({'success': False, 'error': 'Club no válido'})
+
+        # Asignar club del tenant ignorando cualquier club_id del payload
+        club = getattr(request.tenant, 'club', None)
         
         # Verificar si ya existe un equipo con el mismo nombre en la misma categoría
         existing_team = Team.objects.filter(name__iexact=team_name, category=category).first()
