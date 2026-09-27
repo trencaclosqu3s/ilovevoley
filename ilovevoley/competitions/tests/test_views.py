@@ -740,6 +740,29 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
 
+    def test_match_images_loads_lightbox_script_once(self):
+        """base.html ya carga lightbox.js; las imágenes de partido no lo duplican (#209)."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from ilovevoley.content.models import Image
+
+        gif = (
+            b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
+            b'\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;'
+        )
+        Image.objects.create(
+            image=SimpleUploadedFile('photo.gif', gif, content_type='image/gif'),
+            title='Foto', uploaded_by=self.manager, match=self.match,
+            organization=self.org, status='approved',
+        )
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('content:match_images', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
+
     def test_match_detail_hides_foreign_org_media(self):
         """Vídeos e imágenes de otra organización no se listan en la ficha del partido (#200)."""
         from django.core.files.uploadedfile import SimpleUploadedFile
