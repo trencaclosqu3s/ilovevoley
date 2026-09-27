@@ -423,6 +423,7 @@ class TailwindStaticCssTest(TestCase):
             '400.html',
             '403.html',
             '404.html',
+            '429.html',
             '500.html',
         ]
         context = {

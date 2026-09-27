@@ -216,6 +216,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    'django_ratelimit.middleware.RatelimitMiddleware',
     'ilovevoley.core.middleware.Error404TrackingMiddleware',
 ]
 
@@ -415,6 +416,12 @@ CACHES = {
         'LOCATION': REDIS_CACHE_URL,
     }
 }
+
+# Rate limiting (django-ratelimit)
+RATELIMIT_ENABLE = env_config('RATELIMIT_ENABLE', default=True, cast=bool)
+RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_VIEW = 'ilovevoley.core.views.custom_429'
+RATELIMIT_IP_META_KEY = 'ilovevoley.core.ratelimit_utils.get_client_ip'
 
 # Miniaturas responsivas de imágenes: en producción se generan en background
 THUMBNAIL_GENERATION_ASYNC = env_config('THUMBNAIL_GENERATION_ASYNC', default=not DEBUG, cast=bool)

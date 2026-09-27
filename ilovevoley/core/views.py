@@ -58,6 +58,22 @@ def custom_500(request):
     return render(request, '500.html', status=500)
 
 
+def custom_429(request, exception=None):
+    """
+    Custom 429 Too Many Requests error page.
+    Soporta HTML y respuestas JSON para peticiones AJAX o API.
+    """
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+    is_json = 'application/json' in request.headers.get('Accept', '') or request.content_type == 'application/json'
+    is_api = '/api/' in request.path or request.path.startswith('/api/')
+    if is_ajax or is_json or is_api:
+        return JsonResponse({
+            'error': 'Demasiadas peticiones',
+            'detail': 'Has superado el límite de intentos permitido. Por favor, espera un momento antes de volver a intentarlo.'
+        }, status=429)
+    return render(request, '429.html', status=429)
+
+
 # Test views for error pages (only for development)
 def test_400(request):
     """Test view for 400 error page."""
@@ -77,6 +93,11 @@ def test_404(request):
 def test_500(request):
     """Test view for 500 error page."""
     return custom_500(request)
+
+
+def test_429(request):
+    """Test view for 429 error page."""
+    return custom_429(request)
 
 
 def landing(request):

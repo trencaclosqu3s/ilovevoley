@@ -12,6 +12,7 @@ from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.http import HttpResponseBadRequest, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from django_ratelimit.decorators import ratelimit
 
 from ilovevoley.content.models import Image
 from ilovevoley.core.email_utils import enqueue_on_commit
@@ -171,6 +172,8 @@ def _inactive_tenant_response(request):
     }, status=400)
 
 
+@ratelimit(key='ip', rate='10/m', block=True)
+@ratelimit(key='user_or_ip', rate='20/m', block=True)
 @login_required
 def moderate_user(request, token):
     """
@@ -304,6 +307,8 @@ def moderate_user(request, token):
         })
 
 
+@ratelimit(key='ip', rate='10/m', block=True)
+@ratelimit(key='user_or_ip', rate='20/m', block=True)
 @login_required
 def moderate_image(request, token):
     """

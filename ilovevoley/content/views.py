@@ -15,6 +15,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from ilovevoley.competitions.models import League, Match
 from ilovevoley.core.mixins import get_club_team_filter
@@ -1182,6 +1183,7 @@ def image_moderate_bulk(request):
     return redirect('content:image_moderation')
 
 
+@ratelimit(key='user_or_ip', rate='30/m', block=True)
 @login_required
 @require_POST
 def moderate_image_api(request, image_id):
