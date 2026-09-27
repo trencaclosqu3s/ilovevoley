@@ -104,6 +104,44 @@ def get_calendar_token(request):
         }, status=500)
 
 
+# ==============================================================================
+# Vistas de autenticación protegidas por rate limiting
+# ==============================================================================
+from allauth.account import views as allauth_views
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
+from ilovevoley.core.ratelimit_utils import (
+    ratelimit_post_email_key,
+    ratelimit_post_login_key,
+)
+
+
+@method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
+@method_decorator(ratelimit(key=ratelimit_post_login_key, rate='5/m', method='POST', block=True), name='post')
+class RatelimitedLoginView(allauth_views.LoginView):
+    """Inicio de sesión protegido contra fuerza bruta por IP y por usuario/credencial."""
+    pass
+
+
+@method_decorator(ratelimit(key='ip', rate='3/m', method='POST', block=True), name='post')
+class RatelimitedSignupView(allauth_views.SignupView):
+    """Registro de usuarios protegido contra creación masiva de cuentas por IP."""
+    pass
+
+
+@method_decorator(ratelimit(key='ip', rate='3/m', method='POST', block=True), name='post')
+@method_decorator(ratelimit(key=ratelimit_post_email_key, rate='3/m', method='POST', block=True), name='post')
+class RatelimitedPasswordResetView(allauth_views.PasswordResetView):
+    """Solicitud de recuperación de contraseña limitada por IP y por email destino."""
+    pass
+
+
+@method_decorator(ratelimit(key='ip', rate='3/m', method='POST', block=True), name='post')
+class RatelimitedPasswordResetFromKeyView(allauth_views.PasswordResetFromKeyView):
+    """Establecimiento de contraseña desde enlace firmado protegido por IP."""
+    pass
+
+
 @login_required
 @require_POST
 def regenerate_calendar_token(request):

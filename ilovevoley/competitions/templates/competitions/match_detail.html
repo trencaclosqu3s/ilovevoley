@@ -92,6 +92,30 @@
                         </svg>
                         {{ match.result_display }}
                     </div>
+                    <div id="result-card-actions"
+                         class="flex flex-wrap items-center gap-2 mt-2"
+                         data-card-url="{% url 'competitions:match_result_card' match.id %}">
+                        <button type="button"
+                                data-card-format="square"
+                                class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
+                            Compartir 1:1
+                        </button>
+                        <button type="button"
+                                data-card-format="story"
+                                class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
+                            Compartir Story
+                        </button>
+                        <button type="button"
+                                data-card-format="square"
+                                class="result-card-download inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                            Descargar 1:1
+                        </button>
+                        <button type="button"
+                                data-card-format="story"
+                                class="result-card-download inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                            Descargar Story
+                        </button>
+                    </div>
                 {% elif is_tenant_manager %}
                     {% if match.match_date.date <= today %}
                         <button onclick="openResultModal({{ match.id }}, '{{ match.home_team_display|escapejs }}', '{{ match.away_team_display|escapejs }}')" 
@@ -374,15 +398,15 @@
     {% endif %}
 
     <!-- Imágenes del partido -->
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div class="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+    <div class="bg-white rounded-lg shadow-lg relative">
+        <div class="bg-gray-50 rounded-t-lg px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
             <div class="flex justify-between items-center">
                 <h2 class="text-lg sm:text-xl font-bold text-gray-800">
                     📸 Galería del partido
                 </h2>
                 <a href="{% url 'content:match_images' match.id %}" 
                    class="text-csj-purple hover:text-purple-700 text-sm font-medium">
-                    Ver todas <i class="fas fa-arrow-right ml-1"></i>
+                    Ver todas →
                 </a>
             </div>
         </div>
@@ -405,23 +429,26 @@
                     <div class="text-center mt-4">
                         <a href="{% url 'content:match_images' match.id %}"
                            class="inline-flex items-center px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
-                            Ver las {{ images.count }} imágenes <i class="fas fa-images ml-2"></i>
+                            Ver las {{ images.count }} imágenes →
                         </a>
                     </div>
                 {% endif %}
             </div>
         {% else %}
             <div class="p-8 sm:p-12 text-center">
-                <i class="fas fa-images text-gray-400 text-4xl mb-4"></i>
+                <div class="text-gray-400 text-4xl mb-4">📸</div>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No hay imágenes para este partido</h3>
                 <p class="text-sm text-gray-500 mb-4">
                     Aún no se han subido imágenes para este enfrentamiento.
                 </p>
                 <!-- Menú desplegable de subida -->
-                <div class="relative">
+                <div class="relative z-20">
                     <button id="upload-menu-btn-{{ match.id }}"
-                            class="inline-flex items-center px-2.5 py-1 bg-csj-purple text-white rounded-md hover:bg-purple-700 transition-colors duration-200 text-xs">
-                        <i class="fas fa-plus mr-1 text-xs"></i>Subir imagen
+                            class="inline-flex items-center px-3 py-1.5 bg-csj-purple text-white rounded-md hover:bg-purple-700 transition-colors duration-200 text-xs font-medium">
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Subir imagen
                         <svg class="w-2.5 h-2.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
@@ -589,6 +616,108 @@ function openImageLightbox(imageUrl, title, imageId) {
 function closeImageLightbox() {
     closeLightbox();
 }
+
+(function() {
+    const root = document.getElementById('result-card-actions');
+    if (!root) return;
+
+    const baseUrl = root.dataset.cardUrl;
+
+    const GENERIC_ERROR = 'No se pudo generar la tarjeta. Inténtalo de nuevo';
+
+    async function fetchCard(format) {
+        let response;
+        try {
+            response = await fetch(`${baseUrl}?format=${encodeURIComponent(format)}`);
+        } catch (_) {
+            // Fallo de red: el mensaje nativo del navegador está en inglés.
+            throw new Error(GENERIC_ERROR);
+        }
+        const contentType = response.headers.get('Content-Type') || '';
+
+        if (!response.ok) {
+            let message = 'No se pudo generar la tarjeta';
+            if (contentType.includes('application/json')) {
+                try {
+                    const data = await response.json();
+                    if (data.error) message = data.error;
+                } catch (_) {
+                    // Conserva el mensaje genérico si la respuesta JSON no es válida.
+                }
+            }
+            throw new Error(message);
+        }
+
+        return {
+            blob: await response.blob(),
+            filename: `resultado-{{ match.id }}-${format}.png`
+        };
+    }
+
+    function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function showCardError(error) {
+        if (window.showToast) {
+            window.showToast('error', (error && error.message) || GENERIC_ERROR);
+        }
+    }
+
+    async function downloadCard(format) {
+        try {
+            const { blob, filename } = await fetchCard(format);
+            downloadBlob(blob, filename);
+            if (window.showToast) window.showToast('info', 'Imagen descargada');
+        } catch (error) {
+            showCardError(error);
+        }
+    }
+
+    async function shareCard(format) {
+        try {
+            const { blob, filename } = await fetchCard(format);
+            const file = new File([blob], filename, { type: 'image/png' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Resultado',
+                        text: '{{ match.home_team_display|escapejs }} {{ match.result_display|escapejs }} {{ match.away_team_display|escapejs }}'
+                    });
+                    return;
+                } catch (error) {
+                    if (error && error.name === 'AbortError') return;
+                }
+            }
+
+            downloadBlob(blob, filename);
+            if (window.showToast) window.showToast('info', 'Imagen descargada');
+        } catch (error) {
+            showCardError(error);
+        }
+    }
+
+    root.querySelectorAll('.result-card-share').forEach(function(button) {
+        button.addEventListener('click', function() {
+            shareCard(button.dataset.cardFormat);
+        });
+    });
+
+    root.querySelectorAll('.result-card-download').forEach(function(button) {
+        button.addEventListener('click', function() {
+            downloadCard(button.dataset.cardFormat);
+        });
+    });
+})();
 
 // Variables globales para el modal de resultado
 let currentMatchId = null;
@@ -1028,7 +1157,7 @@ function openPlayerModal(player) {
 
     // Enlace a ficha
     if (p.id) {
-        document.getElementById('playerProfileUrl').href = '/videos/personas/' + p.id + '/';
+        document.getElementById('playerProfileUrl').href = '/rosters/personas/' + p.id + '/';
         document.getElementById('playerProfileLink').classList.remove('hidden');
     } else {
         document.getElementById('playerProfileLink').classList.add('hidden');

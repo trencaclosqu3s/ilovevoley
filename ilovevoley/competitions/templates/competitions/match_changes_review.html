@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Modificaciones de Jornada - Control de Cambios{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 border-t-4 border-csj-purple">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span>📋</span> Modificaciones Federativas
+                </h1>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                    Control de variaciones horarias, pistas, aplazamientos y discrepancias detectadas por el scraper
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold {% if pending_count > 0 %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300{% else %}bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300{% endif %}">
+                    {{ pending_count }} pendientes de revisión
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros y Pestañas -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
+            <!-- Pestañas de estado -->
+            <nav class="flex space-x-2" aria-label="Tabs">
+                <a href="?status=pending&type={{ selected_type }}&season={{ selected_season_id }}"
+                   class="px-3 py-2 text-sm font-medium rounded-md {% if status_filter == 'pending' %}bg-csj-purple text-white{% else %}text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                    Pendientes
+                </a>
+                <a href="?status=all&type={{ selected_type }}&season={{ selected_season_id }}"
+                   class="px-3 py-2 text-sm font-medium rounded-md {% if status_filter == 'all' %}bg-csj-purple text-white{% else %}text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                    Todos los cambios
+                </a>
+                <a href="?status=reviewed&type={{ selected_type }}&season={{ selected_season_id }}"
+                   class="px-3 py-2 text-sm font-medium rounded-md {% if status_filter == 'reviewed' %}bg-csj-purple text-white{% else %}text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                    Revisados
+                </a>
+            </nav>
+
+            <!-- Filtros desplegables -->
+            <form method="get" class="flex flex-wrap items-center gap-3">
+                <input type="hidden" name="status" value="{{ status_filter }}">
+
+                <!-- Selector de Temporada -->
+                <div>
+                    <select name="season" onchange="this.form.submit()"
+                            class="text-sm rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5">
+                        <option value="">Todas las temporadas</option>
+                        {% for s in seasons %}
+                        <option value="{{ s.id }}" {% if selected_season_id == s.id|stringformat:"s" %}selected{% endif %}>
+                            Temporada {{ s.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Selector de Tipo -->
+                <div>
+                    <select name="type" onchange="this.form.submit()"
+                            class="text-sm rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5">
+                        <option value="">Todos los tipos</option>
+                        {% for code, label in change_types %}
+                        <option value="{{ code }}" {% if selected_type == code %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+
+        <!-- Listado de modificaciones -->
+        {% if changes %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Partido / Liga</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Alteración</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Diferencia</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Detección / Alerta</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for log in changes %}
+                    <tr id="change-row-{{ log.id }}" class="hover:bg-gray-50/70 dark:hover:bg-gray-700/50 transition">
+                        <!-- Partido / Liga -->
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm font-semibold text-gray-900 dark:text-white">
+                                <a href="{% url 'competitions:match_detail' log.match_id %}" class="hover:underline text-csj-purple dark:text-purple-400">
+                                    {{ log.match.home_team_display }} vs {{ log.match.away_team_display }}
+                                </a>
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                {% if log.match.league %}{{ log.match.league.name }}{% endif %}
+                                · Jornada {{ log.match.round_number }}
+                            </div>
+                        </td>
+
+                        <!-- Alteración y tipo -->
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                {% if log.change_type == 'datetime' %}
+                                <span class="px-2 py-0.5 text-xs font-medium rounded bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">
+                                    🕒 Fecha / Hora
+                                </span>
+                                {% elif log.change_type == 'venue' %}
+                                <span class="px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                                    📍 Sede / Pista
+                                </span>
+                                {% elif log.change_type == 'status' %}
+                                <span class="px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300">
+                                    ⚠️ Estado
+                                </span>
+                                {% elif log.change_type == 'score' %}
+                                <span class="px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
+                                    🏐 Tanteo
+                                </span>
+                                {% else %}
+                                <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                    {{ log.get_change_type_display }}
+                                </span>
+                                {% endif %}
+
+                                {% if log.is_last_minute %}
+                                <span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-rose-600 text-white" title="Cambio en partido de los próximos 7 días">
+                                    ÚLTIMA HORA
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="text-xs text-gray-500 font-mono mt-1">{{ log.field_name }}</div>
+                        </td>
+
+                        <!-- Diferencia (Antes -> Ahora) -->
+                        <td class="px-4 py-3 text-sm">
+                            <div class="space-y-0.5">
+                                <div class="text-xs text-red-600 dark:text-red-400 line-through">
+                                    {{ log.old_value|default:"(vacío)" }}
+                                </div>
+                                <div class="text-xs text-green-600 dark:text-green-400 font-medium">
+                                    {{ log.new_value|default:"(vacío)" }}
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- Detección / Notificación -->
+                        <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                            <div>Detectado: {{ log.detected_at|date:"d/m/Y H:i" }}</div>
+                            {% if log.notified %}
+                            <div class="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                                <span>✓ Alerta enviada</span>
+                                <span>({{ log.notified_at|date:"d/m H:i" }})</span>
+                            </div>
+                            {% endif %}
+                        </td>
+
+                        <!-- Acción / Estado revisión -->
+                        <td class="px-4 py-3 whitespace-nowrap text-right text-xs">
+                            <div id="review-action-{{ log.id }}">
+                                {% if log.reviewed %}
+                                <span class="inline-flex items-center text-green-700 dark:text-green-400 font-medium bg-green-50 dark:bg-green-950/40 px-2 py-1 rounded">
+                                    ✓ Revisado por {{ log.reviewed_by.get_full_name|default:log.reviewed_by.username|default:"Admin" }}
+                                </span>
+                                {% else %}
+                                <button onclick="markAsReviewed(this)"
+                                        data-log-id="{{ log.id }}"
+                                        data-url="{% url 'competitions:ajax_mark_change_reviewed' log.id %}"
+                                        class="px-2.5 py-1.5 bg-gray-100 hover:bg-csj-purple hover:text-white dark:bg-gray-700 dark:hover:bg-csj-purple text-gray-700 dark:text-gray-200 rounded font-medium transition cursor-pointer shadow-sm">
+                                    Marcar revisado
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-4">
+            <div class="text-xs text-gray-500">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} registros)
+            </div>
+            <div class="flex gap-1">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}&type={{ selected_type }}&season={{ selected_season_id }}"
+                   class="px-2.5 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    Anterior
+                </a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}&type={{ selected_type }}&season={{ selected_season_id }}"
+                   class="px-2.5 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    Siguiente
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-12 text-gray-500 dark:text-gray-400">
+            <span class="text-4xl block mb-2">🎉</span>
+            <p class="text-base font-medium">No hay modificaciones federativas que coincidan con los filtros.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function markAsReviewed(button) {
+    const logId = button.getAttribute('data-log-id');
+    const url = button.getAttribute('data-url');
+    const container = document.getElementById('review-action-' + logId);
+    if (!container || !url) return;
+
+    const csrftoken = getCookie('csrftoken');
+    button.disabled = true;
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Error de autorización');
+        return response.json();
+    })
+    .then(data => {
+        if (data.status === 'success') {
+            const badge = document.createElement('span');
+            badge.className = 'inline-flex items-center text-green-700 dark:text-green-400 font-medium bg-green-50 dark:bg-green-950/40 px-2 py-1 rounded';
+            badge.textContent = '✓ Revisado por ' + (data.reviewed_by || 'Admin');
+            container.replaceChildren(badge);
+        }
+    })
+    .catch(err => {
+        button.disabled = false;
+        alert('No se pudo marcar como revisado: ' + err.message);
+    });
+}
+</script>
+
+{% endblock %}

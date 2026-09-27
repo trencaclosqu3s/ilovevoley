@@ -1,3 +1,34 @@
+x-celery-base: &celery-base
+  build:
+    context: .
+    target: runtime
+  security_opt:
+    - no-new-privileges:true
+  env_file: .env
+  volumes:
+    - ./voley-474111-a4a6b029e20b.json:/app/voley-474111-a4a6b029e20b.json:ro
+  environment:
+    - DEBUG=${DEBUG:-False}
+    - SECRET_KEY=${SECRET_KEY}
+    - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
+    - REDIS_URL=redis://redis:6379/0
+    - REDIS_RESULT_URL=${REDIS_RESULT_URL:-redis://redis:6379/1}
+    - REDIS_CACHE_URL=${REDIS_CACHE_URL:-redis://redis:6379/2}
+    - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
+    - OMP_NUM_THREADS=1
+    - OPENBLAS_NUM_THREADS=1
+    - TOKENIZERS_PARALLELISM=false
+    - MALLOC_TRIM_THRESHOLD_=100
+    - SENTRY_RELEASE=${GIT_SHA:-}
+    - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
+  depends_on:
+    - db
+    - redis
+    - web
+  restart: unless-stopped
+  networks:
+    - app-network
+
 services:
   db:
     image: postgres:18-alpine
@@ -24,7 +55,7 @@ services:
     security_opt:
       - no-new-privileges:true
     env_file: .env
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 30 --max-requests 1000 --max-requests-jitter 100 --access-logfile -
     volumes:
       - ./voley-474111-a4a6b029e20b.json:/app/voley-474111-a4a6b029e20b.json:ro
       - /opt/videosvoley/media:/app/media
@@ -35,7 +66,8 @@ services:
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
       - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
       - REDIS_URL=redis://redis:6379/0
-      - REDIS_CACHE_URL=${REDIS_CACHE_URL:-redis://redis:6379/1}
+      - REDIS_RESULT_URL=${REDIS_RESULT_URL:-redis://redis:6379/1}
+      - REDIS_CACHE_URL=${REDIS_CACHE_URL:-redis://redis:6379/2}
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
       - SENTRY_RELEASE=${GIT_SHA:-}
       - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
@@ -46,36 +78,17 @@ services:
     networks:
       - app-network
 
-  celery:
-    build:
-      context: .
-      target: runtime
-    security_opt:
-      - no-new-privileges:true
-    env_file: .env
-    command: celery -A config worker -l info --pool=solo
-    volumes:
-      - ./voley-474111-a4a6b029e20b.json:/app/voley-474111-a4a6b029e20b.json:ro
-    environment:
-      - DEBUG=${DEBUG:-False}
-      - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
-      - REDIS_URL=redis://redis:6379/0
-      - REDIS_CACHE_URL=${REDIS_CACHE_URL:-redis://redis:6379/1}
-      - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
-      - OMP_NUM_THREADS=1
-      - OPENBLAS_NUM_THREADS=1
-      - TOKENIZERS_PARALLELISM=false
-      - MALLOC_TRIM_THRESHOLD_=100
-      - SENTRY_RELEASE=${GIT_SHA:-}
-      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
-    depends_on:
-      - db
-      - redis
-      - web
-    restart: unless-stopped
-    networks:
-      - app-network
+  celery-default:
+    <<: *celery-base
+    command: celery -A config worker -l info -Q default --concurrency=4
+
+  celery-media:
+    <<: *celery-base
+    command: celery -A config worker -l info -Q media --concurrency=2
+
+  celery-scraping:
+    <<: *celery-base
+    command: celery -A config worker -l info -Q scraping --concurrency=4
 
   celery-beat:
     build:
@@ -92,7 +105,8 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=postgresql://${DB_USER:-volleyuser}:${DB_PASSWORD:-volleypass}@db:5432/${DB_NAME:-volleyvideos}
       - REDIS_URL=redis://redis:6379/0
-      - REDIS_CACHE_URL=${REDIS_CACHE_URL:-redis://redis:6379/1}
+      - REDIS_RESULT_URL=${REDIS_RESULT_URL:-redis://redis:6379/1}
+      - REDIS_CACHE_URL=${REDIS_CACHE_URL:-redis://redis:6379/2}
       - GOOGLE_APPLICATION_CREDENTIALS=/app/voley-474111-a4a6b029e20b.json
       - SENTRY_RELEASE=${GIT_SHA:-}
       - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}

@@ -1,4 +1,12 @@
-def configure(dsn, debug, traces_sample_rate, release=None, environment='production'):
+def configure(
+    dsn,
+    debug,
+    traces_sample_rate,
+    profiles_sample_rate=0.0,
+    monitor_beat_tasks=True,
+    release=None,
+    environment='production',
+):
     if debug or not dsn:
         return
 
@@ -12,8 +20,12 @@ def configure(dsn, debug, traces_sample_rate, release=None, environment='product
 
     sentry_sdk.init(
         dsn=dsn,
-        integrations=[DjangoIntegration(), CeleryIntegration()],
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(monitor_beat_tasks=monitor_beat_tasks),
+        ],
         traces_sample_rate=traces_sample_rate,
+        profiles_sample_rate=profiles_sample_rate,
         send_default_pii=False,
         environment=environment,
         release=release,

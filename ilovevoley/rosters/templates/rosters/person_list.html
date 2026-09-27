@@ -18,14 +18,15 @@
 
 .tooltip {
     position: absolute;
-    top: 100%;
+    bottom: 100%;
+    top: auto;
     left: 50%;
     transform: translateX(-50%);
     z-index: 50;
-    white-space: nowrap;
     max-width: 200px;
     word-wrap: break-word;
     white-space: normal;
+    margin-bottom: 0.5rem;
 }
 
 /* Ajustes para móvil */
@@ -33,6 +34,7 @@
     .tooltip {
         position: fixed;
         top: 50%;
+        bottom: auto;
         left: 50%;
         transform: translate(-50%, -50%);
         max-width: 80vw;
@@ -41,6 +43,7 @@
         border-radius: 8px;
         padding: 16px;
         text-align: center;
+        margin-bottom: 0;
     }
     
     .tooltip .absolute {
@@ -52,6 +55,11 @@
 .person-card {
     position: relative !important;
     min-height: 320px;
+}
+
+.person-card:hover,
+.person-card:focus-within {
+    z-index: 30 !important;
 }
 
 .person-card:hover .tooltip {
@@ -164,12 +172,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">👥 Personas del Club</h1>
                 <p class="text-gray-600 dark:text-gray-400 mt-1">Jugadores, entrenadores y staff{% if tenant %} de {{ tenant.name }}{% endif %}</p>
             </div>
+            {% if is_tenant_manager %}
             <a href="{% url 'rosters:person_create' %}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center justify-center touch-manipulation">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
                 Agregar Persona
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -272,14 +282,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                         🏐 Jugador
                                     </span>
                                     <!-- Tooltip -->
-                                    <div class="tooltip absolute z-10 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg py-2 px-3 mt-2 opacity-0 transition-opacity duration-200 pointer-events-none hidden">
+                                    <div class="tooltip absolute bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg py-2 px-3 opacity-0 transition-opacity duration-200 pointer-events-none hidden">
                                         <div class="text-center">
                                             <div class="font-medium mb-1">Equipos:</div>
                                             {% for role in person.active_player_roles %}
                                                 <div class="text-gray-300">{{ role.team.name }}</div>
                                             {% endfor %}
                                         </div>
-                                        <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
+                                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
                                     </div>
                                 </div>
                             {% endif %}
@@ -290,14 +300,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                         🎯 Staff
                                     </span>
                                     <!-- Tooltip -->
-                                    <div class="tooltip absolute z-10 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg py-2 px-3 mt-2 opacity-0 transition-opacity duration-200 pointer-events-none hidden">
+                                    <div class="tooltip absolute bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg py-2 px-3 opacity-0 transition-opacity duration-200 pointer-events-none hidden">
                                         <div class="text-center">
                                             <div class="font-medium mb-1">Equipos:</div>
                                             {% for role in person.active_staff_roles %}
                                                 <div class="text-gray-300">{{ role.team.name }}</div>
                                             {% endfor %}
                                         </div>
-                                        <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
+                                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
                                     </div>
                                 </div>
                             {% endif %}
@@ -313,10 +323,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
         <!-- Paginación -->
         {% if page_obj.has_other_pages %}
-            <div class="flex justify-center items-center space-x-2 mt-8">
+            <!-- Móvil (< sm) -->
+            <div class="flex justify-between items-center sm:hidden mt-8 px-2">
                 {% if page_obj.has_previous %}
-                    <a href="?page=1{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Primera</a>
-                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Anterior</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Anterior</a>
+                {% else %}
+                    <span class="px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm text-gray-300 dark:text-gray-600 rounded-lg">Anterior</span>
+                {% endif %}
+                <span class="text-xs text-gray-600 dark:text-gray-400">
+                    Pág. {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                </span>
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Siguiente</a>
+                {% else %}
+                    <span class="px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm text-gray-300 dark:text-gray-600 rounded-lg">Siguiente</span>
+                {% endif %}
+            </div>
+
+            <!-- Escritorio (sm+) -->
+            <div class="hidden sm:flex justify-center items-center space-x-2 mt-8">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Primera</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Anterior</a>
                 {% endif %}
 
                 <span class="px-4 py-2 text-gray-700 dark:text-gray-300">
@@ -324,8 +352,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 </span>
 
                 {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Siguiente</a>
-                    <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Última</a>
+                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Siguiente</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Última</a>
                 {% endif %}
             </div>
         {% endif %}
@@ -336,12 +364,14 @@ document.addEventListener('DOMContentLoaded', function() {
             </svg>
             <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">No se encontraron personas</h3>
             <p class="text-gray-600 dark:text-gray-400 mb-4">{% if search or role_type %}Intenta ajustar los filtros{% else %}Aún no hay personas registradas{% endif %}</p>
+            {% if is_tenant_manager %}
             <a href="{% url 'rosters:person_create' %}" class="inline-flex items-center bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
                 Agregar Primera Persona
             </a>
+            {% endif %}
         </div>
     {% endif %}
 </div>

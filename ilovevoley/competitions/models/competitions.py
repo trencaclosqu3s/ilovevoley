@@ -1,6 +1,8 @@
+from django.conf import settings
 from django.db import models
 
 from ilovevoley.core.tenancy import MatchTenantQuerySet, TenantQuerySet
+
 
 
 class LeagueQuerySet(TenantQuerySet):
@@ -538,3 +540,66 @@ class MatchLineup(models.Model):
         quien = self.person.full_name if self.person else self.name_acta or 'Sin identificar'
         dorsal = f' #{self.jersey_number}' if self.jersey_number else ''
         return f'{quien}{dorsal} - {self.match_id}'
+
+
+class MatchChangeLogQuerySet(TenantQuerySet):
+    """QuerySet de MatchChangeLog con ámbito de tenant a través de sus partidos."""
+
+    def for_tenant(self, tenant):
+        if tenant is None:
+            return self.none()
+        from ilovevoley.core.mixins import get_tenant_club
+        if get_tenant_club(tenant) is None:
+            return self.all()
+        return self.filter(match__in=Match.all_objects.for_tenant(tenant))
+
+
+
+MatchChangeLogManager = models.Manager.from_queryset(MatchChangeLogQuerySet)
+
+
+class MatchChangeLog(models.Model):
+    CHANGE_TYPES = [
+        ('datetime', 'Fecha / Hora'),
+        ('venue', 'Sede / Pabellón'),
+        ('status', 'Estado'),
+        ('score', 'Tanteo / Resultado'),
+        ('other', 'Otro'),
+    ]
+
+    match = models.ForeignKey(Match, on_delete=models.CASCADE, related_name='change_logs')
+    change_type = models.CharField(max_length=20, choices=CHANGE_TYPES, default='other')
+    field_name = models.CharField(max_length=50)
+    old_value = models.TextField(blank=True)
+    new_value = models.TextField(blank=True)
+    is_last_minute = models.BooleanField(
+        default=False,
+        help_text='Indica si el cambio se detectó con menos de 7 días de antelación al partido'
+    )
+    detected_at = models.DateTimeField(auto_now_add=True)
+    notified = models.BooleanField(default=False)
+    notified_at = models.DateTimeField(null=True, blank=True)
+    reviewed = models.BooleanField(default=False)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_match_changes'
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    objects = MatchChangeLogManager()
+
+    class Meta:
+        db_table = 'videos_matchchangelog'
+        ordering = ['-detected_at']
+        verbose_name = 'Modificación de Partido'
+        verbose_name_plural = 'Modificaciones de Partidos'
+        indexes = [
+            models.Index(fields=['match', 'detected_at'], name='match_change_match_idx'),
+            models.Index(fields=['is_last_minute', 'notified'], name='match_change_notif_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.match} - {self.get_change_type_display()} ({self.field_name}): {self.old_value} -> {self.new_value}'
