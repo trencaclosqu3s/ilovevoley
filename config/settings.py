@@ -342,6 +342,9 @@ EMAIL_HOST_PASSWORD = env_config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = env_config('DEFAULT_FROM_EMAIL', default='Admin I Love Voley <josealbertomartin@gmail.com>')
 SERVER_EMAIL = env_config('SERVER_EMAIL', default='Admin I Love Voley <josealbertomartin@gmail.com>')
 
+# Contacto de seguridad publicado en /.well-known/security.txt (acepta "Nombre <correo>")
+SECURITY_CONTACT_EMAIL = env_config('SECURITY_CONTACT_EMAIL', default=DEFAULT_FROM_EMAIL)
+
 # Notificaciones
 NOTIFICATION_EMAIL_ENABLED = env_config('NOTIFICATION_EMAIL_ENABLED', default=False, cast=bool)
 ADMIN_EMAIL_LIST = env_config('ADMIN_EMAIL_LIST', default='', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])

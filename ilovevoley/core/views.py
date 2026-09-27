@@ -2,19 +2,24 @@
 Core views: error handlers, landing, about, and user moderation.
 """
 import logging
+from datetime import timedelta
+from email.utils import parseaddr
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.http import JsonResponse
-from django.shortcuts import render
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import redirect, render
+from django.templatetags.static import static
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from ilovevoley.content.models import Image
 from ilovevoley.core.tenant_utils import (
     approve_user_membership,
+    build_absolute_url,
     can_moderate_images,
     reject_user_membership,
     user_is_tenant_manager,
@@ -115,6 +120,59 @@ def about(request):
         'current_year': timezone.now().year,
     }
     return render(request, 'core/about.html', context)
+
+
+def robots_txt(request):
+    """robots.txt: permite la landing pública y bloquea rutas privadas."""
+    admin_path = '/' + settings.ADMIN_URL.strip('/') + '/'
+    lines = [
+        'User-agent: *',
+        f'Disallow: {admin_path}',
+        'Disallow: /accounts/',
+        'Disallow: /media/',
+        'Disallow: /moderate/',
+        'Disallow: /core/moderacion/',
+        'Disallow: /core/api/',
+        'Disallow: /videos/calendario/suscripcion/',
+        'Disallow: /competitions/calendario/suscripcion/',
+        'Allow: /',
+        f'Sitemap: {build_absolute_url(reverse("sitemap_xml"), request=request)}',
+    ]
+    return HttpResponse('\n'.join(lines) + '\n', content_type='text/plain; charset=utf-8')
+
+
+def sitemap_xml(request):
+    """Sitemap con las páginas públicas informativas (sin contenido de club)."""
+    public_paths = [reverse('landing'), reverse('core:about')]
+    urls = ''.join(
+        f'  <url><loc>{build_absolute_url(path, request=request)}</loc></url>\n'
+        for path in public_paths
+    )
+    content = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f'{urls}'
+        '</urlset>\n'
+    )
+    return HttpResponse(content, content_type='application/xml; charset=utf-8')
+
+
+def favicon(request):
+    """Redirige /favicon.ico al icono SVG declarado en las plantillas."""
+    return redirect(static('images/favicon.svg'), permanent=True)
+
+
+def security_txt(request):
+    """security.txt con el contacto de seguridad y caducidad a un año."""
+    contact = parseaddr(settings.SECURITY_CONTACT_EMAIL)[1] or settings.SECURITY_CONTACT_EMAIL
+    expires = (timezone.now() + timedelta(days=365)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    lines = [
+        f'Contact: mailto:{contact}',
+        f'Expires: {expires}',
+        'Preferred-Languages: es, en',
+        f'Canonical: {build_absolute_url(reverse("security_txt"), request=request)}',
+    ]
+    return HttpResponse('\n'.join(lines) + '\n', content_type='text/plain; charset=utf-8')
 
 
 def _can_moderate_memberships(request):
@@ -333,6 +391,10 @@ __all__ = [
     'test_500',
     'landing',
     'about',
+    'robots_txt',
+    'sitemap_xml',
+    'favicon',
+    'security_txt',
     'moderation_counts_api',
     'moderation_panel',
     'approve_user_api',
