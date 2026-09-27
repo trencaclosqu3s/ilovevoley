@@ -96,9 +96,14 @@
                          class="flex flex-wrap items-center gap-2 mt-2"
                          data-card-url="{% url 'competitions:match_result_card' match.id %}">
                         <button type="button"
-                                id="result-card-share"
-                                class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
-                            Compartir
+                                data-card-format="square"
+                                class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
+                            Compartir 1:1
+                        </button>
+                        <button type="button"
+                                data-card-format="story"
+                                class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
+                            Compartir Story
                         </button>
                         <button type="button"
                                 data-card-format="square"
@@ -615,8 +620,16 @@ function closeImageLightbox() {
 
     const baseUrl = root.dataset.cardUrl;
 
+    const GENERIC_ERROR = 'No se pudo generar la tarjeta. Inténtalo de nuevo';
+
     async function fetchCard(format) {
-        const response = await fetch(`${baseUrl}?format=${encodeURIComponent(format)}`);
+        let response;
+        try {
+            response = await fetch(`${baseUrl}?format=${encodeURIComponent(format)}`);
+        } catch (_) {
+            // Fallo de red: el mensaje nativo del navegador está en inglés.
+            throw new Error(GENERIC_ERROR);
+        }
         const contentType = response.headers.get('Content-Type') || '';
 
         if (!response.ok) {
@@ -651,10 +664,7 @@ function closeImageLightbox() {
 
     function showCardError(error) {
         if (window.showToast) {
-            window.showToast(
-                'error',
-                error.message || 'No se pudo generar la tarjeta. Inténtalo de nuevo'
-            );
+            window.showToast('error', (error && error.message) || GENERIC_ERROR);
         }
     }
 
@@ -693,15 +703,11 @@ function closeImageLightbox() {
         }
     }
 
-    const shareButton = document.getElementById('result-card-share');
-    if (shareButton) {
-        shareButton.addEventListener('click', async function() {
-            const useStory = window.confirm(
-                '¿Compartir versión Story (vertical)?\nCancelar = formato 1:1'
-            );
-            await shareCard(useStory ? 'story' : 'square');
+    root.querySelectorAll('.result-card-share').forEach(function(button) {
+        button.addEventListener('click', function() {
+            shareCard(button.dataset.cardFormat);
         });
-    }
+    });
 
     root.querySelectorAll('.result-card-download').forEach(function(button) {
         button.addEventListener('click', function() {
