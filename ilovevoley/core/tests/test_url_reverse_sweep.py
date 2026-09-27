@@ -2,7 +2,8 @@ import re
 from pathlib import Path
 import pytest
 from django.conf import settings
-from django.urls import get_resolver
+from django.test import RequestFactory
+from django.urls import get_resolver, resolve
 
 
 def _can_resolve(url_name: str) -> bool:
@@ -91,4 +92,99 @@ def test_unfold_sidebar_navigation_can_resolve():
 
     assert checked >= 10, f"Se esperaban al menos 10 enlaces en la barra lateral de Unfold, se encontraron {checked}"
     assert not failures, f"Fallo al resolver enlaces de Unfold Admin:\n" + "\n".join(failures)
+
+
+# Pares (ruta legada /videos/..., ruta canónica destino) de la issue #130.
+LEGACY_VIDEOS_REDIRECTS = [
+    # content
+    ('/videos/', '/content/'),
+    ('/videos/nuevo/', '/content/nuevo/'),
+    ('/videos/nuevo-multiple/', '/content/nuevo-multiple/'),
+    ('/videos/1/', '/content/1/'),
+    ('/videos/imagenes/', '/content/imagenes/'),
+    ('/videos/imagenes/individual/', '/content/imagenes/individual/'),
+    ('/videos/imagenes/subir/', '/content/imagenes/subir/'),
+    ('/videos/imagenes/subir-multiples/', '/content/imagenes/subir-multiples/'),
+    ('/videos/imagenes/1/', '/content/imagenes/1/'),
+    ('/videos/partidos/1/imagenes/', '/content/partidos/1/imagenes/'),
+    (
+        '/videos/imagenes/album/00000000-0000-0000-0000-000000000001/',
+        '/content/imagenes/album/00000000-0000-0000-0000-000000000001/',
+    ),
+    ('/videos/admin/imagenes/moderar/', '/content/admin/imagenes/moderar/'),
+    ('/videos/admin/imagenes/1/moderar/', '/content/admin/imagenes/1/moderar/'),
+    ('/videos/admin/imagenes/moderar-masivo/', '/content/admin/imagenes/moderar-masivo/'),
+    ('/videos/api/images/1/moderate/', '/content/api/images/1/moderate/'),
+    # competitions
+    ('/videos/ligas/', '/competitions/ligas/'),
+    ('/videos/ligas/1/', '/competitions/ligas/1/'),
+    ('/videos/partidos/1/', '/competitions/partidos/1/'),
+    ('/videos/calendario/', '/competitions/calendario/'),
+    ('/videos/clasificacion/', '/competitions/clasificacion/'),
+    ('/videos/calendario/amistoso/nuevo/', '/competitions/calendario/amistoso/nuevo/'),
+    (
+        '/videos/calendario/suscripcion/token-abc/',
+        '/competitions/calendario/suscripcion/token-abc/',
+    ),
+    ('/videos/ajax/matches-by-category/', '/competitions/ajax/matches-by-category/'),
+    (
+        '/videos/ajax/teams-by-league-category/',
+        '/competitions/ajax/teams-by-league-category/',
+    ),
+    ('/videos/ajax/search-teams/', '/competitions/ajax/search-teams/'),
+    ('/videos/ajax/partidos/1/resultado/', '/competitions/ajax/partidos/1/resultado/'),
+    ('/videos/ajax/partidos/1/alineacion/', '/competitions/ajax/partidos/1/alineacion/'),
+    # teams
+    ('/videos/equipos/', '/teams/equipos/'),
+    ('/videos/equipos/1/plantilla/', '/teams/equipos/1/plantilla/'),
+    ('/videos/ajax/register-team/', '/teams/ajax/register-team/'),
+    # rosters
+    ('/videos/plantillas/', '/rosters/plantillas/'),
+    ('/videos/personas/', '/rosters/personas/'),
+    ('/videos/personas/nueva/', '/rosters/personas/nueva/'),
+    ('/videos/personas/1/', '/rosters/personas/1/'),
+    ('/videos/personas/1/editar/', '/rosters/personas/1/editar/'),
+    ('/videos/personas/1/jugador/agregar/', '/rosters/personas/1/jugador/agregar/'),
+    ('/videos/roles-jugador/1/editar/', '/rosters/roles-jugador/1/editar/'),
+    ('/videos/roles-jugador/1/toggle/', '/rosters/roles-jugador/1/toggle/'),
+    ('/videos/personas/1/staff/agregar/', '/rosters/personas/1/staff/agregar/'),
+    ('/videos/roles-staff/1/editar/', '/rosters/roles-staff/1/editar/'),
+    ('/videos/roles-staff/1/toggle/', '/rosters/roles-staff/1/toggle/'),
+    # core
+    ('/videos/moderacion/', '/core/moderacion/'),
+    ('/videos/api/moderation/counts/', '/core/api/moderation/counts/'),
+    ('/videos/api/users/1/approve/', '/core/api/users/1/approve/'),
+    ('/videos/api/users/1/reject/', '/core/api/users/1/reject/'),
+    ('/videos/quienes-somos/', '/core/quienes-somos/'),
+]
+
+
+@pytest.mark.parametrize('legacy_path, canonical_path', LEGACY_VIDEOS_REDIRECTS)
+def test_legacy_videos_urls_redirect_permanently(legacy_path, canonical_path):
+    """Cada ruta legada de ``/videos/`` responde 301 hacia su ruta canónica (#130)."""
+    match = resolve(legacy_path)
+    request = RequestFactory().get(legacy_path)
+    response = match.func(request, *match.args, **match.kwargs)
+
+    assert response.status_code == 301, legacy_path
+    assert response.url == canonical_path, legacy_path
+
+
+def test_no_legacy_namespace_references():
+    """Criterio #130: ninguna plantilla, script o test usa el namespace legado."""
+    legacy_namespace = 'videos' + ':'
+    base_dir = Path(settings.BASE_DIR) / 'ilovevoley'
+    files = (
+        list(base_dir.glob('**/*.html'))
+        + list(base_dir.glob('**/*.js'))
+        + [p for p in base_dir.glob('**/*.py') if 'migrations' not in str(p)]
+    )
+
+    offenders = [
+        str(path.relative_to(base_dir))
+        for path in files
+        if legacy_namespace in path.read_text(encoding='utf-8')
+    ]
+
+    assert not offenders, f"Referencias al namespace legado en: {offenders}"
 

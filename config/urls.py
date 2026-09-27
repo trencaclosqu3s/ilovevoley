@@ -19,14 +19,26 @@ from django.urls import path, include, re_path
 from django.conf import settings
 from ilovevoley.core.moderation_views import moderate_user, moderate_image
 from ilovevoley.core.protected_media import protected_media
-from ilovevoley.core.views import landing, healthz
+from ilovevoley.core.views import (
+    favicon,
+    healthz,
+    landing,
+    robots_txt,
+    security_txt,
+    sitemap_xml,
+)
 
 urlpatterns = [
     re_path(r'^healthz/?$', healthz, name='healthz'),
     path(settings.ADMIN_URL, admin.site.urls),
+    # SEO, bots y seguridad
+    path('robots.txt', robots_txt, name='robots_txt'),
+    path('sitemap.xml', sitemap_xml, name='sitemap_xml'),
+    path('favicon.ico', favicon, name='favicon'),
+    path('.well-known/security.txt', security_txt, name='security_txt'),
     path('accounts/', include('allauth.urls')),
-    # Alias para /videos/ preservando bookmarks hacia content:video_list y rutas legacy
-    path('videos/', include('ilovevoley.videos.urls', namespace='videos')),
+    # Redirecciones 301 de las rutas legadas /videos/ a sus apps de dominio
+    path('videos/', include('ilovevoley.videos.urls')),
     path('rosters/', include('ilovevoley.rosters.urls', namespace='rosters')),
     path('content/', include('ilovevoley.content.urls', namespace='content')),
     path('teams/', include('ilovevoley.teams.urls', namespace='teams')),

@@ -244,6 +244,17 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('text/calendar', response['Content-Type'])
 
+    def test_calendar_feed_item_guid_defaults_to_videosvoley_for_compatibility(self):
+        feed = comp_calendar_feed.UserMatchesFeed()
+        guid = feed.item_guid(self.match)
+        self.assertEqual(guid, f'partido-{self.match.id}@videosvoley.com')
+
+    @override_settings(CALENDAR_FEED_DOMAIN='ilovevoley.es')
+    def test_calendar_feed_item_guid_supports_configured_domain(self):
+        feed = comp_calendar_feed.UserMatchesFeed()
+        guid = feed.item_guid(self.match)
+        self.assertEqual(guid, f'partido-{self.match.id}@ilovevoley.es')
+
     def test_competitions_ajax_endpoints(self):
         self.client.force_login(self.user)
 
@@ -297,20 +308,20 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 400)
         mock_session_cls.assert_not_called()
 
-    def test_backwards_compatible_videos_urls_render(self):
+    def test_legacy_videos_urls_redirect_permanently_to_canonical(self):
+        """Los marcadores antiguos /videos/... responden 301 hacia su app de dominio."""
         self.client.force_login(self.user)
 
-        url = reverse('videos:league_list')
-        self.assertEqual(url, '/videos/ligas/')
-        r = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(r.status_code, 200)
-        self.assertTemplateUsed(r, 'competitions/league_list.html')
+        redirects = [
+            ('/videos/ligas/', '/competitions/ligas/'),
+            ('/videos/calendario/', '/competitions/calendario/'),
+            ('/videos/partidos/1/', '/competitions/partidos/1/'),
+        ]
 
-        url = reverse('videos:calendar_view')
-        self.assertEqual(url, '/videos/calendario/')
-        r = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(r.status_code, 200)
-        self.assertTemplateUsed(r, 'competitions/calendar.html')
+        for legacy_url, canonical_url in redirects:
+            r = self.client.get(legacy_url, HTTP_HOST='testclub.ilovevoley.es')
+            self.assertEqual(r.status_code, 301, legacy_url)
+            self.assertEqual(r.headers['Location'], canonical_url, legacy_url)
 
     def test_anonymous_user_redirected_to_login_on_protected_views(self):
         for url_name in ['competitions:league_list', 'competitions:standings_view', 'competitions:calendar_view']:
@@ -507,6 +518,32 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.match.refresh_from_db()
         self.assertIsNone(self.match.home_score)
         self.assertEqual(self.match.status, 'scheduled')
+
+    @patch('ilovevoley.competitions.views.MatchResultForm.save')
+    def test_add_match_result_internal_error_does_not_leak_exception(self, mock_save):
+        mock_save.side_effect = RuntimeError("Database connection string password leaked")
+        self.client.force_login(self.manager)
+        with self.assertLogs('ilovevoley.competitions.views', level='ERROR') as captured_logs:
+            response = self.client.post(
+                reverse('competitions:ajax_add_match_result', args=[self.match.id]),
+                data={'home_score': 3, 'away_score': 1},
+                content_type='application/json',
+                HTTP_HOST='testclub.ilovevoley.es',
+            )
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertFalse(data['success'])
+        self.assertEqual(data['error'], 'Error interno al guardar el resultado.')
+        self.assertNotIn("Database connection string", data['error'])
+        self.assertTrue(any("Error al guardar resultado del partido" in msg for msg in captured_logs.output))
+
+    def test_add_match_result_rejects_get_with_405(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('competitions:ajax_add_match_result', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 405)
 
     def test_acta_lineup_blocks_foreign_match(self):
         self.client.force_login(self.manager)

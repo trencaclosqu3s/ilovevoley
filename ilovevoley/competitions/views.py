@@ -13,6 +13,7 @@ from django.db.models import Case, CharField, Count, Q, Value, When
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from unidecode import unidecode as _uni
 
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
@@ -419,12 +420,10 @@ def ajax_search_teams(request):
     return JsonResponse({'teams': teams_data})
 
 
+@require_POST
 @tenant_access_required(manager=True)
 def ajax_add_match_result(request, match_id):
     """Vista AJAX para agregar resultado de partido"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
-
     try:
         match = Match.objects.for_tenant(request.tenant).select_related('league').get(id=match_id)
     except Match.DoesNotExist:
@@ -464,8 +463,12 @@ def ajax_add_match_result(request, match_id):
                 'home_score': match.home_score,
                 'away_score': match.away_score
             })
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': f'Error al guardar: {str(e)}'}, status=500)
+        except Exception:
+            logger.exception("Error al guardar resultado del partido %s", match_id)
+            return JsonResponse({
+                'success': False,
+                'error': 'Error interno al guardar el resultado.',
+            }, status=500)
     else:
         # Recopilar errores del formulario
         errors = {}

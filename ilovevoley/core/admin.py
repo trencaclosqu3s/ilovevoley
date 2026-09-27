@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db import transaction
 from django.db.models import Count, Q
-from django.utils.safestring import mark_safe
+from django.utils.html import format_html
 from unfold.admin import ModelAdmin
 from ilovevoley.teams.models import Team
 from ilovevoley.teams.services import MATCH_THRESHOLD, find_best_club
@@ -44,14 +44,18 @@ class OrganizationAdmin(ModelAdmin):
             return '-'
         names = [name for name in (obj.club_team_names or {}).values() if name]
         if not names:
-            return mark_safe('<span style="color:#b45309;">Sin club_team_names</span>')
+            return format_html(
+                '<span style="color:#b45309;">{}</span>',
+                'Sin club_team_names',
+            )
         q = Q()
         for name in names:
             q |= Q(name__icontains=name)
         if obj.club.teams.filter(q).exists():
-            return mark_safe('<span style="color:#15803d;">OK</span>')
-        return mark_safe(
-            '<span style="color:#b91c1c;">club_team_names no casa con ningún equipo del club</span>'
+            return format_html('<span style="color:#15803d;">{}</span>', 'OK')
+        return format_html(
+            '<span style="color:#b91c1c;">{}</span>',
+            'club_team_names no casa con ningún equipo del club',
         )
     club_names_status.short_description = 'Consistencia de nombres'
 

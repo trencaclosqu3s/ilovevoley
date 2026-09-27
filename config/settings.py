@@ -343,6 +343,9 @@ EMAIL_HOST_PASSWORD = env_config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = env_config('DEFAULT_FROM_EMAIL', default='Admin I Love Voley <josealbertomartin@gmail.com>')
 SERVER_EMAIL = env_config('SERVER_EMAIL', default='Admin I Love Voley <josealbertomartin@gmail.com>')
 
+# Contacto de seguridad publicado en /.well-known/security.txt (acepta "Nombre <correo>")
+SECURITY_CONTACT_EMAIL = env_config('SECURITY_CONTACT_EMAIL', default=DEFAULT_FROM_EMAIL)
+
 # Notificaciones
 NOTIFICATION_EMAIL_ENABLED = env_config('NOTIFICATION_EMAIL_ENABLED', default=False, cast=bool)
 ADMIN_EMAIL_LIST = env_config('ADMIN_EMAIL_LIST', default='', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
@@ -357,19 +360,44 @@ EMAIL_NOTIFICATIONS = {
 }
 
 # Celery Configuration
+# Bases lógicas de Redis separadas: /0 broker, /1 resultados, /2 caché de Django.
 CELERY_BROKER_URL = env_config('REDIS_URL', default='redis://redis:6379/0')
-CELERY_RESULT_BACKEND = env_config('REDIS_URL', default='redis://redis:6379/0')
+CELERY_RESULT_BACKEND = env_config('REDIS_RESULT_URL', default='redis://redis:6379/1')
+
+# Colas separadas por tipo de carga para que un scraping colgado no bloquee
+# emails ni tareas de media. El worker de cada cola las consume por separado.
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_ROUTES = {
+    'notify_*': {'queue': 'default'},
+    'send_*': {'queue': 'default'},
+    'analyze_image_with_vision': {'queue': 'media'},
+    'generate_image_thumbnails_task': {'queue': 'media'},
+    'scrape_*': {'queue': 'scraping'},
+    'enrich_*': {'queue': 'scraping'},
+    'handle_withdrawn_teams': {'queue': 'scraping'},
+    'process_json_unified': {'queue': 'scraping'},
+}
+
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
+# Un scraping colgado se avisa (soft) a los 10 min y se mata (hard) a los 15.
+CELERY_TASK_SOFT_TIME_LIMIT = 600
+CELERY_TASK_TIME_LIMIT = 900
+
+# Entrega fiable: la tarea se ackea al completarse, no al recibirla.
+# Con prefetch=1 un worker no acapara tareas que otro podría atender.
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
 # Celery Beat Configuration (Periodic Tasks)
 CELERY_BEAT_SCHEDULE = {}
 
 # Cache Configuration
-# Redis backend centralizado (DB 1 reservada para caché, DB 0 para Celery)
-REDIS_CACHE_URL = env_config('REDIS_CACHE_URL', default='redis://redis:6379/1')
+# Redis backend centralizado (DB 2 reservada para caché de Django).
+REDIS_CACHE_URL = env_config('REDIS_CACHE_URL', default='redis://redis:6379/2')
 
 CACHES = {
     'default': {
