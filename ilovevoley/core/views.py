@@ -164,7 +164,9 @@ def favicon(request):
 
 def security_txt(request):
     """security.txt con el contacto de seguridad y caducidad a un año."""
-    contact = parseaddr(settings.SECURITY_CONTACT_EMAIL)[1] or settings.SECURITY_CONTACT_EMAIL
+    contact = parseaddr(settings.SECURITY_CONTACT_EMAIL)[1]
+    if not contact:
+        contact = parseaddr(settings.DEFAULT_FROM_EMAIL)[1]
     expires = (timezone.now() + timedelta(days=365)).strftime('%Y-%m-%dT%H:%M:%SZ')
     lines = [
         f'Contact: mailto:{contact}',

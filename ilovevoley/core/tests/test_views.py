@@ -1,9 +1,11 @@
 from django.test import SimpleTestCase, TestCase, override_settings
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from datetime import datetime, timedelta
+from email.utils import parseaddr
 
 from ilovevoley.content.models import Image
 from ilovevoley.core import views as core_views
@@ -400,6 +402,13 @@ class SeoEndpointsTest(TestCase):
         expires_line = next(l for l in body.splitlines() if l.startswith('Expires:'))
         expires = datetime.strptime(expires_line.split(': ', 1)[1], '%Y-%m-%dT%H:%M:%SZ')
         self.assertGreater(expires, datetime.now() + timedelta(days=300))
+
+    @override_settings(SECURITY_CONTACT_EMAIL='')
+    def test_security_txt_falls_back_to_default_from_email_when_empty(self):
+        response = self.client.get('/.well-known/security.txt', HTTP_HOST='ilovevoley.es')
+        body = response.content.decode()
+        default_address = parseaddr(settings.DEFAULT_FROM_EMAIL)[1]
+        self.assertIn(f'Contact: mailto:{default_address}', body)
 
 
 class TailwindStaticCssTest(TestCase):
