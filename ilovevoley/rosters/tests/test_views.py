@@ -412,6 +412,40 @@ class RostersTenantIsolationTests(TestCase):
         )
         self.assertEqual(response_post.status_code, 403)
 
+    def test_person_create_misma_identidad_en_dos_tenants(self):
+        User = get_user_model()
+        from ilovevoley.users.models import Membership
+        manager_b = User.objects.create_user(username='manager-b', password='pass')
+        Membership.objects.create(
+            user=manager_b, organization=self.org_b, is_approved=True, role='manager',
+        )
+        payload = {
+            'first_name': 'Ana', 'last_name': 'Gomez', 'birth_date': '2010-05-01',
+        }
+
+        self.client.force_login(self.manager)
+        response_a = self.client.post(
+            reverse('rosters:person_create'), payload,
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response_a.status_code, 302)
+
+        self.client.force_login(manager_b)
+        response_b = self.client.post(
+            reverse('rosters:person_create'), payload,
+            HTTP_HOST='club-b.ilovevoley.es',
+        )
+        self.assertEqual(response_b.status_code, 302)
+
+        identities = Person.objects.filter(
+            first_name='Ana', last_name='Gomez', birth_date='2010-05-01',
+        )
+        self.assertEqual(identities.count(), 2)
+        self.assertEqual(
+            set(identities.values_list('organization_id', flat=True)),
+            {self.org_a.id, self.org_b.id},
+        )
+
     def test_person_create_ignora_organizacion_enviada_por_cliente(self):
         self.client.force_login(self.manager)
         response = self.client.post(
