@@ -1,4 +1,5 @@
 import base64
+import re
 import shutil
 import tempfile
 from io import BytesIO
@@ -522,6 +523,9 @@ class RostersTenantIsolationTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         content = response.content.decode('utf-8')
-        self.assertIn('bg-csj-yellow', content)
-        self.assertIn('text-gray-900', content)
-        self.assertRegex(content, r'<button[^>]+type="submit"[^>]*bg-csj-yellow[^>]*text-gray-900')
+        match = re.search(r'<button\b[^>]*type=["\']submit["\'][^>]*>', content)
+        self.assertIsNotNone(match, 'No se encontró el botón de submit')
+        button_tag = match.group(0)
+        self.assertIn('bg-csj-yellow', button_tag)
+        self.assertIn('text-gray-900', button_tag)
+        self.assertNotIn('text-white', button_tag)
