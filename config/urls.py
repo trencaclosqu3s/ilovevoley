@@ -24,8 +24,8 @@ from ilovevoley.core.views import landing
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     path('accounts/', include('allauth.urls')),
-    # Alias para /videos/ preservando bookmarks hacia content:video_list y rutas legacy
-    path('videos/', include('ilovevoley.videos.urls', namespace='videos')),
+    # Redirecciones 301 de las rutas legadas /videos/ a sus apps de dominio
+    path('videos/', include('ilovevoley.videos.urls')),
     path('rosters/', include('ilovevoley.rosters.urls', namespace='rosters')),
     path('content/', include('ilovevoley.content.urls', namespace='content')),
     path('teams/', include('ilovevoley.teams.urls', namespace='teams')),

@@ -297,20 +297,20 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 400)
         mock_session_cls.assert_not_called()
 
-    def test_backwards_compatible_videos_urls_render(self):
+    def test_legacy_videos_urls_redirect_permanently_to_canonical(self):
+        """Los marcadores antiguos /videos/... responden 301 hacia su app de dominio."""
         self.client.force_login(self.user)
 
-        url = reverse('videos:league_list')
-        self.assertEqual(url, '/videos/ligas/')
-        r = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(r.status_code, 200)
-        self.assertTemplateUsed(r, 'competitions/league_list.html')
+        redirects = [
+            ('/videos/ligas/', '/competitions/ligas/'),
+            ('/videos/calendario/', '/competitions/calendario/'),
+            ('/videos/partidos/1/', '/competitions/partidos/1/'),
+        ]
 
-        url = reverse('videos:calendar_view')
-        self.assertEqual(url, '/videos/calendario/')
-        r = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(r.status_code, 200)
-        self.assertTemplateUsed(r, 'competitions/calendar.html')
+        for legacy_url, canonical_url in redirects:
+            r = self.client.get(legacy_url, HTTP_HOST='testclub.ilovevoley.es')
+            self.assertEqual(r.status_code, 301, legacy_url)
+            self.assertEqual(r.headers['Location'], canonical_url, legacy_url)
 
     def test_anonymous_user_redirected_to_login_on_protected_views(self):
         for url_name in ['competitions:league_list', 'competitions:standings_view', 'competitions:calendar_view']:
