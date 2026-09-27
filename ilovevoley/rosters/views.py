@@ -177,7 +177,7 @@ def person_detail(request, person_id):
     return render(request, 'rosters/person_detail.html', context)
 
 
-@tenant_access_required()
+@tenant_access_required(manager=True)
 def person_create(request):
     """Vista para crear una nueva persona"""
     if request.method == 'POST':

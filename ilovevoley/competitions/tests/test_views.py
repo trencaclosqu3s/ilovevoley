@@ -537,6 +537,14 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.assertNotIn("Database connection string", data['error'])
         self.assertTrue(any("Error al guardar resultado del partido" in msg for msg in captured_logs.output))
 
+    def test_add_match_result_rejects_get_with_405(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('competitions:ajax_add_match_result', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 405)
+
     def test_acta_lineup_blocks_foreign_match(self):
         self.client.force_login(self.manager)
         response = self.client.get(

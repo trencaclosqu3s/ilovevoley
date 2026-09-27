@@ -164,12 +164,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">👥 Personas del Club</h1>
                 <p class="text-gray-600 dark:text-gray-400 mt-1">Jugadores, entrenadores y staff{% if tenant %} de {{ tenant.name }}{% endif %}</p>
             </div>
+            {% if is_tenant_manager %}
             <a href="{% url 'rosters:person_create' %}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center justify-center touch-manipulation">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
                 Agregar Persona
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -336,12 +338,14 @@ document.addEventListener('DOMContentLoaded', function() {
             </svg>
             <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">No se encontraron personas</h3>
             <p class="text-gray-600 dark:text-gray-400 mb-4">{% if search or role_type %}Intenta ajustar los filtros{% else %}Aún no hay personas registradas{% endif %}</p>
+            {% if is_tenant_manager %}
             <a href="{% url 'rosters:person_create' %}" class="inline-flex items-center bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
                 Agregar Primera Persona
             </a>
+            {% endif %}
         </div>
     {% endif %}
 </div>

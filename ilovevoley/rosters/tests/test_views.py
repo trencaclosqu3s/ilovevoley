@@ -276,7 +276,7 @@ class PersonPhotoUploadSecurityTests(TestCase):
         User = get_user_model()
         self.user = User.objects.create_user(username='member', password='pass')
         Membership.objects.create(
-            user=self.user, organization=self.org, is_approved=True
+            user=self.user, organization=self.org, is_approved=True, role='manager'
         )
         self.client.force_login(self.user)
 
@@ -331,6 +331,10 @@ class RostersTenantIsolationTests(TestCase):
         self.staff = User.objects.create_user(username='staff', password='pass', is_staff=True)
         Membership.objects.create(
             user=self.staff, organization=self.org_a, is_approved=True, role='manager',
+        )
+        self.manager = User.objects.create_user(username='manager-a', password='pass')
+        Membership.objects.create(
+            user=self.manager, organization=self.org_a, is_approved=True, role='manager',
         )
         self.person_a = Person.objects.create(
             first_name='Ana', last_name='Propia', organization=self.org_a,
@@ -395,8 +399,21 @@ class RostersTenantIsolationTests(TestCase):
         self.assertContains(response, 'Club A Senior')
         self.assertNotContains(response, 'Club B Junior')
 
-    def test_person_create_ignora_organizacion_enviada_por_cliente(self):
+    def test_basic_member_cannot_access_person_create(self):
         self.client.force_login(self.member)
+        url = reverse('rosters:person_create')
+        response_get = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
+        self.assertEqual(response_get.status_code, 403)
+
+        response_post = self.client.post(
+            url,
+            {'first_name': 'Invalido', 'last_name': 'Miembro'},
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response_post.status_code, 403)
+
+    def test_person_create_ignora_organizacion_enviada_por_cliente(self):
+        self.client.force_login(self.manager)
         response = self.client.post(
             reverse('rosters:person_create'),
             {'first_name': 'Nueva', 'last_name': 'Ficha', 'organization': self.org_b.id},
@@ -405,6 +422,22 @@ class RostersTenantIsolationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         created = Person.objects.get(first_name='Nueva', last_name='Ficha')
         self.assertEqual(created.organization, self.org_a)
+
+    def test_person_list_add_button_visibility_for_tenant_manager(self):
+        url = reverse('rosters:person_list')
+        create_url = reverse('rosters:person_create')
+
+        self.client.force_login(self.member)
+        response = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
+        self.assertNotContains(response, create_url)
+        response_empty = self.client.get(f'{url}?search=inexistente', HTTP_HOST='club-a.ilovevoley.es')
+        self.assertNotContains(response_empty, create_url)
+
+        self.client.force_login(self.manager)
+        response = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
+        self.assertContains(response, create_url)
+        response_empty = self.client.get(f'{url}?search=inexistente', HTTP_HOST='club-a.ilovevoley.es')
+        self.assertContains(response_empty, create_url)
 
     def test_person_edit_ignora_organizacion_enviada_por_cliente(self):
         self.client.force_login(self.staff)
