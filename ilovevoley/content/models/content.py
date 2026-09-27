@@ -3,7 +3,7 @@ import re
 import uuid
 
 from django.conf import settings
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -46,12 +46,22 @@ class Video(models.Model):
         related_name='videos',
         verbose_name='Organización',
     )
+    set_number = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        verbose_name='Set',
+        help_text='Número de set al que pertenece (opcional, solo para vídeos de partido)',
+    )
 
     objects = OrganizationTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_video'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['match', 'set_number'], name='video_match_set_idx'),
+        ]
 
     def __str__(self):
         return self.title
@@ -68,26 +78,33 @@ class Video(models.Model):
                 kwargs['update_fields'] = set(update_fields) | {'season'}
         super().save(*args, **kwargs)
 
-    def get_embed_url(self):
-        """Convierte URL de YouTube normal en URL de embed con privacidad mejorada"""
+    def get_video_id(self):
+        """Extrae el ID de YouTube de la URL, o None si no se reconoce."""
         patterns = [
             r'(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)',
             r'youtube\.com\/embed\/([^&\n?#]+)',
-            r'youtube\.com\/live\/([^&\n?#]+)',  # Patrón para livestreams
+            r'youtube\.com\/live\/([^&\n?#]+)',  # livestreams
         ]
-
         for pattern in patterns:
             match = re.search(pattern, self.youtube_url)
             if match:
-                video_id = match.group(1)
-                # Parámetros para máxima privacidad:
-                # - rel=0: no mostrar vídeos relacionados
-                # - modestbranding=1: minimizar branding de YouTube
-                # - fs=1: permitir pantalla completa
-                # - enablejsapi=0: deshabilitar API de JavaScript
-                return f'https://www.youtube-nocookie.com/embed/{video_id}?rel=0&modestbranding=1&fs=1&enablejsapi=0'
+                return match.group(1)
+        return None
 
+    def get_embed_url(self):
+        """Convierte la URL de YouTube en URL de embed con privacidad mejorada."""
+        video_id = self.get_video_id()
+        if video_id:
+            # rel=0: sin vídeos relacionados; modestbranding=1; fs=1; enablejsapi=0
+            return f'https://www.youtube-nocookie.com/embed/{video_id}?rel=0&modestbranding=1&fs=1&enablejsapi=0'
         return self.youtube_url
+
+    def get_thumbnail_url(self):
+        """Miniatura pública de YouTube para la portada del reproductor."""
+        video_id = self.get_video_id()
+        if video_id:
+            return f'https://i.ytimg.com/vi/{video_id}/hqdefault.jpg'
+        return None
 
     def is_livestream(self):
         """Detecta si es un livestream de YouTube"""
@@ -239,6 +256,13 @@ class Image(models.Model):
         verbose_name='Temporada',
         help_text='Temporada a la que pertenece la imagen',
     )
+    set_number = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        verbose_name='Set',
+        help_text='Número de set al que pertenece la imagen (opcional, solo si hay partido)',
+    )
 
     # Metadatos
     uploaded_by = models.ForeignKey(
@@ -298,6 +322,7 @@ class Image(models.Model):
             models.Index(fields=['organization', 'status', '-upload_date'], name='img_org_status_date_idx'),
             models.Index(fields=['organization', 'match', 'status'], name='img_org_match_status_idx'),
             models.Index(fields=['organization', 'album_group_id', 'status'], name='img_org_album_status_idx'),
+            models.Index(fields=['match', 'set_number'], name='img_match_set_idx'),
         ]
 
     def __str__(self):
