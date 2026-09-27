@@ -11,20 +11,31 @@ from django.core.paginator import Paginator
 from django.core.cache import cache
 from django.db.models import Case, CharField, Count, Q, Value, When
 from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from unidecode import unidecode as _uni
 
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category
 from ilovevoley.core.security import UnsafeURL, safe_get
 from ilovevoley.core.tenancy import get_tenant_object_or_404
-from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
+from ilovevoley.core.tenant_utils import (
+    build_absolute_url,
+    tenant_access_required,
+    user_is_tenant_manager,
+)
 from ilovevoley.rosters.models import PlayerRole
 from ilovevoley.teams.models import Team
 from ilovevoley.videos.scraping import parse_acta_lineup, validate_volleyball_score
 from .forms import FriendlyMatchForm, MatchResultForm
-from .models import League, Match, Standing
+from .models import League, Match, MatchShareLink, Standing
+from .share import (
+    ALLOWED_HOURS,
+    create_match_share_link,
+    default_hours,
+    revoke_match_share_link,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -210,12 +221,28 @@ def match_detail(request, match_id):
     # Obtener imágenes aprobadas del partido
     images = match.images.filter(status='approved').select_related('uploaded_by').all()
 
+    can_manage_videos = user_is_tenant_manager(request.user, request.tenant)
+
+    # Enlaces de compartición (solo relevantes para managers)
+    share_links = []
+    if can_manage_videos:
+        for link in match.share_links.select_related('created_by').all():
+            share_links.append({
+                'link': link,
+                'url': build_absolute_url(
+                    f'p/partido/{link.token}/', tenant=request.tenant, request=request
+                ),
+            })
+
     return render(request, 'competitions/match_detail.html', {
         'match': match,
         'videos': videos,
         'images': images,
         'today': timezone.now().date(),
-        'can_manage_videos': user_is_tenant_manager(request.user, request.tenant),
+        'can_manage_videos': can_manage_videos,
+        'share_links': share_links,
+        'share_hours_choices': ALLOWED_HOURS,
+        'share_default_hours': default_hours(),
     })
 
 
@@ -793,10 +820,41 @@ def ajax_teams_by_league_category(request):
     })
 
 
+@tenant_access_required(manager=True)
+@require_POST
+def match_share_create(request, match_id):
+    """Crea un enlace público temporal para el partido."""
+    match = get_tenant_object_or_404(
+        Match.objects.select_related('home_team', 'away_team', 'league'),
+        request.tenant, user=request.user, id=match_id,
+    )
+    hours = request.POST.get('hours')
+    create_match_share_link(match, request.tenant, request.user, hours=hours)
+    messages.success(request, 'Enlace para compartir creado.')
+    return redirect('competitions:match_detail', match_id=match.id)
+
+
+@tenant_access_required(manager=True)
+@require_POST
+def match_share_revoke(request, match_id, link_id):
+    """Revoca un enlace público del partido."""
+    match = get_tenant_object_or_404(
+        Match.objects, request.tenant, user=request.user, id=match_id
+    )
+    link = get_object_or_404(
+        MatchShareLink, id=link_id, match=match, organization=request.tenant
+    )
+    revoke_match_share_link(link)
+    messages.success(request, 'Enlace revocado.')
+    return redirect('competitions:match_detail', match_id=match.id)
+
+
 __all__ = [
     'league_list',
     'league_detail',
     'match_detail',
+    'match_share_create',
+    'match_share_revoke',
     'calendar_view',
     'friendly_match_create',
     'ajax_search_teams',

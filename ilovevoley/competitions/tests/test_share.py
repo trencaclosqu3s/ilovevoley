@@ -81,3 +81,66 @@ class MatchShareLinkTest(TestCase):
         self.assertEqual(groups[1]['label'], 'Set 2')
         self.assertEqual(groups[2]['label'], 'Sin set')
         self.assertEqual(groups[0]['images'], [{'set_number': 1, 'title': 'uno'}])
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class MatchShareManagerViewsTest(TestCase):
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
+        User = get_user_model()
+        self.manager = User.objects.create_user(username='manager', password='pass')
+        Membership.objects.create(user=self.manager, organization=self.org, is_approved=True, role='manager')
+        self.member = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(user=self.member, organization=self.org, is_approved=True, role='member')
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-T')
+        self.org.club = self.club
+        self.org.save(update_fields=['club'])
+        self.home = Team.objects.create(name='Test Senior', category=self.category, club=self.club, federation_id='T1')
+        self.away = Team.objects.create(name='Rival Senior', category=self.category, federation_id='T2')
+        self.league = League.objects.create(
+            name='Liga Test', federation_id='L1',
+            season=Season.objects.resolve('2026-2027'), is_active=True,
+        )
+        self.match = Match.objects.create(
+            league=self.league, home_team=self.home, away_team=self.away,
+            match_date=timezone.now(), status='finished', home_score=3, away_score=1,
+        )
+
+    def test_manager_creates_share_link(self):
+        from django.urls import reverse
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:match_share_create', args=[self.match.id]),
+            {'hours': '72'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        link = MatchShareLink.objects.get(match=self.match)
+        self.assertEqual(link.organization, self.org)
+        self.assertEqual(link.created_by, self.manager)
+
+    def test_member_cannot_create_share_link(self):
+        from django.urls import reverse
+        self.client.force_login(self.member)
+        response = self.client.post(
+            reverse('competitions:match_share_create', args=[self.match.id]),
+            {'hours': '48'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(MatchShareLink.objects.exists())
+
+    def test_manager_revokes_share_link(self):
+        from django.urls import reverse
+        link = create_match_share_link(self.match, self.org, self.manager, hours=48)
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:match_share_revoke', args=[self.match.id, link.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        link.refresh_from_db()
+        self.assertIsNotNone(link.revoked_at)
