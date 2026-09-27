@@ -14,23 +14,30 @@ class LeagueQuerySet(TenantQuerySet):
             is_our_team_related=True
         )
 
-    def for_tenant(self, tenant):
-        """Ligas visibles donde participa un equipo del club del tenant.
+    def for_tenant(self, tenant, *, visible_only=True):
+        """Ligas (por defecto visibles) donde participa un equipo del club del tenant.
 
         Con la FK ``Organization.club`` se restringe la lista global a las
         ligas que realmente interesan al tenant. Para tenants sin club
         vinculado (selecciones) se mantiene el comportamiento global.
         """
-        from ilovevoley.core.mixins import get_club_team_filter, get_tenant_club
+        from django.db.models import Q
+        from ilovevoley.core.mixins import (
+            get_club_team_filter,
+            get_tenant_club,
+        )
+        from ilovevoley.teams.models import Team
 
         if tenant is None:
             return self.none()
-        qs = self.visible_in_app()
+        qs = self.visible_in_app() if visible_only else self
         if get_tenant_club(tenant) is None:
             return qs
-        return qs.filter(
-            matches__in=Match.objects.filter(get_club_team_filter(tenant))
-        ).distinct()
+        matches_q = get_club_team_filter(tenant)
+        league_q = Q(matches__in=Match.objects.filter(matches_q)) | Q(standings__team__in=Team.objects.for_tenant(tenant))
+        return qs.filter(league_q).distinct()
+
+
 
     def reference_leagues(self):
         """Ligas de referencia (solo admin)"""
@@ -427,9 +434,23 @@ class ScrapingEndpoint(models.Model):
         return url
 
 
+class StandingQuerySet(TenantQuerySet):
+    """QuerySet de Standing con ámbito de tenant a través de sus ligas."""
+
+    def for_tenant(self, tenant, *, visible_only=True):
+        if tenant is None:
+            return self.none()
+        return self.filter(league__in=League.objects.for_tenant(tenant, visible_only=visible_only))
+
+
+StandingManager = models.Manager.from_queryset(StandingQuerySet)
+
+
 class Standing(models.Model):
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='standings')
     team = models.ForeignKey('teams.Team', on_delete=models.CASCADE, related_name='standings')
+    objects = StandingManager()
+
     position = models.IntegerField()
     played = models.IntegerField(default=0)
     won = models.IntegerField(default=0)

@@ -622,9 +622,10 @@ def standings_view(request):
     show_all = request.GET.get('show_all', '0') == '1'
     show_archived = request.GET.get('show_archived', '0') == '1'
 
-    # Obtener temporadas disponibles
+    # Obtener temporadas disponibles acotadas al tenant
+    tenant_leagues_all = League.objects.for_tenant(request.tenant, visible_only=False)
     seasons = (
-        League.objects.filter(is_our_team_related=True, season__isnull=False)
+        tenant_leagues_all.filter(season__isnull=False)
         .values_list('season__name', flat=True)
         .distinct()
         .order_by('-season__name')
@@ -641,24 +642,22 @@ def standings_view(request):
     if show_archived or season_filter:
         # Mostrar ligas archivadas, de referencia, etc. O si se filtra por temporada específica
         # Ordenamos por fecha de creación descendente para ver las más recientes primero
-        standings = Standing.objects.select_related(
-            'team', 'league'
-        ).prefetch_related('league__categories').order_by('-league__created_at', 'league__name', 'position')
-
-        # Filtro de ligas para el dropdown
-        leagues = League.objects.all().order_by('-created_at', 'name')
+        leagues = tenant_leagues_all.order_by('-created_at', 'name')
+        standings = (
+            Standing.objects.for_tenant(request.tenant, visible_only=False)
+            .select_related('team', 'league')
+            .prefetch_related('league__categories')
+            .order_by('-league__created_at', 'league__name', 'position')
+        )
     else:
-        # Consulta base de clasificaciones - Solo ligas activas y visibles en app
-        standings = Standing.objects.filter(
-            league__is_active=True,
-            league__visibility_type='main',
-            league__is_our_team_related=True
-        ).select_related(
-            'team', 'league'
-        ).prefetch_related('league__categories').order_by('league__name', 'position')
-
-        # Filtro de ligas para el dropdown
+        # Consulta base de clasificaciones - Solo ligas activas y visibles en app del tenant
         leagues = League.objects.for_tenant(request.tenant).order_by('name')
+        standings = (
+            Standing.objects.for_tenant(request.tenant, visible_only=True)
+            .select_related('team', 'league')
+            .prefetch_related('league__categories')
+            .order_by('league__name', 'position')
+        )
 
     # Aplicar filtro de temporada
     if season_filter:
@@ -693,6 +692,7 @@ def standings_view(request):
         standings_by_league[league_name]['standings'].append(standing)
 
     categories = Category.objects.filter(is_active=True).order_by('name')
+    club_team_name = get_primary_club_team_name(request.tenant)
 
     return render(request, 'competitions/standings.html', {
         'standings_by_league': standings_by_league,
@@ -705,6 +705,7 @@ def standings_view(request):
         'show_all': show_all,
         'show_archived': show_archived,
         'has_preferences': request.user.preferred_categories.exists(),
+        'club_team_name': club_team_name,
     })
 
 
