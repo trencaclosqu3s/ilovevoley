@@ -160,8 +160,8 @@ def league_detail(request, league_id):
         matches = Match.objects.filter(league=league)
         display_league = league
 
-    # Aplicar select_related y prefetch_related
-    matches = matches.select_related('home_team', 'away_team', 'league').prefetch_related('videos').order_by('-match_date')
+    # Aplicar select_related
+    matches = matches.select_related('home_team', 'away_team', 'league').order_by('-match_date')
 
     # Obtener clasificación (solo de la liga específica o root)
     standings = display_league.standings.select_related('team').order_by('position')
@@ -177,6 +177,12 @@ def league_detail(request, league_id):
 
     available_rounds = matches.values_list('round_number', flat=True).distinct().order_by('round_number')
 
+    # Total de vídeos de la liga: una sola consulta agregada, sin cargar los vídeos
+    total_videos = matches.aggregate(total=Count('videos', distinct=True))['total'] or 0
+
+    # Indicador de vídeos por partido sin prefetch: anotación distinct=True (ver #108)
+    matches = matches.annotate(videos_count=Count('videos', distinct=True))
+
     # Paginación
     paginator = Paginator(matches, 20)
     page_number = request.GET.get('page')
@@ -189,6 +195,7 @@ def league_detail(request, league_id):
         'show_all_phases': show_all_phases,
         'selected_phase': selected_phase,
         'page_obj': page_obj,
+        'total_videos': total_videos,
         'standings': standings,
         'available_rounds': available_rounds,
         'selected_round': round_filter,

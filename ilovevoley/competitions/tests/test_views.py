@@ -187,6 +187,31 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertEqual(with_more, baseline)
         self.assertContains(response, '2 videos')
 
+    def test_league_detail_video_total_sums_across_matches(self):
+        """El total de vídeos de la cabecera es la suma, no la concatenación (#163)."""
+        from ilovevoley.content.models import Video
+        self.client.force_login(self.user)
+        Video.objects.create(
+            title='v1', youtube_url='https://youtu.be/a', match=self.match, created_by=self.user,
+        )
+        other_match = Match.objects.create(
+            league=self.league, home_team=self.team, away_team=self.rival_team,
+            match_date=self.match.match_date, round_number=2, status='scheduled',
+        )
+        Video.objects.create(
+            title='v2', youtube_url='https://youtu.be/b', match=other_match, created_by=self.user,
+        )
+        Video.objects.create(
+            title='v3', youtube_url='https://youtu.be/c', match=other_match, created_by=self.user,
+        )
+
+        response = self.client.get(
+            reverse('competitions:league_detail', args=[self.league.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total_videos'], 3)
+
     def test_search_teams_queries_do_not_grow_with_results(self):
         self.client.force_login(self.user)
         url = reverse('competitions:ajax_search_teams')
