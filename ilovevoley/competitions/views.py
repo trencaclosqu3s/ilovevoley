@@ -16,8 +16,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from unidecode import unidecode as _uni
 
+from ilovevoley.content.models import Image
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category
+from ilovevoley.core.protected_media import _serve
 from ilovevoley.core.security import UnsafeURL, safe_get
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import (
@@ -875,6 +877,40 @@ def public_match_timeline(request, token):
     return response
 
 
+_VARIANT_FIELDS = {
+    'thumb': 'thumbnail_small',
+    'large': 'thumbnail_large',
+    'orig': 'image',
+}
+
+
+def public_match_media(request, token, image_id):
+    """Sirve una imagen aprobada del partido para un enlace temporal válido."""
+    link = resolve_match_share_link(token)
+    if link is None:
+        raise Http404
+
+    image = Image.objects.filter(
+        id=image_id,
+        match=link.match,
+        status='approved',
+        organization_id=link.organization_id,
+    ).only(
+        'image', 'thumbnail_small', 'thumbnail_large',
+    ).first()
+    if image is None:
+        raise Http404
+
+    field_name = _VARIANT_FIELDS.get(request.GET.get('v', 'thumb'), 'thumbnail_small')
+    file_field = getattr(image, field_name, None) or image.image
+    if not file_field or not file_field.name:
+        raise Http404
+
+    response = _serve(file_field.name)
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
+
 __all__ = [
     'league_list',
     'league_detail',
@@ -882,6 +918,7 @@ __all__ = [
     'match_share_create',
     'match_share_revoke',
     'public_match_timeline',
+    'public_match_media',
     'calendar_view',
     'friendly_match_create',
     'ajax_search_teams',

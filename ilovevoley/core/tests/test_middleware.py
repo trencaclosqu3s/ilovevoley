@@ -247,6 +247,17 @@ class Error404TrackingMiddlewareTest(TestCase):
             self.assertIn('/some-path/', last_url)
             self.assertIn('admin_alert_404@example.com', recipients)
 
+    def test_sanitize_path_redacts_share_token(self):
+        from ilovevoley.core.middleware import sanitize_path
+        self.assertEqual(
+            sanitize_path('/p/partido/123e4567-e89b-12d3-a456-426614174000/'),
+            '/p/partido/[REDACTED]/',
+        )
+        self.assertEqual(
+            sanitize_path('/p/partido/123e4567-e89b-12d3-a456-426614174000/media/5/'),
+            '/p/partido/[REDACTED]/media/5/',
+        )
+
 
 class CacheSettingsTest(TestCase):
     def test_redis_cache_configured(self):

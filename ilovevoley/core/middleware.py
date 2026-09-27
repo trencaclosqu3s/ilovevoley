@@ -22,6 +22,7 @@ SENSITIVE_URL_PATTERNS = [
     (re.compile(r'(/calendario/suscripcion/)[^/]+(/?)'), r'\1[REDACTED]\2'),
     (re.compile(r'(/accounts/password/reset/key/)[^/]+(/?)'), r'\1[REDACTED]\2'),
     (re.compile(r'(/accounts/confirm-email/)[^/]+(/?)'), r'\1[REDACTED]\2'),
+    (re.compile(r'(/p/partido/)[^/]+(/?)'), r'\1[REDACTED]\2'),
 ]
 
 

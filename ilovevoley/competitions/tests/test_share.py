@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -15,6 +16,12 @@ from ilovevoley.competitions.share import (
 )
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.teams.models import Club, Team
+
+TINY_GIF = (
+    b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
+    b'\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00'
+    b'\x00\x02\x02D\x01\x00;'
+)
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
@@ -190,6 +197,90 @@ class PublicTimelineViewTest(TestCase):
         from django.urls import reverse
         response = self.client.get(
             reverse('public:match_timeline', args=[uuid.uuid4()]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'], PROTECTED_MEDIA_USE_X_ACCEL=True)
+class PublicMatchMediaViewTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
+        User = get_user_model()
+        self.user = User.objects.create_user(username='manager', password='pass')
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-T')
+        self.home = Team.objects.create(name='Test Senior', category=self.category, club=self.club, federation_id='T1')
+        self.away = Team.objects.create(name='Rival Senior', category=self.category, federation_id='T2')
+        self.league = League.objects.create(
+            name='Liga Test', federation_id='L1',
+            season=Season.objects.resolve('2026-2027'), is_active=True,
+        )
+        self.match = Match.objects.create(
+            league=self.league, home_team=self.home, away_team=self.away,
+            match_date=timezone.now(), status='finished', home_score=3, away_score=1,
+        )
+        self.other_match = Match.objects.create(
+            league=self.league, home_team=self.away, away_team=self.home,
+            match_date=timezone.now(), status='finished',
+        )
+        self.link = create_match_share_link(self.match, self.org, self.user, hours=48)
+
+    def _image(self, match, status='approved'):
+        from ilovevoley.content.models import Image
+        return Image.objects.create(
+            image=SimpleUploadedFile('foto.gif', TINY_GIF, content_type='image/gif'),
+            title='Foto', match=match, status=status,
+            uploaded_by=self.user, organization=self.org, image_type='match',
+        )
+
+    def test_serves_approved_image_of_the_match(self):
+        from django.urls import reverse
+        image = self._image(self.match)
+        response = self.client.get(
+            reverse('public:match_media', args=[self.link.token, image.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response['X-Accel-Redirect'].startswith('/protected-media/'))
+        self.assertEqual(response['Cache-Control'], 'private, no-store')
+
+    def test_404_for_revoked_link(self):
+        from django.urls import reverse
+        image = self._image(self.match)
+        revoke_match_share_link(self.link)
+        response = self.client.get(
+            reverse('public:match_media', args=[self.link.token, image.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_404_for_image_of_another_match(self):
+        from django.urls import reverse
+        image = self._image(self.other_match)
+        response = self.client.get(
+            reverse('public:match_media', args=[self.link.token, image.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_404_for_non_approved_image(self):
+        from django.urls import reverse
+        image = self._image(self.match, status='pending')
+        response = self.client.get(
+            reverse('public:match_media', args=[self.link.token, image.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_404_for_image_of_another_organization(self):
+        from django.urls import reverse
+        image = self._image(self.match)
+        image.organization = None
+        image.save(update_fields=['organization'])
+        response = self.client.get(
+            reverse('public:match_media', args=[self.link.token, image.id]),
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 404)
