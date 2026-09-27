@@ -1,4 +1,5 @@
 import base64
+import re
 import shutil
 import tempfile
 from io import BytesIO
@@ -512,3 +513,19 @@ class RostersTenantIsolationTests(TestCase):
             HTTP_HOST='club-b.ilovevoley.es',
         )
         self.assertNotEqual(response.status_code, 200)
+
+    def test_staff_role_form_button_has_accessible_contrast(self):
+        """El botón de guardar rol de staff usa texto oscuro sobre amarillo (sin text-white)."""
+        self.client.force_login(self.staff)
+        response = self.client.get(
+            reverse('rosters:staff_role_create', args=[self.person_a.id]),
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        match = re.search(r'<button\b[^>]*type=["\']submit["\'][^>]*>', content)
+        self.assertIsNotNone(match, 'No se encontró el botón de submit')
+        button_tag = match.group(0)
+        self.assertIn('bg-csj-yellow', button_tag)
+        self.assertIn('text-gray-900', button_tag)
+        self.assertNotIn('text-white', button_tag)

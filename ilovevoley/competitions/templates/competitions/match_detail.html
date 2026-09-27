@@ -398,15 +398,15 @@
     {% endif %}
 
     <!-- Imágenes del partido -->
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div class="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+    <div class="bg-white rounded-lg shadow-lg relative">
+        <div class="bg-gray-50 rounded-t-lg px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
             <div class="flex justify-between items-center">
                 <h2 class="text-lg sm:text-xl font-bold text-gray-800">
                     📸 Galería del partido
                 </h2>
                 <a href="{% url 'content:match_images' match.id %}" 
                    class="text-csj-purple hover:text-purple-700 text-sm font-medium">
-                    Ver todas <i class="fas fa-arrow-right ml-1"></i>
+                    Ver todas →
                 </a>
             </div>
         </div>
@@ -429,23 +429,26 @@
                     <div class="text-center mt-4">
                         <a href="{% url 'content:match_images' match.id %}"
                            class="inline-flex items-center px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
-                            Ver las {{ images.count }} imágenes <i class="fas fa-images ml-2"></i>
+                            Ver las {{ images.count }} imágenes →
                         </a>
                     </div>
                 {% endif %}
             </div>
         {% else %}
             <div class="p-8 sm:p-12 text-center">
-                <i class="fas fa-images text-gray-400 text-4xl mb-4"></i>
+                <div class="text-gray-400 text-4xl mb-4">📸</div>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No hay imágenes para este partido</h3>
                 <p class="text-sm text-gray-500 mb-4">
                     Aún no se han subido imágenes para este enfrentamiento.
                 </p>
                 <!-- Menú desplegable de subida -->
-                <div class="relative">
+                <div class="relative z-20">
                     <button id="upload-menu-btn-{{ match.id }}"
-                            class="inline-flex items-center px-2.5 py-1 bg-csj-purple text-white rounded-md hover:bg-purple-700 transition-colors duration-200 text-xs">
-                        <i class="fas fa-plus mr-1 text-xs"></i>Subir imagen
+                            class="inline-flex items-center px-3 py-1.5 bg-csj-purple text-white rounded-md hover:bg-purple-700 transition-colors duration-200 text-xs font-medium">
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Subir imagen
                         <svg class="w-2.5 h-2.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
