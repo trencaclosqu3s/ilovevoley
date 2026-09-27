@@ -16,7 +16,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from unidecode import unidecode as _uni
 
 from ilovevoley.competitions.result_card import extract_set_scores, render_result_card
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
@@ -30,7 +29,7 @@ from ilovevoley.teams.models import Team
 from ilovevoley.videos.scraping import parse_acta_lineup, validate_volleyball_score
 from .forms import FriendlyMatchForm, MatchResultForm
 from .models import League, Match, MatchChangeLog, Standing
-
+from .services.lineups import resolve_acta_team, store_match_lineups
 
 logger = logging.getLogger(__name__)
 
@@ -591,31 +590,37 @@ def ajax_acta_lineup(request, match_id):
     if not match.acta_html:
         return JsonResponse({'success': False, 'error': 'Este partido no tiene acta disponible'}, status=404)
 
-    # Solo se cachea el parseo correcto; los errores de red se reintentan en la siguiente petición.
-    cache_key = _acta_lineup_cache_key(match.acta_html)
-    lineup_data = cache.get(cache_key)
+    # El acta se persiste en el partido: una vez parseada no se vuelve a
+    # descargar y queda disponible para los históricos por jugador.
+    lineup_data = match.acta_data
     if lineup_data is None:
-        try:
-            acta_content = safe_get(
-                match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
-            )
-        except UnsafeURL as e:
-            logger.warning(f"URL de acta rechazada para el partido {match_id}: {e}")
-            return JsonResponse({'success': False, 'error': 'La URL del acta no es válida'}, status=400)
-        except http_requests.exceptions.Timeout:
-            return JsonResponse({'success': False, 'error': 'Tiempo de espera agotado al obtener el acta'}, status=504)
-        except http_requests.exceptions.RequestException as e:
-            logger.warning(f"Error obteniendo acta del partido {match_id}: {e}")
-            return JsonResponse({'success': False, 'error': 'No se pudo acceder al acta oficial'}, status=502)
+        # Solo se cachea el parseo correcto; los errores de red se reintentan en la siguiente petición.
+        cache_key = _acta_lineup_cache_key(match.acta_html)
+        lineup_data = cache.get(cache_key)
+        if lineup_data is None:
+            try:
+                acta_content = safe_get(
+                    match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
+                )
+            except UnsafeURL as e:
+                logger.warning(f"URL de acta rechazada para el partido {match_id}: {e}")
+                return JsonResponse({'success': False, 'error': 'La URL del acta no es válida'}, status=400)
+            except http_requests.exceptions.Timeout:
+                return JsonResponse({'success': False, 'error': 'Tiempo de espera agotado al obtener el acta'}, status=504)
+            except http_requests.exceptions.RequestException as e:
+                logger.warning(f"Error obteniendo acta del partido {match_id}: {e}")
+                return JsonResponse({'success': False, 'error': 'No se pudo acceder al acta oficial'}, status=502)
 
-        try:
-            # Pasar bytes para que BeautifulSoup detecte el charset del meta tag
-            # (evita que requests decodifique mal UTF-8 como Latin-1)
-            lineup_data = parse_acta_lineup(acta_content)
-        except Exception as e:
-            logger.error(f"Error parseando acta del partido {match_id}: {e}")
-            return JsonResponse({'success': False, 'error': 'Error al procesar el acta'}, status=500)
-        cache.set(cache_key, lineup_data, 60 * 60 * 24)
+            try:
+                # Pasar bytes para que BeautifulSoup detecte el charset del meta tag
+                # (evita que requests decodifique mal UTF-8 como Latin-1)
+                lineup_data = parse_acta_lineup(acta_content)
+            except Exception as e:
+                logger.error(f"Error parseando acta del partido {match_id}: {e}")
+                return JsonResponse({'success': False, 'error': 'Error al procesar el acta'}, status=500)
+            cache.set(cache_key, lineup_data, 60 * 60 * 24)
+
+        store_match_lineups(match, lineup_data)
 
     # Pre-fetch todos los PlayerRole activos de ambos equipos en una sola query
     roles_lookup = {}  # {(team_id, jersey_number): role}
@@ -641,12 +646,7 @@ def ajax_acta_lineup(request, match_id):
 
     def _match_team(name_acta):
         """Determina si name_acta corresponde al equipo local o visitante por solapamiento de palabras."""
-        def words(s):
-            return set(_uni(s or '').upper().split())
-        n = words(name_acta)
-        nh = words(match.home_team.name if match.home_team else '')
-        na = words(match.away_team.name if match.away_team else '')
-        return match.home_team if len(n & nh) >= len(n & na) else match.away_team
+        return resolve_acta_team(name_acta, match.home_team, match.away_team)
 
     def _enrich_convocados(raw_list, team):
         """["1 Raya", ...] → [{number, name_acta, person}]"""
@@ -973,4 +973,3 @@ __all__ = [
     'match_changes_review',
     'ajax_mark_change_reviewed',
 ]
-

@@ -242,6 +242,28 @@ class CompetitionsViewUrlTests(TestCase):
                 self.assertEqual(r.status_code, 200)
         get.assert_called_once()
 
+    def test_acta_persistida_no_se_descarga_aunque_expire_la_cache(self):
+        """Aunque venza la caché, el acta ya persistida no se vuelve a descargar."""
+        self.client.force_login(self.user)
+        self.match.acta_html = 'https://federacion.example/acta/2'
+        self.match.save(update_fields=['acta_html'])
+        parsed = {
+            'sets': [], 'home_team': 'A', 'away_team': 'B', 'home_captain': None, 'away_captain': None,
+            'home_convocados': [], 'away_convocados': [],
+        }
+        url = reverse('competitions:ajax_acta_lineup', args=[self.match.id])
+        with patch.object(comp_views, 'safe_get', return_value=b'<html></html>') as get, \
+                patch.object(comp_views, 'parse_acta_lineup', return_value=parsed) as parse:
+            self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+            cache.clear()
+            r = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+
+        self.assertEqual(r.status_code, 200)
+        get.assert_called_once()
+        parse.assert_called_once()
+        self.match.refresh_from_db()
+        self.assertIsNotNone(self.match.acta_data)
+
     def test_standings_acepta_season_name_y_el_antiguo_season(self):
         self.client.force_login(self.user)
         url = reverse('competitions:standings_view')

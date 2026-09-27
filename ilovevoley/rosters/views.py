@@ -12,6 +12,8 @@ from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import tenant_access_required
+from ilovevoley.competitions.models import MatchLineup
+from ilovevoley.competitions.services.lineups import get_player_season_stats
 from ilovevoley.teams.models import Team
 from .forms import PersonForm, PlayerRoleForm, StaffRoleForm
 from .models import Person, PlayerRole, StaffRole
@@ -163,18 +165,51 @@ def person_detail(request, person_id):
     tenant_teams = Team.objects.for_tenant(request.tenant)
     player_roles = person.player_roles.filter(team__in=tenant_teams).select_related('team__category').order_by('-is_active', 'team__name')
     staff_roles = person.staff_roles.filter(team__in=tenant_teams).select_related('team__category').order_by('-is_active', 'team__name')
-    
+
     # Verificar permisos de edición
     can_edit = request.user.can_edit_person(person, request.tenant)
-    
+
+    # Histórico de actas: temporadas con roles o con partidos registrados
+    person_lineups = MatchLineup.objects.filter(person=person, team__in=tenant_teams).exclude(match__status='withdrawn')
+    lineup_season_ids = set(person_lineups.values_list('match__league__season_id', flat=True))
+    season_ids = set(player_roles.values_list('season_id', flat=True)) | lineup_season_ids
+    season_ids.discard(None)
+    seasons = Season.objects.filter(pk__in=season_ids).order_by('-start_year')
+
+    stat_season = _resolve_person_stat_season(request, seasons)
+    player_stats = get_player_season_stats(person, stat_season, tenant_teams) if person_lineups.exists() else None
+
     context = {
         'person': person,
         'player_roles': player_roles,
         'staff_roles': staff_roles,
         'can_edit': can_edit,
+        'seasons': seasons,
+        'stat_season': stat_season,
+        'player_stats': player_stats,
     }
-    
+
     return render(request, 'rosters/person_detail.html', context)
+
+
+def _resolve_person_stat_season(request, seasons):
+    """Temporada a mostrar en las estadísticas del deportista.
+
+    ``?season=<id>`` la fija; ``?season=`` (vacío) agrega todas. Sin parámetro
+    se usa la temporada activa si el deportista tiene datos en ella, y si no la
+    más reciente.
+    """
+    if 'season' in request.GET:
+        raw = request.GET['season']
+        if raw == '':
+            return None
+        if raw.isdigit():
+            return seasons.filter(pk=int(raw)).first() or seasons.first()
+        return seasons.first()
+    current = Season.objects.current()
+    if current is not None and seasons.filter(pk=current.pk).exists():
+        return current
+    return seasons.first()
 
 
 @tenant_access_required(manager=True)

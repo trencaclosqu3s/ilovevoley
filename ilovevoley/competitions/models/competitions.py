@@ -315,6 +315,10 @@ class Match(models.Model):
 
     # Información de acta oficial
     acta_html = models.CharField(max_length=200, blank=True, verbose_name='Acta HTML')
+    acta_data = models.JSONField(
+        null=True, blank=True, verbose_name='Acta parseada',
+        help_text='JSON estructurado del acta federativa (convocados, alineaciones y sets)',
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -489,6 +493,55 @@ class Standing(models.Model):
         return self.points_for - self.points_against
 
 
+class MatchLineup(models.Model):
+    """Aparición de un deportista en un partido, derivada del acta federativa.
+
+    Se crea una fila por (partido, equipo, dorsal) al persistir el JSON del
+    acta. ``person`` queda vacío cuando el dorsal del acta no casa con ningún
+    ``PlayerRole`` del equipo en la temporada; estos registros se conservan
+    para poder re-resolverlos si más adelante se registra la plantilla.
+    """
+
+    match = models.ForeignKey(Match, on_delete=models.CASCADE, related_name='match_lineups')
+    team = models.ForeignKey('teams.Team', on_delete=models.CASCADE, related_name='match_lineups')
+    person = models.ForeignKey(
+        'rosters.Person', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='match_lineups', verbose_name='Deportista',
+    )
+
+    jersey_number = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Dorsal')
+    name_acta = models.CharField(max_length=200, blank=True, verbose_name='Nombre en acta')
+
+    is_convocado = models.BooleanField(default=False, verbose_name='Convocado')
+    sets_played = models.PositiveSmallIntegerField(default=0, verbose_name='Sets jugados')
+    sets_started = models.PositiveSmallIntegerField(default=0, verbose_name='Sets como titular')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'videos_matchlineup'
+        ordering = ['match', 'team', 'jersey_number']
+        verbose_name = 'Alineación de partido'
+        verbose_name_plural = 'Alineaciones de partido'
+        indexes = [
+            models.Index(fields=['person', 'match'], name='lineup_person_match_idx'),
+            models.Index(fields=['team', 'match'], name='lineup_team_match_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['match', 'team', 'jersey_number'],
+                name='unique_lineup_jersey_per_match',
+                condition=models.Q(jersey_number__isnull=False),
+            ),
+        ]
+
+    def __str__(self):
+        quien = self.person.full_name if self.person else self.name_acta or 'Sin identificar'
+        dorsal = f' #{self.jersey_number}' if self.jersey_number else ''
+        return f'{quien}{dorsal} - {self.match_id}'
+
+
 class MatchChangeLogQuerySet(TenantQuerySet):
     """QuerySet de MatchChangeLog con ámbito de tenant a través de sus partidos."""
 
@@ -550,4 +603,3 @@ class MatchChangeLog(models.Model):
 
     def __str__(self):
         return f'{self.match} - {self.get_change_type_display()} ({self.field_name}): {self.old_value} -> {self.new_value}'
-
