@@ -3,7 +3,7 @@ from datetime import datetime, time, timedelta
 from django.conf import settings
 from django.db.models import Q
 from django.http import Http404
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from django_ical.views import ICalFeed
 
@@ -162,7 +162,7 @@ class UserMatchesFeed(ICalFeed):
         try:
             match_url = reverse("competitions:match_detail", args=[item.id])
             description_parts.append(f'\nVer más información en la web: {match_url}')
-        except:
+        except NoReverseMatch:
             pass
 
         return '\n'.join(description_parts)

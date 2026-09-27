@@ -7,7 +7,7 @@ from django.utils.html import strip_tags
 from ilovevoley.videos.models import Image, Category, Match
 from ilovevoley.core.middleware import send_404_daily_report
 from ilovevoley.core.email_utils import get_admin_emails
-import random
+import secrets
 
 User = get_user_model()
 
@@ -133,7 +133,7 @@ class Command(BaseCommand):
             if not test_user:
                 self.stdout.write("  📝 Creando usuario de prueba...")
                 test_user = User.objects.create_user(
-                    username=f'test_user_{random.randint(1000, 9999)}',
+                    username=f'test_user_{secrets.randbelow(9000) + 1000}',
                     email=test_email or 'test@example.com',
                     is_approved=False
                 )
