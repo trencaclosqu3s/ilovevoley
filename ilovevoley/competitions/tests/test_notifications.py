@@ -157,3 +157,25 @@ class MatchChangeNotificationsTest(TestCase):
         body = mail.outbox[0].body
         self.assertIn('sant-josep.ilovevoley.test', body)
         self.assertIn(f'/competitions/partidos/{self.match.id}/', body)
+
+    def test_organizations_by_club_resolves_batch_in_single_query(self):
+        """El mapeo club->organización del lote se resuelve con una sola consulta (#200)."""
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        from ilovevoley.competitions.services.notifications import _organizations_by_club
+
+        match2 = Match.objects.create(
+            league=self.league, home_team=self.team_a, away_team=self.team_b,
+            match_date=timezone.now(), venue='Pabellón B',
+        )
+        matches = list(
+            Match.objects.select_related('home_team', 'away_team')
+            .filter(id__in=[self.match.id, match2.id])
+        )
+        with CaptureQueriesContext(connection) as ctx:
+            by_club = _organizations_by_club(matches)
+
+        self.assertEqual(len(ctx.captured_queries), 1)
+        self.assertEqual(by_club[self.club_a.id].slug, 'sant-josep')
+        self.assertEqual(by_club[self.club_b.id].slug, 'manacor')
