@@ -512,3 +512,16 @@ class RostersTenantIsolationTests(TestCase):
             HTTP_HOST='club-b.ilovevoley.es',
         )
         self.assertNotEqual(response.status_code, 200)
+
+    def test_staff_role_form_button_has_accessible_contrast(self):
+        """El botón de guardar rol de staff usa texto oscuro sobre amarillo (sin text-white)."""
+        self.client.force_login(self.staff)
+        response = self.client.get(
+            reverse('rosters:staff_role_create', args=[self.person_a.id]),
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn('bg-csj-yellow', content)
+        self.assertIn('text-gray-900', content)
+        self.assertRegex(content, r'<button[^>]+type="submit"[^>]*bg-csj-yellow[^>]*text-gray-900')

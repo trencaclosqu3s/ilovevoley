@@ -4,8 +4,8 @@
 {% block title %}Imágenes - {{ match.home_team_display }} vs {{ match.away_team_display }}{% endblock %}
 
 {% block content %}
-<div class="w-full max-w-full overflow-hidden">
-    <div class="bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6 max-w-full">
+<div class="w-full max-w-full">
+    <div class="bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6 max-w-full relative z-20">
     <!-- Cabecera del partido -->
     <div class="border-b border-gray-200 pb-3 sm:pb-4 lg:pb-6 mb-3 sm:mb-4 lg:mb-6">
         <div class="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-between sm:items-start">
@@ -42,10 +42,13 @@
             <div class="flex flex-col sm:items-end space-y-2 flex-shrink-0">
                 {% include 'content/_album_zip_button.html' with download_zip_url=download_zip_url total_images=total_images %}
                 <!-- Menú desplegable de subida -->
-                <div class="relative inline-block">
+                <div class="relative inline-block z-30">
                     <button id="upload-menu-btn-{{ match.id }}"
                             class="inline-flex items-center px-2 py-1 sm:px-2.5 bg-csj-purple text-white rounded-md hover:bg-purple-700 transition-colors duration-200 text-xs">
-                        <i class="fas fa-plus mr-1 text-xs"></i>Subir imagen
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Subir imagen
                         <svg class="w-2.5 h-2.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
