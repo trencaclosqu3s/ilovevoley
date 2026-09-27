@@ -12,14 +12,16 @@ from django.core.paginator import Paginator
 from django.core.cache import cache
 from django.db.models import Case, CharField, Count, Q, Value, When
 from django.http import Http404, HttpResponse, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from unidecode import unidecode as _uni
 
 from ilovevoley.competitions.result_card import extract_set_scores, render_result_card
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
-from ilovevoley.core.models import Category
+from ilovevoley.core.models import Category, Season
+from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.security import UnsafeURL, safe_get
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
@@ -27,7 +29,8 @@ from ilovevoley.rosters.models import PlayerRole
 from ilovevoley.teams.models import Team
 from ilovevoley.videos.scraping import parse_acta_lineup, validate_volleyball_score
 from .forms import FriendlyMatchForm, MatchResultForm
-from .models import League, Match, Standing
+from .models import League, Match, MatchChangeLog, Standing
+
 
 logger = logging.getLogger(__name__)
 
@@ -886,6 +889,74 @@ def ajax_teams_by_league_category(request):
     })
 
 
+@tenant_access_required(manager=True)
+def match_changes_review(request):
+    """Panel de revisión de modificaciones federativas para directores/managers del club."""
+    tenant = request.tenant
+    season, selected_season_id = resolve_season_filter(request)
+
+    qs = MatchChangeLog.objects.for_tenant(tenant).select_related(
+        'match', 'match__league', 'match__home_team', 'match__away_team', 'reviewed_by'
+    )
+
+    if season:
+        qs = qs.filter(match__league__season=season)
+
+    status_filter = request.GET.get('status', 'pending')
+    if status_filter == 'pending':
+        qs = qs.filter(reviewed=False)
+    elif status_filter == 'reviewed':
+        qs = qs.filter(reviewed=True)
+
+    change_type = request.GET.get('type')
+    if change_type:
+        qs = qs.filter(change_type=change_type)
+
+    paginator = Paginator(qs, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    all_seasons = Season.objects.all().order_by('-start_year')
+
+    pending_count = MatchChangeLog.objects.for_tenant(tenant)
+    if season:
+        pending_count = pending_count.filter(match__league__season=season)
+    pending_count = pending_count.filter(reviewed=False).count()
+
+    context = {
+        'page_obj': page_obj,
+        'changes': page_obj.object_list,
+        'status_filter': status_filter,
+        'selected_type': change_type or '',
+        'selected_season_id': selected_season_id,
+        'seasons': all_seasons,
+        'pending_count': pending_count,
+        'change_types': MatchChangeLog.CHANGE_TYPES,
+    }
+    return render(request, 'competitions/match_changes_review.html', context)
+
+
+@require_POST
+@tenant_access_required(manager=True, api=True)
+def ajax_mark_change_reviewed(request, log_id):
+    """Marca una modificación federativa como revisada por el director/manager actual."""
+    tenant = getattr(request, 'tenant', None)
+    log = get_object_or_404(MatchChangeLog.objects.for_tenant(tenant), pk=log_id)
+
+    log.reviewed = True
+    log.reviewed_by = request.user
+    log.reviewed_at = timezone.now()
+    log.save(update_fields=['reviewed', 'reviewed_by', 'reviewed_at'])
+
+    return JsonResponse({
+        'status': 'success',
+        'log_id': log.id,
+        'reviewed': True,
+        'reviewed_by': request.user.get_full_name() or request.user.username,
+        'reviewed_at': log.reviewed_at.strftime('%d/%m/%Y %H:%M'),
+    })
+
+
 __all__ = [
     'league_list',
     'league_detail',
@@ -899,4 +970,7 @@ __all__ = [
     'standings_view',
     'ajax_matches_by_category',
     'ajax_teams_by_league_category',
+    'match_changes_review',
+    'ajax_mark_change_reviewed',
 ]
+

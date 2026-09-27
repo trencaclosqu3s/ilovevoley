@@ -3,6 +3,9 @@ from .competitions import (
     LeagueManager,
     Match,
     MatchAllManager,
+    MatchChangeLog,
+    MatchChangeLogManager,
+    MatchChangeLogQuerySet,
     MatchManager,
     ScrapingEndpoint,
     Standing,
@@ -13,7 +16,11 @@ __all__ = [
     'LeagueManager',
     'Match',
     'MatchAllManager',
+    'MatchChangeLog',
+    'MatchChangeLogManager',
+    'MatchChangeLogQuerySet',
     'MatchManager',
     'ScrapingEndpoint',
     'Standing',
 ]
+

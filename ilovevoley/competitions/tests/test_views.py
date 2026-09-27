@@ -832,3 +832,117 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
 
 
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'otherclub.ilovevoley.es', 'localhost'])
+class MatchChangesReviewViewTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club', is_active=True,
+        )
+        self.other_org = Organization.objects.create(
+            slug='otherclub', name='Other Club', is_active=True,
+        )
+        User = get_user_model()
+        from ilovevoley.users.models import Membership
+        self.manager_user = User.objects.create_user(username='manager_user', email='manager@testclub.es')
+        Membership.objects.create(
+            user=self.manager_user, organization=self.org, role='manager', is_approved=True
+        )
+        self.regular_member = User.objects.create_user(username='regular_member', email='member@testclub.es')
+        Membership.objects.create(
+            user=self.regular_member, organization=self.org, role='member', is_approved=True
+        )
+
+        self.club = Club.objects.create(official_name='Test Club', federation_id='CLUB-TEST')
+        self.other_club = Club.objects.create(official_name='Other Club', federation_id='CLUB-OTHER')
+        self.org.club = self.club
+        self.org.save()
+        self.other_org.club = self.other_club
+        self.other_org.save()
+
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(
+            name='Test Club Senior', category=self.category, club=self.club, federation_id='TEAM-1', is_active=True
+        )
+        self.rival_team = Team.objects.create(
+            name='Rival Team Senior', category=self.category, federation_id='TEAM-2', is_active=True
+        )
+        self.other_team = Team.objects.create(
+            name='Other Club Senior', category=self.category, club=self.other_club, federation_id='TEAM-3', is_active=True
+        )
+
+        self.season = Season.objects.resolve('2026-27')
+        self.season.is_current = True
+        self.season.save()
+
+        self.league = League.objects.create(
+            name='Superliga 2', federation_id='L-1', season=self.season, is_active=True, visibility_type='main', is_our_team_related=True
+        )
+        self.match_own = Match.objects.create(
+            league=self.league, home_team=self.team, away_team=self.rival_team, match_date=timezone.now()
+        )
+        self.match_other = Match.objects.create(
+            league=self.league, home_team=self.other_team, away_team=self.rival_team, match_date=timezone.now()
+        )
+
+        from ilovevoley.competitions.models import MatchChangeLog
+        self.log_own = MatchChangeLog.objects.create(
+            match=self.match_own,
+            change_type='datetime',
+            field_name='match_date',
+            old_value='01/10/2026 10:00',
+            new_value='01/10/2026 12:00',
+            is_last_minute=True,
+        )
+        self.log_other = MatchChangeLog.objects.create(
+            match=self.match_other,
+            change_type='venue',
+            field_name='venue',
+            old_value='Pista 1',
+            new_value='Pista 2',
+            is_last_minute=True,
+        )
+
+    def test_anonymous_redirects_to_login(self):
+        url = reverse('competitions:match_changes_review')
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 302)
+
+    def test_regular_member_forbidden(self):
+        self.client.force_login(self.regular_member)
+        url = reverse('competitions:match_changes_review')
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 403)
+
+    def test_manager_sees_own_changes_only(self):
+        self.client.force_login(self.manager_user)
+        url = reverse('competitions:match_changes_review')
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        changes = response.context['changes']
+        self.assertIn(self.log_own, changes)
+        self.assertNotIn(self.log_other, changes)
+
+    def test_ajax_mark_change_reviewed(self):
+        self.client.force_login(self.manager_user)
+        url = reverse('competitions:ajax_mark_change_reviewed', kwargs={'log_id': self.log_own.id})
+        response = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data.get('status'), 'success')
+        self.assertTrue(data.get('reviewed'))
+
+        self.log_own.refresh_from_db()
+        self.assertTrue(self.log_own.reviewed)
+        self.assertEqual(self.log_own.reviewed_by, self.manager_user)
+        self.assertIsNotNone(self.log_own.reviewed_at)
+
+    def test_ajax_mark_change_reviewed_other_tenant_404(self):
+        self.client.force_login(self.manager_user)
+        # Intentar marcar un cambio que pertenece a otro tenant
+        url = reverse('competitions:ajax_mark_change_reviewed', kwargs={'log_id': self.log_other.id})
+        response = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 404)
+
+
+
