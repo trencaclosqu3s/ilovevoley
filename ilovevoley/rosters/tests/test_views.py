@@ -7,9 +7,11 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 
 from ilovevoley.core.models import Category, Organization, Season
+from ilovevoley.competitions.models import League, Match, MatchLineup
 from ilovevoley.rosters import forms as rosters_forms
 from ilovevoley.rosters import views as rosters_views
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
@@ -445,3 +447,89 @@ class RostersTenantIsolationTests(TestCase):
             HTTP_HOST='club-b.ilovevoley.es',
         )
         self.assertNotEqual(response.status_code, 200)
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class PersonDetailStatsTests(TestCase):
+    """Las estadísticas de la ficha salen de las actas y respetan el tenant."""
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-T')
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club', club=self.club,
+            club_team_names={'1': 'Test Club'}, is_active=True,
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member_stats', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(
+            name='Test Club Senior', category=self.category,
+            club=self.club, federation_id='TEAM-1', is_active=True,
+        )
+        self.rival = Team.objects.create(
+            name='Rival', category=self.category, federation_id='TEAM-2', is_active=True,
+        )
+        self.season = Season.objects.resolve('2025-26')
+        self.league = League.objects.create(
+            name='Liga', federation_id='L-1', season=self.season,
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+        self.person = Person.objects.create(
+            first_name='Laura', last_name='García', organization=self.org,
+        )
+        PlayerRole.objects.create(
+            person=self.person, team=self.team, season=self.season,
+            jersey_number=7, is_active=True,
+        )
+        self.match = Match.objects.create(
+            league=self.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now(), round_number=1, status='finished',
+        )
+
+    def _lineup(self, team, person, **kwargs):
+        defaults = dict(
+            match=self.match, team=team, person=person, jersey_number=7,
+            is_convocado=True, sets_played=0, sets_started=0,
+        )
+        defaults.update(kwargs)
+        return MatchLineup.objects.create(**defaults)
+
+    def test_person_detail_muestra_las_estadisticas(self):
+        self._lineup(self.team, self.person, sets_played=3, sets_started=2)
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('rosters:person_detail', args=[self.person.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['player_stats']['sets_disputados'], 3)
+        self.assertEqual(response.context['player_stats']['titularidades'], 1)
+        self.assertContains(response, 'Sets disputados')
+
+    def test_person_detail_no_cuenta_equipos_fuera_del_tenant(self):
+        self._lineup(self.team, self.person, sets_played=3, sets_started=3)
+        equipo_ajeno = Team.objects.create(
+            name='Ajeno', category=self.category, federation_id='TEAM-3', is_active=True,
+        )
+        self._lineup(equipo_ajeno, self.person, sets_played=5, sets_started=5)
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('rosters:person_detail', args=[self.person.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.context['player_stats']['sets_disputados'], 3)
+
+    def test_person_detail_sin_actas_no_muestra_el_bloque(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('rosters:person_detail', args=[self.person.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context['player_stats'])
+        self.assertNotContains(response, 'Sets disputados')
