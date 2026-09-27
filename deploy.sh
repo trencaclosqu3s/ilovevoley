@@ -16,6 +16,26 @@ git pull
 # SHA del commit desplegado, usado por Sentry para el release tracking
 export GIT_SHA=$(git rev-parse --short HEAD)
 
+# El bind-mount de nginx.conf no recarga el proceso: hay que reload/recreate.
+reload_nginx() {
+    echo "🔄 Aplicando nginx.conf al proceso nginx..."
+    if ! docker compose exec -T nginx nginx -t; then
+        echo "❌ nginx -t falló; la configuración no es válida."
+        return 1
+    fi
+    # nginx -s reload puede colgarse; timeout corto y fallback a recreate.
+    if timeout 15 docker compose exec -T nginx nginx -s reload; then
+        echo "✅ nginx recargado."
+        return 0
+    fi
+    echo "⚠️ reload no respondió a tiempo; recreando contenedor nginx..."
+    if ! docker compose up -d --force-recreate --no-deps nginx; then
+        echo "❌ No se pudo recrear nginx."
+        return 1
+    fi
+    echo "✅ nginx recreado."
+}
+
 # Función de rollback
 rollback() {
     echo ""
@@ -29,6 +49,7 @@ rollback() {
     export GIT_SHA=$(git rev-parse --short HEAD)
     docker compose build
     docker compose up -d --remove-orphans
+    reload_nginx || true
     echo "🔄 Rollback completado a la versión $PREV_COMMIT."
     exit 1
 }
@@ -56,6 +77,12 @@ fi
 echo "♻️  Actualizando servicios (mínimo downtime)..."
 if ! docker compose up -d --remove-orphans; then
     echo "❌ Error al levantar los contenedores."
+    rollback
+fi
+
+# nginx.conf va por bind-mount: up -d no aplica cambios de conf en memoria.
+if ! reload_nginx; then
+    echo "❌ Error aplicando la configuración de nginx."
     rollback
 fi
 
