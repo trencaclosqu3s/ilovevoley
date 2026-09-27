@@ -331,6 +331,7 @@ def video_bulk_create(request):
                         youtube_url=entry['youtube_url'],
                         match=match,
                         category=category,
+                        set_number=entry.get('set_number'),
                         created_by=request.user,
                         organization=request.tenant,
                     )
@@ -728,6 +729,7 @@ def image_bulk_upload(request):
             'uploaded_by': request.user,
             'image_type': request.POST.get('image_type', 'other'),
             'season_id': season_id,
+            'set_number': request.POST.get('set_number') or None,
             'organization': request.tenant,
         }
         
