@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from django.conf import settings
+from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
+from unidecode import unidecode
 
 from ilovevoley.core.security import UnsafeURL, safe_get
 
@@ -24,6 +26,10 @@ _FONT_REGULAR = _STATIC / 'fonts' / 'SourceSans3-Regular.ttf'
 _FONT_BOLD = _STATIC / 'fonts' / 'SourceSans3-Bold.ttf'
 _PLACEHOLDER = _STATIC / 'images' / 'crest_placeholder.png'
 
+MARGIN = 80
+NAME_GAP = 60
+NAME_FONT_SIZE = 42
+
 LogoFetcher = Callable[[str | None], bytes | None]
 
 
@@ -33,7 +39,8 @@ def extract_set_scores(
     """Extrae (pts_local, pts_visitante) por set emparejando por nombre."""
 
     def words(value: str) -> set[str]:
-        return {word.lower() for word in (value or '').replace('-', ' ').split() if word}
+        normalized = unidecode(value or '').replace('-', ' ')
+        return {word.lower() for word in normalized.split() if word}
 
     home_words, away_words = words(home_name), words(away_name)
     scores: list[tuple[int, int]] = []
@@ -75,6 +82,35 @@ def _load_font(path: Path, size: int) -> ImageFont.FreeTypeFont | ImageFont.Imag
         return ImageFont.truetype(str(path), size=size)
     except OSError:
         return ImageFont.load_default()
+
+
+def _text_width(draw: ImageDraw.ImageDraw, text: str, font) -> int:
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[2] - bbox[0]
+
+
+def _fit_text(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    *,
+    font_path: Path,
+    size: int,
+    max_width: int,
+    min_size: int = 28,
+):
+    """Ajusta el texto a `max_width` reduciendo cuerpo y, si no basta, recortando."""
+    text = text or ''
+    font = _load_font(font_path, size)
+    while size > min_size and _text_width(draw, text, font) > max_width:
+        size -= 2
+        font = _load_font(font_path, size)
+    if _text_width(draw, text, font) <= max_width:
+        return text, font
+
+    truncated = text
+    while truncated and _text_width(draw, f'{truncated}…', font) > max_width:
+        truncated = truncated[:-1]
+    return f'{truncated.rstrip()}…', font
 
 
 def _hex_to_rgb(
@@ -157,7 +193,6 @@ def render_result_card(
     away_crest = _open_logo(away_logo, crest_size)
 
     font_lg = _load_font(_FONT_BOLD, 96 if card_format == 'square' else 110)
-    font_md = _load_font(_FONT_BOLD, 42)
     font_sm = _load_font(_FONT_REGULAR, 32)
     font_xs = _load_font(_FONT_REGULAR, 26)
     white = (255, 255, 255)
@@ -168,7 +203,7 @@ def render_result_card(
         org_image = _open_logo(org_bytes, 72)
         image.paste(org_image, (48, y), org_image)
     league_name = getattr(getattr(match, 'league', None), 'name', '') or ''
-    date_str = match.match_date.strftime('%d/%m/%Y')
+    date_str = timezone.localtime(match.match_date).strftime('%d/%m/%Y')
     draw.text((140, y + 10), league_name, font=font_sm, fill=white)
     draw.text((140, y + 50), date_str, font=font_xs, fill=white)
 
@@ -177,8 +212,8 @@ def render_result_card(
     score_bbox = draw.textbbox((0, 0), score, font=font_lg)
     score_width = score_bbox[2] - score_bbox[0]
     score_x = (width - score_width) // 2
-    image.paste(home_crest, (80, center_y), home_crest)
-    image.paste(away_crest, (width - 80 - away_crest.width, center_y), away_crest)
+    image.paste(home_crest, (MARGIN, center_y), home_crest)
+    image.paste(away_crest, (width - MARGIN - away_crest.width, center_y), away_crest)
     draw.text(
         (score_x, center_y + crest_size // 2 - 50),
         score,
@@ -187,13 +222,26 @@ def render_result_card(
     )
 
     name_y = center_y + crest_size + 24
-    draw.text((80, name_y), match.home_team_display[:28], font=font_md, fill=white)
-    away_name = match.away_team_display[:28]
-    away_bbox = draw.textbbox((0, 0), away_name, font=font_md)
+    max_name_width = (width - 2 * MARGIN - NAME_GAP) // 2
+    home_name, home_font = _fit_text(
+        draw,
+        match.home_team_display,
+        font_path=_FONT_BOLD,
+        size=NAME_FONT_SIZE,
+        max_width=max_name_width,
+    )
+    away_name, away_font = _fit_text(
+        draw,
+        match.away_team_display,
+        font_path=_FONT_BOLD,
+        size=NAME_FONT_SIZE,
+        max_width=max_name_width,
+    )
+    draw.text((MARGIN, name_y), home_name, font=home_font, fill=white)
     draw.text(
-        (width - 80 - (away_bbox[2] - away_bbox[0]), name_y),
+        (width - MARGIN - _text_width(draw, away_name, away_font), name_y),
         away_name,
-        font=font_md,
+        font=away_font,
         fill=white,
     )
 

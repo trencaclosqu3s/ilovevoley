@@ -1,9 +1,10 @@
+from datetime import datetime, timezone as dt_timezone
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from ilovevoley.competitions import result_card
 from ilovevoley.core.security import UnsafeURL
@@ -39,7 +40,71 @@ def _fake_org(**overrides):
     return o
 
 
+def _capture_drawn_text():
+    """Espía las llamadas a draw.text() conservando el dibujado real."""
+    calls = []
+    real_draw = ImageDraw.Draw
+
+    def factory(image, *args, **kwargs):
+        draw = real_draw(image, *args, **kwargs)
+        original = draw.text
+
+        def text(xy, content, *t_args, **t_kwargs):
+            calls.append((xy, content, t_kwargs.get('font')))
+            return original(xy, content, *t_args, **t_kwargs)
+
+        draw.text = text
+        return draw
+
+    return calls, patch.object(result_card.ImageDraw, 'Draw', side_effect=factory)
+
+
 class RenderResultCardTests(SimpleTestCase):
+    def test_date_is_rendered_in_local_timezone(self):
+        # 31/05 22:30 UTC son ya las 00:30 del 01/06 en Europe/Madrid.
+        match = _fake_match(
+            match_date=datetime(2026, 5, 31, 22, 30, tzinfo=dt_timezone.utc)
+        )
+        calls, spy = _capture_drawn_text()
+
+        with spy:
+            result_card.render_result_card(
+                match=match,
+                organization=_fake_org(),
+                sets=[],
+                logo_fetcher=lambda url: None,
+            )
+
+        drawn = [content for _, content, _ in calls]
+        self.assertIn('01/06/2026', drawn)
+        self.assertNotIn('31/05/2026', drawn)
+
+    def test_long_team_names_do_not_overlap(self):
+        match = _fake_match(
+            home_team_display='Club Voleibol Universitario de Las Palmas de Gran Canaria',
+            away_team_display='Agrupación Deportiva Voleibol Sanaya Libby\'s La Laguna',
+        )
+        calls, spy = _capture_drawn_text()
+
+        with spy:
+            result_card.render_result_card(
+                match=match,
+                organization=_fake_org(),
+                sets=[],
+                logo_fetcher=lambda url: None,
+            )
+
+        truncated = [call for call in calls if call[1].endswith('…')]
+        self.assertEqual(len(truncated), 2, calls)
+
+        measure = ImageDraw.Draw(Image.new('RGB', (10, 10)))
+        home_call, away_call = truncated
+        home_end = home_call[0][0] + result_card._text_width(
+            measure, home_call[1], home_call[2]
+        )
+
+        self.assertLess(home_end, away_call[0][0])
+
     def test_square_png_dimensions(self):
         png = result_card.render_result_card(
             match=_fake_match(),

@@ -543,6 +543,24 @@ class MatchResultCardViewTests(TestCase):
         self.assertEqual(render_card.call_count, 2)
         self.assertEqual(render_card.call_args.kwargs['sets'], [(25, 19), (21, 25)])
 
+    def test_unreachable_acta_still_returns_card_without_sets(self):
+        self.finished.acta_html = 'https://federacion.example/acta/card'
+        self.finished.save(update_fields=['acta_html'])
+        png = b'\x89PNG\r\n\x1a\n'
+
+        with (
+            patch.object(comp_views, 'safe_get', side_effect=OSError('red caída')),
+            patch.object(comp_views, 'render_result_card', return_value=png) as render_card,
+        ):
+            response = self.client.get(
+                self._url(self.finished.id),
+                HTTP_HOST='testclub.ilovevoley.es',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/png')
+        self.assertEqual(render_card.call_args.kwargs['sets'], [])
+
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'rivalclub.ilovevoley.es'])
 class CompetitionsTenantIsolationTests(TestCase):

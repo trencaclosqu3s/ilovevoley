@@ -226,28 +226,28 @@ def _load_set_scores_for_card(match):
         return []
 
     cache_key = f'acta_lineup:{match.acta_html}'
-    lineup_data = cache.get(cache_key)
-    if lineup_data is None:
-        try:
+    try:
+        lineup_data = cache.get(cache_key)
+        if lineup_data is None:
             acta_content = safe_get(
                 match.acta_html,
                 allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
             )
             lineup_data = parse_acta_lineup(acta_content)
             cache.set(cache_key, lineup_data, 60 * 60 * 24)
-        except Exception as exc:
-            logger.warning(
-                'Acta no disponible para tarjeta del partido %s: %s',
-                match.id,
-                exc,
-            )
-            return []
 
-    return extract_set_scores(
-        lineup_data,
-        home_name=match.home_team_display,
-        away_name=match.away_team_display,
-    )
+        return extract_set_scores(
+            lineup_data,
+            home_name=match.home_team_display,
+            away_name=match.away_team_display,
+        )
+    except Exception as exc:
+        logger.warning(
+            'Acta no disponible para tarjeta del partido %s: %s',
+            match.id,
+            exc,
+        )
+        return []
 
 
 @tenant_access_required()
