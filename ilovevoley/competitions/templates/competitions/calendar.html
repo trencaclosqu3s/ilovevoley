@@ -530,8 +530,8 @@
     </div>
 </div>
 
-<script>
 {{ matches_json|json_script:"calendar-data" }}
+<script>
 window.calendarData = JSON.parse(document.getElementById('calendar-data').textContent);
 
 function esc(value) {
