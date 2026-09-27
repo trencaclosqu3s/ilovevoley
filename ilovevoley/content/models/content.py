@@ -76,6 +76,12 @@ class Video(models.Model):
             update_fields = kwargs.get('update_fields')
             if update_fields is not None:
                 kwargs['update_fields'] = set(update_fields) | {'season'}
+        # Sin partido no hay set: el spec exige que quede NULL.
+        if self.match_id is None and self.set_number is not None:
+            self.set_number = None
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None:
+                kwargs['update_fields'] = set(update_fields) | {'set_number'}
         super().save(*args, **kwargs)
 
     def get_video_id(self):
@@ -356,6 +362,11 @@ class Image(models.Model):
         if self.match_id and self.image_type == 'other':
             self.image_type = 'match'
             changed.add('image_type')
+
+        # Sin partido no hay set: el spec exige que quede NULL.
+        if self.match_id is None and self.set_number is not None:
+            self.set_number = None
+            changed.add('set_number')
 
         update_fields = kwargs.get('update_fields')
         if update_fields is not None and changed:
