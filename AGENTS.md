@@ -69,6 +69,14 @@ defecto: `docker compose run --rm web python manage.py <comando>`.
   partido como finalizado.
 - **Temporadas**: Utilizar siempre `Season.objects.current()` para la temporada
   activa y `resolve_season_filter(request)` para la convención de filtros de UI.
+- **Identidad de `Person`**: `unique_person_identity` es por organización
+  (`organization`, `first_name`, `last_name`, `birth_date`), no global: la misma
+  persona puede tener ficha en dos clubes. Decisión tomada en #174 (opción A).
+  Las fichas heredadas con `organization=NULL` comparten un mismo grupo
+  (`nulls_distinct=False`) y siguen deduplicadas entre sí. Al crear o editar
+  fichas desde un formulario hay que pasar el tenant (`PersonForm(...,
+  organization=request.tenant)`) para que la validación se haga contra el club
+  correcto.
 - **No resucitar la rama `origin/refactor_apps`**: está completamente descartada.
 
 ## Testing
