@@ -27,6 +27,7 @@ class CompetitionsReExportCompatibilityTest(SimpleTestCase):
         self.assertIs(vid_views_comp.league_list, comp_views.league_list)
         self.assertIs(vid_views_comp.league_detail, comp_views.league_detail)
         self.assertIs(vid_views_comp.match_detail, comp_views.match_detail)
+        self.assertIs(vid_views_comp.match_result_card, comp_views.match_result_card)
         self.assertIs(vid_views_comp.calendar_view, comp_views.calendar_view)
         self.assertIs(vid_views_comp.friendly_match_create, comp_views.friendly_match_create)
         self.assertIs(vid_views_comp.ajax_search_teams, comp_views.ajax_search_teams)
@@ -369,6 +370,178 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertNotIn('${team.display}', content)
         self.assertNotIn('${teamName}', content)
         self.assertIn('textContent', content)
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class MatchResultCardViewTests(TestCase):
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='testclub',
+            name='Test Club',
+            club_team_names={'1': 'Test Club'},
+            is_active=True,
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='card-admin', password='pass', is_staff=True, is_superuser=True
+        )
+        Membership.objects.create(
+            user=self.user, organization=self.org, is_approved=True, role='admin'
+        )
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.club = Club.objects.create(
+            official_name='Club Voleibol Test',
+            federation_id='CLUB-CARD',
+        )
+        self.team = Team.objects.create(
+            name='Test Club Senior',
+            category=self.category,
+            club=self.club,
+            federation_id='TEAM-CARD-1',
+            is_active=True,
+        )
+        self.rival_team = Team.objects.create(
+            name='Rival Team Senior',
+            category=self.category,
+            federation_id='TEAM-CARD-2',
+            is_active=True,
+        )
+        self.league = League.objects.create(
+            name='Superliga 2',
+            federation_id='LEAGUE-CARD',
+            season=Season.objects.resolve('2026-2027'),
+            is_active=True,
+            visibility_type='main',
+            is_our_team_related=True,
+        )
+        self.league.categories.add(self.category)
+        self.finished = Match.objects.create(
+            league=self.league,
+            home_team=self.team,
+            away_team=self.rival_team,
+            match_date=timezone.now() - timezone.timedelta(days=1),
+            home_score=3,
+            away_score=1,
+            status='finished',
+            federation_id='CARD-FIN-1',
+        )
+        self.scheduled = Match.objects.create(
+            league=self.league,
+            home_team=self.team,
+            away_team=self.rival_team,
+            match_date=timezone.now() + timezone.timedelta(days=1),
+            status='scheduled',
+            federation_id='CARD-SCH-1',
+        )
+        self.client.force_login(self.user)
+
+    def _url(self, match_id, fmt=None):
+        url = reverse('competitions:match_result_card', args=[match_id])
+        if fmt:
+            url += f'?format={fmt}'
+        return url
+
+    def test_finished_match_returns_png(self):
+        with patch(
+            'ilovevoley.competitions.result_card.fetch_logo_bytes',
+            return_value=None,
+        ):
+            response = self.client.get(
+                self._url(self.finished.id),
+                HTTP_HOST='testclub.ilovevoley.es',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/png')
+        self.assertIn('attachment', response['Content-Disposition'])
+        self.assertTrue(response.content.startswith(b'\x89PNG'))
+
+    def test_story_format_has_expected_dimensions(self):
+        from io import BytesIO
+
+        from PIL import Image
+
+        with patch(
+            'ilovevoley.competitions.result_card.fetch_logo_bytes',
+            return_value=None,
+        ):
+            response = self.client.get(
+                self._url(self.finished.id, 'story'),
+                HTTP_HOST='testclub.ilovevoley.es',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        image = Image.open(BytesIO(response.content))
+        self.assertEqual(image.size, (1080, 1920))
+
+    def test_not_finished_returns_json_400(self):
+        response = self.client.get(
+            self._url(self.scheduled.id),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response['Content-Type'], 'application/json')
+        self.assertIn('finalizado', response.json()['error'].lower())
+
+    def test_invalid_format_returns_json_400(self):
+        response = self.client.get(
+            self._url(self.finished.id, 'banner'),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('formato', response.json()['error'].lower())
+
+    def test_missing_match_returns_json_404(self):
+        response = self.client.get(
+            self._url(999999),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {'error': 'Partido no encontrado'})
+
+    def test_acta_sets_are_extracted_and_cached_for_rendering(self):
+        self.finished.acta_html = 'https://federacion.example/acta/card'
+        self.finished.save(update_fields=['acta_html'])
+        lineup = {
+            'sets': [
+                {
+                    'teams': [
+                        {'name': 'Test Club Senior', 'points': 25},
+                        {'name': 'Rival Team Senior', 'points': 19},
+                    ]
+                },
+                {
+                    'teams': [
+                        {'name': 'Rival Team Senior', 'points': 25},
+                        {'name': 'Test Club Senior', 'points': 21},
+                    ]
+                },
+            ]
+        }
+        png = b'\x89PNG\r\n\x1a\n'
+
+        with (
+            patch.object(comp_views, 'safe_get', return_value=b'<html></html>') as get,
+            patch.object(comp_views, 'parse_acta_lineup', return_value=lineup) as parse,
+            patch.object(comp_views, 'render_result_card', return_value=png) as render_card,
+        ):
+            for _ in range(2):
+                response = self.client.get(
+                    self._url(self.finished.id),
+                    HTTP_HOST='testclub.ilovevoley.es',
+                )
+                self.assertEqual(response.status_code, 200)
+
+        get.assert_called_once()
+        parse.assert_called_once()
+        self.assertEqual(render_card.call_count, 2)
+        self.assertEqual(render_card.call_args.kwargs['sets'], [(25, 19), (21, 25)])
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'rivalclub.ilovevoley.es'])
