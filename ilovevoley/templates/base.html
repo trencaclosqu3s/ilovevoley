@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Vídeos del Equipo{% endblock %}</title>
+    <title>{% block title %}{% if tenant %}{{ tenant.name }} - I Love Voley{% else %}I Love Voley{% endif %}{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{% load static video_tags %}{% static 'images/favicon.svg' %}">
     <link rel="icon" type="image/png" href="{% static 'images/logo_app.png' %}">
     <meta property="og:image" content="{{ tenant_share_image }}">

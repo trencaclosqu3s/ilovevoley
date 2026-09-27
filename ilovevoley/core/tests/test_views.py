@@ -265,6 +265,29 @@ class TenantManagerModerationTest(TestCase):
         self.assertContains(response, 'pending_a')
         self.assertNotContains(response, 'pending_b')
 
+    def test_panel_loads_each_script_once_for_manager(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
+        self.assertEqual(response.content.count(b'js/moderation.js'), 1)
+
+    def test_panel_loads_each_script_once_for_superuser(self):
+        """base.html ya carga ambos scripts para superusers; el panel no debe
+        volver a incluirlos (#209)."""
+        superuser = get_user_model().objects.create_superuser(
+            username='root', password='pass'
+        )
+        self.client.force_login(superuser)
+        response = self.client.get(
+            reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
+        self.assertEqual(response.content.count(b'js/moderation.js'), 1)
+
     def test_manager_counts_api_scoped_to_tenant(self):
         self.client.force_login(self.manager)
         url = reverse('core:moderation_counts_api')

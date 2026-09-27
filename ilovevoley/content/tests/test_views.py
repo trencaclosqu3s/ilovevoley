@@ -524,6 +524,21 @@ class GalleryQueryOptimizationTests(TestCase):
         self.assertEqual(response.context['total_single_images'], 1)
         self.assertEqual(response.context['total_images'], 11)  # solo org propia aprobadas
 
+    def test_album_group_images_loads_lightbox_script_once(self):
+        """base.html ya carga lightbox.js; el álbum no debe duplicarlo (#209)."""
+        import uuid
+        group_id = uuid.uuid4()
+        self._img(self.org, title='ag-1', album_group_id=group_id, album_name='Entreno')
+        self._img(self.org, title='ag-2', album_group_id=group_id, album_name='Entreno')
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('content:album_group_images', args=[group_id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
+
     def test_popular_tags_scoped_to_tenant_and_cached(self):
         self._img(self.org, title='t1', tags='saque, bloqueo', auto_tags=['voleibol'])
         self._img(self.org, title='t2', tags='saque', auto_tags=[])

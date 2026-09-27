@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Panel de Moderación - Vídeos del Equipo{% endblock %}
+{% block title %}Panel de Moderación - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
@@ -296,8 +296,9 @@
 {% block extra_js %}
 <!-- Cargar archivos JavaScript específicos -->
 {% load static %}
-<script src="{% static 'js/lightbox.js' %}"></script>
+{% if not user.is_superuser %}
 <script src="{% static 'js/moderation.js' %}"></script>
+{% endif %}
 
 <script>
 // Configuración específica del panel de moderación

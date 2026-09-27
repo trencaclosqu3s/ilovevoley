@@ -400,6 +400,7 @@ def calendar_view(request):
             next_month_start = timezone.make_aware(datetime(year, month + 1, 1))
         prev_month = start_date - timedelta(days=1)
     except (ValueError, TypeError, OverflowError):
+        messages.warning(request, 'La fecha solicitada no es válida. Mostrando el mes actual.')
         return redirect('competitions:calendar_view')
 
     monthly_matches = matches.filter(
