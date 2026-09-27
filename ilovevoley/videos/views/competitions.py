@@ -10,6 +10,7 @@ from ilovevoley.competitions.views import (
     league_detail,
     league_list,
     match_detail,
+    match_result_card,
     standings_view,
 )
 
@@ -17,6 +18,7 @@ __all__ = [
     'league_list',
     'league_detail',
     'match_detail',
+    'match_result_card',
     'calendar_view',
     'friendly_match_create',
     'ajax_search_teams',
