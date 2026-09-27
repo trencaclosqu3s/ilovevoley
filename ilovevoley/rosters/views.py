@@ -312,7 +312,7 @@ def person_edit(request, person_id):
     return render(request, 'rosters/person_form.html', context)
 
 
-@tenant_access_required()
+@tenant_access_required(manager=True)
 def player_role_create(request, person_id):
     """Vista para agregar un rol de jugador a una persona"""
     person = get_tenant_object_or_404(
@@ -347,7 +347,7 @@ def player_role_create(request, person_id):
     return render(request, 'rosters/role_form.html', context)
 
 
-@tenant_access_required()
+@tenant_access_required(manager=True)
 def staff_role_create(request, person_id):
     """Vista para agregar un rol de staff a una persona"""
     person = get_tenant_object_or_404(
@@ -382,7 +382,7 @@ def staff_role_create(request, person_id):
     return render(request, 'rosters/role_form.html', context)
 
 
-@tenant_access_required()
+@tenant_access_required(manager=True)
 def player_role_edit(request, role_id):
     """Vista para editar un rol de jugador"""
     player_role = get_tenant_object_or_404(
@@ -417,7 +417,7 @@ def player_role_edit(request, role_id):
     return render(request, 'rosters/role_form.html', context)
 
 
-@tenant_access_required()
+@tenant_access_required(manager=True)
 def staff_role_edit(request, role_id):
     """Vista para editar un rol de staff"""
     staff_role = get_tenant_object_or_404(
@@ -452,7 +452,7 @@ def staff_role_edit(request, role_id):
     return render(request, 'rosters/role_form.html', context)
 
 
-@tenant_access_required()
+@tenant_access_required(manager=True)
 @require_POST
 def player_role_toggle_active(request, role_id):
     """Vista AJAX para activar/desactivar rol de jugador"""
@@ -474,7 +474,7 @@ def player_role_toggle_active(request, role_id):
     return JsonResponse({'success': True, 'is_active': player_role.is_active})
 
 
-@tenant_access_required()
+@tenant_access_required(manager=True)
 @require_POST
 def staff_role_toggle_active(request, role_id):
     """Vista AJAX para activar/desactivar rol de staff"""

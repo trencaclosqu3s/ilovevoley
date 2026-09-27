@@ -507,7 +507,8 @@ class MatchShareLink(models.Model):
     )
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='match_share_links'
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='match_share_links'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
@@ -588,9 +589,6 @@ class MatchChangeLogQuerySet(TenantQuerySet):
     def for_tenant(self, tenant):
         if tenant is None:
             return self.none()
-        from ilovevoley.core.mixins import get_tenant_club
-        if get_tenant_club(tenant) is None:
-            return self.all()
         return self.filter(match__in=Match.all_objects.for_tenant(tenant))
 
 
@@ -625,7 +623,7 @@ class MatchChangeLog(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='reviewed_match_changes'
+        related_name='reviewed_match_changes',
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
 
@@ -639,6 +637,8 @@ class MatchChangeLog(models.Model):
         indexes = [
             models.Index(fields=['match', 'detected_at'], name='match_change_match_idx'),
             models.Index(fields=['is_last_minute', 'notified'], name='match_change_notif_idx'),
+            # Panel de revisión: filtros primarios son reviewed + orden -detected_at.
+            models.Index(fields=['reviewed', '-detected_at'], name='match_change_review_idx'),
         ]
 
     def __str__(self):

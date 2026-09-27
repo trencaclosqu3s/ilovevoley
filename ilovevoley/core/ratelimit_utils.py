@@ -1,41 +1,31 @@
 """
 Utilidades para rate limiting y extracción de IP del cliente.
 """
-
-
-def get_client_ip(request):
-    """
-    Extrae la IP real del cliente considerando cabeceras de proxy inverso (Nginx).
-    Prioriza X-Forwarded-For (primera IP de la lista), luego X-Real-IP,
-    y finalmente REMOTE_ADDR.
-    """
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0].strip()
-        if ip:
-            return ip
-
-    x_real_ip = request.META.get('HTTP_X_REAL_IP')
-    if x_real_ip:
-        ip = x_real_ip.strip()
-        if ip:
-            return ip
-
-    return request.META.get('REMOTE_ADDR', '127.0.0.1')
+from ilovevoley.core.middleware import get_client_ip  # noqa: F401  (re-export)
 
 
 def ratelimit_post_login_key(group, request):
     """
-    Clave para limitar intentos de login por identificador introducido (usuario o email).
-    Permite mitigar ataques distribuidos de fuerza bruta hacia un usuario específico.
+    Clave para limitar intentos de login por IP + identificador introducido.
+
+    Combinar IP y credencial evita que un atacante bloquee globalmente la cuenta
+    de una víctima repartiendo intentos desde muchas IPs (DoS de cuenta). Los
+    formularios vacíos se discriminan por IP para no compartir un único cubo
+    entre todos los envíos vacíos del sistema.
     """
     val = request.POST.get('login', '').strip().lower()
-    return f"login:{val}"
+    ip = get_client_ip(request)
+    if val:
+        return f"login:{ip}:{val}"
+    return f"login-empty:{ip}"
 
 
 def ratelimit_post_email_key(group, request):
     """
-    Clave para limitar solicitudes de recuperación de contraseña por email destino.
+    Clave para limitar solicitudes de recuperación de contraseña por IP + email destino.
     """
     val = request.POST.get('email', '').strip().lower()
-    return f"email:{val}"
+    ip = get_client_ip(request)
+    if val:
+        return f"email:{ip}:{val}"
+    return f"email-empty:{ip}"

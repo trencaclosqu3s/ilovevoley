@@ -135,3 +135,25 @@ class MatchChangeNotificationsTest(TestCase):
 
         self.assertEqual(sent_count, 0)
         self.assertEqual(len(mail.outbox), 0)
+
+    def test_match_url_uses_home_club_subdomain(self):
+        """El enlace del email apunta al subdominio del club local, no al dominio raíz."""
+        log = MatchChangeLog.objects.create(
+            match=self.match,
+            change_type='venue',
+            field_name='venue',
+            old_value='Pabellón A',
+            new_value='Pabellón B',
+            is_last_minute=True,
+        )
+
+        with override_settings(
+            MATCH_CHANGE_NOTIFY_STAFF_ENABLED=False,
+            MATCH_CHANGE_TEST_RECIPIENT='test_admin@isitech.es',
+            TENANT_BASE_DOMAIN='ilovevoley.test',
+        ):
+            notify_match_changes([log])
+
+        body = mail.outbox[0].body
+        self.assertIn('sant-josep.ilovevoley.test', body)
+        self.assertIn(f'/competitions/partidos/{self.match.id}/', body)

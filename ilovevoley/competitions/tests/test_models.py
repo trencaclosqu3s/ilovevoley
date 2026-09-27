@@ -73,7 +73,8 @@ class MatchChangeLogTest(TestCase):
             club_team_names={'Senior': 'SANT JOSEP A'},
         )
         cls.org_without_club = Organization.objects.create(
-            slug='fvb', name='Federació Org', club=None, club_team_names={},
+            slug='fvb', name='Federació Org', club=None,
+            club_team_names={'Senior': 'BALEARS'},
         )
 
         cls.user = User.objects.create_user(username='admin_director', email='director@test.com')
@@ -119,9 +120,9 @@ class MatchChangeLogTest(TestCase):
         logs_tenant = MatchChangeLog.objects.for_tenant(self.org_with_club)
         self.assertQuerySetEqual(logs_tenant, [log_own])
 
-        # Tenant sin club mantiene comportamiento global
-        logs_global = MatchChangeLog.objects.for_tenant(self.org_without_club)
-        self.assertQuerySetEqual(logs_global, [log_own, log_other], ordered=False)
+        # Tenant sin club no ve ningún log (antes filtraba el panel global: #200)
+        logs_without_club = MatchChangeLog.objects.for_tenant(self.org_without_club)
+        self.assertQuerySetEqual(logs_without_club, [])
 
         # Tenant None devuelve none
         self.assertQuerySetEqual(MatchChangeLog.objects.for_tenant(None), [])

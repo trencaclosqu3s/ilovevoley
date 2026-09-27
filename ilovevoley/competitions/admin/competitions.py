@@ -458,6 +458,7 @@ class MatchChangeLogAdmin(ModelAdmin):
     search_fields = ('match__home_team__name', 'match__away_team__name', 'field_name', 'old_value', 'new_value')
     readonly_fields = ('detected_at', 'notified_at', 'reviewed_at')
     actions = ['mark_as_reviewed']
+    list_select_related = ('match__home_team', 'match__away_team', 'reviewed_by')
 
     def change_type_badge(self, obj):
         colors = {

@@ -5,8 +5,10 @@ x-celery-base: &celery-base
   security_opt:
     - no-new-privileges:true
   env_file: .env
+  stop_grace_period: 60s
   volumes:
     - ./voley-474111-a4a6b029e20b.json:/app/voley-474111-a4a6b029e20b.json:ro
+    - /opt/videosvoley/media:/app/media
   environment:
     - DEBUG=${DEBUG:-False}
     - SECRET_KEY=${SECRET_KEY}

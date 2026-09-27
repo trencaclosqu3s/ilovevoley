@@ -236,11 +236,11 @@ def match_detail(request, match_id):
         request.tenant, user=request.user, id=match_id,
     )
 
-    # Obtener videos del partido
-    videos = match.videos.select_related('created_by', 'category').all()
+    # Obtener videos del partido filtrados por tenant
+    videos = match.videos.select_related('created_by', 'category').filter(organization=request.tenant)
 
-    # Obtener imágenes aprobadas del partido
-    images = match.images.filter(status='approved').select_related('uploaded_by').all()
+    # Obtener imágenes aprobadas del partido filtradas por tenant
+    images = match.images.filter(status='approved', organization=request.tenant).select_related('uploaded_by').all()
 
     can_manage = user_is_tenant_manager(request.user, request.tenant)
 
@@ -268,7 +268,17 @@ def match_detail(request, match_id):
 
 
 def _load_set_scores_for_card(match):
-    """Devuelve los parciales del acta o una lista vacía si no están disponibles."""
+    """Devuelve los parciales del acta o una lista vacía si no están disponibles.
+
+    Prioriza el JSON ya persistido en ``Match.acta_data``; solo descarga y parsea
+    el HTML como fallback para actas antiguas sin JSON guardado.
+    """
+    if match.acta_data is not None:
+        return extract_set_scores(
+            match.acta_data,
+            home_name=match.home_team_display,
+            away_name=match.away_team_display,
+        )
     if not match.acta_html:
         return []
 
@@ -892,15 +902,15 @@ def ajax_teams_by_league_category(request):
             league_categories = league.categories.all()
             if league_categories.exists():
                 # Filtrar equipos por las categorías de la liga
-                teams = Team.objects.filter(category__in=league_categories).order_by('name')
+                teams = Team.objects.select_related('category').filter(category__in=league_categories).order_by('name')
             else:
                 # Si la liga no tiene categorías, mostrar todos
-                teams = Team.objects.all().order_by('name')
+                teams = Team.objects.select_related('category').all().order_by('name')
         except League.DoesNotExist:
-            teams = Team.objects.all().order_by('name')
+            teams = Team.objects.select_related('category').all().order_by('name')
     else:
         # Sin filtrado o sin liga, mostrar todos los equipos
-        teams = Team.objects.all().order_by('name')
+        teams = Team.objects.select_related('category').all().order_by('name')
 
     # Formatear respuesta
     teams_data = []

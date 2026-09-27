@@ -415,6 +415,28 @@ class RostersTenantIsolationTests(TestCase):
         )
         self.assertEqual(response_post.status_code, 403)
 
+    def test_basic_member_cannot_manage_roles(self):
+        """Los roles deportivos exigen manager: un member no puede crear/editar/togglear (#90)."""
+        role = PlayerRole.objects.filter(person=self.person_a, team=self.team_a).first()
+        staff_role = StaffRole.objects.create(
+            person=self.person_a, team=self.team_a, season=role.season, role='head_coach',
+        )
+        self.client.force_login(self.member)
+        cases = [
+            ('create_player', 'rosters:player_role_create', [self.person_a.id]),
+            ('create_staff', 'rosters:staff_role_create', [self.person_a.id]),
+            ('edit_player', 'rosters:player_role_edit', [role.id]),
+            ('edit_staff', 'rosters:staff_role_edit', [staff_role.id]),
+            ('toggle_player', 'rosters:player_role_toggle_active', [role.id]),
+            ('toggle_staff', 'rosters:staff_role_toggle_active', [staff_role.id]),
+        ]
+        for label, name, args in cases:
+            with self.subTest(endpoint=label):
+                response = self.client.post(
+                    reverse(name, args=args), HTTP_HOST='club-a.ilovevoley.es',
+                )
+                self.assertEqual(response.status_code, 403)
+
     def test_person_create_misma_identidad_en_dos_tenants(self):
         User = get_user_model()
         from ilovevoley.users.models import Membership

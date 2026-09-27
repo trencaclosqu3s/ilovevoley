@@ -11,3 +11,4 @@ class MatchShareLinkAdmin(ModelAdmin):
     search_fields = ('match__home_team__name', 'match__away_team__name', 'token')
     readonly_fields = ('token', 'created_at')
     autocomplete_fields = ('match',)
+    list_select_related = ('match__home_team', 'match__away_team', 'organization', 'created_by')

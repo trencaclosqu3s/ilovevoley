@@ -43,7 +43,7 @@ def resolve_match_share_link(token):
     """Devuelve el enlace activo para un token, o None si no existe/expiró/revocado."""
     link = (
         MatchShareLink.objects
-        .select_related('match', 'organization')
+        .select_related('match', 'match__league', 'match__home_team', 'match__away_team', 'organization')
         .filter(token=token)
         .first()
     )
@@ -87,8 +87,22 @@ def _build_group(number, set_labels, videos, images):
     }
 
 
+def _set_labels_from_acta(data):
+    return {
+        index: ((set_data.get('title') or '').strip() or f'Set {index}')
+        for index, set_data in enumerate(data.get('sets') or [], start=1)
+    }
+
+
 def get_match_set_labels(match):
-    """Títulos de set del acta oficial (cacheados 24 h). {} si no hay acta o falla."""
+    """Títulos de set del acta oficial (cacheados 24 h). {} si no hay acta o falla.
+
+    Si el JSON del acta ya está persistido en ``Match.acta_data`` se usa tal cual:
+    evita una descarga HTTP síncrona por cada visita al timeline público. El HTML
+    solo se descarga y parsea como fallback (acta antigua sin ``acta_data``).
+    """
+    if match.acta_data is not None:
+        return _set_labels_from_acta(match.acta_data)
     if not match.acta_html:
         return {}
     cache_key = f'match_set_labels:{match.acta_html}'
@@ -98,10 +112,7 @@ def get_match_set_labels(match):
     try:
         content = safe_get(match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS)
         data = parse_acta_lineup(content)
-        labels = {
-            index: ((set_data.get('title') or '').strip() or f'Set {index}')
-            for index, set_data in enumerate(data.get('sets', []), start=1)
-        }
+        labels = _set_labels_from_acta(data)
     except Exception:
         return {}
     cache.set(cache_key, labels, SET_LABELS_CACHE_TTL)

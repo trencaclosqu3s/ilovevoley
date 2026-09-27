@@ -131,9 +131,10 @@ def _open_logo(data: bytes | None, size: int) -> Image.Image:
             image = Image.open(BytesIO(data)).convert('RGBA')
             image.thumbnail((size, size), Image.Resampling.LANCZOS)
             return image
-        except Exception:
+        except (OSError, ValueError):
             pass
-    placeholder = Image.open(_PLACEHOLDER).convert('RGBA')
+    with Image.open(_PLACEHOLDER) as placeholder_raw:
+        placeholder = placeholder_raw.convert('RGBA')
     placeholder.thumbnail((size, size), Image.Resampling.LANCZOS)
     return placeholder
 
@@ -168,15 +169,11 @@ def render_result_card(
         getattr(organization, 'secondary_color', None) or '', default=primary
     )
 
-    image = Image.new('RGB', (width, height), primary)
+    # Degradado vertical: imagen 1×2 escalada con interpolación bilineal.
+    gradient_seed = Image.new('RGB', (1, 2), primary)
+    gradient_seed.putpixel((0, 1), secondary)
+    image = gradient_seed.resize((width, height), Image.Resampling.BILINEAR)
     draw = ImageDraw.Draw(image)
-    for y in range(height):
-        ratio = y / max(height - 1, 1)
-        color = tuple(
-            int(primary[index] * (1 - ratio) + secondary[index] * ratio)
-            for index in range(3)
-        )
-        draw.line([(0, y), (width, y)], fill=color)
 
     fetcher = logo_fetcher or fetch_logo_bytes
     crest_size = 220 if card_format == 'square' else 280

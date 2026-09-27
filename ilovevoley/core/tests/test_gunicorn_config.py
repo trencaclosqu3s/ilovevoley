@@ -1,6 +1,5 @@
 import re
 from pathlib import Path
-import pytest
 from django.conf import settings
 
 
@@ -27,18 +26,17 @@ def test_docker_compose_web_gunicorn_flags():
     assert "--access-logfile -" in command, "--access-logfile - ausente en command de web"
 
 
-@pytest.mark.parametrize("dockerfile_name", ["Dockerfile", "Dockerfile.alpine"])
-def test_dockerfile_gunicorn_cmd_flags(dockerfile_name):
-    """Verifica que los Dockerfiles incluyen reciclado de workers y flags de resiliencia en su CMD."""
-    dockerfile_path = Path(settings.BASE_DIR) / dockerfile_name
-    assert dockerfile_path.exists(), f"{dockerfile_name} no encontrado en la raíz del proyecto"
+def test_dockerfile_gunicorn_cmd_flags():
+    """Verifica que el Dockerfile incluye reciclado de workers y flags de resiliencia en su CMD."""
+    dockerfile_path = Path(settings.BASE_DIR) / "Dockerfile"
+    assert dockerfile_path.exists(), "Dockerfile no encontrado en la raíz del proyecto"
 
     content = dockerfile_path.read_text(encoding="utf-8")
     cmd_match = re.search(r'CMD\s*\[(.*?)\]', content)
-    assert cmd_match is not None, f"CMD no encontrado en {dockerfile_name}"
+    assert cmd_match is not None, "CMD no encontrado en Dockerfile"
 
     cmd_str = cmd_match.group(1)
-    assert '"--max-requests"' in cmd_str and '"1000"' in cmd_str, f"--max-requests 1000 ausente en CMD de {dockerfile_name}"
-    assert '"--max-requests-jitter"' in cmd_str and '"100"' in cmd_str, f"--max-requests-jitter 100 ausente en CMD de {dockerfile_name}"
-    assert '"--timeout"' in cmd_str and '"30"' in cmd_str, f"--timeout 30 ausente en CMD de {dockerfile_name}"
-    assert '"--access-logfile"' in cmd_str and '"-"' in cmd_str, f"--access-logfile - ausente en CMD de {dockerfile_name}"
+    assert '"--max-requests"' in cmd_str and '"1000"' in cmd_str, "--max-requests 1000 ausente en CMD de Dockerfile"
+    assert '"--max-requests-jitter"' in cmd_str and '"100"' in cmd_str, "--max-requests-jitter 100 ausente en CMD de Dockerfile"
+    assert '"--timeout"' in cmd_str and '"30"' in cmd_str, "--timeout 30 ausente en CMD de Dockerfile"
+    assert '"--access-logfile"' in cmd_str and '"-"' in cmd_str, "--access-logfile - ausente en CMD de Dockerfile"

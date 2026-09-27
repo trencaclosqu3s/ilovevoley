@@ -6,9 +6,11 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 
 from ilovevoley.competitions.models import Match, MatchChangeLog
+from ilovevoley.core.tenant_utils import build_absolute_url
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -73,6 +75,29 @@ def get_recipients_for_match(match: Match) -> List[str]:
     return sorted(list(recipients))
 
 
+def _match_organization(match):
+    """Organización del club implicado, para enlazar con el subdominio correcto.
+
+    Un partido puede enfrentar clubes de dos organizaciones (o ninguna: club sin
+    tenant vinculado). Se prioriza la del local y, si no la tiene, la del visitante.
+    """
+    from ilovevoley.core.models import Organization
+
+    for team in (match.home_team, match.away_team):
+        club_id = getattr(team, 'club_id', None)
+        if not club_id:
+            continue
+        org = (
+            Organization.objects
+            .filter(club_id=club_id, is_active=True)
+            .only('slug')
+            .first()
+        )
+        if org is not None:
+            return org
+    return None
+
+
 def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
     """
     Envía notificaciones por email agrupadas por partido para cambios aún no notificados.
@@ -95,7 +120,6 @@ def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
     now = timezone.now()
     notify_staff_enabled = getattr(settings, 'MATCH_CHANGE_NOTIFY_STAFF_ENABLED', False)
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@ilovevoley.com')
-    site_url = getattr(settings, 'SITE_URL', 'https://ilovevoley.com').rstrip('/')
 
     for match, logs in logs_by_match.items():
         recipients = get_recipients_for_match(match)
@@ -103,7 +127,10 @@ def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
             logger.warning(f"No hay destinatarios para notificar cambios en el partido {match.id}")
             continue
 
-        match_url = f"{site_url}/competitions/partidos/{match.id}/"
+        match_path = reverse('competitions:match_detail', kwargs={'match_id': match.id})
+        # Enlace al subdominio del club (evita caer en la landing del dominio raíz).
+        # Sin club vinculado, build_absolute_url usa el dominio base con la ruta correcta.
+        match_url = build_absolute_url(match_path, tenant=_match_organization(match))
         context = {
             'match': match,
             'changes': logs,

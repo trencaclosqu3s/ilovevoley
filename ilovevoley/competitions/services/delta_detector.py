@@ -8,6 +8,15 @@ from ilovevoley.competitions.models import Match, MatchChangeLog
 
 logger = logging.getLogger(__name__)
 
+# Progresiones normales del ciclo de vida de un partido: no son alteraciones
+# federativas. Tratarlas como tales generaría alertas urgentes cada fin de semana
+# por cada partido finalizado, inundando el panel de revisión de managers.
+_LIFECYCLE_TRANSITIONS = {
+    ('scheduled', 'in_progress'),
+    ('scheduled', 'finished'),
+    ('in_progress', 'finished'),
+}
+
 
 def _format_value(value: Any) -> str:
     """Convierte un valor a una representación legible en texto."""
@@ -102,7 +111,8 @@ def detect_and_record_match_changes(
     # 3. Comprobar estado (status)
     if 'status' in new_data:
         new_status = new_data.get('status')
-        if new_status and new_status != match.status:
+        transition = (match.status, new_status)
+        if new_status and new_status != match.status and transition not in _LIFECYCLE_TRANSITIONS:
             changes.append(
                 MatchChangeLog(
                     match=match,

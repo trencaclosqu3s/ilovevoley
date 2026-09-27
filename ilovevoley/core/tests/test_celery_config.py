@@ -21,9 +21,10 @@ QUEUE_BY_TASK = {
     'notify_image_moderation_result': 'default',
     'send_admin_email_to_users': 'default',
     'send_404_immediate_alert': 'default',
-    # media: Vision y miniaturas
+    # media: Vision, miniaturas y compresión de ZIP de álbumes
     'analyze_image_with_vision': 'media',
     'generate_image_thumbnails_task': 'media',
+    'build_album_zip': 'media',
     # scraping: scrapers federativos y enriquecimiento
     'scrape_all_leagues': 'scraping',
     'scrape_league': 'scraping',

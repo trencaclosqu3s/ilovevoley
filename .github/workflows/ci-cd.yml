@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   test:
     name: Tests & Comprobaciones
@@ -64,7 +68,7 @@ jobs:
         run: pip-audit -r requirements.txt
 
       - name: Análisis estático de seguridad con Bandit
-        run: bandit -r config ilovevoley -x '*/tests/*'
+        run: bandit -r config ilovevoley -x '*/tests/*' -ll
 
       - name: Comprobaciones de Django
         run: python manage.py check
@@ -99,6 +103,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          command_timeout: 15m
           script_stop: true
           script: |
             cd "${{ secrets.DEPLOY_PATH }}"

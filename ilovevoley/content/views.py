@@ -1047,7 +1047,7 @@ def match_images(request, match_id):
         'match': match,
         'page_obj': page_obj,
         'all_images': images,
-        'total_images': images.count(),
+        'total_images': page_obj.paginator.count,
         'download_zip_url': reverse('content:match_album_zip', args=[match.id]),
     }
 
@@ -1078,7 +1078,6 @@ def album_group_images(request, album_group_id):
     album_info = {
         'album_group_id': album_group_id,
         'album_name': first_image.album_name or 'Álbum',
-        'image_count': images.count(),
         'upload_date': first_image.upload_date,
         'categories': first_image.categories.all(),
         'image_type': first_image.get_image_type_display(),
@@ -1088,7 +1087,7 @@ def album_group_images(request, album_group_id):
         'album': album_info,
         'page_obj': page_obj,
         'all_images': images,
-        'total_images': images.count(),
+        'total_images': page_obj.paginator.count,
         'download_zip_url': reverse(
             'content:album_group_zip', args=[album_group_id],
         ),
@@ -1118,7 +1117,7 @@ def image_moderation(request):
     
     context = {
         'page_obj': page_obj,
-        'pending_count': images.count(),
+        'pending_count': page_obj.paginator.count,
     }
     
     return render(request, 'content/image_moderation.html', context)

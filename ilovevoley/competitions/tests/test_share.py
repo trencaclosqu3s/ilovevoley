@@ -418,6 +418,18 @@ class MatchSetLabelsTest(TestCase):
         self.assertEqual(labels, {1: 'Set 1', 2: 'Set 2'})
         mock_get.assert_called_once()
 
+    def test_uses_persisted_acta_data_without_http_fetch(self):
+        """Con el JSON del acta ya en BD no se descarga el HTML ni se parsea (#200)."""
+        from ilovevoley.competitions.share import get_match_set_labels
+        self.match.acta_data = {'sets': [{'title': 'Set A'}, {'title': ''}]}
+        self.match.save(update_fields=['acta_data'])
+
+        with patch('ilovevoley.competitions.share.safe_get') as mock_get:
+            labels = get_match_set_labels(self.match)
+
+        self.assertEqual(labels, {1: 'Set A', 2: 'Set 2'})
+        mock_get.assert_not_called()
+
     @patch('ilovevoley.competitions.share.safe_get', side_effect=Exception('boom'))
     def test_returns_empty_on_fetch_error(self, mock_get):
         from ilovevoley.competitions.share import get_match_set_labels

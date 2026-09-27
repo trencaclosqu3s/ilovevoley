@@ -160,3 +160,49 @@ class DeltaDetectorTest(TestCase):
         changes = detect_and_record_match_changes(match, new_data)
         self.assertEqual(len(changes), 0)
         self.assertEqual(MatchChangeLog.objects.count(), 0)
+
+    def test_lifecycle_scheduled_to_finished_not_recorded(self):
+        """Finalizar un partido es ciclo de vida normal, no alteración federativa."""
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() - timedelta(hours=3),
+            status='scheduled',
+        )
+
+        changes = detect_and_record_match_changes(match, {'status': 'finished'})
+
+        self.assertEqual(changes, [])
+        self.assertEqual(MatchChangeLog.objects.filter(change_type='status').count(), 0)
+
+    def test_lifecycle_in_progress_to_finished_not_recorded(self):
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() - timedelta(hours=1),
+            status='in_progress',
+        )
+
+        changes = detect_and_record_match_changes(match, {'status': 'finished'})
+
+        self.assertEqual(changes, [])
+
+    def test_non_lifecycle_status_change_still_recorded(self):
+        """Una corrección federativa posterior (finished -> scheduled) sí se registra."""
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() - timedelta(days=1),
+            status='finished',
+            home_score=3,
+            away_score=1,
+        )
+
+        changes = detect_and_record_match_changes(match, {'status': 'scheduled'})
+
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(changes[0].change_type, 'status')
+        self.assertEqual(changes[0].new_value, 'scheduled')

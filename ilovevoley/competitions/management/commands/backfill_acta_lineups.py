@@ -37,7 +37,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        matches = Match.all_objects.exclude(acta_html='').exclude(acta_html__isnull=True)
+        matches = Match.all_objects.exclude(acta_html='').exclude(acta_html__isnull=True).select_related(
+            'home_team', 'away_team', 'league__season'
+        )
         if options.get('league'):
             matches = matches.filter(league_id=options['league'])
         if not options['force']:

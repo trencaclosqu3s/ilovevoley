@@ -601,6 +601,34 @@ class MatchResultCardViewTests(TestCase):
         self.assertEqual(render_card.call_count, 2)
         self.assertEqual(render_card.call_args.kwargs['sets'], [(25, 19), (21, 25)])
 
+    def test_acta_data_avoids_http_fetch_for_card(self):
+        """Con el JSON del acta en BD no se descarga el HTML para la tarjeta (#200)."""
+        self.finished.acta_data = {
+            'sets': [
+                {
+                    'teams': [
+                        {'name': 'Test Club Senior', 'points': 25},
+                        {'name': 'Rival Team Senior', 'points': 19},
+                    ]
+                },
+            ]
+        }
+        self.finished.save(update_fields=['acta_data'])
+        png = b'\x89PNG\r\n\x1a\n'
+
+        with (
+            patch.object(comp_views, 'safe_get') as get,
+            patch.object(comp_views, 'render_result_card', return_value=png) as render_card,
+        ):
+            response = self.client.get(
+                self._url(self.finished.id),
+                HTTP_HOST='testclub.ilovevoley.es',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        get.assert_not_called()
+        self.assertEqual(render_card.call_args.kwargs['sets'], [(25, 19)])
+
     def test_unreachable_acta_still_returns_card_without_sets(self):
         self.finished.acta_html = 'https://federacion.example/acta/card'
         self.finished.save(update_fields=['acta_html'])
@@ -701,6 +729,45 @@ class CompetitionsTenantIsolationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(foreign.status_code, 404)
+
+    def test_match_detail_hides_foreign_org_media(self):
+        """Vídeos e imágenes de otra organización no se listan en la ficha del partido (#200)."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from ilovevoley.content.models import Image, Video
+
+        gif = (
+            b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
+            b'\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;'
+        )
+        Video.objects.create(
+            title='Propio', youtube_url='https://youtu.be/abc', created_by=self.manager,
+            match=self.match, organization=self.org,
+        )
+        Video.objects.create(
+            title='Ajeno', youtube_url='https://youtu.be/def', created_by=self.manager,
+            match=self.match, organization=self.other_org,
+        )
+        Image.objects.create(
+            image=SimpleUploadedFile('own.gif', gif, content_type='image/gif'),
+            title='Propia', uploaded_by=self.manager, match=self.match,
+            organization=self.org, status='approved',
+        )
+        Image.objects.create(
+            image=SimpleUploadedFile('foreign.gif', gif, content_type='image/gif'),
+            title='Ajena', uploaded_by=self.manager, match=self.match,
+            organization=self.other_org, status='approved',
+        )
+
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('competitions:match_detail', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([v.title for v in response.context['videos']], ['Propio'])
+        self.assertEqual([i.title for i in response.context['images']], ['Propia'])
 
     def test_league_detail_blocks_foreign_league(self):
         self.client.force_login(self.manager)
@@ -854,7 +921,7 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
 
 
-@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'otherclub.ilovevoley.es', 'localhost'])
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'otherclub.ilovevoley.es', 'noclub.ilovevoley.es', 'localhost'])
 class MatchChangesReviewViewTest(TestCase):
     def setUp(self):
         cache.clear()
@@ -965,6 +1032,27 @@ class MatchChangesReviewViewTest(TestCase):
         url = reverse('competitions:ajax_mark_change_reviewed', kwargs={'log_id': self.log_other.id})
         response = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 404)
+
+    def test_org_without_linked_club_sees_no_changes(self):
+        """Una organización sin club federado no debe ver cambios de otros clubes.
+
+        Antes de #200, ``MatchChangeLogQuerySet.for_tenant`` devolvía ``self.all()``
+        cuando ``get_tenant_club(tenant)`` era None, filtrando el panel completo.
+        """
+        User = get_user_model()
+        from ilovevoley.users.models import Membership
+        noclub_org = Organization.objects.create(slug='noclub', name='Sin Club', is_active=True)
+        manager = User.objects.create_user(username='noclub_manager', email='manager@noclub.es')
+        Membership.objects.create(
+            user=manager, organization=noclub_org, role='manager', is_approved=True
+        )
+
+        self.client.force_login(manager)
+        url = reverse('competitions:match_changes_review')
+        response = self.client.get(url, HTTP_HOST='noclub.ilovevoley.es')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context['changes']), [])
 
 
 

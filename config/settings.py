@@ -33,7 +33,8 @@ SECRET_KEY = env_config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = env_config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0', cast=lambda v: [s.strip() for s in v.split(',')])
+_allowed_hosts = env_config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
+ALLOWED_HOSTS = list(dict.fromkeys(_allowed_hosts + ['localhost', '127.0.0.1']))
 CSRF_TRUSTED_ORIGINS = env_config(
     'CSRF_TRUSTED_ORIGINS',
     default='',
@@ -387,6 +388,7 @@ CELERY_TASK_ROUTES = {
     'send_*': {'queue': 'default'},
     'analyze_image_with_vision': {'queue': 'media'},
     'generate_image_thumbnails_task': {'queue': 'media'},
+    'build_album_zip': {'queue': 'media'},
     'scrape_*': {'queue': 'scraping'},
     'enrich_*': {'queue': 'scraping'},
     'handle_withdrawn_teams': {'queue': 'scraping'},
@@ -408,7 +410,14 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
 # Celery Beat Configuration (Periodic Tasks)
-CELERY_BEAT_SCHEDULE = {}
+# Los ZIP de álbumes caducan a las 24 h; además build_album_zip limpia antes de
+# cada generación, así que una pasada diaria acota el espacio en disco residual.
+CELERY_BEAT_SCHEDULE = {
+    'cleanup-expired-album-zips': {
+        'task': 'cleanup_expired_album_zips',
+        'schedule': 3600.0 * 24,
+    },
+}
 
 # Cache Configuration
 # Redis backend centralizado (DB 2 reservada para caché de Django).

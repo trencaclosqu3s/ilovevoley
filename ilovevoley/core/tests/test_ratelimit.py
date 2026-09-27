@@ -4,25 +4,24 @@ from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django_ratelimit.exceptions import Ratelimited
 
+from ilovevoley.core.middleware import get_client_ip as middleware_get_client_ip
 from ilovevoley.core.ratelimit_utils import get_client_ip
 from ilovevoley.core.views import custom_429
 
 
-class ClientIPExtractionTests(TestCase):
-    def setUp(self):
-        self.factory = RequestFactory()
+class ClientIPDelegationTests(TestCase):
+    """ratelimit_utils delega en el middleware anti-spoofing, no reimplementa la IP."""
 
-    def test_get_client_ip_from_x_forwarded_for(self):
-        request = self.factory.get('/', HTTP_X_FORWARDED_FOR='203.0.113.195, 198.51.100.10')
-        self.assertEqual(get_client_ip(request), '203.0.113.195')
+    def test_ratelimit_utils_reexports_middleware_get_client_ip(self):
+        self.assertIs(get_client_ip, middleware_get_client_ip)
 
-    def test_get_client_ip_from_x_real_ip(self):
-        request = self.factory.get('/', HTTP_X_REAL_IP='198.51.100.25')
-        self.assertEqual(get_client_ip(request), '198.51.100.25')
-
-    def test_get_client_ip_fallback_remote_addr(self):
-        request = self.factory.get('/', REMOTE_ADDR='192.0.2.1')
-        self.assertEqual(get_client_ip(request), '192.0.2.1')
+    def test_uses_last_trusted_hop_not_client_prefix(self):
+        factory = RequestFactory()
+        request = factory.get(
+            '/', REMOTE_ADDR='172.18.0.5',
+            HTTP_X_FORWARDED_FOR='9.9.9.9, 203.0.113.7',
+        )
+        self.assertEqual(get_client_ip(request), '203.0.113.7')
 
 
 class Custom429HandlerTests(TestCase):

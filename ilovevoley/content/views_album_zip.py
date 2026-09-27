@@ -5,6 +5,7 @@ from django.conf import settings
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.utils.text import get_valid_filename
 from django.views.decorators.http import require_GET, require_POST
+from django_ratelimit.decorators import ratelimit
 
 from ilovevoley.competitions.models import Match
 from ilovevoley.content.album_zip import (
@@ -48,6 +49,7 @@ def _enqueue(request, *, scope, scope_id, filename, queryset):
 
 
 @tenant_access_required(api=True)
+@ratelimit(key='user_or_ip', rate='5/m', block=True)
 @require_POST
 def request_match_album_zip(request, match_id):
     match = get_tenant_object_or_404(
@@ -64,6 +66,7 @@ def request_match_album_zip(request, match_id):
 
 
 @tenant_access_required(api=True)
+@ratelimit(key='user_or_ip', rate='5/m', block=True)
 @require_POST
 def request_album_group_zip(request, album_group_id):
     qs = _approved_album_qs(request.tenant, album_group_id)
