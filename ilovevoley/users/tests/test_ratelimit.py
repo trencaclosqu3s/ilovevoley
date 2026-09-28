@@ -4,6 +4,8 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
+from ilovevoley.core.ratelimit_utils import global_failure_count
+
 
 @override_settings(
     RATELIMIT_ENABLE=True,
@@ -249,6 +251,7 @@ class GlobalAuthThresholdTests(TestCase):
             REMOTE_ADDR='198.51.100.119',
         )
         self.assertEqual(throttled.status_code, 429)
+        self.assertGreater(global_failure_count('login', 'targeted_victim'), 3)
 
         # El login correcto desde una IP nueva no se bloquea.
         success = self.client.post(
@@ -258,7 +261,10 @@ class GlobalAuthThresholdTests(TestCase):
         )
         self.assertNotEqual(success.status_code, 429)
 
-        # Y el contador quedó a cero: un fallo posterior vuelve a contar desde 1.
+        # Y el contador quedó a cero, no solo por debajo del umbral.
+        self.assertEqual(global_failure_count('login', 'targeted_victim'), 0)
+
+        # Un fallo posterior vuelve a contar desde 1.
         after_reset = self.client.post(
             login_url,
             {'login': 'targeted_victim', 'password': 'wrongpassword'},

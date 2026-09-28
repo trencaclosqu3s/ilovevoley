@@ -144,6 +144,8 @@ class RatelimitedLoginView(allauth_views.LoginView):
         credential = normalize_credential(self.request.POST.get('login'))
         if credential:
             count = record_global_failure('login', credential)
+            # Se toleran hasta AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD fallos; a
+            # partir del siguiente (N+1) los intentos fallidos reciben 429.
             if count > settings.AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD:
                 logger.warning(
                     "auth.global_login_threshold_exceeded credential_fp=%s count=%s",
@@ -186,6 +188,8 @@ class RatelimitedPasswordResetView(allauth_views.PasswordResetView):
         # antes se evita enviar correo en las peticiones bloqueadas.
         email = normalize_credential(form.cleaned_data.get('email'))
         if email:
+            # En reset no hay señal de acierto: TODA petición válida cuenta
+            # (también las legítimas), por eso el umbral es bajo en volumen.
             count = record_global_failure('reset', email)
             if count > settings.AUTH_GLOBAL_RESET_THRESHOLD:
                 logger.warning(

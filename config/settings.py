@@ -469,6 +469,9 @@ RATELIMIT_IP_META_KEY = 'ilovevoley.core.ratelimit_utils.get_client_ip'
 # fallidos: un login correcto nunca se bloquea y resetea el contador, de modo que
 # un tercero no puede dejar sin acceso a una cuenta legítima. En reset (donde no
 # hay señal de acierto) actúan como tope laxo contra el flood de emails.
+#
+# Semántica: el umbral es el nº de eventos tolerados dentro de la ventana; el
+# evento N+1 es el primero en recibir 429 (`count > threshold`).
 AUTH_GLOBAL_FAILURE_WINDOW_SECONDS = env_config(
     'AUTH_GLOBAL_FAILURE_WINDOW_SECONDS', default=900, cast=int
 )

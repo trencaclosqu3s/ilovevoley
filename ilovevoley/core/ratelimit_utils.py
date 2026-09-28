@@ -74,6 +74,11 @@ def record_global_failure(scope, value, window=None):
         return 1
 
 
+def global_failure_count(scope, value):
+    """Fallos acumulados de una credencial en la ventana actual (0 si no hay)."""
+    return cache.get(_global_key(scope, value), 0)
+
+
 def reset_global_failures(scope, value):
     """Limpia el contador global tras un login correcto de esa credencial."""
     cache.delete(_global_key(scope, value))
