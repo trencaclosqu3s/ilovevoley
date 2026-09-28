@@ -58,7 +58,11 @@ def sanitize_referer(referer: str) -> str:
 
 
 def is_ignorable_404(path: str) -> bool:
-    """True si la ruta es ruido de escáneres/bots y no debe contarse como 404."""
+    """True si la ruta es ruido de escáneres/bots y no debe contarse como 404.
+
+    Se usa ``search`` (no ``match``): algunos patrones deben casar en cualquier
+    segmento de la ruta (p. ej. ``/wp-``), no solo al principio.
+    """
     return any(
         pattern.search(path)
         for pattern in getattr(settings, 'IGNORABLE_404_URLS', [])
@@ -321,7 +325,8 @@ def send_404_immediate_alert(request, threshold=10):
         if not admin_emails:
             return False
             
-        # Contar errores en la última hora usando incremento atómico (hora local)
+        # Contar errores en la última hora usando incremento atómico (hora local).
+        # Clave con granularidad horaria (a diferencia de day_cache_key, que es diaria).
         local_now = timezone.localtime(timezone.now())
         cache_key = f"404_count_{local_now.strftime('%Y%m%d_%H')}"
         current_count = _atomic_incr(cache_key, timeout=60 * 60)
