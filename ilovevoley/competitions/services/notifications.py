@@ -34,13 +34,12 @@ def _clubs_with_notifications_disabled(club_ids) -> set:
     from ilovevoley.core.models import Organization
 
     flags_by_club = defaultdict(list)
-    if club_ids:
-        for club_id, enabled in (
-            Organization.objects
-            .filter(club_id__in=club_ids)
-            .values_list('club_id', 'notify_match_changes')
-        ):
-            flags_by_club[club_id].append(enabled)
+    for club_id, enabled in (
+        Organization.objects
+        .filter(club_id__in=club_ids)
+        .values_list('club_id', 'notify_match_changes')
+    ):
+        flags_by_club[club_id].append(enabled)
 
     return {club_id for club_id, flags in flags_by_club.items() if not any(flags)}
 
