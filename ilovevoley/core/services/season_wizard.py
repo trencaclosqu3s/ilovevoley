@@ -12,11 +12,6 @@ from ilovevoley.competitions.models import League
 from ilovevoley.core.models import Season, normalize_season_name
 
 
-def _marked_current():
-    """Temporada marcada explícitamente como activa (no el fallback por fecha)."""
-    return Season.objects.filter(is_current=True).first()
-
-
 def preview_season(raw):
     """Resumen (dry-run) de lo que haría ``start_season``, sin escribir nada.
 
@@ -28,7 +23,10 @@ def preview_season(raw):
 
     start_year = int(name.split('-')[0])
     existing = Season.objects.filter(name=name).first()
-    current = _marked_current()
+    # Solo cuenta como saliente la temporada marcada explícitamente como activa
+    # (no el fallback de `current()` por fecha): si no hay ninguna marcada, no
+    # hay nada que archivar.
+    current = Season.objects.filter(is_current=True).first()
     outgoing = current if (current and current.name != name) else None
 
     leagues_to_archive = 0
@@ -71,6 +69,11 @@ def start_season(raw):
         ).update(visibility_type='historical', is_historical=True)
 
     season = Season.objects.resolve(summary['name'])
+    # El invariante "una sola temporada activa" lo garantizan `Season.save()`
+    # (que con `select_for_update` desmarca la anterior) más la constraint
+    # `unique_current_season`. El lock sobre la propia fila serializa
+    # activaciones concurrentes de la misma temporada.
+    season = Season.objects.select_for_update().get(pk=season.pk)
     if not season.is_current:
         season.is_current = True
         season.save(update_fields=['is_current'])
