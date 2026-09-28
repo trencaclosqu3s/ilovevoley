@@ -107,20 +107,56 @@ def get_calendar_token(request):
 # ==============================================================================
 # Vistas de autenticación protegidas por rate limiting
 # ==============================================================================
+import logging
+
+from django.conf import settings
 from allauth.account import views as allauth_views
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
+from django_ratelimit.exceptions import Ratelimited
 from ilovevoley.core.ratelimit_utils import (
+    normalize_credential,
     ratelimit_post_email_key,
     ratelimit_post_login_key,
+    record_global_failure,
+    reset_global_failures,
 )
+from ilovevoley.core.views import custom_429
+
+logger = logging.getLogger(__name__)
 
 
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 @method_decorator(ratelimit(key=ratelimit_post_login_key, rate='5/m', method='POST', block=True), name='post')
 class RatelimitedLoginView(allauth_views.LoginView):
-    """Inicio de sesión protegido contra fuerza bruta por IP y por usuario/credencial."""
-    pass
+    """
+    Inicio de sesión protegido contra fuerza bruta por IP y por usuario/credencial.
+
+    Además del límite per-IP + credencial (PR #200, que evita el DoS de cuenta),
+    un contador global por credencial acota la fuerza bruta distribuida desde
+    muchas IPs (#202). El contador solo se alimenta de intentos fallidos y se
+    resetea con un login correcto: un tercero nunca puede dejar sin acceso a la
+    cuenta, por mucho que reparta fallos entre IPs.
+    """
+
+    def form_invalid(self, form):
+        credential = normalize_credential(self.request.POST.get('login'))
+        if credential:
+            count = record_global_failure('login', credential)
+            if count > settings.AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD:
+                logger.warning(
+                    "auth.global_login_threshold_exceeded credential=%s count=%s",
+                    credential,
+                    count,
+                )
+                return custom_429(self.request, exception=Ratelimited())
+        return super().form_invalid(form)
+
+    def form_valid(self, form):
+        credential = normalize_credential(self.request.POST.get('login'))
+        if credential:
+            reset_global_failures('login', credential)
+        return super().form_valid(form)
 
 
 @method_decorator(ratelimit(key='ip', rate='3/m', method='POST', block=True), name='post')
@@ -132,8 +168,29 @@ class RatelimitedSignupView(allauth_views.SignupView):
 @method_decorator(ratelimit(key='ip', rate='3/m', method='POST', block=True), name='post')
 @method_decorator(ratelimit(key=ratelimit_post_email_key, rate='3/m', method='POST', block=True), name='post')
 class RatelimitedPasswordResetView(allauth_views.PasswordResetView):
-    """Solicitud de recuperación de contraseña limitada por IP y por email destino."""
-    pass
+    """
+    Solicitud de recuperación de contraseña limitada por IP y por email destino.
+
+    Un tope global laxo por email (#202) frena el flood distribuido de emails de
+    reset desde muchas IPs. Al no existir señal de "acierto" en este flujo, el
+    umbral es mucho más alto que el de login (AUTH_GLOBAL_RESET_THRESHOLD) y la
+    ventana corta (AUTH_GLOBAL_FAILURE_WINDOW_SECONDS), de modo que el coste de
+    mantener el bloqueo es prohibitivo para el atacante; se prioriza frenar el
+    flood de emails, que es el vector real de este endpoint.
+    """
+
+    def form_valid(self, form):
+        email = normalize_credential(form.cleaned_data.get('email'))
+        if email:
+            count = record_global_failure('reset', email)
+            if count > settings.AUTH_GLOBAL_RESET_THRESHOLD:
+                logger.warning(
+                    "auth.global_reset_threshold_exceeded email=%s count=%s",
+                    email,
+                    count,
+                )
+                return custom_429(self.request, exception=Ratelimited())
+        return super().form_valid(form)
 
 
 @method_decorator(ratelimit(key='ip', rate='3/m', method='POST', block=True), name='post')

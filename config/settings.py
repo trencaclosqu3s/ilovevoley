@@ -445,6 +445,23 @@ RATELIMIT_USE_CACHE = 'default'
 RATELIMIT_VIEW = 'ilovevoley.core.views.custom_429'
 RATELIMIT_IP_META_KEY = 'ilovevoley.core.ratelimit_utils.get_client_ip'
 
+# Umbral global complementario para fuerza bruta distribuida (#202).
+# El límite per-IP + credencial no acota un spray repartido entre muchas IPs.
+# Estos contadores viven en caché (Redis) keyed por credencial/email normalizado
+# y son mucho más altos que los límites per-IP. En login SOLO cuentan intentos
+# fallidos: un login correcto nunca se bloquea y resetea el contador, de modo que
+# un tercero no puede dejar sin acceso a una cuenta legítima. En reset (donde no
+# hay señal de acierto) actúan como tope laxo contra el flood de emails.
+AUTH_GLOBAL_FAILURE_WINDOW_SECONDS = env_config(
+    'AUTH_GLOBAL_FAILURE_WINDOW_SECONDS', default=900, cast=int
+)
+AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD = env_config(
+    'AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD', default=30, cast=int
+)
+AUTH_GLOBAL_RESET_THRESHOLD = env_config(
+    'AUTH_GLOBAL_RESET_THRESHOLD', default=10, cast=int
+)
+
 # Miniaturas responsivas de imágenes: en producción se generan en background
 THUMBNAIL_GENERATION_ASYNC = env_config('THUMBNAIL_GENERATION_ASYNC', default=not DEBUG, cast=bool)
 
