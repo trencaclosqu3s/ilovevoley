@@ -25,11 +25,12 @@ def _superuser_emails() -> List[str]:
     )
 
 
-def _clubs_with_notifications_disabled(club_ids) -> set:
+def _clubs_with_notifications_disabled(club_ids: set) -> set:
     """Clubes cuyas organizaciones tienen todas los avisos desactivados.
 
     Una sola consulta para todos los clubes del partido. Un club sin organizaciones
-    vinculadas no aparece aquí: no tiene configuración que lo silencie.
+    vinculadas no aparece aquí: no tiene configuración que lo silencie. Un ``club_ids``
+    vacío devuelve un queryset vacío sin tocar la BD.
     """
     from ilovevoley.core.models import Organization
 

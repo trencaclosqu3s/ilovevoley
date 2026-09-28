@@ -120,6 +120,8 @@ class MatchChangeNotificationsTest(TestCase):
 
     def test_club_with_notifications_disabled_excludes_its_recipients(self):
         """Si la organización desactiva los avisos, su staff no los recibe (#236)."""
+        # El equipo B no tiene staff, así que el único destinatario esperado es el
+        # manager de org_b (fallback). Si org_a no se silenciara, llegarían 3.
         self.org_a.notify_match_changes = False
         self.org_a.save(update_fields=['notify_match_changes'])
 
