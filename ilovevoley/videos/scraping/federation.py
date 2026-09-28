@@ -478,7 +478,6 @@ class FederationScraper:
         if withdrawn_teams:
             Team.objects.filter(pk__in=[t.pk for t in withdrawn_teams]).update(is_active=False)
             for team in withdrawn_teams:
-                team.is_active = False
                 logger.warning(
                     f"Team marked as inactive (withdrawn): {team.name} "
                     f"(federation_id: {team.federation_id}) - no longer appears in {self.league.name}"
