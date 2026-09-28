@@ -406,7 +406,7 @@ EMAIL_NOTIFICATIONS = {
 MATCH_CHANGE_NOTIFY_STAFF_ENABLED = env_config('MATCH_CHANGE_NOTIFY_STAFF_ENABLED', default=False, cast=bool)
 # Copia global para superusuarios, para poder revisar los avisos de todos los tenants.
 MATCH_CHANGE_NOTIFY_SUPERUSERS = env_config('MATCH_CHANGE_NOTIFY_SUPERUSERS', default=True, cast=bool)
-MATCH_CHANGE_TEST_RECIPIENT = env_config('MATCH_CHANGE_TEST_RECIPIENT', default='')
+MATCH_CHANGE_TEST_RECIPIENT = env_config('MATCH_CHANGE_TEST_RECIPIENT', default=None)
 
 # Rutas ignoradas por el tracking de 404: escáneres de vulnerabilidades y bots que piden
 # rutas inexistentes (WordPress, phpMyAdmin, dotfiles...). No cuentan para el reporte

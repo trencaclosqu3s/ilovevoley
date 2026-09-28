@@ -203,7 +203,9 @@ class MatchChangeNotificationsTest(TestCase):
         ):
             notify_match_changes([log])
 
-        self.assertEqual(mail.outbox[0].to, ['test_admin@isitech.es'])
+        self.assertEqual(
+            mail.outbox[0].to + mail.outbox[0].bcc, ['test_admin@isitech.es']
+        )
 
     def test_already_notified_logs_are_skipped(self):
         log = MatchChangeLog.objects.create(
