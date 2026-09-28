@@ -107,6 +107,18 @@ ACCOUNT_SESSION_REMEMBER = None
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 
+# Rate limiting propio de allauth. Por defecto añade un tramo `/key` que bloquea
+# globalmente la cuenta (login) o el email (reset) tras pocos fallos y que se
+# evalúa ANTES de autenticar, por lo que también frena la contraseña correcta:
+# un tercero puede dejar sin acceso a la víctima (DoS de cuenta). #202 lo
+# sustituye por el contador global de solo-fallos de `ratelimit_utils` (nunca
+# bloquea un login correcto) y por el tope laxo de reset, conservando los tramos
+# por IP de allauth como capa gruesa.
+ACCOUNT_RATE_LIMITS = {
+    'login_failed': '10/m/ip',
+    'reset_password': '20/m/ip',
+}
+
 # Configurar qué mensajes de allauth mostrar
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 

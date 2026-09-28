@@ -60,7 +60,9 @@ def record_global_failure(scope, value, window=None):
     try:
         return cache.incr(key)
     except ValueError:
-        # La clave expiró entre el add y el incr: se reinicia la ventana.
+        # La clave expiró entre el add y el incr (o el backend no la auto-crea
+        # en incr): se reinician valor y ventana. La carrera es benigna y, como
+        # mucho, alarga la ventana unos segundos.
         cache.set(key, 1, window)
         return 1
 

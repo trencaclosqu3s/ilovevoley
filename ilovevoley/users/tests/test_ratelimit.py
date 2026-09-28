@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -191,6 +192,7 @@ class AuthRateLimitingTests(TestCase):
     RATELIMIT_USE_CACHE='default',
     AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD=3,
     AUTH_GLOBAL_RESET_THRESHOLD=3,
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
 )
 class GlobalAuthThresholdTests(TestCase):
     """Complemento de fuerza bruta distribuida (#202): umbral global por
@@ -238,6 +240,16 @@ class GlobalAuthThresholdTests(TestCase):
                 REMOTE_ADDR=f'198.51.100.{110 + i}',
             )
 
+        # Confirmar que el contador está bloqueando de verdad: un fallo extra
+        # desde una IP nueva ya recibe 429 (si no, el test pasaría por no haber
+        # superado nunca el umbral).
+        throttled = self.client.post(
+            login_url,
+            {'login': 'targeted_victim', 'password': 'wrongpassword'},
+            REMOTE_ADDR='198.51.100.119',
+        )
+        self.assertEqual(throttled.status_code, 429)
+
         # El login correcto desde una IP nueva no se bloquea.
         success = self.client.post(
             login_url,
@@ -255,6 +267,12 @@ class GlobalAuthThresholdTests(TestCase):
         self.assertNotEqual(after_reset.status_code, 429)
 
     def test_password_reset_global_threshold_stops_distributed_flood(self):
+        User = get_user_model()
+        User.objects.create_user(
+            username='targeted_victim',
+            email='targeted_victim@example.com',
+            password='correctpassword',
+        )
         reset_url = reverse('account_reset_password')
         target_email = 'targeted_victim@example.com'
 
@@ -266,9 +284,15 @@ class GlobalAuthThresholdTests(TestCase):
             )
             self.assertNotEqual(response.status_code, 429)
 
+        emails_sent = len(mail.outbox)
+        self.assertEqual(emails_sent, 3, "cada solicitud válida envía un email")
+
         blocked_response = self.client.post(
             reset_url,
             {'email': target_email},
             REMOTE_ADDR='198.51.100.140',
         )
         self.assertEqual(blocked_response.status_code, 429)
+        # La petición bloqueada no debe enviar el email: la comprobación del
+        # umbral precede al form_valid de allauth.
+        self.assertEqual(len(mail.outbox), emails_sent)

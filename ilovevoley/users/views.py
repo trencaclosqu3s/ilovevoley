@@ -1,3 +1,6 @@
+import logging
+
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -107,9 +110,6 @@ def get_calendar_token(request):
 # ==============================================================================
 # Vistas de autenticación protegidas por rate limiting
 # ==============================================================================
-import logging
-
-from django.conf import settings
 from allauth.account import views as allauth_views
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
@@ -180,6 +180,9 @@ class RatelimitedPasswordResetView(allauth_views.PasswordResetView):
     """
 
     def form_valid(self, form):
+        # La comprobación debe preceder SIEMPRE a super(): allauth dispara el
+        # envío del email dentro de su form_valid, así que solo interceptando
+        # antes se evita enviar correo en las peticiones bloqueadas.
         email = normalize_credential(form.cleaned_data.get('email'))
         if email:
             count = record_global_failure('reset', email)
