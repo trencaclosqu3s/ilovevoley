@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from unittest.mock import patch
+from django.contrib.auth.models import AnonymousUser
 from django.test import TestCase, RequestFactory, override_settings
 from django.core.cache import cache
 from django.http import HttpResponseNotFound
@@ -182,7 +183,7 @@ class Error404TrackingMiddlewareTest(TestCase):
         with patch('ilovevoley.core.middleware.logger') as mock_logger:
             for path in scanner_paths:
                 request = self.factory.get(path)
-                request.user = type('AnonymousUser', (), {'is_authenticated': False})()
+                request.user = AnonymousUser()
                 middleware(request)
 
         mock_logger.warning.assert_not_called()
@@ -194,7 +195,7 @@ class Error404TrackingMiddlewareTest(TestCase):
         """Un .log subido por el usuario no debe filtrarse por la regla de extensiones."""
         middleware = Error404TrackingMiddleware(lambda r: HttpResponseNotFound())
         request = self.factory.get('/media/diagnostico.log')
-        request.user = type('AnonymousUser', (), {'is_authenticated': False})()
+        request.user = AnonymousUser()
 
         middleware(request)
 
