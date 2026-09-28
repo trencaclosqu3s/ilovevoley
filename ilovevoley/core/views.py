@@ -6,6 +6,7 @@ from datetime import timedelta
 from email.utils import parseaddr
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -17,6 +18,9 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from ilovevoley.content.models import Image
+from ilovevoley.core.forms import SeasonWizardForm
+from ilovevoley.core.models import Season
+from ilovevoley.core.services.season_wizard import preview_season, start_season
 from ilovevoley.core.tenant_utils import (
     approve_user_membership,
     build_absolute_url,
@@ -418,6 +422,54 @@ def reject_user_api(request, user_id):
         }, status=500)
 
 
+def _require_superuser(request):
+    """El wizard de temporada es de plataforma: solo superusers."""
+    if not request.user.is_superuser:
+        raise PermissionDenied
+
+
+@login_required
+def season_wizard(request):
+    """Paso 1: formulario con el nombre de la nueva temporada."""
+    _require_superuser(request)
+
+    if request.method == 'POST':
+        form = SeasonWizardForm(request.POST)
+        if form.is_valid():
+            confirm_url = reverse('core:season_wizard_confirm')
+            return redirect(f'{confirm_url}?name={form.cleaned_data["name"]}')
+    else:
+        form = SeasonWizardForm()
+
+    return render(request, 'core/season_wizard.html', {
+        'form': form,
+        'current_season': Season.objects.filter(is_current=True).first(),
+    })
+
+
+@login_required
+def season_wizard_confirm(request):
+    """Paso 2: resumen/dry-run (GET) y aplicación atómica (POST)."""
+    _require_superuser(request)
+
+    raw = request.POST.get('name') or request.GET.get('name') or ''
+    summary = preview_season(raw)
+    if not summary['valid']:
+        messages.error(request, 'Formato de temporada no válido.')
+        return redirect('core:season_wizard')
+
+    if request.method == 'POST':
+        summary = start_season(raw)
+        messages.success(
+            request,
+            f'Temporada {summary["season"].name} activada '
+            f'({summary["archived_leagues"]} liga(s) archivada(s)).',
+        )
+        return redirect('core:season_wizard')
+
+    return render(request, 'core/season_wizard_confirm.html', {'summary': summary})
+
+
 __all__ = [
     'custom_400',
     'custom_403',
@@ -438,4 +490,6 @@ __all__ = [
     'moderation_panel',
     'approve_user_api',
     'reject_user_api',
+    'season_wizard',
+    'season_wizard_confirm',
 ]
