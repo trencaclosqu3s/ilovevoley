@@ -138,7 +138,7 @@
 
             <form method="get" class="flex items-center gap-2">
                 <label for="season" class="text-sm font-medium text-gray-700 dark:text-gray-300">Temporada</label>
-                <select name="season" id="season" onchange="this.form.submit()" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                <select name="season" id="season" data-submit-on-change class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                     <option value="" {% if not stat_season %}selected{% endif %}>Todas las temporadas</option>
                     {% for season in seasons %}
                         <option value="{{ season.id }}" {% if stat_season and stat_season.id == season.id %}selected{% endif %}>

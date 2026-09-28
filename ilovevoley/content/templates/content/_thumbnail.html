@@ -21,5 +21,5 @@ El <picture> usa display:contents para no alterar el layout previo del <img>.
     <img src="{{ image.thumbnail_url }}"
          alt="{{ alt|default:image.title }}"
          loading="{{ loading|default:'lazy' }}"
-         decoding="async"{% if css_class %} class="{{ css_class }}"{% endif %}{% if lightbox %} onclick="openLightbox('{{ image.image.url|escapejs }}', '{{ image.title|escapejs }}', {{ image.id }})"{% endif %}>
+         decoding="async"{% if css_class %} class="{{ css_class }}"{% endif %}{% if lightbox %} data-call="openLightbox" data-call-args='["{{ image.image.url|escapejs }}", "{{ image.title|escapejs }}", {{ image.id }}]'{% endif %}>
 </picture>

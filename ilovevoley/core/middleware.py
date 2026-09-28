@@ -8,6 +8,7 @@ from django.http import Http404, HttpResponseNotFound
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.utils.csp import CSP
 from django.utils.html import strip_tags
 from django.core.cache import cache
 from django.shortcuts import redirect
@@ -315,3 +316,42 @@ def send_404_immediate_alert(request, threshold=10):
     except Exception as e:
         logger.error(f"Error enviando alerta 404: {str(e)}")
         return False
+
+
+# CSP relajada para el panel de administración. Unfold/Alpine.js evalúan
+# expresiones con `new Function` y las plantillas del admin inyectan bloques
+# <script>/<style> sin nonce, por lo que no puede aplicarse la política
+# estricta del sitio público. Es una excepción acotada a /admin/ (solo staff).
+ADMIN_CSP = {
+    'default-src': [CSP.SELF],
+    'script-src': [CSP.SELF, CSP.UNSAFE_INLINE, CSP.UNSAFE_EVAL],
+    'style-src': [CSP.SELF, CSP.UNSAFE_INLINE],
+    'img-src': [CSP.SELF, 'data:', 'blob:'],
+    'font-src': [CSP.SELF, 'data:'],
+    'frame-src': [CSP.SELF],
+    'connect-src': [CSP.SELF],
+    'object-src': [CSP.NONE],
+    'base-uri': [CSP.SELF],
+    'form-action': [CSP.SELF],
+    'frame-ancestors': [CSP.NONE],
+}
+
+
+class AdminCSPMiddleware:
+    """Aplica una CSP relajada (Unfold/Alpine) a las rutas del admin.
+
+    Se registra justo después de ContentSecurityPolicyMiddleware: al procesar
+    la respuesta en orden inverso, este middleware sobrescribe la config antes
+    de que el middleware nativo construya la cabecera.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.admin_prefix = '/' + settings.ADMIN_URL.strip('/') + '/'
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if request.path.startswith(self.admin_prefix):
+            response._csp_config = ADMIN_CSP
+            response._csp_ro_config = None
+        return response

@@ -49,7 +49,7 @@
 
                 <!-- Selector de Temporada -->
                 <div>
-                    <select name="season" onchange="this.form.submit()"
+                    <select name="season" data-submit-on-change
                             class="text-sm rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5">
                         <option value="">Todas las temporadas</option>
                         {% for s in seasons %}
@@ -62,7 +62,7 @@
 
                 <!-- Selector de Tipo -->
                 <div>
-                    <select name="type" onchange="this.form.submit()"
+                    <select name="type" data-submit-on-change
                             class="text-sm rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5">
                         <option value="">Todos los tipos</option>
                         {% for code, label in change_types %}
@@ -169,7 +169,7 @@
                                     ✓ Revisado por {{ log.reviewed_by.get_full_name|default:log.reviewed_by.username|default:"Admin" }}
                                 </span>
                                 {% else %}
-                                <button onclick="markAsReviewed(this)"
+                                <button data-call="markAsReviewed" data-call-this
                                         data-log-id="{{ log.id }}"
                                         data-url="{% url 'competitions:ajax_mark_change_reviewed' log.id %}"
                                         class="px-2.5 py-1.5 bg-gray-100 hover:bg-csj-purple hover:text-white dark:bg-gray-700 dark:hover:bg-csj-purple text-gray-700 dark:text-gray-200 rounded font-medium transition cursor-pointer shadow-sm">
@@ -216,7 +216,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {

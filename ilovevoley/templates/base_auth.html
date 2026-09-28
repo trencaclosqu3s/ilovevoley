@@ -14,7 +14,7 @@
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
-    <style>
+    <style nonce="{{ csp_nonce }}">
       :root {
         --brand: {{ tenant_color }};
         --brand-rgb: {{ tenant_color_rgb }};
@@ -23,7 +23,7 @@
       }
     </style>
     
-    <style>
+    <style nonce="{{ csp_nonce }}">
         body.auth-bg {
             background: linear-gradient(
                 135deg,
@@ -71,6 +71,7 @@
     
     <!-- Notyf JS -->
     <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script src="{% static 'js/csp_actions.js' %}"></script>
     
     {% block extra_head %}{% endblock %}
 </head>
@@ -110,7 +111,7 @@
     </footer>
 
     <!-- Toast Notifications Script -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
         const brandColor = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim() || '#9B7FBF';
 
         // Inicializar Notyf con colores del tenant
