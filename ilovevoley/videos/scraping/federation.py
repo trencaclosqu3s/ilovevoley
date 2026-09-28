@@ -448,6 +448,7 @@ class FederationScraper:
         
         return team_objects
     
+    @transaction.atomic
     def detect_withdrawn_teams(self, current_federation_ids) -> List[Team]:
         """Marca como inactivos los equipos de la liga que ya no aparecen en la federación.
 
@@ -456,6 +457,9 @@ class FederationScraper:
         desactivaba equipos que simplemente no jugaban esa jornada, y esa alternancia
         provocaba el vaivén withdrawn/scheduled y los avisos repetidos por el mismo
         partido (#235).
+
+        Equipos y partidos se actualizan en la misma transacción para no dejar un equipo
+        inactivo con sus partidos aún programados si algo falla.
 
         Args:
             current_federation_ids: federation_ids vistos en toda la ejecución.
@@ -470,10 +474,9 @@ class FederationScraper:
             models.Q(home_matches__league=self.league) | models.Q(away_matches__league=self.league)
         ).filter(is_active=True).distinct()
 
-        withdrawn_teams = [
-            team for team in existing_teams_in_league
-            if team.federation_id not in current_federation_ids
-        ]
+        withdrawn_teams = list(
+            existing_teams_in_league.exclude(federation_id__in=current_federation_ids)
+        )
 
         if withdrawn_teams:
             Team.objects.filter(pk__in=[t.pk for t in withdrawn_teams]).update(is_active=False)
@@ -808,35 +811,35 @@ class FederationScraper:
     def _mark_withdrawn_matches(self):
         """Marca como 'withdrawn' los partidos que involucran equipos inactivos"""
         # Encontrar partidos en esta liga que involucran equipos inactivos
-        withdrawn_matches = Match.objects.filter(
-            league=self.league,
-            status__in=['scheduled', 'postponed'],  # Solo marcar partidos que aún no han comenzado
-            is_friendly=False  # No marcar amistosos como retirados
-        ).filter(
-            models.Q(home_team__is_active=False) | models.Q(away_team__is_active=False)
+        withdrawn_matches = list(
+            Match.objects.filter(
+                league=self.league,
+                status__in=['scheduled', 'postponed'],  # Solo marcar partidos que aún no han comenzado
+                is_friendly=False  # No marcar amistosos como retirados
+            ).filter(
+                models.Q(home_team__is_active=False) | models.Q(away_team__is_active=False)
+            ).select_related('home_team', 'away_team')
         )
-        
-        count = 0
+
+        if not withdrawn_matches:
+            return
+
+        Match.objects.filter(
+            pk__in=[m.pk for m in withdrawn_matches]
+        ).update(status='withdrawn')
+
         for match in withdrawn_matches:
-            # Verificar que realmente hay un equipo inactivo involucrado
-            if not match.home_team.is_active or not match.away_team.is_active:
-                inactive_teams = []
-                if not match.home_team.is_active:
-                    inactive_teams.append(match.home_team.name)
-                if not match.away_team.is_active:
-                    inactive_teams.append(match.away_team.name)
-                
-                match.status = 'withdrawn'
-                match.save()
-                count += 1
-                
-                logger.warning(
-                    f"Match marked as withdrawn: {match.home_team.name} vs {match.away_team.name} "
-                    f"on {match.match_date.strftime('%d/%m/%Y')} - inactive teams: {', '.join(inactive_teams)}"
-                )
-        
-        if count > 0:
-            logger.info(f"Marked {count} matches as withdrawn in {self.league.name}")
+            inactive_teams = [
+                team.name
+                for team in (match.home_team, match.away_team)
+                if not team.is_active
+            ]
+            logger.warning(
+                f"Match marked as withdrawn: {match.home_team.name} vs {match.away_team.name} "
+                f"on {match.match_date.strftime('%d/%m/%Y')} - inactive teams: {', '.join(inactive_teams)}"
+            )
+
+        logger.info(f"Marked {len(withdrawn_matches)} matches as withdrawn in {self.league.name}")
     
     def _is_empty_value(self, value) -> bool:
         """Determina si un valor está vacío o es None"""
