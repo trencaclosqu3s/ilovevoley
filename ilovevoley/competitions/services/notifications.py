@@ -35,8 +35,8 @@ def _team_notifications_enabled(team) -> bool:
     club = getattr(team, 'club', None)
     if club is None:
         return True
-    orgs = club.organizations.all()
-    return not orgs.exists() or orgs.filter(notify_match_changes=True).exists()
+    orgs = list(club.organizations.all())
+    return not orgs or any(org.notify_match_changes for org in orgs)
 
 
 def get_recipients_for_match(match: Match) -> List[str]:

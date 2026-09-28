@@ -161,6 +161,12 @@ class MatchChangeNotificationsTest(TestCase):
         recipients = mail.outbox[0].to + mail.outbox[0].bcc
         self.assertIn('root@isitech.es', recipients)
 
+    def test_team_without_club_still_notified(self):
+        """Un equipo sin club vinculado no tiene configuración que lo silencie (#236)."""
+        from ilovevoley.competitions.services.notifications import _team_notifications_enabled
+        team = Team.objects.create(name='SELECCIÓN', federation_id='t-sel', club=None)
+        self.assertTrue(_team_notifications_enabled(team))
+
     def test_already_notified_logs_are_skipped(self):
         log = MatchChangeLog.objects.create(
             match=self.match,
