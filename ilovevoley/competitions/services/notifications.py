@@ -54,6 +54,8 @@ def get_recipients_for_match(match: Match) -> List[str]:
     superuser_emails = set(_superuser_emails())
 
     if not notify_staff_enabled:
+        # En pruebas el destinatario es únicamente el de test, pero los superusuarios
+        # mantienen su copia global (es el propio admin revisando, no un club).
         recipients = {test_recipient} if test_recipient else set()
         return sorted(recipients | superuser_emails)
 
