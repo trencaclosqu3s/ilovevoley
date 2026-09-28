@@ -177,11 +177,7 @@
     </div>
 </div>
 
-<!-- Lightbox Modal -->
-{% load static %}
-<script src="{% static 'js/lightbox.js' %}"></script>
-
-<script>
+<script nonce="{{ csp_nonce }}">
 // Serializar todas las imágenes del partido para navegación
 const allMatchImages = [
     {% for image in all_images %}
@@ -217,7 +213,7 @@ function openLightbox(imageUrl, title, imageId, description = '', user = '', dat
 }
 </script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Menú desplegable de subida de imágenes
 document.addEventListener('DOMContentLoaded', function() {
     const menuBtn = document.getElementById('upload-menu-btn-{{ match.id }}');

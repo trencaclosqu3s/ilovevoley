@@ -219,12 +219,16 @@ class CompetitionsViewUrlTests(TestCase):
         baseline, _ = self._count_queries(url, {'q': 'Senior'})
 
         for i in range(3):
-            club = Club.objects.create(official_name=f'Club {i}', federation_id=f'CLUB-{i}')
-            Team.objects.create(name=f'Otro {i} Senior', category=self.category, club=club, federation_id=f'T-{i}')
+            Team.objects.create(
+                name=f'Test Club Senior {i}', category=self.category,
+                club=self.club, federation_id=f'T-{i}',
+            )
 
         with_more, response = self._count_queries(url, {'q': 'Senior'})
         self.assertEqual(with_more, baseline)
-        self.assertEqual(len(response.json()['teams']), 5)
+        # Solo los equipos del tenant: el rival sin club no debe colarse (#207).
+        names = {team['name'] for team in response.json()['teams']}
+        self.assertEqual(names, {'Test Club Senior', 'Test Club Senior 0', 'Test Club Senior 1', 'Test Club Senior 2'})
 
     def test_acta_lineup_is_fetched_once_and_cached(self):
         self.client.force_login(self.user)
@@ -729,6 +733,39 @@ class CompetitionsTenantIsolationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(foreign.status_code, 404)
+
+    def test_match_detail_loads_lightbox_script_once(self):
+        """base.html ya carga lightbox.js; la ficha no debe duplicarlo (#209)."""
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('competitions:match_detail', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
+
+    def test_match_images_loads_lightbox_script_once(self):
+        """base.html ya carga lightbox.js; las imágenes de partido no lo duplican (#209)."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from ilovevoley.content.models import Image
+
+        gif = (
+            b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
+            b'\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;'
+        )
+        Image.objects.create(
+            image=SimpleUploadedFile('photo.gif', gif, content_type='image/gif'),
+            title='Foto', uploaded_by=self.manager, match=self.match,
+            organization=self.org, status='approved',
+        )
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('content:match_images', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
 
     def test_match_detail_hides_foreign_org_media(self):
         """Vídeos e imágenes de otra organización no se listan en la ficha del partido (#200)."""

@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-<style>
+<style nonce="{{ csp_nonce }}">
 /* Estilos para truncar texto en nombres largos */
 .line-clamp-2 {
     display: -webkit-box;
@@ -76,7 +76,7 @@
 
 {% block extra_js %}
 <script src="{% static 'js/auto_filters.js' %}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     // Tooltip functionality for desktop
     const tooltipElements = document.querySelectorAll('[data-tooltip]');
@@ -217,10 +217,10 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if page_obj %}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
             {% for person in page_obj %}
-                <a href="{% url 'rosters:person_detail' person.id %}" class="person-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 block flex flex-col h-80" style="position: relative;">
+                <a href="{% url 'rosters:person_detail' person.id %}" class="person-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 block flex flex-col h-80 relative">
                     <!-- Marca visual "Tú" en la card del usuario conectado -->
                     {% if person.user == request.user %}
-                        <div class="absolute top-2 right-2 bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg" style="z-index: 20;">
+                        <div class="absolute top-2 right-2 bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg z-20">
                             ⭐ Tú
                         </div>
                     {% endif %}

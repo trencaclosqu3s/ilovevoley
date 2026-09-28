@@ -80,6 +80,8 @@ class LandingViewTest(TestCase):
         content = response.content.decode('utf-8')
         self.assertIn('--brand: #112233', content)
         self.assertIn('--brand-dark: #445566', content)
+        self.assertIn('--brand-rgb: 17 34 51', content)
+        self.assertIn('--brand-dark-rgb: 68 85 102', content)
         self.assertIn('css/app.css', content)
         css_idx = content.find('css/app.css')
         style_idx = content.find('--brand: #112233')
@@ -263,6 +265,29 @@ class TenantManagerModerationTest(TestCase):
         self.assertContains(response, 'pending_a')
         self.assertNotContains(response, 'pending_b')
 
+    def test_panel_loads_each_script_once_for_manager(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
+        self.assertEqual(response.content.count(b'js/moderation.js'), 1)
+
+    def test_panel_loads_each_script_once_for_superuser(self):
+        """base.html ya carga ambos scripts para superusers; el panel no debe
+        volver a incluirlos (#209)."""
+        superuser = get_user_model().objects.create_superuser(
+            username='root', password='pass'
+        )
+        self.client.force_login(superuser)
+        response = self.client.get(
+            reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
+        self.assertEqual(response.content.count(b'js/moderation.js'), 1)
+
     def test_manager_counts_api_scoped_to_tenant(self):
         self.client.force_login(self.manager)
         url = reverse('core:moderation_counts_api')
@@ -444,6 +469,19 @@ class TailwindStaticCssTest(TestCase):
                     rendered,
                     f'Plantilla {tmpl} no referencia el CSS estático compilado css/app.css',
                 )
+
+    def test_brand_colors_are_alpha_aware_in_compiled_css(self):
+        """La marca debe compilarse como ``rgb(var(--brand-rgb) / <alpha-value>)``.
+
+        Con ``var(--brand)`` a secas las utilidades ``bg-opacity-*`` se ignoran:
+        el fondo del equipo propio se pinta sólido y el texto de marca queda
+        invisible sobre él (#228).
+        """
+        css_path = settings.BASE_DIR / 'ilovevoley' / 'static' / 'css' / 'app.css'
+        css = css_path.read_text(encoding='utf-8')
+
+        self.assertIn('background-color:rgb(var(--brand-rgb,155 127 191)/var(--tw-bg-opacity,1))', css)
+        self.assertIn('color:rgb(var(--brand-rgb,155 127 191)/var(--tw-text-opacity,1))', css)
 
     def test_management_command_tailwind_build(self):
         import pathlib

@@ -137,10 +137,7 @@
     </div>
 </div>
 
-{% load static %}
-<script src="{% static 'js/lightbox.js' %}"></script>
-
-<script>
+<script nonce="{{ csp_nonce }}">
 // Serializar todas las imágenes del álbum para navegación
 const allAlbumImages = [
     {% for image in all_images %}

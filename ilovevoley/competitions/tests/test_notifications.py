@@ -118,6 +118,97 @@ class MatchChangeNotificationsTest(TestCase):
         self.assertTrue(log.notified)
         self.assertIsNotNone(log.notified_at)
 
+    def test_club_with_notifications_disabled_excludes_its_recipients(self):
+        """Si la organización desactiva los avisos, su staff no los recibe (#236)."""
+        # El equipo B no tiene staff, así que el único destinatario esperado es el
+        # manager de org_b (fallback). Si org_a no se silenciara, llegarían 3.
+        self.org_a.notify_match_changes = False
+        self.org_a.save(update_fields=['notify_match_changes'])
+
+        log = MatchChangeLog.objects.create(
+            match=self.match,
+            change_type='venue',
+            field_name='venue',
+            old_value='Pabellón A',
+            new_value='Pabellón B',
+            is_last_minute=True,
+        )
+
+        with override_settings(MATCH_CHANGE_NOTIFY_STAFF_ENABLED=True):
+            sent_count = notify_match_changes([log])
+
+        self.assertEqual(sent_count, 1)
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        recipients = email.to + email.bcc
+        self.assertNotIn('delegat@santjosep.com', recipients)
+        self.assertNotIn('coach@santjosep.com', recipients)
+        self.assertIn('manager@manacor.com', recipients)
+
+    def test_superuser_receives_global_copy_in_production(self):
+        """El superusuario recibe copia de todos los tenants aunque no sea staff (#236)."""
+        User.objects.create_superuser(username='root', email='root@isitech.es', password='x')
+
+        log = MatchChangeLog.objects.create(
+            match=self.match,
+            change_type='venue',
+            field_name='venue',
+            old_value='Pabellón A',
+            new_value='Pabellón B',
+            is_last_minute=True,
+        )
+
+        with override_settings(MATCH_CHANGE_NOTIFY_STAFF_ENABLED=True):
+            notify_match_changes([log])
+
+        recipients = mail.outbox[0].to + mail.outbox[0].bcc
+        self.assertIn('root@isitech.es', recipients)
+
+    def test_team_without_club_still_notified(self):
+        """Un equipo sin club vinculado no tiene configuración que lo silencie (#236)."""
+        team_no_club = Team.objects.create(name='SELECCIÓN', federation_id='t-sel')
+        person = Person.objects.create(
+            first_name='Sele', last_name='Delegat',
+            email='delegat@seleccion.com', organization=self.org_a,
+        )
+        StaffRole.objects.create(
+            person=person, team=team_no_club, role='delegate',
+            season=self.season, is_active=True,
+        )
+        match = Match.objects.create(
+            league=self.league, home_team=team_no_club, away_team=self.team_b,
+            match_date=timezone.now() + timedelta(days=2), venue='Pabellón S',
+        )
+        log = MatchChangeLog.objects.create(
+            match=match, change_type='venue', field_name='venue',
+            old_value='A', new_value='B', is_last_minute=True,
+        )
+
+        with override_settings(MATCH_CHANGE_NOTIFY_STAFF_ENABLED=True):
+            notify_match_changes([log])
+
+        recipients = mail.outbox[0].to + mail.outbox[0].bcc
+        self.assertIn('delegat@seleccion.com', recipients)
+
+    def test_superuser_flag_off_in_test_mode_sends_only_test_recipient(self):
+        """MATCH_CHANGE_NOTIFY_SUPERUSERS=False también aplica en modo pruebas (#236)."""
+        User.objects.create_superuser(username='root2', email='root2@isitech.es', password='x')
+        log = MatchChangeLog.objects.create(
+            match=self.match, change_type='venue', field_name='venue',
+            old_value='A', new_value='B', is_last_minute=True,
+        )
+
+        with override_settings(
+            MATCH_CHANGE_NOTIFY_STAFF_ENABLED=False,
+            MATCH_CHANGE_NOTIFY_SUPERUSERS=False,
+            MATCH_CHANGE_TEST_RECIPIENT='test_admin@isitech.es',
+        ):
+            notify_match_changes([log])
+
+        self.assertEqual(
+            mail.outbox[0].to + mail.outbox[0].bcc, ['test_admin@isitech.es']
+        )
+
     def test_already_notified_logs_are_skipped(self):
         log = MatchChangeLog.objects.create(
             match=self.match,

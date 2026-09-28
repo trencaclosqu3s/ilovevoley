@@ -77,7 +77,7 @@
     </p>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
     document.querySelectorAll('.video-launch').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var iframe = document.createElement('iframe');

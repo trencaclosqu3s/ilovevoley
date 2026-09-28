@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Clasificación - Vídeos del Equipo{% endblock %}
+{% block title %}Clasificación - I Love Voley{% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/auto_filters.js' %}"></script>
@@ -18,7 +18,7 @@
             </div>
 
             <!-- Botón de filtros (solo móvil) -->
-            <button onclick="toggleFilters()"
+            <button data-call="toggleFilters"
                 class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark transition touch-manipulation">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -81,7 +81,7 @@
 
             <!-- Filtro de ligas archivadas/referencia -->
             <div class="flex items-center mt-4">
-                <input type="checkbox" name="show_archived" id="show_archived" value="1" {% if show_archived %}checked{% endif %} onchange="this.form.submit()"
+                <input type="checkbox" name="show_archived" id="show_archived" value="1" {% if show_archived %}checked{% endif %} data-submit-on-change
                     class="h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded">
                 <label for="show_archived" class="ml-2 block text-sm text-gray-700">
                     Mostrar ligas archivadas, de referencia o históricas
@@ -189,7 +189,7 @@
                     {% for standing in league_data.standings %}
                     <tr class="
                                     {% if club_team_name in standing.team.name %}
-                                        bg-csj-purple bg-opacity-5 border-l-4 border-csj-purple
+                                        bg-csj-purple bg-opacity-10 border-l-4 border-csj-purple
                                     {% elif standing.position <= 3 %}
                                         bg-green-50
                                     {% elif standing.position <= 6 %}
@@ -208,7 +208,6 @@
                                                 {% if standing.position == 1 %}text-yellow-600
                                                 {% elif standing.position == 2 %}text-gray-500
                                                 {% elif standing.position == 3 %}text-yellow-800
-                                                {% elif club_team_name in standing.team.name %}text-csj-purple
                                                 {% else %}text-gray-900
                                                 {% endif %}">
                                     {{ standing.position }}
@@ -229,14 +228,10 @@
                                 {% if standing.team.display_logo %}
                                 <img src="{{ standing.team.display_logo }}" alt="{{ standing.team.name }}"
                                     class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
-                                    onerror="this.style.display='none'">
+                                    data-hide-on-error>
                                 {% endif %}
-                                <div class="text-xs sm:text-sm font-medium 
-                                                {% if club_team_name in standing.team.name %}
-                                                    text-csj-purple font-bold
-                                                {% else %}
-                                                    text-gray-900
-                                                {% endif %} truncate max-w-[120px] sm:max-w-none">
+                                <div class="text-xs sm:text-sm font-medium text-gray-900
+                                                {% if club_team_name in standing.team.name %}font-bold{% endif %} truncate max-w-[120px] sm:max-w-none">
                                     <span class="block sm:inline" title="{{ standing.team.name }}">{{ standing.team.name }}</span>
                                     {% if club_team_name in standing.team.name %}
                                     <span class="ml-1 sm:ml-2 text-csj-yellow">🏐</span>
@@ -282,12 +277,7 @@
 
                         <!-- Puntos de clasificación -->
                         <td class="px-2 sm:px-3 py-3 sm:py-4 whitespace-nowrap text-center">
-                            <span class="text-xs sm:text-sm font-bold 
-                                            {% if club_team_name in standing.team.name %}
-                                                text-csj-purple
-                                            {% else %}
-                                                text-gray-900
-                                            {% endif %}">
+                            <span class="text-xs sm:text-sm font-bold text-gray-900">
                                 {{ standing.total_points }}
                             </span>
                         </td>
@@ -302,7 +292,7 @@
         {% for standing in league_data.standings %}
         {% if club_team_name in standing.team.name %}
         <div class="bg-csj-purple bg-opacity-10 p-4 border-t border-csj-purple border-opacity-30">
-            <h4 class="text-sm font-semibold text-csj-purple mb-2">
+            <h4 class="text-sm font-semibold text-gray-800 mb-2">
                 📊 Estadísticas detalladas de {{ standing.team.name }}
             </h4>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
@@ -372,7 +362,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
     // Toggle de filtros para móvil
     function toggleFilters() {
         const filtersSection = document.getElementById('filtersSection');

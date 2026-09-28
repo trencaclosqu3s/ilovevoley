@@ -175,6 +175,10 @@ class Organization(models.Model):
         help_text='Club federativo vinculado (opcional; null p.ej. para selecciones)',
     )
     is_active       = models.BooleanField(default=True)
+    notify_match_changes = models.BooleanField(
+        default=True,
+        help_text='Recibir avisos de cambios federativos de los partidos de sus equipos',
+    )
     created_at      = models.DateTimeField(auto_now_add=True)
 
     class Meta:

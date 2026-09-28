@@ -10,6 +10,28 @@ ORG_CACHE_TTL = 300
 ORG_CACHE_PREFIX = 'tenant_org:'
 
 
+def hex_to_rgb_channels(hex_color, default='155 127 191'):
+    """Convierte un color hex (#RGB o #RRGGBB) a canales RGB separados ("r g b").
+
+    Tailwind define la marca como ``rgb(var(--brand-rgb) / <alpha-value>)``. Sin
+    los canales por separado las utilidades ``bg-opacity-*`` no tienen efecto y
+    el color de marca se pinta sólido, dejando ilegible el texto que usa la
+    misma marca.
+    """
+    if not hex_color:
+        return default
+    value = hex_color.strip().lstrip('#')
+    if len(value) == 3:
+        value = ''.join(ch * 2 for ch in value)
+    if len(value) != 6:
+        return default
+    try:
+        red, green, blue = (int(value[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return default
+    return f'{red} {green} {blue}'
+
+
 def _org_cache_key(slug):
     return f'{ORG_CACHE_PREFIX}{slug}'
 

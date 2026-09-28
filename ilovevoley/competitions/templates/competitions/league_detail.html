@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ league.name }} - Vídeos del Equipo{% endblock %}
+{% block title %}{{ league.name }} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -71,12 +71,12 @@
         <div class="bg-white border-b border-gray-200">
             <div class="p-4 sm:p-6">
                 <div class="flex flex-wrap gap-2 sm:gap-3">
-                    <a href="#partidos" onclick="showSection('partidos')" 
+                    <a href="#partidos" data-call="showSection" data-call-args='["partidos"]' 
                        class="section-tab active inline-flex items-center px-3 py-2 bg-csj-purple text-white text-sm font-medium rounded-lg transition">
                         📅 Partidos
                     </a>
                     {% if standings %}
-                        <a href="#clasificacion" onclick="showSection('clasificacion')" 
+                        <a href="#clasificacion" data-call="showSection" data-call-args='["clasificacion"]' 
                            class="section-tab inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-medium rounded-lg transition">
                             🏆 Clasificación
                         </a>
@@ -326,7 +326,7 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for standing in standings %}
-                            <tr class="{% if 'SANT JOSEP' in standing.team.name %}bg-csj-purple bg-opacity-5 border-l-4 border-csj-purple{% endif %}">
+                            <tr class="{% if 'SANT JOSEP' in standing.team.name %}bg-csj-purple bg-opacity-10 border-l-4 border-csj-purple{% endif %}">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                                     {{ standing.position }}
                                     {% if standing.position <= 3 %}
@@ -337,7 +337,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium {% if 'SANT JOSEP' in standing.team.name %}text-csj-purple{% else %}text-gray-900{% endif %}">
+                                    <div class="text-sm font-medium text-gray-900{% if 'SANT JOSEP' in standing.team.name %} font-bold{% endif %}">
                                         {{ standing.team.name }}
                                         {% if 'SANT JOSEP' in standing.team.name %}🏐{% endif %}
                                     </div>
@@ -349,7 +349,7 @@
                                     {{ standing.sets_for }}-{{ standing.sets_against }}
                                     <div class="text-xs text-gray-500">({% if standing.set_difference > 0 %}+{% endif %}{{ standing.set_difference }})</div>
                                 </td>
-                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-bold {% if 'SANT JOSEP' in standing.team.name %}text-csj-purple{% else %}text-gray-900{% endif %}">
+                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900">
                                     {{ standing.total_points }}
                                 </td>
                             </tr>
@@ -380,7 +380,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function showSection(sectionName) {
     // Ocultar todas las secciones
     document.querySelectorAll('.content-section').forEach(section => {
@@ -397,8 +397,8 @@ function showSection(sectionName) {
     });
     
     // Activar tab seleccionado
-    event.target.classList.add('active', 'bg-csj-purple', 'text-white');
-    event.target.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+    this.classList.add('active', 'bg-csj-purple', 'text-white');
+    this.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
     
     // Mostrar/ocultar filtros según la sección
     if (sectionName === 'partidos') {

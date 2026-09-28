@@ -8,9 +8,10 @@ __pycache__
 env/
 venv/
 .venv
+# No añadir patrones de negación (!...): BuildKit recorre igualmente los
+# directorios ignorados cuando existen y falla con "permission denied" en
+# certbot/conf/accounts (root, 700). Ver docker/cli#3043 y buildkit#6454.
 .env*
-!.env.example
-!.env.*.example
 .idea/
 .vscode/
 *.swp

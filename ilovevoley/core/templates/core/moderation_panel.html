@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Panel de Moderación - Vídeos del Equipo{% endblock %}
+{% block title %}Panel de Moderación - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
@@ -117,12 +117,12 @@
                     <!-- Botones de moderación -->
                     <div class="flex space-x-3">
                         <button 
-                            onclick="approveUser({{ user.id }}, this)"
+                            data-call="approveUser" data-call-args='[{{ user.id }}]' data-call-this
                             class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
                             ✅ Aprobar
                         </button>
                         <button 
-                            onclick="rejectUser({{ user.id }}, this)"
+                            data-call="rejectUser" data-call-args='[{{ user.id }}]' data-call-this
                             class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
                             ❌ Rechazar
                         </button>
@@ -146,7 +146,7 @@
             {% for image in pending_images %}
             <div class="image-card bg-white rounded-lg shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
                 <!-- Imagen clicable -->
-                <div class="aspect-w-16 aspect-h-12 cursor-pointer" onclick="openModerationLightbox({{ image.id }})">
+                <div class="aspect-w-16 aspect-h-12 cursor-pointer" data-call="openModerationLightbox" data-call-args='[{{ image.id }}]'>
                     {% include 'content/_thumbnail.html' with image=image css_class="w-full h-48 object-cover rounded-t-lg hover:opacity-90 transition-opacity" sizes="(min-width: 1024px) 50vw, 100vw" %}
                     <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                         🔍 Click para ampliar
@@ -262,12 +262,12 @@
                     <!-- Botones de moderación -->
                     <div class="flex space-x-3">
                         <button 
-                            onclick="moderateImage({{ image.id }}, 'approve', this)"
+                            data-call="moderateImage" data-call-args='[{{ image.id }}, "approve"]' data-call-this
                             class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
                             ✅ Aprobar
                         </button>
                         <button 
-                            onclick="moderateImage({{ image.id }}, 'reject', this)"
+                            data-call="moderateImage" data-call-args='[{{ image.id }}, "reject"]' data-call-this
                             class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
                             ❌ Rechazar
                         </button>
@@ -296,10 +296,11 @@
 {% block extra_js %}
 <!-- Cargar archivos JavaScript específicos -->
 {% load static %}
-<script src="{% static 'js/lightbox.js' %}"></script>
+{% if not user.is_superuser %}
 <script src="{% static 'js/moderation.js' %}"></script>
+{% endif %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Configuración específica del panel de moderación
 let moderationLightbox = null;
 let pendingImages = [];

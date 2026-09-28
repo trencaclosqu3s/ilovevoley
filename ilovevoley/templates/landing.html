@@ -5,6 +5,17 @@
 
 {% block sidebar %}{% endblock %}
 
+{% block extra_css %}
+<style nonce="{{ csp_nonce }}">
+    {% for org in organizations %}
+    .tenant-accent-{{ org.id }} { --tenant-accent: {{ org.primary_color }}; }
+    {% endfor %}
+    .tenant-border { border-color: var(--tenant-accent); }
+    .tenant-bg { background-color: var(--tenant-accent); }
+    .tenant-text { color: var(--tenant-accent); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center px-4 py-16">
 
@@ -20,14 +31,12 @@
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-xl">
     {% for org in organizations %}
     <a href="http{% if not debug %}s{% endif %}://{{ org.slug }}.{{ tenant_base_domain }}/"
-       class="group relative block bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border-t-4 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
-       style="border-color: {{ org.primary_color }};">
+       class="group relative block bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border-t-4 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 tenant-accent-{{ org.id }} tenant-border">
 
       {% if org.logo %}
         <img src="{{ org.logo.url }}" alt="{{ org.name }}" class="h-12 w-auto mb-4">
       {% else %}
-        <div class="h-12 w-12 rounded-xl mb-4 flex items-center justify-center text-white font-bold text-xl"
-             style="background-color: {{ org.primary_color }};">
+        <div class="h-12 w-12 rounded-xl mb-4 flex items-center justify-center text-white font-bold text-xl tenant-accent-{{ org.id }} tenant-bg">
           {{ org.name|first }}
         </div>
       {% endif %}
@@ -43,8 +52,7 @@
         </span>
       {% endif %}
 
-      <div class="mt-4 flex items-center text-sm font-semibold transition-transform group-hover:translate-x-0.5"
-           style="color: {{ org.primary_color }};">
+      <div class="mt-4 flex items-center text-sm font-semibold transition-transform group-hover:translate-x-0.5 tenant-accent-{{ org.id }} tenant-text">
         Entrar
         <svg class="w-4 h-4 ml-1 transition-transform duration-200 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>

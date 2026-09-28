@@ -400,6 +400,7 @@ def calendar_view(request):
             next_month_start = timezone.make_aware(datetime(year, month + 1, 1))
         prev_month = start_date - timedelta(days=1)
     except (ValueError, TypeError, OverflowError):
+        messages.warning(request, 'La fecha solicitada no es válida. Mostrando el mes actual.')
         return redirect('competitions:calendar_view')
 
     monthly_matches = matches.filter(
@@ -512,15 +513,23 @@ def friendly_match_create(request):
 
 @tenant_access_required(manager=True)
 def ajax_search_teams(request):
-    """Vista AJAX para buscar equipos con autocompletado inteligente"""
+    """Vista AJAX para buscar equipos con autocompletado inteligente.
+
+    Por defecto acota los resultados al club/organización del tenant actual
+    (``Team.objects.for_tenant``): un manager de otro club no debe ver equipos
+    ajenos. Con ``scope=rival`` se busca explícitamente fuera del tenant para
+    vincular rivales ya presentes en actas, devolviendo solo ``id`` y ``name``
+    (sin club ni categoría).
+    """
     query = request.GET.get('q', '').strip()
     category_id = request.GET.get('category_id', '').strip()
+    scope = request.GET.get('scope', 'tenant').strip().lower()
 
     if len(query) < 2:
         return JsonResponse({'teams': []})
 
     # Buscar equipos existentes
-    teams_query = Team.objects.select_related('category', 'club').filter(name__icontains=query)
+    teams_query = Team.objects.filter(name__icontains=query)
 
     # Filtrar por categoría si se especifica
     if category_id:
@@ -530,8 +539,20 @@ def ajax_search_teams(request):
         except Category.DoesNotExist:
             pass
 
-    # Limitar a 10 resultados
-    teams = teams_query.order_by('name')[:10]
+    # Modo rival explícito: equipos fuera del tenant, solo id y nombre.
+    if scope == 'rival':
+        tenant_team_ids = Team.objects.for_tenant(request.tenant).values('pk')
+        rival_teams = teams_query.exclude(pk__in=tenant_team_ids).order_by('name')[:10]
+        return JsonResponse({
+            'teams': [{'id': team.id, 'name': team.name} for team in rival_teams]
+        })
+
+    # Por defecto, solo equipos del club/organización del tenant.
+    teams = (
+        teams_query.select_related('category', 'club')
+        .for_tenant(request.tenant)
+        .order_by('name')[:10]
+    )
 
     # Formatear respuesta
     teams_data = []

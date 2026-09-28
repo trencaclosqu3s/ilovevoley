@@ -121,7 +121,7 @@
                                                 class="flex-1 min-w-0 text-sm bg-white border border-blue-300 rounded px-3 py-2 text-gray-700 font-mono"
                                             >
                                             <button 
-                                                onclick="copyCalendarUrl()" 
+                                                data-call="copyCalendarUrl" 
                                                 class="flex-shrink-0 inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition whitespace-nowrap"
                                             >
                                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,7 +136,7 @@
                                     <!-- Botones de acción -->
                                     <div class="flex flex-wrap gap-2">
                                         <button 
-                                            onclick="showCalendarTutorial()" 
+                                            data-call="showCalendarTutorial" 
                                             class="inline-flex items-center px-4 py-2 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 text-sm font-medium rounded transition"
                                         >
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,7 +146,7 @@
                                         </button>
                                         
                                         <button 
-                                            onclick="confirmRegenerateToken()" 
+                                            data-call="confirmRegenerateToken" 
                                             class="inline-flex items-center px-4 py-2 bg-white border border-orange-300 hover:bg-orange-50 text-orange-700 text-sm font-medium rounded transition"
                                         >
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -210,7 +210,7 @@
             <h3 class="text-2xl font-bold text-gray-900">
                 📅 Cómo suscribirte al calendario
             </h3>
-            <button onclick="hideCalendarTutorial()" class="text-gray-400 hover:text-gray-600 transition">
+            <button data-call="hideCalendarTutorial" class="text-gray-400 hover:text-gray-600 transition">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -323,14 +323,14 @@
         
         <!-- Footer -->
         <div class="mt-6 flex justify-end">
-            <button onclick="hideCalendarTutorial()" class="px-6 py-2 bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
+            <button data-call="hideCalendarTutorial" class="px-6 py-2 bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
                 Entendido
             </button>
         </div>
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
     // Generar el token y cargar la URL real cuando la página cargue
     document.addEventListener('DOMContentLoaded', function() {
         {% if user.preferred_categories.all %}

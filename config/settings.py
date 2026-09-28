@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import re
 from pathlib import Path
 from decouple import config as env_config
 from django.templatetags.static import static
@@ -107,6 +108,23 @@ ACCOUNT_SESSION_REMEMBER = None
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 
+# Rate limiting propio de allauth. Por defecto añade un tramo `/key` que bloquea
+# globalmente la cuenta (login) o el email (reset) tras pocos fallos y que se
+# evalúa ANTES de autenticar, por lo que también frena la contraseña correcta:
+# un tercero puede dejar sin acceso a la víctima (DoS de cuenta). #202 lo
+# sustituye por el contador global de solo-fallos de `ratelimit_utils` (nunca
+# bloquea un login correcto) y por el tope laxo de reset, conservando los tramos
+# por IP de allauth como capa gruesa.
+#
+# ACCOUNT_RATE_LIMITS se fusiona sobre los defaults de allauth
+# (`ret.update(ACCOUNT_RATE_LIMITS)` en app_settings.RATE_LIMITS), así que
+# declarar solo estas dos acciones NO borra el resto (signup, login, etc.):
+# únicamente se les quita el tramo `/key`.
+ACCOUNT_RATE_LIMITS = {
+    'login_failed': '10/m/ip',
+    'reset_password': '20/m/ip',
+}
+
 # Configurar qué mensajes de allauth mostrar
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 
@@ -118,8 +136,7 @@ SOCIALACCOUNT_STORE_TOKENS = False  # No almacenar access/refresh tokens de Goog
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Permitir login si el email coincide con una cuenta local verificada
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # Vincular la cuenta social a la local verificada
 
-# Configuración de Google Calendar API
-# Scopes básicos para todos los usuarios
+# Scopes de Google para el login social (no se piden permisos de Calendar)
 GOOGLE_BASIC_SCOPES = [
     'profile',
     'email',
@@ -159,22 +176,27 @@ SECURE_HSTS_SECONDS = env_config('SECURE_HSTS_SECONDS', default=31536000 if not 
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=not DEBUG, cast=bool)
 SECURE_HSTS_PRELOAD = env_config('SECURE_HSTS_PRELOAD', default=False, cast=bool)
 
-# Content Security Policy (CSP Report-Only nativo Django 6.0)
-SECURE_CSP = None
-SECURE_CSP_REPORT_ONLY = {
+# Content Security Policy (CSP enforce nativo Django 6.0).
+#
+# Política estricta para el sitio público: los scripts y estilos inline se
+# autorizan con un nonce por petición (CSP.NONCE), generado por
+# ContentSecurityPolicyMiddleware y expuesto a las plantillas con el context
+# processor `django.template.context_processors.csp` (variable `csp_nonce`).
+# No se usa 'unsafe-inline' ni 'unsafe-eval'.
+#
+# El panel de administración (/admin/) usa una política relajada porque Unfold
+# y Alpine.js requieren inline/eval; la aplica AdminCSPMiddleware.
+SECURE_CSP = {
     'default-src': [CSP.SELF],
     'script-src': [
         CSP.SELF,
-        CSP.UNSAFE_INLINE,
-        CSP.UNSAFE_EVAL,
-        'https://cdn.tailwindcss.com',
+        CSP.NONCE,
         'https://cdn.jsdelivr.net',
         'https://cdnjs.cloudflare.com',
-        'https://www.instagram.com',
     ],
     'style-src': [
         CSP.SELF,
-        CSP.UNSAFE_INLINE,
+        CSP.NONCE,
         'https://cdn.jsdelivr.net',
         'https://cdnjs.cloudflare.com',
     ],
@@ -191,13 +213,16 @@ SECURE_CSP_REPORT_ONLY = {
         CSP.SELF,
         'https://www.youtube.com',
         'https://www.youtube-nocookie.com',
-        'https://www.instagram.com',
     ],
     'connect-src': [CSP.SELF],
     'object-src': [CSP.NONE],
-    'base-uri': [CSP.SELF],
+    'base-uri': [CSP.NONE],
     'form-action': [CSP.SELF],
+    'frame-ancestors': [CSP.NONE],
 }
+
+# Sin cabecera Report-Only: la política enforce es la única fuente de verdad.
+SECURE_CSP_REPORT_ONLY = None
 
 # Adapters personalizados para suprimir mensajes
 ACCOUNT_ADAPTER = 'ilovevoley.users.adapters.CustomAccountAdapter'
@@ -210,6 +235,7 @@ MIDDLEWARE = [
     'ilovevoley.core.middleware.TenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.csp.ContentSecurityPolicyMiddleware',
+    'ilovevoley.core.middleware.AdminCSPMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -234,6 +260,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.csp',
                 'ilovevoley.core.context_processors.tenant_context',
             ],
         },
@@ -375,6 +402,30 @@ EMAIL_NOTIFICATIONS = {
     'error_404_daily': env_config('EMAIL_NOTIFY_404_DAILY', default=False, cast=bool),
 }
 
+# Avisos de cambios federativos de partidos (competitions/services/notifications.py)
+MATCH_CHANGE_NOTIFY_STAFF_ENABLED = env_config('MATCH_CHANGE_NOTIFY_STAFF_ENABLED', default=False, cast=bool)
+# Copia global para superusuarios, para poder revisar los avisos de todos los tenants.
+MATCH_CHANGE_NOTIFY_SUPERUSERS = env_config('MATCH_CHANGE_NOTIFY_SUPERUSERS', default=True, cast=bool)
+MATCH_CHANGE_TEST_RECIPIENT = env_config('MATCH_CHANGE_TEST_RECIPIENT', default=None)
+
+# Rutas ignoradas por el tracking de 404: escáneres de vulnerabilidades y bots que piden
+# rutas inexistentes (WordPress, phpMyAdmin, dotfiles...). No cuentan para el reporte
+# diario ni para la alerta inmediata. El lookahead de /media/ excluye todo lo servido bajo
+# esa ruta (también en subcarpetas): los uploads de usuario no tienen restricción de
+# extensión (p. ej. un .log de diagnóstico), así que nunca se filtran por extensión.
+IGNORABLE_404_URLS = [
+    re.compile(r'^(?!/media/).*\.(php\d?|cgi|asp|aspx|jsp|action|do|env|ini|sql|bak|old|swp|log|yml|yaml)$', re.I),
+    re.compile(r'^/phpmyadmin/', re.I),
+    re.compile(r'/(?:wp-[^/]*|wordpress)(?:/|$)', re.I),
+    re.compile(r'^/\.'),  # dotfiles: /.env, /.git/config, /.aws/credentials, /.DS_Store...
+    re.compile(
+        r'^/(cgi-bin|vendor|actuator|owa|ecp|autodiscover|remote|boaform|hnap1|solr|jenkins|manager/html'
+        r'|console|telescope|debug|_profiler|laravel|druid|geoserver|webui|sdk|pma|mysql|myadmin)(/|$)',
+        re.I,
+    ),
+    re.compile(r'^/favicon\.ico$'),
+]
+
 # Celery Configuration
 # Bases lógicas de Redis separadas: /0 broker, /1 resultados, /2 caché de Django.
 CELERY_BROKER_URL = env_config('REDIS_URL', default='redis://redis:6379/0')
@@ -435,6 +486,26 @@ RATELIMIT_ENABLE = env_config('RATELIMIT_ENABLE', default=True, cast=bool)
 RATELIMIT_USE_CACHE = 'default'
 RATELIMIT_VIEW = 'ilovevoley.core.views.custom_429'
 RATELIMIT_IP_META_KEY = 'ilovevoley.core.ratelimit_utils.get_client_ip'
+
+# Umbral global complementario para fuerza bruta distribuida (#202).
+# El límite per-IP + credencial no acota un spray repartido entre muchas IPs.
+# Estos contadores viven en caché (Redis) keyed por credencial/email normalizado
+# y son mucho más altos que los límites per-IP. En login SOLO cuentan intentos
+# fallidos: un login correcto nunca se bloquea y resetea el contador, de modo que
+# un tercero no puede dejar sin acceso a una cuenta legítima. En reset (donde no
+# hay señal de acierto) actúan como tope laxo contra el flood de emails.
+#
+# Semántica: el umbral es el nº de eventos tolerados dentro de la ventana; el
+# evento N+1 es el primero en recibir 429 (`count > threshold`).
+AUTH_GLOBAL_FAILURE_WINDOW_SECONDS = env_config(
+    'AUTH_GLOBAL_FAILURE_WINDOW_SECONDS', default=900, cast=int
+)
+AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD = env_config(
+    'AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD', default=30, cast=int
+)
+AUTH_GLOBAL_RESET_THRESHOLD = env_config(
+    'AUTH_GLOBAL_RESET_THRESHOLD', default=10, cast=int
+)
 
 # Miniaturas responsivas de imágenes: en producción se generan en background
 THUMBNAIL_GENERATION_ASYNC = env_config('THUMBNAIL_GENERATION_ASYNC', default=not DEBUG, cast=bool)

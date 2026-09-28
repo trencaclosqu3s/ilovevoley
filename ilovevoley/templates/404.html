@@ -7,7 +7,8 @@
     <title>404 - Fuera de la cancha | I Love Voley</title>
     <link rel="icon" type="image/png" href="{% static 'images/logo_app.png' %}">
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
-    <style>
+    <script src="{% static 'js/csp_actions.js' %}"></script>
+    <style nonce="{{ csp_nonce }}">
         @keyframes bounce-volleyball {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-20px); }
@@ -99,7 +100,7 @@
                    class="bg-csj-purple hover:bg-csj-purple-dark text-white font-bold py-3 px-8 rounded-lg transition-colors text-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
                     🏠 Volver a Inicio
                 </a>
-                <button onclick="window.history.back()" 
+                <button data-action="back" 
                         class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-8 rounded-lg transition-colors text-center shadow hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
                     ← Página Anterior
                 </button>

@@ -204,3 +204,72 @@ class TeamRosterSeasonFilterTests(TestCase):
         )
         self.assertEqual(self._names(response), {'Actual Uno', 'Pasado Dos'})
 
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class TeamRosterStatsConsistencyTests(TestCase):
+    """Las estadísticas de cabecera reflejan la plantilla completa; los filtros
+    de posición/rol solo acotan las listas mostradas."""
+
+    def setUp(self):
+        from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club',
+            club_team_names={'1': 'Test Club'}, is_active=True,
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(
+            name='Test Club Senior', category=self.category,
+            federation_id='T-STATS', is_active=True,
+        )
+        self.season = Season.objects.create(
+            name='2026-27', start_year=2026, end_year=2027, is_current=True
+        )
+        setter = Person.objects.create(first_name='Ana', last_name='Coloca', organization=self.org)
+        libero = Person.objects.create(first_name='Bea', last_name='Libera', organization=self.org)
+        coach = Person.objects.create(first_name='Carla', last_name='Entrena', organization=self.org)
+        PlayerRole.objects.create(
+            person=setter, team=self.team, season=self.season,
+            position='setter', jersey_number=1,
+        )
+        PlayerRole.objects.create(
+            person=libero, team=self.team, season=self.season,
+            position='libero', jersey_number=2,
+        )
+        StaffRole.objects.create(
+            person=coach, team=self.team, season=self.season, role='head_coach',
+        )
+
+    def _get(self, query=''):
+        self.client.force_login(self.user)
+        return self.client.get(
+            reverse('teams:team_roster', args=[self.team.id]) + query,
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+    def test_stats_no_menguan_al_filtrar_por_posicion(self):
+        full = self._get()
+        filtered = self._get('?position=setter')
+        self.assertEqual(filtered.context['stats']['total_players'], 2)
+        self.assertEqual(
+            filtered.context['stats']['total_players'],
+            full.context['stats']['total_players'],
+        )
+        self.assertEqual(filtered.context['stats']['positions_covered'], 2)
+        self.assertEqual(len(filtered.context['player_roles']), 1)
+
+    def test_stats_no_menguan_al_filtrar_por_rol_de_staff(self):
+        full = self._get()
+        filtered = self._get('?role=delegate')
+        self.assertEqual(filtered.context['stats']['total_staff'], 1)
+        self.assertEqual(
+            filtered.context['stats']['total_staff'],
+            full.context['stats']['total_staff'],
+        )
+        self.assertEqual(len(filtered.context['staff_roles']), 0)
+        self.assertEqual(len(filtered.context['player_roles']), 2)
+

@@ -1,6 +1,21 @@
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+
+
+class HexToRgbChannelsTest(SimpleTestCase):
+    def test_expands_shorthand_and_full_hex(self):
+        from ilovevoley.core.tenant_utils import hex_to_rgb_channels
+
+        self.assertEqual(hex_to_rgb_channels('#112233'), '17 34 51')
+        self.assertEqual(hex_to_rgb_channels('#aBc'), '170 187 204')
+
+    def test_falls_back_on_missing_or_invalid_value(self):
+        from ilovevoley.core.tenant_utils import hex_to_rgb_channels
+
+        self.assertEqual(hex_to_rgb_channels(''), '155 127 191')
+        self.assertEqual(hex_to_rgb_channels('not-a-color'), '155 127 191')
+        self.assertEqual(hex_to_rgb_channels('#12345', '1 2 3'), '1 2 3')
 
 
 class TenantUtilsTest(TestCase):

@@ -9,9 +9,9 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'csj-purple': 'var(--brand, #9B7FBF)',
+        'csj-purple': 'rgb(var(--brand-rgb, 155 127 191) / <alpha-value>)',
         'csj-yellow': '#F4D47C',
-        'csj-purple-dark': 'var(--brand-dark, #7B5FA0)',
+        'csj-purple-dark': 'rgb(var(--brand-dark-rgb, 123 95 160) / <alpha-value>)',
         'csj-yellow-dark': '#E5C05A',
       },
     },

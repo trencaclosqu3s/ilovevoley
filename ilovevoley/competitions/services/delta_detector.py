@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from django.utils import timezone
 
 from ilovevoley.competitions.models import Match, MatchChangeLog
+from ilovevoley.competitions.services.notifications import notify_match_changes
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,14 @@ _LIFECYCLE_TRANSITIONS = {
     ('scheduled', 'in_progress'),
     ('scheduled', 'finished'),
     ('in_progress', 'finished'),
+}
+
+# El scraper marca withdrawn/reactiva partidos según la presencia de los equipos en la
+# federación. Ese vaivén no es una alteración real del calendario y no debe notificarse
+# por email (se sigue registrando en MatchChangeLog para auditoría). Ver #235.
+_NON_NOTIFIABLE_STATUS_TRANSITIONS = {
+    ('withdrawn', 'scheduled'),
+    ('scheduled', 'withdrawn'),
 }
 
 
@@ -57,6 +66,17 @@ def detect_and_record_match_changes(
         Lista de objetos MatchChangeLog generados.
     """
     changes: List[MatchChangeLog] = []
+    # Subconjunto que sí debe notificarse. Se decide aquí, con los valores crudos,
+    # para no depender de la representación de texto guardada en el log (que para
+    # fecha/sede pasa por _format_value).
+    notifiable_changes: List[MatchChangeLog] = []
+
+    def _record(change: MatchChangeLog, notifiable: bool = True) -> None:
+        """Acumula el log para auditoría y, si procede, para notificación."""
+        changes.append(change)
+        if notifiable:
+            notifiable_changes.append(change)
+
     now = timezone.now()
     limit = now + timedelta(days=7)
 
@@ -74,7 +94,7 @@ def detect_and_record_match_changes(
     if new_match_date and cur_match_date:
         # Considerar cambio si hay más de 60 segundos de diferencia
         if abs((new_match_date - cur_match_date).total_seconds()) >= 60:
-            changes.append(
+            _record(
                 MatchChangeLog(
                     match=match,
                     change_type='datetime',
@@ -97,7 +117,7 @@ def detect_and_record_match_changes(
             cur_val = (getattr(match, field_name, '') or '').strip()
             # Solo si el nuevo valor tiene contenido y es distinto del actual
             if new_val and new_val != cur_val:
-                changes.append(
+                _record(
                     MatchChangeLog(
                         match=match,
                         change_type=change_type,
@@ -113,7 +133,7 @@ def detect_and_record_match_changes(
         new_status = new_data.get('status')
         transition = (match.status, new_status)
         if new_status and new_status != match.status and transition not in _LIFECYCLE_TRANSITIONS:
-            changes.append(
+            _record(
                 MatchChangeLog(
                     match=match,
                     change_type='status',
@@ -121,7 +141,8 @@ def detect_and_record_match_changes(
                     old_value=match.status,
                     new_value=new_status,
                     is_last_minute=is_last_minute,
-                )
+                ),
+                notifiable=transition not in _NON_NOTIFIABLE_STATUS_TRANSITIONS,
             )
 
     # 4. Comprobar discrepancia de resultado (home_score, away_score)
@@ -131,7 +152,7 @@ def detect_and_record_match_changes(
             cur_score = getattr(match, score_field)
             # Solo si ya tenía un resultado previo y el nuevo resultado es diferente
             if new_score is not None and cur_score is not None and new_score != cur_score:
-                changes.append(
+                _record(
                     MatchChangeLog(
                         match=match,
                         change_type='score',
@@ -149,10 +170,12 @@ def detect_and_record_match_changes(
         )
 
         # Hook para notificaciones automáticas si hay cambios de última hora
-        last_minute_changes = [c for c in changes if c.is_last_minute and c.change_type in ['datetime', 'venue', 'status']]
+        last_minute_changes = [
+            c for c in notifiable_changes
+            if c.is_last_minute and c.change_type in ['datetime', 'venue', 'status']
+        ]
         if last_minute_changes:
             try:
-                from ilovevoley.competitions.services.notifications import notify_match_changes
                 notify_match_changes(last_minute_changes)
             except Exception as e:
                 logger.exception(f"No se pudieron despachar las notificaciones para el partido {match.id}: {e}")

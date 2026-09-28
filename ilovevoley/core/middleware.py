@@ -2,15 +2,17 @@ import ipaddress
 import logging
 import re
 from urllib.parse import urlsplit, urlunsplit
-from datetime import datetime, timedelta
+from datetime import timedelta
 from collections import defaultdict
 from django.http import Http404, HttpResponseNotFound
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.utils.csp import CSP
 from django.utils.html import strip_tags
 from django.core.cache import cache
 from django.shortcuts import redirect
+from django.utils import timezone
 from .email_utils import get_admin_emails
 from .tenant_utils import get_organization_by_slug
 
@@ -53,6 +55,29 @@ def sanitize_referer(referer: str) -> str:
     if parsed.scheme and parsed.netloc:
         return urlunsplit((parsed.scheme, parsed.netloc, sanitized_path, '', ''))
     return sanitized_path
+
+
+def is_ignorable_404(path: str) -> bool:
+    """True si la ruta es ruido de escáneres/bots y no debe contarse como 404.
+
+    Se usa ``search`` (no ``match``): algunos patrones deben casar en cualquier
+    segmento de la ruta (p. ej. ``/wp-``), no solo al principio.
+    """
+    return any(
+        pattern.search(path)
+        for pattern in getattr(settings, 'IGNORABLE_404_URLS', [])
+    )
+
+
+def day_cache_key(prefix: str, when=None) -> str:
+    """Clave de caché diaria del tracking de 404 en hora local de TIME_ZONE.
+
+    Centraliza el formato para que el middleware y los tests no diverjan. Convertir a
+    ``localtime`` evita que el corte del día ocurra a medianoche UTC mientras el resto
+    de la app opera en ``Europe/Madrid``.
+    """
+    local = timezone.localtime(when or timezone.now())
+    return f"{prefix}_{local.strftime('%Y%m%d')}"
 
 
 def _parse_ip(value):
@@ -181,6 +206,11 @@ class Error404TrackingMiddleware:
         """
         try:
             sanitized_url = sanitize_path(request.path)
+
+            # Ignorar ruido de bots/escáneres antes de contar, cachear o alertar
+            if is_ignorable_404(sanitized_url):
+                return
+
             # Obtener información del error
             error_data = {
                 'url': sanitized_url,
@@ -188,16 +218,16 @@ class Error404TrackingMiddleware:
                 'ip': get_client_ip(request),
                 'user_agent': request.META.get('HTTP_USER_AGENT', '')[:200],
                 'referer': sanitize_referer(request.META.get('HTTP_REFERER', '')),
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': timezone.now().isoformat(),
                 'user': str(request.user) if request.user.is_authenticated else 'Anonymous',
             }
 
             # Contador atómico diario de errores 404
-            daily_count_key = f"404_count_{datetime.now().strftime('%Y%m%d')}"
+            daily_count_key = day_cache_key('404_count')
             _atomic_incr(daily_count_key, timeout=60 * 60 * 48)
 
             # Guardar en cache para reporte diario
-            cache_key = f"404_errors_{datetime.now().strftime('%Y%m%d')}"
+            cache_key = day_cache_key('404_errors')
             errors_today = cache.get(cache_key, [])
             errors_today.append(error_data)
 
@@ -229,9 +259,9 @@ def send_404_daily_report():
         return False
     
     try:
-        # Obtener errores de ayer
-        yesterday = datetime.now() - timedelta(days=1)
-        cache_key = f"404_errors_{yesterday.strftime('%Y%m%d')}"
+        # Obtener errores de ayer (hora local)
+        yesterday = timezone.localtime(timezone.now()) - timedelta(days=1)
+        cache_key = day_cache_key('404_errors', yesterday)
         errors = cache.get(cache_key, [])
         
         if not errors:
@@ -243,7 +273,7 @@ def send_404_daily_report():
             grouped_errors[error['url']].append(error)
         
         # Preparar estadísticas
-        daily_count_key = f"404_count_{yesterday.strftime('%Y%m%d')}"
+        daily_count_key = day_cache_key('404_count', yesterday)
         daily_count = cache.get(daily_count_key)
         total_errors = daily_count if daily_count is not None else len(errors)
         unique_urls = len(grouped_errors)
@@ -295,8 +325,10 @@ def send_404_immediate_alert(request, threshold=10):
         if not admin_emails:
             return False
             
-        # Contar errores en la última hora usando incremento atómico
-        cache_key = f"404_count_{datetime.now().strftime('%Y%m%d_%H')}"
+        # Contar errores en la última hora usando incremento atómico (hora local).
+        # Clave con granularidad horaria (a diferencia de day_cache_key, que es diaria).
+        local_now = timezone.localtime(timezone.now())
+        cache_key = f"404_count_{local_now.strftime('%Y%m%d_%H')}"
         current_count = _atomic_incr(cache_key, timeout=60 * 60)
         
         # Si supera el umbral, enviar alerta
@@ -305,7 +337,7 @@ def send_404_immediate_alert(request, threshold=10):
 
             send_404_immediate_alert_task.delay(
                 current_count,
-                datetime.now().strftime('%H:00'),
+                local_now.strftime('%H:00'),
                 sanitize_path(request.path),
                 admin_emails,
             )
@@ -315,3 +347,42 @@ def send_404_immediate_alert(request, threshold=10):
     except Exception as e:
         logger.error(f"Error enviando alerta 404: {str(e)}")
         return False
+
+
+# CSP relajada para el panel de administración. Unfold/Alpine.js evalúan
+# expresiones con `new Function` y las plantillas del admin inyectan bloques
+# <script>/<style> sin nonce, por lo que no puede aplicarse la política
+# estricta del sitio público. Es una excepción acotada a /admin/ (solo staff).
+ADMIN_CSP = {
+    'default-src': [CSP.SELF],
+    'script-src': [CSP.SELF, CSP.UNSAFE_INLINE, CSP.UNSAFE_EVAL],
+    'style-src': [CSP.SELF, CSP.UNSAFE_INLINE],
+    'img-src': [CSP.SELF, 'data:', 'blob:'],
+    'font-src': [CSP.SELF, 'data:'],
+    'frame-src': [CSP.SELF],
+    'connect-src': [CSP.SELF],
+    'object-src': [CSP.NONE],
+    'base-uri': [CSP.SELF],
+    'form-action': [CSP.SELF],
+    'frame-ancestors': [CSP.NONE],
+}
+
+
+class AdminCSPMiddleware:
+    """Aplica una CSP relajada (Unfold/Alpine) a las rutas del admin.
+
+    Se registra justo después de ContentSecurityPolicyMiddleware: al procesar
+    la respuesta en orden inverso, este middleware sobrescribe la config antes
+    de que el middleware nativo construya la cabecera.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.admin_prefix = '/' + settings.ADMIN_URL.strip('/') + '/'
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if request.path.startswith(self.admin_prefix):
+            response._csp_config = ADMIN_CSP
+            response._csp_ro_config = None
+        return response

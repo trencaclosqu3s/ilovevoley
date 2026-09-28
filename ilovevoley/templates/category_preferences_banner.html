@@ -1,5 +1,5 @@
 {% if user.is_authenticated and not user.preferred_categories.exists %}
-<div class="bg-gradient-to-r from-purple-100 to-yellow-100 border-l-4 border-csj-purple rounded-lg p-4 mb-6 shadow-md">
+<div id="category-preferences-banner" class="bg-gradient-to-r from-purple-100 to-yellow-100 border-l-4 border-csj-purple rounded-lg p-4 mb-6 shadow-md">
     <div class="flex items-start">
         <div class="flex-shrink-0">
             <svg class="h-6 w-6 text-csj-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -21,7 +21,7 @@
                     </svg>
                     Configurar Ahora
                 </a>
-                <button onclick="this.closest('div').closest('div').closest('div').style.display='none'" class="inline-flex items-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition">
+                <button data-action="dismiss-closest" data-dismiss-selector="#category-preferences-banner" class="inline-flex items-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition">
                     Ahora no
                 </button>
             </div>

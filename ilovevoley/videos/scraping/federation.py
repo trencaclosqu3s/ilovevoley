@@ -266,14 +266,29 @@ class FederationScraper:
                     ).first()
 
                 if match:
+                    # Un partido withdrawn solo se reactiva cuando sus equipos vuelven a
+                    # aparecer en la federación (is_active la gestiona update_teams). El JSON
+                    # sirve los partidos como 'scheduled', así que por sí solo no debe
+                    # resucitar un partido retirado: era la otra mitad del vaivén (#235).
+                    # En cada scrape detect_withdrawn_teams() corre al final, después de
+                    # update_matches(), así que is_active refleja el estado de esta ejecución.
+                    # Si falta alguno de los dos equipos (dato incompleto), se mantiene
+                    # withdrawn en lugar de reactivar a ciegas.
+                    incoming_status = match_data['status']
+                    teams_still_active = bool(
+                        home_team and away_team and home_team.is_active and away_team.is_active
+                    )
+                    if match.status == 'withdrawn' and not teams_still_active:
+                        incoming_status = 'withdrawn'
+
                     # Detectar y registrar modificaciones federativas
-                    detect_and_record_match_changes(match, match_data)
+                    detect_and_record_match_changes(match, {**match_data, 'status': incoming_status})
 
                     # Actualizar partido existente
                     match.home_score = match_data['home_score']
 
                     match.away_score = match_data['away_score']
-                    match.status = match_data['status']
+                    match.status = incoming_status
                     match.venue = match_data.get('venue', '')
                     match.city = match_data.get('city', '')
                     match.referee1 = match_data.get('referee1', '')
@@ -339,14 +354,15 @@ class FederationScraper:
     
     @transaction.atomic
     def update_teams(self, teams_data: List[Dict[str, Any]]) -> Dict[str, Team]:
-        """Actualiza o crea equipos en la base de datos, detectando equipos retirados"""
+        """Actualiza o crea los equipos vistos en la federación.
+
+        La detección de retiradas no se hace aquí (un scrape parcial no es una foto
+        completa de la liga): ver ``detect_withdrawn_teams()``.
+        """
         team_objects = {}
-        current_federation_ids = set()
         
         # Procesar equipos encontrados en el scraping
         for team_data in teams_data:
-            current_federation_ids.add(team_data['federation_id'])
-            
             # Buscar equipo existente por federation_id primero
             team = Team.objects.filter(federation_id=team_data['federation_id']).first()
             
@@ -432,29 +448,49 @@ class FederationScraper:
                 league_category = self.league.categories.first()
                 logger.info(f"Created new team: {team.name} with category: {league_category}")
         
-        # DETECTAR EQUIPOS RETIRADOS: buscar equipos que participaban en esta liga pero ya no aparecen
-        if current_federation_ids:  # Solo si hay datos para comparar
-            # Obtener equipos que tenían partidos en esta liga pero ya no aparecen en el scraping
-            existing_teams_in_league = Team.objects.filter(
-                models.Q(home_matches__league=self.league) | models.Q(away_matches__league=self.league)
-            ).filter(is_active=True).distinct()
-            
-            withdrawn_teams = []
-            for team in existing_teams_in_league:
-                if team.federation_id not in current_federation_ids:
-                    team.is_active = False
-                    team.save()
-                    withdrawn_teams.append(team)
-                    logger.warning(
-                        f"Team marked as inactive (withdrawn): {team.name} "
-                        f"(federation_id: {team.federation_id}) - no longer appears in {self.league.name}"
-                    )
-            
-            if withdrawn_teams:
-                logger.info(f"Detected {len(withdrawn_teams)} withdrawn teams in {self.league.name}")
-                # Los partidos de estos equipos se marcarán como 'withdrawn' en update_matches()
-        
         return team_objects
+    
+    @transaction.atomic
+    def detect_withdrawn_teams(self, current_federation_ids) -> List[Team]:
+        """Marca como inactivos los equipos de la liga que ya no aparecen en la federación.
+
+        Se evalúa una sola vez por ejecución con el conjunto COMPLETO de equipos vistos
+        entre todos los endpoints o jornadas. Detectar la retirada por endpoint parcial
+        desactivaba equipos que simplemente no jugaban esa jornada, y esa alternancia
+        provocaba el vaivén withdrawn/scheduled y los avisos repetidos por el mismo
+        partido (#235).
+
+        Equipos y partidos se actualizan en la misma transacción para no dejar un equipo
+        inactivo con sus partidos aún programados si algo falla.
+
+        Args:
+            current_federation_ids: federation_ids vistos en toda la ejecución.
+
+        Returns:
+            Lista de equipos marcados como inactivos.
+        """
+        if not current_federation_ids:
+            return []
+
+        existing_teams_in_league = Team.objects.filter(
+            models.Q(home_matches__league=self.league) | models.Q(away_matches__league=self.league)
+        ).filter(is_active=True).distinct()
+
+        withdrawn_teams = list(
+            existing_teams_in_league.exclude(federation_id__in=current_federation_ids)
+        )
+
+        if withdrawn_teams:
+            Team.objects.filter(pk__in=[t.pk for t in withdrawn_teams]).update(is_active=False)
+            for team in withdrawn_teams:
+                logger.warning(
+                    f"Team marked as inactive (withdrawn): {team.name} "
+                    f"(federation_id: {team.federation_id}) - no longer appears in {self.league.name}"
+                )
+            logger.info(f"Detected {len(withdrawn_teams)} withdrawn teams in {self.league.name}")
+            self._mark_withdrawn_matches()
+
+        return withdrawn_teams
     
     def _normalize_team_name(self, name: str) -> str:
         """Normaliza nombres de equipos para comparación"""
@@ -777,35 +813,37 @@ class FederationScraper:
     def _mark_withdrawn_matches(self):
         """Marca como 'withdrawn' los partidos que involucran equipos inactivos"""
         # Encontrar partidos en esta liga que involucran equipos inactivos
-        withdrawn_matches = Match.objects.filter(
-            league=self.league,
-            status__in=['scheduled', 'postponed'],  # Solo marcar partidos que aún no han comenzado
-            is_friendly=False  # No marcar amistosos como retirados
-        ).filter(
-            models.Q(home_team__is_active=False) | models.Q(away_team__is_active=False)
+        withdrawn_matches = list(
+            Match.objects.filter(
+                league=self.league,
+                status__in=['scheduled', 'postponed'],  # Solo marcar partidos que aún no han comenzado
+                is_friendly=False  # No marcar amistosos como retirados
+            ).filter(
+                models.Q(home_team__is_active=False) | models.Q(away_team__is_active=False)
+            ).select_related('home_team', 'away_team')
         )
-        
-        count = 0
+
+        if not withdrawn_matches:
+            return
+
+        Match.objects.filter(
+            pk__in=[m.pk for m in withdrawn_matches]
+        ).update(status='withdrawn')
+
         for match in withdrawn_matches:
-            # Verificar que realmente hay un equipo inactivo involucrado
-            if not match.home_team.is_active or not match.away_team.is_active:
-                inactive_teams = []
-                if not match.home_team.is_active:
-                    inactive_teams.append(match.home_team.name)
-                if not match.away_team.is_active:
-                    inactive_teams.append(match.away_team.name)
-                
-                match.status = 'withdrawn'
-                match.save()
-                count += 1
-                
-                logger.warning(
-                    f"Match marked as withdrawn: {match.home_team.name} vs {match.away_team.name} "
-                    f"on {match.match_date.strftime('%d/%m/%Y')} - inactive teams: {', '.join(inactive_teams)}"
-                )
-        
-        if count > 0:
-            logger.info(f"Marked {count} matches as withdrawn in {self.league.name}")
+            # select_related recarga los equipos desde BD tras el bulk_update, así que
+            # is_active ya refleja el estado nuevo.
+            inactive_teams = [
+                team.name
+                for team in (match.home_team, match.away_team)
+                if not team.is_active
+            ]
+            logger.warning(
+                f"Match marked as withdrawn: {match.home_team.name} vs {match.away_team.name} "
+                f"on {match.match_date.strftime('%d/%m/%Y')} - inactive teams: {', '.join(inactive_teams)}"
+            )
+
+        logger.info(f"Marked {len(withdrawn_matches)} matches as withdrawn in {self.league.name}")
     
     def _is_empty_value(self, value) -> bool:
         """Determina si un valor está vacío o es None"""
@@ -925,6 +963,11 @@ class FederationScraper:
                 rounds_processed += 1
                 continue
         
+        # Retiradas: evaluar una sola vez con la unión de equipos de todas las jornadas
+        self.detect_withdrawn_teams(
+            {team.federation_id for team in all_teams.values() if team.federation_id}
+        )
+
         result_summary = {
             'status': 'success',
             'rounds_processed': rounds_processed,
@@ -1435,6 +1478,11 @@ class FederationScraper:
             except Exception as e:
                 logger.error(f"Error scraping endpoint {endpoint}: {e}")
                 results[endpoint.endpoint_type] = {'error': str(e)}
+
+        # Retiradas: evaluar una sola vez con la unión de equipos de todos los endpoints
+        self.detect_withdrawn_teams(
+            {team.federation_id for team in all_teams.values() if team.federation_id}
+        )
 
         return results
 
