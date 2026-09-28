@@ -257,21 +257,32 @@ class TeamAutocomplete {
         }
     }
     
+    async fetchTeams(query, categoryId, scope) {
+        const url = `{% url 'competitions:ajax_search_teams' %}?q=${encodeURIComponent(query)}&category_id=${categoryId}&scope=${scope}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        return data.teams;
+    }
+
     async search() {
         const query = this.searchInput.value.trim();
-        
+
         if (query.length < 2) {
             this.hideResults();
             return;
         }
-        
+
         const categoryId = this.categorySelect ? this.categorySelect.value : '';
-        
+
         try {
-            const response = await fetch(`{% url 'competitions:ajax_search_teams' %}?q=${encodeURIComponent(query)}&category_id=${categoryId}`);
-            const data = await response.json();
-            
-            this.displayResults(data.teams);
+            // Primero los equipos del propio club; los rivales externos solo
+            // aparecen si no hay coincidencias propias (modo explícito).
+            let teams = await this.fetchTeams(query, categoryId, 'tenant');
+            if (teams.length === 0) {
+                teams = await this.fetchTeams(query, categoryId, 'rival');
+            }
+
+            this.displayResults(teams);
         } catch (error) {
             console.error('Error buscando equipos:', error);
         }
@@ -301,7 +312,7 @@ class TeamAutocomplete {
 
             const detailEl = document.createElement('div');
             detailEl.className = 'autocomplete-item-detail';
-            detailEl.textContent = team.display;
+            detailEl.textContent = team.display || 'Equipo rival (otro club)';
 
             item.append(nameEl, detailEl);
             item.addEventListener('click', () => {

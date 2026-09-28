@@ -256,6 +256,33 @@ class CrossTenantAccessTests(TestCase):
                 role.refresh_from_db()
                 self.assertTrue(role.is_active)
 
+    def test_ajax_search_teams_scoped_to_tenant(self):
+        """El autocompletado de equipos no filtra equipos de otro club (#207)."""
+        self.client.force_login(self.manager_a)
+        response = self.client.get(
+            reverse('competitions:ajax_search_teams'),
+            {'q': 'Senior'}, HTTP_HOST=self.HOST_A,
+        )
+        self.assertEqual(response.status_code, 200)
+        names = {team['name'] for team in response.json()['teams']}
+        self.assertIn(self.team_a.name, names)
+        self.assertNotIn(self.team_b.name, names)
+
+    def test_ajax_search_teams_rival_mode_is_explicit_and_minimal(self):
+        """El modo rival es explícito y devuelve solo id/nombre, sin club (#207)."""
+        self.client.force_login(self.manager_a)
+        response = self.client.get(
+            reverse('competitions:ajax_search_teams'),
+            {'q': 'Team', 'scope': 'rival'}, HTTP_HOST=self.HOST_A,
+        )
+        self.assertEqual(response.status_code, 200)
+        teams = response.json()['teams']
+        names = {team['name'] for team in teams}
+        self.assertIn(self.team_b.name, names)
+        self.assertNotIn(self.team_a.name, names)
+        for team in teams:
+            self.assertEqual(set(team), {'id', 'name'})
+
     def test_image_moderation_list_excludes_other_tenant(self):
         self.client.force_login(self.staff_a)
         response = self.client.get(reverse('content:image_moderation'), HTTP_HOST=self.HOST_A)
