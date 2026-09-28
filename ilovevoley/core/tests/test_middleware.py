@@ -6,6 +6,7 @@ from django.core.cache import cache
 from django.http import HttpResponseNotFound
 from ilovevoley.core.middleware import (
     Error404TrackingMiddleware,
+    day_cache_key,
     get_client_ip,
     send_404_daily_report,
     send_404_immediate_alert,
@@ -180,16 +181,17 @@ class Error404TrackingMiddlewareTest(TestCase):
             '/favicon.ico',
         ]
 
-        with patch('ilovevoley.core.middleware.logger') as mock_logger:
+        with patch('ilovevoley.core.middleware.logger') as mock_logger, \
+                patch('ilovevoley.core.middleware._atomic_incr') as mock_incr, \
+                patch('ilovevoley.core.middleware.send_404_immediate_alert') as mock_alert:
             for path in scanner_paths:
                 request = self.factory.get(path)
                 request.user = AnonymousUser()
                 middleware(request)
 
         mock_logger.warning.assert_not_called()
-        today = datetime.now().strftime('%Y%m%d')
-        self.assertIsNone(cache.get(f'404_count_{today}'))
-        self.assertEqual(cache.get(f'404_errors_{today}', []), [])
+        mock_incr.assert_not_called()
+        mock_alert.assert_not_called()
 
     def test_404_middleware_does_not_ignore_media_uploads(self):
         """Un .log subido por el usuario no debe filtrarse por la regla de extensiones."""
@@ -199,9 +201,8 @@ class Error404TrackingMiddlewareTest(TestCase):
 
         middleware(request)
 
-        today = datetime.now().strftime('%Y%m%d')
-        self.assertEqual(cache.get(f'404_count_{today}'), 1)
-        errors = cache.get(f'404_errors_{today}', [])
+        self.assertEqual(cache.get(day_cache_key('404_count')), 1)
+        errors = cache.get(day_cache_key('404_errors'), [])
         self.assertEqual(errors[0]['url'], '/media/diagnostico.log')
 
     def test_404_middleware_uses_atomic_increment(self):

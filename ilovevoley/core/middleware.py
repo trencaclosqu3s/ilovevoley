@@ -64,6 +64,14 @@ def is_ignorable_404(path: str) -> bool:
     )
 
 
+def day_cache_key(prefix: str) -> str:
+    """Clave de caché diaria del tracking de 404 (p. ej. ``404_errors_20260928``).
+
+    Centraliza el formato para que el middleware y los tests no diverjan.
+    """
+    return f"{prefix}_{datetime.now().strftime('%Y%m%d')}"
+
+
 def _parse_ip(value):
     """Normaliza una entrada de X-Forwarded-For; devuelve None si no es una IP."""
     if not value:
@@ -207,11 +215,11 @@ class Error404TrackingMiddleware:
             }
 
             # Contador atómico diario de errores 404
-            daily_count_key = f"404_count_{datetime.now().strftime('%Y%m%d')}"
+            daily_count_key = day_cache_key('404_count')
             _atomic_incr(daily_count_key, timeout=60 * 60 * 48)
 
             # Guardar en cache para reporte diario
-            cache_key = f"404_errors_{datetime.now().strftime('%Y%m%d')}"
+            cache_key = day_cache_key('404_errors')
             errors_today = cache.get(cache_key, [])
             errors_today.append(error_data)
 
