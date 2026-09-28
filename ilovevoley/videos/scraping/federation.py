@@ -271,7 +271,10 @@ class FederationScraper:
                     # sirve los partidos como 'scheduled', así que por sí solo no debe
                     # resucitar un partido retirado: era la otra mitad del vaivén (#235).
                     incoming_status = match_data['status']
-                    if match.status == 'withdrawn' and not (home_team.is_active and away_team.is_active):
+                    teams_still_active = bool(
+                        home_team and away_team and home_team.is_active and away_team.is_active
+                    )
+                    if match.status == 'withdrawn' and not teams_still_active:
                         incoming_status = 'withdrawn'
                     match_data = {**match_data, 'status': incoming_status}
 

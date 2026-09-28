@@ -65,6 +65,16 @@ def detect_and_record_match_changes(
         Lista de objetos MatchChangeLog generados.
     """
     changes: List[MatchChangeLog] = []
+    # Subconjunto que sí debe notificarse. Se decide aquí, con los valores crudos,
+    # para no depender de la representación de texto guardada en el log (que para
+    # fecha/sede pasa por _format_value).
+    notifiable_changes: List[MatchChangeLog] = []
+
+    def _record(change: MatchChangeLog, notifiable: bool = True) -> None:
+        changes.append(change)
+        if notifiable:
+            notifiable_changes.append(change)
+
     now = timezone.now()
     limit = now + timedelta(days=7)
 
@@ -82,7 +92,7 @@ def detect_and_record_match_changes(
     if new_match_date and cur_match_date:
         # Considerar cambio si hay más de 60 segundos de diferencia
         if abs((new_match_date - cur_match_date).total_seconds()) >= 60:
-            changes.append(
+            _record(
                 MatchChangeLog(
                     match=match,
                     change_type='datetime',
@@ -105,7 +115,7 @@ def detect_and_record_match_changes(
             cur_val = (getattr(match, field_name, '') or '').strip()
             # Solo si el nuevo valor tiene contenido y es distinto del actual
             if new_val and new_val != cur_val:
-                changes.append(
+                _record(
                     MatchChangeLog(
                         match=match,
                         change_type=change_type,
@@ -121,7 +131,7 @@ def detect_and_record_match_changes(
         new_status = new_data.get('status')
         transition = (match.status, new_status)
         if new_status and new_status != match.status and transition not in _LIFECYCLE_TRANSITIONS:
-            changes.append(
+            _record(
                 MatchChangeLog(
                     match=match,
                     change_type='status',
@@ -129,7 +139,8 @@ def detect_and_record_match_changes(
                     old_value=match.status,
                     new_value=new_status,
                     is_last_minute=is_last_minute,
-                )
+                ),
+                notifiable=transition not in _NON_NOTIFIABLE_STATUS_TRANSITIONS,
             )
 
     # 4. Comprobar discrepancia de resultado (home_score, away_score)
@@ -139,7 +150,7 @@ def detect_and_record_match_changes(
             cur_score = getattr(match, score_field)
             # Solo si ya tenía un resultado previo y el nuevo resultado es diferente
             if new_score is not None and cur_score is not None and new_score != cur_score:
-                changes.append(
+                _record(
                     MatchChangeLog(
                         match=match,
                         change_type='score',
@@ -158,13 +169,8 @@ def detect_and_record_match_changes(
 
         # Hook para notificaciones automáticas si hay cambios de última hora
         last_minute_changes = [
-            c for c in changes
-            if c.is_last_minute
-            and c.change_type in ['datetime', 'venue', 'status']
-            and not (
-                c.change_type == 'status'
-                and (c.old_value, c.new_value) in _NON_NOTIFIABLE_STATUS_TRANSITIONS
-            )
+            c for c in notifiable_changes
+            if c.is_last_minute and c.change_type in ['datetime', 'venue', 'status']
         ]
         if last_minute_changes:
             try:
