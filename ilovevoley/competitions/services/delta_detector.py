@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from django.utils import timezone
 
 from ilovevoley.competitions.models import Match, MatchChangeLog
+from ilovevoley.competitions.services.notifications import notify_match_changes
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +175,6 @@ def detect_and_record_match_changes(
         ]
         if last_minute_changes:
             try:
-                from ilovevoley.competitions.services.notifications import notify_match_changes
                 notify_match_changes(last_minute_changes)
             except Exception as e:
                 logger.exception(f"No se pudieron despachar las notificaciones para el partido {match.id}: {e}")

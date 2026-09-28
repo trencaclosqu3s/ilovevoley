@@ -276,10 +276,9 @@ class FederationScraper:
                     )
                     if match.status == 'withdrawn' and not teams_still_active:
                         incoming_status = 'withdrawn'
-                    match_data = {**match_data, 'status': incoming_status}
 
                     # Detectar y registrar modificaciones federativas
-                    detect_and_record_match_changes(match, match_data)
+                    detect_and_record_match_changes(match, {**match_data, 'status': incoming_status})
 
                     # Actualizar partido existente
                     match.home_score = match_data['home_score']
