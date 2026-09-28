@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import re
 from pathlib import Path
 from decouple import config as env_config
 from django.templatetags.static import static
@@ -406,6 +407,23 @@ MATCH_CHANGE_NOTIFY_STAFF_ENABLED = env_config('MATCH_CHANGE_NOTIFY_STAFF_ENABLE
 # Copia global para superusuarios, para poder revisar los avisos de todos los tenants.
 MATCH_CHANGE_NOTIFY_SUPERUSERS = env_config('MATCH_CHANGE_NOTIFY_SUPERUSERS', default=True, cast=bool)
 MATCH_CHANGE_TEST_RECIPIENT = env_config('MATCH_CHANGE_TEST_RECIPIENT', default='')
+
+# Rutas ignoradas por el tracking de 404: escáneres de vulnerabilidades y bots que piden
+# rutas inexistentes (WordPress, phpMyAdmin, dotfiles...). No cuentan para el reporte
+# diario ni para la alerta inmediata. El lookahead de /media/ preserva los uploads de
+# usuario, que no tienen restricción de extensión (p. ej. un .log de diagnóstico).
+IGNORABLE_404_URLS = [
+    re.compile(r'^(?!/media/).*\.(php\d?|cgi|asp|aspx|jsp|action|do|env|ini|sql|bak|old|swp|log|yml|yaml)$', re.I),
+    re.compile(r'^/phpmyadmin/', re.I),
+    re.compile(r'/(wp-|wordpress)', re.I),
+    re.compile(r'^/\.'),  # dotfiles: /.env, /.git/config, /.aws/credentials, /.DS_Store...
+    re.compile(
+        r'^/(cgi-bin|vendor|actuator|owa|ecp|autodiscover|remote|boaform|hnap1|solr|jenkins|manager/html'
+        r'|console|telescope|debug|_profiler|laravel|druid|geoserver|webui|sdk|pma|mysql|myadmin)(/|$)',
+        re.I,
+    ),
+    re.compile(r'^/favicon\.ico$'),
+]
 
 # Celery Configuration
 # Bases lógicas de Redis separadas: /0 broker, /1 resultados, /2 caché de Django.

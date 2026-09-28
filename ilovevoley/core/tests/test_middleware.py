@@ -166,6 +166,43 @@ class Error404TrackingMiddlewareTest(TestCase):
         self.assertNotIn('token999', errors[0]['referer'])
         self.assertEqual(errors[0]['referer'], 'https://ilovevoley.es/moderate/user/[REDACTED]/')
 
+    def test_404_middleware_ignores_scanner_paths(self):
+        """El ruido de escáneres/bots no cuenta, no se cachea ni se alerta (#237)."""
+        middleware = Error404TrackingMiddleware(lambda r: HttpResponseNotFound())
+        scanner_paths = [
+            '/wp-login.php',
+            '/wordpress/wp-admin/setup-config.php',
+            '/phpmyadmin/index.php',
+            '/.env',
+            '/.git/config',
+            '/cgi-bin/test.cgi',
+            '/favicon.ico',
+        ]
+
+        with patch('ilovevoley.core.middleware.logger') as mock_logger:
+            for path in scanner_paths:
+                request = self.factory.get(path)
+                request.user = type('AnonymousUser', (), {'is_authenticated': False})()
+                middleware(request)
+
+        mock_logger.warning.assert_not_called()
+        today = datetime.now().strftime('%Y%m%d')
+        self.assertIsNone(cache.get(f'404_count_{today}'))
+        self.assertEqual(cache.get(f'404_errors_{today}', []), [])
+
+    def test_404_middleware_does_not_ignore_media_uploads(self):
+        """Un .log subido por el usuario no debe filtrarse por la regla de extensiones."""
+        middleware = Error404TrackingMiddleware(lambda r: HttpResponseNotFound())
+        request = self.factory.get('/media/diagnostico.log')
+        request.user = type('AnonymousUser', (), {'is_authenticated': False})()
+
+        middleware(request)
+
+        today = datetime.now().strftime('%Y%m%d')
+        self.assertEqual(cache.get(f'404_count_{today}'), 1)
+        errors = cache.get(f'404_errors_{today}', [])
+        self.assertEqual(errors[0]['url'], '/media/diagnostico.log')
+
     def test_404_middleware_uses_atomic_increment(self):
         middleware = Error404TrackingMiddleware(lambda r: HttpResponseNotFound())
         request = self.factory.get('/not-found-page/')

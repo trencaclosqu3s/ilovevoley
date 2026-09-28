@@ -56,6 +56,14 @@ def sanitize_referer(referer: str) -> str:
     return sanitized_path
 
 
+def is_ignorable_404(path: str) -> bool:
+    """True si la ruta es ruido de escáneres/bots y no debe contarse como 404."""
+    return any(
+        pattern.search(path)
+        for pattern in getattr(settings, 'IGNORABLE_404_URLS', [])
+    )
+
+
 def _parse_ip(value):
     """Normaliza una entrada de X-Forwarded-For; devuelve None si no es una IP."""
     if not value:
@@ -182,6 +190,11 @@ class Error404TrackingMiddleware:
         """
         try:
             sanitized_url = sanitize_path(request.path)
+
+            # Ignorar ruido de bots/escáneres antes de contar, cachear o alertar
+            if is_ignorable_404(sanitized_url):
+                return
+
             # Obtener información del error
             error_data = {
                 'url': sanitized_url,
