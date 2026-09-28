@@ -1,3 +1,6 @@
+import logging
+
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -110,17 +113,53 @@ def get_calendar_token(request):
 from allauth.account import views as allauth_views
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
+from django_ratelimit.exceptions import Ratelimited
 from ilovevoley.core.ratelimit_utils import (
+    credential_fingerprint,
+    normalize_credential,
     ratelimit_post_email_key,
     ratelimit_post_login_key,
+    record_global_failure,
+    reset_global_failures,
 )
+from ilovevoley.core.views import custom_429
+
+logger = logging.getLogger(__name__)
 
 
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 @method_decorator(ratelimit(key=ratelimit_post_login_key, rate='5/m', method='POST', block=True), name='post')
 class RatelimitedLoginView(allauth_views.LoginView):
-    """Inicio de sesión protegido contra fuerza bruta por IP y por usuario/credencial."""
-    pass
+    """
+    Inicio de sesión protegido contra fuerza bruta por IP y por usuario/credencial.
+
+    Además del límite per-IP + credencial (PR #200, que evita el DoS de cuenta),
+    un contador global por credencial acota la fuerza bruta distribuida desde
+    muchas IPs (#202). El contador solo se alimenta de intentos fallidos y se
+    resetea con un login correcto: un tercero nunca puede dejar sin acceso a la
+    cuenta, por mucho que reparta fallos entre IPs.
+    """
+
+    def form_invalid(self, form):
+        credential = normalize_credential(self.request.POST.get('login'))
+        if credential:
+            count = record_global_failure('login', credential)
+            # Se toleran hasta AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD fallos; a
+            # partir del siguiente (N+1) los intentos fallidos reciben 429.
+            if count > settings.AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD:
+                logger.warning(
+                    "auth.global_login_threshold_exceeded credential_fp=%s count=%s",
+                    credential_fingerprint(credential),
+                    count,
+                )
+                return custom_429(self.request, exception=Ratelimited())
+        return super().form_invalid(form)
+
+    def form_valid(self, form):
+        credential = normalize_credential(self.request.POST.get('login'))
+        if credential:
+            reset_global_failures('login', credential)
+        return super().form_valid(form)
 
 
 @method_decorator(ratelimit(key='ip', rate='3/m', method='POST', block=True), name='post')
@@ -132,8 +171,34 @@ class RatelimitedSignupView(allauth_views.SignupView):
 @method_decorator(ratelimit(key='ip', rate='3/m', method='POST', block=True), name='post')
 @method_decorator(ratelimit(key=ratelimit_post_email_key, rate='3/m', method='POST', block=True), name='post')
 class RatelimitedPasswordResetView(allauth_views.PasswordResetView):
-    """Solicitud de recuperación de contraseña limitada por IP y por email destino."""
-    pass
+    """
+    Solicitud de recuperación de contraseña limitada por IP y por email destino.
+
+    Un tope global por email (#202) frena el flood distribuido de emails de reset
+    desde muchas IPs. Al no existir señal de "acierto" en este flujo, toda
+    petición cuenta: se prioriza acotar el envío masivo de correos
+    (AUTH_GLOBAL_RESET_THRESHOLD por AUTH_GLOBAL_FAILURE_WINDOW_SECONDS, más
+    estricto en volumen que el umbral de login) aunque el coste sea que un
+    tercero pueda retrasar el reset de una víctima durante la ventana.
+    """
+
+    def form_valid(self, form):
+        # La comprobación debe preceder SIEMPRE a super(): allauth dispara el
+        # envío del email dentro de su form_valid, así que solo interceptando
+        # antes se evita enviar correo en las peticiones bloqueadas.
+        email = normalize_credential(form.cleaned_data.get('email'))
+        if email:
+            # En reset no hay señal de acierto: TODA petición válida cuenta
+            # (también las legítimas), por eso el umbral es bajo en volumen.
+            count = record_global_failure('reset', email)
+            if count > settings.AUTH_GLOBAL_RESET_THRESHOLD:
+                logger.warning(
+                    "auth.global_reset_threshold_exceeded email_fp=%s count=%s",
+                    credential_fingerprint(email),
+                    count,
+                )
+                return custom_429(self.request, exception=Ratelimited())
+        return super().form_valid(form)
 
 
 @method_decorator(ratelimit(key='ip', rate='3/m', method='POST', block=True), name='post')

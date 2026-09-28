@@ -1,6 +1,10 @@
+from django.contrib.auth import get_user_model
+from django.core import mail
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
+
+from ilovevoley.core.ratelimit_utils import global_failure_count
 
 
 @override_settings(
@@ -183,3 +187,118 @@ class AuthRateLimitingTests(TestCase):
             REMOTE_ADDR='198.51.100.80',
         )
         self.assertNotEqual(fresh_ip_response.status_code, 429)
+
+
+@override_settings(
+    RATELIMIT_ENABLE=True,
+    RATELIMIT_USE_CACHE='default',
+    AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD=3,
+    AUTH_GLOBAL_RESET_THRESHOLD=3,
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+)
+class GlobalAuthThresholdTests(TestCase):
+    """Complemento de fuerza bruta distribuida (#202): umbral global por
+    credencial sobre intentos fallidos, sin reabrir el DoS de cuenta."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_login_distributed_few_attempts_not_globally_blocked(self):
+        login_url = reverse('account_login')
+
+        # 3 fallos desde 3 IPs = umbral exacto: nadie bloqueado globalmente.
+        for i in range(3):
+            response = self.client.post(
+                login_url,
+                {'login': 'targeted_victim', 'password': 'wrongpassword'},
+                REMOTE_ADDR=f'198.51.100.{101 + i}',
+            )
+            self.assertNotEqual(response.status_code, 429)
+
+        # El 4º fallo, aunque venga de una IP nueva, supera el umbral global.
+        blocked_response = self.client.post(
+            login_url,
+            {'login': 'targeted_victim', 'password': 'wrongpassword'},
+            REMOTE_ADDR='198.51.100.104',
+        )
+        self.assertEqual(blocked_response.status_code, 429)
+
+    def test_login_correct_password_bypasses_global_threshold(self):
+        """Un tercero no puede dejar sin acceso a la cuenta: el login correcto
+        siempre pasa y resetea el contador global de fallos."""
+        User = get_user_model()
+        User.objects.create_user(
+            username='targeted_victim',
+            email='targeted_victim@example.com',
+            password='correctpassword',
+        )
+        login_url = reverse('account_login')
+
+        # Saturar el contador global de fallos desde varias IPs.
+        for i in range(4):
+            self.client.post(
+                login_url,
+                {'login': 'targeted_victim', 'password': 'wrongpassword'},
+                REMOTE_ADDR=f'198.51.100.{110 + i}',
+            )
+
+        # Confirmar que el contador está bloqueando de verdad: un fallo extra
+        # desde una IP nueva ya recibe 429 (si no, el test pasaría por no haber
+        # superado nunca el umbral).
+        throttled = self.client.post(
+            login_url,
+            {'login': 'targeted_victim', 'password': 'wrongpassword'},
+            REMOTE_ADDR='198.51.100.119',
+        )
+        self.assertEqual(throttled.status_code, 429)
+        self.assertGreater(global_failure_count('login', 'targeted_victim'), 3)
+
+        # El login correcto desde una IP nueva no se bloquea.
+        success = self.client.post(
+            login_url,
+            {'login': 'targeted_victim', 'password': 'correctpassword'},
+            REMOTE_ADDR='198.51.100.120',
+        )
+        self.assertNotEqual(success.status_code, 429)
+
+        # Y el contador quedó a cero, no solo por debajo del umbral.
+        self.assertEqual(global_failure_count('login', 'targeted_victim'), 0)
+
+        # Un fallo posterior vuelve a contar desde 1.
+        after_reset = self.client.post(
+            login_url,
+            {'login': 'targeted_victim', 'password': 'wrongpassword'},
+            REMOTE_ADDR='198.51.100.121',
+        )
+        self.assertNotEqual(after_reset.status_code, 429)
+
+    def test_password_reset_global_threshold_stops_distributed_flood(self):
+        User = get_user_model()
+        User.objects.create_user(
+            username='targeted_victim',
+            email='targeted_victim@example.com',
+            password='correctpassword',
+        )
+        reset_url = reverse('account_reset_password')
+        target_email = 'targeted_victim@example.com'
+
+        for i in range(3):
+            response = self.client.post(
+                reset_url,
+                {'email': target_email},
+                REMOTE_ADDR=f'198.51.100.{130 + i}',
+            )
+            self.assertNotEqual(response.status_code, 429)
+
+        emails_sent = len(mail.outbox)
+        self.assertEqual(emails_sent, 3, "cada solicitud válida envía un email")
+
+        blocked_response = self.client.post(
+            reset_url,
+            {'email': target_email},
+            REMOTE_ADDR='198.51.100.140',
+        )
+        self.assertEqual(blocked_response.status_code, 429)
+        # La petición bloqueada no debe enviar el email: la comprobación del
+        # umbral precede al form_valid de allauth.
+        self.assertEqual(len(mail.outbox), emails_sent)

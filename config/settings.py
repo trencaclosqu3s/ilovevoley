@@ -107,6 +107,23 @@ ACCOUNT_SESSION_REMEMBER = None
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 
+# Rate limiting propio de allauth. Por defecto añade un tramo `/key` que bloquea
+# globalmente la cuenta (login) o el email (reset) tras pocos fallos y que se
+# evalúa ANTES de autenticar, por lo que también frena la contraseña correcta:
+# un tercero puede dejar sin acceso a la víctima (DoS de cuenta). #202 lo
+# sustituye por el contador global de solo-fallos de `ratelimit_utils` (nunca
+# bloquea un login correcto) y por el tope laxo de reset, conservando los tramos
+# por IP de allauth como capa gruesa.
+#
+# ACCOUNT_RATE_LIMITS se fusiona sobre los defaults de allauth
+# (`ret.update(ACCOUNT_RATE_LIMITS)` en app_settings.RATE_LIMITS), así que
+# declarar solo estas dos acciones NO borra el resto (signup, login, etc.):
+# únicamente se les quita el tramo `/key`.
+ACCOUNT_RATE_LIMITS = {
+    'login_failed': '10/m/ip',
+    'reset_password': '20/m/ip',
+}
+
 # Configurar qué mensajes de allauth mostrar
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 
@@ -444,6 +461,26 @@ RATELIMIT_ENABLE = env_config('RATELIMIT_ENABLE', default=True, cast=bool)
 RATELIMIT_USE_CACHE = 'default'
 RATELIMIT_VIEW = 'ilovevoley.core.views.custom_429'
 RATELIMIT_IP_META_KEY = 'ilovevoley.core.ratelimit_utils.get_client_ip'
+
+# Umbral global complementario para fuerza bruta distribuida (#202).
+# El límite per-IP + credencial no acota un spray repartido entre muchas IPs.
+# Estos contadores viven en caché (Redis) keyed por credencial/email normalizado
+# y son mucho más altos que los límites per-IP. En login SOLO cuentan intentos
+# fallidos: un login correcto nunca se bloquea y resetea el contador, de modo que
+# un tercero no puede dejar sin acceso a una cuenta legítima. En reset (donde no
+# hay señal de acierto) actúan como tope laxo contra el flood de emails.
+#
+# Semántica: el umbral es el nº de eventos tolerados dentro de la ventana; el
+# evento N+1 es el primero en recibir 429 (`count > threshold`).
+AUTH_GLOBAL_FAILURE_WINDOW_SECONDS = env_config(
+    'AUTH_GLOBAL_FAILURE_WINDOW_SECONDS', default=900, cast=int
+)
+AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD = env_config(
+    'AUTH_GLOBAL_LOGIN_FAILURE_THRESHOLD', default=30, cast=int
+)
+AUTH_GLOBAL_RESET_THRESHOLD = env_config(
+    'AUTH_GLOBAL_RESET_THRESHOLD', default=10, cast=int
+)
 
 # Miniaturas responsivas de imágenes: en producción se generan en background
 THUMBNAIL_GENERATION_ASYNC = env_config('THUMBNAIL_GENERATION_ASYNC', default=not DEBUG, cast=bool)
