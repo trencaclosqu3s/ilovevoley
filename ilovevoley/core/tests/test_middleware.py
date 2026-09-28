@@ -203,6 +203,16 @@ class Error404TrackingMiddlewareTest(TestCase):
         errors = cache.get(day_cache_key('404_errors'), [])
         self.assertEqual(errors[0]['url'], '/media/diagnostico.log')
 
+    def test_404_middleware_does_not_ignore_wordpress_substring(self):
+        """Una ruta legítima que contenga 'wordpress' en un segmento no debe silenciarse."""
+        middleware = Error404TrackingMiddleware(lambda r: HttpResponseNotFound())
+        request = self.factory.get('/api/wordpress-bridge/v2')
+        request.user = AnonymousUser()
+
+        middleware(request)
+
+        self.assertEqual(cache.get(day_cache_key('404_count')), 1)
+
     def test_404_middleware_uses_atomic_increment(self):
         middleware = Error404TrackingMiddleware(lambda r: HttpResponseNotFound())
         request = self.factory.get('/not-found-page/')

@@ -416,7 +416,7 @@ MATCH_CHANGE_TEST_RECIPIENT = env_config('MATCH_CHANGE_TEST_RECIPIENT', default=
 IGNORABLE_404_URLS = [
     re.compile(r'^(?!/media/).*\.(php\d?|cgi|asp|aspx|jsp|action|do|env|ini|sql|bak|old|swp|log|yml|yaml)$', re.I),
     re.compile(r'^/phpmyadmin/', re.I),
-    re.compile(r'/(wp-|wordpress)', re.I),
+    re.compile(r'/(?:wp-[^/]*|wordpress)(?:/|$)', re.I),
     re.compile(r'^/\.'),  # dotfiles: /.env, /.git/config, /.aws/credentials, /.DS_Store...
     re.compile(
         r'^/(cgi-bin|vendor|actuator|owa|ecp|autodiscover|remote|boaform|hnap1|solr|jenkins|manager/html'
