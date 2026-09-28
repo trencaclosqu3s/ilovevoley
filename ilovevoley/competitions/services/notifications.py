@@ -25,37 +25,42 @@ def _superuser_emails() -> List[str]:
     )
 
 
-def _team_notifications_enabled(team) -> bool:
-    """Avisos activados para el club del equipo.
+def _clubs_with_notifications_disabled(club_ids) -> set:
+    """Clubes cuyas organizaciones tienen todas los avisos desactivados.
 
-    Un club sin organizaciones vinculadas no tiene configuración, así que no se
-    silencia. Si todas sus organizaciones tienen los avisos desactivados, el equipo
-    no genera avisos.
+    Una sola consulta para todos los clubes del partido. Un club sin organizaciones
+    vinculadas no aparece aquí: no tiene configuración que lo silencie.
     """
-    club = getattr(team, 'club', None)
-    if club is None:
-        return True
-    orgs = list(club.organizations.all())
-    return not orgs or any(org.notify_match_changes for org in orgs)
+    from ilovevoley.core.models import Organization
+
+    flags_by_club = defaultdict(list)
+    if club_ids:
+        for club_id, enabled in (
+            Organization.objects
+            .filter(club_id__in=club_ids)
+            .values_list('club_id', 'notify_match_changes')
+        ):
+            flags_by_club[club_id].append(enabled)
+
+    return {club_id for club_id, flags in flags_by_club.items() if not any(flags)}
 
 
 def get_recipients_for_match(match: Match) -> List[str]:
     """
     Obtiene la lista de emails destinatarios para un partido con cambios.
-    
+
     Respeta el flag de rollout progresivo MATCH_CHANGE_NOTIFY_STAFF_ENABLED:
-    - Si es False: envía únicamente a MATCH_CHANGE_TEST_RECIPIENT (y a los superusuarios).
+    - Si es False: envía únicamente a MATCH_CHANGE_TEST_RECIPIENT (y a los superusuarios
+      si MATCH_CHANGE_NOTIFY_SUPERUSERS está activo).
     - Si es True: busca delegados y entrenadores de los equipos con avisos activos, con
-      fallback a managers del club, más una copia global a los superusuarios
-      (MATCH_CHANGE_NOTIFY_SUPERUSERS).
+      fallback a managers del club, más una copia global a los superusuarios.
     """
     notify_staff_enabled = getattr(settings, 'MATCH_CHANGE_NOTIFY_STAFF_ENABLED', False)
     test_recipient = getattr(settings, 'MATCH_CHANGE_TEST_RECIPIENT', None)
-    superuser_emails = set(_superuser_emails())
+    notify_superusers = getattr(settings, 'MATCH_CHANGE_NOTIFY_SUPERUSERS', True)
+    superuser_emails = set(_superuser_emails()) if notify_superusers else set()
 
     if not notify_staff_enabled:
-        # En pruebas el destinatario es únicamente el de test, pero los superusuarios
-        # mantienen su copia global (es el propio admin revisando, no un club).
         recipients = {test_recipient} if test_recipient else set()
         return sorted(recipients | superuser_emails)
 
@@ -63,12 +68,16 @@ def get_recipients_for_match(match: Match) -> List[str]:
     from ilovevoley.rosters.models import StaffRole
     from ilovevoley.users.models import Membership
 
-    recipients = set(superuser_emails) if getattr(settings, 'MATCH_CHANGE_NOTIFY_SUPERUSERS', True) else set()
+    recipients = set(superuser_emails)
     teams = [t for t in (match.home_team, match.away_team) if t]
 
+    # Clubes que han desactivado los avisos desde su organización (una sola consulta)
+    disabled_clubs = _clubs_with_notifications_disabled(
+        {t.club_id for t in teams if t.club_id}
+    )
+
     for team in teams:
-        # El club puede haber desactivado los avisos desde su organización
-        if not _team_notifications_enabled(team):
+        if team.club_id in disabled_clubs:
             continue
 
         team_recipients = set()

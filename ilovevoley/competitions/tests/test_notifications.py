@@ -163,9 +163,46 @@ class MatchChangeNotificationsTest(TestCase):
 
     def test_team_without_club_still_notified(self):
         """Un equipo sin club vinculado no tiene configuración que lo silencie (#236)."""
-        from ilovevoley.competitions.services.notifications import _team_notifications_enabled
-        team = Team.objects.create(name='SELECCIÓN', federation_id='t-sel', club=None)
-        self.assertTrue(_team_notifications_enabled(team))
+        team_no_club = Team.objects.create(name='SELECCIÓN', federation_id='t-sel')
+        person = Person.objects.create(
+            first_name='Sele', last_name='Delegat',
+            email='delegat@seleccion.com', organization=self.org_a,
+        )
+        StaffRole.objects.create(
+            person=person, team=team_no_club, role='delegate',
+            season=self.season, is_active=True,
+        )
+        match = Match.objects.create(
+            league=self.league, home_team=team_no_club, away_team=self.team_b,
+            match_date=timezone.now() + timedelta(days=2), venue='Pabellón S',
+        )
+        log = MatchChangeLog.objects.create(
+            match=match, change_type='venue', field_name='venue',
+            old_value='A', new_value='B', is_last_minute=True,
+        )
+
+        with override_settings(MATCH_CHANGE_NOTIFY_STAFF_ENABLED=True):
+            notify_match_changes([log])
+
+        recipients = mail.outbox[0].to + mail.outbox[0].bcc
+        self.assertIn('delegat@seleccion.com', recipients)
+
+    def test_superuser_flag_off_in_test_mode_sends_only_test_recipient(self):
+        """MATCH_CHANGE_NOTIFY_SUPERUSERS=False también aplica en modo pruebas (#236)."""
+        User.objects.create_superuser(username='root2', email='root2@isitech.es', password='x')
+        log = MatchChangeLog.objects.create(
+            match=self.match, change_type='venue', field_name='venue',
+            old_value='A', new_value='B', is_last_minute=True,
+        )
+
+        with override_settings(
+            MATCH_CHANGE_NOTIFY_STAFF_ENABLED=False,
+            MATCH_CHANGE_NOTIFY_SUPERUSERS=False,
+            MATCH_CHANGE_TEST_RECIPIENT='test_admin@isitech.es',
+        ):
+            notify_match_changes([log])
+
+        self.assertEqual(mail.outbox[0].to, ['test_admin@isitech.es'])
 
     def test_already_notified_logs_are_skipped(self):
         log = MatchChangeLog.objects.create(
