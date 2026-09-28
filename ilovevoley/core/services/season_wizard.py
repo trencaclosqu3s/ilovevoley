@@ -57,27 +57,37 @@ def start_season(raw):
     ligas ya archivadas. Devuelve el resumen de ``preview_season`` ampliado con
     ``archived_leagues``.
     """
-    summary = preview_season(raw)
-    if not summary['valid']:
+    name = normalize_season_name(raw)
+    if not name:
         raise ValueError('Formato de temporada no válido')
 
+    summary = preview_season(name)
+
+    # Bloquea la temporada saliente y la de destino ANTES de archivar/activar:
+    # dos activaciones concurrentes se serializan (la segunda espera y ve el
+    # estado ya actualizado). El invariante "una sola activa" lo garantizan
+    # `Season.save()` (select_for_update) y la constraint `unique_current_season`.
+    outgoing = (
+        Season.objects.select_for_update()
+        .filter(is_current=True)
+        .exclude(name=name)
+        .first()
+    )
+    season = Season.objects.resolve(name)
+    season = Season.objects.select_for_update().get(pk=season.pk)
+
     archived = 0
-    outgoing = summary['outgoing_season']
     if outgoing is not None:
         archived = League.objects.filter(
             season=outgoing, visibility_type='main', is_active=True,
         ).update(visibility_type='historical', is_historical=True)
 
-    season = Season.objects.resolve(summary['name'])
-    # El invariante "una sola temporada activa" lo garantizan `Season.save()`
-    # (que con `select_for_update` desmarca la anterior) más la constraint
-    # `unique_current_season`. El lock sobre la propia fila serializa
-    # activaciones concurrentes de la misma temporada.
-    season = Season.objects.select_for_update().get(pk=season.pk)
     if not season.is_current:
         season.is_current = True
         season.save(update_fields=['is_current'])
 
     summary['season'] = season
+    summary['outgoing_season'] = outgoing
+    summary['leagues_to_archive'] = archived
     summary['archived_leagues'] = archived
     return summary
