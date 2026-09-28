@@ -1,6 +1,8 @@
 """
 Utilidades para rate limiting y extracción de IP del cliente.
 """
+import hashlib
+
 from django.conf import settings
 from django.core.cache import cache
 
@@ -37,6 +39,11 @@ def ratelimit_post_email_key(group, request):
 def normalize_credential(value):
     """Normaliza la credencial/email para usarlo como clave canónica de identidad."""
     return (value or '').strip().lower()
+
+
+def credential_fingerprint(value):
+    """Hash truncado de la credencial para logs/alertas sin exponer PII."""
+    return hashlib.sha256((value or '').encode('utf-8')).hexdigest()[:12]
 
 
 def _global_key(scope, value):

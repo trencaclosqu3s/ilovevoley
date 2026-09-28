@@ -114,6 +114,11 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 # sustituye por el contador global de solo-fallos de `ratelimit_utils` (nunca
 # bloquea un login correcto) y por el tope laxo de reset, conservando los tramos
 # por IP de allauth como capa gruesa.
+#
+# ACCOUNT_RATE_LIMITS se fusiona sobre los defaults de allauth
+# (`ret.update(ACCOUNT_RATE_LIMITS)` en app_settings.RATE_LIMITS), así que
+# declarar solo estas dos acciones NO borra el resto (signup, login, etc.):
+# únicamente se les quita el tramo `/key`.
 ACCOUNT_RATE_LIMITS = {
     'login_failed': '10/m/ip',
     'reset_password': '20/m/ip',
