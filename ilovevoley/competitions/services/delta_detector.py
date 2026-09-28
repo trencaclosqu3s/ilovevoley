@@ -17,6 +17,14 @@ _LIFECYCLE_TRANSITIONS = {
     ('in_progress', 'finished'),
 }
 
+# El scraper marca withdrawn/reactiva partidos según la presencia de los equipos en la
+# federación. Ese vaivén no es una alteración real del calendario y no debe notificarse
+# por email (se sigue registrando en MatchChangeLog para auditoría). Ver #235.
+_NON_NOTIFIABLE_STATUS_TRANSITIONS = {
+    ('withdrawn', 'scheduled'),
+    ('scheduled', 'withdrawn'),
+}
+
 
 def _format_value(value: Any) -> str:
     """Convierte un valor a una representación legible en texto."""
@@ -149,7 +157,15 @@ def detect_and_record_match_changes(
         )
 
         # Hook para notificaciones automáticas si hay cambios de última hora
-        last_minute_changes = [c for c in changes if c.is_last_minute and c.change_type in ['datetime', 'venue', 'status']]
+        last_minute_changes = [
+            c for c in changes
+            if c.is_last_minute
+            and c.change_type in ['datetime', 'venue', 'status']
+            and not (
+                c.change_type == 'status'
+                and (c.old_value, c.new_value) in _NON_NOTIFIABLE_STATUS_TRANSITIONS
+            )
+        ]
         if last_minute_changes:
             try:
                 from ilovevoley.competitions.services.notifications import notify_match_changes

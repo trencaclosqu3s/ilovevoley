@@ -576,6 +576,44 @@ class ProcessJsonMatchesUnifiedTests(TestCase):
         existing_match.refresh_from_db()
         self.assertEqual(existing_match.status, 'scheduled')
 
+    def test_does_not_reactivate_withdrawn_match_while_team_inactive(self):
+        """El JSON no debe resucitar un partido retirado si el equipo sigue inactivo (#235)."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        self.home_team.is_active = False
+        self.home_team.save(update_fields=['is_active'])
+
+        match_date = datetime(2026, 10, 3, 12, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        existing_match = Match.all_objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=match_date,
+            federation_id='85843',
+            status='withdrawn',
+        )
+
+        partidos_data = [{
+            'ID': 85843,
+            'ELOCAL': 'CLUB VOLEIBOL EIVISSA',
+            'EVISITANTE': 'CD MESTRAL IBIZA VOLEY',
+            'FECHA': '03/10/2026',
+            'HORA': '12:00',
+            'TORNEO': 8246,
+        }]
+
+        self.scraper._process_json_matches_unified(
+            self.league, partidos_data, 'Juvenil', '8246', '1'
+        )
+
+        existing_match.refresh_from_db()
+        self.assertEqual(existing_match.status, 'withdrawn')
+        from ilovevoley.competitions.models import MatchChangeLog
+        self.assertEqual(
+            MatchChangeLog.objects.filter(match=existing_match, change_type='status').count(), 0
+        )
+
     def test_links_federation_id_to_existing_match_without_id_on_same_day(self):
         from zoneinfo import ZoneInfo
         from datetime import datetime
@@ -613,6 +651,67 @@ class ProcessJsonMatchesUnifiedTests(TestCase):
         self.assertEqual(existing_match.round_number, 3)
         # Total matches in DB should remain 1, no duplicate created
         self.assertEqual(Match.all_objects.count(), 1)
+
+
+# ---------------------------------------------------------------------------
+# Withdrawn team detection: evaluación una sola vez con la unión del scrape (#235)
+# ---------------------------------------------------------------------------
+
+class WithdrawnTeamDetectionTests(TestCase):
+
+    def setUp(self):
+        from datetime import timedelta
+        from ilovevoley.videos.scraping import FederationScraper
+
+        self.category = Category.objects.create(name='Juvenil')
+        self.league = League.objects.create(
+            name='Juvenil Masculino',
+            federation_id='8246',
+            season=Season.objects.resolve('2026-27'),
+            competition_type='regular',
+            match_format='standard',
+            visibility_type='main',
+        )
+        self.league.categories.add(self.category)
+        self.team_a = Team.objects.create(
+            name='EQUIPO A', federation_id='g_a', category=self.category, is_active=True
+        )
+        self.team_b = Team.objects.create(
+            name='EQUIPO B', federation_id='g_b', category=self.category, is_active=True
+        )
+        self.match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() + timedelta(days=3),
+            status='scheduled',
+        )
+        self.scraper = FederationScraper(self.league)
+
+    def test_partial_update_teams_does_not_deactivate_absent_teams(self):
+        """Un scrape parcial (una sola jornada/endpoint) no debe retirar al resto de equipos."""
+        self.scraper.update_teams([{'name': 'EQUIPO A', 'federation_id': 'g_a'}])
+
+        self.team_b.refresh_from_db()
+        self.assertTrue(self.team_b.is_active)
+
+    def test_detect_withdrawn_teams_deactivates_absent_and_withdraws_match(self):
+        self.scraper.detect_withdrawn_teams({'g_a'})
+
+        self.team_b.refresh_from_db()
+        self.match.refresh_from_db()
+        self.assertFalse(self.team_b.is_active)
+        self.assertEqual(self.match.status, 'withdrawn')
+
+    def test_detect_withdrawn_teams_keeps_teams_present_in_union(self):
+        self.scraper.detect_withdrawn_teams({'g_a', 'g_b'})
+
+        self.team_a.refresh_from_db()
+        self.team_b.refresh_from_db()
+        self.match.refresh_from_db()
+        self.assertTrue(self.team_a.is_active)
+        self.assertTrue(self.team_b.is_active)
+        self.assertEqual(self.match.status, 'scheduled')
 
 
 

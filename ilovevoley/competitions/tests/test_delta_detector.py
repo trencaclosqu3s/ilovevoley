@@ -1,4 +1,6 @@
 from datetime import timedelta
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.utils import timezone
 
@@ -206,3 +208,42 @@ class DeltaDetectorTest(TestCase):
         self.assertEqual(len(changes), 1)
         self.assertEqual(changes[0].change_type, 'status')
         self.assertEqual(changes[0].new_value, 'scheduled')
+
+    def test_withdrawn_to_scheduled_logged_but_not_notified(self):
+        """El vaivén withdrawn/scheduled se audita pero no genera avisos por email (#235)."""
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() + timedelta(days=2),
+            status='withdrawn',
+        )
+
+        with patch(
+            'ilovevoley.competitions.services.notifications.notify_match_changes'
+        ) as mock_notify:
+            changes = detect_and_record_match_changes(match, {'status': 'scheduled'})
+
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(changes[0].change_type, 'status')
+        self.assertEqual(changes[0].old_value, 'withdrawn')
+        self.assertEqual(changes[0].new_value, 'scheduled')
+        mock_notify.assert_not_called()
+
+    def test_status_change_to_postponed_still_notified(self):
+        """Un aplazamiento real sigue generando aviso."""
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() + timedelta(days=2),
+            status='scheduled',
+        )
+
+        with patch(
+            'ilovevoley.competitions.services.notifications.notify_match_changes'
+        ) as mock_notify:
+            changes = detect_and_record_match_changes(match, {'status': 'postponed'})
+
+        self.assertEqual(len(changes), 1)
+        mock_notify.assert_called_once()
