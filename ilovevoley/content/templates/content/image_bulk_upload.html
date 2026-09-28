@@ -73,7 +73,7 @@
                         <h3 class="text-sm font-medium text-gray-700">
                             <span id="images-count">0</span> imagen(es) seleccionada(s)
                         </h3>
-                        <button type="button" onclick="clearAllImages()" class="text-red-500 hover:text-red-700 text-sm">
+                        <button type="button" data-call="clearAllImages" class="text-red-500 hover:text-red-700 text-sm">
                             <i class="fas fa-times mr-1"></i>Limpiar todo
                         </button>
                     </div>
@@ -254,7 +254,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 let selectedFiles = [];
 let previewCache = new Map(); // Cache para previews optimizados
 let isProcessing = false;
@@ -462,7 +462,7 @@ async function displayPreviewsOptimized() {
                     </div>
                     <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all rounded-lg flex items-center justify-center">
                         <button type="button" 
-                                onclick="removeImage(${index})"
+                                data-call="removeImage" data-call-args="[${index}]"
                                 class="opacity-0 group-hover:opacity-100 bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600 transition-all">
                             <i class="fas fa-trash mr-1"></i>Eliminar
                         </button>
@@ -668,7 +668,7 @@ window.addEventListener('beforeunload', () => {
 });
 </script>
 
-<style>
+<style nonce="{{ csp_nonce }}">
 .aspect-square {
     aspect-ratio: 1 / 1;
 }

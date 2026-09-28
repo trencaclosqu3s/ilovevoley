@@ -40,7 +40,7 @@
                 {% endif %}
                 
                 <!-- Botón de filtros (solo móvil) -->
-                <button onclick="toggleFilters()" 
+                <button data-call="toggleFilters" 
                         class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple dark:bg-csj-purple-dark text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark dark:hover:bg-csj-purple transition touch-manipulation">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
@@ -187,7 +187,7 @@
                                     {% else %}bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700{% endif %}
                                 {% else %}bg-gray-50 dark:bg-gray-900{% endif %} 
                                 transition cursor-pointer" 
-                                {% if day_info.matches %}onclick="showDayMatches({{ day_info.day }}, '{{ month_name }}', {{ year }})"{% endif %}>
+                                {% if day_info.matches %}data-call="showDayMatches" data-call-args='[{{ day_info.day }}, "{{ month_name }}", {{ year }}]'{% endif %}>
                                 
                                 <!-- Número del día -->
                                 {% if day_info.day %}
@@ -299,7 +299,7 @@
                                                 </span>
                                             {% elif is_tenant_manager %}
                                                 {% if match.match_date.date <= today %}
-                                                    <button onclick="openResultModal({{ match.id }}, '{{ match.home_team_display|escapejs }}', '{{ match.away_team_display|escapejs }}')" 
+                                                    <button data-call="openResultModal" data-call-args='[{{ match.id }}, "{{ match.home_team_display|escapejs }}", "{{ match.away_team_display|escapejs }}"]' 
                                                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white transition shadow-sm">
                                                         📝 Agregar resultado
                                                     </button>
@@ -323,7 +323,7 @@
                                                 {% if match.home_team and match.home_team.display_logo %}
                                                     <img src="{{ match.home_team.display_logo }}" alt="{{ match.home_team_display }}" 
                                                          class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
-                                                         onerror="this.style.display='none'">
+                                                         data-hide-on-error>
                                                 {% endif %}
                                                 <span class="font-semibold text-sm sm:text-base text-gray-800 dark:text-gray-100 
                                                     {% if club_team_name in match.home_team_display %}text-csj-purple dark:text-csj-yellow{% endif %} break-words">
@@ -335,7 +335,7 @@
                                                 {% if match.away_team and match.away_team.display_logo %}
                                                     <img src="{{ match.away_team.display_logo }}" alt="{{ match.away_team_display }}" 
                                                          class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
-                                                         onerror="this.style.display='none'">
+                                                         data-hide-on-error>
                                                 {% endif %}
                                                 <span class="font-semibold text-sm sm:text-base text-gray-800 dark:text-gray-100 
                                                     {% if club_team_name in match.away_team_display %}text-csj-purple dark:text-csj-yellow{% endif %} break-words">
@@ -457,7 +457,7 @@
         <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
             <div class="flex justify-between items-center">
                 <h3 id="modalTitle" class="text-lg font-semibold text-gray-900 dark:text-gray-100"></h3>
-                <button onclick="closeDayMatches()" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+                <button data-call="closeDayMatches" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -476,7 +476,7 @@
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex justify-between items-center">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Agregar Resultado</h3>
-                <button onclick="closeResultModal()" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+                <button data-call="closeResultModal" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -516,7 +516,7 @@
                 
                 <!-- Botones -->
                 <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" onclick="closeResultModal()" 
+                    <button type="button" data-call="closeResultModal" 
                             class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                         Cancelar
                     </button>
@@ -531,7 +531,7 @@
 </div>
 
 {{ matches_json|json_script:"calendar-data" }}
-<script>
+<script nonce="{{ csp_nonce }}">
 window.calendarData = JSON.parse(document.getElementById('calendar-data').textContent);
 
 function esc(value) {
@@ -580,12 +580,12 @@ function showDayMatches(day, monthName, year) {
                         </div>
                         <div class="font-semibold text-gray-900 mb-1 flex items-center gap-2">
                             <div class="flex items-center space-x-2">
-                                ${match.home_team_logo ? `<img src="${esc(match.home_team_logo)}" alt="${esc(match.home_team)}" class="w-5 h-5 object-contain rounded-sm" onerror="this.style.display='none'">` : ''}
+                                ${match.home_team_logo ? `<img src="${esc(match.home_team_logo)}" alt="${esc(match.home_team)}" class="w-5 h-5 object-contain rounded-sm" data-hide-on-error>` : ''}
                                 <span class="${isClubMatch && match.home_team.includes(match.club_team_name) ? 'text-purple-600' : ''}">${esc(match.home_team)}</span>
                             </div>
                             <span class="text-gray-500">vs</span>
                             <div class="flex items-center space-x-2">
-                                ${match.away_team_logo ? `<img src="${esc(match.away_team_logo)}" alt="${esc(match.away_team)}" class="w-5 h-5 object-contain rounded-sm" onerror="this.style.display='none'">` : ''}
+                                ${match.away_team_logo ? `<img src="${esc(match.away_team_logo)}" alt="${esc(match.away_team)}" class="w-5 h-5 object-contain rounded-sm" data-hide-on-error>` : ''}
                                 <span class="${isClubMatch && match.away_team.includes(match.club_team_name) ? 'text-purple-600' : ''}">${esc(match.away_team)}</span>
                             </div>
                         </div>

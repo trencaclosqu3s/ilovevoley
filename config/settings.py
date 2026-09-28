@@ -158,22 +158,27 @@ SECURE_HSTS_SECONDS = env_config('SECURE_HSTS_SECONDS', default=31536000 if not 
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=not DEBUG, cast=bool)
 SECURE_HSTS_PRELOAD = env_config('SECURE_HSTS_PRELOAD', default=False, cast=bool)
 
-# Content Security Policy (CSP Report-Only nativo Django 6.0)
-SECURE_CSP = None
-SECURE_CSP_REPORT_ONLY = {
+# Content Security Policy (CSP enforce nativo Django 6.0).
+#
+# Política estricta para el sitio público: los scripts y estilos inline se
+# autorizan con un nonce por petición (CSP.NONCE), generado por
+# ContentSecurityPolicyMiddleware y expuesto a las plantillas con el context
+# processor `django.template.context_processors.csp` (variable `csp_nonce`).
+# No se usa 'unsafe-inline' ni 'unsafe-eval'.
+#
+# El panel de administración (/admin/) usa una política relajada porque Unfold
+# y Alpine.js requieren inline/eval; la aplica AdminCSPMiddleware.
+SECURE_CSP = {
     'default-src': [CSP.SELF],
     'script-src': [
         CSP.SELF,
-        CSP.UNSAFE_INLINE,
-        CSP.UNSAFE_EVAL,
-        'https://cdn.tailwindcss.com',
+        CSP.NONCE,
         'https://cdn.jsdelivr.net',
         'https://cdnjs.cloudflare.com',
-        'https://www.instagram.com',
     ],
     'style-src': [
         CSP.SELF,
-        CSP.UNSAFE_INLINE,
+        CSP.NONCE,
         'https://cdn.jsdelivr.net',
         'https://cdnjs.cloudflare.com',
     ],
@@ -190,13 +195,16 @@ SECURE_CSP_REPORT_ONLY = {
         CSP.SELF,
         'https://www.youtube.com',
         'https://www.youtube-nocookie.com',
-        'https://www.instagram.com',
     ],
     'connect-src': [CSP.SELF],
     'object-src': [CSP.NONE],
-    'base-uri': [CSP.SELF],
+    'base-uri': [CSP.NONE],
     'form-action': [CSP.SELF],
+    'frame-ancestors': [CSP.NONE],
 }
+
+# Sin cabecera Report-Only: la política enforce es la única fuente de verdad.
+SECURE_CSP_REPORT_ONLY = None
 
 # Adapters personalizados para suprimir mensajes
 ACCOUNT_ADAPTER = 'ilovevoley.users.adapters.CustomAccountAdapter'
@@ -209,6 +217,7 @@ MIDDLEWARE = [
     'ilovevoley.core.middleware.TenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.csp.ContentSecurityPolicyMiddleware',
+    'ilovevoley.core.middleware.AdminCSPMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -233,6 +242,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.csp',
                 'ilovevoley.core.context_processors.tenant_context',
             ],
         },

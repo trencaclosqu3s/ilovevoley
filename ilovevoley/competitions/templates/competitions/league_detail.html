@@ -71,12 +71,12 @@
         <div class="bg-white border-b border-gray-200">
             <div class="p-4 sm:p-6">
                 <div class="flex flex-wrap gap-2 sm:gap-3">
-                    <a href="#partidos" onclick="showSection('partidos')" 
+                    <a href="#partidos" data-call="showSection" data-call-args='["partidos"]' 
                        class="section-tab active inline-flex items-center px-3 py-2 bg-csj-purple text-white text-sm font-medium rounded-lg transition">
                         📅 Partidos
                     </a>
                     {% if standings %}
-                        <a href="#clasificacion" onclick="showSection('clasificacion')" 
+                        <a href="#clasificacion" data-call="showSection" data-call-args='["clasificacion"]' 
                            class="section-tab inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-medium rounded-lg transition">
                             🏆 Clasificación
                         </a>
@@ -380,7 +380,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function showSection(sectionName) {
     // Ocultar todas las secciones
     document.querySelectorAll('.content-section').forEach(section => {
@@ -397,8 +397,8 @@ function showSection(sectionName) {
     });
     
     // Activar tab seleccionado
-    event.target.classList.add('active', 'bg-csj-purple', 'text-white');
-    event.target.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+    this.classList.add('active', 'bg-csj-purple', 'text-white');
+    this.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
     
     // Mostrar/ocultar filtros según la sección
     if (sectionName === 'partidos') {

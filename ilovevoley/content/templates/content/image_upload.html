@@ -30,7 +30,7 @@
                     <div id="image-preview" class="hidden">
                         <img id="preview-img" src="" alt="Preview" class="max-w-full h-48 object-contain mx-auto rounded">
                         <p id="preview-filename" class="mt-2 text-sm text-gray-600"></p>
-                        <button type="button" onclick="clearPreview()" class="mt-2 text-red-500 hover:text-red-700 text-sm">
+                        <button type="button" data-call="clearPreview" class="mt-2 text-red-500 hover:text-red-700 text-sm">
                             <i class="fas fa-times mr-1"></i>Cambiar imagen
                         </button>
                     </div>
@@ -142,7 +142,7 @@
                         <div class="space-y-1">
                             {% for match in recent_matches|slice:":5" %}
                                 <button type="button" 
-                                        onclick="selectMatch({{ match.id }}, '{{ match.home_team_display|escapejs }} vs {{ match.away_team_display|escapejs }}')"
+                                        data-call="selectMatch" data-call-args='[{{ match.id }}, "{{ match.home_team_display|escapejs }} vs {{ match.away_team_display|escapejs }}"]'
                                         class="block w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded border">
                                     <strong>{{ match.home_team_display }} vs {{ match.away_team_display }}</strong>
                                     <br>
@@ -204,7 +204,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Elementos del DOM
 const dropZone = document.getElementById('drop-zone');
 const imageInput = document.getElementById('image-input');

@@ -193,7 +193,7 @@
         
         <div class="p-6">
             <div class="crop-container">
-                <img id="crop-image" src="" alt="Imagen a recortar" style="max-width: 100%; max-height: 400px;">
+                <img id="crop-image" src="" alt="Imagen a recortar" class="crop-image">
             </div>
         </div>
         
@@ -217,7 +217,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 
-<style>
+<style nonce="{{ csp_nonce }}">
     /* Estilos adicionales para el modal de recorte */
     .crop-container {
         max-width: 100%;
@@ -266,7 +266,7 @@
     }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce }}">
     let cropper = null;
     let currentFile = null;
     const photoInput = document.getElementById('{{ form.photo.id_for_label }}');

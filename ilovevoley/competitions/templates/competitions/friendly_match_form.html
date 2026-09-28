@@ -4,7 +4,7 @@
 {% block title %}Crear Partido Amistoso - I Love Voley{% endblock %}
 
 {% block extra_css %}
-<style>
+<style nonce="{{ csp_nonce }}">
     .autocomplete-results {
         position: absolute;
         z-index: 1000;
@@ -118,14 +118,14 @@
             {% endif %}
             
             <!-- Opción de registrar equipo local -->
-            <div class="mt-3 p-3 bg-gray-50 rounded-lg" id="home-team-register-section" style="display: none;">
+            <div class="mt-3 p-3 bg-gray-50 rounded-lg hidden" id="home-team-register-section">
                 <div class="flex items-center mb-2">
                     {{ form.register_home_team }}
                     <label for="{{ form.register_home_team.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
                         {{ form.register_home_team.label }}
                     </label>
                 </div>
-                <div id="home-team-register-fields" style="display: none;">
+                <div id="home-team-register-fields" class="hidden">
                     <div class="mt-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">
                             {{ form.home_team_club.label }}
@@ -153,14 +153,14 @@
             {% endif %}
             
             <!-- Opción de registrar equipo visitante -->
-            <div class="mt-3 p-3 bg-gray-50 rounded-lg" id="away-team-register-section" style="display: none;">
+            <div class="mt-3 p-3 bg-gray-50 rounded-lg hidden" id="away-team-register-section">
                 <div class="flex items-center mb-2">
                     {{ form.register_away_team }}
                     <label for="{{ form.register_away_team.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
                         {{ form.register_away_team.label }}
                     </label>
                 </div>
-                <div id="away-team-register-fields" style="display: none;">
+                <div id="away-team-register-fields" class="hidden">
                     <div class="mt-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">
                             {{ form.away_team_club.label }}
@@ -202,7 +202,7 @@
     </form>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Sistema de autocompletado para equipos
 class TeamAutocomplete {
     constructor(searchInputId, resultsId, selectedId, hiddenInputId) {
