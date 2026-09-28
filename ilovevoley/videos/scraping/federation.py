@@ -270,6 +270,8 @@ class FederationScraper:
                     # aparecer en la federación (is_active la gestiona update_teams). El JSON
                     # sirve los partidos como 'scheduled', así que por sí solo no debe
                     # resucitar un partido retirado: era la otra mitad del vaivén (#235).
+                    # Si falta alguno de los dos equipos (dato incompleto), se mantiene
+                    # withdrawn en lugar de reactivar a ciegas.
                     incoming_status = match_data['status']
                     teams_still_active = bool(
                         home_team and away_team and home_team.is_active and away_team.is_active
