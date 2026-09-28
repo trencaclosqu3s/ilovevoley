@@ -136,6 +136,7 @@ class MatchChangeNotificationsTest(TestCase):
             sent_count = notify_match_changes([log])
 
         self.assertEqual(sent_count, 1)
+        self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]
         recipients = email.to + email.bcc
         self.assertNotIn('delegat@santjosep.com', recipients)
