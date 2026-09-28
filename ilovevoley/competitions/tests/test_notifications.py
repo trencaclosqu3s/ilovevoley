@@ -118,6 +118,49 @@ class MatchChangeNotificationsTest(TestCase):
         self.assertTrue(log.notified)
         self.assertIsNotNone(log.notified_at)
 
+    def test_club_with_notifications_disabled_excludes_its_recipients(self):
+        """Si la organización desactiva los avisos, su staff no los recibe (#236)."""
+        self.org_a.notify_match_changes = False
+        self.org_a.save(update_fields=['notify_match_changes'])
+
+        log = MatchChangeLog.objects.create(
+            match=self.match,
+            change_type='venue',
+            field_name='venue',
+            old_value='Pabellón A',
+            new_value='Pabellón B',
+            is_last_minute=True,
+        )
+
+        with override_settings(MATCH_CHANGE_NOTIFY_STAFF_ENABLED=True):
+            sent_count = notify_match_changes([log])
+
+        self.assertEqual(sent_count, 1)
+        email = mail.outbox[0]
+        recipients = email.to + email.bcc
+        self.assertNotIn('delegat@santjosep.com', recipients)
+        self.assertNotIn('coach@santjosep.com', recipients)
+        self.assertIn('manager@manacor.com', recipients)
+
+    def test_superuser_receives_global_copy_in_production(self):
+        """El superusuario recibe copia de todos los tenants aunque no sea staff (#236)."""
+        User.objects.create_superuser(username='root', email='root@isitech.es', password='x')
+
+        log = MatchChangeLog.objects.create(
+            match=self.match,
+            change_type='venue',
+            field_name='venue',
+            old_value='Pabellón A',
+            new_value='Pabellón B',
+            is_last_minute=True,
+        )
+
+        with override_settings(MATCH_CHANGE_NOTIFY_STAFF_ENABLED=True):
+            notify_match_changes([log])
+
+        recipients = mail.outbox[0].to + mail.outbox[0].bcc
+        self.assertIn('root@isitech.es', recipients)
+
     def test_already_notified_logs_are_skipped(self):
         log = MatchChangeLog.objects.create(
             match=self.match,

@@ -401,6 +401,12 @@ EMAIL_NOTIFICATIONS = {
     'error_404_daily': env_config('EMAIL_NOTIFY_404_DAILY', default=False, cast=bool),
 }
 
+# Avisos de cambios federativos de partidos (competitions/services/notifications.py)
+MATCH_CHANGE_NOTIFY_STAFF_ENABLED = env_config('MATCH_CHANGE_NOTIFY_STAFF_ENABLED', default=False, cast=bool)
+# Copia global para superusuarios, para poder revisar los avisos de todos los tenants.
+MATCH_CHANGE_NOTIFY_SUPERUSERS = env_config('MATCH_CHANGE_NOTIFY_SUPERUSERS', default=True, cast=bool)
+MATCH_CHANGE_TEST_RECIPIENT = env_config('MATCH_CHANGE_TEST_RECIPIENT', default='')
+
 # Celery Configuration
 # Bases lógicas de Redis separadas: /0 broker, /1 resultados, /2 caché de Django.
 CELERY_BROKER_URL = env_config('REDIS_URL', default='redis://redis:6379/0')

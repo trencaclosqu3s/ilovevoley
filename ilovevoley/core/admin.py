@@ -10,8 +10,8 @@ from .models import Category, Organization, Season
 
 @admin.register(Organization)
 class OrganizationAdmin(ModelAdmin):
-    list_display = ['slug', 'name', 'club', 'club_teams_count', 'instagram_url', 'default_home', 'is_active', 'created_at']
-    list_filter = ['default_home', 'is_active']
+    list_display = ['slug', 'name', 'club', 'club_teams_count', 'instagram_url', 'default_home', 'notify_match_changes', 'is_active', 'created_at']
+    list_filter = ['default_home', 'notify_match_changes', 'is_active']
     list_select_related = ['club']
     autocomplete_fields = ['club']
     search_fields = ['slug', 'name']
@@ -19,7 +19,7 @@ class OrganizationAdmin(ModelAdmin):
     fields = [
         'slug', 'name', 'logo', 'primary_color', 'secondary_color',
         'instagram_url', 'default_home', 'club', 'club_team_names', 'is_active',
-        'club_teams_count', 'club_names_status',
+        'notify_match_changes', 'club_teams_count', 'club_names_status',
     ]
     actions = ['assign_club_to_orphan_teams']
 
