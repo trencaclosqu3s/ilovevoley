@@ -220,7 +220,7 @@ class DeltaDetectorTest(TestCase):
         )
 
         with patch(
-            'ilovevoley.competitions.services.notifications.notify_match_changes'
+            'ilovevoley.competitions.services.delta_detector.notify_match_changes'
         ) as mock_notify:
             changes = detect_and_record_match_changes(match, {'status': 'scheduled'})
 
@@ -241,9 +241,12 @@ class DeltaDetectorTest(TestCase):
         )
 
         with patch(
-            'ilovevoley.competitions.services.notifications.notify_match_changes'
+            'ilovevoley.competitions.services.delta_detector.notify_match_changes'
         ) as mock_notify:
             changes = detect_and_record_match_changes(match, {'status': 'postponed'})
 
         self.assertEqual(len(changes), 1)
+        # El partido está dentro de la ventana de última hora (now-2h .. now+7d),
+        # así que este camino sí debe notificar.
+        self.assertTrue(changes[0].is_last_minute)
         mock_notify.assert_called_once()

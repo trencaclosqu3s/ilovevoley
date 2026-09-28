@@ -470,18 +470,19 @@ class FederationScraper:
             models.Q(home_matches__league=self.league) | models.Q(away_matches__league=self.league)
         ).filter(is_active=True).distinct()
 
-        withdrawn_teams = []
-        for team in existing_teams_in_league:
-            if team.federation_id not in current_federation_ids:
+        withdrawn_teams = [
+            team for team in existing_teams_in_league
+            if team.federation_id not in current_federation_ids
+        ]
+
+        if withdrawn_teams:
+            Team.objects.filter(pk__in=[t.pk for t in withdrawn_teams]).update(is_active=False)
+            for team in withdrawn_teams:
                 team.is_active = False
-                team.save(update_fields=['is_active'])
-                withdrawn_teams.append(team)
                 logger.warning(
                     f"Team marked as inactive (withdrawn): {team.name} "
                     f"(federation_id: {team.federation_id}) - no longer appears in {self.league.name}"
                 )
-
-        if withdrawn_teams:
             logger.info(f"Detected {len(withdrawn_teams)} withdrawn teams in {self.league.name}")
             self._mark_withdrawn_matches()
 
