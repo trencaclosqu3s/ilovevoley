@@ -831,6 +831,8 @@ class FederationScraper:
         ).update(status='withdrawn')
 
         for match in withdrawn_matches:
+            # select_related recarga los equipos desde BD tras el bulk_update, así que
+            # is_active ya refleja el estado nuevo.
             inactive_teams = [
                 team.name
                 for team in (match.home_team, match.away_team)

@@ -72,6 +72,7 @@ def detect_and_record_match_changes(
     notifiable_changes: List[MatchChangeLog] = []
 
     def _record(change: MatchChangeLog, notifiable: bool = True) -> None:
+        """Acumula el log para auditoría y, si procede, para notificación."""
         changes.append(change)
         if notifiable:
             notifiable_changes.append(change)
