@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmar nueva temporada - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div class="bg-csj-purple dark:bg-csj-purple-dark px-6 py-4 text-white">
+                <h2 class="text-xl font-bold">Confirmar nueva temporada</h2>
+                <p class="text-sm opacity-90 mt-1">Paso 2 de 2 · resumen antes de aplicar</p>
+            </div>
+
+            <div class="p-6">
+                <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 mb-6">
+                    <ul class="text-gray-800 dark:text-gray-200 space-y-2">
+                        <li>
+                            <strong>Temporada:</strong> {{ summary.name }}
+                            {% if summary.is_new %}
+                                <span class="text-green-700 dark:text-green-400">(se creará)</span>
+                            {% else %}
+                                <span class="text-gray-500 dark:text-gray-400">(ya existe, se reutilizará)</span>
+                            {% endif %}
+                        </li>
+                        <li><strong>Periodo:</strong> {{ summary.start_year }}–{{ summary.end_year }}</li>
+                        <li>
+                            <strong>Temporada saliente:</strong>
+                            {% if summary.outgoing_season %}
+                                {{ summary.outgoing_season.name }}
+                            {% else %}
+                                ninguna (no hay otra activa)
+                            {% endif %}
+                        </li>
+                        <li>
+                            <strong>Ligas a archivar:</strong> {{ summary.leagues_to_archive }}
+                            <span class="text-gray-500 dark:text-gray-400">(pasarán a históricas)</span>
+                        </li>
+                    </ul>
+                </div>
+
+                {% if summary.already_current %}
+                    <div class="p-4 mb-6 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg border border-yellow-200 dark:border-yellow-700">
+                        <p class="text-sm text-yellow-800 dark:text-yellow-200">
+                            «{{ summary.name }}» ya es la temporada activa. Confirmar no cambiará nada.
+                        </p>
+                    </div>
+                {% endif %}
+
+                <div class="p-4 mb-6 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+                    <p class="text-sm text-blue-800 dark:text-blue-200">
+                        No se tocan plantillas, partidos, resultados ni contenido. El histórico
+                        de la temporada saliente sigue consultable.
+                    </p>
+                </div>
+
+                <form method="post" class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    {% csrf_token %}
+                    <input type="hidden" name="name" value="{{ summary.name }}">
+                    <div class="flex items-center justify-between">
+                        <a href="{% url 'core:season_wizard' %}" class="text-gray-600 dark:text-gray-300 hover:text-gray-800 font-medium">
+                            ← Volver
+                        </a>
+                        <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white font-bold py-2.5 px-6 rounded-lg transition shadow">
+                            Confirmar y activar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
