@@ -146,6 +146,13 @@
                                 </svg>
                             </a>
                         {% endif %}
+                        {% if user.is_superuser %}
+                            <a href="{% url 'core:season_wizard' %}" class="text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition" title="Nueva temporada">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                            </a>
+                        {% endif %}
                         {% if can_moderate_memberships %}
                             <a href="{% url 'core:moderation_panel' %}" id="moderation-bell" class="text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition relative inline-flex" title="Moderación">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -310,6 +317,14 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                 </svg>
                                 <span>Administración</span>
+                            </a>
+                        {% endif %}
+                        {% if user.is_superuser %}
+                            <a href="{% url 'core:season_wizard' %}" class="flex items-center px-4 py-4 text-csj-purple dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition touch-manipulation">
+                                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                <span>Nueva temporada</span>
                             </a>
                         {% endif %}
                         {% if can_moderate_memberships %}
