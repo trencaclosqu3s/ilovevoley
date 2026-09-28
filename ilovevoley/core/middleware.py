@@ -2,7 +2,7 @@ import ipaddress
 import logging
 import re
 from urllib.parse import urlsplit, urlunsplit
-from datetime import datetime, timedelta
+from datetime import timedelta
 from collections import defaultdict
 from django.http import Http404, HttpResponseNotFound
 from django.conf import settings
@@ -12,6 +12,7 @@ from django.utils.csp import CSP
 from django.utils.html import strip_tags
 from django.core.cache import cache
 from django.shortcuts import redirect
+from django.utils import timezone
 from .email_utils import get_admin_emails
 from .tenant_utils import get_organization_by_slug
 
@@ -64,12 +65,15 @@ def is_ignorable_404(path: str) -> bool:
     )
 
 
-def day_cache_key(prefix: str) -> str:
-    """Clave de caché diaria del tracking de 404 (p. ej. ``404_errors_20260928``).
+def day_cache_key(prefix: str, when=None) -> str:
+    """Clave de caché diaria del tracking de 404 en hora local de TIME_ZONE.
 
-    Centraliza el formato para que el middleware y los tests no diverjan.
+    Centraliza el formato para que el middleware y los tests no diverjan. Convertir a
+    ``localtime`` evita que el corte del día ocurra a medianoche UTC mientras el resto
+    de la app opera en ``Europe/Madrid``.
     """
-    return f"{prefix}_{datetime.now().strftime('%Y%m%d')}"
+    local = timezone.localtime(when or timezone.now())
+    return f"{prefix}_{local.strftime('%Y%m%d')}"
 
 
 def _parse_ip(value):
@@ -210,7 +214,7 @@ class Error404TrackingMiddleware:
                 'ip': get_client_ip(request),
                 'user_agent': request.META.get('HTTP_USER_AGENT', '')[:200],
                 'referer': sanitize_referer(request.META.get('HTTP_REFERER', '')),
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': timezone.now().isoformat(),
                 'user': str(request.user) if request.user.is_authenticated else 'Anonymous',
             }
 
@@ -251,9 +255,9 @@ def send_404_daily_report():
         return False
     
     try:
-        # Obtener errores de ayer
-        yesterday = datetime.now() - timedelta(days=1)
-        cache_key = f"404_errors_{yesterday.strftime('%Y%m%d')}"
+        # Obtener errores de ayer (hora local)
+        yesterday = timezone.localtime(timezone.now()) - timedelta(days=1)
+        cache_key = day_cache_key('404_errors', yesterday)
         errors = cache.get(cache_key, [])
         
         if not errors:
@@ -265,7 +269,7 @@ def send_404_daily_report():
             grouped_errors[error['url']].append(error)
         
         # Preparar estadísticas
-        daily_count_key = f"404_count_{yesterday.strftime('%Y%m%d')}"
+        daily_count_key = day_cache_key('404_count', yesterday)
         daily_count = cache.get(daily_count_key)
         total_errors = daily_count if daily_count is not None else len(errors)
         unique_urls = len(grouped_errors)
@@ -317,8 +321,9 @@ def send_404_immediate_alert(request, threshold=10):
         if not admin_emails:
             return False
             
-        # Contar errores en la última hora usando incremento atómico
-        cache_key = f"404_count_{datetime.now().strftime('%Y%m%d_%H')}"
+        # Contar errores en la última hora usando incremento atómico (hora local)
+        local_now = timezone.localtime(timezone.now())
+        cache_key = f"404_count_{local_now.strftime('%Y%m%d_%H')}"
         current_count = _atomic_incr(cache_key, timeout=60 * 60)
         
         # Si supera el umbral, enviar alerta
@@ -327,7 +332,7 @@ def send_404_immediate_alert(request, threshold=10):
 
             send_404_immediate_alert_task.delay(
                 current_count,
-                datetime.now().strftime('%H:00'),
+                local_now.strftime('%H:00'),
                 sanitize_path(request.path),
                 admin_emails,
             )

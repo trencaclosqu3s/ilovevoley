@@ -1,9 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 from django.contrib.auth.models import AnonymousUser
 from django.test import TestCase, RequestFactory, override_settings
 from django.core.cache import cache
 from django.http import HttpResponseNotFound
+from django.utils import timezone
 from ilovevoley.core.middleware import (
     Error404TrackingMiddleware,
     day_cache_key,
@@ -119,8 +120,7 @@ class Error404TrackingMiddlewareTest(TestCase):
         self.assertIn('/nonexistent-page/', log_message)
 
         # Verificar que en cache se guarda la URL sin query string
-        today = datetime.now().strftime('%Y%m%d')
-        cache_key = f'404_errors_{today}'
+        cache_key = day_cache_key('404_errors')
         errors = cache.get(cache_key, [])
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0]['url'], '/nonexistent-page/')
@@ -144,8 +144,7 @@ class Error404TrackingMiddlewareTest(TestCase):
                 self.assertNotIn('secret', log_message)
                 self.assertIn(expected_sanitized, log_message)
 
-        today = datetime.now().strftime('%Y%m%d')
-        cache_key = f'404_errors_{today}'
+        cache_key = day_cache_key('404_errors')
         errors = cache.get(cache_key, [])
         recorded_urls = [e['url'] for e in errors]
         self.assertIn('/moderate/user/[REDACTED]/', recorded_urls)
@@ -160,8 +159,7 @@ class Error404TrackingMiddlewareTest(TestCase):
 
         middleware(request)
 
-        today = datetime.now().strftime('%Y%m%d')
-        cache_key = f'404_errors_{today}'
+        cache_key = day_cache_key('404_errors')
         errors = cache.get(cache_key, [])
         self.assertEqual(len(errors), 1)
         self.assertNotIn('secret=xyz', errors[0]['referer'])
@@ -210,8 +208,7 @@ class Error404TrackingMiddlewareTest(TestCase):
         request = self.factory.get('/not-found-page/')
         request.user = type('AnonymousUser', (), {'is_authenticated': False})()
 
-        today = datetime.now().strftime('%Y%m%d')
-        daily_count_key = f'404_count_{today}'
+        daily_count_key = day_cache_key('404_count')
 
         # Disparar 3 errores 404
         middleware(request)
@@ -230,9 +227,9 @@ class Error404TrackingMiddlewareTest(TestCase):
         User = get_user_model()
         User.objects.create_superuser('admin_test_404', 'admin_test_404@example.com', 'pass1234')
 
-        yesterday = datetime.now() - timedelta(days=1)
-        cache_key = f"404_errors_{yesterday.strftime('%Y%m%d')}"
-        daily_count_key = f"404_count_{yesterday.strftime('%Y%m%d')}"
+        yesterday = timezone.localtime(timezone.now()) - timedelta(days=1)
+        cache_key = day_cache_key('404_errors', yesterday)
+        daily_count_key = day_cache_key('404_count', yesterday)
 
         cache.set(cache_key, [
             {
