@@ -347,7 +347,7 @@ class AdminCSPMiddleware:
 
     def __init__(self, get_response):
         self.get_response = get_response
-        self.admin_prefix = '/' + settings.ADMIN_URL.lstrip('/')
+        self.admin_prefix = '/' + settings.ADMIN_URL.strip('/') + '/'
 
     def __call__(self, request):
         response = self.get_response(request)

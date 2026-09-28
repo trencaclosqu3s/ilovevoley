@@ -187,7 +187,7 @@
                                     {% else %}bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700{% endif %}
                                 {% else %}bg-gray-50 dark:bg-gray-900{% endif %} 
                                 transition cursor-pointer" 
-                                {% if day_info.matches %}data-call="showDayMatches" data-call-args='[{{ day_info.day }}, "{{ month_name }}", {{ year }}]'{% endif %}>
+                                {% if day_info.matches %}data-call="showDayMatches" data-call-args='[{{ day_info.day }}, "{{ month_name|escapejs }}", {{ year }}]'{% endif %}>
                                 
                                 <!-- Número del día -->
                                 {% if day_info.day %}

@@ -72,7 +72,7 @@
             event.preventDefault();
             var target = el.closest(el.getAttribute("data-dismiss-selector") || "div");
             if (target) {
-                target.style.display = "none";
+                target.classList.add("hidden");
             }
             return;
         }
