@@ -410,8 +410,9 @@ MATCH_CHANGE_TEST_RECIPIENT = env_config('MATCH_CHANGE_TEST_RECIPIENT', default=
 
 # Rutas ignoradas por el tracking de 404: escáneres de vulnerabilidades y bots que piden
 # rutas inexistentes (WordPress, phpMyAdmin, dotfiles...). No cuentan para el reporte
-# diario ni para la alerta inmediata. El lookahead de /media/ preserva los uploads de
-# usuario, que no tienen restricción de extensión (p. ej. un .log de diagnóstico).
+# diario ni para la alerta inmediata. El lookahead de /media/ excluye todo lo servido bajo
+# esa ruta (también en subcarpetas): los uploads de usuario no tienen restricción de
+# extensión (p. ej. un .log de diagnóstico), así que nunca se filtran por extensión.
 IGNORABLE_404_URLS = [
     re.compile(r'^(?!/media/).*\.(php\d?|cgi|asp|aspx|jsp|action|do|env|ini|sql|bak|old|swp|log|yml|yaml)$', re.I),
     re.compile(r'^/phpmyadmin/', re.I),
