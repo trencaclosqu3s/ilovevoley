@@ -227,14 +227,18 @@ def _gradient_background(
 
 def _draw_background_blobs(image: Image.Image, width: int, height: int, metrics: dict):
     """Manchas circulares difuminadas para romper la monotonía del degradado plano."""
+    blur_radius = 24
+
     top_size, top_x, top_y = metrics['blob_top']
     top_alpha = Image.new('L', (top_size, top_size), 0)
     ImageDraw.Draw(top_alpha).ellipse([0, 0, top_size, top_size], fill=26)
+    top_alpha = top_alpha.filter(ImageFilter.GaussianBlur(blur_radius))
     image.paste(Image.new('RGB', (top_size, top_size), (255, 255, 255)), (top_x, top_y), top_alpha)
 
     bottom_size, right_inset, bottom_inset = metrics['blob_bottom']
     bottom_alpha = Image.new('L', (bottom_size, bottom_size), 0)
     ImageDraw.Draw(bottom_alpha).ellipse([0, 0, bottom_size, bottom_size], fill=26)
+    bottom_alpha = bottom_alpha.filter(ImageFilter.GaussianBlur(blur_radius))
     bottom_pos = (width - bottom_size + right_inset, height - bottom_size + bottom_inset)
     image.paste(Image.new('RGB', (bottom_size, bottom_size), (0, 0, 0)), bottom_pos, bottom_alpha)
 
