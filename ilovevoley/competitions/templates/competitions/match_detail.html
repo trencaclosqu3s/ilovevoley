@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}{{ match.home_team_display }} vs {{ match.away_team_display }} - I Love Voley{% endblock %}
 
@@ -92,6 +93,25 @@
                         </svg>
                         {{ match.result_display }}
                     </div>
+                    {% if match.result_penalized %}
+                        <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200">
+                            ⚠️ Resuelto por penalización
+                        </div>
+                    {% endif %}
+                    {% if set_scores %}
+                        <div class="flex flex-wrap items-center gap-1 text-sm text-gray-600 dark:text-gray-300">
+                            {% for set in set_scores %}
+                                <span class="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">{{ set.0 }}-{{ set.1 }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    {% if is_tenant_manager and not match.acta_html %}
+                        <button type="button" data-call="openEditSetsModal"
+                                data-call-args='[{{ match.id }}, "{{ match.home_team_display|escapejs }}", "{{ match.away_team_display|escapejs }}"]'
+                                class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                            Editar parciales
+                        </button>
+                    {% endif %}
                     <div id="result-card-actions"
                          class="flex flex-col gap-2 mt-2"
                          data-card-url="{% url 'competitions:match_result_card' match.id %}"
@@ -615,7 +635,8 @@
 </div>
 
 <!-- Modal para agregar resultado -->
-<div id="resultModal" class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 hidden z-50 flex items-center justify-center p-4">
+<div id="resultModal" class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 hidden z-50 flex items-center justify-center p-4"
+     data-max-sets="{{ max_sets }}">
     <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex justify-between items-center">
@@ -655,6 +676,21 @@
                     </div>
                 </div>
                 
+                <!-- Parciales (opcional) -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Parciales (opcional)</label>
+                        <button type="button" id="addSetRow"
+                                class="text-sm font-medium text-csj-purple dark:text-csj-yellow hover:underline">
+                            + Añadir set
+                        </button>
+                    </div>
+                    <div id="setRows" class="space-y-2"></div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Si rellenas los parciales, el marcador se calcula automáticamente.
+                    </p>
+                </div>
+
                 <!-- Mensaje de error -->
                 <div id="resultError" class="hidden text-sm text-red-600 dark:text-red-400 text-center"></div>
                 
@@ -711,6 +747,8 @@
     </div>
 </div>
 
+{{ match.set_scores|json_script:"match-set-scores" }}
+<script src="{% static 'js/match_result_sets.js' %}"></script>
 <script nonce="{{ csp_nonce }}">
 // Alias para compatibilidad con el código existente
 function openImageLightbox(imageUrl, title, imageId) {
@@ -916,27 +954,64 @@ function closeImageLightbox() {
 
 // Variables globales para el modal de resultado
 let currentMatchId = null;
+let currentEditMode = false;
+let matchSets = null;
 
-// Abrir modal de resultado
-function openResultModal(matchId, homeTeam, awayTeam) {
+function initMatchSets() {
+    if (!window.MatchResultSets) return;
+    const modal = document.getElementById('resultModal');
+    matchSets = window.MatchResultSets.create({
+        rowsEl: 'setRows',
+        addBtn: 'addSetRow',
+        homeEl: 'homeScore',
+        awayEl: 'awayScore',
+        maxSets: parseInt((modal && modal.dataset.maxSets) || '5', 10),
+    });
+}
+
+// Abrir modal de resultado (alta o edición de parciales)
+function openResultModal(matchId, homeTeam, awayTeam, options) {
+    options = options || {};
     currentMatchId = matchId;
-    
+    currentEditMode = !!options.edit;
+
     // Actualizar información del partido
     document.getElementById('resultMatchInfo').textContent = `${homeTeam} vs ${awayTeam}`;
     document.getElementById('homeTeamLabel').textContent = homeTeam;
     document.getElementById('awayTeamLabel').textContent = awayTeam;
-    
+
     // Limpiar formulario
     document.getElementById('homeScore').value = '';
     document.getElementById('awayScore').value = '';
     document.getElementById('resultError').classList.add('hidden');
-    
+    if (matchSets) {
+        matchSets.reset();
+        if (options.setScores) matchSets.set(options.setScores);
+    }
+
+    const title = document.querySelector('#resultModal h3');
+    if (title) title.textContent = currentEditMode ? 'Editar Parciales' : 'Agregar Resultado';
+
     // Mostrar modal
     document.getElementById('resultModal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    
+
     // Enfocar primer campo
     document.getElementById('homeScore').focus();
+}
+
+// Abrir modal de edición de parciales con los datos guardados del partido
+function openEditSetsModal(matchId, homeTeam, awayTeam) {
+    let scores = null;
+    const el = document.getElementById('match-set-scores');
+    if (el) {
+        try {
+            scores = JSON.parse(el.textContent);
+        } catch (err) {
+            scores = null;
+        }
+    }
+    openResultModal(matchId, homeTeam, awayTeam, { edit: true, setScores: scores });
 }
 
 // Cerrar modal de resultado
@@ -944,55 +1019,70 @@ function closeResultModal() {
     document.getElementById('resultModal').classList.add('hidden');
     document.body.style.overflow = 'auto';
     currentMatchId = null;
+    currentEditMode = false;
 }
 
 // Manejar envío del formulario de resultado
 async function handleResultSubmit(e) {
     e.preventDefault();
-    
+
     const homeScore = document.getElementById('homeScore').value;
     const awayScore = document.getElementById('awayScore').value;
-    const errorDiv = document.getElementById('resultError');
-    
-    // Validación básica
-    if (!homeScore || !awayScore) {
-        showResultError('Por favor, introduce ambos marcadores');
+
+    const setScores = matchSets ? matchSets.collect() : [];
+    if (setScores === null) {
+        showResultError('Completa o elimina las filas de parciales a medias');
         return;
     }
-    
-    if (homeScore < 0 || awayScore < 0) {
-        showResultError('Los marcadores no pueden ser negativos');
-        return;
+
+    // Sin parciales se valida el marcador a mano; con ellos se deriva en servidor.
+    if (!setScores.length) {
+        if (!homeScore || !awayScore) {
+            showResultError('Por favor, introduce ambos marcadores');
+            return;
+        }
+        if (homeScore < 0 || awayScore < 0) {
+            showResultError('Los marcadores no pueden ser negativos');
+            return;
+        }
+        if (homeScore == awayScore) {
+            showResultError('En voleibol no puede haber empate');
+            return;
+        }
     }
-    
-    if (homeScore == awayScore) {
-        showResultError('En voleibol no puede haber empate');
-        return;
+
+    const payload = {
+        home_score: homeScore === '' ? null : parseInt(homeScore, 10),
+        away_score: awayScore === '' ? null : parseInt(awayScore, 10),
+    };
+    if (setScores.length) {
+        payload.set_scores = setScores;
     }
-    
+
+    const url = currentEditMode
+        ? `/competitions/ajax/partidos/${currentMatchId}/parciales/`
+        : `/competitions/ajax/partidos/${currentMatchId}/resultado/`;
+
     // Enviar datos
     try {
-        const response = await fetch(`/competitions/ajax/partidos/${currentMatchId}/resultado/`, {
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken')
             },
-            body: JSON.stringify({
-                home_score: parseInt(homeScore),
-                away_score: parseInt(awayScore)
-            })
+            body: JSON.stringify(payload)
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             // Mostrar mensaje de éxito
             showResultSuccess(data.message);
-            
+
             // Cerrar modal
             closeResultModal();
-            
+
             // Recargar página para mostrar el resultado
             setTimeout(() => {
                 window.location.reload();
@@ -1045,6 +1135,7 @@ function getCookie(name) {
 
 // Inicializar formulario de resultado
 document.addEventListener('DOMContentLoaded', function() {
+    initMatchSets();
     const resultForm = document.getElementById('resultForm');
     if (resultForm) {
         resultForm.addEventListener('submit', handleResultSubmit);

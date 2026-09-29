@@ -322,6 +322,20 @@ class Match(models.Model):
         null=True, blank=True, verbose_name='Acta parseada',
         help_text='JSON estructurado del acta federativa (convocados, alineaciones y sets)',
     )
+    set_scores = models.JSONField(
+        null=True, blank=True, verbose_name='Parciales',
+        help_text=(
+            'Parciales del partido [[local, visitante], ...]. Procede del scraping '
+            'de resultados o de la entrada manual; el acta tiene prioridad.'
+        ),
+    )
+    result_penalized = models.BooleanField(
+        default=False, verbose_name='Resuelto por penalización',
+        help_text=(
+            'El resultado oficial (home_score/away_score) no refleja el juego del '
+            'acta por una penalización o incomparecencia.'
+        ),
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

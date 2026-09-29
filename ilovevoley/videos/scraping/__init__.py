@@ -9,6 +9,10 @@ from .rfevb import *  # noqa: F401,F403
 __all__ = [
     # base
     'validate_volleyball_score',
+    'validate_set_scores',
+    'league_max_sets',
+    'parse_set_scores_string',
+    'is_penalty_result',
     'ScrapingError',
     'BaseParser',
     # parsers

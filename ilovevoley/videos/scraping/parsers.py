@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from django.utils import timezone
 
 from ..models import League
-from .base import BaseParser, ScrapingError, validate_volleyball_score
+from .base import BaseParser, ScrapingError, parse_set_scores_string, validate_volleyball_score
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +195,14 @@ class MatchesParser(BaseParser):
                         away_score = None
                 else:
                     status = 'scheduled'
-        
+
+        # Parciales: el segundo span.marcador del estado (p. ej. '25-10/25-15/25-11')
+        set_scores = None
+        if estado_div:
+            sets_span = estado_div.find('span', class_='marcador')
+            if sets_span:
+                set_scores = parse_set_scores_string(sets_span.get_text(strip=True))
+
         return {
             'home_team': home_team,
             'away_team': away_team,
@@ -206,6 +213,7 @@ class MatchesParser(BaseParser):
             'home_score': home_score,
             'away_score': away_score,
             'status': status,
+            'set_scores': set_scores,
         }
 
 

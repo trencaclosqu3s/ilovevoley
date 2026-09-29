@@ -293,7 +293,7 @@ class MatchAdmin(ModelAdmin):
     list_display = ('__str__', 'match_date', 'venue', 'status', 'result_display', 'league_categories', 'match_type_display', 'teams_active_status', 'referee_display')
     list_filter = ('is_friendly', 'status', 'league', 'league__categories', 'match_date', 'home_team__is_active', 'away_team__is_active', 'referee1', 'scorer')
     search_fields = ('home_team__name', 'away_team__name', 'venue', 'city', 'league__name', 'referee1', 'referee2', 'scorer', 'timekeeper', 'delegate', 'field_address')
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('created_at', 'updated_at', 'set_scores')
     date_hierarchy = 'match_date'
     inlines = [ImageInline]
     actions = ['mark_as_withdrawn', 'mark_as_scheduled']
@@ -319,7 +319,7 @@ class MatchAdmin(ModelAdmin):
             'fields': ('venue', 'city', 'field_address')
         }),
         ('Resultado', {
-            'fields': ('status', 'home_score', 'away_score')
+            'fields': ('status', 'home_score', 'away_score', 'set_scores', 'result_penalized')
         }),
         ('Personal Oficial', {
             'fields': ('referee1', 'referee2', 'scorer', 'timekeeper', 'delegate'),

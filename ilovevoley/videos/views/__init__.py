@@ -41,6 +41,7 @@ __all__ = [
     'friendly_match_create',
     'ajax_search_teams',
     'ajax_add_match_result',
+    'ajax_edit_match_result',
     'ajax_acta_lineup',
     'standings_view',
     'ajax_matches_by_category',
