@@ -310,3 +310,21 @@ class PasteCrestCircleTests(SimpleTestCase):
         self.assertEqual(corner[:3], (200, 200, 200))
         center = base.getpixel((size // 2, size // 2))
         self.assertEqual(center[:3], (10, 20, 30))
+
+
+class DrawBackgroundBlobsTests(SimpleTestCase):
+    def test_blobs_lighten_and_darken_the_flat_background(self):
+        """El fondo 'completa' no debe quedar liso: lleva manchas difuminadas (issue #241)."""
+        width, height = 400, 400
+        base = Image.new('RGB', (width, height), (100, 100, 100))
+        metrics = {'blob_top': (200, -50, -50), 'blob_bottom': (200, 50, 50)}
+
+        result_card._draw_background_blobs(base, width, height, metrics)
+
+        top_left = base.getpixel((10, 10))
+        bottom_right = base.getpixel((width - 10, height - 10))
+        flat_area = base.getpixel((width // 2, height // 2))
+
+        self.assertEqual(flat_area, (100, 100, 100))
+        self.assertGreater(sum(top_left), sum(flat_area))
+        self.assertLess(sum(bottom_right), sum(flat_area))

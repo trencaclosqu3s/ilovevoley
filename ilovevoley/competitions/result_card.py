@@ -34,6 +34,8 @@ _FORMAT_METRICS = {
         scrim_bottom=560,
         frame_outer=12,
         frame_inner=5,
+        blob_top=(420, -120, -120),
+        blob_bottom=(360, 100, 100),
     ),
     'story': dict(
         crest_size=240,
@@ -44,6 +46,8 @@ _FORMAT_METRICS = {
         scrim_bottom=820,
         frame_outer=14,
         frame_inner=6,
+        blob_top=(640, -160, -180),
+        blob_bottom=(520, 140, 140),
     ),
 }
 
@@ -209,11 +213,30 @@ def _vertical_alpha_gradient(width: int, height: int, top_alpha: int, bottom_alp
     return seed.resize((width, height), Image.Resampling.BILINEAR)
 
 
-def _gradient_background(width: int, height: int, primary, secondary) -> Image.Image:
+def _gradient_background(
+    width: int, height: int, primary, secondary, metrics: dict | None = None
+) -> Image.Image:
     # Degradado vertical: imagen 1×2 escalada con interpolación bilineal.
     seed = Image.new('RGB', (1, 2), primary)
     seed.putpixel((0, 1), secondary)
-    return seed.resize((width, height), Image.Resampling.BILINEAR)
+    image = seed.resize((width, height), Image.Resampling.BILINEAR)
+    if metrics:
+        _draw_background_blobs(image, width, height, metrics)
+    return image
+
+
+def _draw_background_blobs(image: Image.Image, width: int, height: int, metrics: dict):
+    """Manchas circulares difuminadas para romper la monotonía del degradado plano."""
+    top_size, top_x, top_y = metrics['blob_top']
+    top_alpha = Image.new('L', (top_size, top_size), 0)
+    ImageDraw.Draw(top_alpha).ellipse([0, 0, top_size, top_size], fill=26)
+    image.paste(Image.new('RGB', (top_size, top_size), (255, 255, 255)), (top_x, top_y), top_alpha)
+
+    bottom_size, right_inset, bottom_inset = metrics['blob_bottom']
+    bottom_alpha = Image.new('L', (bottom_size, bottom_size), 0)
+    ImageDraw.Draw(bottom_alpha).ellipse([0, 0, bottom_size, bottom_size], fill=26)
+    bottom_pos = (width - bottom_size + right_inset, height - bottom_size + bottom_inset)
+    image.paste(Image.new('RGB', (bottom_size, bottom_size), (0, 0, 0)), bottom_pos, bottom_alpha)
 
 
 def _photo_background(
@@ -322,10 +345,10 @@ def render_result_card(
             )
         except (OSError, ValueError) as exc:
             logger.warning('Foto de marco no válida, usando degradado: %s', exc)
-            image = _gradient_background(width, height, primary, secondary)
+            image = _gradient_background(width, height, primary, secondary, metrics)
             card_style = 'completa'
     else:
-        image = _gradient_background(width, height, primary, secondary)
+        image = _gradient_background(width, height, primary, secondary, metrics)
     draw = ImageDraw.Draw(image)
 
     fetcher = logo_fetcher or fetch_logo_bytes
