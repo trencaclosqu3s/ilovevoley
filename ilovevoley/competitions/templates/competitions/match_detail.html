@@ -93,28 +93,56 @@
                         {{ match.result_display }}
                     </div>
                     <div id="result-card-actions"
-                         class="flex flex-wrap items-center gap-2 mt-2"
-                         data-card-url="{% url 'competitions:match_result_card' match.id %}">
-                        <button type="button"
-                                data-card-format="square"
-                                class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
-                            Compartir 1:1
-                        </button>
-                        <button type="button"
-                                data-card-format="story"
-                                class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
-                            Compartir Story
-                        </button>
-                        <button type="button"
-                                data-card-format="square"
-                                class="result-card-download inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
-                            Descargar 1:1
-                        </button>
-                        <button type="button"
-                                data-card-format="story"
-                                class="result-card-download inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
-                            Descargar Story
-                        </button>
+                         class="flex flex-col gap-2 mt-2"
+                         data-card-url="{% url 'competitions:match_result_card' match.id %}"
+                         data-card-style="completa">
+                        {% if images %}
+                            <div class="inline-flex self-start rounded-full bg-gray-100 dark:bg-gray-700 p-1 text-sm">
+                                <button type="button"
+                                        data-card-style-option="completa"
+                                        class="result-card-style-btn px-3 py-1 rounded-full font-medium transition bg-csj-purple text-white">
+                                    Completa
+                                </button>
+                                <button type="button"
+                                        data-card-style-option="marco"
+                                        class="result-card-style-btn px-3 py-1 rounded-full font-medium transition text-gray-600 dark:text-gray-300">
+                                    Con foto
+                                </button>
+                            </div>
+                            <div id="result-card-photo-picker" class="hidden flex flex-wrap items-center gap-2">
+                                <span class="text-xs text-gray-500 dark:text-gray-400">Elige una foto:</span>
+                                {% for image in images|slice:":8" %}
+                                    <button type="button"
+                                            class="result-card-photo-option w-12 h-12 rounded-lg overflow-hidden border-2 border-transparent focus:outline-none"
+                                            data-photo-id="{{ image.id }}"
+                                            title="{{ image.title|default:'Foto del partido' }}">
+                                        {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover" sizes="48px" %}
+                                    </button>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button"
+                                    data-card-format="square"
+                                    class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
+                                Compartir 1:1
+                            </button>
+                            <button type="button"
+                                    data-card-format="story"
+                                    class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
+                                Compartir Story
+                            </button>
+                            <button type="button"
+                                    data-card-format="square"
+                                    class="result-card-download inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                                Descargar 1:1
+                            </button>
+                            <button type="button"
+                                    data-card-format="story"
+                                    class="result-card-download inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                                Descargar Story
+                            </button>
+                        </div>
                     </div>
                 {% elif is_tenant_manager %}
                     {% if match.match_date.date <= today %}
@@ -673,10 +701,22 @@ function closeImageLightbox() {
 
     const GENERIC_ERROR = 'No se pudo generar la tarjeta. Inténtalo de nuevo';
 
+    function buildCardUrl(format) {
+        const params = new URLSearchParams({ format, style: root.dataset.cardStyle });
+        if (root.dataset.cardStyle === 'marco') {
+            if (!root.dataset.photoId) {
+                throw new Error('Elige una foto del partido para el estilo "Con foto"');
+            }
+            params.set('photo_id', root.dataset.photoId);
+        }
+        return `${baseUrl}?${params.toString()}`;
+    }
+
     async function fetchCard(format) {
+        const url = buildCardUrl(format);
         let response;
         try {
-            response = await fetch(`${baseUrl}?format=${encodeURIComponent(format)}`);
+            response = await fetch(url);
         } catch (_) {
             // Fallo de red: el mensaje nativo del navegador está en inglés.
             throw new Error(GENERIC_ERROR);
@@ -765,6 +805,36 @@ function closeImageLightbox() {
             downloadCard(button.dataset.cardFormat);
         });
     });
+
+    const photoPicker = document.getElementById('result-card-photo-picker');
+
+    root.querySelectorAll('.result-card-style-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            root.dataset.cardStyle = button.dataset.cardStyleOption;
+            root.querySelectorAll('.result-card-style-btn').forEach(function(other) {
+                const isActive = other === button;
+                other.classList.toggle('bg-csj-purple', isActive);
+                other.classList.toggle('text-white', isActive);
+                other.classList.toggle('text-gray-600', !isActive);
+                other.classList.toggle('dark:text-gray-300', !isActive);
+            });
+            if (photoPicker) {
+                photoPicker.classList.toggle('hidden', button.dataset.cardStyleOption !== 'marco');
+            }
+        });
+    });
+
+    if (photoPicker) {
+        photoPicker.querySelectorAll('.result-card-photo-option').forEach(function(button) {
+            button.addEventListener('click', function() {
+                root.dataset.photoId = button.dataset.photoId;
+                photoPicker.querySelectorAll('.result-card-photo-option').forEach(function(other) {
+                    other.classList.toggle('border-csj-purple', other === button);
+                    other.classList.toggle('border-transparent', other !== button);
+                });
+            });
+        });
+    }
 })();
 
 // Variables globales para el modal de resultado
