@@ -558,6 +558,84 @@ class MatchResultCardViewTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('formato', response.json()['error'].lower())
 
+    def test_invalid_style_returns_json_400(self):
+        response = self.client.get(
+            self._url(self.finished.id, 'square') + '&style=banner',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('estilo', response.json()['error'].lower())
+
+    def test_marco_style_without_photo_id_returns_json_400(self):
+        response = self.client.get(
+            self._url(self.finished.id, 'square') + '&style=marco',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('foto', response.json()['error'].lower())
+
+    def test_marco_style_with_approved_photo_returns_png(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from ilovevoley.content.models import Image
+
+        tiny_gif = (
+            b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
+            b'\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00'
+            b'\x00\x02\x02D\x01\x00;'
+        )
+        photo = Image.objects.create(
+            image=SimpleUploadedFile('x.jpg', tiny_gif, content_type='image/jpeg'),
+            title='Foto del partido',
+            match=self.finished,
+            organization=self.org,
+            status='approved',
+            uploaded_by=self.user,
+        )
+
+        with patch(
+            'ilovevoley.competitions.result_card.fetch_logo_bytes',
+            return_value=None,
+        ):
+            response = self.client.get(
+                self._url(self.finished.id, 'square') + f'&style=marco&photo_id={photo.id}',
+                HTTP_HOST='testclub.ilovevoley.es',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/png')
+
+    def test_marco_style_with_photo_from_other_org_returns_json_400(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from ilovevoley.content.models import Image
+
+        tiny_gif = (
+            b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
+            b'\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00'
+            b'\x00\x02\x02D\x01\x00;'
+        )
+        other_org = Organization.objects.create(
+            slug='otherclub', name='Other Club', is_active=True
+        )
+        photo = Image.objects.create(
+            image=SimpleUploadedFile('x.jpg', tiny_gif, content_type='image/jpeg'),
+            title='Foto de otro club',
+            match=self.finished,
+            organization=other_org,
+            status='approved',
+            uploaded_by=self.user,
+        )
+
+        response = self.client.get(
+            self._url(self.finished.id, 'square') + f'&style=marco&photo_id={photo.id}',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+        self.assertEqual(response.status_code, 400)
+
     def test_missing_match_returns_json_404(self):
         response = self.client.get(
             self._url(999999),

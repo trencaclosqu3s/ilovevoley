@@ -40,6 +40,12 @@ def _fake_org(**overrides):
     return o
 
 
+def _fake_photo_bytes() -> bytes:
+    buffer = BytesIO()
+    Image.new('RGB', (800, 600), (30, 60, 90)).save(buffer, format='JPEG')
+    return buffer.getvalue()
+
+
 def _capture_drawn_text():
     """Espía las llamadas a draw.text() conservando el dibujado real."""
     calls = []
@@ -137,6 +143,60 @@ class RenderResultCardTests(SimpleTestCase):
             logo_fetcher=lambda url: None,
         )
         self.assertTrue(png[:8] == b'\x89PNG\r\n\x1a\n')
+
+    def test_marco_style_requires_photo(self):
+        with self.assertRaises(ValueError):
+            result_card.render_result_card(
+                match=_fake_match(),
+                organization=_fake_org(),
+                card_style='marco',
+                photo=None,
+                logo_fetcher=lambda url: None,
+            )
+
+    def test_invalid_card_style_raises(self):
+        with self.assertRaises(ValueError):
+            result_card.render_result_card(
+                match=_fake_match(),
+                organization=_fake_org(),
+                card_style='inventado',
+                logo_fetcher=lambda url: None,
+            )
+
+    def test_marco_style_with_photo_and_sets_returns_png(self):
+        png = result_card.render_result_card(
+            match=_fake_match(),
+            organization=_fake_org(),
+            card_format='story',
+            card_style='marco',
+            photo=_fake_photo_bytes(),
+            sets=[(25, 20), (18, 25), (25, 22)],
+            logo_fetcher=lambda url: None,
+        )
+        img = Image.open(BytesIO(png))
+        self.assertEqual(img.format, 'PNG')
+        self.assertEqual(img.size, (1080, 1920))
+
+    def test_marco_style_without_sets_still_returns_png(self):
+        png = result_card.render_result_card(
+            match=_fake_match(),
+            organization=_fake_org(),
+            card_style='marco',
+            photo=_fake_photo_bytes(),
+            sets=[],
+            logo_fetcher=lambda url: None,
+        )
+        self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
+
+    def test_marco_style_falls_back_to_gradient_on_invalid_photo(self):
+        png = result_card.render_result_card(
+            match=_fake_match(),
+            organization=_fake_org(),
+            card_style='marco',
+            photo=b'esto no es una imagen',
+            logo_fetcher=lambda url: None,
+        )
+        self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
 
     def test_logo_fetcher_failure_still_returns_png(self):
         match = _fake_match()
