@@ -1,0 +1,40 @@
+/* Estilos de las páginas de error estáticas servidas por nginx.
+   Extraídos del <style> inline original para cumplir la CSP sin nonce
+   (nginx no puede inyectarlo). Ver #244. */
+
+.ascii-art {
+    font-family: 'Courier New', monospace;
+    line-height: 1.2;
+    white-space: pre;
+    font-size: 0.65rem;
+}
+
+@media (min-width: 640px) {
+    .ascii-art {
+        font-size: 0.75rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .ascii-art {
+        font-size: 0.85rem;
+    }
+}
+
+@keyframes swing-net {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+}
+
+.net-swing {
+    animation: swing-net 2s ease-in-out infinite;
+}
+
+@keyframes pulse-clock {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.clock-pulse {
+    animation: pulse-clock 1.5s ease-in-out infinite;
+}
