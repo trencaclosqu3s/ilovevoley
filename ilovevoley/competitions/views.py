@@ -16,7 +16,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from ilovevoley.competitions.result_card import extract_set_scores, render_result_card
+from ilovevoley.competitions.result_card import (
+    CARD_STYLES,
+    _file_field_bytes,
+    extract_set_scores,
+    render_result_card,
+)
 from ilovevoley.content.models import Image
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category, Season
@@ -329,6 +334,9 @@ def match_result_card(request, match_id):
     card_format = request.GET.get('format', 'square')
     if card_format not in ('square', 'story'):
         return JsonResponse({'error': 'Formato de tarjeta no válido'}, status=400)
+    card_style = request.GET.get('style', 'completa')
+    if card_style not in CARD_STYLES:
+        return JsonResponse({'error': 'Estilo de tarjeta no válido'}, status=400)
     if (
         match.status != 'finished'
         or match.home_score is None
@@ -339,10 +347,31 @@ def match_result_card(request, match_id):
             status=400,
         )
 
+    photo_bytes = None
+    if card_style == 'marco':
+        photo_id = request.GET.get('photo_id', '')
+        photo = None
+        if photo_id.isdecimal():
+            photo = match.images.filter(
+                status='approved', organization=request.tenant, id=photo_id
+            ).first()
+        if not photo:
+            return JsonResponse(
+                {'error': 'Selecciona una foto del partido para el estilo "marco"'},
+                status=400,
+            )
+        photo_bytes = _file_field_bytes(photo.thumbnail_large or photo.image)
+        if photo_bytes is None:
+            return JsonResponse(
+                {'error': 'No se pudo leer la foto seleccionada'}, status=400
+            )
+
     png = render_result_card(
         match=match,
         organization=request.tenant,
         card_format=card_format,
+        card_style=card_style,
+        photo=photo_bytes,
         sets=_load_set_scores_for_card(match),
     )
     response = HttpResponse(png, content_type='image/png')
