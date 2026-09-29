@@ -16,7 +16,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from ilovevoley.competitions.result_card import CARD_STYLES, extract_set_scores, render_result_card
+from ilovevoley.competitions.result_card import (
+    CARD_STYLES,
+    _file_field_bytes,
+    extract_set_scores,
+    render_result_card,
+)
 from ilovevoley.content.models import Image
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category, Season
@@ -344,23 +349,21 @@ def match_result_card(request, match_id):
 
     photo_bytes = None
     if card_style == 'marco':
-        photo_id = request.GET.get('photo_id')
-        photo = match.images.filter(
-            status='approved', organization=request.tenant, id=photo_id
-        ).first()
+        photo_id = request.GET.get('photo_id', '')
+        photo = (
+            match.images.filter(
+                status='approved', organization=request.tenant, id=photo_id
+            ).first()
+            if photo_id.isdigit()
+            else None
+        )
         if not photo:
             return JsonResponse(
                 {'error': 'Selecciona una foto del partido para el estilo "marco"'},
                 status=400,
             )
-        field = photo.thumbnail_large or photo.image
-        try:
-            field.open('rb')
-            try:
-                photo_bytes = field.read()
-            finally:
-                field.close()
-        except OSError:
+        photo_bytes = _file_field_bytes(photo.thumbnail_large or photo.image)
+        if photo_bytes is None:
             return JsonResponse(
                 {'error': 'No se pudo leer la foto seleccionada'}, status=400
             )

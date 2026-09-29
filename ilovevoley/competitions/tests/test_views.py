@@ -576,6 +576,16 @@ class MatchResultCardViewTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('foto', response.json()['error'].lower())
 
+    def test_marco_style_with_non_numeric_photo_id_returns_json_400(self):
+        """photo_id no numerico no debe reventar el lookup con un 500."""
+        response = self.client.get(
+            self._url(self.finished.id, 'square') + '&style=marco&photo_id=abc',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('foto', response.json()['error'].lower())
+
     def test_marco_style_with_approved_photo_returns_png(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
