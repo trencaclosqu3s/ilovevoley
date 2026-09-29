@@ -173,5 +173,3 @@ class EnsurePendingMembershipTest(TestCase):
 
         self.assertIsNone(ensure_pending_membership(root, self.org))
         self.assertIsNone(ensure_pending_membership(self.user, None))
-
-
