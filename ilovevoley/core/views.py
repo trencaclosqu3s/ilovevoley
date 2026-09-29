@@ -241,6 +241,7 @@ def moderation_counts_api(request):
 
     if tenant:
         pending_users_count = User.objects.filter(
+            is_active=True,
             memberships__organization=tenant,
             memberships__is_approved=False,
         ).distinct().count()
@@ -290,6 +291,7 @@ def moderation_panel(request):
 
     if tenant:
         pending_users = User.objects.filter(
+            is_active=True,
             memberships__organization=tenant,
             memberships__is_approved=False,
         ).distinct().order_by('date_joined')

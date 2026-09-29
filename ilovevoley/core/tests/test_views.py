@@ -378,6 +378,41 @@ class TenantManagerModerationTest(TestCase):
         self.assertIn(img_a, pending_images)
         self.assertNotIn(img_b, pending_images)
 
+    def test_superuser_reject_on_subdomain_removes_user_from_tenant_panel(self):
+        """Un superuser que rechaza en un club desactiva la cuenta; la membership
+        queda pendiente, así que el panel del club debe excluir al inactivo."""
+        User = get_user_model()
+        superuser = User.objects.create_superuser(
+            username='root_sub', password='pass', is_approved=True
+        )
+        self.client.force_login(superuser)
+
+        before = self.client.get(
+            reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
+        )
+        self.assertContains(before, 'pending_a')
+
+        url = reverse('core:reject_user_api', args=[self.pending_a.id])
+        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+
+        self.pending_a.refresh_from_db()
+        self.assertFalse(self.pending_a.is_active)
+        from ilovevoley.users.models import Membership
+        self.assertTrue(Membership.objects.filter(
+            user=self.pending_a, organization=self.org_a, is_approved=False
+        ).exists())
+
+        panel = self.client.get(
+            reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
+        )
+        self.assertNotContains(panel, 'pending_a')
+
+        counts = self.client.get(
+            reverse('core:moderation_counts_api'), HTTP_HOST='cluba.ilovevoley.es'
+        )
+        self.assertEqual(counts.json()['pending_users'], 0)
+
 
 @override_settings(ALLOWED_HOSTS=['ilovevoley.es', 'localhost'])
 class GlobalSuperuserModerationTest(TestCase):
