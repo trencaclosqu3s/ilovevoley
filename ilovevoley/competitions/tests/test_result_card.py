@@ -295,3 +295,18 @@ class FetchLogoBytesTests(SimpleTestCase):
                 self.assertIsNone(
                     result_card.fetch_logo_bytes('https://logos.example/crest.png')
                 )
+
+
+class PasteCrestCircleTests(SimpleTestCase):
+    def test_clips_rectangular_crest_to_circle(self):
+        """Un escudo cuadrado opaco no debe sobresalir del disco (issue #241)."""
+        size = 100
+        crest = Image.new('RGBA', (size, size), (10, 20, 30, 255))
+        base = Image.new('RGBA', (size, size), (200, 200, 200, 255))
+
+        result_card._paste_crest_circle(base, crest, size, 0, 0)
+
+        corner = base.getpixel((2, 2))
+        self.assertEqual(corner[:3], (200, 200, 200))
+        center = base.getpixel((size // 2, size // 2))
+        self.assertEqual(center[:3], (10, 20, 30))

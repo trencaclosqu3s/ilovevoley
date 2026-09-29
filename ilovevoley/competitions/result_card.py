@@ -9,7 +9,7 @@ from typing import Callable, Iterable
 
 from django.conf import settings
 from django.utils import timezone
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 from unidecode import unidecode
 
 from ilovevoley.core.security import safe_get
@@ -475,11 +475,18 @@ def _draw_score(draw, score: str, font, *, center_x: int, center_y: int, color):
 
 
 def _paste_crest_circle(image: Image.Image, crest: Image.Image, size: int, x: int, y: int):
-    """Pega el escudo sobre un disco blanco semitransparente para que se vea sobre la foto."""
+    """Pega el escudo sobre un disco blanco semitransparente, recortado a círculo.
+
+    Un escudo rectangular con fondo opaco puede llenar toda la caja size×size;
+    sin este recorte, sus esquinas sobresaldrían del disco.
+    """
     backdrop = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     ImageDraw.Draw(backdrop).ellipse([0, 0, size, size], fill=(255, 255, 255, 235))
     offset = ((size - crest.width) // 2, (size - crest.height) // 2)
     backdrop.paste(crest, offset, crest)
+    circle_mask = Image.new('L', (size, size), 0)
+    ImageDraw.Draw(circle_mask).ellipse([0, 0, size, size], fill=255)
+    backdrop.putalpha(ImageChops.multiply(backdrop.getchannel('A'), circle_mask))
     image.paste(backdrop, (x, y), backdrop)
 
 
