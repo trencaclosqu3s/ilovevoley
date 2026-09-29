@@ -354,11 +354,16 @@ def match_result_card(request, match_id):
                 status=400,
             )
         field = photo.thumbnail_large or photo.image
-        field.open('rb')
         try:
-            photo_bytes = field.read()
-        finally:
-            field.close()
+            field.open('rb')
+            try:
+                photo_bytes = field.read()
+            finally:
+                field.close()
+        except OSError:
+            return JsonResponse(
+                {'error': 'No se pudo leer la foto seleccionada'}, status=400
+            )
 
     png = render_result_card(
         match=match,

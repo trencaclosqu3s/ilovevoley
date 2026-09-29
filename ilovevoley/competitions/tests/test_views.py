@@ -607,6 +607,35 @@ class MatchResultCardViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'image/png')
 
+    def test_marco_style_with_missing_photo_file_returns_json_400(self):
+        """El fichero de la foto puede faltar en el storage aunque el registro exista (#241)."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from ilovevoley.content.models import Image
+
+        tiny_gif = (
+            b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
+            b'\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00'
+            b'\x00\x02\x02D\x01\x00;'
+        )
+        photo = Image.objects.create(
+            image=SimpleUploadedFile('x.jpg', tiny_gif, content_type='image/jpeg'),
+            title='Foto sin fichero en disco',
+            match=self.finished,
+            organization=self.org,
+            status='approved',
+            uploaded_by=self.user,
+        )
+        photo.image.storage.delete(photo.image.name)
+
+        response = self.client.get(
+            self._url(self.finished.id, 'square') + f'&style=marco&photo_id={photo.id}',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('foto', response.json()['error'].lower())
+
     def test_marco_style_with_photo_from_other_org_returns_json_400(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
