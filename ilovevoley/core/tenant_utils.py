@@ -183,6 +183,47 @@ def reject_user_membership(user, tenant):
     ).delete()
 
 
+def ensure_pending_membership(user, tenant):
+    """Asegura la Membership pendiente del usuario en el tenant.
+
+    Cubre el caso de un usuario ya aprobado en otro club que visita un club
+    nuevo (p. ej. un miembro de Sant Josep que entra en Sóller): hasta ahora no
+    había forma de solicitar acceso y el usuario quedaba atrapado en
+    ``/pending-approval/`` sin que el club tuviera nada que aprobar. Un alta con
+    Google se resuelve en el dominio raíz (sin tenant), así que su solicitud se
+    registra cuando entra en la URL del club.
+
+    Devuelve la Membership creada, o ``None`` si no procedía (anónimo,
+    superusuario, sin tenant o ya existía). Usa ``get_or_create`` para tolerar
+    peticiones concurrentes sin chocar con el ``unique_together``. La creación
+    avisa a los moderadores del club: por el ``post_save`` de Membership si la
+    cuenta ya está aprobada, o explícitamente si aún no lo está (el alta se
+    notificó sin tenant).
+    """
+    if not getattr(user, 'is_authenticated', False) or tenant is None:
+        return None
+    if user.is_superuser:
+        return None
+
+    from ilovevoley.users.models import Membership
+
+    membership, created = Membership.objects.get_or_create(
+        user=user,
+        organization=tenant,
+        defaults={'role': 'member', 'is_approved': False},
+    )
+    if created and not user.is_approved:
+        # Cuenta aún no aprobada (p. ej. alta con Google resuelta en el dominio
+        # raíz): el aviso de alta se envió sin tenant, así que avisamos aquí a
+        # los moderadores del club. Si la cuenta ya está aprobada, el post_save
+        # de Membership ya encola el aviso y no duplicamos.
+        from ilovevoley.core.email_utils import enqueue_on_commit
+        from ilovevoley.core.tasks import notify_membership_pending_task
+
+        enqueue_on_commit(notify_membership_pending_task, membership.id)
+    return membership if created else None
+
+
 def tenant_access_required(*, manager=False, staff=False, api=False):
     """Requiere tenant, login y membresía aprobada (u opciones manager/staff).
 

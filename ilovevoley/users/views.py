@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
-from ilovevoley.core.tenant_utils import user_has_approved_membership
+from ilovevoley.core.tenant_utils import ensure_pending_membership, user_has_approved_membership
 from .forms import UserProfileForm, ParentInfoForm
 
 
@@ -20,7 +20,17 @@ def pending_approval(request):
         return redirect('profile')
     if not tenant and request.user.is_approved:
         return redirect('profile')
-    
+
+    # Usuario autenticado sin membresía en este club: registra la solicitud para
+    # que el admin del tenant tenga algo que aprobar (miembro de otro club o
+    # alta con Google resuelta en el dominio raíz).
+    if tenant:
+        ensure_pending_membership(request.user, tenant)
+
+    # Una cuenta ya activada que entra en un club nuevo "solicita unirse"; una
+    # cuenta recién creada simplemente espera su aprobación.
+    joining_club = request.user.is_approved
+
     # Si el usuario no tiene parent_info, mostrar formulario para completarlo
     if not request.user.parent_info:
         if request.method == 'POST':
@@ -36,13 +46,15 @@ def pending_approval(request):
         return render(request, 'users/pending_approval.html', {
             'user': request.user,
             'form': form,
-            'needs_parent_info': True
+            'needs_parent_info': True,
+            'joining_club': joining_club,
         })
     
     # Si ya tiene parent_info, solo mostrar mensaje de espera
     return render(request, 'users/pending_approval.html', {
         'user': request.user,
-        'needs_parent_info': False
+        'needs_parent_info': False,
+        'joining_club': joining_club,
     })
 
 

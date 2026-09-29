@@ -256,3 +256,20 @@ class MembershipPendingNotificationTest(TestCase):
 
         self.assertEqual(mail.outbox, [])
 
+    def test_join_request_of_new_account_notifies_moderators(self):
+        from ilovevoley.core.tenant_utils import ensure_pending_membership
+
+        User = get_user_model()
+        oauth_user = User.objects.create_user(
+            username='oauth_new', password='pass', email='oauth_new@test.com',
+            is_approved=False,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            membership = ensure_pending_membership(oauth_user, self.org)
+
+        self.assertIsNotNone(membership)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertCountEqual(mail.outbox[0].to, ['root@test.com', 'manager@test.com'])
+        self.assertIn('/core/moderacion/', mail.outbox[0].alternatives[0][0])
+

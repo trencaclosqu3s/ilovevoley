@@ -139,3 +139,37 @@ class TenantUtilsTest(TestCase):
         self.assertTrue(_image_is_allowed(image, mgr, self.org))
 
 
+class EnsurePendingMembershipTest(TestCase):
+    """Solicitud de acceso de un usuario sin membresía en el tenant (#244)."""
+
+    def setUp(self):
+        from ilovevoley.core.models import Organization
+
+        cache.clear()
+        self.org = Organization.objects.create(slug='club-x', name='Club X')
+        self.user = get_user_model().objects.create_user(username='outsider', password='pass')
+
+    def test_creates_pending_membership_when_missing(self):
+        from ilovevoley.core.tenant_utils import ensure_pending_membership
+
+        membership = ensure_pending_membership(self.user, self.org)
+
+        self.assertIsNotNone(membership)
+        self.assertEqual(membership.role, 'member')
+        self.assertFalse(membership.is_approved)
+
+    def test_returns_none_when_membership_already_exists(self):
+        from ilovevoley.core.tenant_utils import ensure_pending_membership
+        from ilovevoley.users.models import Membership
+
+        Membership.objects.create(user=self.user, organization=self.org)
+
+        self.assertIsNone(ensure_pending_membership(self.user, self.org))
+
+    def test_skips_superuser_and_missing_tenant(self):
+        from ilovevoley.core.tenant_utils import ensure_pending_membership
+
+        root = get_user_model().objects.create_superuser(username='root-x', password='pass')
+
+        self.assertIsNone(ensure_pending_membership(root, self.org))
+        self.assertIsNone(ensure_pending_membership(self.user, None))
