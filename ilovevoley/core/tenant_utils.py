@@ -196,8 +196,9 @@ def ensure_pending_membership(user, tenant):
     Devuelve la Membership creada, o ``None`` si no procedía (anónimo,
     superusuario, sin tenant o ya existía). Usa ``get_or_create`` para tolerar
     peticiones concurrentes sin chocar con el ``unique_together``. La creación
-    dispara el aviso a moderadores ya existente cuando la cuenta global está
-    aprobada.
+    avisa a los moderadores del club: por el ``post_save`` de Membership si la
+    cuenta ya está aprobada, o explícitamente si aún no lo está (el alta se
+    notificó sin tenant).
     """
     if not getattr(user, 'is_authenticated', False) or tenant is None:
         return None
@@ -211,6 +212,15 @@ def ensure_pending_membership(user, tenant):
         organization=tenant,
         defaults={'role': 'member', 'is_approved': False},
     )
+    if created and not user.is_approved:
+        # Cuenta aún no aprobada (p. ej. alta con Google resuelta en el dominio
+        # raíz): el aviso de alta se envió sin tenant, así que avisamos aquí a
+        # los moderadores del club. Si la cuenta ya está aprobada, el post_save
+        # de Membership ya encola el aviso y no duplicamos.
+        from ilovevoley.core.email_utils import enqueue_on_commit
+        from ilovevoley.core.tasks import notify_membership_pending_task
+
+        enqueue_on_commit(notify_membership_pending_task, membership.id)
     return membership if created else None
 
 
