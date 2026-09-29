@@ -245,7 +245,11 @@ def moderation_counts_api(request):
             memberships__is_approved=False,
         ).distinct().count()
     elif request.user.is_superuser:
-        pending_users_count = User.objects.filter(is_approved=False).count()
+        # Pendiente = sin aprobar y activo. Un usuario rechazado se desactiva
+        # (is_active=False) manteniendo is_approved=False, así que no cuenta.
+        pending_users_count = User.objects.filter(
+            is_approved=False, is_active=True
+        ).count()
     else:
         pending_users_count = 0
 
@@ -290,7 +294,11 @@ def moderation_panel(request):
             memberships__is_approved=False,
         ).distinct().order_by('date_joined')
     elif is_superuser:
-        pending_users = User.objects.filter(is_approved=False).order_by('date_joined')
+        # Igual que en el contador: se excluyen las cuentas desactivadas, que
+        # son las rechazadas, para que el rechazo persista al refrescar.
+        pending_users = User.objects.filter(
+            is_approved=False, is_active=True
+        ).order_by('date_joined')
     else:
         pending_users = User.objects.none()
 
@@ -335,7 +343,7 @@ def approve_user_api(request, user_id):
 
     try:
         if tenant is None and request.user.is_superuser:
-            user = User.objects.get(id=user_id, is_approved=False)
+            user = User.objects.get(id=user_id, is_approved=False, is_active=True)
         else:
             user = _get_pending_membership(user_id, tenant).user
 
@@ -382,7 +390,7 @@ def reject_user_api(request, user_id):
     try:
         if request.user.is_superuser:
             if tenant is None:
-                user = User.objects.get(id=user_id, is_approved=False)
+                user = User.objects.get(id=user_id, is_approved=False, is_active=True)
             else:
                 user = _get_pending_membership(user_id, tenant).user
             # Rechazar = desactivar el usuario y mantener is_approved en False

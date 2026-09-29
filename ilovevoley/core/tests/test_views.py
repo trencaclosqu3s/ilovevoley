@@ -379,6 +379,59 @@ class TenantManagerModerationTest(TestCase):
         self.assertNotIn(img_b, pending_images)
 
 
+@override_settings(ALLOWED_HOSTS=['ilovevoley.es', 'localhost'])
+class GlobalSuperuserModerationTest(TestCase):
+    """Superuser sin subdominio: el rechazo desactiva la cuenta y persiste.
+
+    Un usuario rechazado queda con is_active=False e is_approved=False; el panel
+    global debe excluirlo de pendientes para que el rechazo se refleje al
+    refrescar (issue #242).
+    """
+
+    def setUp(self):
+        from ilovevoley.core.models import Organization
+        from ilovevoley.users.models import Membership
+
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='globalclub', name='Global Club', is_active=True
+        )
+        User = get_user_model()
+        self.superuser = User.objects.create_superuser(
+            username='global_root', password='pass', is_approved=True
+        )
+        self.pending = User.objects.create_user(
+            username='global_pending', password='pass', is_approved=False
+        )
+        Membership.objects.create(
+            user=self.pending, organization=self.org, is_approved=False
+        )
+
+    def test_reject_persists_and_removes_user_from_pending_panel(self):
+        self.client.force_login(self.superuser)
+
+        before = self.client.get(reverse('core:moderation_panel'), HTTP_HOST='localhost')
+        self.assertContains(before, 'global_pending')
+
+        url = reverse('core:reject_user_api', args=[self.pending.id])
+        response = self.client.post(url, HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+
+        self.pending.refresh_from_db()
+        self.assertFalse(self.pending.is_active)
+        self.assertFalse(self.pending.is_approved)
+
+        panel = self.client.get(reverse('core:moderation_panel'), HTTP_HOST='localhost')
+        self.assertEqual(panel.status_code, 200)
+        self.assertNotContains(panel, 'global_pending')
+
+        counts = self.client.get(
+            reverse('core:moderation_counts_api'), HTTP_HOST='localhost'
+        )
+        self.assertEqual(counts.json()['pending_users'], 0)
+
+
 @override_settings(
     ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'],
     DEBUG=False,
