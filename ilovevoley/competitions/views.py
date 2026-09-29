@@ -350,13 +350,11 @@ def match_result_card(request, match_id):
     photo_bytes = None
     if card_style == 'marco':
         photo_id = request.GET.get('photo_id', '')
-        photo = (
-            match.images.filter(
+        photo = None
+        if photo_id.isdecimal():
+            photo = match.images.filter(
                 status='approved', organization=request.tenant, id=photo_id
             ).first()
-            if photo_id.isdigit()
-            else None
-        )
         if not photo:
             return JsonResponse(
                 {'error': 'Selecciona una foto del partido para el estilo "marco"'},
