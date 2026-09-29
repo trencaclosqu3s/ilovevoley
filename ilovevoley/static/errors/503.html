@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servicio en mantenimiento | I Love Voley</title>
+    <link rel="icon" type="image/png" href="/static/images/logo_app.png">
+    <link rel="stylesheet" href="/static/css/app.css">
+    <style>
+        @keyframes swing-net {
+            0%, 100% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
+        }
+        .net-swing {
+            animation: swing-net 2s ease-in-out infinite;
+        }
+
+        .ascii-art {
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+            white-space: pre;
+            font-size: 0.65rem;
+        }
+
+        @media (min-width: 640px) {
+            .ascii-art {
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .ascii-art {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 min-h-screen flex items-center justify-center px-4">
+    <div class="max-w-3xl w-full">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 md:p-12 border-t-4 border-slate-500">
+            <div class="text-center mb-6 net-swing">
+                <span class="text-6xl sm:text-7xl md:text-8xl">🚧</span>
+            </div>
+
+            <div class="bg-slate-50 rounded-lg p-4 mb-6 overflow-x-auto">
+                <div class="ascii-art text-slate-600 text-center">
+   ┌───────────────────┐
+   │   PISTA  CERRADA  │
+   │ ─ ─ ─ ─ ─ ─ ─ ─ ─ │
+   │  🏐   🧹   🏐      │
+   └───────────────────┘
+     CAMBIANDO LA RED
+                </div>
+            </div>
+
+            <div class="text-center mb-6">
+                <h1 class="text-5xl sm:text-6xl font-bold text-slate-600 mb-2">503</h1>
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">¡El pabellón está en mantenimiento!</h2>
+                <p class="text-lg text-gray-600">Estamos colocando la red y barriendo la pista 🧹</p>
+            </div>
+
+            <div class="bg-slate-100 border-l-4 border-slate-500 rounded-lg p-4 mb-8">
+                <p class="text-gray-700 text-center italic">
+                    "Balón fuera de juego un momento: el equipo técnico ha pedido un tiempo muerto para arreglar la cancha."
+                </p>
+            </div>
+
+            <div class="bg-gray-50 rounded-lg p-6 mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">¿Qué ha pasado?</h3>
+                <ul class="space-y-2 text-gray-600">
+                    <li class="flex items-start">
+                        <span class="text-slate-500 mr-2">•</span>
+                        <span>El servicio está haciendo una tarea de mantenimiento o ha tenido un problema puntual.</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-slate-500 mr-2">•</span>
+                        <span>No es cosa de tu cuenta ni de tus datos: vuelve a intentarlo en unos momentos.</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-slate-500 mr-2">•</span>
+                        <span>Si estabas rellenando algo, espera un poco antes de reintentar.</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-slate-500 mr-2">•</span>
+                        <span>Quedarse con ganas de voleibol no es divertido, pero volvemos enseguida 🏐</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="/"
+                   class="bg-csj-purple hover:bg-csj-purple-dark text-white font-bold py-3 px-8 rounded-lg transition-colors text-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                    🏠 Volver a Inicio
+                </a>
+                <a href=""
+                   class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-8 rounded-lg transition-colors text-center shadow hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
+                    🔄 Reintentar
+                </a>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+                <p class="text-sm text-gray-500">
+                    <span class="font-semibold text-slate-600">Tiempo técnico:</span>
+                    El equipo técnico ya está calentando para volver a la cancha 📋
+                </p>
+            </div>
+        </div>
+
+        <div class="text-center mt-6">
+            <p class="text-sm text-gray-600">
+                Una producción de <span class="font-bold text-csj-purple">I Love Voley</span>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

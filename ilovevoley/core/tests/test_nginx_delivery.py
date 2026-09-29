@@ -182,3 +182,34 @@ def test_nginx_conf_all_ssl_servers_have_http2():
     for s in ssl_servers:
         assert "http2 on;" in s, f"Servidor SSL sin directiva 'http2 on;':\n{s[:120]}"
 
+
+def test_nginx_serves_themed_error_pages_without_backend():
+    """El rate limit y las caídas de backend muestran páginas propias, no las de nginx.
+
+    Los errores que genera nginx (limit_req y 502/503/504) no pasan por Django, así
+    que se sirven desde /static/ para que funcionen aunque gunicorn esté saturado o
+    caído. El 429 además deja claro que es rate limiting y no una avería.
+    """
+    nginx_conf_path = Path(settings.BASE_DIR) / "nginx.conf"
+    content = nginx_conf_path.read_text(encoding="utf-8")
+
+    assert re.search(r"limit_req_status\s+429;", content), (
+        "limit_req_status 429; no está configurado: el rate limit se confundiría con un 503"
+    )
+
+    servers = _get_server_blocks(content)
+    ilovevoley_ssl = _get_ssl_server_for_host(servers, "ilovevoley.es")
+    assert ilovevoley_ssl is not None, "Bloque server SSL para ilovevoley.es no encontrado"
+
+    expected = {
+        "429": "/static/errors/429.html",
+        "502 503 504": "/static/errors/503.html",
+    }
+    static_dir = Path(settings.BASE_DIR) / "ilovevoley" / "static"
+    for codes, path in expected.items():
+        assert f"error_page {codes} {path};" in ilovevoley_ssl, (
+            f"Falta error_page {codes} -> {path} en el server de ilovevoley.es"
+        )
+        static_file = static_dir / path.removeprefix("/static/")
+        assert static_file.exists(), f"No existe la página de error estática {static_file}"
+

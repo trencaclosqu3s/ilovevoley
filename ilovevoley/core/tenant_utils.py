@@ -183,6 +183,37 @@ def reject_user_membership(user, tenant):
     ).delete()
 
 
+def ensure_pending_membership(user, tenant):
+    """Asegura la Membership pendiente del usuario en el tenant.
+
+    Cubre el caso de un usuario ya aprobado en otro club que visita un club
+    nuevo (p. ej. un miembro de Sant Josep que entra en Sóller): hasta ahora no
+    había forma de solicitar acceso y el usuario quedaba atrapado en
+    ``/pending-approval/`` sin que el club tuviera nada que aprobar. Un alta con
+    Google se resuelve en el dominio raíz (sin tenant), así que su solicitud se
+    registra cuando entra en la URL del club.
+
+    Devuelve la Membership creada, o ``None`` si no procedía (anónimo,
+    superusuario, sin tenant o ya existía). Usa ``get_or_create`` para tolerar
+    peticiones concurrentes sin chocar con el ``unique_together``. La creación
+    dispara el aviso a moderadores ya existente cuando la cuenta global está
+    aprobada.
+    """
+    if not getattr(user, 'is_authenticated', False) or tenant is None:
+        return None
+    if user.is_superuser:
+        return None
+
+    from ilovevoley.users.models import Membership
+
+    membership, created = Membership.objects.get_or_create(
+        user=user,
+        organization=tenant,
+        defaults={'role': 'member', 'is_approved': False},
+    )
+    return membership if created else None
+
+
 def tenant_access_required(*, manager=False, staff=False, api=False):
     """Requiere tenant, login y membresía aprobada (u opciones manager/staff).
 
