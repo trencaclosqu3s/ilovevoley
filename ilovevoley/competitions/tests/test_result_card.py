@@ -328,3 +328,27 @@ class DrawBackgroundBlobsTests(SimpleTestCase):
         self.assertEqual(flat_area, (100, 100, 100))
         self.assertGreater(sum(top_left), sum(flat_area))
         self.assertLess(sum(bottom_right), sum(flat_area))
+
+
+class DitherTests(SimpleTestCase):
+    def test_breaks_up_flat_gradient_banding(self):
+        """Un degradado de 8 bits sin ruido deja bandas de color visibles a tamaño real (#241)."""
+        width, height = 40, 400
+        seed = Image.new('RGB', (1, 2), (109, 76, 145))
+        seed.putpixel((0, 1), (155, 127, 191))
+        plain = seed.resize((width, height), Image.Resampling.BILINEAR)
+
+        dithered = result_card._dither(plain)
+
+        column = [plain.getpixel((width // 2, y)) for y in range(height)]
+        dithered_column = [dithered.getpixel((width // 2, y)) for y in range(height)]
+
+        def longest_run(values):
+            best = current = 1
+            for a, b in zip(values, values[1:]):
+                current = current + 1 if a == b else 1
+                best = max(best, current)
+            return best
+
+        self.assertGreater(longest_run(column), 10, 'el degradado de prueba no tenía banding')
+        self.assertLess(longest_run(dithered_column), 10)

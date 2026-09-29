@@ -222,7 +222,14 @@ def _gradient_background(
     image = seed.resize((width, height), Image.Resampling.BILINEAR)
     if metrics:
         _draw_background_blobs(image, width, height, metrics)
-    return image
+    # Sin esto, el degradado de 8 bits se ve "escalonado" a tamaño real (aunque
+    # una miniatura reescalada lo disimule al promediar píxeles).
+    return _dither(image)
+
+
+def _dither(image: Image.Image, amount: float = 0.05) -> Image.Image:
+    noise = Image.effect_noise(image.size, 40).convert('RGB')
+    return Image.blend(image, noise, amount)
 
 
 def _draw_background_blobs(image: Image.Image, width: int, height: int, metrics: dict):
