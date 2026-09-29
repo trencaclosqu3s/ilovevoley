@@ -184,17 +184,20 @@ def reject_user_membership(user, tenant):
 
 
 def ensure_pending_membership(user, tenant):
-    """Crea la Membership pendiente del usuario en el tenant si aún no existe.
+    """Asegura la Membership pendiente del usuario en el tenant.
 
-    Cubre el caso de un usuario ya registrado que visita un club nuevo (p. ej.
-    un miembro de Sant Josep que entra en Sóller, o un alta con Google cuyo
-    callback se resuelve en el dominio raíz, sin tenant): hasta ahora no había
-    forma de solicitar acceso y el usuario quedaba atrapado en
-    ``/pending-approval/`` sin que el club tuviera nada que aprobar.
+    Cubre el caso de un usuario ya aprobado en otro club que visita un club
+    nuevo (p. ej. un miembro de Sant Josep que entra en Sóller): hasta ahora no
+    había forma de solicitar acceso y el usuario quedaba atrapado en
+    ``/pending-approval/`` sin que el club tuviera nada que aprobar. Un alta con
+    Google se resuelve en el dominio raíz (sin tenant), así que su solicitud se
+    registra cuando entra en la URL del club.
 
-    Devuelve la Membership creada, o ``None`` si el usuario no procede (anónimo,
-    superusuario o ya tiene membresía en el tenant). La creación dispara el
-    aviso a moderadores ya existente cuando la cuenta global está aprobada.
+    Devuelve la Membership del usuario en el tenant, o ``None`` si no procede
+    (anónimo, superusuario o sin tenant). Usa ``get_or_create`` para tolerar
+    peticiones concurrentes sin chocar con el ``unique_together``. La creación
+    dispara el aviso a moderadores ya existente cuando la cuenta global está
+    aprobada.
     """
     if not getattr(user, 'is_authenticated', False) or tenant is None:
         return None
@@ -203,14 +206,12 @@ def ensure_pending_membership(user, tenant):
 
     from ilovevoley.users.models import Membership
 
-    if Membership.objects.filter(user=user, organization=tenant).exists():
-        return None
-    return Membership.objects.create(
+    membership, _created = Membership.objects.get_or_create(
         user=user,
         organization=tenant,
-        role='member',
-        is_approved=False,
+        defaults={'role': 'member', 'is_approved': False},
     )
+    return membership
 
 
 def tenant_access_required(*, manager=False, staff=False, api=False):
