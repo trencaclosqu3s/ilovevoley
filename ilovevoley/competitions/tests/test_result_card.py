@@ -295,3 +295,60 @@ class FetchLogoBytesTests(SimpleTestCase):
                 self.assertIsNone(
                     result_card.fetch_logo_bytes('https://logos.example/crest.png')
                 )
+
+
+class PasteCrestCircleTests(SimpleTestCase):
+    def test_clips_rectangular_crest_to_circle(self):
+        """Un escudo cuadrado opaco no debe sobresalir del disco (issue #241)."""
+        size = 100
+        crest = Image.new('RGBA', (size, size), (10, 20, 30, 255))
+        base = Image.new('RGBA', (size, size), (200, 200, 200, 255))
+
+        result_card._paste_crest_circle(base, crest, size, 0, 0)
+
+        corner = base.getpixel((2, 2))
+        self.assertEqual(corner[:3], (200, 200, 200))
+        center = base.getpixel((size // 2, size // 2))
+        self.assertEqual(center[:3], (10, 20, 30))
+
+
+class DrawBackgroundBlobsTests(SimpleTestCase):
+    def test_blobs_lighten_and_darken_the_flat_background(self):
+        """El fondo 'completa' no debe quedar liso: lleva manchas difuminadas (issue #241)."""
+        width, height = 400, 400
+        base = Image.new('RGB', (width, height), (100, 100, 100))
+        metrics = {'blob_top': (200, -50, -50), 'blob_bottom': (200, 50, 50)}
+
+        result_card._draw_background_blobs(base, width, height, metrics)
+
+        top_left = base.getpixel((10, 10))
+        bottom_right = base.getpixel((width - 10, height - 10))
+        flat_area = base.getpixel((width // 2, height // 2))
+
+        self.assertEqual(flat_area, (100, 100, 100))
+        self.assertGreater(sum(top_left), sum(flat_area))
+        self.assertLess(sum(bottom_right), sum(flat_area))
+
+
+class DitherTests(SimpleTestCase):
+    def test_breaks_up_flat_gradient_banding(self):
+        """Un degradado de 8 bits sin ruido deja bandas de color visibles a tamaño real (#241)."""
+        width, height = 40, 400
+        seed = Image.new('RGB', (1, 2), (109, 76, 145))
+        seed.putpixel((0, 1), (155, 127, 191))
+        plain = seed.resize((width, height), Image.Resampling.BILINEAR)
+
+        dithered = result_card._dither(plain)
+
+        column = [plain.getpixel((width // 2, y)) for y in range(height)]
+        dithered_column = [dithered.getpixel((width // 2, y)) for y in range(height)]
+
+        def longest_run(values):
+            best = current = 1
+            for a, b in zip(values, values[1:]):
+                current = current + 1 if a == b else 1
+                best = max(best, current)
+            return best
+
+        self.assertGreater(longest_run(column), 10, 'el degradado de prueba no tenía banding')
+        self.assertLess(longest_run(dithered_column), 10)

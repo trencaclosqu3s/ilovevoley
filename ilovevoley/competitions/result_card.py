@@ -9,7 +9,7 @@ from typing import Callable, Iterable
 
 from django.conf import settings
 from django.utils import timezone
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 from unidecode import unidecode
 
 from ilovevoley.core.security import safe_get
@@ -34,6 +34,8 @@ _FORMAT_METRICS = {
         scrim_bottom=560,
         frame_outer=12,
         frame_inner=5,
+        blob_top=(420, -120, -120),
+        blob_bottom=(360, 100, 100),
     ),
     'story': dict(
         crest_size=240,
@@ -44,6 +46,8 @@ _FORMAT_METRICS = {
         scrim_bottom=820,
         frame_outer=14,
         frame_inner=6,
+        blob_top=(640, -160, -180),
+        blob_bottom=(520, 140, 140),
     ),
 }
 
@@ -209,11 +213,41 @@ def _vertical_alpha_gradient(width: int, height: int, top_alpha: int, bottom_alp
     return seed.resize((width, height), Image.Resampling.BILINEAR)
 
 
-def _gradient_background(width: int, height: int, primary, secondary) -> Image.Image:
+def _gradient_background(
+    width: int, height: int, primary, secondary, metrics: dict | None = None
+) -> Image.Image:
     # Degradado vertical: imagen 1×2 escalada con interpolación bilineal.
     seed = Image.new('RGB', (1, 2), primary)
     seed.putpixel((0, 1), secondary)
-    return seed.resize((width, height), Image.Resampling.BILINEAR)
+    image = seed.resize((width, height), Image.Resampling.BILINEAR)
+    if metrics:
+        _draw_background_blobs(image, width, height, metrics)
+    # Sin esto, el degradado de 8 bits se ve "escalonado" a tamaño real (aunque
+    # una miniatura reescalada lo disimule al promediar píxeles).
+    return _dither(image)
+
+
+def _dither(image: Image.Image, amount: float = 0.05) -> Image.Image:
+    noise = Image.effect_noise(image.size, 40).convert('RGB')
+    return Image.blend(image, noise, amount)
+
+
+def _draw_background_blobs(image: Image.Image, width: int, height: int, metrics: dict):
+    """Manchas circulares difuminadas para romper la monotonía del degradado plano."""
+    blur_radius = 24
+
+    top_size, top_x, top_y = metrics['blob_top']
+    top_alpha = Image.new('L', (top_size, top_size), 0)
+    ImageDraw.Draw(top_alpha).ellipse([0, 0, top_size, top_size], fill=26)
+    top_alpha = top_alpha.filter(ImageFilter.GaussianBlur(blur_radius))
+    image.paste(Image.new('RGB', (top_size, top_size), (255, 255, 255)), (top_x, top_y), top_alpha)
+
+    bottom_size, right_inset, bottom_inset = metrics['blob_bottom']
+    bottom_alpha = Image.new('L', (bottom_size, bottom_size), 0)
+    ImageDraw.Draw(bottom_alpha).ellipse([0, 0, bottom_size, bottom_size], fill=26)
+    bottom_alpha = bottom_alpha.filter(ImageFilter.GaussianBlur(blur_radius))
+    bottom_pos = (width - bottom_size + right_inset, height - bottom_size + bottom_inset)
+    image.paste(Image.new('RGB', (bottom_size, bottom_size), (0, 0, 0)), bottom_pos, bottom_alpha)
 
 
 def _photo_background(
@@ -322,10 +356,10 @@ def render_result_card(
             )
         except (OSError, ValueError) as exc:
             logger.warning('Foto de marco no válida, usando degradado: %s', exc)
-            image = _gradient_background(width, height, primary, secondary)
+            image = _gradient_background(width, height, primary, secondary, metrics)
             card_style = 'completa'
     else:
-        image = _gradient_background(width, height, primary, secondary)
+        image = _gradient_background(width, height, primary, secondary, metrics)
     draw = ImageDraw.Draw(image)
 
     fetcher = logo_fetcher or fetch_logo_bytes
@@ -475,11 +509,18 @@ def _draw_score(draw, score: str, font, *, center_x: int, center_y: int, color):
 
 
 def _paste_crest_circle(image: Image.Image, crest: Image.Image, size: int, x: int, y: int):
-    """Pega el escudo sobre un disco blanco semitransparente para que se vea sobre la foto."""
+    """Pega el escudo sobre un disco blanco semitransparente, recortado a círculo.
+
+    Un escudo rectangular con fondo opaco puede llenar toda la caja size×size;
+    sin este recorte, sus esquinas sobresaldrían del disco.
+    """
     backdrop = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     ImageDraw.Draw(backdrop).ellipse([0, 0, size, size], fill=(255, 255, 255, 235))
     offset = ((size - crest.width) // 2, (size - crest.height) // 2)
     backdrop.paste(crest, offset, crest)
+    circle_mask = Image.new('L', (size, size), 0)
+    ImageDraw.Draw(circle_mask).ellipse([0, 0, size, size], fill=255)
+    backdrop.putalpha(ImageChops.multiply(backdrop.getchannel('A'), circle_mask))
     image.paste(backdrop, (x, y), backdrop)
 
 
