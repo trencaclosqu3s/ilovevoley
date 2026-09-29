@@ -7,6 +7,7 @@ from django.utils import timezone
 from PIL import Image, ImageDraw
 
 from ilovevoley.competitions import result_card
+from ilovevoley.competitions.services.sets import match_set_scores
 from ilovevoley.core.security import UnsafeURL
 
 
@@ -265,6 +266,36 @@ class ExtractSetScoresTests(SimpleTestCase):
             result_card.extract_set_scores(lineup, 'CV Haris', 'CV Guaguas'),
             [(25, 21)],
         )
+
+
+class MatchSetScoresTests(SimpleTestCase):
+    """Precedencia: el acta manda; si no aporta parciales, se usan set_scores."""
+
+    def test_acta_takes_precedence(self):
+        match = _fake_match(
+            acta_data={
+                'sets': [
+                    {'teams': [
+                        {'name': 'Local CV', 'points': 25},
+                        {'name': 'Visitante VC', 'points': 20},
+                    ]},
+                ]
+            },
+            set_scores=[[25, 0], [25, 0], [25, 0]],
+        )
+        self.assertEqual(match_set_scores(match), [(25, 20)])
+
+    def test_falls_back_to_set_scores_without_acta(self):
+        match = _fake_match(acta_data=None, set_scores=[[25, 20], [20, 25], [25, 23]])
+        self.assertEqual(match_set_scores(match), [(25, 20), (20, 25), (25, 23)])
+
+    def test_falls_back_when_acta_has_no_points(self):
+        match = _fake_match(acta_data={'sets': []}, set_scores=[[25, 20], [25, 18], [25, 22]])
+        self.assertEqual(match_set_scores(match), [(25, 20), (25, 18), (25, 22)])
+
+    def test_empty_when_nothing_available(self):
+        match = _fake_match(acta_data=None, set_scores=None)
+        self.assertEqual(match_set_scores(match), [])
 
 
 class FetchLogoBytesTests(SimpleTestCase):

@@ -25,6 +25,7 @@ urlpatterns = [
     path('ajax/teams-by-league-category/', views.ajax_teams_by_league_category, name='ajax_teams_by_league_category'),
     path('ajax/search-teams/', views.ajax_search_teams, name='ajax_search_teams'),
     path('ajax/partidos/<int:match_id>/resultado/', views.ajax_add_match_result, name='ajax_add_match_result'),
+    path('ajax/partidos/<int:match_id>/parciales/', views.ajax_edit_match_result, name='ajax_edit_match_result'),
     path('ajax/partidos/<int:match_id>/alineacion/', views.ajax_acta_lineup, name='ajax_acta_lineup'),
     path('ajax/cambios/<int:log_id>/marcar-revisado/', views.ajax_mark_change_reviewed, name='ajax_mark_change_reviewed'),
 

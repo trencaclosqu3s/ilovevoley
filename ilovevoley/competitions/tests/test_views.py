@@ -32,6 +32,7 @@ class CompetitionsReExportCompatibilityTest(SimpleTestCase):
         self.assertIs(vid_views_comp.friendly_match_create, comp_views.friendly_match_create)
         self.assertIs(vid_views_comp.ajax_search_teams, comp_views.ajax_search_teams)
         self.assertIs(vid_views_comp.ajax_add_match_result, comp_views.ajax_add_match_result)
+        self.assertIs(vid_views_comp.ajax_edit_match_result, comp_views.ajax_edit_match_result)
         self.assertIs(vid_views_comp.ajax_acta_lineup, comp_views.ajax_acta_lineup)
         self.assertIs(vid_views_comp.standings_view, comp_views.standings_view)
         self.assertIs(vid_views_comp.ajax_matches_by_category, comp_views.ajax_matches_by_category)
@@ -1006,6 +1007,76 @@ class CompetitionsTenantIsolationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 405)
+
+    def test_add_match_result_with_set_scores_derives_score(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_add_match_result', args=[self.match.id]),
+            data={'set_scores': [[25, 20], [25, 18], [25, 22]]},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+        self.match.refresh_from_db()
+        self.assertEqual((self.match.home_score, self.match.away_score), (3, 0))
+        self.assertEqual(self.match.set_scores, [[25, 20], [25, 18], [25, 22]])
+
+    def test_edit_match_result_updates_set_scores(self):
+        self.match.status = 'finished'
+        self.match.home_score = 3
+        self.match.away_score = 0
+        self.match.save()
+
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_edit_match_result', args=[self.match.id]),
+            data={'set_scores': [[25, 20], [20, 25], [25, 23], [25, 18]]},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()['success'])
+        self.match.refresh_from_db()
+        self.assertEqual((self.match.home_score, self.match.away_score), (3, 1))
+        self.assertEqual(
+            self.match.set_scores, [[25, 20], [20, 25], [25, 23], [25, 18]]
+        )
+
+    def test_edit_match_result_blocks_foreign_match(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_edit_match_result', args=[self.other_match.id]),
+            data={'set_scores': [[25, 20], [25, 18], [25, 22]]},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_edit_match_result_rejects_unfinished_match(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_edit_match_result', args=[self.match.id]),
+            data={'set_scores': [[25, 20], [25, 18], [25, 22]]},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_edit_match_result_rejects_match_with_acta(self):
+        with_acta = Match.objects.create(
+            league=self.league, home_team=self.team, away_team=self.other_team,
+            match_date=timezone.now(), round_number=2, status='finished',
+            home_score=3, away_score=0, acta_html='http://example.invalid/acta',
+        )
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_edit_match_result', args=[with_acta.id]),
+            data={'set_scores': [[25, 20], [25, 18], [25, 22]]},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_acta_lineup_blocks_foreign_match(self):
         self.client.force_login(self.manager)

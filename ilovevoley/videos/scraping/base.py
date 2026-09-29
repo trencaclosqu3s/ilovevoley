@@ -1,6 +1,7 @@
 """Módulo base para scraping: validaciones, excepciones y clase base."""
 
 import logging
+import re
 import time
 from typing import Any, Dict
 
@@ -55,6 +56,91 @@ def validate_volleyball_score(home_score: int, away_score: int, league) -> bool:
     return (home_score == 3 and away_score < 3) or (away_score == 3 and home_score < 3)
 
 
+def league_max_sets(league) -> int:
+    """Máximo de sets del formato de una liga (para situar el set decisivo a 15)."""
+    if league.match_format == 'alevin_balear':
+        return 3
+    if league.match_format == 'tournament_3sets':
+        return 3
+    if league.match_format == 'custom':
+        return league.custom_max_sets or 5
+    return 5
+
+
+def validate_set_scores(set_scores, league) -> bool:
+    """Valida los parciales de entrada manual según el formato de la liga.
+
+    Regla: cada set lo gana quien alcanza 25 puntos (o 15 en el set decisivo)
+    con 2 de diferencia. El set decisivo es el último y solo existe si el partido
+    llega al máximo de sets del formato (5º en estándar, 3º en torneo/alevín).
+
+    No se aplica al acta ni al scraping de resultados: son fuente oficial y se
+    aceptan tal cual.
+    """
+    if not set_scores:
+        return True
+
+    max_sets = league_max_sets(league)
+    total = len(set_scores)
+
+    for index, score in enumerate(set_scores):
+        try:
+            home, away = int(score[0]), int(score[1])
+        except (TypeError, ValueError, IndexError):
+            return False
+        if home < 0 or away < 0 or home == away:
+            return False
+        target = 15 if (total == max_sets and index == total - 1) else 25
+        winner, loser = max(home, away), min(home, away)
+        if winner < target or winner - loser < 2:
+            return False
+
+    home_won = sum(1 for home, away in set_scores if int(home) > int(away))
+    away_won = total - home_won
+    return validate_volleyball_score(home_won, away_won, league)
+
+
+def parse_set_scores_string(value):
+    """Convierte ``'25-10/25-15/25-11'`` en ``[[25, 10], [25, 15], [25, 11]]``.
+
+    Devuelve ``None`` si no hay ningún parcial válido.
+    """
+    if not value:
+        return None
+
+    scores = []
+    for chunk in str(value).split('/'):
+        match = re.match(r'^(\d+)\s*-\s*(\d+)$', chunk.strip())
+        if match:
+            scores.append([int(match.group(1)), int(match.group(2))])
+    return scores or None
+
+
+def is_penalty_result(set_scores) -> bool:
+    """Detecta un resultado por penalización/incomparecencia.
+
+    Patrón: todos los sets con un mismo lado a 0 (p. ej. ``25-0/25-0/25-0``).
+    """
+    if not set_scores or len(set_scores) < 2:
+        return False
+
+    winners = set()
+    for score in set_scores:
+        try:
+            home, away = int(score[0]), int(score[1])
+        except (TypeError, ValueError, IndexError):
+            return False
+        if home == 0 and away == 0:
+            return False
+        if away == 0:
+            winners.add('home')
+        elif home == 0:
+            winners.add('away')
+        else:
+            return False
+    return len(winners) == 1
+
+
 class ScrapingError(Exception):
     """Exception específica para errores de scraping"""
     pass
@@ -94,6 +180,10 @@ class BaseParser:
 
 __all__ = [
     'validate_volleyball_score',
+    'validate_set_scores',
+    'league_max_sets',
+    'parse_set_scores_string',
+    'is_penalty_result',
     'ScrapingError',
     'BaseParser',
 ]

@@ -2,6 +2,7 @@ from ilovevoley.competitions.views import *  # noqa: F401,F403
 from ilovevoley.competitions.views import (
     ajax_acta_lineup,
     ajax_add_match_result,
+    ajax_edit_match_result,
     ajax_matches_by_category,
     ajax_search_teams,
     ajax_teams_by_league_category,
@@ -23,6 +24,7 @@ __all__ = [
     'friendly_match_create',
     'ajax_search_teams',
     'ajax_add_match_result',
+    'ajax_edit_match_result',
     'ajax_acta_lineup',
     'standings_view',
     'ajax_matches_by_category',

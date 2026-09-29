@@ -56,6 +56,7 @@ urlpatterns = [
     _legacy('ajax/teams-by-league-category/', 'competitions:ajax_teams_by_league_category'),
     _legacy('ajax/search-teams/', 'competitions:ajax_search_teams'),
     _legacy('ajax/partidos/<int:match_id>/resultado/', 'competitions:ajax_add_match_result'),
+    _legacy('ajax/partidos/<int:match_id>/parciales/', 'competitions:ajax_edit_match_result'),
     _legacy('ajax/partidos/<int:match_id>/alineacion/', 'competitions:ajax_acta_lineup'),
 
     # teams: equipos

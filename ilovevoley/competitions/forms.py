@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from ilovevoley.core.models import Category, Season
 from ilovevoley.teams.models import Club, Team
+from ilovevoley.videos.scraping import validate_set_scores
 from .models import League, Match
 
 
@@ -353,7 +354,14 @@ class FriendlyMatchForm(forms.ModelForm):
 
 
 class MatchResultForm(forms.ModelForm):
-    """Formulario simple para agregar resultado de partido"""
+    """Formulario para agregar o editar el resultado de un partido.
+
+    Acepta el marcador final (sets ganados) o, opcionalmente, los parciales.
+    Cuando llegan parciales, los sets ganados se derivan de ellos y se validan
+    contra el formato de la liga.
+    """
+
+    set_scores = forms.JSONField(required=False, widget=forms.HiddenInput())
 
     class Meta:
         model = Match
@@ -379,25 +387,56 @@ class MatchResultForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['home_score'].required = True
-        self.fields['away_score'].required = True
+        # Con parciales los sets ganados se derivan; sin ellos son obligatorios.
+        self.fields['home_score'].required = False
+        self.fields['away_score'].required = False
 
     def clean(self):
         cleaned_data = super().clean()
+        set_scores = cleaned_data.get('set_scores')
+        league = self.instance.league
+
+        if set_scores:
+            normalized = []
+            for score in set_scores:
+                try:
+                    normalized.append([int(score[0]), int(score[1])])
+                except (TypeError, ValueError, IndexError):
+                    raise forms.ValidationError('Formato de parciales no válido.')
+
+            if league and not validate_set_scores(normalized, league):
+                raise forms.ValidationError(
+                    'Parciales inválidos para el formato de la liga.'
+                )
+
+            home_won = sum(1 for home, away in normalized if home > away)
+            away_won = len(normalized) - home_won
+            if home_won == away_won:
+                raise forms.ValidationError('Los parciales no pueden terminar en empate.')
+
+            cleaned_data['set_scores'] = normalized
+            cleaned_data['home_score'] = home_won
+            cleaned_data['away_score'] = away_won
+            return cleaned_data
+
+        cleaned_data['set_scores'] = None
         home_score = cleaned_data.get('home_score')
         away_score = cleaned_data.get('away_score')
 
-        if home_score is not None and away_score is not None:
-            if home_score < 0 or away_score < 0:
-                raise forms.ValidationError('Los marcadores no pueden ser negativos.')
+        if home_score is None or away_score is None:
+            raise forms.ValidationError('Introduce el marcador o los parciales.')
 
-            if home_score == away_score:
-                raise forms.ValidationError('En voleibol no puede haber empate. Revisa los marcadores.')
+        if home_score < 0 or away_score < 0:
+            raise forms.ValidationError('Los marcadores no pueden ser negativos.')
+
+        if home_score == away_score:
+            raise forms.ValidationError('En voleibol no puede haber empate. Revisa los marcadores.')
 
         return cleaned_data
 
     def save(self, commit=True):
         match = super().save(commit=False)
+        match.set_scores = self.cleaned_data.get('set_scores')
         match.status = 'finished'
         if commit:
             match.save()

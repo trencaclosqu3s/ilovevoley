@@ -19,7 +19,6 @@ from django.views.decorators.http import require_POST
 from ilovevoley.competitions.result_card import (
     CARD_STYLES,
     _file_field_bytes,
-    extract_set_scores,
     render_result_card,
 )
 from ilovevoley.content.models import Image
@@ -36,10 +35,15 @@ from ilovevoley.core.tenant_utils import (
 )
 from ilovevoley.rosters.models import PlayerRole
 from ilovevoley.teams.models import Team
-from ilovevoley.videos.scraping import parse_acta_lineup, validate_volleyball_score
+from ilovevoley.videos.scraping import (
+    league_max_sets,
+    parse_acta_lineup,
+    validate_volleyball_score,
+)
 from .forms import FriendlyMatchForm, MatchResultForm
 from .models import League, Match, MatchChangeLog, MatchShareLink, Standing
 from .services.lineups import resolve_acta_team, store_match_lineups
+from .services.sets import extract_set_scores, match_set_scores
 from .share import (
     ALLOWED_HOURS,
     create_match_share_link,
@@ -269,23 +273,20 @@ def match_detail(request, match_id):
         'share_links': share_links,
         'share_hours_choices': ALLOWED_HOURS,
         'share_default_hours': default_hours(),
+        'set_scores': match_set_scores(match),
+        'max_sets': league_max_sets(match.league) if match.league else 5,
     })
 
 
 def _load_set_scores_for_card(match):
-    """Devuelve los parciales del acta o una lista vacía si no están disponibles.
+    """Devuelve los parciales del partido para la tarjeta.
 
-    Prioriza el JSON ya persistido en ``Match.acta_data``; solo descarga y parsea
-    el HTML como fallback para actas antiguas sin JSON guardado.
+    Prioriza el JSON del acta ya persistido (o ``set_scores``, que cubre el
+    scraping de resultados y la entrada manual). Solo descarga y parsea el HTML
+    como fallback para actas antiguas sin ``acta_data`` guardado.
     """
-    if match.acta_data is not None:
-        return extract_set_scores(
-            match.acta_data,
-            home_name=match.home_team_display,
-            away_name=match.away_team_display,
-        )
-    if not match.acta_html:
-        return []
+    if match.acta_data is not None or not match.acta_html:
+        return match_set_scores(match)
 
     cache_key = _acta_lineup_cache_key(match.acta_html)
     try:
@@ -298,18 +299,20 @@ def _load_set_scores_for_card(match):
             lineup_data = parse_acta_lineup(acta_content)
             cache.set(cache_key, lineup_data, 60 * 60 * 24)
 
-        return extract_set_scores(
+        scores = extract_set_scores(
             lineup_data,
             home_name=match.home_team_display,
             away_name=match.away_team_display,
         )
+        if scores:
+            return scores
     except Exception as exc:
         logger.warning(
             'Acta no disponible para tarjeta del partido %s: %s',
             match.id,
             exc,
         )
-        return []
+    return match_set_scores(match)
 
 
 @tenant_access_required()
@@ -662,6 +665,64 @@ def ajax_add_match_result(request, match_id):
             'error': 'Datos inválidos',
             'errors': errors
         }, status=400)
+
+
+@require_POST
+@tenant_access_required(manager=True)
+def ajax_edit_match_result(request, match_id):
+    """Edita los parciales/resultado de un partido ya finalizado.
+
+    Solo para partidos sin acta oficial: cuando hay acta, los parciales se toman
+    de ella (documento federativo).
+    """
+    try:
+        match = Match.objects.for_tenant(request.tenant).select_related('league').get(id=match_id)
+    except Match.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
+
+    if match.acta_html or match.acta_data:
+        return JsonResponse({
+            'success': False,
+            'error': 'Este partido tiene acta oficial; los parciales se toman del acta.',
+        }, status=400)
+
+    if not match.is_finished:
+        return JsonResponse({
+            'success': False,
+            'error': 'El partido todavía no tiene resultado.',
+        }, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Datos inválidos'}, status=400)
+
+    form = MatchResultForm(data, instance=match)
+    if not form.is_valid():
+        errors = {field: field_errors[0] for field, field_errors in form.errors.items() if field_errors}
+        return JsonResponse({
+            'success': False,
+            'error': 'Datos inválidos',
+            'errors': errors,
+        }, status=400)
+
+    try:
+        match = form.save()
+    except Exception:
+        logger.exception("Error al editar resultado del partido %s", match_id)
+        return JsonResponse({
+            'success': False,
+            'error': 'Error interno al guardar el resultado.',
+        }, status=500)
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Resultado actualizado: {match.result_display}',
+        'result_display': match.result_display,
+        'home_score': match.home_score,
+        'away_score': match.away_score,
+        'set_scores': match.set_scores,
+    })
 
 
 @tenant_access_required()
@@ -1152,6 +1213,7 @@ __all__ = [
     'friendly_match_create',
     'ajax_search_teams',
     'ajax_add_match_result',
+    'ajax_edit_match_result',
     'ajax_acta_lineup',
     'standings_view',
     'ajax_matches_by_category',
