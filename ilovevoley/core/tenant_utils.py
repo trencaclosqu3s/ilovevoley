@@ -193,8 +193,8 @@ def ensure_pending_membership(user, tenant):
     Google se resuelve en el dominio raíz (sin tenant), así que su solicitud se
     registra cuando entra en la URL del club.
 
-    Devuelve la Membership del usuario en el tenant, o ``None`` si no procede
-    (anónimo, superusuario o sin tenant). Usa ``get_or_create`` para tolerar
+    Devuelve la Membership creada, o ``None`` si no procedía (anónimo,
+    superusuario, sin tenant o ya existía). Usa ``get_or_create`` para tolerar
     peticiones concurrentes sin chocar con el ``unique_together``. La creación
     dispara el aviso a moderadores ya existente cuando la cuenta global está
     aprobada.
@@ -206,12 +206,12 @@ def ensure_pending_membership(user, tenant):
 
     from ilovevoley.users.models import Membership
 
-    membership, _created = Membership.objects.get_or_create(
+    membership, created = Membership.objects.get_or_create(
         user=user,
         organization=tenant,
         defaults={'role': 'member', 'is_approved': False},
     )
-    return membership
+    return membership if created else None
 
 
 def tenant_access_required(*, manager=False, staff=False, api=False):
