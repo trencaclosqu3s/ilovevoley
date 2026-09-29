@@ -797,30 +797,7 @@ function closeImageLightbox() {
         }
     }
 
-    async function shareCard(format) {
-        try {
-            const { blob, filename } = await fetchCard(format);
-            const file = new File([blob], filename, { type: 'image/png' });
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({
-                        files: [file],
-                        title: 'Resultado',
-                        text: '{{ match.home_team_display|escapejs }} {{ match.result_display|escapejs }} {{ match.away_team_display|escapejs }}'
-                    });
-                    return;
-                } catch (error) {
-                    if (error && error.name === 'AbortError') return;
-                }
-            }
-
-            downloadBlob(blob, filename);
-            if (window.showToast) window.showToast('info', 'Imagen descargada');
-        } catch (error) {
-            showCardError(error);
-        }
-    }
+    const SHARE_TEXT = '{{ match.home_team_display|escapejs }} {{ match.result_display|escapejs }} {{ match.away_team_display|escapejs }} · {{ match.match_date|date:"d/m/Y"|escapejs }}';
 
     const actionButtons = root.querySelectorAll('.result-card-share, .result-card-download');
 
@@ -837,8 +814,45 @@ function closeImageLightbox() {
     }
 
     root.querySelectorAll('.result-card-share').forEach(function(button) {
+        const originalLabel = button.textContent;
+        let ready = null; // { blob, filename, file } una vez generada la imagen
+
         button.addEventListener('click', function() {
-            withLoadingState(function() { return shareCard(button.dataset.cardFormat); });
+            if (ready) {
+                const { blob, filename, file } = ready;
+                ready = null;
+                button.textContent = originalLabel;
+                navigator.share({ files: [file], title: 'Resultado', text: SHARE_TEXT }).catch(function(error) {
+                    if (error && error.name === 'AbortError') return;
+                    downloadBlob(blob, filename);
+                    if (window.showToast) window.showToast('info', 'Imagen descargada');
+                });
+                return;
+            }
+
+            withLoadingState(async function() {
+                try {
+                    const { blob, filename } = await fetchCard(button.dataset.cardFormat);
+                    const file = new File([blob], filename, { type: 'image/png' });
+
+                    // navigator.share() exige un toque del usuario justo antes: como
+                    // generar la imagen tarda, para cuando llega aquí ya no vale ese
+                    // toque. Se deja lista y se espera un segundo toque explícito.
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        ready = { blob, filename, file };
+                        button.textContent = 'Toca para compartir';
+                        if (window.showToast) {
+                            window.showToast('info', 'Imagen lista: vuelve a tocar "Toca para compartir"');
+                        }
+                        return;
+                    }
+
+                    downloadBlob(blob, filename);
+                    if (window.showToast) window.showToast('info', 'Imagen descargada');
+                } catch (error) {
+                    showCardError(error);
+                }
+            });
         });
     });
 
