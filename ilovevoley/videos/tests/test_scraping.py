@@ -714,5 +714,179 @@ class WithdrawnTeamDetectionTests(TestCase):
         self.assertEqual(self.match.status, 'scheduled')
 
 
+# ---------------------------------------------------------------------------
+# Parciales: validación manual, parseo del .asp y penalización
+# ---------------------------------------------------------------------------
+
+from ilovevoley.videos.scraping import (  # noqa: E402
+    MatchesParser,
+    is_penalty_result,
+    parse_set_scores_string,
+    validate_set_scores,
+)
+
+
+class ValidateSetScoresTests(TestCase):
+    """Regla de puntos de los parciales de entrada manual."""
+
+    def setUp(self):
+        self.standard = League(match_format='standard')
+        self.three = League(match_format='tournament_3sets')
+        self.alevin = League(match_format='alevin_balear')
+
+    def test_empty_is_valid(self):
+        self.assertTrue(validate_set_scores([], self.standard))
+        self.assertTrue(validate_set_scores(None, self.standard))
+
+    def test_standard_best_of_five_with_tiebreak(self):
+        scores = [[25, 20], [20, 25], [25, 22], [20, 25], [15, 12]]
+        self.assertTrue(validate_set_scores(scores, self.standard))
+
+    def test_standard_sweep_all_sets_to_25(self):
+        self.assertTrue(validate_set_scores([[25, 20], [25, 18], [25, 22]], self.standard))
+
+    def test_set_without_two_point_lead_is_invalid(self):
+        self.assertFalse(validate_set_scores([[25, 24], [25, 20], [25, 20]], self.standard))
+
+    def test_deuce_set_is_valid(self):
+        self.assertTrue(validate_set_scores([[26, 24], [20, 25], [25, 18], [25, 17]], self.standard))
+
+    def test_deciding_set_below_15_is_invalid(self):
+        scores = [[25, 20], [20, 25], [25, 22], [20, 25], [14, 12]]
+        self.assertFalse(validate_set_scores(scores, self.standard))
+
+    def test_deciding_set_without_two_point_lead_is_invalid(self):
+        scores = [[25, 20], [20, 25], [25, 22], [20, 25], [15, 14]]
+        self.assertFalse(validate_set_scores(scores, self.standard))
+
+    def test_three_set_format_short_match_uses_25(self):
+        # 2-0: no llega al máximo, ningún set es decisivo
+        self.assertTrue(validate_set_scores([[25, 20], [25, 18]], self.three))
+
+    def test_three_set_format_decider_to_15(self):
+        self.assertTrue(validate_set_scores([[25, 20], [20, 25], [15, 11]], self.three))
+
+    def test_alevin_last_set_to_15(self):
+        self.assertTrue(validate_set_scores([[25, 20], [25, 18], [15, 12]], self.alevin))
+
+    def test_derived_score_must_be_valid(self):
+        # 2 sets repartidos -> 1-1 no es un marcador válido
+        self.assertFalse(validate_set_scores([[25, 20], [20, 25]], self.standard))
+
+
+class ParseSetScoresStringTests(TestCase):
+    def test_parses_slash_separated(self):
+        self.assertEqual(
+            parse_set_scores_string('25-10/25-15/25-11'),
+            [[25, 10], [25, 15], [25, 11]],
+        )
+
+    def test_returns_none_for_empty(self):
+        self.assertIsNone(parse_set_scores_string(''))
+        self.assertIsNone(parse_set_scores_string(None))
+
+    def test_returns_none_for_garbage(self):
+        self.assertIsNone(parse_set_scores_string('sin datos'))
+
+
+class PenaltyDetectionTests(TestCase):
+    def test_all_sets_to_zero_marked(self):
+        self.assertTrue(is_penalty_result([[25, 0], [25, 0], [25, 0]]))
+
+    def test_away_penalty_marked(self):
+        self.assertTrue(is_penalty_result([[0, 25], [0, 25], [0, 25]]))
+
+    def test_normal_result_not_marked(self):
+        self.assertFalse(is_penalty_result([[25, 20], [20, 25], [25, 22]]))
+
+    def test_mixed_zero_not_marked(self):
+        self.assertFalse(is_penalty_result([[25, 0], [25, 20]]))
+
+
+class MatchesParserSetScoresTests(TestCase):
+    """El .asp de resultados publica los parciales en el segundo marcador."""
+
+    def setUp(self):
+        self.league = League.objects.create(
+            name='Senior', federation_id='p-1', match_format='standard',
+            season=Season.objects.resolve('2026-27'), competition_type='regular',
+        )
+        self.parser = MatchesParser(self.league)
+
+    def _content(self, sets_html):
+        return (
+            "<h3>JORNADA 1</h3>"
+            "<div class='info_partido little' align='center'>"
+            "  <div class='top'><span class='municipio'>Palma</span>"
+            "    <span class='fecha'>26/09/2026 - 17:00</span></div>"
+            "  <div class='datos_partido'>"
+            "    <span class='nombreEquipo'>LOCAL</span>"
+            "    <span class='marcador'>3 - 0</span>"
+            "    <span class='nombreEquipo'>VISITANTE</span>"
+            "  </div>"
+            "  <div class='estado_partido' id='finalizado'>"
+            f"    <span class='marcador'>{sets_html}</span>"
+            "  </div>"
+            "</div>"
+        )
+
+    def test_extracts_set_scores(self):
+        data = self.parser.parse_content(self._content('25-10/25-15/25-11'))
+        self.assertEqual(data['matches'][0]['set_scores'], [[25, 10], [25, 15], [25, 11]])
+
+    def test_no_sets_span_means_none(self):
+        data = self.parser.parse_content(self._content(''))
+        self.assertIsNone(data['matches'][0]['set_scores'])
+
+
+class UpdateMatchesSetScoresTests(TestCase):
+    """Los parciales del scraping se persisten sin pisar correcciones previas."""
+
+    def setUp(self):
+        from ilovevoley.videos.scraping import FederationScraper
+        self.category = Category.objects.create(name='Senior')
+        self.league = League.objects.create(
+            name='Senior', federation_id='8247', match_format='standard',
+            season=Season.objects.resolve('2026-27'), competition_type='regular',
+        )
+        self.league.categories.add(self.category)
+        self.home = Team.objects.create(
+            name='LOCAL', federation_id='u_local', category=self.category, is_active=True,
+        )
+        self.away = Team.objects.create(
+            name='VISITANTE', federation_id='u_away', category=self.category, is_active=True,
+        )
+        self.scraper = FederationScraper(self.league)
+        self.match = Match.objects.create(
+            league=self.league, home_team=self.home, away_team=self.away,
+            match_date=timezone.now(), round_number=1, status='finished',
+            home_score=3, away_score=0,
+        )
+
+    def _match_data(self, set_scores):
+        return {
+            'home_team': 'LOCAL', 'away_team': 'VISITANTE',
+            'home_score': 3, 'away_score': 0, 'status': 'finished',
+            'round_number': 1, 'set_scores': set_scores,
+        }
+
+    def test_persists_set_scores_and_marks_penalty(self):
+        self.scraper.update_matches([self._match_data([[25, 0], [25, 0], [25, 0]])], {})
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.set_scores, [[25, 0], [25, 0], [25, 0]])
+        self.assertTrue(self.match.result_penalized)
+
+    def test_does_not_overwrite_existing_set_scores(self):
+        self.match.set_scores = [[25, 20], [25, 18], [25, 22]]
+        self.match.save(update_fields=['set_scores'])
+
+        self.scraper.update_matches([self._match_data([[25, 0], [25, 0], [25, 0]])], {})
+
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.set_scores, [[25, 20], [25, 18], [25, 22]])
+        self.assertFalse(self.match.result_penalized)
+
+
+
 
 

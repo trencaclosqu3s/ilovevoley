@@ -15,7 +15,7 @@ from unidecode import unidecode
 
 from ilovevoley.competitions.services.delta_detector import detect_and_record_match_changes
 from ..models import League, Match, ScrapingEndpoint, Standing, Team
-from .base import ScrapingError, validate_volleyball_score
+from .base import ScrapingError, is_penalty_result, validate_volleyball_score
 from .parsers import (
     CalendarParser,
     JSONUnifiedParser,
@@ -671,6 +671,7 @@ class FederationScraper:
 
                             existing_match.away_score = away_score
                             existing_match.status = match_data.get('status', 'finished')
+                            self._apply_set_scores(existing_match, match_data)
                             existing_match.save()
                             logger.info(f"Updated result for existing match: {home_team.name} vs {away_team.name} - {home_score}-{away_score}")
                         else:
@@ -737,7 +738,13 @@ class FederationScraper:
                 # 3. O representan información más específica (ej: hora específica vs 00:00)
                 updated_fields = []
 
+                if self._apply_set_scores(existing_match, match_data):
+                    updated_fields.append('set_scores')
+
                 for key, new_value in match_data.items():
+                    # set_scores se vuelca en _apply_set_scores, que no pisa lo existente.
+                    if key == 'set_scores':
+                        continue
                     # Saltar campos que no existen en el modelo
                     if not hasattr(existing_match, key):
                         continue
@@ -805,6 +812,9 @@ class FederationScraper:
                     away_team=away_team,
                     **valid_match_data
                 )
+                if match.set_scores and is_penalty_result(match.set_scores):
+                    match.result_penalized = True
+                    match.save(update_fields=['result_penalized'])
                 logger.info(f"Created new match: {match}")
         
         # MARCAR PARTIDOS COMO WITHDRAWN: partidos que involucran equipos inactivos
@@ -852,6 +862,22 @@ class FederationScraper:
         if isinstance(value, str) and value.strip() == '':
             return True
         return False
+
+    def _apply_set_scores(self, match, match_data) -> bool:
+        """Vuelca los parciales del scraping y marca penalización si aplica.
+
+        Nunca pisa unos parciales ya guardados (manuales o de una ejecución
+        anterior): el scraper solo rellena el hueco.
+        """
+        changed = False
+        set_scores = match_data.get('set_scores')
+        if set_scores and not match.set_scores:
+            match.set_scores = set_scores
+            changed = True
+        if match.set_scores and not match.result_penalized and is_penalty_result(match.set_scores):
+            match.result_penalized = True
+            changed = True
+        return changed
     
     def _find_similar_team(self, team_name: str) -> Optional[Team]:
         """Busca equipos similares en la base de datos, prefiriendo la categoría de la liga"""
