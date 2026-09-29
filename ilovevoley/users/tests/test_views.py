@@ -78,3 +78,23 @@ class PendingApprovalViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response['Location'], reverse('profile'))
         self.assertFalse(self._memberships(superuser).exists())
+
+    def test_new_account_sees_account_created_copy(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('pending_approval'), HTTP_HOST=HOST)
+
+        html = response.content.decode()
+        self.assertIn('Cuenta Pendiente de Aprobación', html)
+        self.assertIn('Tu cuenta ha sido creada', html)
+
+    def test_activated_user_joining_club_sees_request_copy(self):
+        self.user.is_approved = True
+        self.user.save(update_fields=['is_approved'])
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('pending_approval'), HTTP_HOST=HOST)
+
+        html = response.content.decode()
+        self.assertIn('Solicitud Pendiente de Aprobación', html)
+        self.assertIn('enviado tu solicitud para unirte a', html)

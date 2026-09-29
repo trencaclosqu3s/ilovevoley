@@ -7,7 +7,9 @@
     <div class="bg-white rounded-lg shadow-lg p-6 sm:p-8 border-t-4 border-csj-yellow">
         <div class="text-center mb-6">
             <div class="text-6xl mb-4">⏳</div>
-            <h1 class="text-2xl font-bold text-gray-800 mb-2">Cuenta Pendiente de Aprobación</h1>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">
+                {% if joining_club %}Solicitud Pendiente de Aprobación{% else %}Cuenta Pendiente de Aprobación{% endif %}
+            </h1>
         </div>
 
         <div class="space-y-4 mb-6">
@@ -38,9 +40,15 @@
             {% else %}
             <div class="bg-csj-yellow bg-opacity-20 border-l-4 border-csj-yellow p-4 rounded">
                 <h3 class="font-semibold text-gray-800 mb-2">¡Hola {{ user.first_name|default:user.username }}!</h3>
+                {% if joining_club %}
+                <p class="text-gray-700 text-sm">
+                    Hemos enviado tu solicitud para unirte a <strong>{{ tenant.name }}</strong>. Un administrador la revisará y tendrás acceso en cuanto la apruebe.
+                </p>
+                {% else %}
                 <p class="text-gray-700 text-sm">
                     Tu cuenta ha sido creada correctamente, pero necesita ser aprobada por un administrador antes de que puedas acceder al contenido.
                 </p>
+                {% endif %}
             </div>
             {% endif %}
 

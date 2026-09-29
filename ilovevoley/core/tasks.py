@@ -167,7 +167,7 @@ def notify_membership_pending_task(membership_id):
     except Membership.DoesNotExist:
         return False
 
-    if membership.is_approved or not membership.user.is_approved:
+    if membership.is_approved:
         return False
 
     organization = membership.organization

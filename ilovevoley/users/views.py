@@ -27,6 +27,10 @@ def pending_approval(request):
     if tenant:
         ensure_pending_membership(request.user, tenant)
 
+    # Una cuenta ya activada que entra en un club nuevo "solicita unirse"; una
+    # cuenta recién creada simplemente espera su aprobación.
+    joining_club = request.user.is_approved
+
     # Si el usuario no tiene parent_info, mostrar formulario para completarlo
     if not request.user.parent_info:
         if request.method == 'POST':
@@ -42,13 +46,15 @@ def pending_approval(request):
         return render(request, 'users/pending_approval.html', {
             'user': request.user,
             'form': form,
-            'needs_parent_info': True
+            'needs_parent_info': True,
+            'joining_club': joining_club,
         })
     
     # Si ya tiene parent_info, solo mostrar mensaje de espera
     return render(request, 'users/pending_approval.html', {
         'user': request.user,
-        'needs_parent_info': False
+        'needs_parent_info': False,
+        'joining_club': joining_club,
     })
 
 
