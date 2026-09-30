@@ -263,6 +263,12 @@ def manifest_json(request):
     response['X-Content-Type-Options'] = 'nosniff'
     return response
 
+
+def offline_view(request):
+    """Página de fallback cuando el usuario no dispone de conexión a internet."""
+    return render(request, 'offline.html', status=200)
+
+
 def _can_moderate_memberships(request):
     """True si el usuario es superuser o manager/admin aprobado del tenant actual."""
     return user_is_tenant_manager(request.user, getattr(request, 'tenant', None))
@@ -542,6 +548,8 @@ __all__ = [
     'sitemap_xml',
     'favicon',
     'security_txt',
+    'manifest_json',
+    'offline_view',
     'moderation_counts_api',
     'moderation_panel',
     'approve_user_api',
