@@ -23,8 +23,11 @@ from ilovevoley.core.views import (
     favicon,
     healthz,
     landing,
+    manifest_json,
+    offline_view,
     robots_txt,
     security_txt,
+    service_worker,
     sitemap_xml,
 )
 from ilovevoley.users.views import (
@@ -41,6 +44,9 @@ urlpatterns = [
     path('robots.txt', robots_txt, name='robots_txt'),
     path('sitemap.xml', sitemap_xml, name='sitemap_xml'),
     path('favicon.ico', favicon, name='favicon'),
+    path('manifest.webmanifest', manifest_json, name='manifest_json'),
+    path('offline/', offline_view, name='offline_fallback'),
+    path('sw.js', service_worker, name='service_worker'),
     path('.well-known/security.txt', security_txt, name='security_txt'),
     # Vistas de autenticación con rate limiting (prioritarias sobre allauth.urls)
     path('accounts/login/', RatelimitedLoginView.as_view(), name='account_login'),
