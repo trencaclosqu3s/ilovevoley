@@ -9,7 +9,7 @@ from django_ical.views import ICalFeed
 
 from ilovevoley.competitions.models import Match
 from ilovevoley.core.mixins import get_club_team_filter
-from ilovevoley.core.models import Organization
+from ilovevoley.core.models import Category, Organization
 from ilovevoley.users.models import User
 
 
@@ -33,9 +33,21 @@ class UserMatchesFeed(ICalFeed):
     def title(self, obj):
         return f'I Love Voley - Partidos de {obj.username}'
 
+    @staticmethod
+    def _preferred_categories(user, organizations):
+        """Une las categorías de interés del usuario en varios clubes.
+
+        El feed no tiene un tenant activo: agrupa las preferencias de todas las
+        organizaciones (con membresía aprobada) del usuario.
+        """
+        return Category.objects.filter(
+            category_preferences__user=user,
+            category_preferences__organization__in=organizations,
+        ).distinct()
+
     def description(self, obj):
-        categories = obj.preferred_categories.all()
         orgs = Organization.objects.filter(memberships__user=obj, memberships__is_approved=True)
+        categories = self._preferred_categories(obj, orgs)
         parts = []
         if orgs:
             parts.append(', '.join([o.name for o in orgs]))
@@ -49,14 +61,14 @@ class UserMatchesFeed(ICalFeed):
         1. La categoría de la liga está entre las categorías preferidas del usuario.
         2. Uno de los equipos pertenece a una organización donde el usuario tiene membresía aprobada.
         """
-        categories = obj.preferred_categories.all()
-        if not categories:
-            return Match.objects.none()
-
         approved_orgs = Organization.objects.filter(
             memberships__user=obj,
             memberships__is_approved=True
         )
+        categories = self._preferred_categories(obj, approved_orgs)
+        if not categories.exists():
+            return Match.objects.none()
+
         if not approved_orgs.exists():
             return Match.objects.none()
 

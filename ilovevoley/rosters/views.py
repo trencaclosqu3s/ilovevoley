@@ -25,7 +25,9 @@ logger = logging.getLogger(__name__)
 def roster_overview(request):
     """Vista general de todas las plantillas del club"""
     # Obtener categorías del usuario para filtrar
-    user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
+    user_categories = request.user.preferred_categories_for(request.tenant)
+    if not user_categories.exists():
+        user_categories = Category.objects.filter(is_active=True)
 
     # Temporada a mostrar (activa por defecto)
     season_filter, selected_season = resolve_season_filter(request)

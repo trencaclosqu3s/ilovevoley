@@ -95,3 +95,56 @@ class MigrateVideoManagersToMembershipTest(TransactionTestCase):
         self.assertNotIn(self.user1.id, remaining)
         self.assertNotIn(self.user2.id, remaining)
         self.assertNotIn(self.user4.id, remaining)
+
+
+class CategoryPreferencesBackfillTest(TransactionTestCase):
+    """La migración 0015 reparte las preferencias globales por organización.
+
+    El M2M antiguo no distinguía club, así que debe copiarse a cada membresía
+    del usuario para no perder las categorías configuradas.
+    """
+
+    migrate_from = ('users', '0014_categorypreference')
+    migrate_to = ('users', '0015_backfill_category_preferences')
+
+    def setUp(self):
+        super().setUp()
+        self.executor = MigrationExecutor(connection)
+        self.executor.migrate([self.migrate_from])
+        self.executor.loader.build_graph()
+        old_apps = self.executor.loader.project_state([self.migrate_from]).apps
+
+        User = old_apps.get_model('users', 'User')
+        Membership = old_apps.get_model('users', 'Membership')
+        Organization = old_apps.get_model('core', 'Organization')
+        Category = old_apps.get_model('core', 'Category')
+
+        self.org1 = Organization.objects.create(slug='club1', name='Club 1', default_home='videos')
+        self.org2 = Organization.objects.create(slug='club2', name='Club 2', default_home='videos')
+
+        self.user = User.objects.create_user(username='fan', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org1, role='member', is_approved=True)
+        Membership.objects.create(user=self.user, organization=self.org2, role='member', is_approved=True)
+
+        self.category = Category.objects.create(name='Infantil', is_active=True)
+        self.user.preferred_categories.add(self.category)
+
+    def tearDown(self):
+        self.executor.loader.build_graph()
+        self.executor.migrate(self.executor.loader.graph.leaf_nodes())
+        super().tearDown()
+
+    def test_global_preferences_are_copied_to_each_membership(self):
+        self.executor.loader.build_graph()
+        self.executor.migrate([self.migrate_to])
+        new_apps = self.executor.loader.project_state([self.migrate_to]).apps
+        CategoryPreference = new_apps.get_model('users', 'CategoryPreference')
+
+        for org in (self.org1, self.org2):
+            preference = CategoryPreference.objects.get(
+                user_id=self.user.id, organization_id=org.id
+            )
+            self.assertEqual(
+                list(preference.categories.values_list('id', flat=True)),
+                [self.category.id],
+            )

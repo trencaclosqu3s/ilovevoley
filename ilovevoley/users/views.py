@@ -61,16 +61,21 @@ def pending_approval(request):
 @login_required
 def profile_view(request):
     """Vista para visualizar el perfil del usuario"""
+    tenant = getattr(request, 'tenant', None)
     return render(request, 'users/profile.html', {
-        'user': request.user
+        'user': request.user,
+        'preferred_categories': request.user.preferred_categories_for(tenant),
     })
 
 
 @login_required
 def profile_edit(request):
     """Vista para editar el perfil del usuario"""
+    tenant = getattr(request, 'tenant', None)
     if request.method == 'POST':
-        form = UserProfileForm(request.POST, request.FILES, instance=request.user)
+        form = UserProfileForm(
+            request.POST, request.FILES, instance=request.user, organization=tenant
+        )
         
         if form.is_valid():
             # Procesar imagen recortada si está presente
@@ -88,7 +93,7 @@ def profile_edit(request):
         else:
             messages.error(request, 'Por favor corrige los errores en el formulario.')
     else:
-        form = UserProfileForm(instance=request.user)
+        form = UserProfileForm(instance=request.user, organization=tenant)
     
     return render(request, 'users/profile_edit.html', {
         'form': form

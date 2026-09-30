@@ -1,4 +1,4 @@
-{% if user.is_authenticated and not user.preferred_categories.exists %}
+{% if user.is_authenticated and not preferred_categories %}
 <div id="category-preferences-banner" class="bg-gradient-to-r from-purple-100 to-yellow-100 border-l-4 border-csj-purple rounded-lg p-4 mb-6 shadow-md">
     <div class="flex items-start">
         <div class="flex-shrink-0">

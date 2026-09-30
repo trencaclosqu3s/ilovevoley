@@ -170,6 +170,75 @@ class CoreViewUrlTests(TestCase):
         self.assertFalse(self.unapproved_user.is_active)
 
 
+@override_settings(
+    ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'],
+    TENANT_BASE_DOMAIN='ilovevoley.es',
+)
+class SwitchClubNavbarTest(TestCase):
+    """Enlace "Cambiar de club" en el navbar del tenant (#258).
+
+    Solo se ofrece a usuarios con más de una membresía aprobada y apunta al
+    dominio raíz, donde la landing ya lista las organizaciones.
+    """
+
+    def setUp(self):
+        from ilovevoley.core.models import Organization
+        from ilovevoley.users.models import Membership
+
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club', is_active=True
+        )
+        self.other_org = Organization.objects.create(
+            slug='otherclub', name='Other Club', is_active=True
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(
+            user=self.user, organization=self.org, is_approved=True
+        )
+
+    def _get_navbar(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        return response
+
+    def test_hidden_with_single_approved_membership(self):
+        response = self._get_navbar()
+        self.assertNotContains(response, 'Cambiar de club')
+
+    def test_shown_with_multiple_memberships_and_points_to_root_domain(self):
+        from ilovevoley.users.models import Membership
+
+        Membership.objects.create(
+            user=self.user, organization=self.other_org, is_approved=True
+        )
+        response = self._get_navbar()
+        self.assertContains(response, 'Cambiar de club')
+        self.assertContains(response, 'href="https://ilovevoley.es/"')
+
+    def test_pending_second_membership_does_not_count(self):
+        from ilovevoley.users.models import Membership
+
+        Membership.objects.create(
+            user=self.user, organization=self.other_org, is_approved=False
+        )
+        response = self._get_navbar()
+        self.assertNotContains(response, 'Cambiar de club')
+
+    def test_inactive_org_membership_does_not_count(self):
+        from ilovevoley.users.models import Membership
+
+        self.other_org.is_active = False
+        self.other_org.save()
+        Membership.objects.create(
+            user=self.user, organization=self.other_org, is_approved=True
+        )
+        response = self._get_navbar()
+        self.assertNotContains(response, 'Cambiar de club')
+
+
 @override_settings(ALLOWED_HOSTS=[
     'cluba.ilovevoley.es', 'clubb.ilovevoley.es', 'localhost',
 ])
