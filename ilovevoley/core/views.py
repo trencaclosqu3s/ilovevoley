@@ -2,8 +2,10 @@
 Core views: error handlers, landing, about, and user moderation.
 """
 import logging
+import os
 from datetime import timedelta
 from email.utils import parseaddr
+from functools import lru_cache
 
 from django.conf import settings
 from django.contrib import messages
@@ -24,6 +26,7 @@ from ilovevoley.core.services.season_wizard import preview_season, start_season
 from ilovevoley.core.tenant_utils import (
     approve_user_membership,
     build_absolute_url,
+    build_tenant_url,
     can_moderate_images,
     reject_user_membership,
     user_is_tenant_manager,
@@ -121,20 +124,39 @@ def landing(request):
         next_url = reverse(home_url_name)
         return redirect(f'{login_url}?next={next_url}')
 
-    organizations = Organization.objects.filter(is_active=True).order_by('name')
-
+    user_organizations = []
     user_org_ids = set()
+
     if request.user.is_authenticated:
         from ilovevoley.users.models import Membership
-        user_org_ids = set(
+
+        approved_memberships = list(
             Membership.objects.filter(
-                user=request.user, is_approved=True
-            ).values_list('organization_id', flat=True)
+                user=request.user,
+                is_approved=True,
+                organization__is_active=True,
+            ).select_related('organization').order_by('organization__name')
         )
+
+        if len(approved_memberships) == 1:
+            org = approved_memberships[0].organization
+            target_url = build_tenant_url(org.slug, request)
+            return redirect(target_url)
+
+        if len(approved_memberships) > 1:
+            user_organizations = [m.organization for m in approved_memberships]
+            user_org_ids = {m.organization_id for m in approved_memberships}
+
+    organizations = Organization.objects.filter(is_active=True).order_by('name')
+    if user_organizations:
+        other_organizations = organizations.exclude(id__in=user_org_ids)
+    else:
+        other_organizations = organizations
 
     return render(request, 'landing.html', {
         'organizations': organizations,
-        'user_org_ids': user_org_ids,
+        'user_organizations': user_organizations,
+        'other_organizations': other_organizations,
     })
 
 
@@ -216,6 +238,79 @@ def security_txt(request):
         f'Canonical: {build_absolute_url(reverse("security_txt"), request=request)}',
     ]
     return HttpResponse('\n'.join(lines) + '\n', content_type='text/plain; charset=utf-8')
+
+
+def manifest_json(request):
+    """Devuelve el manifiesto W3C estandarizado para la PWA comunitaria I Love Voley."""
+    tenant = getattr(request, 'tenant', None)
+    theme_color = tenant.primary_color if tenant and tenant.primary_color else '#9B7FBF'
+
+    manifest_data = {
+        'id': '/',
+        'name': 'I Love Voley',
+        'short_name': 'ILoveVoley',
+        'description': 'Plataforma comunitaria de gestión, vídeos y seguimiento de voleibol',
+        'lang': 'es',
+        'dir': 'ltr',
+        'start_url': '/',
+        'scope': '/',
+        'display': 'standalone',
+        'theme_color': theme_color,
+        'background_color': '#ffffff',
+        'icons': [
+            {
+                'src': static('images/icons/icon-192.png'),
+                'sizes': '192x192',
+                'type': 'image/png',
+                'purpose': 'any',
+            },
+            {
+                'src': static('images/icons/icon-512.png'),
+                'sizes': '512x512',
+                'type': 'image/png',
+                'purpose': 'any',
+            },
+            {
+                'src': static('images/icons/icon-maskable-512.png'),
+                'sizes': '512x512',
+                'type': 'image/png',
+                'purpose': 'maskable',
+            },
+        ],
+    }
+
+    response = JsonResponse(manifest_data, content_type='application/manifest+json; charset=utf-8')
+    response['Cache-Control'] = 'public, max-age=3600'
+    response['Vary'] = 'Host'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+def offline_view(request):
+    """Página de fallback cuando el usuario no dispone de conexión a internet."""
+    return render(request, 'offline.html', status=200)
+
+
+@lru_cache(maxsize=1)
+def _get_sw_content():
+    sw_path = os.path.join(settings.BASE_DIR, 'ilovevoley', 'static', 'js', 'sw.js')
+    with open(sw_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+def service_worker(request):
+    """Sirve el archivo sw.js desde la raíz con cabeceras de Service Worker."""
+    if settings.DEBUG:
+        sw_path = os.path.join(settings.BASE_DIR, 'ilovevoley', 'static', 'js', 'sw.js')
+        with open(sw_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    else:
+        content = _get_sw_content()
+    response = HttpResponse(content, content_type='application/javascript; charset=utf-8')
+    response['Service-Worker-Allowed'] = '/'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
+
 
 def _can_moderate_memberships(request):
     """True si el usuario es superuser o manager/admin aprobado del tenant actual."""
@@ -496,6 +591,9 @@ __all__ = [
     'sitemap_xml',
     'favicon',
     'security_txt',
+    'manifest_json',
+    'offline_view',
+    'service_worker',
     'moderation_counts_api',
     'moderation_panel',
     'approve_user_api',
