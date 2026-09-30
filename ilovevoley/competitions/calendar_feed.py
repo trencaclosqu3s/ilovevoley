@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.http import Http404
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
+from django_ical.feedgenerator import ICal20Feed
 from django_ical.views import ICalFeed
 
 from ilovevoley.competitions.models import Match
@@ -12,6 +13,35 @@ from ilovevoley.competitions.services.venue_service import get_match_location_in
 from ilovevoley.core.mixins import get_club_team_filter
 from ilovevoley.core.models import Category, Organization
 from ilovevoley.users.models import User
+
+
+APPLE_LOCATION_RADIUS_METERS = 70
+
+
+class AppleLocationFeed(ICal20Feed):
+    """Añade X-APPLE-STRUCTURED-LOCATION a los eventos que traen `apple_location`.
+
+    Es la propiedad que Calendar de iOS/macOS usa para mostrar mapa y tiempo de trayecto;
+    django-ical no soporta propiedades X- arbitrarias. LOCATION y GEO se mantienen para
+    Google Calendar y Outlook.
+    """
+
+    def write_items(self, calendar):
+        super().write_items(calendar)
+        # Los componentes se añaden en el mismo orden que self.items.
+        for element, item in zip(calendar.subcomponents, self.items):
+            apple_location = item.get('apple_location')
+            if apple_location:
+                element.add(
+                    'X-APPLE-STRUCTURED-LOCATION',
+                    f'geo:{apple_location["latitude"]},{apple_location["longitude"]}',
+                    parameters={
+                        'VALUE': 'URI',
+                        'X-ADDRESS': apple_location['address'],
+                        'X-APPLE-RADIUS': str(APPLE_LOCATION_RADIUS_METERS),
+                        'X-TITLE': apple_location['title'],
+                    },
+                )
 
 
 class UserMatchesFeed(ICalFeed):
@@ -23,6 +53,7 @@ class UserMatchesFeed(ICalFeed):
     product_id = '-//I Love Voley//Calendario de Partidos//ES'
     timezone = 'Europe/Madrid'
     file_name = 'partidos.ics'
+    feed_type = AppleLocationFeed
 
     def get_object(self, request, token):
         try:
@@ -175,7 +206,7 @@ class UserMatchesFeed(ICalFeed):
             description_parts.append(f'Resultado: {item.home_score} - {item.away_score}')
 
         # Bloque de ubicación y enlace a mapa
-        info = get_match_location_info(item)
+        info = self._location_info(item)
         if info['location_text'] and info['location_text'] != 'Por confirmar':
             description_parts.append('')
             description_parts.append(f'📍 Ubicación: {info["location_text"]}')
@@ -206,10 +237,35 @@ class UserMatchesFeed(ICalFeed):
         start = self.item_start_datetime(item)
         return start + timedelta(hours=2)
 
+    @staticmethod
+    def _location_info(item):
+        """Resuelve la ubicación una sola vez por partido (description, location y coordenadas la usan)."""
+        if not hasattr(item, '_location_info'):
+            item._location_info = get_match_location_info(item)
+        return item._location_info
+
     def item_location(self, item):
         """Ubicación del evento normalizada para clientes de calendario (RFC 5545)."""
-        info = get_match_location_info(item)
-        return info['location_text']
+        return self._location_info(item)['location_text']
+
+    def item_geolocation(self, item):
+        """Coordenadas (GEO, RFC 5545) de la sede; None si no se conocen."""
+        venue = self._location_info(item)['venue']
+        if venue and venue.latitude is not None and venue.longitude is not None:
+            return float(venue.latitude), float(venue.longitude)
+        return None
+
+    def item_extra_kwargs(self, item):
+        kwargs = super().item_extra_kwargs(item)
+        venue = self._location_info(item)['venue']
+        if venue and venue.latitude is not None and venue.longitude is not None:
+            kwargs['apple_location'] = {
+                'latitude': venue.latitude,
+                'longitude': venue.longitude,
+                'title': venue.name,
+                'address': venue.full_address,
+            }
+        return kwargs
 
     def item_link(self, item):
         """Enlace al partido en la web"""
