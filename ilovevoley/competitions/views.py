@@ -116,8 +116,8 @@ def league_list(request):
     if category_filter:
         leagues = leagues.filter(categories__id=category_filter).distinct()
     # Filtrar por categorías preferidas del usuario si no se especifica otra cosa
-    elif not show_all and request.user.preferred_categories.exists():
-        user_categories = request.user.preferred_categories.all()
+    elif not show_all and request.user.has_preferred_categories(request.tenant):
+        user_categories = request.user.preferred_categories_for(request.tenant)
         leagues = leagues.filter(categories__in=user_categories).distinct()
 
     # Filtrar partidos amistosos si no se quiere mostrar
@@ -150,7 +150,7 @@ def league_list(request):
         'show_all': show_all,
         'show_friendly': show_friendly,
         'show_past': show_past,
-        'has_preferences': request.user.preferred_categories.exists(),
+        'has_preferences': request.user.has_preferred_categories(request.tenant),
     })
 
 
@@ -413,8 +413,8 @@ def calendar_view(request):
     if category_filter:
         matches = matches.filter(league__categories__id=category_filter).distinct()
     # Si no hay filtro de categoría, aplicar preferencias del usuario
-    elif not show_all and request.user.preferred_categories.exists():
-        user_categories = request.user.preferred_categories.all()
+    elif not show_all and request.user.has_preferred_categories(request.tenant):
+        user_categories = request.user.preferred_categories_for(request.tenant)
         matches = matches.filter(league__categories__in=user_categories).distinct()
 
     # Obtener datos para filtros
@@ -508,7 +508,7 @@ def calendar_view(request):
         'calendar_weeks': calendar_weeks,
         'view_mode': view_mode,
         'month_name': month_names_es[month],
-        'has_preferences': request.user.preferred_categories.exists(),
+        'has_preferences': request.user.has_preferred_categories(request.tenant),
         'today': timezone.now().date(),
     })
 
@@ -920,8 +920,8 @@ def standings_view(request):
     if category_filter:
         standings = standings.filter(league__categories__id=category_filter)
     # Si no hay filtro de categoría, aplicar preferencias del usuario
-    elif not show_all and request.user.preferred_categories.exists():
-        user_categories = request.user.preferred_categories.all()
+    elif not show_all and request.user.has_preferred_categories(request.tenant):
+        user_categories = request.user.preferred_categories_for(request.tenant)
         standings = standings.filter(league__categories__in=user_categories)
 
     # Agrupar por liga
@@ -951,7 +951,7 @@ def standings_view(request):
         'selected_season': season_filter,
         'show_all': show_all,
         'show_archived': show_archived,
-        'has_preferences': request.user.preferred_categories.exists(),
+        'has_preferences': request.user.has_preferred_categories(request.tenant),
         'club_team_name': club_team_name,
     })
 

@@ -98,7 +98,9 @@ def ajax_register_team(request):
 def team_list(request):
     """Lista de equipos del club con información de plantillas"""
     # Obtener categorías del usuario para filtrar
-    user_categories = request.user.preferred_categories.all() if request.user.preferred_categories.exists() else Category.objects.filter(is_active=True)
+    user_categories = request.user.preferred_categories_for(request.tenant)
+    if not user_categories.exists():
+        user_categories = Category.objects.filter(is_active=True)
 
     # Query base para equipos del club
     teams_query = Team.objects.select_related("category", "club").prefetch_related(

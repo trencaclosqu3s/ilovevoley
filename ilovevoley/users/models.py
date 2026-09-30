@@ -15,15 +15,6 @@ class User(AbstractUser):
         verbose_name='Información Familiar',
         help_text='Indica de qué niño/a eres padre/familiar (ej: "papá de Juanito de Infantil")'
     )
-    preferred_categories = models.ManyToManyField(
-        'core.Category',
-        blank=True,
-        related_name='subscribed_users',
-        verbose_name='Categorías de Interés',
-        help_text='Categorías de contenido que deseas ver'
-    )
-    
-    
     # Calendar subscription token (for .ics feed)
     calendar_token = models.CharField(
         max_length=64,
@@ -58,8 +49,26 @@ class User(AbstractUser):
             self.calendar_token = secrets.token_urlsafe(32)
             self.save(update_fields=['calendar_token'])
         return self.calendar_token
-    
-    
+
+    def preferred_categories_for(self, organization):
+        """Categorías de interés del usuario en una organización concreta.
+
+        Las preferencias son independientes por club; sin organización activa
+        no hay preferencias aplicables.
+        """
+        if organization is None:
+            return Category.objects.none()
+        preference = self.category_preferences.filter(organization=organization).first()
+        return preference.categories.all() if preference else Category.objects.none()
+
+    def has_preferred_categories(self, organization):
+        """Indica si el usuario tiene alguna categoría de interés en un club."""
+        if organization is None:
+            return False
+        return self.category_preferences.filter(
+            organization=organization, categories__isnull=False
+        ).exists()
+
     def can_edit_person(self, person, tenant=None):
         """Verifica si el usuario puede editar una ficha específica."""
         if self.is_superuser:
@@ -83,7 +92,7 @@ class User(AbstractUser):
         return False
 
 
-from ilovevoley.core.models import Organization
+from ilovevoley.core.models import Category, Organization
 
 
 class Membership(models.Model):
@@ -106,3 +115,37 @@ class Membership(models.Model):
 
     def __str__(self):
         return f'{self.user} @ {self.organization} ({self.role})'
+
+
+class CategoryPreference(models.Model):
+    """Categorías de interés de un usuario para una organización concreta.
+
+    Sustituye al antiguo M2M global ``User.preferred_categories`` para que cada
+    club mantenga su propio conjunto de categorías sin interferencias.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='category_preferences',
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='category_preferences',
+    )
+    categories = models.ManyToManyField(
+        Category,
+        blank=True,
+        related_name='category_preferences',
+        verbose_name='Categorías de Interés',
+        help_text='Categorías de contenido que deseas ver en este club',
+    )
+
+    class Meta:
+        unique_together = ('user', 'organization')
+        verbose_name = 'Preferencia de categorías'
+        verbose_name_plural = 'Preferencias de categorías'
+
+    def __str__(self):
+        return f'{self.user} @ {self.organization}'
