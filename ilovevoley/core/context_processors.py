@@ -1,6 +1,7 @@
 from django.templatetags.static import static
 
 from .tenant_utils import (
+    build_absolute_url,
     build_tenant_url,
     get_tenant_base_domain,
     hex_to_rgb_channels,
@@ -19,23 +20,40 @@ def tenant_context(request):
     
     is_manager = False
     is_admin = False
+    approved_memberships = []
     user = getattr(request, 'user', None)
     if user and user.is_authenticated:
         if user.is_superuser:
             is_manager = True
             is_admin = True
-        elif org:
+        if org:
             from ilovevoley.users.models import Membership
-            membership = Membership.objects.filter(
-                user=user,
-                organization=org,
-                is_approved=True,
-            ).values_list('role', flat=True).first()
-            if membership:
-                is_manager = membership in ('manager', 'admin')
-                is_admin = membership == 'admin'
+            # Solo cuentan las membresías de clubes activos: la landing únicamente
+            # lista organizaciones activas, así que no ofrecemos un cambio a un
+            # club que ya no es accesible.
+            approved_memberships = list(
+                Membership.objects.filter(
+                    user=user,
+                    is_approved=True,
+                    organization__is_active=True,
+                ).values_list('organization_id', 'role')
+            )
+            if not user.is_superuser:
+                role = next(
+                    (r for org_id, r in approved_memberships if org_id == org.id), None
+                )
+                if role:
+                    is_manager = role in ('manager', 'admin')
+                    is_admin = role == 'admin'
+
+    # Solo tiene sentido ofrecer el cambio de club a quien pertenece a más de
+    # una organización; el enlace apunta al dominio raíz, que ya lista los
+    # clubes y reutiliza la selección de la landing.
+    can_switch_club = len(approved_memberships) > 1
 
     return {
+        'can_switch_club': can_switch_club,
+        'switch_club_url': build_absolute_url('', request=request),
         'tenant': org,
         'tenant_color': brand,
         'tenant_color_dark': brand_dark,
