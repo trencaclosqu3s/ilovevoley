@@ -2,6 +2,7 @@
 Core views: error handlers, landing, about, and user moderation.
 """
 import logging
+import os
 from datetime import timedelta
 from email.utils import parseaddr
 
@@ -267,6 +268,17 @@ def manifest_json(request):
 def offline_view(request):
     """Página de fallback cuando el usuario no dispone de conexión a internet."""
     return render(request, 'offline.html', status=200)
+
+
+def service_worker(request):
+    """Sirve el archivo sw.js desde la raíz con cabeceras de Service Worker."""
+    sw_path = os.path.join(settings.BASE_DIR, 'ilovevoley', 'static', 'js', 'sw.js')
+    with open(sw_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    response = HttpResponse(content, content_type='application/javascript; charset=utf-8')
+    response['Service-Worker-Allowed'] = '/'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
 
 
 def _can_moderate_memberships(request):
@@ -550,6 +562,7 @@ __all__ = [
     'security_txt',
     'manifest_json',
     'offline_view',
+    'service_worker',
     'moderation_counts_api',
     'moderation_panel',
     'approve_user_api',
