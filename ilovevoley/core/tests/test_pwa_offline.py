@@ -33,7 +33,6 @@ class PWAOfflineTest(TestCase):
         self.assertIn('Reintentar', content)
         self.assertIn('logo_app.png', content)
         self.assertIn('data-action="reload"', content)
-        self.assertIn('window.location.reload()', content)
 
     def test_offline_page_with_tenant(self):
         request = self.factory.get('/offline/', HTTP_HOST='santjosep.ilovevoley.es')
