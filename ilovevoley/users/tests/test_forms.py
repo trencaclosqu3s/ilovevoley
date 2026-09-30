@@ -84,7 +84,43 @@ class UserProfileFormOrganizationTest(TestCase):
         self._save(self.org1, [self.infantil])
 
         form = UserProfileForm(instance=self.user, organization=self.org1)
-        self.assertEqual(list(form.initial['preferred_categories']), [self.infantil])
+        self.assertEqual(list(form.initial[f'preferred_categories_{self.org1.id}']), [self.infantil])
 
-        other = UserProfileForm(instance=self.user, organization=self.org2)
-        self.assertNotIn('preferred_categories', other.initial)
+    def test_form_exposes_category_fields_for_all_user_memberships(self):
+        from ilovevoley.users.models import Membership
+        Membership.objects.create(user=self.user, organization=self.org1, is_approved=True)
+        Membership.objects.create(user=self.user, organization=self.org2, is_approved=False)
+
+        form = UserProfileForm(instance=self.user)
+        org_ids = [org.id for org, _ in form.organization_category_fields]
+        self.assertIn(self.org1.id, org_ids)
+        self.assertIn(self.org2.id, org_ids)
+
+    def test_form_saves_preferences_for_multiple_organizations_at_once(self):
+        from ilovevoley.users.models import Membership
+        Membership.objects.create(user=self.user, organization=self.org1)
+        Membership.objects.create(user=self.user, organization=self.org2)
+
+        form = UserProfileForm(
+            data={
+                'username': 'socio',
+                'first_name': 'Socio',
+                'last_name': 'Uno',
+                f'preferred_categories_{self.org1.id}': [self.infantil.pk],
+                f'preferred_categories_{self.org2.id}': [self.cadete.pk],
+            },
+            instance=self.user,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        self.assertEqual(list(self.user.preferred_categories_for(self.org1)), [self.infantil])
+        self.assertEqual(list(self.user.preferred_categories_for(self.org2)), [self.cadete])
+
+    def test_form_superuser_without_memberships_includes_active_organizations(self):
+        superuser = get_user_model().objects.create_superuser(username='super', password='pass')
+        form = UserProfileForm(instance=superuser)
+        org_ids = [org.id for org, _ in form.organization_category_fields]
+        self.assertIn(self.org1.id, org_ids)
+        self.assertIn(self.org2.id, org_ids)
+
