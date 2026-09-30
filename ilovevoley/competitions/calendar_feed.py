@@ -8,6 +8,7 @@ from django.utils import timezone
 from django_ical.views import ICalFeed
 
 from ilovevoley.competitions.models import Match
+from ilovevoley.competitions.services.venue_service import get_match_location_info
 from ilovevoley.core.mixins import get_club_team_filter
 from ilovevoley.core.models import Category, Organization
 from ilovevoley.users.models import User
@@ -88,8 +89,11 @@ class UserMatchesFeed(ICalFeed):
             team_filter
         ).select_related(
             'home_team',
+            'home_team__club',
+            'home_team__club__default_venue',
             'away_team',
-            'league'
+            'league',
+            'venue_ref',
         ).prefetch_related(
             'league__categories'
         ).distinct().order_by('match_date')
@@ -170,6 +174,14 @@ class UserMatchesFeed(ICalFeed):
         if item.home_score is not None and item.away_score is not None:
             description_parts.append(f'Resultado: {item.home_score} - {item.away_score}')
 
+        # Bloque de ubicación y enlace a mapa
+        info = get_match_location_info(item)
+        if info['location_text'] and info['location_text'] != 'Por confirmar':
+            description_parts.append('')
+            description_parts.append(f'📍 Ubicación: {info["location_text"]}')
+            if info['maps_url']:
+                description_parts.append(f'🗺️ Cómo llegar: {info["maps_url"]}')
+
         # Agregar enlace al partido en la web
         try:
             match_url = reverse("competitions:match_detail", args=[item.id])
@@ -195,16 +207,9 @@ class UserMatchesFeed(ICalFeed):
         return start + timedelta(hours=2)
 
     def item_location(self, item):
-        """Ubicación del evento"""
-        location_parts = []
-
-        if item.venue:
-            location_parts.append(item.venue)
-
-        if item.city:
-            location_parts.append(item.city)
-
-        return ', '.join(location_parts) if location_parts else 'Por confirmar'
+        """Ubicación del evento normalizada para clientes de calendario (RFC 5545)."""
+        info = get_match_location_info(item)
+        return info['location_text']
 
     def item_link(self, item):
         """Enlace al partido en la web"""

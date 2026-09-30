@@ -12,6 +12,14 @@ class Club(models.Model):
     email = models.EmailField(blank=True)
     venue_name = models.CharField(max_length=200, blank=True)
     venue_address = models.CharField(max_length=200, blank=True)
+    default_venue = models.ForeignKey(
+        'competitions.Venue',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='clubs',
+        verbose_name='Pabellón habitual'
+    )
     province = models.CharField(max_length=100, blank=True)
     instagram = models.URLField(blank=True)
     facebook = models.URLField(blank=True)
