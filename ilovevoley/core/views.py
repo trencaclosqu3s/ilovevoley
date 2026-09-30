@@ -157,7 +157,6 @@ def landing(request):
         'organizations': organizations,
         'user_organizations': user_organizations,
         'other_organizations': other_organizations,
-        'user_org_ids': user_org_ids,
     })
 
 
