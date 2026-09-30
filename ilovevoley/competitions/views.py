@@ -44,6 +44,7 @@ from .forms import FriendlyMatchForm, MatchResultForm
 from .models import League, Match, MatchChangeLog, MatchShareLink, Standing
 from .services.lineups import resolve_acta_team, store_match_lineups
 from .services.sets import extract_set_scores, match_set_scores
+from .services.where_plays import MIN_QUERY_LENGTH, search_team_locations
 from .share import (
     ALLOWED_HOURS,
     create_match_share_link,
@@ -1132,6 +1133,40 @@ def public_match_media(request, token, image_id):
     response['Cache-Control'] = 'private, no-store'
     response['X-Robots-Tag'] = 'noindex, nofollow'
     return response
+
+
+def where_plays(request):
+    """Página pública "¿Dónde juega el rival?": sede de los próximos partidos.
+
+    No requiere autenticación; se acota a la organización resuelta por el
+    subdominio (``request.tenant``). El buscador funciona sin JS (envío normal
+    del formulario) y con JS se refresca vía el endpoint JSON.
+    """
+    tenant = getattr(request, 'tenant', None)
+    if tenant is None:
+        return redirect('landing')
+
+    query = (request.GET.get('q') or '').strip()
+    results = search_team_locations(tenant, query) if len(query) >= MIN_QUERY_LENGTH else []
+    return render(request, 'competitions/where_plays.html', {
+        'query': query,
+        'results': results,
+        'min_query_length': MIN_QUERY_LENGTH,
+    })
+
+
+def where_plays_search(request):
+    """Endpoint JSON del buscador en vivo de "¿Dónde juega el rival?"."""
+    tenant = getattr(request, 'tenant', None)
+    if tenant is None:
+        return JsonResponse({'results': []})
+
+    query = (request.GET.get('q') or '').strip()
+    if len(query) < MIN_QUERY_LENGTH:
+        return JsonResponse({'results': [], 'min_query_length': MIN_QUERY_LENGTH})
+    return JsonResponse({'results': search_team_locations(tenant, query)})
+
+
 @tenant_access_required(manager=True)
 def match_changes_review(request):
     """Panel de revisión de modificaciones federativas para directores/managers del club."""
@@ -1208,6 +1243,8 @@ __all__ = [
     'match_share_revoke',
     'public_match_timeline',
     'public_match_media',
+    'where_plays',
+    'where_plays_search',
     'match_result_card',
     'calendar_view',
     'friendly_match_create',

@@ -3,7 +3,7 @@ import urllib.parse
 from ilovevoley.competitions.models import Venue
 
 
-def get_match_location_info(match) -> dict:
+def get_match_location_info(match, active_venues=None) -> dict:
     """Resuelve la ubicación estructurada y enlace de navegación de un partido.
 
     Orden de prioridad estricto:
@@ -12,6 +12,9 @@ def get_match_location_info(match) -> dict:
     3. Fallback a match.home_team.club.default_venue solo si venue viene vacío (ej. partidos lejanos)
     4. Fallback a texto plano residual de match (venue, field_address, city)
     5. Fallback a 'Por confirmar'
+
+    ``active_venues`` permite reutilizar una única consulta al catálogo al resolver
+    varios partidos seguidos (búsquedas en listado); si se omite se consulta.
     """
     # 1. Asignación directa
     if match.venue_ref_id:
@@ -26,7 +29,7 @@ def get_match_location_info(match) -> dict:
     # 2. Matching por texto de match.venue
     venue_text = (match.venue or '').strip()
     if venue_text:
-        venues = list(Venue.objects.filter(is_active=True))
+        venues = active_venues if active_venues is not None else list(Venue.objects.filter(is_active=True))
         matched = next((v for v in venues if v.matches_text(venue_text)), None)
         if matched:
             return {

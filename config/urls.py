@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
+from ilovevoley.competitions.views import where_plays, where_plays_search
 from ilovevoley.core.moderation_views import moderate_user, moderate_image
 from ilovevoley.core.protected_media import protected_media
 from ilovevoley.core.views import (
@@ -66,6 +67,9 @@ urlpatterns = [
     path('competitions/', include('ilovevoley.competitions.urls', namespace='competitions')),
     path('p/', include('ilovevoley.competitions.public_urls', namespace='public')),
     path('core/', include('ilovevoley.core.urls', namespace='core')),
+    # Página pública "¿Dónde juega el rival?" (sin login, acotada al tenant)
+    path('donde-juega/', where_plays, name='where_plays'),
+    path('donde-juega/buscar/', where_plays_search, name='where_plays_search'),
     path('', include('ilovevoley.users.urls')),
     # Rutas de moderación con tokens seguros
     path('moderate/user/<str:token>/', moderate_user, name='moderate_user'),
