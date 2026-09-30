@@ -5,10 +5,24 @@ from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils.html import format_html, mark_safe
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from .models import Membership, User
+
+
+class MembershipInline(TabularInline):
+    """Membresías del usuario editables desde su ficha.
+
+    Permite ver y gestionar de una vez todas las organizaciones a las que
+    pertenece el usuario, evitando la confusión de editar una sola membresía
+    desde su propio listado y creer que se está reemplazando.
+    """
+    model = Membership
+    extra = 0
+    fields = ('organization', 'role', 'is_approved', 'joined_at')
+    readonly_fields = ('joined_at',)
+    autocomplete_fields = ('organization',)
 
 
 def approve_users(modeladmin, request, queryset):
@@ -42,6 +56,7 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     actions = [approve_users, reject_users, 'send_email_action']
     actions_detail = ['send_email_detail_action']
     actions_row = ['send_email_row_action']
+    inlines = [MembershipInline]
     
     # Añadir is_approved y parent_info a los fieldsets
     fieldsets = BaseUserAdmin.fieldsets + (
