@@ -43,7 +43,6 @@ def _match_payload(match, team, active_venues):
         'is_home': match.home_team_id == team.id,
         'location_text': info['location_text'],
         'maps_url': info['maps_url'],
-        'venue_name': info['venue'].name if info['venue'] else None,
     }
 
 

@@ -71,6 +71,7 @@
     }
 
     const emptyMessage = '<p class="text-center text-gray-500 dark:text-gray-400 py-6">No se han encontrado equipos.</p>';
+    const errorMessage = '<p class="text-center text-gray-500 dark:text-gray-400 py-6">No se ha podido buscar. Inténtalo de nuevo.</p>';
 
     let timer = null;
     let controller = null;
@@ -96,8 +97,10 @@
                 const results = data.results || [];
                 resultsEl.innerHTML = results.length ? results.map(renderCard).join('') : emptyMessage;
             })
-            .catch(function () {
-                // Búsqueda abortada por una pulsación nueva: se ignora.
+            .catch(function (error) {
+                // Un abort() de una pulsación nueva no es un fallo: se ignora.
+                if (error && error.name === 'AbortError') return;
+                resultsEl.innerHTML = errorMessage;
             });
     }
 
