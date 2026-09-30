@@ -58,16 +58,14 @@ class User(AbstractUser):
         """
         if organization is None:
             return Category.objects.none()
-        preference = self.category_preferences.filter(organization=organization).first()
-        return preference.categories.all() if preference else Category.objects.none()
+        return Category.objects.filter(
+            category_preferences__user=self,
+            category_preferences__organization=organization,
+        )
 
     def has_preferred_categories(self, organization):
         """Indica si el usuario tiene alguna categoría de interés en un club."""
-        if organization is None:
-            return False
-        return self.category_preferences.filter(
-            organization=organization, categories__isnull=False
-        ).exists()
+        return self.preferred_categories_for(organization).exists()
 
     def can_edit_person(self, person, tenant=None):
         """Verifica si el usuario puede editar una ficha específica."""
