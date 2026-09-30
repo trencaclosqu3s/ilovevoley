@@ -227,6 +227,17 @@ class SwitchClubNavbarTest(TestCase):
         response = self._get_navbar()
         self.assertNotContains(response, 'Cambiar de club')
 
+    def test_inactive_org_membership_does_not_count(self):
+        from ilovevoley.users.models import Membership
+
+        self.other_org.is_active = False
+        self.other_org.save()
+        Membership.objects.create(
+            user=self.user, organization=self.other_org, is_approved=True
+        )
+        response = self._get_navbar()
+        self.assertNotContains(response, 'Cambiar de club')
+
 
 @override_settings(ALLOWED_HOSTS=[
     'cluba.ilovevoley.es', 'clubb.ilovevoley.es', 'localhost',
