@@ -217,6 +217,52 @@ def security_txt(request):
     ]
     return HttpResponse('\n'.join(lines) + '\n', content_type='text/plain; charset=utf-8')
 
+
+def manifest_json(request):
+    """Devuelve el manifiesto W3C estandarizado para la PWA comunitaria I Love Voley."""
+    tenant = getattr(request, 'tenant', None)
+    theme_color = tenant.primary_color if tenant and tenant.primary_color else '#9B7FBF'
+
+    manifest_data = {
+        'id': '/',
+        'name': 'I Love Voley',
+        'short_name': 'ILoveVoley',
+        'description': 'Plataforma comunitaria de gestión, vídeos y seguimiento de voleibol',
+        'lang': 'es',
+        'dir': 'ltr',
+        'start_url': '/',
+        'scope': '/',
+        'display': 'standalone',
+        'theme_color': theme_color,
+        'background_color': '#ffffff',
+        'icons': [
+            {
+                'src': '/static/images/icons/icon-192.png',
+                'sizes': '192x192',
+                'type': 'image/png',
+                'purpose': 'any',
+            },
+            {
+                'src': '/static/images/icons/icon-512.png',
+                'sizes': '512x512',
+                'type': 'image/png',
+                'purpose': 'any',
+            },
+            {
+                'src': '/static/images/icons/icon-maskable-512.png',
+                'sizes': '512x512',
+                'type': 'image/png',
+                'purpose': 'maskable',
+            },
+        ],
+    }
+
+    response = JsonResponse(manifest_data, content_type='application/manifest+json; charset=utf-8')
+    response['Cache-Control'] = 'public, max-age=3600'
+    response['Vary'] = 'Host'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
 def _can_moderate_memberships(request):
     """True si el usuario es superuser o manager/admin aprobado del tenant actual."""
     return user_is_tenant_manager(request.user, getattr(request, 'tenant', None))
