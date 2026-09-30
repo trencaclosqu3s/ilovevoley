@@ -28,7 +28,7 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
             <!-- Pestañas de estado -->
-            <nav class="flex space-x-2" aria-label="Tabs">
+            <nav class="flex flex-wrap gap-2" aria-label="Tabs">
                 <a href="?status=pending&type={{ selected_type }}&season={{ selected_season_id }}"
                    class="px-3 py-2 text-sm font-medium rounded-md {% if status_filter == 'pending' %}bg-csj-purple text-white{% else %}text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
                     Pendientes
