@@ -253,6 +253,131 @@ class League(models.Model):
             return Match.objects.filter(league_id__in=league_ids)
 
 
+class Venue(models.Model):
+    name = models.CharField(
+        max_length=200,
+        unique=True,
+        verbose_name='Nombre oficial',
+        help_text='Nombre canónico del pabellón o instalación deportiva'
+    )
+    short_name = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Nombre corto',
+        help_text='Nombre abreviado para listados compactos'
+    )
+    address = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='Dirección',
+        help_text='Dirección física completa (calle, número)'
+    )
+    city = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Municipio'
+    )
+    postal_code = models.CharField(
+        max_length=10,
+        blank=True,
+        verbose_name='Código postal'
+    )
+    google_maps_url = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name='Enlace Google Maps',
+        help_text='Enlace corto o directo a la ubicación en Google Maps (ej. https://maps.app.goo.gl/...)'
+    )
+    aliases = models.TextField(
+        blank=True,
+        verbose_name='Nombres alternativos / Alias',
+        help_text='Variaciones de nombre separadas por coma o salto de línea usadas en federación (ej: Pav. Municipal Alaró, Pista 1, Pista 2)'
+    )
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        verbose_name='Latitud'
+    )
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        verbose_name='Longitud'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='Activo'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'videos_venue'
+        ordering = ['city', 'name']
+        verbose_name = 'Pabellón / Sede'
+        verbose_name_plural = 'Pabellones / Sedes'
+
+    def __str__(self):
+        if self.city:
+            return f'{self.name} ({self.city})'
+        return self.name
+
+    @property
+    def full_address(self) -> str:
+        """Devuelve la dirección física completa limpia para geocodificación RFC 5545."""
+        parts = []
+        if self.name:
+            parts.append(self.name.strip())
+        if self.address:
+            addr = self.address.strip()
+            # Si la dirección contiene partes repetidas del nombre (ej: "Germans Escalas, Mare de Deu..."),
+            # limpiamos los fragmentos que ya están en el nombre
+            addr_parts = [p.strip() for p in addr.split(',') if p.strip()]
+            cleaned_addr_parts = [
+                p for p in addr_parts
+                if p.lower() not in (self.name or '').lower()
+            ]
+            if cleaned_addr_parts:
+                parts.append(', '.join(cleaned_addr_parts))
+            elif addr.lower() not in (self.name or '').lower():
+                parts.append(addr)
+        if self.city:
+            city_str = self.city.strip()
+            if not any(city_str.lower() in p.lower() for p in parts):
+                parts.append(city_str)
+        return ', '.join(parts) if parts else 'Por confirmar'
+
+    @property
+    def maps_url(self) -> str | None:
+        """Devuelve la URL directa a Maps o una URL de búsqueda como fallback."""
+        if self.google_maps_url:
+            return self.google_maps_url
+        if self.full_address and self.full_address != 'Por confirmar':
+            import urllib.parse
+            query = urllib.parse.quote_plus(self.full_address)
+            return f'https://www.google.com/maps/search/?api=1&query={query}'
+        return None
+
+    def matches_text(self, text: str) -> bool:
+        """Verifica si un texto coincide con el nombre o alguno de los alias."""
+        if not text:
+            return False
+        clean_text = text.strip().lower()
+        if clean_text == self.name.strip().lower():
+            return True
+        if self.short_name and clean_text == self.short_name.strip().lower():
+            return True
+        if self.aliases:
+            for alias in self.aliases.replace('\n', ',').split(','):
+                alias_clean = alias.strip().lower()
+                if alias_clean and (clean_text == alias_clean or alias_clean in clean_text or clean_text in alias_clean):
+                    return True
+        return False
+
+
 class MatchManager(models.Manager.from_queryset(MatchTenantQuerySet)):
     """Manager por defecto: excluye withdrawn y acota por club del tenant."""
     def get_queryset(self):
@@ -295,6 +420,14 @@ class Match(models.Model):
     )
     match_date = models.DateTimeField()
     venue = models.CharField(max_length=200, blank=True)
+    venue_ref = models.ForeignKey(
+        Venue,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='matches',
+        verbose_name='Pabellón'
+    )
     city = models.CharField(max_length=100, blank=True)
     round_number = models.IntegerField(default=1)
     home_score = models.IntegerField(null=True, blank=True)

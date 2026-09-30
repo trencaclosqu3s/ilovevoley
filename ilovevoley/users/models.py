@@ -67,6 +67,27 @@ class User(AbstractUser):
         """Indica si el usuario tiene alguna categoría de interés en un club."""
         return self.preferred_categories_for(organization).exists()
 
+    def profile_organizations(self, tenant=None):
+        """Organizaciones del usuario visibles y configurables en su perfil.
+
+        Devuelve las organizaciones activas en las que el usuario tiene
+        membresía (aprobada o pendiente). Si no tiene membresías (p. ej.
+        superusuario recién creado), devuelve todas las organizaciones activas
+        o el tenant activo como fallback.
+        """
+        orgs = list(
+            Organization.objects.filter(
+                memberships__user=self,
+                is_active=True,
+            ).distinct().order_by('name')
+        )
+        if not orgs:
+            if self.is_superuser:
+                orgs = list(Organization.objects.filter(is_active=True).order_by('name'))
+            elif tenant and getattr(tenant, 'is_active', False):
+                orgs = [tenant]
+        return orgs
+
     def can_edit_person(self, person, tenant=None):
         """Verifica si el usuario puede editar una ficha específica."""
         if self.is_superuser:

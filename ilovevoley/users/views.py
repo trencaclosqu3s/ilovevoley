@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
+from ilovevoley.core.models import Organization
 from ilovevoley.core.tenant_utils import ensure_pending_membership, user_has_approved_membership
 from .forms import UserProfileForm, ParentInfoForm
 
@@ -61,10 +62,34 @@ def pending_approval(request):
 @login_required
 def profile_view(request):
     """Vista para visualizar el perfil del usuario"""
+    user = request.user
     tenant = getattr(request, 'tenant', None)
+    orgs = user.profile_organizations(tenant=tenant)
+
+    preferences_by_org = {
+        pref.organization_id: list(pref.categories.all())
+        for pref in (
+            user.category_preferences.filter(organization__in=orgs)
+            .prefetch_related('categories')
+        )
+    }
+
+    organization_preferences = []
+    has_any_preferences = False
+    for org in orgs:
+        categories = preferences_by_org.get(org.id, [])
+        if categories:
+            has_any_preferences = True
+        organization_preferences.append({
+            'organization': org,
+            'categories': categories,
+        })
+
     return render(request, 'users/profile.html', {
-        'user': request.user,
-        'preferred_categories': request.user.preferred_categories_for(tenant),
+        'user': user,
+        'organization_preferences': organization_preferences,
+        'has_any_preferences': has_any_preferences,
+        'preferred_categories': user.preferred_categories_for(tenant),
     })
 
 

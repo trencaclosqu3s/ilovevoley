@@ -7,7 +7,7 @@ from unfold.admin import ModelAdmin, TabularInline
 
 from ilovevoley.content.admin.content import ImageInline
 from ..forms import MatchAdminForm
-from ..models import League, Match, MatchChangeLog, ScrapingEndpoint, Standing
+from ..models import League, Match, MatchChangeLog, ScrapingEndpoint, Standing, Venue
 
 
 
@@ -287,6 +287,39 @@ class ScrapingEndpointAdmin(ModelAdmin):
     )
 
 
+@admin.register(Venue)
+class VenueAdmin(ModelAdmin):
+    list_display = ('name', 'city', 'address', 'google_maps_url_link', 'is_active')
+    list_filter = ('city', 'is_active')
+    search_fields = ('name', 'city', 'aliases', 'address')
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        ('Identificación', {
+            'fields': ('name', 'short_name', 'is_active')
+        }),
+        ('Ubicación Física', {
+            'fields': ('address', 'city', 'postal_code', 'latitude', 'longitude')
+        }),
+        ('Navegación y Maps', {
+            'fields': ('google_maps_url',)
+        }),
+        ('Scraping y Alias', {
+            'fields': ('aliases',),
+            'description': 'Alias o variantes de nombre separadas por coma usadas en actas/scraping'
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def google_maps_url_link(self, obj):
+        if obj.google_maps_url:
+            return format_html('<a href="{}" target="_blank">Ver mapa</a>', obj.google_maps_url)
+        return '-'
+    google_maps_url_link.short_description = 'Google Maps'
+
+
 @admin.register(Match)
 class MatchAdmin(ModelAdmin):
     form = MatchAdminForm
@@ -294,6 +327,7 @@ class MatchAdmin(ModelAdmin):
     list_filter = ('is_friendly', 'status', 'league', 'league__categories', 'match_date', 'home_team__is_active', 'away_team__is_active', 'referee1', 'scorer')
     search_fields = ('home_team__name', 'away_team__name', 'venue', 'city', 'league__name', 'referee1', 'referee2', 'scorer', 'timekeeper', 'delegate', 'field_address')
     readonly_fields = ('created_at', 'updated_at', 'set_scores')
+    autocomplete_fields = ('venue_ref',)
     date_hierarchy = 'match_date'
     inlines = [ImageInline]
     actions = ['mark_as_withdrawn', 'mark_as_scheduled']
@@ -316,7 +350,7 @@ class MatchAdmin(ModelAdmin):
             'description': 'Para partidos amistosos, puedes usar campos de texto si el equipo no existe en BD'
         }),
         ('Ubicación', {
-            'fields': ('venue', 'city', 'field_address')
+            'fields': ('venue_ref', 'venue', 'city', 'field_address')
         }),
         ('Resultado', {
             'fields': ('status', 'home_score', 'away_score', 'set_scores', 'result_penalized')
