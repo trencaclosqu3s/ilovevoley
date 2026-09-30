@@ -5,6 +5,7 @@ import logging
 import os
 from datetime import timedelta
 from email.utils import parseaddr
+from functools import lru_cache
 
 from django.conf import settings
 from django.contrib import messages
@@ -148,9 +149,7 @@ def landing(request):
 
     organizations = Organization.objects.filter(is_active=True).order_by('name')
     if user_organizations:
-        other_organizations = Organization.objects.filter(is_active=True).exclude(
-            id__in=[org.id for org in user_organizations]
-        ).order_by('name')
+        other_organizations = organizations.exclude(id__in=user_org_ids)
     else:
         other_organizations = organizations
 
@@ -261,19 +260,19 @@ def manifest_json(request):
         'background_color': '#ffffff',
         'icons': [
             {
-                'src': '/static/images/icons/icon-192.png',
+                'src': static('images/icons/icon-192.png'),
                 'sizes': '192x192',
                 'type': 'image/png',
                 'purpose': 'any',
             },
             {
-                'src': '/static/images/icons/icon-512.png',
+                'src': static('images/icons/icon-512.png'),
                 'sizes': '512x512',
                 'type': 'image/png',
                 'purpose': 'any',
             },
             {
-                'src': '/static/images/icons/icon-maskable-512.png',
+                'src': static('images/icons/icon-maskable-512.png'),
                 'sizes': '512x512',
                 'type': 'image/png',
                 'purpose': 'maskable',
@@ -293,11 +292,21 @@ def offline_view(request):
     return render(request, 'offline.html', status=200)
 
 
-def service_worker(request):
-    """Sirve el archivo sw.js desde la raíz con cabeceras de Service Worker."""
+@lru_cache(maxsize=1)
+def _get_sw_content():
     sw_path = os.path.join(settings.BASE_DIR, 'ilovevoley', 'static', 'js', 'sw.js')
     with open(sw_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+        return f.read()
+
+
+def service_worker(request):
+    """Sirve el archivo sw.js desde la raíz con cabeceras de Service Worker."""
+    if settings.DEBUG:
+        sw_path = os.path.join(settings.BASE_DIR, 'ilovevoley', 'static', 'js', 'sw.js')
+        with open(sw_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    else:
+        content = _get_sw_content()
     response = HttpResponse(content, content_type='application/javascript; charset=utf-8')
     response['Service-Worker-Allowed'] = '/'
     response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
