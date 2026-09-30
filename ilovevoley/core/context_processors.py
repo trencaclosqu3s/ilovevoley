@@ -22,28 +22,29 @@ def tenant_context(request):
     is_admin = False
     approved_memberships = []
     user = getattr(request, 'user', None)
-    if user and user.is_authenticated and org:
-        from ilovevoley.users.models import Membership
-        # Solo cuentan las membresías de clubes activos: la landing únicamente
-        # lista organizaciones activas, así que no ofrecemos un cambio a un
-        # club que ya no es accesible.
-        approved_memberships = list(
-            Membership.objects.filter(
-                user=user,
-                is_approved=True,
-                organization__is_active=True,
-            ).values_list('organization_id', 'role')
-        )
+    if user and user.is_authenticated:
         if user.is_superuser:
             is_manager = True
             is_admin = True
-        else:
-            role = next(
-                (r for org_id, r in approved_memberships if org_id == org.id), None
+        if org:
+            from ilovevoley.users.models import Membership
+            # Solo cuentan las membresías de clubes activos: la landing únicamente
+            # lista organizaciones activas, así que no ofrecemos un cambio a un
+            # club que ya no es accesible.
+            approved_memberships = list(
+                Membership.objects.filter(
+                    user=user,
+                    is_approved=True,
+                    organization__is_active=True,
+                ).values_list('organization_id', 'role')
             )
-            if role:
-                is_manager = role in ('manager', 'admin')
-                is_admin = role == 'admin'
+            if not user.is_superuser:
+                role = next(
+                    (r for org_id, r in approved_memberships if org_id == org.id), None
+                )
+                if role:
+                    is_manager = role in ('manager', 'admin')
+                    is_admin = role == 'admin'
 
     # Solo tiene sentido ofrecer el cambio de club a quien pertenece a más de
     # una organización; el enlace apunta al dominio raíz, que ya lista los
