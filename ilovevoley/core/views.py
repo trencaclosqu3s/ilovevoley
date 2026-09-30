@@ -25,6 +25,7 @@ from ilovevoley.core.services.season_wizard import preview_season, start_season
 from ilovevoley.core.tenant_utils import (
     approve_user_membership,
     build_absolute_url,
+    build_tenant_url,
     can_moderate_images,
     reject_user_membership,
     user_is_tenant_manager,
@@ -122,19 +123,41 @@ def landing(request):
         next_url = reverse(home_url_name)
         return redirect(f'{login_url}?next={next_url}')
 
-    organizations = Organization.objects.filter(is_active=True).order_by('name')
-
+    user_organizations = []
     user_org_ids = set()
+
     if request.user.is_authenticated:
         from ilovevoley.users.models import Membership
-        user_org_ids = set(
+
+        approved_memberships = list(
             Membership.objects.filter(
-                user=request.user, is_approved=True
-            ).values_list('organization_id', flat=True)
+                user=request.user,
+                is_approved=True,
+                organization__is_active=True,
+            ).select_related('organization').order_by('organization__name')
         )
+
+        if len(approved_memberships) == 1:
+            org = approved_memberships[0].organization
+            target_url = build_tenant_url(org.slug, request)
+            return redirect(target_url)
+
+        if len(approved_memberships) > 1:
+            user_organizations = [m.organization for m in approved_memberships]
+            user_org_ids = {m.organization_id for m in approved_memberships}
+
+    organizations = Organization.objects.filter(is_active=True).order_by('name')
+    if user_organizations:
+        other_organizations = Organization.objects.filter(is_active=True).exclude(
+            id__in=[org.id for org in user_organizations]
+        ).order_by('name')
+    else:
+        other_organizations = organizations
 
     return render(request, 'landing.html', {
         'organizations': organizations,
+        'user_organizations': user_organizations,
+        'other_organizations': other_organizations,
         'user_org_ids': user_org_ids,
     })
 
