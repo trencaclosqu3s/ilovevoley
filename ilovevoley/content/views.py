@@ -237,8 +237,8 @@ def video_list(request):
         videos = videos.filter(season=season_filter)
     
     # Filtrar por categorías preferidas del usuario si no se especifica otra cosa
-    if not category_filter and not show_all and request.user.preferred_categories.exists():
-        user_categories = request.user.preferred_categories.all()
+    if not category_filter and not show_all and request.user.has_preferred_categories(request.tenant):
+        user_categories = request.user.preferred_categories_for(request.tenant)
         videos = videos.filter(category__in=user_categories)
     
     # Aplicar filtro de categoría
@@ -301,7 +301,7 @@ def video_list(request):
         'search_query': search_query,
         'can_add': can_add,
         'show_all': show_all,
-        'has_preferences': request.user.preferred_categories.exists(),
+        'has_preferences': request.user.has_preferred_categories(request.tenant),
     })
 
 
@@ -459,17 +459,17 @@ def image_gallery(request):
         
         if category:
             images = images.filter(categories=category)
-        elif not show_all and request.user.preferred_categories.exists():
+        elif not show_all and request.user.has_preferred_categories(request.tenant):
             # Filtrar por preferencias solo si no hay filtro de categoría específico
-            user_categories = request.user.preferred_categories.all()
+            user_categories = request.user.preferred_categories_for(request.tenant)
             images = images.filter(categories__in=user_categories).distinct()
             
         if status_filter:
             images = images.filter(status=status_filter)
     else:
         # Si no hay filtros válidos, aplicar preferencias por defecto
-        if not show_all and request.user.preferred_categories.exists():
-            user_categories = request.user.preferred_categories.all()
+        if not show_all and request.user.has_preferred_categories(request.tenant):
+            user_categories = request.user.preferred_categories_for(request.tenant)
             images = images.filter(categories__in=user_categories).distinct()
 
     # Filtrar por temporada (activa por defecto)
@@ -497,7 +497,7 @@ def image_gallery(request):
         'popular_tags': popular_tags,
         'current_filters': request.GET.dict(),
         'show_all': show_all,
-        'has_preferences': request.user.preferred_categories.exists(),
+        'has_preferences': request.user.has_preferred_categories(request.tenant),
         'view_mode': 'individual',
     }
 
@@ -561,17 +561,17 @@ def image_gallery_albums(request):
         
         if category:
             images = images.filter(categories=category)
-        elif not show_all and request.user.preferred_categories.exists():
+        elif not show_all and request.user.has_preferred_categories(request.tenant):
             # Filtrar por preferencias solo si no hay filtro de categoría específico
-            user_categories = request.user.preferred_categories.all()
+            user_categories = request.user.preferred_categories_for(request.tenant)
             images = images.filter(categories__in=user_categories).distinct()
             
         if status_filter:
             images = images.filter(status=status_filter)
     else:
         # Si no hay filtros válidos, aplicar preferencias por defecto
-        if not show_all and request.user.preferred_categories.exists():
-            user_categories = request.user.preferred_categories.all()
+        if not show_all and request.user.has_preferred_categories(request.tenant):
+            user_categories = request.user.preferred_categories_for(request.tenant)
             images = images.filter(categories__in=user_categories).distinct()
 
     # Filtrar por temporada (activa por defecto)
@@ -597,7 +597,7 @@ def image_gallery_albums(request):
         'popular_tags': popular_tags,
         'current_filters': request.GET.dict(),
         'show_all': show_all,
-        'has_preferences': request.user.preferred_categories.exists(),
+        'has_preferences': request.user.has_preferred_categories(request.tenant),
         'view_mode': 'albums',
     }
 

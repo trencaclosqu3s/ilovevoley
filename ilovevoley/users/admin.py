@@ -8,7 +8,7 @@ from django.utils.html import format_html, mark_safe
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
-from .models import Membership, User
+from .models import CategoryPreference, Membership, User
 
 
 class MembershipInline(TabularInline):
@@ -22,6 +22,14 @@ class MembershipInline(TabularInline):
     extra = 0
     fields = ('organization', 'role', 'is_approved', 'joined_at')
     readonly_fields = ('joined_at',)
+    autocomplete_fields = ('organization',)
+
+
+class CategoryPreferenceInline(TabularInline):
+    """Categorías de interés del usuario, una fila por club."""
+    model = CategoryPreference
+    extra = 0
+    fields = ('organization', 'categories')
     autocomplete_fields = ('organization',)
 
 
@@ -49,26 +57,24 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     add_form = UserCreationForm
     change_password_form = AdminPasswordChangeForm
     list_display = ['username', 'email', 'first_name', 'last_name', 'parent_info_short', 'children_count', 'approval_status', 'is_staff', 'date_joined']
-    list_filter = ['is_approved', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'preferred_categories']
+    list_filter = ['is_approved', 'is_staff', 'is_superuser', 'is_active', 'date_joined']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'parent_info']
-    filter_horizontal = ['preferred_categories', 'children']
+    filter_horizontal = ['children']
     
     actions = [approve_users, reject_users, 'send_email_action']
     actions_detail = ['send_email_detail_action']
     actions_row = ['send_email_row_action']
-    inlines = [MembershipInline]
+    inlines = [MembershipInline, CategoryPreferenceInline]
     
     # Añadir is_approved y parent_info a los fieldsets
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Aprobación', {'fields': ('is_approved',)}),
         ('Información Familiar', {'fields': ('parent_info', 'children')}),
-        ('Preferencias', {'fields': ('preferred_categories',)}),
         ('Información adicional', {'fields': ('avatar',)}),
     )
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
         ('Aprobación', {'fields': ('is_approved',)}),
         ('Información Familiar', {'fields': ('parent_info', 'children')}),
-        ('Preferencias', {'fields': ('preferred_categories',)}),
         ('Información adicional', {'fields': ('avatar',)}),
     )
     

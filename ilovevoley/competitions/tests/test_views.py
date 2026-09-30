@@ -15,6 +15,7 @@ from ilovevoley.competitions import views as comp_views
 from ilovevoley.competitions.models import League, Match, Standing
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.teams.models import Club, Team
+from ilovevoley.users.models import CategoryPreference
 from ilovevoley.videos import calendar_feed as vid_calendar_feed
 from ilovevoley.videos.forms import competitions as vid_forms_comp
 from ilovevoley.videos.views import competitions as vid_views_comp
@@ -1103,7 +1104,9 @@ class CompetitionsTenantIsolationTests(TestCase):
         Standing.objects.create(
             league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
         )
-        self.member.preferred_categories.add(self.category)
+        CategoryPreference.objects.create(
+            user=self.member, organization=self.org
+        ).categories.add(self.category)
         self.client.force_login(self.member)
         response = self.client.get(
             reverse('competitions:standings_view'),
@@ -1114,6 +1117,25 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.assertNotContains(response, 'Liga Ajena')
         self.assertIn('Liga Propia', response.context['standings_by_league'])
         self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
+
+    def test_standings_preferences_are_scoped_to_active_tenant(self):
+        """Las categorías preferidas de un club no se filtran en otro club."""
+        from ilovevoley.users.models import Membership
+
+        Membership.objects.create(
+            user=self.member, organization=self.other_org, is_approved=True, role='member',
+        )
+        CategoryPreference.objects.create(
+            user=self.member, organization=self.org
+        ).categories.add(self.category)
+        self.client.force_login(self.member)
+        url = reverse('competitions:standings_view')
+
+        own = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertTrue(own.context['has_preferences'])
+
+        other = self.client.get(url, HTTP_HOST='rivalclub.ilovevoley.es')
+        self.assertFalse(other.context['has_preferences'])
 
     def test_standings_view_show_archived_and_season_filter_exclude_other_tenant(self):
         Standing.objects.create(

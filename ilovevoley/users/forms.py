@@ -1,6 +1,8 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from ilovevoley.videos.models import Category
+
+from ilovevoley.core.models import Category
+from .models import CategoryPreference
 
 User = get_user_model()
 
@@ -47,11 +49,26 @@ class ParentInfoForm(forms.ModelForm):
 
 
 class UserProfileForm(forms.ModelForm):
-    """Formulario para editar perfil de usuario incluyendo preferencias de categorías"""
+    """Formulario para editar perfil de usuario incluyendo preferencias de categorías.
+
+    Las categorías de interés se guardan por organización (club), por lo que el
+    formulario necesita saber cuál es el tenant activo para leer y escribir el
+    conjunto correcto.
+    """
+
+    preferred_categories = forms.ModelMultipleChoiceField(
+        queryset=Category.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={
+            'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'
+        }),
+        label='Categorías de Interés',
+        help_text='Selecciona las categorías de contenido que te interesan en este club',
+    )
 
     class Meta:
         model = User
-        fields = ['avatar', 'username', 'first_name', 'last_name', 'parent_info', 'preferred_categories']
+        fields = ['avatar', 'username', 'first_name', 'last_name', 'parent_info']
         widgets = {
             'avatar': forms.FileInput(attrs={
                 'class': 'hidden',
@@ -61,9 +78,6 @@ class UserProfileForm(forms.ModelForm):
                 'rows': 3,
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'placeholder': 'Ejemplo: Madre/Padre/etc de Pepito Pérez del equipo Infantil'
-            }),
-            'preferred_categories': forms.CheckboxSelectMultiple(attrs={
-                'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'
             }),
 
             'username': forms.TextInput(attrs={
@@ -82,14 +96,33 @@ class UserProfileForm(forms.ModelForm):
             'first_name': 'Nombre',
             'last_name': 'Apellidos',
             'parent_info': 'Información Familiar',
-            'preferred_categories': 'Categorías de Interés',
-
         }
         help_texts = {
             'avatar': 'Sube una imagen para tu perfil (opcional)',
             'parent_info': 'Indica de qué niño/a eres padre/familiar',
-            'preferred_categories': 'Selecciona las categorías de contenido que te interesan'
         }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.organization = organization
+        self.fields['preferred_categories'].queryset = Category.objects.filter(
+            is_active=True
+        ).order_by('name')
+        if organization is not None and self.instance.pk:
+            preference = self.instance.category_preferences.filter(
+                organization=organization
+            ).first()
+            if preference:
+                self.initial['preferred_categories'] = preference.categories.all()
+
+    def save(self, commit=True):
+        user = super().save(commit=commit)
+        if self.organization is not None:
+            preference, _ = CategoryPreference.objects.get_or_create(
+                user=user, organization=self.organization
+            )
+            preference.categories.set(self.cleaned_data.get('preferred_categories', []))
+        return user
 
     def clean_avatar(self):
         avatar = self.cleaned_data.get('avatar')
