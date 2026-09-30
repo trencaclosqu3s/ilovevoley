@@ -309,6 +309,56 @@ class CompetitionsViewUrlTests(TestCase):
         guid = feed.item_guid(self.match)
         self.assertEqual(guid, f'partido-{self.match.id}@ilovevoley.es')
 
+    def test_calendar_feed_location_uses_venue_full_address(self):
+        from ilovevoley.competitions.models import Venue
+        from ilovevoley.users.models import CategoryPreference
+        pref = CategoryPreference.objects.create(user=self.user, organization=self.org)
+        pref.categories.add(self.category)
+
+        venue = Venue.objects.create(
+            name="Pavelló Test Calendar Feed",
+            address="Son Serra s/n",
+            city="Bunyola",
+            google_maps_url="https://maps.app.goo.gl/bunyola"
+        )
+        self.match.venue_ref = venue
+        self.match.save(update_fields=['venue_ref'])
+
+        token = self.user.get_or_create_calendar_token()
+        url = reverse('competitions:calendar_feed', args=[token])
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        content = response.content.decode('utf-8')
+        unfolded = content.replace('\r\n ', '')
+
+        self.assertIn("LOCATION:Pavelló Test Calendar Feed\\, Son Serra s/n\\, Bunyola", unfolded)
+        self.assertIn("https://maps.app.goo.gl/bunyola", unfolded)
+        self.assertIn("📍 Ubicación:", unfolded)
+        self.assertIn("🗺️ Cómo llegar:", unfolded)
+
+    def test_calendar_feed_location_infers_from_home_club_default_venue(self):
+        from ilovevoley.competitions.models import Venue
+        from ilovevoley.users.models import CategoryPreference
+        pref = CategoryPreference.objects.create(user=self.user, organization=self.org)
+        pref.categories.add(self.category)
+
+        venue = Venue.objects.create(
+            name="Pavelló Test Blanquerna Inferred",
+            address="Carrer des Caülls, 1",
+            city="Marratxí"
+        )
+        self.match.venue = ""
+        self.match.venue_ref = None
+        self.match.home_team.club.default_venue = venue
+        self.match.home_team.club.save(update_fields=['default_venue'])
+        self.match.save()
+
+        token = self.user.get_or_create_calendar_token()
+        url = reverse('competitions:calendar_feed', args=[token])
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        content = response.content.decode('utf-8')
+
+        self.assertIn("Pavelló Test Blanquerna Inferred", content)
+
     def test_competitions_ajax_endpoints(self):
         self.client.force_login(self.user)
 

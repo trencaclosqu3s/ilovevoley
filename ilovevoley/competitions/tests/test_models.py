@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from ilovevoley.competitions.models import League, Match, MatchChangeLog
+from ilovevoley.competitions.models import League, Match, MatchChangeLog, Venue
 from ilovevoley.core.models import Organization
 from ilovevoley.teams.models import Club, Team
 
@@ -126,4 +126,58 @@ class MatchChangeLogTest(TestCase):
 
         # Tenant None devuelve none
         self.assertQuerySetEqual(MatchChangeLog.objects.for_tenant(None), [])
+
+
+class VenueModelTest(TestCase):
+    def test_venue_creation_and_str(self):
+        venue = Venue.objects.create(
+            name="Pavelló Test Joan Pericás Riera",
+            city="Bunyola",
+            address="Son Serra s/n",
+            google_maps_url="https://maps.app.goo.gl/sample123",
+            aliases="Pav. Juan Pericas Riera, Pav. Bunyola"
+        )
+        self.assertEqual(str(venue), "Pavelló Test Joan Pericás Riera (Bunyola)")
+        self.assertEqual(venue.full_address, "Pavelló Test Joan Pericás Riera, Son Serra s/n, Bunyola")
+        self.assertEqual(venue.maps_url, "https://maps.app.goo.gl/sample123")
+
+    def test_venue_full_address_avoids_duplicate_fragments(self):
+        venue = Venue.objects.create(
+            name="Poliesportiu Test Germans Escalas",
+            address="Test Germans Escalas, Mare de Deu de Monserrat 66",
+            city="Palma"
+        )
+        # No debe duplicar "Test Germans Escalas"
+        self.assertIn("Mare de Deu de Monserrat 66", venue.full_address)
+        self.assertEqual(venue.full_address.count("Test Germans Escalas"), 1)
+
+    def test_venue_maps_url_fallback_when_empty(self):
+        venue = Venue.objects.create(
+            name="Pavelló Municipal Test Alaró",
+            city="Alaró"
+        )
+        self.assertIn("https://www.google.com/maps/search/?api=1&query=", venue.maps_url)
+        self.assertIn("Alar%C3%B3", venue.maps_url)
+
+    def test_venue_matches_text(self):
+        venue = Venue.objects.create(
+            name="Pav. Test Son Angelats",
+            city="Sóller",
+            aliases="Poliesportiu Test Son Angelats, Pavelló Test Sóller"
+        )
+        self.assertTrue(venue.matches_text("Pav. Test Son Angelats"))
+        self.assertTrue(venue.matches_text("Poliesportiu Test Son Angelats"))
+        self.assertTrue(venue.matches_text("pav. test son angelats"))
+        self.assertFalse(venue.matches_text("Pav. Germans Escalas"))
+
+    def test_match_venue_ref_relation(self):
+        venue = Venue.objects.create(name="Pabellón Central Test", city="Palma")
+        match = Match.objects.create(
+            match_date=timezone.now(),
+            venue_ref=venue,
+            home_team_text="Local",
+            away_team_text="Visitante"
+        )
+        self.assertEqual(match.venue_ref, venue)
+        self.assertIn(match, venue.matches.all())
 

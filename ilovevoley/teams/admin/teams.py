@@ -11,6 +11,7 @@ class ClubAdmin(ModelAdmin):
     list_filter = ('province', 'created_at')
     search_fields = ('official_name', 'federation_id', 'president', 'email')
     readonly_fields = ('created_at', 'updated_at', 'logo_federation_url')
+    autocomplete_fields = ('default_venue',)
     
     fieldsets = (
         ('Información Básica', {
@@ -20,7 +21,7 @@ class ClubAdmin(ModelAdmin):
             'fields': ('president', 'email', 'phone', 'address')
         }),
         ('Sede', {
-            'fields': ('venue_name', 'venue_address', 'province')
+            'fields': ('default_venue', 'venue_name', 'venue_address', 'province')
         }),
         ('Redes Sociales', {
             'fields': ('website', 'instagram', 'facebook', 'twitter'),

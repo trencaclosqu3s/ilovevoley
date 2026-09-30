@@ -11,6 +11,7 @@ from .competitions import (
     MatchShareLink,
     ScrapingEndpoint,
     Standing,
+    Venue,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     'MatchShareLink',
     'ScrapingEndpoint',
     'Standing',
+    'Venue',
 ]
