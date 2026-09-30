@@ -64,23 +64,20 @@ def profile_view(request):
     """Vista para visualizar el perfil del usuario"""
     user = request.user
     tenant = getattr(request, 'tenant', None)
+    orgs = user.profile_organizations(tenant=tenant)
 
-    orgs = list(
-        Organization.objects.filter(
-            memberships__user=user,
-            is_active=True,
-        ).distinct().order_by('name')
-    )
-    if not orgs:
-        if user.is_superuser:
-            orgs = list(Organization.objects.filter(is_active=True).order_by('name'))
-        elif tenant and tenant.is_active:
-            orgs = [tenant]
+    preferences_by_org = {
+        pref.organization_id: list(pref.categories.all())
+        for pref in (
+            user.category_preferences.filter(organization__in=orgs)
+            .prefetch_related('categories')
+        )
+    }
 
     organization_preferences = []
     has_any_preferences = False
     for org in orgs:
-        categories = list(user.preferred_categories_for(org))
+        categories = preferences_by_org.get(org.id, [])
         if categories:
             has_any_preferences = True
         organization_preferences.append({

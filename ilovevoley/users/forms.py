@@ -92,45 +92,26 @@ class UserProfileForm(forms.ModelForm):
             'parent_info': 'Indica de qué niño/a eres padre/familiar',
         }
 
-    def _resolve_organizations(self, organization=None):
-        orgs = []
-        if self.instance and self.instance.pk:
-            orgs = list(
-                Organization.objects.filter(
-                    memberships__user=self.instance,
-                    is_active=True,
-                ).distinct().order_by('name')
-            )
-            if not orgs and self.instance.is_superuser:
-                orgs = list(Organization.objects.filter(is_active=True).order_by('name'))
-        if organization and organization.is_active and organization not in orgs:
-            orgs.append(organization)
-        return orgs
-
-    def __init__(self, *args, organization=None, organizations=None, **kwargs):
-        # Retrocompatibilidad: si se pasa 'preferred_categories' con 'organization'
-        data = kwargs.get('data')
-        if data is not None and organization is not None:
-            org_key = f'preferred_categories_{organization.id}'
-            if 'preferred_categories' in data and org_key not in data:
-                if hasattr(data, 'copy'):
-                    data = data.copy()
-                    if hasattr(data, 'setlist'):
-                        data.setlist(org_key, data.getlist('preferred_categories'))
-                    else:
-                        data[org_key] = data['preferred_categories']
-                else:
-                    data = dict(data)
-                    data[org_key] = data['preferred_categories']
-                kwargs['data'] = data
-
+    def __init__(self, *args, organization=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.organization = organization
-        self.organizations = (
-            organizations
-            if organizations is not None
-            else self._resolve_organizations(organization=organization)
-        )
+        if self.instance and self.instance.pk:
+            self.organizations = self.instance.profile_organizations(tenant=organization)
+        elif organization and getattr(organization, 'is_active', False):
+            self.organizations = [organization]
+        else:
+            self.organizations = []
+
+        preferences_by_org = {}
+        if self.instance and self.instance.pk and self.organizations:
+            preferences_by_org = {
+                pref.organization_id: pref.categories.all()
+                for pref in (
+                    self.instance.category_preferences.filter(
+                        organization__in=self.organizations
+                    ).prefetch_related('categories')
+                )
+            }
 
         for org in self.organizations:
             field_name = f'preferred_categories_{org.id}'
@@ -143,17 +124,8 @@ class UserProfileForm(forms.ModelForm):
                 label=f'Categorías de Interés en {org.name}',
                 help_text=f'Selecciona las categorías que te interesan en {org.name}',
             )
-            if self.instance and self.instance.pk:
-                preference = self.instance.category_preferences.filter(
-                    organization=org
-                ).first()
-                if preference:
-                    self.initial[field_name] = preference.categories.all()
-
-        if organization is not None:
-            org_key = f'preferred_categories_{organization.id}'
-            if org_key in self.initial:
-                self.initial['preferred_categories'] = self.initial[org_key]
+            if org.id in preferences_by_org:
+                self.initial[field_name] = preferences_by_org[org.id]
 
     @property
     def organization_category_fields(self):
@@ -166,14 +138,26 @@ class UserProfileForm(forms.ModelForm):
         return fields
 
     def save_category_preferences(self, user=None):
+        from django.db import transaction
         user = user or self.instance
-        for org in self.organizations:
-            field_name = f'preferred_categories_{org.id}'
-            if field_name in self.cleaned_data:
-                preference, _ = CategoryPreference.objects.get_or_create(
-                    user=user, organization=org
-                )
-                preference.categories.set(self.cleaned_data[field_name])
+        with transaction.atomic():
+            for org in self.organizations:
+                field_name = f'preferred_categories_{org.id}'
+                if field_name in self.cleaned_data:
+                    selected = self.cleaned_data[field_name]
+                    pref = user.category_preferences.filter(organization=org).first()
+                    if selected:
+                        if not pref:
+                            pref = CategoryPreference.objects.create(
+                                user=user, organization=org
+                            )
+                        pref.categories.set(selected)
+                    elif pref:
+                        pref.categories.clear()
+
+    def _save_m2m(self):
+        super()._save_m2m()
+        self.save_category_preferences(self.instance)
 
     def save(self, commit=True):
         user = super().save(commit=commit)

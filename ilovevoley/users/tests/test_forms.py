@@ -55,7 +55,7 @@ class UserProfileFormOrganizationTest(TestCase):
                 'username': 'socio',
                 'first_name': 'Socio',
                 'last_name': 'Uno',
-                'preferred_categories': [category.pk for category in categories],
+                f'preferred_categories_{organization.id}': [category.pk for category in categories],
             },
             instance=self.user,
             organization=organization,
@@ -85,6 +85,46 @@ class UserProfileFormOrganizationTest(TestCase):
 
         form = UserProfileForm(instance=self.user, organization=self.org1)
         self.assertEqual(list(form.initial[f'preferred_categories_{self.org1.id}']), [self.infantil])
+
+        other = UserProfileForm(instance=self.user, organization=self.org2)
+        self.assertNotIn(f'preferred_categories_{self.org2.id}', other.initial)
+
+    def test_unselecting_all_categories_clears_preference(self):
+        self._save(self.org1, [self.infantil])
+        self.assertTrue(self.user.has_preferred_categories(self.org1))
+
+        form = UserProfileForm(
+            data={
+                'username': 'socio',
+                'first_name': 'Socio',
+                'last_name': 'Uno',
+                f'preferred_categories_{self.org1.id}': [],
+            },
+            instance=self.user,
+            organization=self.org1,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        self.assertFalse(self.user.has_preferred_categories(self.org1))
+
+    def test_save_with_commit_false_and_save_m2m_persists_preferences(self):
+        form = UserProfileForm(
+            data={
+                'username': 'socio',
+                'first_name': 'Socio',
+                'last_name': 'Uno',
+                f'preferred_categories_{self.org1.id}': [self.infantil.pk],
+            },
+            instance=self.user,
+            organization=self.org1,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        user = form.save(commit=False)
+        user.save()
+        form.save_m2m()
+
+        self.assertEqual(list(self.user.preferred_categories_for(self.org1)), [self.infantil])
 
     def test_form_exposes_category_fields_for_all_user_memberships(self):
         from ilovevoley.users.models import Membership
