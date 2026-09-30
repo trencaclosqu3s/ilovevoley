@@ -217,7 +217,9 @@ SECURE_CSP = {
     'connect-src': [CSP.SELF],
     'object-src': [CSP.NONE],
     'base-uri': [CSP.NONE],
-    'form-action': [CSP.SELF],
+    # Chrome aplica form-action también a las redirecciones del POST: sin
+    # accounts.google.com bloquea el login social (POST -> 302 a Google).
+    'form-action': [CSP.SELF, 'https://accounts.google.com'],
     'frame-ancestors': [CSP.NONE],
 }
 
