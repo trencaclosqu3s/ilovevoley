@@ -4,8 +4,9 @@ psycopg2-binary==2.9.13
 python-decouple==3.8
 Pillow==12.3.0
 pillow-heif==1.8.0
-django-allauth[socialaccount]==65.19.4
+django-allauth==65.19.4
 requests==2.34.2
+PyJWT==2.15.1  # Requerido por allauth para verificar ID tokens de Google OAuth2 (evita el extra [socialaccount] que arrastra oauthlib/CVE-2026-49265)
 cryptography==50.0.1
 unidecode==1.4.0
 beautifulsoup4==4.15.0

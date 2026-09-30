@@ -55,7 +55,7 @@ class UserProfileFormOrganizationTest(TestCase):
                 'username': 'socio',
                 'first_name': 'Socio',
                 'last_name': 'Uno',
-                'preferred_categories': [category.pk for category in categories],
+                f'preferred_categories_{organization.id}': [category.pk for category in categories],
             },
             instance=self.user,
             organization=organization,
@@ -84,7 +84,83 @@ class UserProfileFormOrganizationTest(TestCase):
         self._save(self.org1, [self.infantil])
 
         form = UserProfileForm(instance=self.user, organization=self.org1)
-        self.assertEqual(list(form.initial['preferred_categories']), [self.infantil])
+        self.assertEqual(list(form.initial[f'preferred_categories_{self.org1.id}']), [self.infantil])
 
         other = UserProfileForm(instance=self.user, organization=self.org2)
-        self.assertNotIn('preferred_categories', other.initial)
+        self.assertNotIn(f'preferred_categories_{self.org2.id}', other.initial)
+
+    def test_unselecting_all_categories_clears_preference(self):
+        self._save(self.org1, [self.infantil])
+        self.assertTrue(self.user.has_preferred_categories(self.org1))
+
+        form = UserProfileForm(
+            data={
+                'username': 'socio',
+                'first_name': 'Socio',
+                'last_name': 'Uno',
+                f'preferred_categories_{self.org1.id}': [],
+            },
+            instance=self.user,
+            organization=self.org1,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        self.assertFalse(self.user.has_preferred_categories(self.org1))
+
+    def test_save_with_commit_false_and_save_m2m_persists_preferences(self):
+        form = UserProfileForm(
+            data={
+                'username': 'socio',
+                'first_name': 'Socio',
+                'last_name': 'Uno',
+                f'preferred_categories_{self.org1.id}': [self.infantil.pk],
+            },
+            instance=self.user,
+            organization=self.org1,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        user = form.save(commit=False)
+        user.save()
+        form.save_m2m()
+
+        self.assertEqual(list(self.user.preferred_categories_for(self.org1)), [self.infantil])
+
+    def test_form_exposes_category_fields_for_all_user_memberships(self):
+        from ilovevoley.users.models import Membership
+        Membership.objects.create(user=self.user, organization=self.org1, is_approved=True)
+        Membership.objects.create(user=self.user, organization=self.org2, is_approved=False)
+
+        form = UserProfileForm(instance=self.user)
+        org_ids = [org.id for org, _ in form.organization_category_fields]
+        self.assertIn(self.org1.id, org_ids)
+        self.assertIn(self.org2.id, org_ids)
+
+    def test_form_saves_preferences_for_multiple_organizations_at_once(self):
+        from ilovevoley.users.models import Membership
+        Membership.objects.create(user=self.user, organization=self.org1)
+        Membership.objects.create(user=self.user, organization=self.org2)
+
+        form = UserProfileForm(
+            data={
+                'username': 'socio',
+                'first_name': 'Socio',
+                'last_name': 'Uno',
+                f'preferred_categories_{self.org1.id}': [self.infantil.pk],
+                f'preferred_categories_{self.org2.id}': [self.cadete.pk],
+            },
+            instance=self.user,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        self.assertEqual(list(self.user.preferred_categories_for(self.org1)), [self.infantil])
+        self.assertEqual(list(self.user.preferred_categories_for(self.org2)), [self.cadete])
+
+    def test_form_superuser_without_memberships_includes_active_organizations(self):
+        superuser = get_user_model().objects.create_superuser(username='super', password='pass')
+        form = UserProfileForm(instance=superuser)
+        org_ids = [org.id for org, _ in form.organization_category_fields]
+        self.assertIn(self.org1.id, org_ids)
+        self.assertIn(self.org2.id, org_ids)
+

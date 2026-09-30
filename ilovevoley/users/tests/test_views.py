@@ -98,3 +98,54 @@ class PendingApprovalViewTests(TestCase):
         html = response.content.decode()
         self.assertIn('Solicitud Pendiente de Aprobación', html)
         self.assertIn('enviado tu solicitud para unirte a', html)
+
+
+class UserProfileViewsTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='socio', email='socio@example.com', password='pass', is_approved=True
+        )
+        self.org1 = Organization.objects.create(slug='club-alfa', name='Club Alfa', is_active=True)
+        self.org2 = Organization.objects.create(slug='club-beta', name='Club Beta', is_active=True)
+        Membership.objects.create(user=self.user, organization=self.org1, is_approved=True)
+        Membership.objects.create(user=self.user, organization=self.org2, is_approved=False)
+
+        from ilovevoley.core.models import Category
+        self.cat1 = Category.objects.create(name='Infantil', is_active=True)
+        self.cat2 = Category.objects.create(name='Cadete', is_active=True)
+
+        from ilovevoley.users.models import CategoryPreference
+        pref = CategoryPreference.objects.create(user=self.user, organization=self.org1)
+        pref.categories.set([self.cat1])
+
+    def test_profile_view_shows_preferences_for_all_organizations(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('profile'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('organization_preferences', response.context)
+        org_prefs = response.context['organization_preferences']
+        org_ids = [item['organization'].id for item in org_prefs]
+        self.assertIn(self.org1.id, org_ids)
+        self.assertIn(self.org2.id, org_ids)
+
+        html = response.content.decode()
+        self.assertIn('Club Alfa', html)
+        self.assertIn('Club Beta', html)
+        self.assertIn('Infantil', html)
+
+    def test_profile_edit_saves_preferences_across_organizations_without_tenant(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('profile_edit'), {
+            'username': 'socio',
+            'first_name': 'Socio',
+            'last_name': 'Editado',
+            f'preferred_categories_{self.org1.id}': [self.cat1.id],
+            f'preferred_categories_{self.org2.id}': [self.cat2.id],
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(list(self.user.preferred_categories_for(self.org1)), [self.cat1])
+        self.assertEqual(list(self.user.preferred_categories_for(self.org2)), [self.cat2])

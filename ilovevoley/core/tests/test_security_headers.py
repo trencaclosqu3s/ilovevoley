@@ -36,6 +36,19 @@ class SecurityHeadersTest(TestCase):
         self.assertNotIn('tailwindcss', csp)
         self.assertNotIn('instagram', csp)
 
+    def test_csp_form_action_allows_only_google_login_redirect(self):
+        """El login social hace POST -> 302 a Google; Chrome aplica form-action
+        a esa redirección, así que accounts.google.com debe estar permitido
+        (sin él el botón "Entrar con Google" se queda colgado en Chrome)."""
+        response = self.client.get('/')
+        form_action = self._directive(
+            response.headers['Content-Security-Policy'], 'form-action'
+        )
+        self.assertEqual(
+            form_action.split()[1:],
+            ["'self'", 'https://accounts.google.com'],
+        )
+
     def test_csp_nonce_in_header_matches_rendered_markup(self):
         """El nonce de la cabecera debe ser el mismo que usan los inline."""
         response = self.client.get('/')

@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
-from ilovevoley.core.models import Category
+from ilovevoley.core.models import Category, Organization
 from .models import CategoryPreference
 
 User = get_user_model()
@@ -56,16 +56,6 @@ class UserProfileForm(forms.ModelForm):
     conjunto correcto.
     """
 
-    preferred_categories = forms.ModelMultipleChoiceField(
-        queryset=Category.objects.none(),
-        required=False,
-        widget=forms.CheckboxSelectMultiple(attrs={
-            'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'
-        }),
-        label='Categorías de Interés',
-        help_text='Selecciona las categorías de contenido que te interesan en este club',
-    )
-
     class Meta:
         model = User
         fields = ['avatar', 'username', 'first_name', 'last_name', 'parent_info']
@@ -105,23 +95,74 @@ class UserProfileForm(forms.ModelForm):
     def __init__(self, *args, organization=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.organization = organization
-        self.fields['preferred_categories'].queryset = Category.objects.filter(
-            is_active=True
-        ).order_by('name')
-        if organization is not None and self.instance.pk:
-            preference = self.instance.category_preferences.filter(
-                organization=organization
-            ).first()
-            if preference:
-                self.initial['preferred_categories'] = preference.categories.all()
+        if self.instance and self.instance.pk:
+            self.organizations = self.instance.profile_organizations(tenant=organization)
+        elif organization and getattr(organization, 'is_active', False):
+            self.organizations = [organization]
+        else:
+            self.organizations = []
+
+        preferences_by_org = {}
+        if self.instance and self.instance.pk and self.organizations:
+            preferences_by_org = {
+                pref.organization_id: pref.categories.all()
+                for pref in (
+                    self.instance.category_preferences.filter(
+                        organization__in=self.organizations
+                    ).prefetch_related('categories')
+                )
+            }
+
+        for org in self.organizations:
+            field_name = f'preferred_categories_{org.id}'
+            self.fields[field_name] = forms.ModelMultipleChoiceField(
+                queryset=Category.objects.filter(is_active=True).order_by('name'),
+                required=False,
+                widget=forms.CheckboxSelectMultiple(attrs={
+                    'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'
+                }),
+                label=f'Categorías de Interés en {org.name}',
+                help_text=f'Selecciona las categorías que te interesan en {org.name}',
+            )
+            if org.id in preferences_by_org:
+                self.initial[field_name] = preferences_by_org[org.id]
+
+    @property
+    def organization_category_fields(self):
+        """Devuelve una lista de tuplas (organization, bound_field) para iterar en plantillas."""
+        fields = []
+        for org in self.organizations:
+            field_name = f'preferred_categories_{org.id}'
+            if field_name in self.fields:
+                fields.append((org, self[field_name]))
+        return fields
+
+    def save_category_preferences(self, user=None):
+        from django.db import transaction
+        user = user or self.instance
+        with transaction.atomic():
+            for org in self.organizations:
+                field_name = f'preferred_categories_{org.id}'
+                if field_name in self.cleaned_data:
+                    selected = self.cleaned_data[field_name]
+                    pref = user.category_preferences.filter(organization=org).first()
+                    if selected:
+                        if not pref:
+                            pref = CategoryPreference.objects.create(
+                                user=user, organization=org
+                            )
+                        pref.categories.set(selected)
+                    elif pref:
+                        pref.categories.clear()
+
+    def _save_m2m(self):
+        super()._save_m2m()
+        self.save_category_preferences(self.instance)
 
     def save(self, commit=True):
         user = super().save(commit=commit)
-        if self.organization is not None:
-            preference, _ = CategoryPreference.objects.get_or_create(
-                user=user, organization=self.organization
-            )
-            preference.categories.set(self.cleaned_data.get('preferred_categories', []))
+        if commit:
+            self.save_category_preferences(user)
         return user
 
     def clean_avatar(self):
