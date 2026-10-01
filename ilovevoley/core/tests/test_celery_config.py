@@ -69,3 +69,47 @@ class CeleryQueueRoutingTest(SimpleTestCase):
         self.assertTrue(settings.CELERY_BROKER_URL.endswith('/0'))
         self.assertTrue(settings.CELERY_RESULT_BACKEND.endswith('/1'))
         self.assertTrue(settings.REDIS_CACHE_URL.endswith('/2'))
+
+
+class BeatScheduleTest(SimpleTestCase):
+    EXPECTED_TASKS = {
+        'cleanup-expired-album-zips': 'cleanup_expired_album_zips',
+        'send-match-reminders-2h': 'send_match_reminders_2h',
+        'scrape-clubs': 'scrape_clubs',
+        'enrich-matches': 'enrich_matches_json',
+        'scrape-all-leagues': 'scrape_all_leagues',
+        'scrape-json-results': 'scrape_json_results',
+        'scrape-json-upcoming': 'scrape_json_upcoming',
+        'scrape-and-enrich-all': 'scrape_and_enrich_all',
+        'scrape-balearic-callups': 'scrape_balearic_callups',
+        'scrape-balearic-tracking': 'scrape_balearic_tracking',
+    }
+
+    LEGACY_MANUAL_NAMES = {
+        'clubs',
+        'enrich_matches',
+        'json results',
+        'scrape ligas',
+        "scrape y enrich to'",
+        'upcoming_matches',
+    }
+
+    def test_schedule_entries_match_expected_tasks(self):
+        actual = {name: entry['task'] for name, entry in settings.CELERY_BEAT_SCHEDULE.items()}
+        self.assertEqual(actual, self.EXPECTED_TASKS)
+
+    def test_scheduled_tasks_are_registered(self):
+        app.loader.import_default_modules()
+        for name, entry in settings.CELERY_BEAT_SCHEDULE.items():
+            self.assertIn(
+                entry['task'],
+                app.tasks,
+                msg=f'{name} apunta a una tarea no registrada: {entry["task"]}',
+            )
+
+    def test_no_legacy_manual_names_remain(self):
+        overlap = self.LEGACY_MANUAL_NAMES & set(settings.CELERY_BEAT_SCHEDULE)
+        self.assertFalse(overlap, msg=f'Nombres legacy aún en el schedule: {overlap}')
+
+    def test_beat_timezone_is_madrid(self):
+        self.assertEqual(settings.CELERY_TIMEZONE, 'Europe/Madrid')
