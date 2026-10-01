@@ -133,7 +133,6 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
             if ('CLUB' in norm_line or 'EQUIP' in norm_line) and (
                 'LLINATGES' in norm_line or 'APELLIDOS' in norm_line
             ):
-                in_supervision_list = False
                 pos_club = norm_line.find('CLUB')
                 if pos_club == -1:
                     pos_club = norm_line.find('EQUIP')
@@ -155,9 +154,12 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                 if pos_year == -1:
                     pos_year = norm_line.find('DATA')
 
-                # in_table solo se activa si la cabecera tiene los tres campos mínimos
+                # in_table (y el fin del modo supervisión) solo se activan si la cabecera
+                # tiene los tres campos mínimos; si no, una nota con CLUB+LLINATGES
+                # cortaría el listado de supervisión sin llegar a parsear la tabla
                 if pos_club != -1 and pos_last != -1 and pos_first != -1:
                     in_table = True
+                    in_supervision_list = False
                     header_positions = {
                         'club': pos_club,
                         'last_name': pos_last,

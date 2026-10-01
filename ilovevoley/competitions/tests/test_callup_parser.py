@@ -194,6 +194,23 @@ def test_extract_callup_players_ignores_lines_without_name_column_header():
     assert players == []
 
 
+def test_extract_callup_players_supervision_not_cut_by_footer_with_club_and_llinatges():
+    """Una nota con CLUB+LLINATGES pero sin columna NOM no debe cortar el listado de
+    supervisión: los jugadores posteriores deben seguir parseándose."""
+    pdf_bytes = create_dummy_pdf([
+        "En el següent llistat teniu els esportistes seleccionats:",
+        "Marc Buades Sepúlveda         Sant Josep",
+        "Cada club ha d'enviar els llinatges dels jugadors",
+        "Joan Servera                  CV Manacor",
+        "HORARIS:",
+    ])
+    raw_text, players = extract_callup_players_from_pdf(pdf_bytes)
+    assert len(players) == 2
+    assert players[0]['last_name'] == 'Buades Sepúlveda'
+    assert players[1]['last_name'] == 'Servera'
+    assert players[1]['club'] == 'CV Manacor'
+
+
 def test_extract_callup_players_supervision_subirats_not_discarded():
     """Un apellido que contiene 'Sub' (Subirats) no debe confundirse con subtítulo de categoría."""
     pdf_bytes = create_dummy_pdf([
