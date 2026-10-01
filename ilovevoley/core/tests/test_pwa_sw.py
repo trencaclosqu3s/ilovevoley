@@ -56,3 +56,17 @@ class PWAServiceWorkerTest(TestCase):
         self.assertIn('/protected-media/', content)
         self.assertIn('/accounts/', content)
         self.assertIn('/admin/', content)
+
+    def test_sw_contains_push_and_badge_handlers(self):
+        response = self.client.get('/sw.js', HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+
+        # Comprobar eventos push y notificationclick
+        self.assertIn("self.addEventListener('push'", content)
+        self.assertIn("self.addEventListener('notificationclick'", content)
+        self.assertIn("showNotification", content)
+        self.assertIn("setAppBadge", content)
+        self.assertIn("clearAppBadge", content)
+        self.assertIn("clients.openWindow", content)
+

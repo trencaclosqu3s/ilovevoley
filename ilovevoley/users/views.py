@@ -1,16 +1,19 @@
+import json
 import logging
 
 from django.conf import settings
+from django.db.models import Q
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.urls import reverse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
 from ilovevoley.core.models import Organization
 from ilovevoley.core.tenant_utils import ensure_pending_membership, user_has_approved_membership
 from .forms import UserProfileForm, ParentInfoForm
+from .models import WebPushSubscription
 
 
 @login_required
@@ -273,3 +276,76 @@ def regenerate_calendar_token(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@require_GET
+def webpush_vapid_key(request):
+    """Devuelve la clave pública VAPID para suscripción Web Push en el cliente."""
+    public_key = getattr(settings, 'VAPID_PUBLIC_KEY', '')
+    return JsonResponse({'public_key': public_key})
+
+
+@require_POST
+def webpush_subscribe(request):
+    """Registra o renueva una suscripción de navegador a notificaciones Web Push."""
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest('JSON inválido')
+
+    endpoint = (data.get('endpoint') or '').strip()
+    raw_keys = data.get('keys')
+    keys = raw_keys if isinstance(raw_keys, dict) else {}
+    p256dh = (keys.get('p256dh') or '').strip()
+    auth = (keys.get('auth') or '').strip()
+    user_agent = (data.get('user_agent') or request.META.get('HTTP_USER_AGENT', ''))[:500]
+
+    if not endpoint or not p256dh or not auth:
+        return HttpResponseBadRequest('Faltan parámetros obligatorios de la suscripción (endpoint, p256dh, auth)')
+
+    # Determinar tenant: del middleware de organización o fallback al default
+    organization = getattr(request, 'tenant', None)
+    if not organization:
+        organization = Organization.objects.filter(is_active=True).first()
+
+    if not organization:
+        return JsonResponse({'success': False, 'error': 'No hay club activo'}, status=400)
+
+    user = request.user if request.user.is_authenticated else None
+
+    # Una suscripción con dueño solo la renueva su dueño; las anónimas pueden reclamarse al iniciar sesión.
+    existing = WebPushSubscription.objects.filter(endpoint=endpoint).first()
+    if existing and existing.user_id and existing.user_id != getattr(user, 'id', None):
+        return JsonResponse({'success': False, 'error': 'Suscripción de otro usuario'}, status=403)
+
+    WebPushSubscription.objects.update_or_create(
+        endpoint=endpoint,
+        defaults={
+            'user': user,
+            'organization': organization,
+            'p256dh': p256dh,
+            'auth': auth,
+            'user_agent': user_agent,
+        },
+    )
+    return JsonResponse({'success': True})
+
+
+@require_POST
+def webpush_unsubscribe(request):
+    """Elimina una suscripción de navegador."""
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest('JSON inválido')
+
+    endpoint = (data.get('endpoint') or '').strip()
+    if endpoint:
+        qs = WebPushSubscription.objects.filter(endpoint=endpoint)
+        if request.user.is_authenticated:
+            qs = qs.filter(Q(user=request.user) | Q(user__isnull=True))
+        else:
+            qs = qs.filter(user__isnull=True)
+        qs.delete()
+
+    return JsonResponse({'success': True})

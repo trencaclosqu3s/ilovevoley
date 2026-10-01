@@ -10,6 +10,8 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.core.cache import cache
+from django.db import transaction
+from django.urls import reverse
 from django.db.models import Case, CharField, Count, Q, Value, When
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -606,6 +608,33 @@ def ajax_search_teams(request):
     return JsonResponse({'teams': teams_data})
 
 
+def _match_category_ids(match):
+    """Categorías de un partido: las de la liga y las de ambos equipos."""
+    ids = set(match.league.categories.values_list('id', flat=True)) if match.league else set()
+    for team in (match.home_team, match.away_team):
+        if team and team.category_id:
+            ids.add(team.category_id)
+    return list(ids)
+
+
+def _notify_match_result(tenant, match):
+    """Avisa por Web Push al club de un resultado final; un fallo del broker no debe romper el guardado."""
+    if not tenant or not match.is_finished:
+        return
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+    home_name = match.home_team.name if match.home_team else match.home_team_display
+    away_name = match.away_team.name if match.away_team else match.away_team_display
+    kwargs = {
+        'organization_id': tenant.id,
+        'title': f"Resultado: {home_name} vs {away_name}",
+        'body': f"Marcador final: {match.result_display}",
+        'url': reverse('competitions:match_detail', args=[match.id]),
+        'category_ids': _match_category_ids(match),
+    }
+    # robust=True: si el broker falla se registra el error y no afecta a la respuesta
+    transaction.on_commit(lambda: notify_web_push_organization_task.delay(**kwargs), robust=True)
+
+
 @require_POST
 @tenant_access_required(manager=True)
 def ajax_add_match_result(request, match_id):
@@ -642,6 +671,9 @@ def ajax_add_match_result(request, match_id):
             }, status=400)
         try:
             match = form.save()
+
+            _notify_match_result(request.tenant, match)
+
             return JsonResponse({
                 'success': True,
                 'message': f'Resultado guardado: {match.result_display}',
