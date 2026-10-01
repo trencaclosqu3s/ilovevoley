@@ -5,7 +5,10 @@ from django.test import TestCase
 from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match, MatchChangeLog
-from ilovevoley.competitions.services.delta_detector import detect_and_record_match_changes
+from ilovevoley.competitions.services.delta_detector import (
+    detect_and_record_match_changes,
+    notify_match_result_after_save,
+)
 from ilovevoley.teams.models import Club, Team
 
 
@@ -250,3 +253,87 @@ class DeltaDetectorTest(TestCase):
         # así que este camino sí debe notificar.
         self.assertTrue(changes[0].is_last_minute)
         mock_notify.assert_called_once()
+
+    @patch('ilovevoley.competitions.services.delta_detector.notify_match_result')
+    def test_scraping_finished_with_scores_triggers_notify_match_result(self, mock_notify_result):
+        """Persistir un resultado final dispara la notificación push de resultado."""
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() - timedelta(hours=3),
+            status='finished',
+            home_score=3,
+            away_score=1,
+            set_scores=[[25, 20], [20, 25], [25, 18], [25, 22]],
+        )
+
+        result = notify_match_result_after_save(match, already_finished=False)
+        self.assertTrue(result)
+        mock_notify_result.assert_called_once()
+        called_match = mock_notify_result.call_args[0][0]
+        self.assertEqual(called_match.home_score, 3)
+        self.assertEqual(called_match.away_score, 1)
+        self.assertEqual(called_match.status, 'finished')
+        self.assertEqual(called_match.set_scores, [[25, 20], [20, 25], [25, 18], [25, 22]])
+
+    @patch('ilovevoley.competitions.services.delta_detector.notify_match_result')
+    def test_scraping_already_finished_does_not_trigger_notify_match_result(self, mock_notify_result):
+        """Si el partido ya estaba finalizado con marcador, no se vuelve a disparar."""
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() - timedelta(hours=3),
+            status='finished',
+            home_score=3,
+            away_score=1,
+        )
+
+        result = notify_match_result_after_save(match, already_finished=True)
+        self.assertFalse(result)
+        mock_notify_result.assert_not_called()
+
+    @patch('ilovevoley.competitions.services.delta_detector.notify_match_result')
+    def test_notify_match_result_skips_match_without_final_score(self, mock_notify_result):
+        """Un partido sin marcador final no genera aviso de resultado."""
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() - timedelta(hours=3),
+            status='scheduled',
+        )
+
+        result = notify_match_result_after_save(match, already_finished=False)
+        self.assertFalse(result)
+        mock_notify_result.assert_not_called()
+
+    def test_detect_does_not_mutate_match_with_incoming_result(self):
+        """El detector no debe volcar el marcador en memoria (#286).
+
+        Si muta antes del merge, `update_matches` compara contra valores ya
+        actualizados, no encuentra campos por guardar y pierde el resultado.
+        """
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() - timedelta(hours=3),
+            status='scheduled',
+        )
+
+        detect_and_record_match_changes(
+            match,
+            {
+                'status': 'finished',
+                'home_score': 3,
+                'away_score': 1,
+                'set_scores': [[25, 20], [20, 25], [25, 18], [25, 22]],
+            },
+        )
+
+        self.assertEqual(match.status, 'scheduled')
+        self.assertIsNone(match.home_score)
+        self.assertIsNone(match.away_score)
+        self.assertIsNone(match.set_scores)

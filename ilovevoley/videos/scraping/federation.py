@@ -13,7 +13,10 @@ from django.utils import timezone
 import requests
 from unidecode import unidecode
 
-from ilovevoley.competitions.services.delta_detector import detect_and_record_match_changes
+from ilovevoley.competitions.services.delta_detector import (
+    detect_and_record_match_changes,
+    notify_match_result_after_save,
+)
 from ..models import League, Match, ScrapingEndpoint, Standing, Team
 from .base import ScrapingError, is_penalty_result, validate_volleyball_score
 from .parsers import (
@@ -282,6 +285,7 @@ class FederationScraper:
                         incoming_status = 'withdrawn'
 
                     # Detectar y registrar modificaciones federativas
+                    already_finished = self._result_already_published(match)
                     detect_and_record_match_changes(match, {**match_data, 'status': incoming_status})
 
                     # Actualizar partido existente
@@ -306,6 +310,7 @@ class FederationScraper:
                     if away_team and match.away_team_id != away_team.id:
                         match.away_team = away_team
                     match.save()
+                    notify_match_result_after_save(match, already_finished)
                     matches_updated += 1
                     
                     logger.debug(f'Actualizado: {home_team.name} {match.home_score}-{match.away_score} {away_team.name}')
@@ -665,6 +670,7 @@ class FederationScraper:
                     if home_score is not None and away_score is not None:
                         if validate_volleyball_score(home_score, away_score, self.league):
                             # Detectar y registrar modificaciones federativas
+                            already_finished = self._result_already_published(existing_match)
                             detect_and_record_match_changes(existing_match, match_data)
                             # Solo actualizar resultado y estado
                             existing_match.home_score = home_score
@@ -673,6 +679,7 @@ class FederationScraper:
                             existing_match.status = match_data.get('status', 'finished')
                             self._apply_set_scores(existing_match, match_data)
                             existing_match.save()
+                            notify_match_result_after_save(existing_match, already_finished)
                             logger.info(f"Updated result for existing match: {home_team.name} vs {away_team.name} - {home_score}-{away_score}")
                         else:
                             logger.warning(f"Resultado inválido para partido existente: {home_team.name} vs {away_team.name} - {home_score}-{away_score}")
@@ -723,6 +730,7 @@ class FederationScraper:
             # Crear o actualizar el partido con merge inteligente
             if existing_match:
                 # Detectar y registrar modificaciones federativas
+                already_finished = self._result_already_published(existing_match)
                 detect_and_record_match_changes(existing_match, match_data)
 
                 # Si el partido estaba withdrawn pero ahora los equipos son activos, reactivarlo
@@ -782,6 +790,7 @@ class FederationScraper:
                 
                 if updated_fields:
                     existing_match.save()
+                    notify_match_result_after_save(existing_match, already_finished)
                     logger.info(f"Updated match fields: {', '.join(updated_fields)} for {existing_match}")
                     # Log específico para cambios de fecha
                     if 'match_date' in updated_fields:
@@ -862,6 +871,20 @@ class FederationScraper:
         if isinstance(value, str) and value.strip() == '':
             return True
         return False
+
+    @staticmethod
+    def _result_already_published(match) -> bool:
+        """Estado de resultado previo al merge, para no reenviar el push.
+
+        Se consulta antes de volcar los datos del scrape: después el merge ya ha
+        sobrescrito el marcador y no hay forma de distinguir un resultado nuevo
+        de uno ya publicado.
+        """
+        return bool(
+            match.status == 'finished'
+            and match.home_score is not None
+            and match.away_score is not None
+        )
 
     def _apply_set_scores(self, match, match_data) -> bool:
         """Vuelca los parciales del scraping y marca penalización si aplica.

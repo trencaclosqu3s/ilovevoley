@@ -10,6 +10,8 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.core.cache import cache
+from django.db import transaction
+from django.urls import reverse
 from django.db.models import Case, CharField, Count, Q, Value, When
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -43,6 +45,7 @@ from ilovevoley.videos.scraping import (
 from .forms import FriendlyMatchForm, MatchResultForm
 from .models import League, Match, MatchChangeLog, MatchShareLink, Standing
 from .services.lineups import resolve_acta_team, store_match_lineups
+from .services.notifications import notify_match_result
 from .services.sets import extract_set_scores, match_set_scores
 from .services.where_plays import MIN_QUERY_LENGTH, search_team_locations
 from .share import (
@@ -642,19 +645,27 @@ def ajax_add_match_result(request, match_id):
             }, status=400)
         try:
             match = form.save()
-            return JsonResponse({
-                'success': True,
-                'message': f'Resultado guardado: {match.result_display}',
-                'result_display': match.result_display,
-                'home_score': match.home_score,
-                'away_score': match.away_score
-            })
         except Exception:
             logger.exception("Error al guardar resultado del partido %s", match_id)
             return JsonResponse({
                 'success': False,
                 'error': 'Error interno al guardar el resultado.',
             }, status=500)
+
+        # El resultado ya está persistido: un fallo del aviso (p. ej. Redis caído)
+        # no debe devolver error al cliente por algo que sí se guardó.
+        try:
+            notify_match_result(match, tenant=request.tenant)
+        except Exception:
+            logger.exception("Error al notificar el resultado del partido %s", match_id)
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Resultado guardado: {match.result_display}',
+            'result_display': match.result_display,
+            'home_score': match.home_score,
+            'away_score': match.away_score
+        })
     else:
         # Recopilar errores del formulario
         errors = {}

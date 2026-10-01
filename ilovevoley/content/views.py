@@ -40,6 +40,7 @@ from .forms import (
     VideoForm,
 )
 from .models import Comment, Image, Video
+from .services import queue_match_media_push
 from .thumbnails import schedule_thumbnail_generation
 
 logger = logging.getLogger(__name__)
@@ -314,6 +315,8 @@ def video_create(request):
             video.created_by = request.user
             video.organization = request.tenant
             video.save()
+            if video.match_id and request.tenant:
+                queue_match_media_push(match_id=video.match_id, media_type='video', organization_id=request.tenant.id)
             messages.success(request, 'Vídeo añadido correctamente')
             return redirect('content:video_list')
     else:
@@ -349,6 +352,8 @@ def video_bulk_create(request):
                     created += 1
 
             if created:
+                if match and request.tenant:
+                    queue_match_media_push(match_id=match.id, media_type='video', organization_id=request.tenant.id)
                 messages.success(request, f'{created} vídeo(s) añadido(s) correctamente.')
             else:
                 messages.warning(request, 'No se añadió ningún vídeo. Rellena al menos un título y URL.')
@@ -672,7 +677,13 @@ def image_upload(request):
             else:
                 auto_tags_msg = f" Se detectaron automáticamente las etiquetas: {', '.join(image.auto_tags[:3])}." if image.auto_tags else ""
                 messages.success(request, f'Imagen subida correctamente. Está pendiente de moderación.{auto_tags_msg}')
-            
+
+            # Solo se avisa de contenido ya visible: `match_detail` únicamente muestra
+            # imágenes aprobadas. Una imagen pendiente se avisa al aprobarse (Vision o
+            # moderación), no en la subida.
+            if image.status == 'approved' and image.match_id and request.tenant:
+                queue_match_media_push(match_id=image.match_id, media_type='photo', organization_id=request.tenant.id)
+
             return redirect('content:image_gallery')
         else:
             # El formulario no es válido, mostrar errores
@@ -753,6 +764,9 @@ def image_bulk_upload(request):
                 pass
         
         # Verificar si se está agregando a álbum existente
+        album_group_id = None
+        album_name = ''
+        create_album = False
         existing_album_id = request.POST.get('existing_album_id')
         if existing_album_id and not match_id:
             try:
@@ -787,6 +801,7 @@ def image_bulk_upload(request):
         
         # Procesar cada imagen de forma optimizada
         success_count = 0
+        approved_count = 0
         errors = []
         pending_ids = []
         vision_ids = []
@@ -837,6 +852,8 @@ def image_bulk_upload(request):
                 image.save()
                 if image.status == 'pending':
                     pending_ids.append(image.id)
+                elif image.status == 'approved':
+                    approved_count += 1
                 if enqueue_vision:
                     vision_ids.append(image.id)
 
@@ -904,6 +921,32 @@ def image_bulk_upload(request):
                 messages.warning(request, f'... y {len(errors) - 5} error(es) más.')
 
         if success_count > 0:
+            # Despachar notificación push asíncrona al club si se creó un nuevo álbum
+            tenant = getattr(request, 'tenant', None)
+            if tenant and create_album and not match_id:
+                from ilovevoley.users.tasks import notify_web_push_organization_task
+                album_url = (
+                    reverse('content:album_group_images', args=[album_group_id])
+                    if album_group_id
+                    else reverse('content:image_gallery')
+                )
+                notify_web_push_organization_task.delay(
+                    organization_id=tenant.id,
+                    title='Nuevo Álbum',
+                    body=f'Se han subido nuevas fotos: {album_name}' if album_name else 'Se han subido nuevas fotos',
+                    url=album_url,
+                    category_ids=[int(c) for c in request.POST.getlist('categories') if c.isdigit()],
+                    notification_type='new_album',
+                )
+
+            # Solo se avisa si hay alguna imagen ya visible en el partido: las
+            # pendientes de moderación avisan al aprobarse (#286).
+            if tenant and match_id and approved_count:
+                try:
+                    queue_match_media_push(match_id=int(match_id), media_type='photo', organization_id=tenant.id)
+                except (TypeError, ValueError):
+                    pass
+
             # Redirigir al álbum si se agregaron fotos a uno existente
             existing_album_id = request.POST.get('existing_album_id')
             if existing_album_id:

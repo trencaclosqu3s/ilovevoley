@@ -21,3 +21,4 @@ django-ical==1.9.2
 pypdf>=6.19.0
 sentry-sdk[django]==2.70.0
 django-ratelimit==4.1.0
+pywebpush==2.5.0

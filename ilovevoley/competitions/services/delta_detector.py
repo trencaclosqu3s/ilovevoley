@@ -2,10 +2,15 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any, Dict, List, Optional
 
+from django.conf import settings
 from django.utils import timezone
 
 from ilovevoley.competitions.models import Match, MatchChangeLog
-from ilovevoley.competitions.services.notifications import notify_match_changes
+from ilovevoley.competitions.services.notifications import (
+    notify_match_change_push,
+    notify_match_changes,
+    notify_match_result,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +174,13 @@ def detect_and_record_match_changes(
             f"Registrados {len(changes)} cambios federativos para el partido {match.id} ({match})"
         )
 
+        # Resetear recordatorio 2h si cambia fecha/hora o se desaplaza (#280)
+        has_datetime_change = any(c.change_type == 'datetime' for c in changes)
+        has_rescheduled = any(c.change_type == 'status' and c.new_value == 'scheduled' for c in changes)
+        if has_datetime_change or has_rescheduled:
+            Match.objects.filter(pk=match.pk).update(reminder_sent_at=None)
+            match.reminder_sent_at = None
+
         # Hook para notificaciones automáticas si hay cambios de última hora
         last_minute_changes = [
             c for c in notifiable_changes
@@ -180,5 +192,53 @@ def detect_and_record_match_changes(
             except Exception as e:
                 logger.exception(f"No se pudieron despachar las notificaciones para el partido {match.id}: {e}")
 
+        # Hook para notificaciones push de cambio de partido tras flag (fecha/hora, pista, aplazado/suspendido)
+        if getattr(settings, 'MATCH_CHANGE_PUSH_ENABLED', False):
+            push_changes = [
+                c for c in notifiable_changes
+                if c.change_type in ['datetime', 'venue'] or (
+                    c.change_type == 'status' and c.new_value in ['postponed', 'cancelled']
+                )
+            ]
+            if push_changes:
+                try:
+                    notify_match_change_push(match, push_changes)
+                except Exception as e:
+                    logger.exception(
+                        f"No se pudo despachar la notificación push de cambios para el partido {match.id}: {e}"
+                    )
 
     return changes
+
+
+def notify_match_result_after_save(match: Match, already_finished: bool) -> bool:
+    """Emite el push de resultado final una vez persistido el marcador.
+
+    Debe invocarse DESPUÉS del `save()` del scraper. Antes de guardar, el merge de
+    `update_matches` compara los campos contra la instancia en memoria: mutar aquí
+    `home_score`/`away_score`/`status`/`set_scores` dejaba el merge sin cambios que
+    aplicar y el marcador nunca llegaba a base de datos (#286).
+
+    Args:
+        match: Partido ya persistido con el marcador final.
+        already_finished: Estado del partido en base de datos antes del merge. Evita
+            reavisar de resultados ya publicados en cada scrape.
+    """
+    if already_finished:
+        return False
+
+    if not match.is_finished or match.home_score is None or match.away_score is None:
+        return False
+
+    if match.league:
+        from ilovevoley.videos.scraping.base import validate_volleyball_score
+        if not validate_volleyball_score(match.home_score, match.away_score, match.league):
+            return False
+
+    try:
+        return notify_match_result(match)
+    except Exception as e:
+        logger.exception(
+            f"No se pudo despachar la notificación push de resultado para el partido {match.id}: {e}"
+        )
+        return False

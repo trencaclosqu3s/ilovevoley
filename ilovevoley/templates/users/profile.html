@@ -210,6 +210,54 @@
                 {% endif %}
             </div>
 
+            <!-- Notificaciones Push PWA -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notificaciones Push (PWA)</label>
+                <div class="bg-purple-50 dark:bg-gray-800 border border-purple-200 dark:border-gray-700 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-csj-purple dark:text-csj-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                <h3 class="text-sm font-medium text-purple-900 dark:text-purple-300">Avisos en tiempo real en tu dispositivo</h3>
+                                <span id="webpush-status-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Comprobando...</span>
+                            </div>
+                            <p class="mt-1 text-sm text-purple-700 dark:text-gray-300">
+                                Recibe avisos inmediatos cuando finalicen partidos de tus equipos y cuando se publiquen nuevos álbumes de fotos o vídeos del club.
+                            </p>
+                            <div id="webpush-ios-hint" class="hidden mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded text-xs text-yellow-800 dark:text-yellow-200">
+                                ℹ️ En iPhone/iPad, para recibir notificaciones añade primero la aplicación a la pantalla de inicio (Compartir > Añadir a pantalla de inicio) y ábrela desde allí.
+                            </div>
+                            <div class="mt-4 flex gap-3">
+                                <button id="webpush-toggle-btn" data-call="toggleWebPush" class="px-4 py-2 bg-csj-purple hover:bg-purple-700 text-white text-sm font-medium rounded transition">
+                                    Activar notificaciones
+                                </button>
+                            </div>
+                            {% if organization_preferences %}
+                                <div class="mt-4 border-t border-purple-200 dark:border-gray-700 pt-3">
+                                    <h4 class="text-xs font-semibold text-purple-900 dark:text-purple-300 uppercase tracking-wider mb-2">Avisos activos por club:</h4>
+                                    <div class="space-y-2">
+                                        {% for item in organization_preferences %}
+                                            <div class="text-xs text-purple-800 dark:text-gray-300">
+                                                <span class="font-medium">🏐 {{ item.organization.name }}:</span>
+                                                {% if item.notification_types %}
+                                                    <span class="text-gray-600 dark:text-gray-400">{{ item.notification_types|join:", " }}</span>
+                                                {% else %}
+                                                    <span class="italic text-gray-500">Ningún aviso activo</span>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
 
             <!-- Botón de Edición -->
             <div class="mt-6">
@@ -451,6 +499,10 @@
     }
 </script>
 
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/webpush.js' %}" defer></script>
 {% endblock %}
 
 

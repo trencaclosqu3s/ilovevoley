@@ -8,7 +8,7 @@ from django.utils.html import format_html, mark_safe
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
-from .models import CategoryPreference, Membership, User
+from .models import CategoryPreference, Membership, NotificationPreference, User, WebPushSubscription
 
 
 class MembershipInline(TabularInline):
@@ -30,6 +30,14 @@ class CategoryPreferenceInline(TabularInline):
     model = CategoryPreference
     extra = 0
     fields = ('organization', 'categories')
+    autocomplete_fields = ('organization',)
+
+
+class NotificationPreferenceInline(TabularInline):
+    """Preferencias de tipos de notificación del usuario, una fila por club y tipo."""
+    model = NotificationPreference
+    extra = 0
+    fields = ('organization', 'notification_type', 'is_enabled')
     autocomplete_fields = ('organization',)
 
 
@@ -64,7 +72,8 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     actions = [approve_users, reject_users, 'send_email_action']
     actions_detail = ['send_email_detail_action']
     actions_row = ['send_email_row_action']
-    inlines = [MembershipInline, CategoryPreferenceInline]
+    inlines = [MembershipInline, CategoryPreferenceInline, NotificationPreferenceInline]
+
     
     # Añadir is_approved y parent_info a los fieldsets
     fieldsets = BaseUserAdmin.fieldsets + (
@@ -314,3 +323,23 @@ class MembershipAdmin(ModelAdmin):
         count = queryset.update(is_approved=True)
         User.objects.filter(id__in=user_ids, is_approved=False).update(is_approved=True, is_active=True)
         self.message_user(request, f'{count} membresía(s) aprobada(s).')
+
+
+@admin.register(WebPushSubscription)
+class WebPushSubscriptionAdmin(ModelAdmin):
+    list_display = ('user', 'organization', 'endpoint_truncated', 'created_at', 'updated_at')
+    list_filter = ('organization', 'created_at')
+    search_fields = ('user__username', 'user__email', 'endpoint', 'user_agent')
+    readonly_fields = ('created_at', 'updated_at')
+
+    def endpoint_truncated(self, obj):
+        return (obj.endpoint[:60] + '...') if len(obj.endpoint) > 60 else obj.endpoint
+    endpoint_truncated.short_description = 'Endpoint'
+
+
+@admin.register(NotificationPreference)
+class NotificationPreferenceAdmin(ModelAdmin):
+    list_display = ('user', 'organization', 'notification_type', 'is_enabled', 'updated_at')
+    list_filter = ('organization', 'notification_type', 'is_enabled')
+    search_fields = ('user__username', 'user__email')
+    autocomplete_fields = ('user', 'organization')

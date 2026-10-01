@@ -887,6 +887,50 @@ class UpdateMatchesSetScoresTests(TestCase):
         self.assertFalse(self.match.result_penalized)
 
 
+class UpdateMatchesResultPersistenceTests(TestCase):
+    """El resultado scrapeado de un partido existente llega a base de datos (#286).
 
+    La ruta de merge busca por jornada un partido programado sin marcador y
+    vuelca el resultado final. El detector de cambios no debe adelantar el
+    marcador en memoria: si lo hace, el merge no ve campos por actualizar y el
+    resultado se pierde aunque el push de aviso salga.
+    """
 
+    def setUp(self):
+        from ilovevoley.videos.scraping import FederationScraper
+        self.category = Category.objects.create(name='Senior')
+        self.league = League.objects.create(
+            name='Senior', federation_id='8247', match_format='standard',
+            season=Season.objects.resolve('2026-27'), competition_type='regular',
+        )
+        self.league.categories.add(self.category)
+        self.home = Team.objects.create(
+            name='LOCAL', federation_id='u_local', category=self.category, is_active=True,
+        )
+        self.away = Team.objects.create(
+            name='VISITANTE', federation_id='u_away', category=self.category, is_active=True,
+        )
+        self.scraper = FederationScraper(self.league)
+        self.match = Match.objects.create(
+            league=self.league, home_team=self.home, away_team=self.away,
+            match_date=timezone.now(), round_number=1, status='scheduled',
+        )
 
+    def _match_data(self):
+        return {
+            'home_team': 'LOCAL', 'away_team': 'VISITANTE',
+            'home_score': 3, 'away_score': 1, 'status': 'finished',
+            'round_number': 1, 'set_scores': [[25, 20], [20, 25], [25, 18], [25, 22]],
+        }
+
+    @patch('ilovevoley.videos.scraping.federation.notify_match_result_after_save')
+    def test_scraped_result_is_persisted(self, mock_notify_after_save):
+        self.scraper.update_matches([self._match_data()], {})
+
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, 'finished')
+        self.assertEqual(self.match.home_score, 3)
+        self.assertEqual(self.match.away_score, 1)
+        self.assertEqual(self.match.set_scores, [[25, 20], [20, 25], [25, 18], [25, 22]])
+        mock_notify_after_save.assert_called_once()
+        self.assertFalse(mock_notify_after_save.call_args[0][1])

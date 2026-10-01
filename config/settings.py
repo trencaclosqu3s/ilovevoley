@@ -409,6 +409,8 @@ MATCH_CHANGE_NOTIFY_STAFF_ENABLED = env_config('MATCH_CHANGE_NOTIFY_STAFF_ENABLE
 # Copia global para superusuarios, para poder revisar los avisos de todos los tenants.
 MATCH_CHANGE_NOTIFY_SUPERUSERS = env_config('MATCH_CHANGE_NOTIFY_SUPERUSERS', default=True, cast=bool)
 MATCH_CHANGE_TEST_RECIPIENT = env_config('MATCH_CHANGE_TEST_RECIPIENT', default=None)
+# Notificaciones Web Push de modificaciones de partidos (desactivado por defecto tras flag #279)
+MATCH_CHANGE_PUSH_ENABLED = env_config('MATCH_CHANGE_PUSH_ENABLED', default=False, cast=bool)
 
 # Rutas ignoradas por el tracking de 404: escáneres de vulnerabilidades y bots que piden
 # rutas inexistentes (WordPress, phpMyAdmin, dotfiles...). No cuentan para el reporte
@@ -469,6 +471,10 @@ CELERY_BEAT_SCHEDULE = {
     'cleanup-expired-album-zips': {
         'task': 'cleanup_expired_album_zips',
         'schedule': 3600.0 * 24,
+    },
+    'send-match-reminders-2h': {
+        'task': 'send_match_reminders_2h',
+        'schedule': 600.0,
     },
 }
 
@@ -787,6 +793,15 @@ LOGGING = {
 SESSION_COOKIE_DOMAIN = env_config('SESSION_COOKIE_DOMAIN', default=None if DEBUG else '.ilovevoley.es')
 CSRF_COOKIE_DOMAIN = env_config('CSRF_COOKIE_DOMAIN', default=None if DEBUG else '.ilovevoley.es')
 TENANT_BASE_DOMAIN = env_config('TENANT_BASE_DOMAIN', default='localhost:8000')
+
+# Web Push (VAPID) Settings (RFC 8292)
+VAPID_PUBLIC_KEY = env_config('VAPID_PUBLIC_KEY', default='')
+VAPID_PRIVATE_KEY = env_config('VAPID_PRIVATE_KEY', default='')
+VAPID_CLAIMS_SUB = env_config('VAPID_CLAIMS_SUB', default='mailto:admin@ilovevoley.es')
+
+# Push agrupado de fotos/vídeos de un partido (#281): ventana de agrupación y
+# cooldown. Una ráfaga de subidas genera un único aviso.
+MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS = env_config('MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS', default=300, cast=int)
 
 # Sentry error tracking and performance monitoring
 from config.sentry import configure as _configure_sentry
