@@ -21,6 +21,22 @@ def infer_season(match, when):
     return Season.objects.for_date(when)
 
 
+def infer_category(match):
+    """Categoría de un contenido: la de los equipos del partido o la de su liga.
+
+    Un vídeo tiene una sola categoría, así que se prioriza la del equipo local,
+    después la del visitante y, si ninguna la tiene, la primera de la liga.
+    """
+    if match is None:
+        return None
+    for team in (match.home_team, match.away_team):
+        if team is not None and team.category_id:
+            return team.category
+    if match.league_id:
+        return match.league.categories.first()
+    return None
+
+
 class Video(models.Model):
     title = models.CharField(max_length=200)
     youtube_url = models.URLField()
@@ -76,6 +92,15 @@ class Video(models.Model):
             update_fields = kwargs.get('update_fields')
             if update_fields is not None:
                 kwargs['update_fields'] = set(update_fields) | {'season'}
+        # Heredar la categoría del partido si no se especifica: si no, el vídeo
+        # queda sin categoría y lo ocultan los filtros por categorías preferidas.
+        if self.category_id is None and self.match_id:
+            category = infer_category(self.match)
+            if category is not None:
+                self.category = category
+                update_fields = kwargs.get('update_fields')
+                if update_fields is not None:
+                    kwargs['update_fields'] = set(update_fields) | {'category'}
         # Sin partido no hay set: el spec exige que quede NULL.
         if self.match_id is None and self.set_number is not None:
             self.set_number = None

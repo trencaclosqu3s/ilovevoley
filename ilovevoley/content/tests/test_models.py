@@ -4,9 +4,11 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
 
-from ilovevoley.competitions.models import Match
+from ilovevoley.competitions.models import League, Match
 from ilovevoley.content.models import Image, Video
 from ilovevoley.content.views import _coerce_set_number
+from ilovevoley.core.models import Category
+from ilovevoley.teams.models import Team
 
 TINY_GIF = (
     b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
@@ -94,6 +96,73 @@ class SetNumberRequiresMatchTest(TestCase):
         )
         image.refresh_from_db()
         self.assertEqual(image.set_number, 3)
+
+
+class VideoCategoryInheritanceTest(TestCase):
+    """Un vídeo sin categoría explícita hereda la del partido al que se adjunta.
+
+    Si no lo hiciera, quedaría con ``category=None`` y los filtros por categorías
+    preferidas del usuario lo ocultarían del listado general.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='u', password='p')
+
+    def test_hereda_categoria_del_equipo_local(self):
+        category = Category.objects.create(name='Infantil')
+        home = Team.objects.create(name='Local', federation_id='TC-H', category=category)
+        away = Team.objects.create(name='Visitante', federation_id='TC-A')
+        match = Match.objects.create(match_date=timezone.now(), home_team=home, away_team=away)
+
+        video = Video.objects.create(
+            title='Con partido',
+            youtube_url='https://youtu.be/abc',
+            match=match,
+            created_by=self.user,
+        )
+        video.refresh_from_db()
+        self.assertEqual(video.category, category)
+
+    def test_hereda_categoria_de_la_liga_si_los_equipos_no_la_tienen(self):
+        category = Category.objects.create(name='Cadete')
+        league = League.objects.create(name='Liga Cadete', federation_id='TC-L')
+        league.categories.add(category)
+        match = Match.objects.create(match_date=timezone.now(), league=league)
+
+        video = Video.objects.create(
+            title='Con liga',
+            youtube_url='https://youtu.be/abc',
+            match=match,
+            created_by=self.user,
+        )
+        video.refresh_from_db()
+        self.assertEqual(video.category, category)
+
+    def test_respeta_la_categoria_explicita(self):
+        match_category = Category.objects.create(name='Infantil')
+        chosen = Category.objects.create(name='Alevín')
+        home = Team.objects.create(name='Local', federation_id='TC-H', category=match_category)
+        match = Match.objects.create(match_date=timezone.now(), home_team=home)
+
+        video = Video.objects.create(
+            title='Categoría elegida',
+            youtube_url='https://youtu.be/abc',
+            match=match,
+            category=chosen,
+            created_by=self.user,
+        )
+        video.refresh_from_db()
+        self.assertEqual(video.category, chosen)
+
+    def test_sin_partido_la_categoria_queda_vacia(self):
+        video = Video.objects.create(
+            title='Suelto',
+            youtube_url='https://youtu.be/abc',
+            created_by=self.user,
+        )
+        video.refresh_from_db()
+        self.assertIsNone(video.category)
 
 
 class CoerceSetNumberTest(TestCase):
