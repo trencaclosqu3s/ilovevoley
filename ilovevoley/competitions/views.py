@@ -630,9 +630,11 @@ def _notify_match_result(tenant, match):
         'body': f"Marcador final: {match.result_display}",
         'url': reverse('competitions:match_detail', args=[match.id]),
         'category_ids': _match_category_ids(match),
+        'notification_type': 'match_result',
     }
     # robust=True: si el broker falla se registra el error y no afecta a la respuesta
     transaction.on_commit(lambda: notify_web_push_organization_task.delay(**kwargs), robust=True)
+
 
 
 @require_POST

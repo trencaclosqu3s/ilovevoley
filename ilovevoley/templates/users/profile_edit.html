@@ -201,6 +201,40 @@
                 {% endif %}
             </div>
 
+            <!-- Tipos de Notificaciones Push -->
+            <div>
+                <label class="block text-base font-semibold text-gray-800 dark:text-gray-200 mb-3">
+                    Tipos de Notificaciones Push
+                </label>
+                {% if form.organization_notification_fields %}
+                    <div class="space-y-6">
+                        {% for org, field in form.organization_notification_fields %}
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
+                                    <span>🔔</span>
+                                    <span>{{ org.name }}</span>
+                                </h3>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">{{ field.help_text }}</p>
+                                <div class="space-y-2">
+                                    {% for choice in field %}
+                                        <div class="flex items-center">
+                                            {{ choice.tag }}
+                                            <label for="{{ choice.id_for_label }}" class="ml-2 block text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                                                {{ choice.choice_label }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                {% if field.errors %}
+                                    <p class="mt-2 text-sm text-red-600">{{ field.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+
 
             <!-- Nota informativa sobre categorías -->
             <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">

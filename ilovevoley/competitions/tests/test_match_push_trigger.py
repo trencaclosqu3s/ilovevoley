@@ -44,3 +44,5 @@ class MatchPushTriggerTest(TestCase):
         mock_push_task.assert_called_once()
         _, kwargs = mock_push_task.call_args
         self.assertIn('3 - 1', kwargs.get('body', ''))
+        self.assertEqual(kwargs.get('notification_type'), 'match_result')
+

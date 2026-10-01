@@ -77,16 +77,26 @@ def profile_view(request):
         )
     }
 
+    from .forms import AVAILABLE_NOTIFICATION_TYPES
+    from collections import defaultdict
+    disabled_notifications = defaultdict(set)
+    for notif_pref in user.notification_preferences.filter(organization__in=orgs, is_enabled=False):
+        disabled_notifications[notif_pref.organization_id].add(notif_pref.notification_type)
+
     organization_preferences = []
     has_any_preferences = False
     for org in orgs:
         categories = preferences_by_org.get(org.id, [])
+        disabled = disabled_notifications.get(org.id, set())
+        active_notifs = [label for val, label in AVAILABLE_NOTIFICATION_TYPES if val not in disabled]
         if categories:
             has_any_preferences = True
         organization_preferences.append({
             'organization': org,
             'categories': categories,
+            'notification_types': active_notifs,
         })
+
 
     return render(request, 'users/profile.html', {
         'user': user,

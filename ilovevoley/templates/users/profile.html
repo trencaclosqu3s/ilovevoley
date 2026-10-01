@@ -236,10 +236,28 @@
                                     Activar notificaciones
                                 </button>
                             </div>
+                            {% if organization_preferences %}
+                                <div class="mt-4 border-t border-purple-200 dark:border-gray-700 pt-3">
+                                    <h4 class="text-xs font-semibold text-purple-900 dark:text-purple-300 uppercase tracking-wider mb-2">Avisos activos por club:</h4>
+                                    <div class="space-y-2">
+                                        {% for item in organization_preferences %}
+                                            <div class="text-xs text-purple-800 dark:text-gray-300">
+                                                <span class="font-medium">🏐 {{ item.organization.name }}:</span>
+                                                {% if item.notification_types %}
+                                                    <span class="text-gray-600 dark:text-gray-400">{{ item.notification_types|join:", " }}</span>
+                                                {% else %}
+                                                    <span class="italic text-gray-500">Ningún aviso activo</span>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
+
 
             <!-- Botón de Edición -->
             <div class="mt-6">

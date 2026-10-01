@@ -922,7 +922,9 @@ def image_bulk_upload(request):
                     body=f'Se han subido nuevas fotos: {album_name}' if album_name else 'Se han subido nuevas fotos',
                     url=album_url,
                     category_ids=[int(c) for c in request.POST.getlist('categories') if c.isdigit()],
+                    notification_type='new_album',
                 )
+
 
             # Redirigir al álbum si se agregaron fotos a uno existente
             existing_album_id = request.POST.get('existing_album_id')

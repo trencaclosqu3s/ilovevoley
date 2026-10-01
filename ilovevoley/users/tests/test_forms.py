@@ -164,3 +164,97 @@ class UserProfileFormOrganizationTest(TestCase):
         self.assertIn(self.org1.id, org_ids)
         self.assertIn(self.org2.id, org_ids)
 
+
+class UserProfileFormNotificationPreferenceTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='socio', password='contrasena')
+        self.org1 = Organization.objects.create(slug='pref-club-uno', name='Club Uno', is_active=True)
+        self.org2 = Organization.objects.create(slug='pref-club-dos', name='Club Dos', is_active=True)
+
+    def test_initial_has_all_types_enabled_by_default(self):
+        from ilovevoley.users.models import NotificationType
+        form = UserProfileForm(instance=self.user, organization=self.org1)
+        field_name = f'notification_types_{self.org1.id}'
+        self.assertIn(field_name, form.fields)
+        self.assertEqual(
+            set(form.initial.get(field_name, [])),
+            {NotificationType.MATCH_RESULT, NotificationType.NEW_ALBUM},
+        )
+
+    def test_initial_reflects_disabled_types(self):
+        from ilovevoley.users.models import NotificationPreference, NotificationType
+        NotificationPreference.objects.create(
+            user=self.user,
+            organization=self.org1,
+            notification_type=NotificationType.MATCH_RESULT,
+            is_enabled=False,
+        )
+        form = UserProfileForm(instance=self.user, organization=self.org1)
+        field_name = f'notification_types_{self.org1.id}'
+        self.assertEqual(
+            form.initial.get(field_name),
+            [NotificationType.NEW_ALBUM],
+        )
+
+    def test_save_notification_preferences_disables_unselected(self):
+        from ilovevoley.users.models import NotificationPreference, NotificationType
+        form = UserProfileForm(
+            data={
+                'username': 'socio',
+                'first_name': 'Socio',
+                'last_name': 'Uno',
+                f'notification_types_{self.org1.id}': [NotificationType.MATCH_RESULT],
+            },
+            instance=self.user,
+            organization=self.org1,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        pref_result = NotificationPreference.objects.filter(
+            user=self.user, organization=self.org1, notification_type=NotificationType.MATCH_RESULT
+        ).first()
+        self.assertTrue(pref_result is None or pref_result.is_enabled)
+
+        pref_album = NotificationPreference.objects.get(
+            user=self.user, organization=self.org1, notification_type=NotificationType.NEW_ALBUM
+        )
+        self.assertFalse(pref_album.is_enabled)
+
+    def test_save_re_enables_previously_disabled_type(self):
+        from ilovevoley.users.models import NotificationPreference, NotificationType
+        NotificationPreference.objects.create(
+            user=self.user,
+            organization=self.org1,
+            notification_type=NotificationType.MATCH_RESULT,
+            is_enabled=False,
+        )
+
+        form = UserProfileForm(
+            data={
+                'username': 'socio',
+                'first_name': 'Socio',
+                'last_name': 'Uno',
+                f'notification_types_{self.org1.id}': [NotificationType.MATCH_RESULT, NotificationType.NEW_ALBUM],
+            },
+            instance=self.user,
+            organization=self.org1,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        pref_result = NotificationPreference.objects.get(
+            user=self.user, organization=self.org1, notification_type=NotificationType.MATCH_RESULT
+        )
+        self.assertTrue(pref_result.is_enabled)
+
+    def test_organization_notification_fields_property(self):
+        form = UserProfileForm(instance=self.user, organization=self.org1)
+        fields = form.organization_notification_fields
+        self.assertEqual(len(fields), 1)
+        org, bound_field = fields[0]
+        self.assertEqual(org, self.org1)
+        self.assertEqual(bound_field.name, f'notification_types_{self.org1.id}')
+
+
