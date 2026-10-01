@@ -34,8 +34,11 @@ SECRET_KEY = env_config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_config('DEBUG', default=False, cast=bool)
 
-_allowed_hosts = env_config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0,.localhost', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
-ALLOWED_HOSTS = list(dict.fromkeys(_allowed_hosts + ['localhost', '127.0.0.1', '.localhost']))
+_allowed_hosts = env_config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
+ALLOWED_HOSTS = list(dict.fromkeys(_allowed_hosts + ['localhost', '127.0.0.1']))
+if DEBUG:
+    ALLOWED_HOSTS.append('.localhost')
+ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 CSRF_TRUSTED_ORIGINS = env_config(
     'CSRF_TRUSTED_ORIGINS',
     default='',

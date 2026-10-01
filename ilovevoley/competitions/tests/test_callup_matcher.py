@@ -193,4 +193,3 @@ def test_match_callup_player_club_match_no_roster_card():
     assert res['match_score'] == 0.0
     assert res['organization'] == org
     assert 'no tiene ficha' in res['match_notes']
-

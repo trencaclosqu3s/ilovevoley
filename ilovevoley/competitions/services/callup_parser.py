@@ -112,6 +112,10 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
     all_pages_text: list[str] = []
     players: list[dict[str, Any]] = []
 
+    # Mantener el estado de la tabla y posiciones de cabecera entre páginas del PDF
+    header_positions: dict[str, int] | None = None
+    in_table = False
+
     for page in reader.pages:
         try:
             page_text = page.extract_text(extraction_mode='layout') or ''
@@ -120,10 +124,6 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
 
         all_pages_text.append(page_text)
         lines = page_text.splitlines()
-
-        # Buscar línea de cabecera tabular
-        header_positions: dict[str, int] | None = None
-        in_table = False
 
         for line in lines:
             norm_line = _remove_accents(line).upper()
@@ -184,14 +184,24 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                     if m_year:
                         birth_year = int(m_year.group(1))
                         rem = chunks[:-1]
-                    else:
+                    elif len(chunks) == 3:
+                        # Exactamente 3 columnas sin año: club, apellidos, nombre
                         birth_year = None
                         rem = chunks
+                    else:
+                        # Si hay > 3 columnas sin año al final, buscar si el año está en otra columna
+                        year_idx = next((i for i, c in enumerate(chunks) if re.match(r'^(19\d{2}|20\d{2})$', c)), None)
+                        if year_idx is not None:
+                            birth_year = int(chunks[year_idx])
+                            rem = [c for i, c in enumerate(chunks) if i != year_idx]
+                        else:
+                            # Sin año detectable con >3 columnas: descartar para evitar texto basura en nombres
+                            rem = []
 
-                    if len(rem) >= 3:
+                    if len(rem) >= 2:
                         club_clean = re.sub(r'^\d+[\.\)]?\s*', '', rem[0]).strip()
                         last_str = rem[1]
-                        first_str = ' '.join(rem[2:])
+                        first_str = ' '.join(rem[2:]) if len(rem) > 2 else ''
                         if club_clean and last_str and first_str:
                             players.append({
                                 'club': club_clean,

@@ -102,3 +102,27 @@ def test_extract_callup_players_chunking_with_composite_names_and_no_year():
     assert players[1]['first_name'] == 'MARC'
     assert players[1]['birth_year'] is None
 
+
+def test_extract_callup_players_multipage_continuation_without_header():
+    import pypdf
+    page1_bytes = create_dummy_pdf([
+        "CONVOCATÒRIA SELECCIÓ",
+        "CLUB                         LLINATGES                          NOM                   ANY",
+        "1    CV SANT JOSEP           RIERA MARTÍN                       LLUC                  2013",
+    ])
+    page2_bytes = create_dummy_pdf([
+        "2    CV PÒRTOL               MUÑOZ ALCOCEBA                     NORMA                 2010",
+        "3    CV MANACOR              GALMÉS                             JOAN                  2011",
+    ])
+    writer = pypdf.PdfWriter()
+    writer.append(io.BytesIO(page1_bytes))
+    writer.append(io.BytesIO(page2_bytes))
+    buf = io.BytesIO()
+    writer.write(buf)
+    multipage_pdf = buf.getvalue()
+
+    raw_text, players = extract_callup_players_from_pdf(multipage_pdf)
+    assert len(players) == 3
+    assert players[0]['club'] == 'CV SANT JOSEP'
+    assert players[1]['club'] == 'CV PÒRTOL'
+    assert players[2]['club'] == 'CV MANACOR'
