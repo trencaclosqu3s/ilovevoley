@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden mb-6">
         <div class="bg-csj-purple text-white px-4 sm:px-6 py-5">
             <p class="text-xs uppercase tracking-widest opacity-80 mb-1">
                 {% if match.league_id %}{{ match.league.name }}{% endif %}
@@ -20,14 +20,14 @@
     {% for group in groups %}
         {% if group.videos or group.images %}
         <section class="mb-8">
-            <h2 class="text-lg sm:text-xl font-bold text-gray-800 mb-3 flex items-center">
+            <h2 class="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200 mb-3 flex items-center">
                 <span class="inline-block w-2 h-2 rounded-full bg-csj-purple mr-2"></span>{{ group.label }}
             </h2>
 
             {% if group.videos %}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 {% for video in group.videos %}
-                <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                     <button type="button"
                             class="video-launch relative block w-full aspect-video bg-black group"
                             data-embed="{{ video.get_embed_url }}"
@@ -41,9 +41,9 @@
                         </span>
                     </button>
                     <div class="p-3">
-                        <h3 class="font-semibold text-gray-800 text-sm sm:text-base">{{ video.title }}</h3>
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 text-sm sm:text-base">{{ video.title }}</h3>
                         {% if video.description %}
-                            <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ video.description }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{{ video.description }}</p>
                         {% endif %}
                     </div>
                 </div>
@@ -56,7 +56,7 @@
                 {% for image in group.images %}
                 <a href="{% url 'public:match_media' link.token image.id %}?v=orig"
                    target="_blank" rel="noopener"
-                   class="block aspect-square rounded-lg overflow-hidden bg-gray-100">
+                   class="block aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
                     <img src="{% url 'public:match_media' link.token image.id %}?v=thumb"
                          alt="{{ image.title }}" loading="lazy"
                          class="w-full h-full object-cover hover:scale-105 transition">
@@ -69,10 +69,10 @@
     {% endfor %}
 
     {% if not has_media %}
-        <p class="text-center text-gray-500 py-12">Todavía no hay contenido multimedia para este partido.</p>
+        <p class="text-center text-gray-500 dark:text-gray-400 py-12">Todavía no hay contenido multimedia para este partido.</p>
     {% endif %}
 
-    <p class="text-center text-xs text-gray-400 py-6">
+    <p class="text-center text-xs text-gray-400 dark:text-gray-500 py-6">
         Enlace temporal{% if link.expires_at %} · caduca el {{ link.expires_at|date:"d/m/Y H:i" }}{% endif %}
     </p>
 </div>

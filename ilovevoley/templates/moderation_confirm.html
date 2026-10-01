@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container mx-auto px-4 py-12">
     <div class="max-w-2xl mx-auto">
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden border {% if action == 'approve' %}border-green-200{% else %}border-red-200{% endif %}">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border {% if action == 'approve' %}border-green-200 dark:border-green-800{% else %}border-red-200 dark:border-red-800{% endif %}">
             <div class="{% if action == 'approve' %}bg-green-600{% else %}bg-red-600{% endif %} px-6 py-4 text-white">
                 <div class="flex items-center">
                     {% if action == 'approve' %}
@@ -24,11 +24,11 @@
 
             <div class="p-6">
                 {% if target_user %}
-                    <p class="text-gray-700 mb-4">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">
                         ¿Estás seguro de que deseas <strong>{% if action == 'approve' %}aprobar{% else %}rechazar{% endif %}</strong> al siguiente usuario?
                     </p>
-                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-6">
-                        <ul class="text-gray-800 space-y-2">
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+                        <ul class="text-gray-800 dark:text-gray-200 space-y-2">
                             <li><strong>Usuario:</strong> {{ target_user.username }}</li>
                             <li><strong>Email:</strong> {{ target_user.email|default:"No proporcionado" }}</li>
                             <li><strong>Nombre completo:</strong> {{ target_user.get_full_name|default:"No proporcionado" }}</li>
@@ -44,11 +44,11 @@
                 {% endif %}
 
                 {% if target_image %}
-                    <p class="text-gray-700 mb-4">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">
                         ¿Estás seguro de que deseas <strong>{% if action == 'approve' %}aprobar{% else %}rechazar{% endif %}</strong> la siguiente imagen?
                     </p>
-                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-6">
-                        <ul class="text-gray-800 space-y-2 mb-4">
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+                        <ul class="text-gray-800 dark:text-gray-200 space-y-2 mb-4">
                             <li><strong>Título:</strong> {{ target_image.title }}</li>
                             <li><strong>Subida por:</strong> {{ target_image.uploaded_by.username }}</li>
                             <li><strong>Tipo:</strong> {{ target_image.get_image_type_display }}</li>
@@ -60,12 +60,12 @@
                         {% if image_data_uri %}
                             <div class="mt-3 text-center">
                                 <img src="{{ image_data_uri }}" alt="{{ target_image.title }}" 
-                                     class="max-w-full max-h-72 mx-auto rounded border border-gray-300 shadow-sm">
+                                     class="max-w-full max-h-72 mx-auto rounded border border-gray-300 dark:border-gray-600 shadow-sm">
                             </div>
                         {% elif target_image.image %}
                             <div class="mt-3 text-center">
                                 <img src="{{ target_image.image.url }}" alt="{{ target_image.title }}" 
-                                     class="max-w-full max-h-72 mx-auto rounded border border-gray-300 shadow-sm">
+                                     class="max-w-full max-h-72 mx-auto rounded border border-gray-300 dark:border-gray-600 shadow-sm">
                             </div>
                         {% endif %}
                     </div>
@@ -76,13 +76,13 @@
                     
                     {% if target_image %}
                         <div class="mb-4">
-                            <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Notas de moderación (opcional):</label>
-                            <input type="text" name="notes" id="notes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Motivo o comentarios...">
+                            <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notas de moderación (opcional):</label>
+                            <input type="text" name="notes" id="notes" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Motivo o comentarios...">
                         </div>
                     {% endif %}
 
-                    <div class="flex items-center justify-between pt-4 border-t border-gray-200">
-                        <a href="{% url 'landing' %}" class="text-gray-600 hover:text-gray-800 font-medium">
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <a href="{% url 'landing' %}" class="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-200 font-medium">
                             ← Cancelar y volver
                         </a>
 

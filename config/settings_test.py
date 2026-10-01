@@ -21,13 +21,3 @@ PASSWORD_HASHERS = [
 VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckj0bMWq0Ww6a_82nWCQL67eSQVRWc'
 VAPID_PRIVATE_KEY = 'test_vapid_private_key_pem_or_raw'
 VAPID_CLAIMS_SUB = 'mailto:test@ilovevoley.es'
-
-# Almacén de estáticos sin hash en tests para aserciones estables
-STORAGES = {
-    'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
-    },
-    'staticfiles': {
-        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
-    },
-}

@@ -6,7 +6,7 @@
 <div class="container mx-auto px-4 py-12">
     <div class="max-w-2xl mx-auto">
         {% if success %}
-            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-6 rounded-lg shadow-lg mb-6">
+            <div class="bg-green-100 dark:bg-green-900/30 border-l-4 border-green-500 text-green-700 dark:text-green-300 p-6 rounded-lg shadow-lg mb-6">
                 <div class="flex items-center mb-4">
                     <svg class="w-12 h-12 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -24,9 +24,9 @@
                 <p class="text-lg">{{ message }}</p>
                 
                 {% if user %}
-                    <div class="mt-4 p-4 bg-white rounded border border-green-200">
-                        <h3 class="font-semibold text-gray-800 mb-2">Detalles del Usuario:</h3>
-                        <ul class="text-gray-700">
+                    <div class="mt-4 p-4 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-800">
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Detalles del Usuario:</h3>
+                        <ul class="text-gray-700 dark:text-gray-300">
                             <li><strong>Usuario:</strong> {{ user.username }}</li>
                             <li><strong>Email:</strong> {{ user.email|default:"No proporcionado" }}</li>
                             <li><strong>Nombre:</strong> {{ user.get_full_name|default:"No proporcionado" }}</li>
@@ -35,24 +35,24 @@
                 {% endif %}
                 
                 {% if image %}
-                    <div class="mt-4 p-4 bg-white rounded border border-green-200">
-                        <h3 class="font-semibold text-gray-800 mb-2">Detalles de la Imagen:</h3>
-                        <ul class="text-gray-700 mb-3">
+                    <div class="mt-4 p-4 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-800">
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Detalles de la Imagen:</h3>
+                        <ul class="text-gray-700 dark:text-gray-300 mb-3">
                             <li><strong>Título:</strong> {{ image.title }}</li>
                             <li><strong>Subida por:</strong> {{ image.uploaded_by.username }}</li>
                             <li><strong>Tipo:</strong> {{ image.get_image_type_display }}</li>
                         </ul>
                         {% if image_data_uri %}
                             <img src="{{ image_data_uri }}" alt="{{ image.title }}" 
-                                 class="max-w-full h-auto rounded border border-gray-300 shadow-sm">
+                                 class="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 shadow-sm">
                         {% elif image.image %}
-                            {% include 'content/_thumbnail.html' with image=image css_class="max-w-full h-auto rounded border border-gray-300 shadow-sm" sizes="(min-width: 768px) 720px, 100vw" loading="eager" %}
+                            {% include 'content/_thumbnail.html' with image=image css_class="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 shadow-sm" sizes="(min-width: 768px) 720px, 100vw" loading="eager" %}
                         {% endif %}
                     </div>
                 {% endif %}
             </div>
         {% else %}
-            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-6 rounded-lg shadow-lg mb-6">
+            <div class="bg-red-100 dark:bg-red-900/30 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-6 rounded-lg shadow-lg mb-6">
                 <div class="flex items-center mb-4">
                     <svg class="w-12 h-12 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -78,9 +78,9 @@
             {% endif %}
         </div>
         
-        <div class="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h3 class="font-semibold text-blue-900 mb-2">ℹ️ Información</h3>
-            <p class="text-blue-800 text-sm">
+        <div class="mt-8 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
+            <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-2">ℹ️ Información</h3>
+            <p class="text-blue-800 dark:text-blue-200 text-sm">
                 Esta acción se realizó mediante un enlace seguro de moderación enviado por email. 
                 {% if success and not already_moderated %}
                     El {{ item_type }} ha sido procesado correctamente y se han enviado las notificaciones correspondientes.
