@@ -75,6 +75,18 @@ def analyze_image_with_vision_task(image_id, notify_if_pending=True):
             )
             if not updated:
                 Image.objects.filter(pk=image.pk).update(**vision_fields)
+            elif image.match_id and image.organization_id:
+                # La imagen pasa a visible ahora: se avisa del contenido del partido.
+                # Un fallo de caché no debe alterar el resultado de la moderación.
+                try:
+                    from ilovevoley.content.services import queue_match_media_push
+                    queue_match_media_push(
+                        match_id=image.match_id,
+                        media_type='photo',
+                        organization_id=image.organization_id,
+                    )
+                except Exception as exc:
+                    logger.exception('No se pudo encolar el aviso de media del partido: %s', exc)
         else:
             Image.objects.filter(pk=image.pk).update(**vision_fields)
     except Exception as e:
@@ -206,13 +218,15 @@ def notify_match_media_push_task(organization_id, match_id):
 
     from ilovevoley.competitions.models import Match
     from ilovevoley.competitions.services.notifications import match_category_ids
+    from ilovevoley.content.services import match_media_push_cache_keys
     from ilovevoley.core.models import Organization
     from ilovevoley.users.tasks import notify_web_push_organization_task
 
-    debounce_seconds = getattr(settings, 'MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS', 60)
-    pending_key = f"match_media_push_pending:{organization_id}:{match_id}"
-    scheduled_key = f"match_media_push_scheduled:{organization_id}:{match_id}"
-    cooldown_key = f"match_media_push_cooldown:{organization_id}:{match_id}"
+    debounce_seconds = settings.MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS
+    keys = match_media_push_cache_keys(organization_id, match_id)
+    pending_key = keys['pending']
+    scheduled_key = keys['scheduled']
+    cooldown_key = keys['cooldown']
 
     pending = cache.get(pending_key)
     cache.delete(pending_key)

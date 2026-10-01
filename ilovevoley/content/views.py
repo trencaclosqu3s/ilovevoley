@@ -678,7 +678,10 @@ def image_upload(request):
                 auto_tags_msg = f" Se detectaron automáticamente las etiquetas: {', '.join(image.auto_tags[:3])}." if image.auto_tags else ""
                 messages.success(request, f'Imagen subida correctamente. Está pendiente de moderación.{auto_tags_msg}')
 
-            if image.match_id and request.tenant:
+            # Solo se avisa de contenido ya visible: `match_detail` únicamente muestra
+            # imágenes aprobadas. Una imagen pendiente se avisa al aprobarse (Vision o
+            # moderación), no en la subida.
+            if image.status == 'approved' and image.match_id and request.tenant:
                 queue_match_media_push(match_id=image.match_id, media_type='photo', organization_id=request.tenant.id)
 
             return redirect('content:image_gallery')
@@ -798,6 +801,7 @@ def image_bulk_upload(request):
         
         # Procesar cada imagen de forma optimizada
         success_count = 0
+        approved_count = 0
         errors = []
         pending_ids = []
         vision_ids = []
@@ -848,6 +852,8 @@ def image_bulk_upload(request):
                 image.save()
                 if image.status == 'pending':
                     pending_ids.append(image.id)
+                elif image.status == 'approved':
+                    approved_count += 1
                 if enqueue_vision:
                     vision_ids.append(image.id)
 
@@ -933,7 +939,9 @@ def image_bulk_upload(request):
                     notification_type='new_album',
                 )
 
-            if tenant and match_id:
+            # Solo se avisa si hay alguna imagen ya visible en el partido: las
+            # pendientes de moderación avisan al aprobarse (#286).
+            if tenant and match_id and approved_count:
                 try:
                     queue_match_media_push(match_id=int(match_id), media_type='photo', organization_id=tenant.id)
                 except (TypeError, ValueError):

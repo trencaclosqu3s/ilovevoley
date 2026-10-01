@@ -799,6 +799,10 @@ VAPID_PUBLIC_KEY = env_config('VAPID_PUBLIC_KEY', default='')
 VAPID_PRIVATE_KEY = env_config('VAPID_PRIVATE_KEY', default='')
 VAPID_CLAIMS_SUB = env_config('VAPID_CLAIMS_SUB', default='mailto:admin@ilovevoley.es')
 
+# Push agrupado de fotos/vídeos de un partido (#281): ventana de agrupación y
+# cooldown. Una ráfaga de subidas genera un único aviso.
+MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS = env_config('MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS', default=300, cast=int)
+
 # Sentry error tracking and performance monitoring
 from config.sentry import configure as _configure_sentry
 _configure_sentry(

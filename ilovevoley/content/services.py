@@ -1,7 +1,11 @@
 """Servicios de dominio para el módulo de contenido (vídeos e imágenes)."""
+import logging
+
 from django.core.exceptions import PermissionDenied
 
 from ilovevoley.core.tenant_utils import can_moderate_images
+
+logger = logging.getLogger(__name__)
 
 
 def moderate_image(actor, tenant, image, decision, notes='', validate_permission=True):
@@ -57,7 +61,34 @@ def moderate_image(actor, tenant, image, decision, notes='', validate_permission
 
     # Delegar en el método del modelo para actualizar campos y persistir
     image.moderate(moderator=actor, approved=approved, notes=notes)
+
+    # Avisar del contenido del partido solo cuando ya es visible: en la subida aún
+    # estaba pendiente y `match_detail` no lo mostraba (#286). Un fallo de caché no
+    # debe tumbar la moderación, que ya está persistida.
+    if approved and image.match_id and image.organization_id:
+        try:
+            queue_match_media_push(
+                match_id=image.match_id,
+                media_type='photo',
+                organization_id=image.organization_id,
+            )
+        except Exception as exc:
+            logger.exception("No se pudo encolar el aviso de media del partido: %s", exc)
+
     return image
+
+
+def match_media_push_cache_keys(organization_id: int, match_id: int) -> dict:
+    """Claves de caché del debounce de media de partido.
+
+    Compartidas entre el encolado (`queue_match_media_push`) y la tarea que
+    consolida el aviso: si divergen, la tarea lee una clave que nadie escribió.
+    """
+    return {
+        'pending': f"match_media_push_pending:{organization_id}:{match_id}",
+        'scheduled': f"match_media_push_scheduled:{organization_id}:{match_id}",
+        'cooldown': f"match_media_push_cooldown:{organization_id}:{match_id}",
+    }
 
 
 def queue_match_media_push(match_id: int, media_type: str, organization_id: int) -> bool:
@@ -71,10 +102,11 @@ def queue_match_media_push(match_id: int, media_type: str, organization_id: int)
     from django.core.cache import cache
     from django.db import transaction
 
-    debounce_seconds = getattr(settings, 'MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS', 60)
-    pending_key = f"match_media_push_pending:{organization_id}:{match_id}"
-    scheduled_key = f"match_media_push_scheduled:{organization_id}:{match_id}"
-    cooldown_key = f"match_media_push_cooldown:{organization_id}:{match_id}"
+    debounce_seconds = settings.MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS
+    keys = match_media_push_cache_keys(organization_id, match_id)
+    pending_key = keys['pending']
+    scheduled_key = keys['scheduled']
+    cooldown_key = keys['cooldown']
 
     # Si estamos en cooldown activo tras un envío reciente, no encolar nuevo aviso
     if cache.get(cooldown_key):

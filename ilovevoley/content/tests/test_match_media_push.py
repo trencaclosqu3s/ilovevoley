@@ -3,6 +3,7 @@ from unittest.mock import patch
 from PIL import Image as PILImage
 
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
@@ -10,8 +11,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match
+from ilovevoley.content.models import Image
+from ilovevoley.content.services import moderate_image
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.teams.models import Club, Team
+from ilovevoley.users.models import Membership
 
 User = get_user_model()
 
@@ -67,7 +71,7 @@ class MatchMediaPushTest(TestCase):
         # Solo una tarea Celery programada con countdown
         mock_apply_async.assert_called_once()
         _, kwargs = mock_apply_async.call_args
-        self.assertEqual(kwargs.get('countdown'), 60)
+        self.assertEqual(kwargs.get('countdown'), settings.MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS)
 
         # Los medios pendientes en caché acumulan tanto fotos como vídeos
         pending = cache.get(f"match_media_push_pending:{self.org.id}:{self.match.id}")
@@ -272,4 +276,51 @@ class MatchMediaPushTest(TestCase):
         self.assertEqual(kwargs['organization_id'], self.org.id)
         self.assertEqual(kwargs['notification_type'], 'match_media')
         self.assertIn('Fotos', kwargs['title'])
+
+
+class ModerationApprovalTriggersMediaPushTest(TestCase):
+    """El aviso de fotos de partido se encola al aprobar la imagen, no al subirla (#286)."""
+
+    def setUp(self):
+        cache.clear()
+        self.club = Club.objects.create(official_name='Sant Just', federation_id='SJ02')
+        self.org = Organization.objects.create(name='CV Sant Just', slug='santjust2', club=self.club)
+        self.season = Season.objects.create(name='2024-25', start_year=2024, is_current=True)
+        self.manager = User.objects.create_user(username='manager', password='pwd')
+        Membership.objects.create(
+            user=self.manager, organization=self.org, role='manager', is_approved=True
+        )
+        self.league = League.objects.create(name='1a Balear', season=self.season)
+        self.home = Team.objects.create(name='Senior A', club=self.club, federation_id='T11')
+        self.away = Team.objects.create(name='Rival B', federation_id='T12')
+        self.match = Match.objects.create(
+            league=self.league, home_team=self.home, away_team=self.away, match_date=timezone.now()
+        )
+        self.image = Image.objects.create(
+            image=_create_test_image_file(),
+            title='Foto pendiente',
+            uploaded_by=self.manager,
+            organization=self.org,
+            match=self.match,
+            status='pending',
+        )
+
+    def tearDown(self):
+        cache.clear()
+
+    @patch('ilovevoley.content.services.queue_match_media_push')
+    def test_approving_image_queues_match_media_push(self, mock_queue):
+        moderate_image(actor=self.manager, tenant=self.org, image=self.image, decision='approve')
+
+        mock_queue.assert_called_once_with(
+            match_id=self.match.id,
+            media_type='photo',
+            organization_id=self.org.id,
+        )
+
+    @patch('ilovevoley.content.services.queue_match_media_push')
+    def test_rejecting_image_does_not_queue_match_media_push(self, mock_queue):
+        moderate_image(actor=self.manager, tenant=self.org, image=self.image, decision='reject')
+
+        mock_queue.assert_not_called()
 
