@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.core.management import call_command
 from ilovevoley.core.models import Season
 from ilovevoley.competitions.models import FederationCallUp
+from ilovevoley.competitions.tasks import scrape_balearic_tracking_task
 
 
 @pytest.mark.django_db
@@ -47,3 +48,18 @@ def test_scrape_balearic_tracking_defaults_to_follow_up(mock_extract, mock_downl
 
     callup = FederationCallUp.objects.get(source_url='sin-clave.pdf')
     assert callup.callup_type == 'follow_up'
+
+
+@pytest.mark.django_db
+@patch('ilovevoley.competitions.services.callup_ingestion.run_callups_scrape')
+def test_scrape_balearic_tracking_task_uses_tipo_22(mock_run):
+    """La tarea Celery construye sus propios kwargs; fija que el tipo sea 22 para no
+    ingerir por error circulares de selección (tipo 7)."""
+    season = Season.objects.create(name='2026-27', start_year=2026, end_year=2027, is_current=True)
+
+    scrape_balearic_tracking_task(season_id=season.id, no_notify=True)
+
+    kwargs = mock_run.call_args.kwargs
+    assert kwargs['tipo'] == 22
+    assert kwargs['season'] == season
+    assert kwargs['no_notify'] is True
