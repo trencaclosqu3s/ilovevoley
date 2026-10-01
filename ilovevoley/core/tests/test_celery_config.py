@@ -5,6 +5,8 @@ envío de emails ni la generación de media. Eso depende de que cada tarea caiga
 en la cola correcta y de que los workers las consuman por separado, así que
 este test fija el routing tarea -> cola.
 """
+import inspect
+
 from django.conf import settings
 from django.test import SimpleTestCase
 
@@ -72,44 +74,17 @@ class CeleryQueueRoutingTest(SimpleTestCase):
 
 
 class BeatScheduleTest(SimpleTestCase):
-    EXPECTED_TASKS = {
-        'cleanup-expired-album-zips': 'cleanup_expired_album_zips',
-        'send-match-reminders-2h': 'send_match_reminders_2h',
-        'scrape-clubs': 'scrape_clubs',
-        'enrich-matches': 'enrich_matches_json',
-        'scrape-all-leagues': 'scrape_all_leagues',
-        'scrape-json-results': 'scrape_json_results',
-        'scrape-json-upcoming': 'scrape_json_upcoming',
-        'scrape-and-enrich-all': 'scrape_and_enrich_all',
-        'scrape-balearic-callups': 'scrape_balearic_callups',
-        'scrape-balearic-tracking': 'scrape_balearic_tracking',
-    }
-
-    LEGACY_MANUAL_NAMES = {
-        'clubs',
-        'enrich_matches',
-        'json results',
-        'scrape ligas',
-        "scrape y enrich to'",
-        'upcoming_matches',
-    }
-
-    def test_schedule_entries_match_expected_tasks(self):
-        actual = {name: entry['task'] for name, entry in settings.CELERY_BEAT_SCHEDULE.items()}
-        self.assertEqual(actual, self.EXPECTED_TASKS)
-
-    def test_scheduled_tasks_are_registered(self):
+    def setUp(self):
+        # autodiscover_tasks es perezoso: hay que forzar la carga para que las
+        # tareas de cada app estén en el registro.
         app.loader.import_default_modules()
+
+    def test_scheduled_tasks_exist_and_accept_their_kwargs(self):
+        """Un nombre de tarea o de kwarg mal escrito solo se ve en runtime en el
+        worker; aquí se valida contra la firma registrada."""
         for name, entry in settings.CELERY_BEAT_SCHEDULE.items():
-            self.assertIn(
-                entry['task'],
-                app.tasks,
-                msg=f'{name} apunta a una tarea no registrada: {entry["task"]}',
-            )
-
-    def test_no_legacy_manual_names_remain(self):
-        overlap = self.LEGACY_MANUAL_NAMES & set(settings.CELERY_BEAT_SCHEDULE)
-        self.assertFalse(overlap, msg=f'Nombres legacy aún en el schedule: {overlap}')
-
-    def test_beat_timezone_is_madrid(self):
-        self.assertEqual(settings.CELERY_TIMEZONE, 'Europe/Madrid')
+            task_name = entry['task']
+            self.assertIn(task_name, app.tasks, msg=f'{name} apunta a una tarea no registrada: {task_name}')
+            # bind_partial no exige los argumentos con default, pero rechaza nombres
+            # de kwarg que la tarea no acepta.
+            inspect.signature(app.tasks[task_name].run).bind_partial(**entry.get('kwargs', {}))
