@@ -1,3 +1,4 @@
+from .callups import CallUpPlayer, FederationCallUp
 from .competitions import (
     League,
     LeagueManager,
@@ -15,6 +16,8 @@ from .competitions import (
 )
 
 __all__ = [
+    'CallUpPlayer',
+    'FederationCallUp',
     'League',
     'LeagueManager',
     'Match',
@@ -29,3 +32,4 @@ __all__ = [
     'Standing',
     'Venue',
 ]
+
