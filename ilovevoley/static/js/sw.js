@@ -88,3 +88,68 @@ self.addEventListener('fetch', (event) => {
         );
     }
 });
+
+// --- Push Notifications & App Badging API ---
+
+self.addEventListener('push', (event) => {
+    let data = {};
+    if (event.data) {
+        try {
+            data = event.data.json();
+        } catch (e) {
+            data = { title: 'I Love Voley', body: event.data.text() };
+        }
+    }
+
+    const title = data.title || 'I Love Voley';
+    const options = {
+        body: data.body || '',
+        icon: data.icon || '/static/images/icons/icon-192.png',
+        badge: data.badge || '/static/images/icons/icon-192.png',
+        data: {
+            url: data.url || '/',
+            badge_count: data.badge_count,
+        },
+        tag: data.tag || undefined,
+        renotify: Boolean(data.renotify),
+    };
+
+    const promises = [
+        self.registration.showNotification(title, options)
+    ];
+
+    if ('setAppBadge' in navigator && typeof data.badge_count === 'number') {
+        promises.push(
+            (data.badge_count > 0 ? navigator.setAppBadge(data.badge_count) : navigator.clearAppBadge())
+                .catch(() => {})
+        );
+    }
+
+    event.waitUntil(Promise.all(promises));
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+
+    if ('clearAppBadge' in navigator) {
+        navigator.clearAppBadge().catch(() => {});
+    }
+
+    // Solo URLs del propio origen; cualquier otra cae en la portada
+    const requested = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin);
+    const fullTargetUrl = requested.origin === self.location.origin ? requested.href : self.location.origin + '/';
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            // Reutiliza una ventana abierta de la app en vez de abrir otra
+            const client = clientList.find((c) => 'focus' in c);
+            if (client) {
+                return client.focus().then((focused) => (focused && 'navigate' in focused ? focused.navigate(fullTargetUrl) : null));
+            }
+            if (clients.openWindow) {
+                return clients.openWindow(fullTargetUrl);
+            }
+        })
+    );
+});
+

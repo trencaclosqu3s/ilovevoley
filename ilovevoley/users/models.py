@@ -168,3 +168,53 @@ class CategoryPreference(models.Model):
 
     def __str__(self):
         return f'{self.user} @ {self.organization}'
+
+
+class WebPushSubscription(models.Model):
+    """Suscripción de dispositivo a notificaciones Web Push vinculada a usuario y club."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='web_push_subscriptions',
+        verbose_name='Usuario',
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='web_push_subscriptions',
+        verbose_name='Organización / Club',
+    )
+    endpoint = models.TextField(
+        unique=True,
+        verbose_name='Push Service Endpoint',
+        help_text='URL de entrega proporcionada por el servicio Push del navegador (FCM, Apple APNs, etc.)',
+    )
+    p256dh = models.CharField(
+        max_length=255,
+        verbose_name='Clave Pública P-256 (Dispositivo)',
+    )
+    auth = models.CharField(
+        max_length=255,
+        verbose_name='Token de Autenticación Criptográfica',
+    )
+    user_agent = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='User Agent',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Suscripción Web Push'
+        verbose_name_plural = 'Suscripciones Web Push'
+        indexes = [
+            models.Index(fields=['organization', 'user']),
+        ]
+
+    def __str__(self):
+        owner = self.user.username if self.user else 'Anónimo'
+        return f'{owner} @ {self.organization.name} ({self.endpoint[:30]}...)'

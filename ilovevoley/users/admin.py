@@ -8,7 +8,7 @@ from django.utils.html import format_html, mark_safe
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
-from .models import CategoryPreference, Membership, User
+from .models import CategoryPreference, Membership, User, WebPushSubscription
 
 
 class MembershipInline(TabularInline):
@@ -314,3 +314,15 @@ class MembershipAdmin(ModelAdmin):
         count = queryset.update(is_approved=True)
         User.objects.filter(id__in=user_ids, is_approved=False).update(is_approved=True, is_active=True)
         self.message_user(request, f'{count} membresía(s) aprobada(s).')
+
+
+@admin.register(WebPushSubscription)
+class WebPushSubscriptionAdmin(ModelAdmin):
+    list_display = ('user', 'organization', 'endpoint_truncated', 'created_at', 'updated_at')
+    list_filter = ('organization', 'created_at')
+    search_fields = ('user__username', 'user__email', 'endpoint', 'user_agent')
+    readonly_fields = ('created_at', 'updated_at')
+
+    def endpoint_truncated(self, obj):
+        return (obj.endpoint[:60] + '...') if len(obj.endpoint) > 60 else obj.endpoint
+    endpoint_truncated.short_description = 'Endpoint'

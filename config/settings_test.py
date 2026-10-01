@@ -16,3 +16,8 @@ CELERY_TASK_EAGER_PROPAGATES = True
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.MD5PasswordHasher',
 ]
+
+# Claves VAPID para testing hermético
+VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckj0bMWq0Ww6a_82nWCQL67eSQVRWc'
+VAPID_PRIVATE_KEY = 'test_vapid_private_key_pem_or_raw'
+VAPID_CLAIMS_SUB = 'mailto:test@ilovevoley.es'

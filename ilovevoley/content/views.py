@@ -753,6 +753,9 @@ def image_bulk_upload(request):
                 pass
         
         # Verificar si se está agregando a álbum existente
+        album_group_id = None
+        album_name = ''
+        create_album = False
         existing_album_id = request.POST.get('existing_album_id')
         if existing_album_id and not match_id:
             try:
@@ -904,6 +907,23 @@ def image_bulk_upload(request):
                 messages.warning(request, f'... y {len(errors) - 5} error(es) más.')
 
         if success_count > 0:
+            # Despachar notificación push asíncrona al club si se creó un nuevo álbum
+            tenant = getattr(request, 'tenant', None)
+            if tenant and create_album and not match_id:
+                from ilovevoley.users.tasks import notify_web_push_organization_task
+                album_url = (
+                    reverse('content:album_group_images', args=[album_group_id])
+                    if album_group_id
+                    else reverse('content:image_gallery')
+                )
+                notify_web_push_organization_task.delay(
+                    organization_id=tenant.id,
+                    title='Nuevo Álbum',
+                    body=f'Se han subido nuevas fotos: {album_name}' if album_name else 'Se han subido nuevas fotos',
+                    url=album_url,
+                    category_ids=[int(c) for c in request.POST.getlist('categories') if c.isdigit()],
+                )
+
             # Redirigir al álbum si se agregaron fotos a uno existente
             existing_album_id = request.POST.get('existing_album_id')
             if existing_album_id:
