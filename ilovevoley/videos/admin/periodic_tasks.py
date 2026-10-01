@@ -14,7 +14,7 @@ except admin.sites.NotRegistered:
 
 
 class PeriodicTaskForm(BasePeriodicTaskForm):
-    """Aclara los dos campos de tarea, que son excluyentes.
+    """Aclara los campos de tarea y de argumentos.
 
     ``regtask`` es el desplegable de tareas registradas; ``task`` permite escribir
     un nombre a mano. El ``clean()`` del form base hace que ``regtask`` prevalezca.
@@ -27,6 +27,11 @@ class PeriodicTaskForm(BasePeriodicTaskForm):
         )
         self.fields['task'].help_text = _(
             'Alternativa manual: nombre exacto de la tarea, solo si no está en el desplegable.'
+        )
+        self.fields['args'].help_text = _('Argumentos posicionales en JSON válido (lista).')
+        self.fields['kwargs'].help_text = _(
+            'Argumentos con nombre en JSON válido, por ejemplo {"delay": 2.0}. '
+            'Deben coincidir con la firma de la tarea.'
         )
 
 
@@ -53,22 +58,3 @@ class CustomPeriodicTaskAdmin(BasePeriodicTaskAdmin, ModelAdmin):
         'one_off',
         'total_run_count',
     )
-
-    def get_fieldsets(self, request, obj=None):
-        fieldsets = super().get_fieldsets(request, obj)
-        custom_fieldsets = []
-        for name, opts in fieldsets:
-            new_opts = opts.copy()
-            fields = new_opts.get('fields', ())
-            if 'regtask' in fields or 'task' in fields:
-                new_opts['description'] = _(
-                    'Elige la tarea en «Task (registered)». Si no aparece, escribe su '
-                    'nombre exacto en «Task (custom)». Solo uno de los dos.'
-                )
-            if 'args' in fields or 'kwargs' in fields:
-                new_opts['description'] = _(
-                    'Argumentos en JSON válido, por ejemplo {"delay": 2.0}. Deben '
-                    'coincidir con la firma de la tarea.'
-                )
-            custom_fieldsets.append((name, new_opts))
-        return custom_fieldsets
