@@ -134,7 +134,6 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                 'LLINATGES' in norm_line or 'APELLIDOS' in norm_line
             ):
                 in_supervision_list = False
-                in_table = True
                 pos_club = norm_line.find('CLUB')
                 if pos_club == -1:
                     pos_club = norm_line.find('EQUIP')
@@ -156,9 +155,9 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                 if pos_year == -1:
                     pos_year = norm_line.find('DATA')
 
-                # Solo guardar la cabecera si los tres campos obligatorios son válidos;
-                # usar len(line) para year si no aparece en la cabecera, evitando slices con -1
+                # in_table solo se activa si la cabecera tiene los tres campos mínimos
                 if pos_club != -1 and pos_last != -1 and pos_first != -1:
+                    in_table = True
                     header_positions = {
                         'club': pos_club,
                         'last_name': pos_last,
@@ -166,7 +165,6 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                         'birth_year': pos_year if pos_year != -1 else len(line),
                     }
                 continue
-
 
             # Detección de formato alternativo (ej. convocatorias de supervisión CTEIB con listado Nombre   Club)
             if not in_table and any(ph in norm_line for ph in ['ESPORTISTES SELECCIONATS', 'ESPORTISTES SELECCIONADES', 'JUGADORS SELECCIONATS', 'JUGADORES SELECCIONADES']):

@@ -182,6 +182,18 @@ def test_extract_callup_players_supervision_format():
     assert players[2]['club'] == 'CV Manacor'
 
 
+def test_extract_callup_players_ignores_lines_without_name_column_header():
+    """Una línea con CLUB + LLINATGES pero sin columna NOM no debe activar el modo tabla
+    (evita parsear pies de página o notas como jugadores)."""
+    pdf_bytes = create_dummy_pdf([
+        "CONVOCATÒRIA SELECCIÓ",
+        "Cada club ha d'enviar els llinatges dels jugadors convocats",
+        "Palma de Mallorca  a 12 de febrer  Federació  Signatura",
+    ])
+    raw_text, players = extract_callup_players_from_pdf(pdf_bytes)
+    assert players == []
+
+
 def test_extract_callup_players_supervision_subirats_not_discarded():
     """Un apellido que contiene 'Sub' (Subirats) no debe confundirse con subtítulo de categoría."""
     pdf_bytes = create_dummy_pdf([
