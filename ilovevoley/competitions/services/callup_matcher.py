@@ -74,7 +74,166 @@ def _club_matches(raw_club: str, org: Organization) -> bool:
     return False
 
 
-def match_callup_player(player_data: dict[str, Any], season: Season) -> dict[str, Any]:
+def _club_has_gender(org: Organization, gender: str) -> bool:
+    """Comprueba si el club de la organización tiene equipos del género de la convocatoria."""
+    if not gender or gender not in ['M', 'F']:
+        return True
+
+    from ilovevoley.teams.models import Team
+    teams = Team.objects.filter(club=org.club) if hasattr(org, 'club') and org.club else Team.objects.none()
+    if not teams.exists():
+        teams = Team.objects.filter(player_roles__person__organization=org)
+
+    if not teams.exists():
+        return False
+
+    female_kws = ['FEM', 'FEMENI', 'FEMENINA', 'FEMENINO']
+    male_kws = ['MASC', 'MASCULI', 'MASCULINA', 'MASCULINO']
+
+    has_female = False
+    has_male = False
+    for t in teams.distinct():
+        t_str = f"{t.name} {t.category.name if t.category else ''}".upper()
+        if any(kw in t_str for kw in female_kws):
+            has_female = True
+        if any(kw in t_str for kw in male_kws):
+            has_male = True
+
+    if gender == 'F':
+        return has_female or (not has_male)
+    elif gender == 'M':
+        return has_male or (not has_female)
+    return True
+
+
+# Variantes catalán / castellano y apodos comunes en Baleares / España
+NAME_VARIANTS: dict[str, set[str]] = {
+    'JOAN': {'JUAN'},
+    'JUAN': {'JOAN'},
+    'JOSEP': {'JOSE', 'PEP', 'PEPE'},
+    'JOSE': {'JOSEP', 'PEP', 'PEPE'},
+    'PEP': {'JOSEP', 'JOSE', 'PEPE'},
+    'PEPE': {'JOSEP', 'JOSE', 'PEP'},
+    'FRANCISCO': {'XISCO', 'FRANCESC', 'CISCO', 'PACO', 'CURRO'},
+    'XISCO': {'FRANCISCO', 'FRANCESC', 'CISCO', 'PACO'},
+    'FRANCESC': {'FRANCISCO', 'XISCO'},
+    'JAVIER': {'JAVI'},
+    'JAVI': {'JAVIER'},
+    'ANTONIO': {'TONI', 'ANTONI'},
+    'ANTONI': {'TONI', 'ANTONIO'},
+    'TONI': {'ANTONIO', 'ANTONI'},
+    'DANIEL': {'DANI'},
+    'DANI': {'DANIEL'},
+    'ALEJANDRO': {'ALEX', 'ALEIX'},
+    'ALEX': {'ALEJANDRO', 'ALEIX'},
+    'ALEIX': {'ALEJANDRO', 'ALEX'},
+    'GABRIEL': {'BIEL'},
+    'BIEL': {'GABRIEL'},
+    'JAIME': {'JAUME'},
+    'JAUME': {'JAIME'},
+    'MIGUEL': {'MIQUEL'},
+    'MIQUEL': {'MIGUEL'},
+    'SEBASTIAN': {'SEBASTIA', 'SEBAS'},
+    'SEBASTIA': {'SEBASTIAN', 'SEBAS'},
+    'SEBAS': {'SEBASTIAN', 'SEBASTIA'},
+    'BERNARDO': {'BERNAT'},
+    'BERNAT': {'BERNARDO'},
+    'GUILLERMO': {'GUILLEM', 'GUILLE'},
+    'GUILLEM': {'GUILLERMO', 'GUILLE'},
+    'PABLO': {'PAU'},
+    'PAU': {'PABLO'},
+    'LUIS': {'LLUIS'},
+    'LLUIS': {'LUIS'},
+    'IGNACIO': {'NACHO', 'IGNASI'},
+    'IGNASI': {'IGNACIO', 'NACHO'},
+    'NACHO': {'IGNACIO', 'IGNASI'},
+    'RAFAEL': {'RAFA'},
+    'RAFA': {'RAFAEL'},
+    'CARLOS': {'CARLES'},
+    'CARLES': {'CARLOS'},
+    'VICENTE': {'VICENC', 'VICENT'},
+    'VICENC': {'VICENTE', 'VICENT'},
+    'VICENT': {'VICENTE', 'VICENC'},
+    'ANDRES': {'ANDREU'},
+    'ANDREU': {'ANDRES'},
+    'JORGE': {'JORDI'},
+    'JORDI': {'JORGE'},
+    'ESTEBAN': {'ESTEVE'},
+    'ESTEVE': {'ESTEBAN'},
+    'MATEO': {'MATEU'},
+    'MATEU': {'MATEO'},
+    'BARTOLOME': {'BARTOMEU', 'TOMEU'},
+    'BARTOMEU': {'BARTOLOME', 'TOMEU'},
+    'TOMEU': {'BARTOLOME', 'BARTOMEU'},
+    'ENRIQUE': {'QUIQUE'},
+    'QUIQUE': {'ENRIQUE'},
+    'MANUEL': {'MANOLO', 'MANU'},
+    'MANOLO': {'MANUEL'},
+    'MANU': {'MANUEL'},
+    'ALBERTO': {'BERTO'},
+}
+
+
+def _first_names_match(raw_first: str, p_first: str) -> float:
+    raw_tokens = _tokenize(raw_first)
+    p_tokens = _tokenize(p_first)
+    if not raw_tokens or not p_tokens:
+        return 0.0
+
+    r0, p0 = raw_tokens[0], p_tokens[0]
+    # Coincidencia exacta del primer token
+    if r0 == p0:
+        return 1.0
+
+    # Coincidencia por variante catalán/castellano o apodo
+    if p0 in NAME_VARIANTS.get(r0, set()) or r0 in NAME_VARIANTS.get(p0, set()):
+        return 1.0
+
+    # Subconjunto de tokens de nombre (ej. Juan Carlos vs Juan)
+    if set(raw_tokens).issubset(set(p_tokens)) or set(p_tokens).issubset(set(raw_tokens)):
+        return 1.0
+
+    # Errata tipográfica menor en el nombre (ratio >= 0.85 para 4+ letras)
+    if len(r0) >= 4 and len(p0) >= 4:
+        ratio = SequenceMatcher(None, r0, p0).ratio()
+        if ratio >= 0.85:
+            return 0.85
+
+    return 0.0
+
+
+def _last_names_match(raw_last: str, p_last: str) -> float:
+    raw_tokens = _tokenize(raw_last)
+    p_tokens = _tokenize(p_last)
+    if not raw_tokens or not p_tokens:
+        return 0.0
+
+    # Coincidencia exacta de todos los apellidos
+    if raw_tokens == p_tokens:
+        return 1.0
+
+    # Primer apellido coincide exactamente (ej: 'ROCA' en 'ROCA PUJOL', o al revés)
+    if raw_tokens[0] == p_tokens[0]:
+        return 0.95
+
+    # Subconjunto de apellidos (el apellido de la BD está en los del PDF o viceversa)
+    if set(p_tokens).issubset(set(raw_tokens)) or set(raw_tokens).issubset(set(p_tokens)):
+        return 0.95
+
+    # Errata tipográfica en el primer apellido (ratio >= 0.85 y 4+ letras)
+    if len(raw_tokens[0]) >= 4 and len(p_tokens[0]) >= 4:
+        ratio = SequenceMatcher(None, raw_tokens[0], p_tokens[0]).ratio()
+        if ratio >= 0.85:
+            return 0.85
+
+    return 0.0
+
+
+def match_callup_player(
+    player_data: dict[str, Any],
+    season: Season,
+    callup: Any | None = None,
+) -> dict[str, Any]:
     """
     Cruza los datos de un jugador extraído del PDF con las plantillas del club.
     Retorna:
@@ -92,47 +251,32 @@ def match_callup_player(player_data: dict[str, Any], season: Season) -> dict[str
     all_orgs = list(Organization.objects.select_related('club').all())
     matched_orgs = [org for org in all_orgs if _club_matches(raw_club, org)]
 
-    raw_first_tokens = _tokenize(raw_first)
-    raw_last_tokens = _tokenize(raw_last)
-
     def evaluate_person(person: Person) -> tuple[float, bool, str]:
-        p_first_tokens = _tokenize(person.first_name)
-        p_last_tokens = _tokenize(person.last_name)
+        # Si la convocatoria tiene género 'M' o 'F', comprobar que no haya conflicto con los equipos del jugador
+        if callup and getattr(callup, 'gender', None) in ['M', 'F']:
+            c_gender = callup.gender
+            player_teams = [r.team for r in person.player_roles.filter(season=season)]
+            has_gender_conflict = False
+            for t in player_teams:
+                t_str = f"{t.name} {t.category.name if t.category else ''}".upper()
+                if c_gender == 'M' and any(w in t_str for w in ['FEM', 'FEMENI', 'FEMENINA', 'FEMENINO']):
+                    has_gender_conflict = True
+                elif c_gender == 'F' and any(w in t_str for w in ['MASC', 'MASCULI', 'MASCULINA', 'MASCULINO']):
+                    has_gender_conflict = True
+            if has_gender_conflict:
+                return 0.0, False, f'Conflicto de género: convocatoria {c_gender} vs equipo del jugador'
 
-        # 1. Puntuación de nombre de pila
-        if not raw_first_tokens or not p_first_tokens:
-            first_score = 0.0
-        elif raw_first_tokens[0] == p_first_tokens[0]:
-            first_score = 1.0
-        elif set(raw_first_tokens).issubset(set(p_first_tokens)) or set(p_first_tokens).issubset(set(raw_first_tokens)):
-            first_score = 1.0
-        else:
-            first_score = SequenceMatcher(
-                None,
-                _clean_text(raw_first),
-                _clean_text(person.first_name)
-            ).ratio()
+        first_score = _first_names_match(raw_first, person.first_name)
+        last_score = _last_names_match(raw_last, person.last_name)
 
-        # 2. Puntuación de apellidos
-        if not raw_last_tokens or not p_last_tokens:
-            last_score = 0.0
-        elif raw_last_tokens == p_last_tokens:
-            last_score = 1.0
-        elif len(raw_last_tokens) == 1 and raw_last_tokens[0] == p_last_tokens[0]:
-            # Solo aportó el primer apellido y coincide exactamente
-            last_score = 0.95
-        elif set(raw_last_tokens).issubset(set(p_last_tokens)):
-            last_score = 0.95
-        else:
-            last_score = SequenceMatcher(
-                None,
-                _clean_text(raw_last),
-                _clean_text(person.last_name)
-            ).ratio()
+        # REGLA ESTRICTA: Si no coincide el nombre O no coincide ningún apellido, score = 0.0
+        # Evita por completo que SequenceMatcher otorgue 0.30 por vocales sueltas
+        if first_score == 0.0 or last_score == 0.0:
+            return 0.0, False, 'Sin coincidencia suficiente en nombre o apellidos'
 
         base_score = (first_score * 0.40) + (last_score * 0.60)
 
-        # 3. Validación de año de nacimiento
+        # Validación de año de nacimiento
         year_match = False
         notes = []
         if raw_year and person.birth_date:
@@ -140,23 +284,24 @@ def match_callup_player(player_data: dict[str, Any], season: Season) -> dict[str
                 year_match = True
                 notes.append(f'Año {raw_year} confirmado')
             elif abs(raw_year - person.birth_date.year) > 1:
-                base_score = max(0.0, base_score - 0.30)
+                base_score = max(0.0, base_score - 0.25)
                 notes.append(f'Descuadre año: PDF {raw_year} vs ficha {person.birth_date.year}')
 
         note_str = '; '.join(notes)
         return base_score, year_match, note_str
 
-    best_match: dict[str, Any] = {
-        'match_status': 'unmatched',
-        'match_score': 0.0,
-        'organization': None,
-        'person': None,
-        'match_notes': '',
-    }
-
     # 1. Búsqueda en organizaciones donde el club coincide
+    valid_matched_orgs = []
+    c_gender = getattr(callup, 'gender', None) if callup else None
     for org in matched_orgs:
-        # Priorizar jugadores con rol activo en la temporada
+        if c_gender and not _club_has_gender(org, c_gender):
+            continue
+        valid_matched_orgs.append(org)
+
+    best_candidate_match = None
+    best_score = 0.0
+
+    for org in valid_matched_orgs:
         candidates = list(
             Person.objects.filter(
                 organization=org,
@@ -164,34 +309,57 @@ def match_callup_player(player_data: dict[str, Any], season: Season) -> dict[str
                 player_roles__is_active=True,
             ).distinct()
         )
-        # Si no hay con rol activo, mirar todas las personas de la organización
         if not candidates:
             candidates = list(Person.objects.filter(organization=org))
 
         for person in candidates:
             score, year_match, notes = evaluate_person(person)
-            if score > best_match['match_score']:
-                # Clasificación con club coincidente
-                if score >= 0.85:
-                    status = 'confirmed'
-                elif score >= 0.70 or (score >= 0.65 and year_match):
-                    status = 'confirmed' if year_match else 'suspected'
-                elif score >= 0.50:
-                    status = 'suspected'
-                else:
-                    status = 'unmatched'
-
-                best_match = {
-                    'match_status': status,
-                    'match_score': round(score, 3),
-                    'organization': org,
+            if score > best_score:
+                best_score = score
+                best_candidate_match = {
                     'person': person,
-                    'match_notes': f'Club coincide ({org.name}). {notes}'.strip(),
+                    'organization': org,
+                    'score': score,
+                    'year_match': year_match,
+                    'notes': notes,
                 }
 
-    # Si ya se confirmó o sospechó con club coincidente, retornar
-    if best_match['match_status'] in ['confirmed', 'suspected']:
-        return best_match
+    # Si encontramos un candidato con puntuación suficiente en las organizaciones coincidentes:
+    if best_candidate_match:
+        cand_score = best_candidate_match['score']
+        cand_person = best_candidate_match['person']
+        cand_org = best_candidate_match['organization']
+        cand_notes = best_candidate_match['notes']
+        cand_year_match = best_candidate_match['year_match']
+
+        if cand_score >= 0.85:
+            return {
+                'match_status': 'confirmed',
+                'match_score': round(cand_score, 3),
+                'organization': cand_org,
+                'person': cand_person,
+                'match_notes': f'Club coincide ({cand_org.name}). {cand_notes}'.strip(),
+            }
+        elif cand_score >= 0.70 or (cand_score >= 0.65 and cand_year_match):
+            return {
+                'match_status': 'confirmed' if (cand_year_match and cand_score >= 0.75) else 'suspected',
+                'match_score': round(cand_score, 3),
+                'organization': cand_org,
+                'person': cand_person,
+                'match_notes': f'Club coincide ({cand_org.name}). {cand_notes}'.strip(),
+            }
+
+    # Si el club coincide pero ningún jugador supera el umbral (0 matching o ficha inexistente en la app)
+    # Marcar como 'suspected' sin ficha asignada (person=None) para alertar a los managers del club
+    if valid_matched_orgs:
+        primary_org = valid_matched_orgs[0]
+        return {
+            'match_status': 'suspected',
+            'match_score': 0.0,
+            'organization': primary_org,
+            'person': None,
+            'match_notes': f'Club coincide ({primary_org.name}), pero el jugador no tiene ficha creada en la app.',
+        }
 
     # 2. Si no hay coincidencia con club, buscar en todas las organizaciones para detectar homónimos o cesiones
     for org in all_orgs:
@@ -207,8 +375,8 @@ def match_callup_player(player_data: dict[str, Any], season: Season) -> dict[str
         for person in candidates:
             score, year_match, notes = evaluate_person(person)
             # Solo sospechamos si la coincidencia es altísima y el año coincide
-            if score >= 0.95 and year_match and score > best_match['match_score']:
-                best_match = {
+            if score >= 0.95 and year_match:
+                return {
                     'match_status': 'suspected',
                     'match_score': round(score, 3),
                     'organization': org,
@@ -216,4 +384,10 @@ def match_callup_player(player_data: dict[str, Any], season: Season) -> dict[str
                     'match_notes': f'Coincidencia casi exacta con {org.name} pero club en PDF es "{raw_club}". Posible cesión o filial.',
                 }
 
-    return best_match
+    return {
+        'match_status': 'unmatched',
+        'match_score': 0.0,
+        'organization': None,
+        'person': None,
+        'match_notes': '',
+    }

@@ -79,3 +79,26 @@ def test_extract_callup_players_from_pdf():
     assert players[1]['last_name'] == 'MUÑOZ ALCOCEBA'
     assert players[1]['first_name'] == 'NORMA'
     assert players[1]['birth_year'] == 2010
+
+
+def test_extract_callup_players_chunking_with_composite_names_and_no_year():
+    pdf_bytes = create_dummy_pdf([
+        "CONVOCATÒRIA PREPARATÒRIA TREBALL",
+        "CLUB                         LLINATGES                          NOM                   ANY DE NAIXEMENT",
+        "1    CV SANT JOSEP           MARTÍNEZ FERRER                    PERE ANDREU           2008",
+        "2    CV SÓLLER               ALÈS                               MARC",
+        "14",
+    ])
+
+    raw_text, players = extract_callup_players_from_pdf(pdf_bytes)
+    assert len(players) == 2
+    assert players[0]['club'] == 'CV SANT JOSEP'
+    assert players[0]['last_name'] == 'MARTÍNEZ FERRER'
+    assert players[0]['first_name'] == 'PERE ANDREU'
+    assert players[0]['birth_year'] == 2008
+
+    assert players[1]['club'] == 'CV SÓLLER'
+    assert players[1]['last_name'] == 'ALÈS'
+    assert players[1]['first_name'] == 'MARC'
+    assert players[1]['birth_year'] is None
+

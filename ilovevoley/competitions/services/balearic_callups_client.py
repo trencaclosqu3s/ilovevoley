@@ -35,23 +35,37 @@ def fetch_balearic_circulares(
     season: Season,
     temp_override: str | None = None,
     session: requests.Session | None = None,
+    max_pages: int = 20,
 ) -> list[dict[str, Any]]:
     """
-    Consulta las circulares de tipo 7 (convocatorias) para la temporada dada en la API de FVBIB.
+    Consulta las circulares de tipo 7 (convocatorias) para la temporada dada en la API de FVBIB,
+    recorriendo todas las páginas disponibles (pag=0, 1, 2...) hasta agotarlas.
     """
     temp = temp_override or calculate_federation_temp(season)
-    url = f"{BASE_CIRCULARES_URL}?tipo=7&pag=0&temp={temp}"
-
     s = session or requests.Session()
-    resp = s.get(url, headers=DEFAULT_HEADERS, timeout=15)
-    resp.raise_for_status()
+    all_items: list[dict[str, Any]] = []
 
-    data = resp.json()
-    if isinstance(data, dict):
-        return data.get('items', [])
-    if isinstance(data, list):
-        return data
-    return []
+    for page in range(max_pages):
+        url = f"{BASE_CIRCULARES_URL}?tipo=7&pag={page}&temp={temp}"
+        resp = s.get(url, headers=DEFAULT_HEADERS, timeout=15)
+        resp.raise_for_status()
+
+        data = resp.json()
+        if isinstance(data, dict):
+            items = data.get('items', [])
+        elif isinstance(data, list):
+            items = data
+        else:
+            items = []
+
+        if not items:
+            break
+
+        all_items.extend(items)
+        if len(items) < 20:
+            break
+
+    return all_items
 
 
 def download_callup_pdf(

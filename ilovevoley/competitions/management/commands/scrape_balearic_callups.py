@@ -113,9 +113,12 @@ def run_balearic_callups_scrape(
         callup.pdf_file.save(filename, ContentFile(pdf_bytes), save=False)
         callup.save()
 
+        if existing_callup and force:
+            callup.players.all().delete()
+
         # Procesar y cruzar cada jugador
         for p in players_data:
-            match_res = match_callup_player(p, season)
+            match_res = match_callup_player(p, season, callup=callup)
             player_obj, _ = CallUpPlayer.objects.get_or_create(
                 callup=callup,
                 raw_first_name=p['first_name'],

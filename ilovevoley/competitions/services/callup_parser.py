@@ -123,6 +123,7 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
 
         # Buscar línea de cabecera tabular
         header_positions: dict[str, int] | None = None
+        in_table = False
 
         for line in lines:
             norm_line = _remove_accents(line).upper()
@@ -131,6 +132,7 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
             if ('CLUB' in norm_line or 'EQUIP' in norm_line) and (
                 'LLINATGES' in norm_line or 'APELLIDOS' in norm_line
             ):
+                in_table = True
                 pos_club = norm_line.find('CLUB')
                 if pos_club == -1:
                     pos_club = norm_line.find('EQUIP')
@@ -156,72 +158,78 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                         'first': pos_first,
                         'year': pos_year if pos_year != -1 else len(line),
                     }
-                    continue
+                continue
 
-            # Si ya tenemos cabecera, intentar parsear fila
-            if header_positions:
+            # Si ya tenemos cabecera / estamos dentro de la tabla
+            if in_table:
                 stripped = line.strip()
                 if not stripped:
                     continue
 
-                # Si entramos en otra sección técnica, reiniciar cabecera
+                # Si entramos en otra sección técnica, salir de la tabla
                 if any(sec in norm_line for sec in ['ENTRENADOR', 'TECNIC', 'HORARI', 'LLOC', 'OBSERVACI']):
+                    in_table = False
                     header_positions = None
                     continue
 
-                p_club = header_positions['club']
-                p_last = header_positions['last']
-                p_first = header_positions['first']
-                p_year = header_positions['year']
+                # Estrategia 1: división por espacios múltiples (>= 2 espacios entre columnas de tabla)
+                chunks = [c.strip() for c in re.split(r'\s{2,}', stripped) if c.strip()]
+                # Quitar número de orden inicial si existe (ej. "1", "2)", "14.")
+                if chunks and re.match(r'^\d+[\.\)]?$', chunks[0]):
+                    chunks = chunks[1:]
 
-                club_str = line[p_club:p_last].strip()
-                last_str = line[p_last:p_first].strip()
-                first_str = line[p_first:p_year].strip()
-                year_str = line[p_year:].strip()
+                parsed = False
+                if len(chunks) >= 3:
+                    m_year = re.search(r'^(19\d{2}|20\d{2})$', chunks[-1])
+                    if m_year:
+                        birth_year = int(m_year.group(1))
+                        rem = chunks[:-1]
+                    else:
+                        birth_year = None
+                        rem = chunks
 
-                # Quitar número de orden inicial si estuviera en club (ej. "1 CV SANT JOSEP")
-                club_clean = re.sub(r'^\d+[\.\)]?\s*', '', club_str).strip()
+                    if len(rem) >= 3:
+                        club_clean = re.sub(r'^\d+[\.\)]?\s*', '', rem[0]).strip()
+                        last_str = rem[1]
+                        first_str = ' '.join(rem[2:])
+                        if club_clean and last_str and first_str:
+                            players.append({
+                                'club': club_clean,
+                                'last_name': last_str,
+                                'first_name': first_str,
+                                'birth_year': birth_year,
+                            })
+                            parsed = True
 
-                # Extraer año si existe
-                m_year = re.search(r'\b(19\d{2}|20\d{2})\b', year_str or line)
-                birth_year = int(m_year.group(1)) if m_year else None
+                # Estrategia 2: Fallback por posiciones fijas según cabecera
+                if not parsed and header_positions:
+                    p_club = header_positions['club']
+                    p_last = header_positions['last']
+                    p_first = header_positions['first']
+                    p_year = header_positions['year']
 
-                # Si first_str tiene el año incrustado por desajuste de columnas
-                if not birth_year:
-                    m_year_in_first = re.search(r'\b(19\d{2}|20\d{2})\b', first_str)
-                    if m_year_in_first:
-                        birth_year = int(m_year_in_first.group(1))
-                        first_str = re.sub(r'\b(19\d{2}|20\d{2})\b', '', first_str).strip()
+                    club_str = line[p_club:p_last].strip()
+                    last_str = line[p_last:p_first].strip()
+                    first_str = line[p_first:p_year].strip()
+                    year_str = line[p_year:].strip()
 
-                if club_clean and last_str and first_str:
-                    players.append({
-                        'club': club_clean,
-                        'last_name': last_str,
-                        'first_name': first_str,
-                        'birth_year': birth_year,
-                    })
-                    continue
+                    club_clean = re.sub(r'^\d+[\.\)]?\s*', '', club_str).strip()
+                    m_year = re.search(r'\b(19\d{2}|20\d{2})\b', year_str or line)
+                    birth_year = int(m_year.group(1)) if m_year else None
 
-            # Fallback sin header_positions: intentar dividir por 2 o más espacios
-            chunks = [c.strip() for c in re.split(r'\s{2,}', line.strip()) if c.strip()]
-            # Quitar índice inicial si existe
-            if chunks and re.match(r'^\d+[\.\)]?$', chunks[0]):
-                chunks = chunks[1:]
+                    if not birth_year:
+                        m_year_in_first = re.search(r'\b(19\d{2}|20\d{2})\b', first_str)
+                        if m_year_in_first:
+                            birth_year = int(m_year_in_first.group(1))
+                            first_str = re.sub(r'\b(19\d{2}|20\d{2})\b', '', first_str).strip()
 
-            if len(chunks) >= 3:
-                # Caso: [club, apellidos, nombre, año]
-                m_year = re.search(r'\b(19\d{2}|20\d{2})\b', chunks[-1])
-                if m_year and len(chunks) >= 4:
-                    club_val = chunks[0]
-                    last_val = chunks[1]
-                    first_val = chunks[2]
-                    year_val = int(m_year.group(1))
-                    players.append({
-                        'club': club_val,
-                        'last_name': last_val,
-                        'first_name': first_val,
-                        'birth_year': year_val,
-                    })
+                    if club_clean and last_str and first_str:
+                        players.append({
+                            'club': club_clean,
+                            'last_name': last_str,
+                            'first_name': first_str,
+                            'birth_year': birth_year,
+                        })
 
     raw_text = '\n'.join(all_pages_text)
     return raw_text, players

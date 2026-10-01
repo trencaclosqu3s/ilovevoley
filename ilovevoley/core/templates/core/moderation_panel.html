@@ -196,16 +196,21 @@
                     <div class="text-xs text-gray-600 mt-1 italic">{{ player.match_notes }}</div>
                     {% endif %}
                 </div>
+                {% else %}
+                <div class="p-3 bg-amber-50 rounded-lg border border-amber-200 mb-4 text-sm">
+                    <div class="font-semibold text-amber-900 mb-1">Jugador del club sin ficha vinculada:</div>
+                    <div class="text-xs text-amber-800">{{ player.match_notes|default:"El club coincide con la circular pero no se encontró la ficha en la plantilla actual." }}</div>
+                </div>
                 {% endif %}
 
                 <div class="flex space-x-3">
                     <button
-                        onclick="confirmCallup({{ player.id }}, this)"
+                        data-call="confirmCallup" data-call-args='[{{ player.id }}]' data-call-this
                         class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm touch-manipulation">
                         ✅ Confirmar convocatoria
                     </button>
                     <button
-                        onclick="rejectCallup({{ player.id }}, this)"
+                        data-call="rejectCallup" data-call-args='[{{ player.id }}]' data-call-this
                         class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm touch-manipulation">
                         ❌ Descartar
                     </button>

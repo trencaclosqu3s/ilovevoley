@@ -29,6 +29,30 @@ def test_fetch_balearic_circulares(mock_get):
 
 @pytest.mark.django_db
 @patch('requests.Session.get')
+def test_fetch_balearic_circulares_pagination(mock_get):
+    season = Season.objects.create(name='2025-26', start_year=2025, end_year=2026, is_current=True)
+    # Página 0: 20 items (debe pedir página 1)
+    resp0 = MagicMock()
+    resp0.status_code = 200
+    resp0.json.return_value = {"items": [{"Nombre": f"Circ {i}", "URL": f"{i}.pdf"} for i in range(20)]}
+
+    # Página 1: 5 items (menos de 20, fin)
+    resp1 = MagicMock()
+    resp1.status_code = 200
+    resp1.json.return_value = {"items": [{"Nombre": f"Circ {i}", "URL": f"{i}.pdf"} for i in range(20, 25)]}
+
+    mock_get.side_effect = [resp0, resp1]
+
+    items = fetch_balearic_circulares(season)
+    assert len(items) == 25
+    assert mock_get.call_count == 2
+    assert 'pag=0' in mock_get.call_args_list[0][0][0]
+    assert 'pag=1' in mock_get.call_args_list[1][0][0]
+
+
+
+@pytest.mark.django_db
+@patch('requests.Session.get')
 def test_fetch_balearic_circulares_temp_override(mock_get):
     season = Season.objects.create(name='2025-26', start_year=2025, end_year=2026, is_current=True)
     mock_resp = MagicMock()

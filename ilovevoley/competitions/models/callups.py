@@ -79,7 +79,7 @@ class CallUpPlayer(models.Model):
         (STATUS_CONFIRMED, 'Confirmado'),
         (STATUS_SUSPECTED, 'Dudoso / Requiere Revisión'),
         (STATUS_REJECTED, 'Descartado'),
-        (STATUS_UNMATCHED, 'Sin Coincidencia (Otro Club)'),
+        (STATUS_UNMATCHED, 'Sin coincidencia'),
     ]
 
     callup = models.ForeignKey(
