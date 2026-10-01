@@ -115,6 +115,7 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
     # Mantener el estado de la tabla y posiciones de cabecera entre páginas del PDF
     header_positions: dict[str, int] | None = None
     in_table = False
+    in_supervision_list = False
 
     for page in reader.pages:
         try:
@@ -128,7 +129,39 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
         for line in lines:
             norm_line = _remove_accents(line).upper()
 
-            # Comprobar si es cabecera
+            # Detección de formato alternativo (ej. convocatorias de supervisión CTEIB con listado Nombre   Club)
+            if any(ph in norm_line for ph in ['ESPORTISTES SELECCIONATS', 'ESPORTISTES SELECCIONADES', 'JUGADORS SELECCIONATS', 'JUGADORES SELECCIONADES']):
+                in_supervision_list = True
+                continue
+
+            if in_supervision_list:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if any(sec in norm_line for sec in ['HORARI', 'A TENIR EN COMPTE', 'CONTACTE', 'DIJOUS', 'DIVENDRES', 'DISSABTE', 'DIUMENGE']):
+                    in_supervision_list = False
+                    continue
+                # Descartar subtítulo de categoría (ej: "INFANTIL MASCULÍ:" o "CADETE MASCULINO")
+                if any(cat in norm_line for cat in ['INFANTIL', 'CADET', 'JUVENIL', 'SUB']) and (':' in norm_line or len(stripped.split()) <= 3):
+                    continue
+
+                chunks = [c.strip() for c in re.split(r'\s{2,}', stripped) if c.strip()]
+                if len(chunks) == 2:
+                    full_name = chunks[0]
+                    club_clean = chunks[1]
+                    tokens = full_name.split()
+                    if len(tokens) >= 2:
+                        first_str = tokens[0]
+                        last_str = ' '.join(tokens[1:])
+                        players.append({
+                            'club': club_clean,
+                            'last_name': last_str,
+                            'first_name': first_str,
+                            'birth_year': None,
+                        })
+                continue
+
+            # Comprobar si es cabecera tabular estándar
             if ('CLUB' in norm_line or 'EQUIP' in norm_line) and (
                 'LLINATGES' in norm_line or 'APELLIDOS' in norm_line
             ):

@@ -155,3 +155,29 @@ def test_extract_callup_players_ignores_long_footers_without_year():
     raw_text, players = extract_callup_players_from_pdf(pdf_bytes)
     assert len(players) == 1
     assert players[0]['club'] == 'CV SANT JOSEP'
+
+
+def test_extract_callup_players_supervision_format():
+    pdf_bytes = create_dummy_pdf([
+        "SUPERVISIÓ CTEIB / SELECCIÓ BALEAR",
+        "En el següent llistat teniu els esportistes seleccionats:",
+        "INFANTIL MASCULÍ:",
+        "Marc Buades Sepúlveda         Sant Josep",
+        "Tymur Luilchenko              Sant Josep",
+        "Joan Servera                  CV Manacor",
+        "HORARIS:",
+        "Dissabte a les 10:00 h",
+    ])
+    raw_text, players = extract_callup_players_from_pdf(pdf_bytes)
+    assert len(players) == 3
+    assert players[0]['first_name'] == 'Marc'
+    assert players[0]['last_name'] == 'Buades Sepúlveda'
+    assert players[0]['club'] == 'Sant Josep'
+    assert players[0]['birth_year'] is None
+    assert players[1]['first_name'] == 'Tymur'
+    assert players[1]['last_name'] == 'Luilchenko'
+    assert players[1]['club'] == 'Sant Josep'
+    assert players[2]['first_name'] == 'Joan'
+    assert players[2]['last_name'] == 'Servera'
+    assert players[2]['club'] == 'CV Manacor'
+
