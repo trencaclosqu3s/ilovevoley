@@ -79,13 +79,11 @@ class BeatScheduleTest(SimpleTestCase):
         # tareas de cada app estén en el registro.
         app.loader.import_default_modules()
 
-    def test_schedule_is_not_empty(self):
-        self.assertTrue(settings.CELERY_BEAT_SCHEDULE)
-
     def test_scheduled_tasks_exist_and_accept_their_args(self):
         """Un nombre de tarea o de argumento mal escrito solo se ve en runtime en
         el worker; aquí se valida contra la firma registrada. ``bind`` exige
         además los argumentos obligatorios que la tarea no pueda suplir."""
+        self.assertTrue(settings.CELERY_BEAT_SCHEDULE, 'el schedule no puede quedar vacío')
         for name, entry in settings.CELERY_BEAT_SCHEDULE.items():
             task_name = entry['task']
             self.assertIn(task_name, app.tasks, msg=f'{name} apunta a una tarea no registrada: {task_name}')

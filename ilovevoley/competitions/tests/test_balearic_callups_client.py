@@ -24,6 +24,7 @@ def test_fetch_balearic_circulares(mock_get):
     items = fetch_balearic_circulares(season)
     assert len(items) == 1
     assert items[0]['URL'] == '1785324870_3735.pdf'
+    assert 'tipo=7' in mock_get.call_args[0][0]
     assert 'temp=2526' in mock_get.call_args[0][0]
 
 
@@ -62,20 +63,6 @@ def test_fetch_balearic_circulares_temp_override(mock_get):
 
     fetch_balearic_circulares(season, temp_override='2425')
     assert 'temp=2425' in mock_get.call_args[0][0]
-
-
-@pytest.mark.django_db
-@patch('requests.Session.get')
-def test_fetch_balearic_circulares_tipo_parametrizado(mock_get):
-    season = Season.objects.create(name='2026-27', start_year=2026, end_year=2027, is_current=True)
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {"items": []}
-    mock_get.return_value = mock_resp
-
-    fetch_balearic_circulares(season, tipo=22)
-    assert 'tipo=22' in mock_get.call_args[0][0]
-    assert 'temp=2627' in mock_get.call_args[0][0]
 
 
 @patch('requests.Session.get')
