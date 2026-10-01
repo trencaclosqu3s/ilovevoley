@@ -4,62 +4,62 @@
 
 {% block content %}
 <div class="max-w-2xl mx-auto">
-    <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">Añadir Vídeos</h2>
+    <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">Añadir Vídeos</h2>
 
-    <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
         <form method="post" class="space-y-6" id="bulk-video-form">
             {% csrf_token %}
 
             <!-- Campos compartidos -->
             <div class="space-y-4">
                 <div>
-                    <label for="{{ shared_form.category.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    <label for="{{ shared_form.category.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         {{ shared_form.category.label }}
                     </label>
                     {{ shared_form.category }}
                     {% if shared_form.category.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ shared_form.category.errors.0 }}</p>
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ shared_form.category.errors.0 }}</p>
                     {% endif %}
                 </div>
                 <div>
-                    <label for="{{ shared_form.match.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    <label for="{{ shared_form.match.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         {{ shared_form.match.label }}
                     </label>
                     {{ shared_form.match }}
                     {% if shared_form.match.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ shared_form.match.errors.0 }}</p>
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ shared_form.match.errors.0 }}</p>
                     {% endif %}
                 </div>
             </div>
 
-            <hr class="border-gray-200">
+            <hr class="border-gray-200 dark:border-gray-700">
 
             <!-- Formset de vídeos -->
             {{ formset.management_form }}
             <div id="video-rows" class="space-y-4">
                 {% for form in formset %}
-                    <div class="video-row border border-gray-200 rounded-lg p-4 space-y-3 relative">
-                        <button type="button" class="remove-row absolute top-2 right-2 text-gray-400 hover:text-red-500 transition text-lg leading-none" title="Eliminar">✕</button>
+                    <div class="video-row border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 relative">
+                        <button type="button" class="remove-row absolute top-2 right-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition text-lg leading-none" title="Eliminar">✕</button>
                         {{ form.DELETE.as_hidden }}
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.title.label }}</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ form.title.label }}</label>
                             {{ form.title }}
                             {% if form.title.errors %}
-                                <p class="mt-1 text-sm text-red-600">{{ form.title.errors.0 }}</p>
+                                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.title.errors.0 }}</p>
                             {% endif %}
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.youtube_url.label }}</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ form.youtube_url.label }}</label>
                             {{ form.youtube_url }}
                             {% if form.youtube_url.errors %}
-                                <p class="mt-1 text-sm text-red-600">{{ form.youtube_url.errors.0 }}</p>
+                                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.youtube_url.errors.0 }}</p>
                             {% endif %}
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.set_number.label }}</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ form.set_number.label }}</label>
                             {{ form.set_number }}
                             {% if form.set_number.errors %}
-                                <p class="mt-1 text-sm text-red-600">{{ form.set_number.errors.0 }}</p>
+                                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.set_number.errors.0 }}</p>
                             {% endif %}
                         </div>
                     </div>
@@ -67,7 +67,7 @@
             </div>
 
             <button type="button" id="add-row"
-                class="w-full border-2 border-dashed border-gray-300 hover:border-csj-purple text-gray-500 hover:text-csj-purple px-4 py-3 rounded-lg font-medium transition text-sm">
+                class="w-full border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-csj-purple dark:hover:border-csj-yellow text-gray-500 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow px-4 py-3 rounded-lg font-medium transition text-sm">
                 + Añadir otro vídeo
             </button>
 
@@ -76,11 +76,11 @@
                     Guardar vídeos
                 </button>
                 {% if match_id %}
-                    <a href="{% url 'competitions:match_detail' match_id %}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
+                    <a href="{% url 'competitions:match_detail' match_id %}" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
                         Cancelar
                     </a>
                 {% else %}
-                    <a href="{% url 'content:video_list' %}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
+                    <a href="{% url 'content:video_list' %}" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
                         Cancelar
                     </a>
                 {% endif %}
@@ -88,9 +88,9 @@
         </form>
     </div>
 
-    <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 class="font-semibold text-blue-800 mb-2">💡 Recuerda: usa vídeos "No listados"</h3>
-        <p class="text-sm text-blue-700">Los vídeos "Privados" no se pueden incrustar. Usa siempre "No listados" en YouTube.</p>
+    <div class="mt-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <h3 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">💡 Recuerda: usa vídeos "No listados"</h3>
+        <p class="text-sm text-blue-700 dark:text-blue-300">Los vídeos "Privados" no se pueden incrustar. Usa siempre "No listados" en YouTube.</p>
     </div>
 </div>
 

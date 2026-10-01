@@ -37,7 +37,7 @@
             {% if form.photo %}
             <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    {{ form.photo.label }} <span class="text-gray-500 font-normal">(opcional)</span>
+                    {{ form.photo.label }} <span class="text-gray-500 dark:text-gray-400 font-normal">(opcional)</span>
                 </label>
                 
                 <div class="flex items-start space-x-6">
@@ -110,7 +110,7 @@
             {% if form.birth_date %}
             <div>
                 <label for="{{ form.birth_date.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    {{ form.birth_date.label }} <span class="text-gray-500 font-normal">(opcional)</span>
+                    {{ form.birth_date.label }} <span class="text-gray-500 dark:text-gray-400 font-normal">(opcional)</span>
                 </label>
                 {{ form.birth_date }}
                 {% if form.birth_date.help_text %}
@@ -126,7 +126,7 @@
             {% if form.email %}
             <div>
                 <label for="{{ form.email.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    {{ form.email.label }} <span class="text-gray-500 font-normal">(opcional)</span>
+                    {{ form.email.label }} <span class="text-gray-500 dark:text-gray-400 font-normal">(opcional)</span>
                 </label>
                 {{ form.email }}
                 {% if form.email.help_text %}
@@ -142,7 +142,7 @@
             {% if form.phone %}
             <div>
                 <label for="{{ form.phone.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    {{ form.phone.label }} <span class="text-gray-500 font-normal">(opcional)</span>
+                    {{ form.phone.label }} <span class="text-gray-500 dark:text-gray-400 font-normal">(opcional)</span>
                 </label>
                 {{ form.phone }}
                 {% if form.phone.help_text %}
@@ -158,7 +158,7 @@
             {% if form.notes %}
             <div>
                 <label for="{{ form.notes.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    {{ form.notes.label }} <span class="text-gray-500 font-normal">(opcional)</span>
+                    {{ form.notes.label }} <span class="text-gray-500 dark:text-gray-400 font-normal">(opcional)</span>
                 </label>
                 {{ form.notes }}
                 {% if form.notes.help_text %}
