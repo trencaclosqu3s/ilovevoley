@@ -86,7 +86,7 @@ class PersonAdmin(ModelAdmin):
                 's' if parents.count() != 1 else '',
                 ', '.join(parent_names)
             )
-        return format_html('<span style="color: gray;">—</span>')
+        return format_html('<span style="color: gray;">{}</span>', '—')
     parents_info.short_description = 'Padres'
     parents_info.admin_order_field = 'parents__count'
 
