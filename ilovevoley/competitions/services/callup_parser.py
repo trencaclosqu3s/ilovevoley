@@ -129,42 +129,11 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
         for line in lines:
             norm_line = _remove_accents(line).upper()
 
-            # Detección de formato alternativo (ej. convocatorias de supervisión CTEIB con listado Nombre   Club)
-            if any(ph in norm_line for ph in ['ESPORTISTES SELECCIONATS', 'ESPORTISTES SELECCIONADES', 'JUGADORS SELECCIONATS', 'JUGADORES SELECCIONADES']):
-                in_supervision_list = True
-                continue
-
-            if in_supervision_list:
-                stripped = line.strip()
-                if not stripped:
-                    continue
-                if any(sec in norm_line for sec in ['HORARI', 'A TENIR EN COMPTE', 'CONTACTE', 'DIJOUS', 'DIVENDRES', 'DISSABTE', 'DIUMENGE']):
-                    in_supervision_list = False
-                    continue
-                # Descartar subtítulo de categoría (ej: "INFANTIL MASCULÍ:" o "CADETE MASCULINO")
-                if any(cat in norm_line for cat in ['INFANTIL', 'CADET', 'JUVENIL', 'SUB']) and (':' in norm_line or len(stripped.split()) <= 3):
-                    continue
-
-                chunks = [c.strip() for c in re.split(r'\s{2,}', stripped) if c.strip()]
-                if len(chunks) == 2:
-                    full_name = chunks[0]
-                    club_clean = chunks[1]
-                    tokens = full_name.split()
-                    if len(tokens) >= 2:
-                        first_str = tokens[0]
-                        last_str = ' '.join(tokens[1:])
-                        players.append({
-                            'club': club_clean,
-                            'last_name': last_str,
-                            'first_name': first_str,
-                            'birth_year': None,
-                        })
-                continue
-
-            # Comprobar si es cabecera tabular estándar
+            # Comprobar si es cabecera tabular estándar (desactiva modo supervisión si estaba activo)
             if ('CLUB' in norm_line or 'EQUIP' in norm_line) and (
                 'LLINATGES' in norm_line or 'APELLIDOS' in norm_line
             ):
+                in_supervision_list = False
                 in_table = True
                 pos_club = norm_line.find('CLUB')
                 if pos_club == -1:
@@ -180,17 +149,49 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
 
                 pos_year = norm_line.find('ANY')
                 if pos_year == -1:
-                    pos_year = norm_line.find('ANO')
+                    pos_year = norm_line.find('AÑO')
                 if pos_year == -1:
-                    pos_year = norm_line.find('DATA')
+                    pos_year = norm_line.find('NAIX')
 
-                if pos_club != -1 and pos_last != -1 and pos_first != -1:
-                    header_positions = {
-                        'club': pos_club,
-                        'last': pos_last,
-                        'first': pos_first,
-                        'year': pos_year if pos_year != -1 else len(line),
-                    }
+                header_positions = {
+                    'club': pos_club,
+                    'last_name': pos_last,
+                    'first_name': pos_first,
+                    'birth_year': pos_year,
+                }
+                continue
+
+            # Detección de formato alternativo (ej. convocatorias de supervisión CTEIB con listado Nombre   Club)
+            if not in_table and any(ph in norm_line for ph in ['ESPORTISTES SELECCIONATS', 'ESPORTISTES SELECCIONADES', 'JUGADORS SELECCIONATS', 'JUGADORES SELECCIONADES']):
+                in_supervision_list = True
+                continue
+
+            if in_supervision_list:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if any(sec in norm_line for sec in ['HORARI', 'A TENIR EN COMPTE', 'CONTACTE', 'DIJOUS', 'DIVENDRES', 'DISSABTE', 'DIUMENGE']):
+                    in_supervision_list = False
+                    continue
+
+                chunks = [c.strip() for c in re.split(r'\s{2,}', stripped) if c.strip()]
+                # Una fila de jugador de supervisión requiere al menos nombre y club (2 columnas)
+                # Si tiene < 2 chunks suele ser un subtítulo de categoría (ej: "INFANTIL MASCULÍ:") o notas
+                if len(chunks) < 2:
+                    continue
+
+                full_name = ' '.join(chunks[:-1])
+                club_clean = chunks[-1]
+                tokens = full_name.split()
+                if len(tokens) >= 2:
+                    first_str = tokens[0]
+                    last_str = ' '.join(tokens[1:])
+                    players.append({
+                        'club': club_clean,
+                        'last_name': last_str,
+                        'first_name': first_str,
+                        'birth_year': None,
+                    })
                 continue
 
             # Si ya tenemos cabecera / estamos dentro de la tabla
@@ -245,9 +246,9 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                 # Estrategia 2: Fallback por posiciones fijas según cabecera
                 if not parsed and header_positions:
                     p_club = header_positions['club']
-                    p_last = header_positions['last']
-                    p_first = header_positions['first']
-                    p_year = header_positions['year']
+                    p_last = header_positions['last_name']
+                    p_first = header_positions['first_name']
+                    p_year = header_positions['birth_year']
 
                     club_str = line[p_club:p_last].strip()
                     last_str = line[p_last:p_first].strip()
