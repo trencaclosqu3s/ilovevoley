@@ -79,12 +79,21 @@ class BeatScheduleTest(SimpleTestCase):
         # tareas de cada app estén en el registro.
         app.loader.import_default_modules()
 
-    def test_scheduled_tasks_exist_and_accept_their_kwargs(self):
-        """Un nombre de tarea o de kwarg mal escrito solo se ve en runtime en el
-        worker; aquí se valida contra la firma registrada."""
+    def test_schedule_is_not_empty(self):
+        self.assertTrue(settings.CELERY_BEAT_SCHEDULE)
+
+    def test_scheduled_tasks_exist_and_accept_their_args(self):
+        """Un nombre de tarea o de argumento mal escrito solo se ve en runtime en
+        el worker; aquí se valida contra la firma registrada. ``bind`` exige
+        además los argumentos obligatorios que la tarea no pueda suplir."""
         for name, entry in settings.CELERY_BEAT_SCHEDULE.items():
             task_name = entry['task']
             self.assertIn(task_name, app.tasks, msg=f'{name} apunta a una tarea no registrada: {task_name}')
-            # bind_partial no exige los argumentos con default, pero rechaza nombres
-            # de kwarg que la tarea no acepta.
-            inspect.signature(app.tasks[task_name].run).bind_partial(**entry.get('kwargs', {}))
+            inspect.signature(app.tasks[task_name].run).bind(
+                *entry.get('args', ()), **entry.get('kwargs', {})
+            )
+
+    def test_beat_timezone_matches_django_timezone(self):
+        """Los crontab se interpretan en CELERY_TIMEZONE; si deja de coincidir con
+        TIME_ZONE, las horas del schedule se desplazan en silencio."""
+        self.assertEqual(settings.CELERY_TIMEZONE, settings.TIME_ZONE)
