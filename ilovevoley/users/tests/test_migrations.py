@@ -113,21 +113,22 @@ class CategoryPreferencesBackfillTest(TransactionTestCase):
         self.executor.migrate([self.migrate_from])
         self.executor.loader.build_graph()
         old_apps = self.executor.loader.project_state([self.migrate_from]).apps
+        leaf_apps = self.executor.loader.project_state(self.executor.loader.graph.leaf_nodes()).apps
 
         User = old_apps.get_model('users', 'User')
         Membership = old_apps.get_model('users', 'Membership')
-        Organization = old_apps.get_model('core', 'Organization')
-        Category = old_apps.get_model('core', 'Category')
+        Organization = leaf_apps.get_model('core', 'Organization')
+        Category = leaf_apps.get_model('core', 'Category')
 
         self.org1 = Organization.objects.create(slug='club1', name='Club 1', default_home='videos')
         self.org2 = Organization.objects.create(slug='club2', name='Club 2', default_home='videos')
 
         self.user = User.objects.create_user(username='fan', password='pass')
-        Membership.objects.create(user=self.user, organization=self.org1, role='member', is_approved=True)
-        Membership.objects.create(user=self.user, organization=self.org2, role='member', is_approved=True)
+        Membership.objects.create(user=self.user, organization_id=self.org1.id, role='member', is_approved=True)
+        Membership.objects.create(user=self.user, organization_id=self.org2.id, role='member', is_approved=True)
 
         self.category = Category.objects.create(name='Infantil', is_active=True)
-        self.user.preferred_categories.add(self.category)
+        self.user.preferred_categories.add(self.category.id)
 
     def tearDown(self):
         self.executor.loader.build_graph()
