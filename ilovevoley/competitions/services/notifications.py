@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from ilovevoley.competitions.models import Match, MatchChangeLog
+from ilovevoley.competitions.services.branches import match_branches, organization_branch_q
 from ilovevoley.core.tenant_utils import build_absolute_url
 
 logger = logging.getLogger(__name__)
@@ -299,13 +300,14 @@ def notify_match_result(match: Match, tenant=None) -> bool:
     # Determinar organizaciones a notificar
     from ilovevoley.core.models import Organization
 
-    orgs = set()
+    q = organization_branch_q(match_branches(match))
     if tenant:
-        orgs.add(tenant)
+        orgs = Organization.objects.filter(pk=tenant.pk)
     else:
         club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
-        if club_ids:
-            orgs.update(Organization.objects.filter(club_id__in=club_ids, is_active=True))
+        orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
+    if q is not None:
+        orgs = orgs.filter(q)
 
     if not orgs:
         return True
@@ -414,6 +416,9 @@ def notify_match_change_push(match: Match, changes: List[MatchChangeLog]) -> boo
         is_active=True,
         notify_match_changes=True,
     )
+    q = organization_branch_q(match_branches(match))
+    if q is not None:
+        orgs = orgs.filter(q)
 
     title, body = format_match_change_push(match, changes)
 
@@ -457,6 +462,9 @@ def notify_match_reminder(match: Match) -> bool:
         from ilovevoley.core.models import Organization
 
         orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
+        q = organization_branch_q(match_branches(match))
+        if q is not None:
+            orgs = orgs.filter(q)
 
         home_name = match.home_team_display
         away_name = match.away_team_display
