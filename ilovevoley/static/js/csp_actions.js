@@ -122,4 +122,12 @@
         }
         return '';
     };
+
+    // `error` no burbujea; se escucha en fase de captura desde window.
+    window.addEventListener("error", function (event) {
+        var el = event.target;
+        if (el && el.nodeType === 1 && el.hasAttribute && el.hasAttribute("data-hide-on-error")) {
+            el.style.display = "none";
+        }
+    }, true);
 })();
