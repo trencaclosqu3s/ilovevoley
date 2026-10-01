@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -109,6 +109,38 @@ class MatchReminderPushTest(TestCase):
         match_30m.refresh_from_db()
         self.assertIsNone(match_5h.reminder_sent_at)
         self.assertIsNone(match_30m.reminder_sent_at)
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_matches_with_unconfirmed_hour_are_ignored(self, mock_push):
+        """Un partido a las 00:00 (hora sin confirmar del scraper) no recibe el aviso.
+
+        La ventana lo alcanzaría a las ~22:00 del día anterior y el recordatorio
+        "empieza en 2 h" sería falso (#286).
+        """
+        Match.objects.all().delete()
+        tz = timezone.get_current_timezone()
+
+        # "Ahora" son las 22:00 locales del día D-1, así que la ventana cubre las 00:00 de D.
+        fake_local_now = datetime(2026, 1, 10, 22, 0, tzinfo=tz)
+        midnight_match = Match.objects.create(
+            league=self.league,
+            home_team=self.team1,
+            away_team=self.team2,
+            match_date=datetime(2026, 1, 11, 0, 0, tzinfo=tz),
+            status='scheduled',
+        )
+
+        with patch(
+            'ilovevoley.competitions.tasks.timezone.now',
+            return_value=fake_local_now.astimezone(timezone.UTC),
+        ):
+            with self.captureOnCommitCallbacks(execute=True):
+                sent = send_match_reminders_2h_task()
+
+        self.assertEqual(sent, 0)
+        mock_push.assert_not_called()
+        midnight_match.refresh_from_db()
+        self.assertIsNone(midnight_match.reminder_sent_at)
 
     @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
     def test_excluded_statuses_do_not_send_reminder(self, mock_push):

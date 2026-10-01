@@ -1,6 +1,6 @@
 """Tareas Celery de la app competitions."""
 import logging
-from datetime import timedelta
+from datetime import time, timedelta
 
 from celery import shared_task
 from django.utils import timezone
@@ -9,6 +9,11 @@ from ilovevoley.competitions.models import Match
 from ilovevoley.competitions.services.notifications import notify_match_reminder
 
 logger = logging.getLogger(__name__)
+
+# El scraper usa las 00:00 como "hora sin confirmar" (ver el merge de
+# `federation.py`, "hora específica vs 00:00"). Esos partidos no deben recibir el
+# recordatorio: caerían en la ventana a las ~22:00 del día anterior.
+_UNCONFIRMED_HOUR = time(0, 0)
 
 
 @shared_task(name='send_match_reminders_2h')
@@ -35,6 +40,8 @@ def send_match_reminders_2h_task():
 
     sent_count = 0
     for match in matches:
+        if timezone.localtime(match.match_date).time() == _UNCONFIRMED_HOUR:
+            continue
         try:
             if notify_match_reminder(match):
                 sent_count += 1
