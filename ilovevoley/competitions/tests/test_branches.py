@@ -43,21 +43,13 @@ class MatchBranchesTest(TestCase):
             match_date=timezone.now() + timedelta(days=1), venue='Pab',
         )
 
-    def test_collects_gender_from_league_category(self):
-        match = self._match(league_gender=GENDER_FEMALE)
-        self.assertEqual(match_branches(match), {GENDER_FEMALE})
-
-    def test_collects_gender_from_team(self):
-        match = self._match(home_gender=GENDER_MALE)
-        self.assertEqual(match_branches(match), {GENDER_MALE})
-
-    def test_collects_gender_from_both_teams(self):
-        match = self._match(home_gender=GENDER_MALE, away_gender=GENDER_FEMALE)
-        self.assertEqual(match_branches(match), {GENDER_MALE, GENDER_FEMALE})
-
-    def test_unions_league_category_and_team_genders(self):
-        match = self._match(league_gender=GENDER_FEMALE, home_gender=GENDER_MALE)
-        self.assertEqual(match_branches(match), {GENDER_FEMALE, GENDER_MALE})
+    def test_aggregates_genders_from_league_and_both_teams(self):
+        match = self._match(
+            league_gender=GENDER_FEMALE, home_gender=GENDER_MALE, away_gender=GENDER_MIXED,
+        )
+        self.assertEqual(
+            match_branches(match), {GENDER_FEMALE, GENDER_MALE, GENDER_MIXED}
+        )
 
     def test_unknown_gender_returns_empty_set(self):
         match = self._match()
@@ -80,12 +72,14 @@ class OrganizationBranchQTest(TestCase):
     def test_empty_branches_returns_none(self):
         self.assertIsNone(organization_branch_q(set()))
 
-    def test_filters_by_active_branch(self):
+    def test_filters_organizations_by_active_branch(self):
         q = organization_branch_q({GENDER_FEMALE})
-        result = set(Organization.objects.filter(q, slug__startswith='q-').values_list('slug', flat=True))
-        self.assertEqual(result, {'q-female'})
-
-    def test_multiple_branches_or_together(self):
+        self.assertEqual(
+            set(Organization.objects.filter(q, slug__startswith='q-').values_list('slug', flat=True)),
+            {'q-female'},
+        )
         q = organization_branch_q({GENDER_MALE, GENDER_MIXED})
-        result = set(Organization.objects.filter(q, slug__startswith='q-').values_list('slug', flat=True))
-        self.assertEqual(result, {'q-male'})
+        self.assertEqual(
+            set(Organization.objects.filter(q, slug__startswith='q-').values_list('slug', flat=True)),
+            {'q-male'},
+        )

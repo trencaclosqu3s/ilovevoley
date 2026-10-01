@@ -29,13 +29,12 @@ class TeamEffectiveGenderTest(TestCase):
         )
         self.assertEqual(team.effective_gender, GENDER_FEMALE)
 
-    def test_inherits_from_category(self):
+    def test_inherits_from_category_and_defaults_to_blank(self):
         category = Category.objects.create(name='Senior F gender', gender=GENDER_FEMALE)
         team = Team.objects.create(
             name='Team Inherit', federation_id='gender-t2', club=self.club, category=category,
         )
         self.assertEqual(team.effective_gender, GENDER_FEMALE)
 
-    def test_empty_without_gender_or_category(self):
-        team = Team.objects.create(name='Team Empty', federation_id='gender-t3', club=self.club)
-        self.assertEqual(team.effective_gender, '')
+        empty = Team.objects.create(name='Team Empty', federation_id='gender-t3', club=self.club)
+        self.assertEqual(empty.effective_gender, '')

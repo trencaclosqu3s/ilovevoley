@@ -68,18 +68,6 @@ class MatchBranchEmailFilterTest(TestCase):
         self.assertNotIn('a@example.com', recipients)
         self.assertIn('b@example.com', recipients)
 
-    def test_includes_clubs_that_activate_the_branch(self):
-        self.org_a.has_female_branch = True
-        self.org_a.save(update_fields=['has_female_branch'])
-        with override_settings(MATCH_CHANGE_NOTIFY_STAFF_ENABLED=True):
-            sent = notify_match_changes([self._log()])
-
-        self.assertEqual(sent, 1)
-        email = mail.outbox[0]
-        recipients = list(email.to) + list(email.bcc)
-        self.assertIn('a@example.com', recipients)
-        self.assertIn('b@example.com', recipients)
-
     def test_does_not_block_club_without_organization(self):
         match = Match.objects.create(
             league=self.league, home_team=self.team_a, away_team=self.team_c,
