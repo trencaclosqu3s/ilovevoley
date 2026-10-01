@@ -59,6 +59,40 @@ class MatchBranchPushTest(TestCase):
             notify_match_result(self.match)
         mock_push.assert_not_called()
 
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_result_push_sent_when_branch_on(self, mock_push):
+        self.org.has_female_branch = True
+        self.org.save(update_fields=['has_female_branch'])
+        self.match.status = 'finished'
+        self.match.home_score = 3
+        self.match.away_score = 1
+        self.match.save(update_fields=['status', 'home_score', 'away_score'])
+        with self.captureOnCommitCallbacks(execute=True):
+            notify_match_result(self.match)
+        mock_push.assert_called_once()
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_result_push_tenant_respects_branch(self, mock_push):
+        self.match.status = 'finished'
+        self.match.home_score = 3
+        self.match.away_score = 1
+        self.match.save(update_fields=['status', 'home_score', 'away_score'])
+        with self.captureOnCommitCallbacks(execute=True):
+            notify_match_result(self.match, tenant=self.org)
+        mock_push.assert_not_called()
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_result_push_tenant_sent_when_branch_on(self, mock_push):
+        self.org.has_female_branch = True
+        self.org.save(update_fields=['has_female_branch'])
+        self.match.status = 'finished'
+        self.match.home_score = 3
+        self.match.away_score = 1
+        self.match.save(update_fields=['status', 'home_score', 'away_score'])
+        with self.captureOnCommitCallbacks(execute=True):
+            notify_match_result(self.match, tenant=self.org)
+        mock_push.assert_called_once()
+
     @override_settings(MATCH_CHANGE_PUSH_ENABLED=True)
     @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
     def test_unknown_gender_still_sent(self, mock_push):
