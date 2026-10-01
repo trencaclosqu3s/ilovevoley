@@ -9,11 +9,13 @@ from django.contrib import messages
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
+from django_ratelimit.decorators import ratelimit
 from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
 from ilovevoley.core.models import Organization
 from ilovevoley.core.tenant_utils import ensure_pending_membership, user_has_approved_membership
 from .forms import UserProfileForm, ParentInfoForm
 from .models import WebPushSubscription
+from .webpush import is_valid_push_endpoint
 
 
 @login_required
@@ -296,6 +298,7 @@ def webpush_vapid_key(request):
 
 
 @require_POST
+@ratelimit(key='ip', rate='30/h', block=True)
 def webpush_subscribe(request):
     """Registra o renueva una suscripción de navegador a notificaciones Web Push."""
     try:
@@ -313,15 +316,29 @@ def webpush_subscribe(request):
     if not endpoint or not p256dh or not auth:
         return HttpResponseBadRequest('Faltan parámetros obligatorios de la suscripción (endpoint, p256dh, auth)')
 
-    # Determinar tenant: del middleware de organización o fallback al default
+    # El endpoint lo elige el cliente y el worker hace POST a esa URL: sin lista
+    # blanca el endpoint anónimo sería un SSRF ciego contra la red interna.
+    if not is_valid_push_endpoint(endpoint):
+        return HttpResponseBadRequest('Endpoint de suscripción no válido')
+
+    user = request.user if request.user.is_authenticated else None
+
+    # Determinar tenant: del middleware de organización o, si no hay dominio de
+    # club, de la membresía aprobada del usuario. Nunca un club arbitrario.
     organization = getattr(request, 'tenant', None)
-    if not organization:
-        organization = Organization.objects.filter(is_active=True).first()
+    if not organization and user is not None:
+        organization = (
+            Organization.objects.filter(
+                memberships__user=user,
+                memberships__is_approved=True,
+                is_active=True,
+            )
+            .order_by('id')
+            .first()
+        )
 
     if not organization:
         return JsonResponse({'success': False, 'error': 'No hay club activo'}, status=400)
-
-    user = request.user if request.user.is_authenticated else None
 
     # Una suscripción con dueño solo la renueva su dueño; las anónimas pueden reclamarse al iniciar sesión.
     existing = WebPushSubscription.objects.filter(endpoint=endpoint).first()

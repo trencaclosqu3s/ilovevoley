@@ -16,6 +16,32 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
+def _dispatch_organization_push(
+    orgs, *, title: str, body: str, url: str, category_ids: List[int], notification_type: str
+) -> int:
+    """Programa el push de cada organización tras el commit de la transacción actual.
+
+    Devuelve cuántas organizaciones se encolaron. Concentra aquí el bucle que
+    antes se repetía igual en resultado, cambios y recordatorio.
+    """
+    from django.db import transaction
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+
+    sent = 0
+    for org in orgs:
+        kwargs = {
+            'organization_id': org.id,
+            'title': title,
+            'body': body,
+            'url': url,
+            'category_ids': category_ids,
+            'notification_type': notification_type,
+        }
+        transaction.on_commit(lambda kw=kwargs: notify_web_push_organization_task.delay(**kw), robust=True)
+        sent += 1
+    return sent
+
+
 def _superuser_emails() -> List[str]:
     """Emails de los superusuarios con dirección configurada."""
     return list(
@@ -261,8 +287,6 @@ def notify_match_result(match: Match, tenant=None) -> bool:
     if not match.is_finished or match.home_score is None or match.away_score is None:
         return False
 
-    from django.db import transaction
-
     # Idempotencia atómica: si ya fue notificado, salir sin enviar
     updated = Match.objects.filter(pk=match.pk, result_notified_at__isnull=True).update(
         result_notified_at=timezone.now()
@@ -286,26 +310,30 @@ def notify_match_result(match: Match, tenant=None) -> bool:
     if not orgs:
         return True
 
-    from ilovevoley.users.tasks import notify_web_push_organization_task
-
     home_name = match.home_team_display
     away_name = match.away_team_display
     title = f"Resultado: {home_name} vs {away_name}"
     body = format_match_result_body(match)
-    category_ids = match_category_ids(match)
 
-    for org in orgs:
-        kwargs = {
-            'organization_id': org.id,
-            'title': title,
-            'body': body,
-            'url': reverse('competitions:match_detail', args=[match.id]),
-            'category_ids': category_ids,
-            'notification_type': 'match_result',
-        }
-        transaction.on_commit(lambda kw=kwargs: notify_web_push_organization_task.delay(**kw), robust=True)
+    _dispatch_organization_push(
+        orgs,
+        title=title,
+        body=body,
+        url=reverse('competitions:match_detail', args=[match.id]),
+        category_ids=match_category_ids(match),
+        notification_type='match_result',
+    )
 
     return True
+
+
+# Etiqueta legible de cada campo de sede en el cuerpo del push: los tres comparten
+# `change_type='venue'`, así que sin el `field_name` todo salía como "Nueva pista".
+_VENUE_FIELD_LABELS = {
+    'venue': 'pista',
+    'field_address': 'dirección',
+    'city': 'localidad',
+}
 
 
 def format_match_change_push(match: Match, changes: List[MatchChangeLog]) -> tuple:
@@ -348,7 +376,8 @@ def format_match_change_push(match: Match, changes: List[MatchChangeLog]) -> tup
         if c.change_type == 'datetime':
             change_items.append(f"Nueva fecha/hora: {c.new_value}")
         elif c.change_type == 'venue':
-            change_items.append(f"Nueva pista: {c.new_value}")
+            label = _VENUE_FIELD_LABELS.get(c.field_name, 'pista')
+            change_items.append(f"Nueva {label}: {c.new_value}")
 
     if change_items:
         body = f"{details[0]}. {'. '.join(change_items)}."
@@ -374,9 +403,7 @@ def notify_match_change_push(match: Match, changes: List[MatchChangeLog]) -> boo
     if not changes:
         return False
 
-    from django.db import transaction
     from ilovevoley.core.models import Organization
-    from ilovevoley.users.tasks import notify_web_push_organization_task
 
     club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
     if not club_ids:
@@ -387,25 +414,17 @@ def notify_match_change_push(match: Match, changes: List[MatchChangeLog]) -> boo
         is_active=True,
         notify_match_changes=True,
     )
-    if not orgs.exists():
-        return False
 
     title, body = format_match_change_push(match, changes)
-    category_ids = match_category_ids(match)
-    url = reverse('competitions:match_detail', args=[match.id])
 
-    for org in orgs:
-        kwargs = {
-            'organization_id': org.id,
-            'title': title,
-            'body': body,
-            'url': url,
-            'category_ids': category_ids,
-            'notification_type': 'match_change',
-        }
-        transaction.on_commit(lambda kw=kwargs: notify_web_push_organization_task.delay(**kw), robust=True)
-
-    return True
+    return _dispatch_organization_push(
+        orgs,
+        title=title,
+        body=body,
+        url=reverse('competitions:match_detail', args=[match.id]),
+        category_ids=match_category_ids(match),
+        notification_type='match_change',
+    ) > 0
 
 
 def notify_match_reminder(match: Match) -> bool:
@@ -436,29 +455,22 @@ def notify_match_reminder(match: Match) -> bool:
             return True
 
         from ilovevoley.core.models import Organization
-        from ilovevoley.users.tasks import notify_web_push_organization_task
 
         orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
-        if not orgs.exists():
-            return True
 
         home_name = match.home_team_display
         away_name = match.away_team_display
         title = f"Recordatorio de partido: {home_name} vs {away_name}"
         body = f"El partido {home_name} - {away_name} empieza en 2 h. ¡Ve preparando las rodilleras!"
-        category_ids = match_category_ids(match)
-        url = reverse('competitions:match_detail', args=[match.id])
 
-        for org in orgs:
-            kwargs = {
-                'organization_id': org.id,
-                'title': title,
-                'body': body,
-                'url': url,
-                'category_ids': category_ids,
-                'notification_type': 'match_reminder',
-            }
-            transaction.on_commit(lambda kw=kwargs: notify_web_push_organization_task.delay(**kw), robust=True)
+        _dispatch_organization_push(
+            orgs,
+            title=title,
+            body=body,
+            url=reverse('competitions:match_detail', args=[match.id]),
+            category_ids=match_category_ids(match),
+            notification_type='match_reminder',
+        )
 
     return True
 

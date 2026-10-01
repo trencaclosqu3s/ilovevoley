@@ -3,7 +3,7 @@ from django.test import Client, TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from ilovevoley.core.models import Organization
-from ilovevoley.users.models import WebPushSubscription
+from ilovevoley.users.models import Membership, WebPushSubscription
 
 User = get_user_model()
 
@@ -174,7 +174,7 @@ class WebPushViewsTest(TestCase):
         other = User.objects.create_user(username='otra', email='otra@test.es', password='password123')
         sub = WebPushSubscription.objects.create(
             user=other, organization=self.org,
-            endpoint='https://push.example/owned', p256dh='k', auth='a',
+            endpoint='https://updates.push.services.mozilla.com/owned', p256dh='k', auth='a',
         )
         self.client.login(username='jugadora', password='password123')
         response = self.client.post(
@@ -187,6 +187,57 @@ class WebPushViewsTest(TestCase):
         sub.refresh_from_db()
         self.assertEqual(sub.user, other)
         self.assertEqual(sub.p256dh, 'k')
+
+    def test_subscribe_rejects_non_push_endpoint(self):
+        """Un endpoint fuera de los servicios push conocidos no se registra (#286)."""
+        url = reverse('webpush_subscribe')
+        for endpoint in (
+            'http://169.254.169.254/latest/meta-data/',
+            'https://internal.example/steal',
+            'https://web:8000/admin/',
+        ):
+            response = self.client.post(
+                url,
+                data=json.dumps({'endpoint': endpoint, 'keys': {'p256dh': 'k', 'auth': 'a'}}),
+                content_type='application/json',
+                HTTP_HOST='santjust.ilovevoley.es',
+            )
+            self.assertEqual(response.status_code, 400, endpoint)
+
+        self.assertFalse(WebPushSubscription.objects.exists())
+
+    def test_subscribe_without_tenant_assigns_approved_membership_organization(self):
+        """Sin dominio de club, la suscripción va al club de la membresía aprobada (#286)."""
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+        self.client.login(username='jugadora', password='password123')
+
+        response = self.client.post(
+            reverse('webpush_subscribe'),
+            data=json.dumps({
+                'endpoint': 'https://updates.push.services.mozilla.com/root-domain',
+                'keys': {'p256dh': 'k', 'auth': 'a'},
+            }),
+            content_type='application/json',
+            HTTP_HOST='localhost',
+        )
+        self.assertEqual(response.status_code, 200)
+        sub = WebPushSubscription.objects.get(endpoint='https://updates.push.services.mozilla.com/root-domain')
+        self.assertEqual(sub.organization, self.org)
+
+    def test_subscribe_without_tenant_or_membership_is_rejected(self):
+        """Sin tenant ni membresía no se asigna un club arbitrario (#286)."""
+        response = self.client.post(
+            reverse('webpush_subscribe'),
+            data=json.dumps({
+                'endpoint': 'https://updates.push.services.mozilla.com/no-tenant',
+                'keys': {'p256dh': 'k', 'auth': 'a'},
+            }),
+            content_type='application/json',
+            HTTP_HOST='localhost',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(WebPushSubscription.objects.exists())
+
 
     def test_unsubscribe_does_not_delete_subscription_of_other_user(self):
         other = User.objects.create_user(username='otra', email='otra@test.es', password='password123')

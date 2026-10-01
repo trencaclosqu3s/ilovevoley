@@ -5,11 +5,7 @@ from pywebpush import WebPushException
 from ilovevoley.core.models import Category, Organization
 from ilovevoley.users.models import CategoryPreference, NotificationPreference, NotificationType, WebPushSubscription
 from ilovevoley.users.webpush import send_web_push
-from ilovevoley.users.tasks import (
-    notify_web_push_subscription_task,
-    notify_web_push_user_task,
-    notify_web_push_organization_task,
-)
+from ilovevoley.users.tasks import notify_web_push_organization_task
 
 User = get_user_model()
 
@@ -81,62 +77,6 @@ class WebPushTasksTest(TestCase):
         result = send_web_push(self.sub, {'title': 'Aviso'})
         self.assertFalse(result)
         self.assertTrue(WebPushSubscription.objects.filter(pk=self.sub.pk).exists())
-
-    @patch('ilovevoley.users.tasks.send_web_push')
-    def test_notify_web_push_subscription_task(self, mock_send):
-        mock_send.return_value = True
-        result = notify_web_push_subscription_task(
-            subscription_id=self.sub.id,
-            payload={'title': 'Test Direct'},
-        )
-        self.assertTrue(result)
-        mock_send.assert_called_once_with(self.sub, {'title': 'Test Direct'})
-
-    def test_notify_web_push_subscription_task_nonexistent(self):
-        result = notify_web_push_subscription_task(
-            subscription_id=999999,
-            payload={'title': 'Test Direct'},
-        )
-        self.assertFalse(result)
-
-    @patch('ilovevoley.users.tasks.send_web_push')
-    def test_notify_web_push_user_task(self, mock_send):
-        mock_send.return_value = True
-        notify_web_push_user_task(
-            user_id=self.user.id,
-            title='Próximo Partido',
-            body='Mañana a las 18:00',
-            url='/partidos/1/',
-            badge_count=2,
-        )
-        mock_send.assert_called_once()
-        args, _ = mock_send.call_args
-        self.assertEqual(args[0], self.sub)
-        self.assertEqual(args[1]['title'], 'Próximo Partido')
-        self.assertEqual(args[1]['badge_count'], 2)
-
-    @patch('ilovevoley.users.tasks.send_web_push')
-    def test_notify_web_push_user_task_filtered_by_organization(self, mock_send):
-        mock_send.return_value = True
-        other_org = Organization.objects.create(name='Other Club', slug='other')
-
-        # Con organization_id coincidente
-        dispatched = notify_web_push_user_task(
-            user_id=self.user.id,
-            title='Próximo Partido',
-            body='Mañana a las 18:00',
-            organization_id=self.org.id,
-        )
-        self.assertEqual(dispatched, 1)
-
-        # Con organization_id no coincidente
-        dispatched_other = notify_web_push_user_task(
-            user_id=self.user.id,
-            title='Próximo Partido',
-            body='Mañana a las 18:00',
-            organization_id=other_org.id,
-        )
-        self.assertEqual(dispatched_other, 0)
 
     @patch('ilovevoley.users.tasks.send_web_push')
     def test_notify_web_push_organization_task(self, mock_send):
