@@ -61,6 +61,43 @@ def test_parse_callup_title_indoor_and_short_codes():
     assert res2['callup_number'] == '9ª Y 10ª'
 
 
+def test_parse_callup_title_event_types():
+    assert parse_callup_title("1ª SEGUIMENT FEDERATIU CAD FEM TEMP.26/27")['event_type'] == 'follow_up'
+    assert parse_callup_title("2ª TECNIFICACIÓ INF MASC")['event_type'] == 'training'
+    assert parse_callup_title("SUPERVISIÓ CTEIB CAD FEM")['event_type'] == 'supervision'
+    assert parse_callup_title("3ª CONVOCATORIA SELECCIO BALEAR VP INF MASC")['event_type'] == 'selection'
+
+
+def test_extract_callup_players_tracking_format():
+    """Formato CTEIB de seguimiento/tecnificación: filas 'Nombre Apellidos   Club   Año'
+    bajo un bloque HORARI/ENTRENADORS/LLOC, y pie de pago que no debe parsearse."""
+    pdf_bytes = create_dummy_pdf([
+        "SEGUIMENT FEDERATIU Cadet Femení Temp. 26/27",
+        "",
+        " HORARI:                      ENTRENADORS:                 LLOC:",
+        " Dimarts de 17 a 20h          Ernesto Rodríguez, Alexis    Poliesportiu CTEIB",
+        " Dijous de 17:30 a 19:30      Gonzáles y Alberto Sanz",
+        " Emma Fuster                  Algaida VC                   2013",
+        " Mireia Rodríguez             EVB Sant Joan                2014",
+        " Paula Pares                  CV Portol                    2012",
+        "",
+        "Els esportistes han de pagar 5 Euros en concepte de targeta d’entrada",
+        "IBAN ES48 2100 7356 3413 0077 1854",
+    ])
+    raw_text, players = extract_callup_players_from_pdf(pdf_bytes)
+    assert len(players) == 3
+    assert players[0] == {'club': 'Algaida VC', 'last_name': 'Fuster', 'first_name': 'Emma', 'birth_year': 2013}
+    assert players[1]['first_name'] == 'Mireia'
+    assert players[1]['last_name'] == 'Rodríguez'
+    assert players[1]['club'] == 'EVB Sant Joan'
+    assert players[1]['birth_year'] == 2014
+    assert players[2]['club'] == 'CV Portol'
+    # El bloque de cabecera y el pie no deben colarse como jugadores
+    parsed_names = {p['first_name'] for p in players}
+    assert 'Ernesto' not in parsed_names
+    assert 'Gonzáles' not in parsed_names
+
+
 def test_extract_callup_players_from_pdf():
     pdf_bytes = create_dummy_pdf([
         "CONVOCATÒRIA PREPARATÒRIA TREBALL",

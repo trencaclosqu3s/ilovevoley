@@ -149,7 +149,7 @@
     {% if pending_callups %}
     <div id="convocatorias" class="mb-12">
         <div class="flex items-center mb-6">
-            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 mr-3">🏐 Convocatorias Selección Balear por Confirmar</h2>
+            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 mr-3">🏐 Convocatorias federativas por confirmar</h2>
             <span class="bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_callups_count }}</span>
         </div>
 
@@ -179,6 +179,9 @@
                     {% if player.callup.circular_date %}
                     <div><span class="text-gray-500">Fecha:</span> {{ player.callup.circular_date|date:"d/m/Y" }}</div>
                     {% endif %}
+                    <div>
+                        <span class="text-gray-500">Tipo:</span> {{ player.callup.get_callup_type_display }}
+                    </div>
                     <div>
                         <span class="text-gray-500">Modalidad:</span> {{ player.callup.get_modality_display }} |
                         <span class="text-gray-500">Categoría:</span> {{ player.callup.category_name|default:"-" }} ({{ player.callup.get_gender_display }})

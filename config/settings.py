@@ -454,7 +454,10 @@ CELERY_TASK_ROUTES = {
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
+# Hora peninsular (igual que TIME_ZONE): los crontab de CELERY_BEAT_SCHEDULE se
+# interpretan en esta zona, no en UTC. Con UTC, las horas del schedule se
+# desplazaban 1-2 h según el horario de verano.
+CELERY_TIMEZONE = 'Europe/Madrid'
 
 # Un scraping colgado se avisa (soft) a los 10 min y se mata (hard) a los 15.
 CELERY_TASK_SOFT_TIME_LIMIT = 600
@@ -466,18 +469,10 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
 # Celery Beat Configuration (Periodic Tasks)
-# Los ZIP de álbumes caducan a las 24 h; además build_album_zip limpia antes de
-# cada generación, así que una pasada diaria acota el espacio en disco residual.
-CELERY_BEAT_SCHEDULE = {
-    'cleanup-expired-album-zips': {
-        'task': 'cleanup_expired_album_zips',
-        'schedule': 3600.0 * 24,
-    },
-    'send-match-reminders-2h': {
-        'task': 'send_match_reminders_2h',
-        'schedule': 600.0,
-    },
-}
+# Versionado en config/celery_schedule.py; beat (DatabaseScheduler) lo sincroniza
+# a las PeriodicTask de la BD al arrancar. Las filas manuales antiguas las borra
+# la migración de datos core.0010_delete_legacy_periodic_tasks.
+from config.celery_schedule import CELERY_BEAT_SCHEDULE  # noqa: E402, F401
 
 # Cache Configuration
 # Redis backend centralizado (DB 2 reservada para caché de Django).

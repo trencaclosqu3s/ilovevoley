@@ -5,6 +5,8 @@ envío de emails ni la generación de media. Eso depende de que cada tarea caiga
 en la cola correcta y de que los workers las consuman por separado, así que
 este test fija el routing tarea -> cola.
 """
+import inspect
+
 from django.conf import settings
 from django.test import SimpleTestCase
 
@@ -69,3 +71,27 @@ class CeleryQueueRoutingTest(SimpleTestCase):
         self.assertTrue(settings.CELERY_BROKER_URL.endswith('/0'))
         self.assertTrue(settings.CELERY_RESULT_BACKEND.endswith('/1'))
         self.assertTrue(settings.REDIS_CACHE_URL.endswith('/2'))
+
+
+class BeatScheduleTest(SimpleTestCase):
+    def setUp(self):
+        # autodiscover_tasks es perezoso: hay que forzar la carga para que las
+        # tareas de cada app estén en el registro.
+        app.loader.import_default_modules()
+
+    def test_scheduled_tasks_exist_and_accept_their_args(self):
+        """Un nombre de tarea o de argumento mal escrito solo se ve en runtime en
+        el worker; aquí se valida contra la firma registrada. ``bind`` exige
+        además los argumentos obligatorios que la tarea no pueda suplir."""
+        self.assertTrue(settings.CELERY_BEAT_SCHEDULE, 'el schedule no puede quedar vacío')
+        for name, entry in settings.CELERY_BEAT_SCHEDULE.items():
+            task_name = entry['task']
+            self.assertIn(task_name, app.tasks, msg=f'{name} apunta a una tarea no registrada: {task_name}')
+            inspect.signature(app.tasks[task_name].run).bind(
+                *entry.get('args', ()), **entry.get('kwargs', {})
+            )
+
+    def test_beat_timezone_matches_django_timezone(self):
+        """Los crontab se interpretan en CELERY_TIMEZONE; si deja de coincidir con
+        TIME_ZONE, las horas del schedule se desplazan en silencio."""
+        self.assertEqual(settings.CELERY_TIMEZONE, settings.TIME_ZONE)

@@ -30,6 +30,7 @@ class FederationCallUpAdmin(ModelAdmin):
     list_display = (
         'title',
         'circular_date',
+        'callup_type',
         'modality',
         'category_name',
         'gender',
@@ -37,7 +38,7 @@ class FederationCallUpAdmin(ModelAdmin):
         'players_count_display',
         'source_url',
     )
-    list_filter = ('season', 'modality', 'category_name', 'gender')
+    list_filter = ('season', 'callup_type', 'modality', 'category_name', 'gender')
     search_fields = ('title', 'source_url', 'raw_text')
     readonly_fields = ('pdf_sha256', 'created_at', 'updated_at')
     inlines = [CallUpPlayerInline]

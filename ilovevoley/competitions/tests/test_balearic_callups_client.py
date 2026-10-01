@@ -24,6 +24,7 @@ def test_fetch_balearic_circulares(mock_get):
     items = fetch_balearic_circulares(season)
     assert len(items) == 1
     assert items[0]['URL'] == '1785324870_3735.pdf'
+    assert 'tipo=7' in mock_get.call_args[0][0]
     assert 'temp=2526' in mock_get.call_args[0][0]
 
 

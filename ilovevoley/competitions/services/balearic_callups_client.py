@@ -36,17 +36,21 @@ def fetch_balearic_circulares(
     temp_override: str | None = None,
     session: requests.Session | None = None,
     max_pages: int = 20,
+    tipo: int = 7,
 ) -> list[dict[str, Any]]:
     """
-    Consulta las circulares de tipo 7 (convocatorias) para la temporada dada en la API de FVBIB,
+    Consulta las circulares de un ``tipo`` para la temporada dada en la API de FVBIB,
     recorriendo todas las páginas disponibles (pag=0, 1, 2...) hasta agotarlas.
+
+    ``tipo=7`` son las convocatorias de la selección balear (#287); ``tipo=22`` las de
+    tecnificación y seguimiento federativo (#288).
     """
     temp = temp_override or calculate_federation_temp(season)
     s = session or requests.Session()
     all_items: list[dict[str, Any]] = []
 
     for page in range(max_pages):
-        url = f"{BASE_CIRCULARES_URL}?tipo=7&pag={page}&temp={temp}"
+        url = f"{BASE_CIRCULARES_URL}?tipo={tipo}&pag={page}&temp={temp}"
         resp = s.get(url, headers=DEFAULT_HEADERS, timeout=15)
         resp.raise_for_status()
 
