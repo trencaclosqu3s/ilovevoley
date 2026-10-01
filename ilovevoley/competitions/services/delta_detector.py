@@ -174,6 +174,13 @@ def detect_and_record_match_changes(
             f"Registrados {len(changes)} cambios federativos para el partido {match.id} ({match})"
         )
 
+        # Resetear recordatorio 2h si cambia fecha/hora o se desaplaza (#280)
+        has_datetime_change = any(c.change_type == 'datetime' for c in changes)
+        has_rescheduled = any(c.change_type == 'status' and c.new_value == 'scheduled' for c in changes)
+        if has_datetime_change or has_rescheduled:
+            Match.objects.filter(pk=match.pk).update(reminder_sent_at=None)
+            match.reminder_sent_at = None
+
         # Hook para notificaciones automáticas si hay cambios de última hora
         last_minute_changes = [
             c for c in notifiable_changes

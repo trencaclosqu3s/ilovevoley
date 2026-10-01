@@ -472,6 +472,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'cleanup_expired_album_zips',
         'schedule': 3600.0 * 24,
     },
+    'send-match-reminders-2h': {
+        'task': 'send_match_reminders_2h',
+        'schedule': 600.0,
+    },
 }
 
 # Cache Configuration

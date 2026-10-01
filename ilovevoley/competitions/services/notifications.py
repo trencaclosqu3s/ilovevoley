@@ -408,3 +408,58 @@ def notify_match_change_push(match: Match, changes: List[MatchChangeLog]) -> boo
     return True
 
 
+def notify_match_reminder(match: Match) -> bool:
+    """Envía un recordatorio push 2 horas antes del partido a los clubes implicados.
+
+    - Idempotente: comprueba y actualiza `reminder_sent_at` para no repetir el aviso.
+    - Excluye partidos finalizados, aplazados, cancelados o retirados.
+    - Respeta categorías y tipo de notificación 'match_reminder' (#277).
+    - Envía a las organizaciones activas asociadas a los clubes del partido.
+    - Envío en `transaction.on_commit(..., robust=True)`.
+    """
+    if match.status in ['finished', 'postponed', 'cancelled', 'withdrawn']:
+        return False
+
+    from django.db import transaction
+
+    with transaction.atomic():
+        updated = Match.objects.filter(pk=match.pk, reminder_sent_at__isnull=True).update(
+            reminder_sent_at=timezone.now()
+        )
+        if not updated:
+            return False
+
+        match.reminder_sent_at = timezone.now()
+
+        club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
+        if not club_ids:
+            return True
+
+        from ilovevoley.core.models import Organization
+        from ilovevoley.users.tasks import notify_web_push_organization_task
+
+        orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
+        if not orgs.exists():
+            return True
+
+        home_name = match.home_team_display
+        away_name = match.away_team_display
+        title = f"Recordatorio de partido: {home_name} vs {away_name}"
+        body = f"El partido {home_name} - {away_name} empieza en 2 h. ¡Ve preparando las rodilleras!"
+        category_ids = match_category_ids(match)
+        url = reverse('competitions:match_detail', args=[match.id])
+
+        for org in orgs:
+            kwargs = {
+                'organization_id': org.id,
+                'title': title,
+                'body': body,
+                'url': url,
+                'category_ids': category_ids,
+                'notification_type': 'match_reminder',
+            }
+            transaction.on_commit(lambda kw=kwargs: notify_web_push_organization_task.delay(**kw), robust=True)
+
+    return True
+
+
