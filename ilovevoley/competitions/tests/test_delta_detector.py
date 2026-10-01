@@ -337,4 +337,3 @@ class DeltaDetectorTest(TestCase):
         self.assertIsNone(match.home_score)
         self.assertIsNone(match.away_score)
         self.assertIsNone(match.set_scores)
-

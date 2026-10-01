@@ -934,9 +934,3 @@ class UpdateMatchesResultPersistenceTests(TestCase):
         self.assertEqual(self.match.set_scores, [[25, 20], [20, 25], [25, 18], [25, 22]])
         mock_notify_after_save.assert_called_once()
         self.assertFalse(mock_notify_after_save.call_args[0][1])
-
-
-
-
-
-

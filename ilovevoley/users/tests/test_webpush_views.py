@@ -1,4 +1,5 @@
 import json
+from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
@@ -11,6 +12,8 @@ User = get_user_model()
 @override_settings(ALLOWED_HOSTS=['santjust.ilovevoley.es', 'localhost', 'testserver'])
 class WebPushViewsTest(TestCase):
     def setUp(self):
+        # El contador de @ratelimit vive en la caché y no se resetea solo entre tests.
+        cache.clear()
         self.org = Organization.objects.create(name='CV Sant Just', slug='santjust')
         self.user = User.objects.create_user(username='jugadora', email='jugadora@test.es', password='password123')
         self.client = Client()
@@ -169,7 +172,6 @@ class WebPushViewsTest(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-
     def test_subscribe_does_not_hijack_subscription_of_other_user(self):
         other = User.objects.create_user(username='otra', email='otra@test.es', password='password123')
         sub = WebPushSubscription.objects.create(
@@ -237,7 +239,6 @@ class WebPushViewsTest(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertFalse(WebPushSubscription.objects.exists())
-
 
     def test_unsubscribe_does_not_delete_subscription_of_other_user(self):
         other = User.objects.create_user(username='otra', email='otra@test.es', password='password123')

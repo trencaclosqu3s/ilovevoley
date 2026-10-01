@@ -184,6 +184,30 @@ class MatchMediaPushTest(TestCase):
         )
 
     @patch('ilovevoley.content.views.queue_match_media_push')
+    def test_pending_image_upload_does_not_queue_match_media_push(self, mock_queue):
+        """Una foto aún pendiente de moderación no debe avisar: no es visible (#286)."""
+        member = User.objects.create_user(username='member', password='pwd')
+        Membership.objects.create(
+            user=member, organization=self.org, role='manager', is_approved=True
+        )
+        self.client.login(username='member', password='pwd')
+
+        response = self.client.post(
+            reverse('content:image_upload'),
+            {
+                'image': _create_test_image_file('pending.jpg'),
+                'title': 'Foto pendiente',
+                'image_type': 'match',
+                'season': self.season.id,
+                'match': self.match.id,
+            },
+            HTTP_HOST='santjust.ilovevoley.es',
+        )
+
+        self.assertEqual(response.status_code, 302)
+        mock_queue.assert_not_called()
+
+    @patch('ilovevoley.content.views.queue_match_media_push')
     def test_video_create_with_match_queues_match_media_push(self, mock_queue):
         response = self.client.post(
             reverse('content:video_create'),
@@ -323,4 +347,28 @@ class ModerationApprovalTriggersMediaPushTest(TestCase):
         moderate_image(actor=self.manager, tenant=self.org, image=self.image, decision='reject')
 
         mock_queue.assert_not_called()
+
+    @override_settings(GOOGLE_VISION_ENABLED=True, AUTO_MODERATION_ENABLED=True)
+    @patch('ilovevoley.content.services.queue_match_media_push')
+    @patch('ilovevoley.content.tasks.check_image_with_vision_api')
+    def test_vision_auto_approval_queues_match_media_push(self, mock_vision, mock_queue):
+        """La auto-aprobación por Vision también avisa, ya que entonces la foto es visible."""
+        from ilovevoley.content.tasks import analyze_image_with_vision_task
+
+        mock_vision.return_value = {
+            'safe': True,
+            'labels': ['volleyball'],
+            'text': '',
+            'details': {'api_response_ok': True},
+        }
+
+        analyze_image_with_vision_task(self.image.id, notify_if_pending=False)
+
+        self.image.refresh_from_db()
+        self.assertEqual(self.image.status, 'approved')
+        mock_queue.assert_called_once_with(
+            match_id=self.match.id,
+            media_type='photo',
+            organization_id=self.org.id,
+        )
 
