@@ -10,6 +10,23 @@ class FederationCallUp(models.Model):
         (MODALITY_INDOOR, 'Vóley Pista'),
     ]
 
+    TYPE_SELECTION = 'selection'
+    TYPE_TRAINING = 'training'
+    TYPE_FOLLOW_UP = 'follow_up'
+    TYPE_SUPERVISION = 'supervision'
+    TYPE_CHOICES = [
+        (TYPE_SELECTION, 'Selección Balear'),
+        (TYPE_TRAINING, 'Tecnificación'),
+        (TYPE_FOLLOW_UP, 'Seguimiento federativo'),
+        (TYPE_SUPERVISION, 'Supervisión'),
+    ]
+    NOTIFICATION_LABELS = {
+        TYPE_SELECTION: 'con la Selección Balear',
+        TYPE_TRAINING: 'de Tecnificación',
+        TYPE_FOLLOW_UP: 'de Seguimiento federativo',
+        TYPE_SUPERVISION: 'de Supervisión',
+    }
+
     GENDER_MALE = 'M'
     GENDER_FEMALE = 'F'
     GENDER_MIXED = 'X'
@@ -55,6 +72,13 @@ class FederationCallUp(models.Model):
         verbose_name='Género',
     )
     callup_number = models.CharField(max_length=50, blank=True, verbose_name='Número de convocatoria')
+    callup_type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        default=TYPE_SELECTION,
+        verbose_name='Tipo de circular',
+        help_text='Selección Balear, tecnificación, seguimiento federativo o supervisión',
+    )
 
     raw_text = models.TextField(blank=True, verbose_name='Texto extraído del PDF')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -68,6 +92,11 @@ class FederationCallUp(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def notification_label(self):
+        """Etiqueta del tipo de circular para los textos de notificación push."""
+        return self.NOTIFICATION_LABELS.get(self.callup_type, 'con la Selección Balear')
 
 
 class CallUpPlayer(models.Model):

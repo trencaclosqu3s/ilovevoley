@@ -42,6 +42,28 @@ def test_notify_callup_confirmed(mock_task):
 
 @pytest.mark.django_db
 @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+def test_notify_callup_confirmed_tracking_label(mock_task):
+    """Una circular de seguimiento debe etiquetar el push como tal, no como Selección Balear."""
+    season = Season.objects.create(name='2026-27', start_year=2026, end_year=2027, is_current=True)
+    org = Organization.objects.create(name='Portol', slug='portol')
+    person = Person.objects.create(first_name='Emma', last_name='Fuster', organization=org)
+    callup = FederationCallUp.objects.create(
+        season=season, title='1ª SEGUIMENT FEDERATIU CAD FEM', source_url='seg.pdf',
+        callup_type=FederationCallUp.TYPE_FOLLOW_UP,
+    )
+    player = CallUpPlayer.objects.create(
+        callup=callup, organization=org, person=person, match_status='confirmed',
+        raw_first_name='EMMA', raw_last_name='FUSTER'
+    )
+
+    assert notify_callup_confirmed(player) is True
+    kwargs = mock_task.call_args[1]
+    assert 'Seguimiento federativo' in kwargs['title']
+    assert 'Selección Balear' not in kwargs['title']
+
+
+@pytest.mark.django_db
+@patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
 def test_notify_callup_suspected(mock_task):
     season = Season.objects.create(name='2025-26', start_year=2025, end_year=2026, is_current=True)
     org = Organization.objects.create(name='Sant Josep', slug='sant-josep')

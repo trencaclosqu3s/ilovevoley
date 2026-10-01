@@ -18,9 +18,20 @@ def parse_callup_title(title: str) -> dict[str, Any]:
     - category_name: 'Infantil' | 'Cadete' | 'Juvenil / Sub-19' | 'Sub-21' | 'Senior' | ''
     - gender: 'M' | 'F' | 'X'
     - callup_number: str (ej. '3ª', '9ª Y 10ª', '23-30')
+    - event_type: 'selection' | 'training' | 'follow_up' | 'supervision'
     """
     clean_title = title.strip()
     norm_title = _remove_accents(clean_title).upper()
+
+    # 0. Tipo de evento federativo (selección por defecto)
+    if 'SUPERVIS' in norm_title:
+        event_type = 'supervision'
+    elif 'TECNIFICACI' in norm_title:
+        event_type = 'training'
+    elif 'SEGUIMENT' in norm_title or 'SEGUIMIENTO' in norm_title:
+        event_type = 'follow_up'
+    else:
+        event_type = 'selection'
 
     # 1. Modalidad
     if re.search(r'\b(VP|VOLEI\s+PLATJA|VOLEY\s+PLAYA|BEACH)\b', norm_title):
@@ -88,6 +99,7 @@ def parse_callup_title(title: str) -> dict[str, Any]:
         'category_name': category_name,
         'gender': gender,
         'callup_number': callup_number,
+        'event_type': event_type,
     }
 
 
@@ -116,6 +128,7 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
     header_positions: dict[str, int] | None = None
     in_table = False
     in_supervision_list = False
+    in_tracking_list = False
 
     for page in reader.pages:
         try:
@@ -160,12 +173,43 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                 if pos_club != -1 and pos_last != -1 and pos_first != -1:
                     in_table = True
                     in_supervision_list = False
+                    in_tracking_list = False
                     header_positions = {
                         'club': pos_club,
                         'last_name': pos_last,
                         'first_name': pos_first,
                         'birth_year': pos_year if pos_year != -1 else len(line),
                     }
+                continue
+
+            # Formato de seguimiento/tecnificación federativa (#288): listado
+            # "Nombre Apellidos   Club   Año" bajo un bloque HORARI/ENTRENADORS/LLOC.
+            if not in_table and ('SEGUIMENT FEDERATIU' in norm_line or 'TECNIFICACI' in norm_line):
+                in_tracking_list = True
+                continue
+
+            if in_tracking_list:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                # Fin del listado: pie de circular con instrucciones de pago
+                if any(sec in norm_line for sec in ['ESPORTISTES HAN DE PAGAR', 'IBAN', 'ABONAR', 'TARGETA']):
+                    in_tracking_list = False
+                    continue
+
+                chunks = [c.strip() for c in re.split(r'\s{2,}', stripped) if c.strip()]
+                # Cada fila termina en el año de nacimiento; exigirlo descarta el bloque
+                # de cabecera (horario, entrenadores, lugar), cuyas líneas no acaban en año
+                if len(chunks) >= 2 and re.match(r'^(19|20)\d{2}$', chunks[-1]):
+                    full_name = ' '.join(chunks[:-2])
+                    tokens = full_name.split()
+                    if len(tokens) >= 2:
+                        players.append({
+                            'club': chunks[-2],
+                            'last_name': ' '.join(tokens[1:]),
+                            'first_name': tokens[0],
+                            'birth_year': int(chunks[-1]),
+                        })
                 continue
 
             # Detección de formato alternativo (ej. convocatorias de supervisión CTEIB con listado Nombre   Club)

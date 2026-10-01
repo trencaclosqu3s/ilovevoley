@@ -39,3 +39,16 @@ def test_create_federation_callup_and_player():
     assert player.raw_full_name == 'LLUC RIERA MARTÍN'
     assert player.match_status == 'confirmed'
     assert str(player) == 'LLUC RIERA MARTÍN (CV SANT JOSEP)'
+
+
+@pytest.mark.django_db
+def test_federation_callup_type_default_and_notification_label():
+    season = Season.objects.create(name='2026-27', start_year=2026, end_year=2027, is_current=True)
+    callup = FederationCallUp.objects.create(
+        season=season, title='1ª SEGUIMENT FEDERATIU CAD FEM TEMP.26/27', source_url='seg.pdf'
+    )
+    assert callup.callup_type == FederationCallUp.TYPE_SELECTION
+    assert callup.notification_label == 'con la Selección Balear'
+
+    callup.callup_type = FederationCallUp.TYPE_FOLLOW_UP
+    assert callup.notification_label == 'de Seguimiento federativo'

@@ -497,7 +497,7 @@ def notify_callup_confirmed(player: CallUpPlayer) -> bool:
             ).values_list('team__category_id', flat=True).distinct()
         )
 
-    title = f"Convocatoria con la Selección Balear: {player.raw_full_name}"
+    title = f"Convocatoria {player.callup.notification_label}: {player.raw_full_name}"
     body = f"{player.raw_full_name} ha sido convocado/a para {player.callup.title}."
     url = f"https://voleibolib.federatio.com/upload/descargas/{player.callup.source_url}" if player.callup.source_url else '/'
 

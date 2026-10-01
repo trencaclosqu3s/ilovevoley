@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from ilovevoley.competitions.services.callup_ingestion import run_callups_scrape
 
 
-def run_balearic_callups_scrape(
+def run_balearic_tracking_scrape(
     season=None,
     temp=None,
     dry_run=False,
@@ -11,10 +11,10 @@ def run_balearic_callups_scrape(
     no_notify=False,
     stdout=None,
 ) -> dict:
-    """Ingesta de circulares de la selección balear (#287, tipo=7)."""
+    """Ingesta de circulares de tecnificación y seguimiento federativo (#288, tipo=22)."""
     return run_callups_scrape(
         season=season,
-        tipo=7,
+        tipo=22,
         temp=temp,
         dry_run=dry_run,
         force=force,
@@ -24,18 +24,18 @@ def run_balearic_callups_scrape(
 
 
 class Command(BaseCommand):
-    help = "Descarga y procesa convocatorias federativas de la selección balear (FVBIB)."
+    help = "Descarga y procesa circulares de tecnificación y seguimiento federativo (FVBIB)."
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--season',
             type=str,
-            help="Nombre de la temporada (ej: '2025-26'). Por defecto la activa.",
+            help="Nombre de la temporada (ej: '2026-27'). Por defecto la activa.",
         )
         parser.add_argument(
             '--temp',
             type=str,
-            help="Parámetro de temporada para la API de voleibolib (ej: '2526').",
+            help="Parámetro de temporada para la API de voleibolib (ej: '2627').",
         )
         parser.add_argument(
             '--dry-run',
@@ -54,7 +54,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        result = run_balearic_callups_scrape(
+        result = run_balearic_tracking_scrape(
             season=options.get('season'),
             temp=options.get('temp'),
             dry_run=options.get('dry_run', False),
@@ -64,6 +64,6 @@ class Command(BaseCommand):
         )
         self.stdout.write(
             self.style.SUCCESS(
-                f"Scraping completado. Convocatorias procesadas: {result['processed']}, jugadores: {result['players_count']}."
+                f"Scraping completado. Circulares procesadas: {result['processed']}, jugadores: {result['players_count']}."
             )
         )
