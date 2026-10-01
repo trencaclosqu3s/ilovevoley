@@ -57,7 +57,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="name" value="{{ summary.name }}">
                     <div class="flex items-center justify-between">
-                        <a href="{% url 'core:season_wizard' %}" class="text-gray-600 dark:text-gray-300 hover:text-gray-800 font-medium">
+                        <a href="{% url 'core:season_wizard' %}" class="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 font-medium">
                             ← Volver
                         </a>
                         <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white font-bold py-2.5 px-6 rounded-lg transition shadow">

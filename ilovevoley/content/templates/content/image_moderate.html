@@ -4,49 +4,49 @@
 {% block title %}Moderar Imagen - {{ image.title|default:"Imagen" }}{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6 border-t-4 border-csj-purple mb-6">
+<div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark mb-6">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Moderar Imagen</h1>
-        <a href="{% url 'content:image_moderation' %}" class="text-sm text-csj-purple hover:underline">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Moderar Imagen</h1>
+        <a href="{% url 'content:image_moderation' %}" class="text-sm text-csj-purple dark:text-csj-yellow hover:underline">
             &larr; Volver al listado
         </a>
     </div>
 
     <div class="mb-6">
         {% if image.image %}
-            <img src="{{ image.image.url }}" alt="{{ image.title|default:'Imagen' }}" class="w-full max-h-96 object-contain rounded-lg border border-gray-200 mb-4 bg-gray-50">
+            <img src="{{ image.image.url }}" alt="{{ image.title|default:'Imagen' }}" class="w-full max-h-96 object-contain rounded-lg border border-gray-200 dark:border-gray-700 mb-4 bg-gray-50 dark:bg-gray-700/50">
         {% endif %}
-        <p class="font-medium text-gray-800">{{ image.title|default:'Sin título' }}</p>
-        <p class="text-sm text-gray-500">Subida por {{ image.uploaded_by.username }} el {{ image.upload_date|date:"d/m/Y H:i" }}</p>
+        <p class="font-medium text-gray-800 dark:text-gray-200">{{ image.title|default:'Sin título' }}</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Subida por {{ image.uploaded_by.username }} el {{ image.upload_date|date:"d/m/Y H:i" }}</p>
     </div>
 
     <form method="post" class="space-y-4">
         {% csrf_token %}
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Acción</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Acción</label>
             <div class="flex gap-4">
                 {% for radio in form.action %}
-                    <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer">
+                    <label class="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                         {{ radio.tag }}
                         <span>{{ radio.choice_label }}</span>
                     </label>
                 {% endfor %}
             </div>
             {% if form.action.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ form.action.errors.0 }}</p>
+                <p class="text-red-500 dark:text-red-400 text-xs mt-1">{{ form.action.errors.0 }}</p>
             {% endif %}
         </div>
 
         <div>
-            <label for="{{ form.moderation_notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Notas de moderación</label>
+            <label for="{{ form.moderation_notes.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notas de moderación</label>
             {{ form.moderation_notes }}
             {% if form.moderation_notes.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ form.moderation_notes.errors.0 }}</p>
+                <p class="text-red-500 dark:text-red-400 text-xs mt-1">{{ form.moderation_notes.errors.0 }}</p>
             {% endif %}
         </div>
 
         <div class="flex justify-end gap-3 pt-4 border-t">
-            <a href="{% url 'content:image_moderation' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+            <a href="{% url 'content:image_moderation' %}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
                 Cancelar
             </a>
             <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-csj-purple hover:bg-csj-purple-dark rounded-lg transition-colors">

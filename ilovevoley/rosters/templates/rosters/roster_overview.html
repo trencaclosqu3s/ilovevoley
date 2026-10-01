@@ -66,7 +66,7 @@
             <!-- Filtro por categoría -->
             <div class="flex-1">
                 <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtrar por Categoría</label>
-                <select name="category" id="category" class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                <select name="category" id="category" class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                     <option value="">Todas las categorías</option>
                     {% for cat in categories %}
                         <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == selected_category %}selected{% endif %}>
@@ -79,7 +79,7 @@
             <!-- Filtro por temporada -->
             <div class="flex-1">
                 <label for="season" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtrar por Temporada</label>
-                <select name="season" id="season" class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                <select name="season" id="season" class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                     <option value="">Todas las temporadas</option>
                     {% for season in seasons %}
                         <option value="{{ season.id }}" {% if selected_season == season.id|stringformat:"s" %}selected{% endif %}>
@@ -171,7 +171,7 @@
                                              class="w-10 h-10 object-contain rounded border dark:border-gray-600">
                                     {% else %}
                                         <div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded border dark:border-gray-600 flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                                            <svg class="w-5 h-5 text-gray-400 dark:text-gray-500" fill="currentColor" viewBox="0 0 24 24">
                                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                                             </svg>
                                         </div>
@@ -217,7 +217,7 @@
                             
                             {% if team.active_players_count == 0 and team.active_staff_count == 0 %}
                                 <div class="text-center mt-2">
-                                    <span class="text-xs text-gray-500">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">
                                         <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
                                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
                                         </svg>
@@ -234,7 +234,7 @@
         <!-- Estado vacío -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-8 text-center">
             <div class="mb-4">
-                <svg class="w-16 h-16 text-gray-400 mx-auto" fill="currentColor" viewBox="0 0 24 24">
+                <svg class="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
             </div>

@@ -8,7 +8,7 @@
                     {% url tenant.home_url_name as home_url %}
                     {% if tenant.logo %}
                         <a href="{{ home_url }}">
-                            <img src="{{ tenant.logo.url }}" alt="{{ tenant.name }}" class="h-8 w-auto">
+                            <img src="{{ tenant.logo.url }}" alt="{{ tenant.name }}" class="h-8 w-auto dark:bg-white/90 dark:rounded-md dark:p-1">
                         </a>
                     {% else %}
                         <a href="{{ home_url }}" class="text-2xl sm:text-3xl">🏐</a>
@@ -204,7 +204,7 @@
             
             <!-- Botón menú móvil -->
             <div class="md:hidden flex items-center">
-                <button id="mobile-menu-toggle" class="text-csj-purple hover:text-csj-purple-dark focus:outline-none p-3 touch-manipulation">
+                <button id="mobile-menu-toggle" class="text-csj-purple hover:text-csj-purple-dark dark:text-csj-yellow dark:hover:text-csj-yellow-dark focus:outline-none p-3 touch-manipulation">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path id="menu-icon" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         <path id="close-icon" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" class="hidden"></path>
