@@ -3,6 +3,7 @@ import logging
 from urllib.parse import urlparse
 
 from django.conf import settings
+from py_vapid import Vapid
 from pywebpush import webpush as pywebpush_send, WebPushException
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,10 @@ def send_web_push(subscription, payload, ttl=86400):
     if not is_valid_push_endpoint(subscription.endpoint):
         logger.warning('send_web_push: endpoint no permitido, se omite el envío')
         return False
+
+    # pywebpush interpreta un str como base64 DER o ruta a fichero, no como texto PEM.
+    if private_key.lstrip().startswith('-----BEGIN'):
+        private_key = Vapid.from_pem(private_key.encode())
 
     subscription_info = {
         'endpoint': subscription.endpoint,
