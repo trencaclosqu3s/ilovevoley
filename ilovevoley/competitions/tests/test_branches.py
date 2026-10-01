@@ -22,18 +22,24 @@ class MatchBranchesTest(TestCase):
         cls.season = Season.objects.create(name='2026-27', start_year=2026, end_year=2027, is_current=True)
         cls.club = Club.objects.create(federation_id='br-sec', official_name='CV Branch')
 
-    def _match(self, home_gender='', league_gender=''):
+    def _match(self, home_gender='', league_gender='', away_gender=''):
         category = None
         league = League.objects.create(name='L', federation_id=f'l-{home_gender or "x"}-{league_gender or "x"}', season=self.season)
         if league_gender:
             category = Category.objects.create(name=f'Cat {league_gender}', gender=league_gender)
             league.categories.add(category)
-        team = Team.objects.create(
+        home = Team.objects.create(
             name='Local', federation_id=f't-{home_gender or "x"}-{league_gender or "x"}',
             club=self.club, category=category, gender=home_gender,
         )
+        away = None
+        if away_gender:
+            away = Team.objects.create(
+                name='Visitante', federation_id=f'a-{away_gender}-{league_gender or "x"}',
+                club=self.club, category=None, gender=away_gender,
+            )
         return Match.objects.create(
-            league=league, home_team=team,
+            league=league, home_team=home, away_team=away,
             match_date=timezone.now() + timedelta(days=1), venue='Pab',
         )
 
@@ -44,6 +50,14 @@ class MatchBranchesTest(TestCase):
     def test_collects_gender_from_team(self):
         match = self._match(home_gender=GENDER_MALE)
         self.assertEqual(match_branches(match), {GENDER_MALE})
+
+    def test_collects_gender_from_both_teams(self):
+        match = self._match(home_gender=GENDER_MALE, away_gender=GENDER_FEMALE)
+        self.assertEqual(match_branches(match), {GENDER_MALE, GENDER_FEMALE})
+
+    def test_unions_league_category_and_team_genders(self):
+        match = self._match(league_gender=GENDER_FEMALE, home_gender=GENDER_MALE)
+        self.assertEqual(match_branches(match), {GENDER_FEMALE, GENDER_MALE})
 
     def test_unknown_gender_returns_empty_set(self):
         match = self._match()
