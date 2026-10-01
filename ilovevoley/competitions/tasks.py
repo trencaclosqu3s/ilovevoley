@@ -52,3 +52,62 @@ def send_match_reminders_2h_task():
             )
 
     return sent_count
+
+
+@shared_task(name='scrape_balearic_callups')
+def scrape_balearic_callups_task(
+    season_id=None,
+    temp_override=None,
+    force=False,
+    no_notify=False,
+):
+    """Descarga y procesa convocatorias federativas de la selección balear (FVBIB)."""
+    from ilovevoley.core.models import Season
+    from ilovevoley.competitions.management.commands.scrape_balearic_callups import (
+        run_balearic_callups_scrape,
+    )
+
+    season = None
+    if season_id:
+        try:
+            season = Season.objects.get(pk=season_id)
+        except Season.DoesNotExist:
+            logger.error(f"Temporada {season_id} no encontrada para scrape_balearic_callups.")
+            return {'processed': 0, 'error': f'Season {season_id} not found'}
+
+    return run_balearic_callups_scrape(
+        season=season,
+        temp=temp_override,
+        dry_run=False,
+        force=force,
+        no_notify=no_notify,
+    )
+
+
+@shared_task(name='scrape_balearic_tracking')
+def scrape_balearic_tracking_task(
+    season_id=None,
+    temp_override=None,
+    force=False,
+    no_notify=False,
+):
+    """Descarga y procesa circulares de tecnificación y seguimiento federativo (FVBIB, #288)."""
+    from ilovevoley.core.models import Season
+    from ilovevoley.competitions.services.callup_ingestion import run_callups_scrape
+
+    season = None
+    if season_id:
+        try:
+            season = Season.objects.get(pk=season_id)
+        except Season.DoesNotExist:
+            logger.error(f"Temporada {season_id} no encontrada para scrape_balearic_tracking.")
+            return {'processed': 0, 'error': f'Season {season_id} not found'}
+
+    return run_callups_scrape(
+        season=season,
+        tipo=22,
+        temp=temp_override,
+        dry_run=False,
+        force=force,
+        no_notify=no_notify,
+    )

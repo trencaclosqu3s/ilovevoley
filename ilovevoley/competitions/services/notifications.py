@@ -9,7 +9,8 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 
-from ilovevoley.competitions.models import Match, MatchChangeLog
+from ilovevoley.competitions.models import CallUpPlayer, Match, MatchChangeLog
+from ilovevoley.competitions.services.branches import match_branches, organization_branch_q
 from ilovevoley.core.tenant_utils import build_absolute_url
 
 logger = logging.getLogger(__name__)
@@ -71,6 +72,25 @@ def _clubs_with_notifications_disabled(club_ids: set) -> set:
     return {club_id for club_id, flags in flags_by_club.items() if not any(flags)}
 
 
+def _clubs_without_match_branch(match, club_ids):
+    """Clubes con organizaciones activas que no cubren ninguna rama del partido.
+
+    Un club sin ninguna organización activa no se bloquea: no tiene configuración
+    de ramas que lo silencie (mismo criterio que los avisos desactivados).
+    """
+    from ilovevoley.core.models import Organization
+
+    if not club_ids:
+        return set()
+    q = organization_branch_q(match_branches(match))
+    if q is None:
+        return set()
+    orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
+    clubs_with_org = set(orgs.values_list('club_id', flat=True))
+    covered = set(orgs.filter(q).values_list('club_id', flat=True))
+    return clubs_with_org - covered
+
+
 def get_recipients_for_match(match: Match) -> List[str]:
     """
     Obtiene la lista de emails destinatarios para un partido con cambios.
@@ -102,8 +122,12 @@ def get_recipients_for_match(match: Match) -> List[str]:
         {t.club_id for t in teams if t.club_id}
     )
 
+    branch_blocked_clubs = _clubs_without_match_branch(
+        match, {t.club_id for t in teams if t.club_id}
+    )
+
     for team in teams:
-        if team.club_id in disabled_clubs:
+        if team.club_id in disabled_clubs or team.club_id in branch_blocked_clubs:
             continue
 
         team_recipients = set()
@@ -299,13 +323,14 @@ def notify_match_result(match: Match, tenant=None) -> bool:
     # Determinar organizaciones a notificar
     from ilovevoley.core.models import Organization
 
-    orgs = set()
+    q = organization_branch_q(match_branches(match))
     if tenant:
-        orgs.add(tenant)
+        orgs = Organization.objects.filter(pk=tenant.pk)
     else:
         club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
-        if club_ids:
-            orgs.update(Organization.objects.filter(club_id__in=club_ids, is_active=True))
+        orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
+    if q is not None:
+        orgs = orgs.filter(q)
 
     if not orgs:
         return True
@@ -414,6 +439,9 @@ def notify_match_change_push(match: Match, changes: List[MatchChangeLog]) -> boo
         is_active=True,
         notify_match_changes=True,
     )
+    q = organization_branch_q(match_branches(match))
+    if q is not None:
+        orgs = orgs.filter(q)
 
     title, body = format_match_change_push(match, changes)
 
@@ -457,6 +485,9 @@ def notify_match_reminder(match: Match) -> bool:
         from ilovevoley.core.models import Organization
 
         orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
+        q = organization_branch_q(match_branches(match))
+        if q is not None:
+            orgs = orgs.filter(q)
 
         home_name = match.home_team_display
         away_name = match.away_team_display
@@ -472,6 +503,72 @@ def notify_match_reminder(match: Match) -> bool:
             notification_type='match_reminder',
         )
 
+    return True
+
+
+def notify_callup_confirmed(player: CallUpPlayer) -> bool:
+    """Envía notificación Web Push a los miembros del club informando de la convocatoria confirmada."""
+    if player.notification_sent:
+        return False
+    if not player.organization:
+        return False
+    if player.match_status != CallUpPlayer.STATUS_CONFIRMED:
+        return False
+
+    player.notification_sent = True
+    player.save(update_fields=['notification_sent'])
+
+    category_ids = []
+    if player.person:
+        category_ids = list(
+            player.person.player_roles.filter(
+                season=player.callup.season,
+                is_active=True,
+                team__category_id__isnull=False,
+            ).values_list('team__category_id', flat=True).distinct()
+        )
+
+    title = f"Convocatoria {player.callup.notification_label}: {player.raw_full_name}"
+    body = f"{player.raw_full_name} ha sido convocado/a para {player.callup.title}."
+    url = f"https://voleibolib.federatio.com/upload/descargas/{player.callup.source_url}" if player.callup.source_url else '/'
+
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+    notify_web_push_organization_task.delay(
+        organization_id=player.organization_id,
+        title=title,
+        body=body,
+        url=url,
+        category_ids=category_ids,
+        notification_type='callup_confirmed',
+    )
+    return True
+
+
+def notify_callup_suspected(player: CallUpPlayer) -> bool:
+    """Envía alerta Web Push a administradores y managers para moderar una convocatoria en duda."""
+    if player.notification_sent:
+        return False
+    if not player.organization:
+        return False
+    if player.match_status != CallUpPlayer.STATUS_SUSPECTED:
+        return False
+
+    player.notification_sent = True
+    player.save(update_fields=['notification_sent'])
+
+    title = f"Posible convocatoria detectada: {player.raw_full_name}"
+    body = f"Se ha detectado una posible convocatoria de {player.raw_full_name} ({player.raw_club}). Revisa y confirma en el panel."
+    url = '/core/moderacion/#convocatorias'
+
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+    notify_web_push_organization_task.delay(
+        organization_id=player.organization_id,
+        title=title,
+        body=body,
+        url=url,
+        category_ids=[],
+        notification_type='admin_alert',
+    )
     return True
 
 

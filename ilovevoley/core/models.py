@@ -16,6 +16,35 @@ _hex_color_validator = RegexValidator(r'^#[0-9a-fA-F]{6}$', 'Introduce un color 
 SEASON_START_MONTH = 9
 _INVALID_SEASON_MSG = 'Formato de temporada no válido (ej: 2025-26).'
 
+# Ramas/géneros soportados. Vacío = sin especificar.
+GENDER_MALE = 'male'
+GENDER_FEMALE = 'female'
+GENDER_MIXED = 'mixed'
+GENDER_CHOICES = [
+    ('', 'Sin especificar'),
+    (GENDER_MALE, 'Masculino'),
+    (GENDER_FEMALE, 'Femenino'),
+    (GENDER_MIXED, 'Mixto'),
+]
+
+
+def infer_gender_from_name(name):
+    """Infiere el género desde un nombre libre de categoría o liga.
+
+    Devuelve uno de GENDER_CHOICES o ``''`` si no se reconoce. No se detectan
+    iniciales (M/F) por el riesgo de falsos positivos.
+    """
+    if not name:
+        return ''
+    lowered = name.lower()
+    if 'femen' in lowered:
+        return GENDER_FEMALE
+    if 'mascul' in lowered:
+        return GENDER_MALE
+    if 'mixt' in lowered:
+        return GENDER_MIXED
+    return ''
+
 
 def normalize_season_name(raw):
     """Normaliza una temporada a formato canónico 'YYYY-YY'.
@@ -127,6 +156,15 @@ class Category(models.Model):
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
+    gender = models.CharField(
+        max_length=10,
+        choices=GENDER_CHOICES,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Género / Rama',
+        help_text='Vacío si la categoría es genérica (ej. "Senior").',
+    )
 
     class Meta:
         db_table = 'videos_category'
@@ -179,6 +217,21 @@ class Organization(models.Model):
         default=True,
         help_text='Recibir avisos de cambios federativos de los partidos de sus equipos',
     )
+    has_male_branch = models.BooleanField(
+        default=True,
+        verbose_name='Rama masculina activa',
+        help_text='Recibir avisos de partidos masculinos.',
+    )
+    has_female_branch = models.BooleanField(
+        default=False,
+        verbose_name='Rama femenina activa',
+        help_text='Recibir avisos de partidos femeninos.',
+    )
+    has_mixed_branch = models.BooleanField(
+        default=False,
+        verbose_name='Rama mixta activa',
+        help_text='Recibir avisos de partidos mixtos.',
+    )
     created_at      = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -195,6 +248,18 @@ class Organization(models.Model):
         return self.HOME_URL_NAMES.get(
             self.default_home, self.HOME_URL_NAMES[self.HOME_VIDEOS]
         )
+
+    @property
+    def active_branches(self):
+        """Ramas que compite la organización, según sus booleanos."""
+        branches = set()
+        if self.has_male_branch:
+            branches.add(GENDER_MALE)
+        if self.has_female_branch:
+            branches.add(GENDER_FEMALE)
+        if self.has_mixed_branch:
+            branches.add(GENDER_MIXED)
+        return branches
 
     @property
     def instagram_handle(self):

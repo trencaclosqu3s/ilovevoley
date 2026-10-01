@@ -21,6 +21,8 @@ urlpatterns = [
     path('api/moderation/counts/', views.moderation_counts_api, name='moderation_counts_api'),
     path('api/users/<int:user_id>/approve/', views.approve_user_api, name='approve_user_api'),
     path('api/users/<int:user_id>/reject/', views.reject_user_api, name='reject_user_api'),
+    path('api/callups/<int:player_id>/confirm/', views.confirm_callup_api, name='confirm_callup_api'),
+    path('api/callups/<int:player_id>/reject/', views.reject_callup_api, name='reject_callup_api'),
 
     # Wizard de nueva temporada (plataforma, solo superusers)
     path('temporadas/nueva/', views.season_wizard, name='season_wizard'),

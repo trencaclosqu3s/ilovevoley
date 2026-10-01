@@ -17,14 +17,14 @@
                 <p class="text-gray-600 dark:text-gray-300">{% if can_moderate_images %}Gestiona usuarios e imágenes pendientes de aprobación{% else %}Gestiona las solicitudes de membresía pendientes de tu club{% endif %}</p>
             </div>
             <div class="text-right">
-                <div class="text-3xl font-bold text-csj-purple dark:text-csj-yellow">{{ pending_users_count|add:pending_images_count }}</div>
-                <div class="text-sm text-gray-500 dark:text-gray-400">elemento{{ pending_users_count|add:pending_images_count|pluralize:"s" }} pendiente{{ pending_users_count|add:pending_images_count|pluralize:"s" }}</div>
+                <div class="text-3xl font-bold text-csj-purple dark:text-csj-yellow">{{ pending_users_count|add:pending_images_count|add:pending_callups_count }}</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">elemento{{ pending_users_count|add:pending_images_count|add:pending_callups_count|pluralize:"s" }} pendiente{{ pending_users_count|add:pending_images_count|add:pending_callups_count|pluralize:"s" }}</div>
             </div>
         </div>
     </div>
 
     <!-- Resumen de estadísticas -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div class="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 border-l-4 border-blue-500">
             <div class="flex items-center">
                 <div class="text-3xl mr-4">👥</div>
@@ -35,7 +35,7 @@
                 </div>
             </div>
         </div>
-        
+
         {% if can_moderate_images %}
         <div class="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-6 border-l-4 border-purple-500">
             <div class="flex items-center">
@@ -48,6 +48,17 @@
             </div>
         </div>
         {% endif %}
+
+        <div class="bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg p-6 border-l-4 border-amber-500">
+            <div class="flex items-center">
+                <div class="text-3xl mr-4">🏐</div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">Convocatorias</h3>
+                    <p class="text-2xl font-bold text-amber-600">{{ pending_callups_count }}</p>
+                    <p class="text-sm text-gray-600">Por confirmar o descartar</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Token CSRF para AJAX -->
@@ -127,6 +138,85 @@
                             ❌ Rechazar
                         </button>
                     </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sección de Convocatorias Pendientes -->
+    {% if pending_callups %}
+    <div id="convocatorias" class="mb-12">
+        <div class="flex items-center mb-6">
+            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 mr-3">🏐 Convocatorias federativas por confirmar</h2>
+            <span class="bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_callups_count }}</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {% for player in pending_callups %}
+            <div class="callup-card bg-white rounded-lg shadow-lg border border-gray-200 hover:shadow-xl transition-shadow p-6" id="callup-card-{{ player.id }}">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <span class="inline-block bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded mb-2">
+                            Coincidencia: {{ player.match_score|floatformat:2 }}
+                        </span>
+                        <h3 class="text-lg font-bold text-gray-900">{{ player.raw_full_name }}</h3>
+                        <p class="text-sm text-gray-600">Club en PDF: <span class="font-medium text-gray-800">{{ player.raw_club }}</span></p>
+                        {% if player.raw_birth_year %}
+                        <p class="text-xs text-gray-500">Año nacimiento: {{ player.raw_birth_year }}</p>
+                        {% endif %}
+                    </div>
+                    {% if player.callup.source_url %}
+                    <a href="https://voleibolib.federatio.com/upload/descargas/{{ player.callup.source_url }}" target="_blank" rel="noopener noreferrer" class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                        📄 Ver PDF
+                    </a>
+                    {% endif %}
+                </div>
+
+                <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 mb-4 text-sm space-y-1">
+                    <div><span class="text-gray-500">Circular:</span> <span class="font-medium text-gray-800">{{ player.callup.title }}</span></div>
+                    {% if player.callup.circular_date %}
+                    <div><span class="text-gray-500">Fecha:</span> {{ player.callup.circular_date|date:"d/m/Y" }}</div>
+                    {% endif %}
+                    <div>
+                        <span class="text-gray-500">Tipo:</span> {{ player.callup.get_callup_type_display }}
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Modalidad:</span> {{ player.callup.get_modality_display }} |
+                        <span class="text-gray-500">Categoría:</span> {{ player.callup.category_name|default:"-" }} ({{ player.callup.get_gender_display }})
+                    </div>
+                </div>
+
+                {% if player.person %}
+                <div class="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4 text-sm">
+                    <div class="font-semibold text-blue-900 mb-1">Ficha sugerida del club:</div>
+                    <div class="text-blue-800 font-medium">{{ player.person.full_name }}</div>
+                    {% if player.person.birth_date %}
+                    <div class="text-xs text-blue-600">Nacimiento: {{ player.person.birth_date|date:"d/m/Y" }}</div>
+                    {% endif %}
+                    {% if player.match_notes %}
+                    <div class="text-xs text-gray-600 mt-1 italic">{{ player.match_notes }}</div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="p-3 bg-amber-50 rounded-lg border border-amber-200 mb-4 text-sm">
+                    <div class="font-semibold text-amber-900 mb-1">Jugador del club sin ficha vinculada:</div>
+                    <div class="text-xs text-amber-800">{{ player.match_notes|default:"El club coincide con la circular pero no se encontró la ficha en la plantilla actual." }}</div>
+                </div>
+                {% endif %}
+
+                <div class="flex space-x-3">
+                    <button
+                        data-call="confirmCallup" data-call-args='[{{ player.id }}]' data-call-this
+                        class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm touch-manipulation">
+                        ✅ Confirmar convocatoria
+                    </button>
+                    <button
+                        data-call="rejectCallup" data-call-args='[{{ player.id }}]' data-call-this
+                        class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm touch-manipulation">
+                        ❌ Descartar
+                    </button>
                 </div>
             </div>
             {% endfor %}
@@ -397,5 +487,66 @@ window.moderateImage = function(imageId, action, buttonElement) {
         }, 1000);
     }
 };
+
+// Funciones para moderar convocatorias dudosas
+function confirmCallup(playerId, btn) {
+    if (!confirm('¿Confirmar esta convocatoria? Se notificará a los socios del club.')) return;
+    btn.disabled = true;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    fetch(`/core/api/callups/${playerId}/confirm/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const card = document.getElementById(`callup-card-${playerId}`);
+            if (card) {
+                card.style.opacity = '0.5';
+                setTimeout(() => card.remove(), 400);
+            }
+        } else {
+            alert(data.error || 'Error al confirmar convocatoria');
+            btn.disabled = false;
+        }
+    })
+    .catch(err => {
+        alert('Error de conexión');
+        btn.disabled = false;
+    });
+}
+
+function rejectCallup(playerId, btn) {
+    if (!confirm('¿Descartar esta convocatoria para tu club?')) return;
+    btn.disabled = true;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    fetch(`/core/api/callups/${playerId}/reject/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const card = document.getElementById(`callup-card-${playerId}`);
+            if (card) {
+                card.style.opacity = '0.5';
+                setTimeout(() => card.remove(), 400);
+            }
+        } else {
+            alert(data.error || 'Error al descartar convocatoria');
+            btn.disabled = false;
+        }
+    })
+    .catch(err => {
+        alert('Error de conexión');
+        btn.disabled = false;
+    });
+}
 </script>
 {% endblock %}

@@ -1,5 +1,6 @@
 from django.db import models
 
+from ilovevoley.core.models import GENDER_CHOICES
 from ilovevoley.core.tenancy import TeamTenantQuerySet
 
 
@@ -60,6 +61,14 @@ class Team(models.Model):
         related_name='teams',
         help_text='Categoría asignada automáticamente durante el scraping'
     )
+    gender = models.CharField(
+        max_length=10,
+        choices=GENDER_CHOICES,
+        blank=True,
+        default='',
+        verbose_name='Género / Rama',
+        help_text='Vacío = hereda el género de la categoría.',
+    )
     is_active = models.BooleanField(default=True, help_text='Indica si el equipo sigue activo en las competiciones')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -117,6 +126,15 @@ class Team(models.Model):
     def display_logo(self):
         """Devuelve logo del equipo o del club si no tiene"""
         return self.logo_url or (self.club.logo_federation_url if self.club else None)
+
+    @property
+    def effective_gender(self):
+        """Género efectivo: el propio si está definido, si no el de la categoría."""
+        if self.gender:
+            return self.gender
+        if self.category_id and self.category:
+            return self.category.gender
+        return ''
 
     @property
     def is_variant(self):

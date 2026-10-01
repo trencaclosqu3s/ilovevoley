@@ -74,15 +74,15 @@ class ClubAdmin(ModelAdmin):
 
 @admin.register(Team)
 class TeamAdmin(ModelAdmin):
-    list_display = ('display_name_admin', 'category', 'club_name', 'variant_indicator', 'sponsor_name', 'federation_id', 'is_active', 'logo_preview', 'players_count', 'staff_count')
-    list_filter = ('is_active', 'category', 'club', ('parent_team', admin.RelatedOnlyFieldListFilter), 'variant_type', 'is_temporary_variant', 'created_at')
+    list_display = ('display_name_admin', 'category', 'gender', 'club_name', 'variant_indicator', 'sponsor_name', 'federation_id', 'is_active', 'logo_preview', 'players_count', 'staff_count')
+    list_filter = ('is_active', 'category', 'gender', 'club', ('parent_team', admin.RelatedOnlyFieldListFilter), 'variant_type', 'is_temporary_variant', 'created_at')
     search_fields = ('name', 'federation_id', 'sponsor_name', 'club__official_name', 'category__name')
     readonly_fields = ('created_at', 'display_logo', 'players_count', 'staff_count')
     autocomplete_fields = ('club', 'category', 'parent_team')
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('name', 'federation_id', 'club', 'category', 'is_active')
+            'fields': ('name', 'federation_id', 'club', 'category', 'gender', 'is_active')
         }),
         ('Configuración de Variantes', {
             'fields': (
