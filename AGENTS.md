@@ -59,9 +59,10 @@ defecto: `docker compose run --rm web python manage.py <comando>`.
 ## Restricciones y Reglas de Negocio
 
 - **Django fijado en 6.0.8** hasta que `django-celery-beat` soporte 6.1+.
-- **Tareas Celery**: Las 16 tareas Celery llevan `name=` explícito. **No quitarlo**:
+- **Tareas Celery**: Toda tarea Celery lleva `name=` explícito. **No quitarlo**:
   las filas de `PeriodicTask` en base de datos dependen de ese nombre, no de la
-  ruta del módulo.
+  ruta del módulo. Al borrar una tarea, comprobar antes que no queden llamadores
+  ni `PeriodicTask` con ese nombre en base de datos.
 - **Managers de Match**: Usar `Match.objects` (excluye automáticamente partidos
   con estado `withdrawn`) o `Match.all_objects` (incluye todos sin filtrar).
 - **Validación de resultados**: Validar siempre marcadores de voleibol con
