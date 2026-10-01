@@ -194,6 +194,9 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                             rem = chunks
 
                     if len(rem) >= 3:
+                        # Si no hay año, limitar a máximo 4 columnas para evitar falsos positivos con pies de página
+                        if birth_year is None and len(rem) > 4:
+                            continue
                         club_clean = re.sub(r'^\d+[\.\)]?\s*', '', rem[0]).strip()
                         last_str = rem[1]
                         first_str = ' '.join(rem[2:])

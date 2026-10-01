@@ -143,3 +143,15 @@ def test_extract_callup_players_composite_name_without_year_and_middle_year():
     assert players[0]['birth_year'] is None
     assert players[1]['club'] == 'CV PÒRTOL'
     assert players[1]['birth_year'] == 2011
+
+
+def test_extract_callup_players_ignores_long_footers_without_year():
+    pdf_bytes = create_dummy_pdf([
+        "CONVOCATÒRIA SELECCIÓ",
+        "CLUB                         LLINATGES                          NOM                   ANY",
+        "1    CV SANT JOSEP           RIERA MARTÍN                       LLUC                  2013",
+        "Palma de Mallorca             a 12 de febrer de             Federació de Voleibol       de les Illes Balears  Signatura",
+    ])
+    raw_text, players = extract_callup_players_from_pdf(pdf_bytes)
+    assert len(players) == 1
+    assert players[0]['club'] == 'CV SANT JOSEP'
