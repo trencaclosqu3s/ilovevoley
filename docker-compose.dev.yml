@@ -22,7 +22,7 @@ services:
       - .:/app
       - chroma_data:/app/chroma_db
     ports:
-      - "8000:8000"
+      - "${DEV_WEB_PORT:-8008}:8000"
     environment:
       - DEBUG=True
       - DATABASE_URL=postgresql://volleyuser:volleypass@db:5432/volleyvideos

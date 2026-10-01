@@ -363,13 +363,28 @@ def moderation_counts_api(request):
     else:
         pending_images_count = 0
 
+    # Convocatorias dudosas pendientes de moderación
+    from ilovevoley.competitions.models import CallUpPlayer
+
+    if tenant:
+        pending_callups_count = CallUpPlayer.objects.filter(
+            organization=tenant, match_status='suspected'
+        ).count()
+    elif request.user.is_superuser:
+        pending_callups_count = CallUpPlayer.objects.filter(
+            match_status='suspected'
+        ).count()
+    else:
+        pending_callups_count = 0
+
     # Total de elementos pendientes
-    total_pending = pending_users_count + pending_images_count
+    total_pending = pending_users_count + pending_images_count + pending_callups_count
 
     return JsonResponse({
         'success': True,
         'pending_users': pending_users_count,
         'pending_images': pending_images_count,
+        'pending_callups': pending_callups_count,
         'total_pending': total_pending
     })
 
@@ -417,11 +432,26 @@ def moderation_panel(request):
     else:
         pending_images = Image.objects.none()
 
+    from ilovevoley.competitions.models import CallUpPlayer
+
+    if tenant:
+        pending_callups = CallUpPlayer.objects.filter(
+            organization=tenant, match_status='suspected'
+        ).select_related('callup', 'person').order_by('-callup__circular_date', '-callup__id')
+    elif is_superuser:
+        pending_callups = CallUpPlayer.objects.filter(
+            match_status='suspected'
+        ).select_related('callup', 'person', 'organization').order_by('-callup__circular_date', '-callup__id')
+    else:
+        pending_callups = CallUpPlayer.objects.none()
+
     context = {
         'pending_users': pending_users,
         'pending_images': pending_images,
+        'pending_callups': pending_callups,
         'pending_users_count': pending_users.count(),
         'pending_images_count': pending_images.count(),
+        'pending_callups_count': pending_callups.count(),
         'can_moderate_images': can_mod_images,
     }
 
@@ -525,6 +555,69 @@ def reject_user_api(request, user_id):
             'success': False,
             'error': 'Error interno del servidor'
         }, status=500)
+
+
+@login_required
+@require_POST
+def confirm_callup_api(request, player_id):
+    """API para confirmar una convocatoria dudosa vía AJAX."""
+    if not _can_moderate_memberships(request):
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+
+    tenant = getattr(request, 'tenant', None)
+    from ilovevoley.competitions.models import CallUpPlayer
+    from ilovevoley.competitions.services.notifications import notify_callup_confirmed
+
+    try:
+        if tenant:
+            player = CallUpPlayer.objects.select_related('callup', 'organization', 'person').get(
+                id=player_id, organization=tenant
+            )
+        elif request.user.is_superuser:
+            player = CallUpPlayer.objects.select_related('callup', 'organization', 'person').get(
+                id=player_id
+            )
+        else:
+            return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+    except CallUpPlayer.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Jugador convocado no encontrado'}, status=404)
+
+    player.match_status = CallUpPlayer.STATUS_CONFIRMED
+    player.reviewed_by = request.user
+    player.reviewed_at = timezone.now()
+    player.save(update_fields=['match_status', 'reviewed_by', 'reviewed_at'])
+
+    notify_callup_confirmed(player)
+
+    return JsonResponse({'success': True, 'player_id': player.id, 'match_status': 'confirmed'})
+
+
+@login_required
+@require_POST
+def reject_callup_api(request, player_id):
+    """API para descartar una convocatoria dudosa vía AJAX."""
+    if not _can_moderate_memberships(request):
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+
+    tenant = getattr(request, 'tenant', None)
+    from ilovevoley.competitions.models import CallUpPlayer
+
+    try:
+        if tenant:
+            player = CallUpPlayer.objects.get(id=player_id, organization=tenant)
+        elif request.user.is_superuser:
+            player = CallUpPlayer.objects.get(id=player_id)
+        else:
+            return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+    except CallUpPlayer.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Jugador convocado no encontrado'}, status=404)
+
+    player.match_status = CallUpPlayer.STATUS_REJECTED
+    player.reviewed_by = request.user
+    player.reviewed_at = timezone.now()
+    player.save(update_fields=['match_status', 'reviewed_by', 'reviewed_at'])
+
+    return JsonResponse({'success': True, 'player_id': player.id, 'match_status': 'rejected'})
 
 
 def _require_superuser(request):

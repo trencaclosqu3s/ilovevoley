@@ -9,7 +9,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 
-from ilovevoley.competitions.models import Match, MatchChangeLog
+from ilovevoley.competitions.models import CallUpPlayer, Match, MatchChangeLog
 from ilovevoley.competitions.services.branches import match_branches, organization_branch_q
 from ilovevoley.core.tenant_utils import build_absolute_url
 
@@ -503,6 +503,72 @@ def notify_match_reminder(match: Match) -> bool:
             notification_type='match_reminder',
         )
 
+    return True
+
+
+def notify_callup_confirmed(player: CallUpPlayer) -> bool:
+    """Envía notificación Web Push a los miembros del club informando de la convocatoria confirmada."""
+    if player.notification_sent:
+        return False
+    if not player.organization:
+        return False
+    if player.match_status != CallUpPlayer.STATUS_CONFIRMED:
+        return False
+
+    player.notification_sent = True
+    player.save(update_fields=['notification_sent'])
+
+    category_ids = []
+    if player.person:
+        category_ids = list(
+            player.person.player_roles.filter(
+                season=player.callup.season,
+                is_active=True,
+                team__category_id__isnull=False,
+            ).values_list('team__category_id', flat=True).distinct()
+        )
+
+    title = f"Convocatoria con la Selección Balear: {player.raw_full_name}"
+    body = f"{player.raw_full_name} ha sido convocado/a para {player.callup.title}."
+    url = f"https://voleibolib.federatio.com/upload/descargas/{player.callup.source_url}" if player.callup.source_url else '/'
+
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+    notify_web_push_organization_task.delay(
+        organization_id=player.organization_id,
+        title=title,
+        body=body,
+        url=url,
+        category_ids=category_ids,
+        notification_type='callup_confirmed',
+    )
+    return True
+
+
+def notify_callup_suspected(player: CallUpPlayer) -> bool:
+    """Envía alerta Web Push a administradores y managers para moderar una convocatoria en duda."""
+    if player.notification_sent:
+        return False
+    if not player.organization:
+        return False
+    if player.match_status != CallUpPlayer.STATUS_SUSPECTED:
+        return False
+
+    player.notification_sent = True
+    player.save(update_fields=['notification_sent'])
+
+    title = f"Posible convocatoria detectada: {player.raw_full_name}"
+    body = f"Se ha detectado una posible convocatoria de {player.raw_full_name} ({player.raw_club}). Revisa y confirma en el panel."
+    url = '/core/moderacion/#convocatorias'
+
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+    notify_web_push_organization_task.delay(
+        organization_id=player.organization_id,
+        title=title,
+        body=body,
+        url=url,
+        category_ids=[],
+        notification_type='admin_alert',
+    )
     return True
 
 
