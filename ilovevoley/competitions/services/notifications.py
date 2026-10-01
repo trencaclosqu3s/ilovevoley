@@ -72,11 +72,11 @@ def _clubs_with_notifications_disabled(club_ids: set) -> set:
     return {club_id for club_id, flags in flags_by_club.items() if not any(flags)}
 
 
-def _clubs_without_match_branch(match: Match, club_ids: set) -> set:
-    """Clubes cuyas organizaciones activas no cubren ninguna rama del partido.
+def _clubs_without_match_branch(match, club_ids):
+    """Clubes con organizaciones activas que no cubren ninguna rama del partido.
 
-    Uno de estos clubes no aporta destinatarios al aviso, igual que un club con
-    los avisos desactivados. Sin género conocido (o sin clubes) devuelve vacío.
+    Un club sin ninguna organización activa no se bloquea: no tiene configuración
+    de ramas que lo silencie (mismo criterio que los avisos desactivados).
     """
     from ilovevoley.core.models import Organization
 
@@ -85,13 +85,10 @@ def _clubs_without_match_branch(match: Match, club_ids: set) -> set:
     q = organization_branch_q(match_branches(match))
     if q is None:
         return set()
-    covered = set(
-        Organization.objects
-        .filter(club_id__in=club_ids, is_active=True)
-        .filter(q)
-        .values_list('club_id', flat=True)
-    )
-    return set(club_ids) - covered
+    orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
+    clubs_with_org = set(orgs.values_list('club_id', flat=True))
+    covered = set(orgs.filter(q).values_list('club_id', flat=True))
+    return clubs_with_org - covered
 
 
 def get_recipients_for_match(match: Match) -> List[str]:
