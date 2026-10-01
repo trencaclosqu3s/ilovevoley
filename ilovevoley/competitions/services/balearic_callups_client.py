@@ -33,10 +33,10 @@ def calculate_federation_temp(season: Season) -> str:
 
 def fetch_balearic_circulares(
     season: Season,
-    tipo: int = 7,
     temp_override: str | None = None,
     session: requests.Session | None = None,
     max_pages: int = 20,
+    tipo: int = 7,
 ) -> list[dict[str, Any]]:
     """
     Consulta las circulares de un ``tipo`` para la temporada dada en la API de FVBIB,

@@ -23,6 +23,13 @@ from ilovevoley.competitions.services import (
 
 logger = logging.getLogger(__name__)
 
+# Tipo por defecto de cada endpoint: el título solo lo afina cuando indica un evento
+# distinto (tecnificación, seguimiento o supervisión).
+DEFAULT_TYPE_BY_TIPO = {
+    7: FederationCallUp.TYPE_SELECTION,
+    22: FederationCallUp.TYPE_FOLLOW_UP,
+}
+
 
 def run_callups_scrape(
     season=None,
@@ -94,7 +101,15 @@ def run_callups_scrape(
         # Normalizar título y extraer jugadores
         title_meta = callup_parser.parse_callup_title(title)
         raw_text, players_data = callup_parser.extract_callup_players_from_pdf(pdf_bytes)
-        callup_type = title_meta.get('event_type') or FederationCallUp.TYPE_SELECTION
+        detected_type = title_meta.get('event_type')
+        if detected_type in (
+            FederationCallUp.TYPE_TRAINING,
+            FederationCallUp.TYPE_FOLLOW_UP,
+            FederationCallUp.TYPE_SUPERVISION,
+        ):
+            callup_type = detected_type
+        else:
+            callup_type = DEFAULT_TYPE_BY_TIPO.get(tipo, FederationCallUp.TYPE_SELECTION)
 
         out(f"  -> Circular: {title_meta['callup_number'] or '-'} | {callup_type} | {title_meta['category_name']} | {title_meta['gender']} | {title_meta['modality']}")
         out(f"  -> Extraídos {len(players_data)} jugadores del PDF.")

@@ -204,6 +204,9 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                     full_name = ' '.join(chunks[:-2])
                     tokens = full_name.split()
                     if len(tokens) >= 2:
+                        # Como en el listado de supervisión, el primer token es el nombre de
+                        # pila y el resto los apellidos; con nombres compuestos el segundo
+                        # nombre se une a los apellidos (limitación asumida de estos listados).
                         players.append({
                             'club': chunks[-2],
                             'last_name': ' '.join(tokens[1:]),

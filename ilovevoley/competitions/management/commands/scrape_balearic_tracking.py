@@ -3,26 +3,6 @@ from django.core.management.base import BaseCommand
 from ilovevoley.competitions.services.callup_ingestion import run_callups_scrape
 
 
-def run_balearic_tracking_scrape(
-    season=None,
-    temp=None,
-    dry_run=False,
-    force=False,
-    no_notify=False,
-    stdout=None,
-) -> dict:
-    """Ingesta de circulares de tecnificación y seguimiento federativo (#288, tipo=22)."""
-    return run_callups_scrape(
-        season=season,
-        tipo=22,
-        temp=temp,
-        dry_run=dry_run,
-        force=force,
-        no_notify=no_notify,
-        stdout=stdout,
-    )
-
-
 class Command(BaseCommand):
     help = "Descarga y procesa circulares de tecnificación y seguimiento federativo (FVBIB)."
 
@@ -54,8 +34,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        result = run_balearic_tracking_scrape(
+        result = run_callups_scrape(
             season=options.get('season'),
+            tipo=22,
             temp=options.get('temp'),
             dry_run=options.get('dry_run', False),
             force=options.get('force', False),
