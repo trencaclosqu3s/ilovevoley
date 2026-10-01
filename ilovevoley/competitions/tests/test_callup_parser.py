@@ -126,3 +126,20 @@ def test_extract_callup_players_multipage_continuation_without_header():
     assert players[0]['club'] == 'CV SANT JOSEP'
     assert players[1]['club'] == 'CV PÒRTOL'
     assert players[2]['club'] == 'CV MANACOR'
+
+
+def test_extract_callup_players_composite_name_without_year_and_middle_year():
+    pdf_bytes = create_dummy_pdf([
+        "CONVOCATÒRIA SELECCIÓ",
+        "CLUB                         LLINATGES                          NOM                   ANY",
+        "1    CV SANT JOSEP           GARCÍA FERRER                      MARÍA JOSÉ",
+        "2    CV PÒRTOL               2011                               SÁNCHEZ               MIQUEL",
+    ])
+    raw_text, players = extract_callup_players_from_pdf(pdf_bytes)
+    assert len(players) == 2
+    assert players[0]['club'] == 'CV SANT JOSEP'
+    assert players[0]['last_name'] == 'GARCÍA FERRER'
+    assert players[0]['first_name'] == 'MARÍA JOSÉ'
+    assert players[0]['birth_year'] is None
+    assert players[1]['club'] == 'CV PÒRTOL'
+    assert players[1]['birth_year'] == 2011

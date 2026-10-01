@@ -184,24 +184,19 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                     if m_year:
                         birth_year = int(m_year.group(1))
                         rem = chunks[:-1]
-                    elif len(chunks) == 3:
-                        # Exactamente 3 columnas sin año: club, apellidos, nombre
-                        birth_year = None
-                        rem = chunks
                     else:
-                        # Si hay > 3 columnas sin año al final, buscar si el año está en otra columna
                         year_idx = next((i for i, c in enumerate(chunks) if re.match(r'^(19\d{2}|20\d{2})$', c)), None)
                         if year_idx is not None:
                             birth_year = int(chunks[year_idx])
                             rem = [c for i, c in enumerate(chunks) if i != year_idx]
                         else:
-                            # Sin año detectable con >3 columnas: descartar para evitar texto basura en nombres
-                            rem = []
+                            birth_year = None
+                            rem = chunks
 
-                    if len(rem) >= 2:
+                    if len(rem) >= 3:
                         club_clean = re.sub(r'^\d+[\.\)]?\s*', '', rem[0]).strip()
                         last_str = rem[1]
-                        first_str = ' '.join(rem[2:]) if len(rem) > 2 else ''
+                        first_str = ' '.join(rem[2:])
                         if club_clean and last_str and first_str:
                             players.append({
                                 'club': club_clean,
