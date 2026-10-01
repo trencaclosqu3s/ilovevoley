@@ -179,7 +179,7 @@ class UserProfileFormNotificationPreferenceTest(TestCase):
         self.assertIn(field_name, form.fields)
         self.assertEqual(
             set(form.initial.get(field_name, [])),
-            {NotificationType.MATCH_RESULT, NotificationType.NEW_ALBUM},
+            set(NotificationType.values),
         )
 
     def test_initial_reflects_disabled_types(self):
@@ -193,8 +193,8 @@ class UserProfileFormNotificationPreferenceTest(TestCase):
         form = UserProfileForm(instance=self.user, organization=self.org1)
         field_name = f'notification_types_{self.org1.id}'
         self.assertEqual(
-            form.initial.get(field_name),
-            [NotificationType.NEW_ALBUM],
+            set(form.initial.get(field_name, [])),
+            set(NotificationType.values) - {NotificationType.MATCH_RESULT},
         )
 
     def test_save_notification_preferences_disables_unselected(self):

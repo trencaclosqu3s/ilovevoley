@@ -4,10 +4,7 @@ from django.contrib.auth import get_user_model
 from ilovevoley.core.models import Category, Organization
 from .models import CategoryPreference, NotificationPreference, NotificationType
 
-AVAILABLE_NOTIFICATION_TYPES = [
-    (NotificationType.MATCH_RESULT.value, NotificationType.MATCH_RESULT.label),
-    (NotificationType.NEW_ALBUM.value, NotificationType.NEW_ALBUM.label),
-]
+AVAILABLE_NOTIFICATION_TYPES = list(NotificationType.choices)
 
 
 User = get_user_model()
@@ -216,13 +213,6 @@ class UserProfileForm(forms.ModelForm):
         super()._save_m2m()
         self.save_category_preferences(self.instance)
         self.save_notification_preferences(self.instance)
-
-    def save(self, commit=True):
-        user = super().save(commit=commit)
-        if commit:
-            self.save_category_preferences(user)
-            self.save_notification_preferences(user)
-        return user
 
 
     def clean_avatar(self):

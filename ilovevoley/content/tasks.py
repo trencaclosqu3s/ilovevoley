@@ -231,20 +231,20 @@ def notify_match_media_push_task(organization_id, match_id):
         return False
 
     has_photos = pending.get('photos', False)
-    has_videos = pending.get('videos', False)
+    has_video_media = pending.get('videos', False)
 
     home_name = match.home_team_display
     away_name = match.away_team_display
     match_display = f"{home_name} - {away_name}"
     teams_vs = f"{home_name} vs {away_name}"
 
-    if has_photos and has_videos:
+    if has_photos and has_video_media:
         title = f"Fotos y vídeos: {teams_vs}"
         body = f"Se han subido fotos y vídeos del partido {match_display}"
     elif has_photos:
         title = f"Fotos: {teams_vs}"
         body = f"Se han subido fotos del partido {match_display}"
-    elif has_videos:
+    elif has_video_media:
         title = f"Vídeos: {teams_vs}"
         body = f"Se han subido vídeos del partido {match_display}"
     else:

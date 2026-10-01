@@ -232,7 +232,7 @@ def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
 
 def match_category_ids(match: Match) -> List[int]:
     """Categorías de un partido: las de la liga y las de ambos equipos."""
-    ids = set(match.league.categories.values_list('id', flat=True)) if match.league else set()
+    ids = {c.id for c in match.league.categories.all()} if match.league else set()
     for team in (match.home_team, match.away_team):
         if team and team.category_id:
             ids.add(team.category_id)
