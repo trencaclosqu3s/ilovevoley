@@ -1,6 +1,5 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 from unfold.admin import ModelAdmin, TabularInline
 
 from ..models import Person, PlayerRole, StaffRole
@@ -87,7 +86,7 @@ class PersonAdmin(ModelAdmin):
                 's' if parents.count() != 1 else '',
                 ', '.join(parent_names)
             )
-        return mark_safe('<span style="color: gray;">—</span>')
+        return format_html('<span style="color: gray;">{}</span>', '—')
     parents_info.short_description = 'Padres'
     parents_info.admin_order_field = 'parents__count'
 
