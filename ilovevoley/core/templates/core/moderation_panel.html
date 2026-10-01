@@ -58,7 +58,7 @@
     <div class="mb-12">
         <div class="flex items-center mb-6">
             <h2 class="text-xl lg:text-2xl font-bold text-gray-800 dark:text-gray-200 mr-3">👥 Usuarios Pendientes</h2>
-            <span class="bg-blue-50 dark:bg-blue-900/300 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_users_count }}</span>
+            <span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_users_count }}</span>
         </div>
         
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -123,7 +123,7 @@
                         </button>
                         <button 
                             data-call="rejectUser" data-call-args='[{{ user.id }}]' data-call-this
-                            class="flex-1 bg-red-50 dark:bg-red-900/300 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
                             ❌ Rechazar
                         </button>
                     </div>
@@ -268,7 +268,7 @@
                         </button>
                         <button 
                             data-call="moderateImage" data-call-args='[{{ image.id }}, "reject"]' data-call-this
-                            class="flex-1 bg-red-50 dark:bg-red-900/300 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
                             ❌ Rechazar
                         </button>
                     </div>
