@@ -645,22 +645,27 @@ def ajax_add_match_result(request, match_id):
             }, status=400)
         try:
             match = form.save()
-
-            notify_match_result(match, tenant=request.tenant)
-
-            return JsonResponse({
-                'success': True,
-                'message': f'Resultado guardado: {match.result_display}',
-                'result_display': match.result_display,
-                'home_score': match.home_score,
-                'away_score': match.away_score
-            })
         except Exception:
             logger.exception("Error al guardar resultado del partido %s", match_id)
             return JsonResponse({
                 'success': False,
                 'error': 'Error interno al guardar el resultado.',
             }, status=500)
+
+        # El resultado ya está persistido: un fallo del aviso (p. ej. Redis caído)
+        # no debe devolver error al cliente por algo que sí se guardó.
+        try:
+            notify_match_result(match, tenant=request.tenant)
+        except Exception:
+            logger.exception("Error al notificar el resultado del partido %s", match_id)
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Resultado guardado: {match.result_display}',
+            'result_display': match.result_display,
+            'home_score': match.home_score,
+            'away_score': match.away_score
+        })
     else:
         # Recopilar errores del formulario
         errors = {}

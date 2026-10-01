@@ -208,34 +208,37 @@ def detect_and_record_match_changes(
                         f"No se pudo despachar la notificación push de cambios para el partido {match.id}: {e}"
                     )
 
-    # Hook para notificación push de resultado final cuando el partido pasa a 'finished' con marcador
-    if save_changes:
-        new_status = new_data.get('status')
-        new_home = new_data.get('home_score')
-        new_away = new_data.get('away_score')
-        if new_status == 'finished' and new_home is not None and new_away is not None:
-            was_finished_with_score = (
-                match.status == 'finished'
-                and match.home_score is not None
-                and match.away_score is not None
-            )
-            if not was_finished_with_score:
-                score_valid = True
-                if match.league:
-                    from ilovevoley.videos.scraping.base import validate_volleyball_score
-                    score_valid = validate_volleyball_score(new_home, new_away, match.league)
-
-                if score_valid:
-                    match.home_score = new_home
-                    match.away_score = new_away
-                    match.status = 'finished'
-                    if 'set_scores' in new_data and not match.set_scores:
-                        match.set_scores = new_data['set_scores']
-                    try:
-                        notify_match_result(match)
-                    except Exception as e:
-                        logger.exception(
-                            f"No se pudo despachar la notificación push de resultado para el partido {match.id}: {e}"
-                        )
-
     return changes
+
+
+def notify_match_result_after_save(match: Match, already_finished: bool) -> bool:
+    """Emite el push de resultado final una vez persistido el marcador.
+
+    Debe invocarse DESPUÉS del `save()` del scraper. Antes de guardar, el merge de
+    `update_matches` compara los campos contra la instancia en memoria: mutar aquí
+    `home_score`/`away_score`/`status`/`set_scores` dejaba el merge sin cambios que
+    aplicar y el marcador nunca llegaba a base de datos (#286).
+
+    Args:
+        match: Partido ya persistido con el marcador final.
+        already_finished: Estado del partido en base de datos antes del merge. Evita
+            reavisar de resultados ya publicados en cada scrape.
+    """
+    if already_finished:
+        return False
+
+    if not match.is_finished or match.home_score is None or match.away_score is None:
+        return False
+
+    if match.league:
+        from ilovevoley.videos.scraping.base import validate_volleyball_score
+        if not validate_volleyball_score(match.home_score, match.away_score, match.league):
+            return False
+
+    try:
+        return notify_match_result(match)
+    except Exception as e:
+        logger.exception(
+            f"No se pudo despachar la notificación push de resultado para el partido {match.id}: {e}"
+        )
+        return False
