@@ -250,3 +250,73 @@ class DeltaDetectorTest(TestCase):
         # así que este camino sí debe notificar.
         self.assertTrue(changes[0].is_last_minute)
         mock_notify.assert_called_once()
+
+    @patch('ilovevoley.competitions.services.delta_detector.notify_match_result')
+    def test_scraping_finished_with_scores_triggers_notify_match_result(self, mock_notify_result):
+        """Scrapear un resultado final dispara la notificación push de resultado."""
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() - timedelta(hours=3),
+            status='scheduled',
+        )
+
+        new_data = {
+            'status': 'finished',
+            'home_score': 3,
+            'away_score': 1,
+            'set_scores': [[25, 20], [20, 25], [25, 18], [25, 22]],
+        }
+
+        changes = detect_and_record_match_changes(match, new_data)
+        self.assertEqual(changes, [])
+        mock_notify_result.assert_called_once()
+        called_match = mock_notify_result.call_args[0][0]
+        self.assertEqual(called_match.home_score, 3)
+        self.assertEqual(called_match.away_score, 1)
+        self.assertEqual(called_match.status, 'finished')
+        self.assertEqual(called_match.set_scores, [[25, 20], [20, 25], [25, 18], [25, 22]])
+
+    @patch('ilovevoley.competitions.services.delta_detector.notify_match_result')
+    def test_scraping_already_finished_does_not_trigger_notify_match_result(self, mock_notify_result):
+        """Si el partido ya estaba finalizado con marcador, no se vuelve a disparar."""
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() - timedelta(hours=3),
+            status='finished',
+            home_score=3,
+            away_score=1,
+        )
+
+        new_data = {
+            'status': 'finished',
+            'home_score': 3,
+            'away_score': 1,
+        }
+
+        detect_and_record_match_changes(match, new_data)
+        mock_notify_result.assert_not_called()
+
+    @patch('ilovevoley.competitions.services.delta_detector.notify_match_result')
+    def test_scraping_save_changes_false_does_not_notify(self, mock_notify_result):
+        """Si save_changes es False, no se dispara notificación."""
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() - timedelta(hours=3),
+            status='scheduled',
+        )
+
+        new_data = {
+            'status': 'finished',
+            'home_score': 3,
+            'away_score': 0,
+        }
+
+        detect_and_record_match_changes(match, new_data, save_changes=False)
+        mock_notify_result.assert_not_called()
+

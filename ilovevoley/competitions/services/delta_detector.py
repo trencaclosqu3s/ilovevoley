@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 from django.utils import timezone
 
 from ilovevoley.competitions.models import Match, MatchChangeLog
-from ilovevoley.competitions.services.notifications import notify_match_changes
+from ilovevoley.competitions.services.notifications import notify_match_changes, notify_match_result
 
 logger = logging.getLogger(__name__)
 
@@ -180,5 +180,34 @@ def detect_and_record_match_changes(
             except Exception as e:
                 logger.exception(f"No se pudieron despachar las notificaciones para el partido {match.id}: {e}")
 
+    # Hook para notificación push de resultado final cuando el partido pasa a 'finished' con marcador
+    if save_changes:
+        new_status = new_data.get('status')
+        new_home = new_data.get('home_score')
+        new_away = new_data.get('away_score')
+        if new_status == 'finished' and new_home is not None and new_away is not None:
+            was_finished_with_score = (
+                match.status == 'finished'
+                and match.home_score is not None
+                and match.away_score is not None
+            )
+            if not was_finished_with_score:
+                score_valid = True
+                if match.league:
+                    from ilovevoley.videos.scraping.base import validate_volleyball_score
+                    score_valid = validate_volleyball_score(new_home, new_away, match.league)
+
+                if score_valid:
+                    match.home_score = new_home
+                    match.away_score = new_away
+                    match.status = 'finished'
+                    if 'set_scores' in new_data and not match.set_scores:
+                        match.set_scores = new_data['set_scores']
+                    try:
+                        notify_match_result(match)
+                    except Exception as e:
+                        logger.exception(
+                            f"No se pudo despachar la notificación push de resultado para el partido {match.id}: {e}"
+                        )
 
     return changes

@@ -470,8 +470,14 @@ class Match(models.Model):
         ),
     )
 
+    result_notified_at = models.DateTimeField(
+        null=True, blank=True, verbose_name='Resultado notificado el',
+        help_text='Fecha y hora en que se envió la notificación push del resultado para evitar duplicados.',
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
 
     # Managers
     objects = MatchManager()  # Manager por defecto: excluye withdrawn

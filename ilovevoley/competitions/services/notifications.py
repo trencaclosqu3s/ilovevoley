@@ -228,3 +228,82 @@ def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
             logger.error(f"Error al enviar notificación de cambios para partido {match.id}: {e}", exc_info=True)
 
     return sent_count
+
+
+def match_category_ids(match: Match) -> List[int]:
+    """Categorías de un partido: las de la liga y las de ambos equipos."""
+    ids = set(match.league.categories.values_list('id', flat=True)) if match.league else set()
+    for team in (match.home_team, match.away_team):
+        if team and team.category_id:
+            ids.add(team.category_id)
+    return list(ids)
+
+
+def format_match_result_body(match: Match) -> str:
+    """Construye el texto descriptivo del resultado con parciales si existen."""
+    from ilovevoley.competitions.services.sets import match_set_scores
+
+    scores = match_set_scores(match)
+    if scores:
+        sets_str = ", ".join(f"{h}-{a}" for h, a in scores)
+        return f"Marcador final: {match.result_display} ({sets_str})"
+    return f"Marcador final: {match.result_display}"
+
+
+def notify_match_result(match: Match, tenant=None) -> bool:
+    """Avisa por Web Push a los clubes de un resultado final con parciales.
+
+    - Idempotente: comprueba y actualiza `result_notified_at` para no repetir el aviso.
+    - Destinatarios: si se especifica `tenant`, se avisa a ese club. Si no (p. ej. scraping),
+      se avisa a todas las organizaciones vinculadas a los clubes de los equipos del partido.
+    - Envío en `transaction.on_commit(..., robust=True)`.
+    """
+    if not match.is_finished or match.home_score is None or match.away_score is None:
+        return False
+
+    from django.db import transaction
+
+    # Idempotencia atómica: si ya fue notificado, salir sin enviar
+    updated = Match.objects.filter(pk=match.pk, result_notified_at__isnull=True).update(
+        result_notified_at=timezone.now()
+    )
+    if not updated:
+        return False
+
+    match.result_notified_at = timezone.now()
+
+    # Determinar organizaciones a notificar
+    from ilovevoley.core.models import Organization
+
+    orgs = set()
+    if tenant:
+        orgs.add(tenant)
+    else:
+        club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
+        if club_ids:
+            orgs.update(Organization.objects.filter(club_id__in=club_ids, is_active=True))
+
+    if not orgs:
+        return True
+
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+
+    home_name = match.home_team_display
+    away_name = match.away_team_display
+    title = f"Resultado: {home_name} vs {away_name}"
+    body = format_match_result_body(match)
+    category_ids = match_category_ids(match)
+
+    for org in orgs:
+        kwargs = {
+            'organization_id': org.id,
+            'title': title,
+            'body': body,
+            'url': reverse('competitions:match_detail', args=[match.id]),
+            'category_ids': category_ids,
+            'notification_type': 'match_result',
+        }
+        transaction.on_commit(lambda kw=kwargs: notify_web_push_organization_task.delay(**kw), robust=True)
+
+    return True
+
