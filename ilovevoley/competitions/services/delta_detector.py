@@ -2,10 +2,15 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any, Dict, List, Optional
 
+from django.conf import settings
 from django.utils import timezone
 
 from ilovevoley.competitions.models import Match, MatchChangeLog
-from ilovevoley.competitions.services.notifications import notify_match_changes, notify_match_result
+from ilovevoley.competitions.services.notifications import (
+    notify_match_change_push,
+    notify_match_changes,
+    notify_match_result,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +184,22 @@ def detect_and_record_match_changes(
                 notify_match_changes(last_minute_changes)
             except Exception as e:
                 logger.exception(f"No se pudieron despachar las notificaciones para el partido {match.id}: {e}")
+
+        # Hook para notificaciones push de cambio de partido tras flag (fecha/hora, pista, aplazado/suspendido)
+        if getattr(settings, 'MATCH_CHANGE_PUSH_ENABLED', False):
+            push_changes = [
+                c for c in notifiable_changes
+                if c.change_type in ['datetime', 'venue'] or (
+                    c.change_type == 'status' and c.new_value in ['postponed', 'cancelled']
+                )
+            ]
+            if push_changes:
+                try:
+                    notify_match_change_push(match, push_changes)
+                except Exception as e:
+                    logger.exception(
+                        f"No se pudo despachar la notificación push de cambios para el partido {match.id}: {e}"
+                    )
 
     # Hook para notificación push de resultado final cuando el partido pasa a 'finished' con marcador
     if save_changes:
