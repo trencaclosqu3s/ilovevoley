@@ -371,4 +371,3 @@ class ModerationApprovalTriggersMediaPushTest(TestCase):
             media_type='photo',
             organization_id=self.org.id,
         )
-
