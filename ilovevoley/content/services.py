@@ -58,3 +58,48 @@ def moderate_image(actor, tenant, image, decision, notes='', validate_permission
     # Delegar en el método del modelo para actualizar campos y persistir
     image.moderate(moderator=actor, approved=approved, notes=notes)
     return image
+
+
+def queue_match_media_push(match_id: int, media_type: str, organization_id: int) -> bool:
+    """Encola aviso push agrupado por debounce para fotos o vídeos de un partido.
+
+    - Agrupa múltiples subidas de fotos y/o vídeos para el mismo partido dentro de una ventana de tiempo.
+    - Programa una tarea con countdown (o respeta cooldown) para emitir un único push consolidado.
+    - notification_type: 'match_media'.
+    """
+    from django.conf import settings
+    from django.core.cache import cache
+    from django.db import transaction
+
+    debounce_seconds = getattr(settings, 'MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS', 60)
+    pending_key = f"match_media_push_pending:{organization_id}:{match_id}"
+    scheduled_key = f"match_media_push_scheduled:{organization_id}:{match_id}"
+    cooldown_key = f"match_media_push_cooldown:{organization_id}:{match_id}"
+
+    # Si estamos en cooldown activo tras un envío reciente, no encolar nuevo aviso
+    if cache.get(cooldown_key):
+        return False
+
+    # Actualizar medios pendientes
+    pending = cache.get(pending_key) or {'photos': False, 'videos': False}
+    if media_type == 'photo':
+        pending['photos'] = True
+    elif media_type == 'video':
+        pending['videos'] = True
+    cache.set(pending_key, pending, timeout=debounce_seconds * 4)
+
+    # Programar la tarea si no está ya programada para esta ventana
+    if cache.add(scheduled_key, True, timeout=debounce_seconds * 2):
+        from ilovevoley.content.tasks import notify_match_media_push_task
+
+        def _schedule():
+            notify_match_media_push_task.apply_async(
+                args=[organization_id, match_id],
+                countdown=debounce_seconds,
+            )
+
+        transaction.on_commit(_schedule, robust=True)
+        return True
+
+    return False
+

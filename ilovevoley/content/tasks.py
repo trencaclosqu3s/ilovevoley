@@ -195,3 +195,71 @@ def cleanup_expired_album_zips_task():
 
     removed = cleanup_expired_album_zips()
     return {'removed': removed}
+
+
+@shared_task(name='notify_match_media_push')
+def notify_match_media_push_task(organization_id, match_id):
+    """Envía la notificación push consolidada tras la ventana de debounce para fotos/vídeos de un partido."""
+    from django.conf import settings
+    from django.core.cache import cache
+    from django.urls import reverse
+
+    from ilovevoley.competitions.models import Match
+    from ilovevoley.competitions.services.notifications import match_category_ids
+    from ilovevoley.core.models import Organization
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+
+    debounce_seconds = getattr(settings, 'MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS', 60)
+    pending_key = f"match_media_push_pending:{organization_id}:{match_id}"
+    scheduled_key = f"match_media_push_scheduled:{organization_id}:{match_id}"
+    cooldown_key = f"match_media_push_cooldown:{organization_id}:{match_id}"
+
+    pending = cache.get(pending_key)
+    cache.delete(pending_key)
+    cache.delete(scheduled_key)
+
+    if not pending or not (pending.get('photos') or pending.get('videos')):
+        return False
+
+    # Activar cooldown para evitar re-notificaciones inmediatas ante ráfagas tardías
+    cache.set(cooldown_key, True, timeout=debounce_seconds)
+
+    try:
+        match = Match.all_objects.select_related('home_team', 'away_team', 'league').get(pk=match_id)
+        org = Organization.objects.get(pk=organization_id, is_active=True)
+    except (Match.DoesNotExist, Organization.DoesNotExist):
+        return False
+
+    has_photos = pending.get('photos', False)
+    has_videos = pending.get('videos', False)
+
+    home_name = match.home_team_display
+    away_name = match.away_team_display
+    match_display = f"{home_name} - {away_name}"
+    teams_vs = f"{home_name} vs {away_name}"
+
+    if has_photos and has_videos:
+        title = f"Fotos y vídeos: {teams_vs}"
+        body = f"Se han subido fotos y vídeos del partido {match_display}"
+    elif has_photos:
+        title = f"Fotos: {teams_vs}"
+        body = f"Se han subido fotos del partido {match_display}"
+    elif has_videos:
+        title = f"Vídeos: {teams_vs}"
+        body = f"Se han subido vídeos del partido {match_display}"
+    else:
+        return False
+
+    category_ids = match_category_ids(match)
+    url = reverse('competitions:match_detail', args=[match.id])
+
+    notify_web_push_organization_task.delay(
+        organization_id=org.id,
+        title=title,
+        body=body,
+        url=url,
+        category_ids=category_ids,
+        notification_type='match_media',
+    )
+    return True
+
