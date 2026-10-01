@@ -97,11 +97,29 @@
         }
     }, false);
 
-    // `error` no burbujea; se escucha en fase de captura desde window.
-    window.addEventListener("error", function (event) {
-        var el = event.target;
-        if (el && el.nodeType === 1 && el.hasAttribute && el.hasAttribute("data-hide-on-error")) {
-            el.style.display = "none";
+    // Helper global para obtener el token CSRF canónico de la petición
+    window.getCsrfToken = function () {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta && meta.content) {
+            return meta.content;
         }
-    }, true);
+        var input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input && input.value) {
+            return input.value;
+        }
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            var lastMatch = null;
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, 10) === 'csrftoken=') {
+                    lastMatch = decodeURIComponent(cookie.substring(10));
+                }
+            }
+            if (lastMatch) {
+                return lastMatch;
+            }
+        }
+        return '';
+    };
 })();

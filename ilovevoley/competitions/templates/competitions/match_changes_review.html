@@ -218,6 +218,10 @@
 
 <script nonce="{{ csp_nonce }}">
 function getCookie(name) {
+    if (name === 'csrftoken' && typeof window.getCsrfToken === 'function') {
+        const token = window.getCsrfToken();
+        if (token) return token;
+    }
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
         const cookies = document.cookie.split(';');
@@ -225,7 +229,6 @@ function getCookie(name) {
             const cookie = cookies[i].trim();
             if (cookie.substring(0, name.length + 1) === (name + '=')) {
                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
             }
         }
     }

@@ -22,11 +22,37 @@
                 var cookie = cookies[i].trim();
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
+                    // No hacer break: si hay cookies duplicadas (host-only vs .ilovevoley.es),
+                    // la última coincide con lo que SimpleCookie de Python procesa en el backend.
                 }
             }
         }
         return cookieValue;
+    }
+
+    function getCsrfToken() {
+        if (typeof window.getCsrfToken === 'function') {
+            var token = window.getCsrfToken();
+            if (token) return token;
+        }
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta && meta.content) {
+            return meta.content;
+        }
+        var input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input && input.value) {
+            return input.value;
+        }
+        return getCookie('csrftoken');
+    }
+
+    function cleanupDuplicateCsrfCookies() {
+        var matches = document.cookie.match(/(?:^|;\s*)csrftoken=/g);
+        if (matches && matches.length > 1) {
+            // Eliminar la cookie host-only para resolver colisiones con la de dominio (.ilovevoley.es)
+            document.cookie = 'csrftoken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            document.cookie = 'csrftoken=; path=/; domain=' + window.location.hostname + '; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
     }
 
     window.WebPushManager = {
@@ -41,6 +67,7 @@
         },
 
         init: function () {
+            cleanupDuplicateCsrfCookies();
             // Limpiar badge al abrir la aplicación
             if ('clearAppBadge' in navigator) {
                 navigator.clearAppBadge().catch(function () {});
@@ -136,17 +163,23 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRFToken': getCookie('csrftoken')
+                            'X-CSRFToken': getCsrfToken()
                         },
                         body: JSON.stringify({
                             endpoint: sub.endpoint,
                             keys: subJson.keys,
                             user_agent: navigator.userAgent
                         })
+                    }).then(function (res) {
+                        if (!res.ok) {
+                            return sub.unsubscribe().finally(function () {
+                                throw new Error('HTTP error ' + res.status);
+                            });
+                        }
+                        return res;
                     });
                 })
                 .then(function (res) {
-                    if (!res.ok) throw new Error('HTTP error ' + res.status);
                     if (window.showToast) window.showToast('success', '¡Notificaciones activadas con éxito!');
                 });
         },
@@ -158,7 +191,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
+                        'X-CSRFToken': getCsrfToken()
                     },
                     body: JSON.stringify({ endpoint: endpoint })
                 });

@@ -18,6 +18,12 @@
     const statusTemplate = btn.dataset.statusUrlTemplate;
 
     function csrfToken() {
+        if (typeof window.getCsrfToken === 'function') {
+            const token = window.getCsrfToken();
+            if (token) return token;
+        }
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta && meta.content) return meta.content;
         const input = document.querySelector('[name=csrfmiddlewaretoken]');
         if (input && input.value) return input.value;
         const match = document.cookie.match(/(?:^|; )csrftoken=([^;]*)/);

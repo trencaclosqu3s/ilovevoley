@@ -27,3 +27,16 @@ class ProfileWebPushTemplateTest(TestCase):
         self.assertIn('webpush.js', content)
         self.assertIn('id="webpush-status-badge"', content)
         self.assertIn('data-call="toggleWebPush"', content)
+        self.assertIn('name="csrf-token"', content)
+
+    def test_base_template_renders_valid_csrf_token_meta(self):
+        self.client.login(username='socio', password='password123')
+        response = self.client.get('/profile/', HTTP_HOST='santjust.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        import re
+        match = re.search(r'<meta name="csrf-token" content="([^"]+)">', content)
+        self.assertIsNotNone(match, 'Meta tag csrf-token no encontrado en el template base')
+        token = match.group(1)
+        self.assertTrue(len(token) >= 32, 'El token CSRF del meta tag debe ser válido')
+
