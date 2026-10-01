@@ -147,19 +147,26 @@ def extract_callup_players_from_pdf(pdf_bytes: bytes) -> tuple[str, list[dict[st
                 if pos_first == -1:
                     pos_first = norm_line.find('NOMBRE')
 
+                # _remove_accents quita diacríticos (NFKD), así que Ñ→N: buscar 'ANO', no 'AÑO'
                 pos_year = norm_line.find('ANY')
                 if pos_year == -1:
-                    pos_year = norm_line.find('AÑO')
+                    pos_year = norm_line.find('ANO')
                 if pos_year == -1:
                     pos_year = norm_line.find('NAIX')
+                if pos_year == -1:
+                    pos_year = norm_line.find('DATA')
 
-                header_positions = {
-                    'club': pos_club,
-                    'last_name': pos_last,
-                    'first_name': pos_first,
-                    'birth_year': pos_year,
-                }
+                # Solo guardar la cabecera si los tres campos obligatorios son válidos;
+                # usar len(line) para year si no aparece en la cabecera, evitando slices con -1
+                if pos_club != -1 and pos_last != -1 and pos_first != -1:
+                    header_positions = {
+                        'club': pos_club,
+                        'last_name': pos_last,
+                        'first_name': pos_first,
+                        'birth_year': pos_year if pos_year != -1 else len(line),
+                    }
                 continue
+
 
             # Detección de formato alternativo (ej. convocatorias de supervisión CTEIB con listado Nombre   Club)
             if not in_table and any(ph in norm_line for ph in ['ESPORTISTES SELECCIONATS', 'ESPORTISTES SELECCIONADES', 'JUGADORS SELECCIONATS', 'JUGADORES SELECCIONADES']):
