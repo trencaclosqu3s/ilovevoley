@@ -2,7 +2,10 @@ from django import forms
 from django.contrib.auth import get_user_model
 
 from ilovevoley.core.models import Category, Organization
-from .models import CategoryPreference
+from .models import CategoryPreference, NotificationPreference, NotificationType
+
+AVAILABLE_NOTIFICATION_TYPES = list(NotificationType.choices)
+
 
 User = get_user_model()
 
@@ -103,6 +106,7 @@ class UserProfileForm(forms.ModelForm):
             self.organizations = []
 
         preferences_by_org = {}
+        disabled_notifications_by_org = {}
         if self.instance and self.instance.pk and self.organizations:
             preferences_by_org = {
                 pref.organization_id: pref.categories.all()
@@ -112,6 +116,16 @@ class UserProfileForm(forms.ModelForm):
                     ).prefetch_related('categories')
                 )
             }
+            from collections import defaultdict
+            disabled_map = defaultdict(set)
+            for notif_pref in self.instance.notification_preferences.filter(
+                organization__in=self.organizations,
+                is_enabled=False,
+            ):
+                disabled_map[notif_pref.organization_id].add(notif_pref.notification_type)
+            disabled_notifications_by_org = disabled_map
+
+        all_type_values = [t for t, _ in AVAILABLE_NOTIFICATION_TYPES]
 
         for org in self.organizations:
             field_name = f'preferred_categories_{org.id}'
@@ -127,12 +141,35 @@ class UserProfileForm(forms.ModelForm):
             if org.id in preferences_by_org:
                 self.initial[field_name] = preferences_by_org[org.id]
 
+            notif_field_name = f'notification_types_{org.id}'
+            self.fields[notif_field_name] = forms.MultipleChoiceField(
+                choices=AVAILABLE_NOTIFICATION_TYPES,
+                required=False,
+                widget=forms.CheckboxSelectMultiple(attrs={
+                    'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'
+                }),
+                label=f'Avisos Push en {org.name}',
+                help_text=f'Selecciona qué avisos push deseas recibir en {org.name}',
+            )
+            disabled = disabled_notifications_by_org.get(org.id, set())
+            self.initial[notif_field_name] = [t for t in all_type_values if t not in disabled]
+
     @property
     def organization_category_fields(self):
         """Devuelve una lista de tuplas (organization, bound_field) para iterar en plantillas."""
         fields = []
         for org in self.organizations:
             field_name = f'preferred_categories_{org.id}'
+            if field_name in self.fields:
+                fields.append((org, self[field_name]))
+        return fields
+
+    @property
+    def organization_notification_fields(self):
+        """Devuelve una lista de tuplas (organization, bound_field) para iterar en plantillas."""
+        fields = []
+        for org in self.organizations:
+            field_name = f'notification_types_{org.id}'
             if field_name in self.fields:
                 fields.append((org, self[field_name]))
         return fields
@@ -155,15 +192,28 @@ class UserProfileForm(forms.ModelForm):
                     elif pref:
                         pref.categories.clear()
 
+    def save_notification_preferences(self, user=None):
+        from django.db import transaction
+        user = user or self.instance
+        with transaction.atomic():
+            for org in self.organizations:
+                field_name = f'notification_types_{org.id}'
+                if field_name in self.cleaned_data:
+                    selected = set(self.cleaned_data[field_name])
+                    for type_val, _ in AVAILABLE_NOTIFICATION_TYPES:
+                        is_enabled = type_val in selected
+                        NotificationPreference.objects.update_or_create(
+                            user=user,
+                            organization=org,
+                            notification_type=type_val,
+                            defaults={'is_enabled': is_enabled},
+                        )
+
     def _save_m2m(self):
         super()._save_m2m()
         self.save_category_preferences(self.instance)
+        self.save_notification_preferences(self.instance)
 
-    def save(self, commit=True):
-        user = super().save(commit=commit)
-        if commit:
-            self.save_category_preferences(user)
-        return user
 
     def clean_avatar(self):
         avatar = self.cleaned_data.get('avatar')

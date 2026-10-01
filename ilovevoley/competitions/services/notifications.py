@@ -228,3 +228,238 @@ def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
             logger.error(f"Error al enviar notificación de cambios para partido {match.id}: {e}", exc_info=True)
 
     return sent_count
+
+
+def match_category_ids(match: Match) -> List[int]:
+    """Categorías de un partido: las de la liga y las de ambos equipos."""
+    ids = {c.id for c in match.league.categories.all()} if match.league else set()
+    for team in (match.home_team, match.away_team):
+        if team and team.category_id:
+            ids.add(team.category_id)
+    return list(ids)
+
+
+def format_match_result_body(match: Match) -> str:
+    """Construye el texto descriptivo del resultado con parciales si existen."""
+    from ilovevoley.competitions.services.sets import match_set_scores
+
+    scores = match_set_scores(match)
+    if scores:
+        sets_str = ", ".join(f"{h}-{a}" for h, a in scores)
+        return f"Marcador final: {match.result_display} ({sets_str})"
+    return f"Marcador final: {match.result_display}"
+
+
+def notify_match_result(match: Match, tenant=None) -> bool:
+    """Avisa por Web Push a los clubes de un resultado final con parciales.
+
+    - Idempotente: comprueba y actualiza `result_notified_at` para no repetir el aviso.
+    - Destinatarios: si se especifica `tenant`, se avisa a ese club. Si no (p. ej. scraping),
+      se avisa a todas las organizaciones vinculadas a los clubes de los equipos del partido.
+    - Envío en `transaction.on_commit(..., robust=True)`.
+    """
+    if not match.is_finished or match.home_score is None or match.away_score is None:
+        return False
+
+    from django.db import transaction
+
+    # Idempotencia atómica: si ya fue notificado, salir sin enviar
+    updated = Match.objects.filter(pk=match.pk, result_notified_at__isnull=True).update(
+        result_notified_at=timezone.now()
+    )
+    if not updated:
+        return False
+
+    match.result_notified_at = timezone.now()
+
+    # Determinar organizaciones a notificar
+    from ilovevoley.core.models import Organization
+
+    orgs = set()
+    if tenant:
+        orgs.add(tenant)
+    else:
+        club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
+        if club_ids:
+            orgs.update(Organization.objects.filter(club_id__in=club_ids, is_active=True))
+
+    if not orgs:
+        return True
+
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+
+    home_name = match.home_team_display
+    away_name = match.away_team_display
+    title = f"Resultado: {home_name} vs {away_name}"
+    body = format_match_result_body(match)
+    category_ids = match_category_ids(match)
+
+    for org in orgs:
+        kwargs = {
+            'organization_id': org.id,
+            'title': title,
+            'body': body,
+            'url': reverse('competitions:match_detail', args=[match.id]),
+            'category_ids': category_ids,
+            'notification_type': 'match_result',
+        }
+        transaction.on_commit(lambda kw=kwargs: notify_web_push_organization_task.delay(**kw), robust=True)
+
+    return True
+
+
+def format_match_change_push(match: Match, changes: List[MatchChangeLog]) -> tuple:
+    """Construye el título y cuerpo del push para modificaciones de partido."""
+    home_name = match.home_team_display
+    away_name = match.away_team_display
+    teams_vs = f"{home_name} vs {away_name}"
+    teams_dash = f"{home_name} - {away_name}"
+
+    has_postponed = any(c.change_type == 'status' and c.new_value == 'postponed' for c in changes)
+    has_cancelled = any(c.change_type == 'status' and c.new_value == 'cancelled' for c in changes)
+    has_datetime = any(c.change_type == 'datetime' for c in changes)
+    has_venue = any(c.change_type == 'venue' for c in changes)
+
+    # Título
+    if has_postponed:
+        title = f"Partido aplazado: {teams_vs}"
+    elif has_cancelled:
+        title = f"Partido suspendido: {teams_vs}"
+    elif has_datetime and has_venue:
+        title = f"Cambio de horario y pista: {teams_vs}"
+    elif has_datetime:
+        title = f"Cambio de horario: {teams_vs}"
+    elif has_venue:
+        title = f"Cambio de pista: {teams_vs}"
+    else:
+        title = f"Modificación de partido: {teams_vs}"
+
+    # Cuerpo
+    details = []
+    if has_postponed:
+        details.append(f"El partido {teams_dash} ha sido aplazado")
+    elif has_cancelled:
+        details.append(f"El partido {teams_dash} ha sido suspendido")
+    else:
+        details.append(f"Modificación en el partido {teams_dash}")
+
+    change_items = []
+    for c in changes:
+        if c.change_type == 'datetime':
+            change_items.append(f"Nueva fecha/hora: {c.new_value}")
+        elif c.change_type == 'venue':
+            change_items.append(f"Nueva pista: {c.new_value}")
+
+    if change_items:
+        body = f"{details[0]}. {'. '.join(change_items)}."
+    else:
+        body = f"{details[0]}."
+
+    return title, body
+
+
+def notify_match_change_push(match: Match, changes: List[MatchChangeLog]) -> bool:
+    """Avisa por Web Push de cambios de fecha/hora, pista o aplazamiento.
+
+    - Requiere el flag `MATCH_CHANGE_PUSH_ENABLED=True`.
+    - Agrupa todos los cambios del partido en una única notificación push.
+    - Notifica a organizaciones activas vinculadas a los clubes del partido que tengan
+      `notify_match_changes=True`.
+    - Envía con `transaction.on_commit(..., robust=True)` y `notification_type='match_change'`.
+    """
+    from django.conf import settings
+    if not getattr(settings, 'MATCH_CHANGE_PUSH_ENABLED', False):
+        return False
+
+    if not changes:
+        return False
+
+    from django.db import transaction
+    from ilovevoley.core.models import Organization
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+
+    club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
+    if not club_ids:
+        return False
+
+    orgs = Organization.objects.filter(
+        club_id__in=club_ids,
+        is_active=True,
+        notify_match_changes=True,
+    )
+    if not orgs.exists():
+        return False
+
+    title, body = format_match_change_push(match, changes)
+    category_ids = match_category_ids(match)
+    url = reverse('competitions:match_detail', args=[match.id])
+
+    for org in orgs:
+        kwargs = {
+            'organization_id': org.id,
+            'title': title,
+            'body': body,
+            'url': url,
+            'category_ids': category_ids,
+            'notification_type': 'match_change',
+        }
+        transaction.on_commit(lambda kw=kwargs: notify_web_push_organization_task.delay(**kw), robust=True)
+
+    return True
+
+
+def notify_match_reminder(match: Match) -> bool:
+    """Envía un recordatorio push 2 horas antes del partido a los clubes implicados.
+
+    - Idempotente: comprueba y actualiza `reminder_sent_at` para no repetir el aviso.
+    - Excluye partidos finalizados, aplazados, cancelados o retirados.
+    - Respeta categorías y tipo de notificación 'match_reminder' (#277).
+    - Envía a las organizaciones activas asociadas a los clubes del partido.
+    - Envío en `transaction.on_commit(..., robust=True)`.
+    """
+    if match.status in ['finished', 'postponed', 'cancelled', 'withdrawn']:
+        return False
+
+    from django.db import transaction
+
+    with transaction.atomic():
+        updated = Match.objects.filter(pk=match.pk, reminder_sent_at__isnull=True).update(
+            reminder_sent_at=timezone.now()
+        )
+        if not updated:
+            return False
+
+        match.reminder_sent_at = timezone.now()
+
+        club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
+        if not club_ids:
+            return True
+
+        from ilovevoley.core.models import Organization
+        from ilovevoley.users.tasks import notify_web_push_organization_task
+
+        orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
+        if not orgs.exists():
+            return True
+
+        home_name = match.home_team_display
+        away_name = match.away_team_display
+        title = f"Recordatorio de partido: {home_name} vs {away_name}"
+        body = f"El partido {home_name} - {away_name} empieza en 2 h. ¡Ve preparando las rodilleras!"
+        category_ids = match_category_ids(match)
+        url = reverse('competitions:match_detail', args=[match.id])
+
+        for org in orgs:
+            kwargs = {
+                'organization_id': org.id,
+                'title': title,
+                'body': body,
+                'url': url,
+                'category_ids': category_ids,
+                'notification_type': 'match_reminder',
+            }
+            transaction.on_commit(lambda kw=kwargs: notify_web_push_organization_task.delay(**kw), robust=True)
+
+    return True
+
+

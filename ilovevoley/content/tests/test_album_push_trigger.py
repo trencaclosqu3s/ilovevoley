@@ -44,3 +44,5 @@ class AlbumPushTriggerTest(TestCase):
         self.assertEqual(kwargs.get('organization_id'), self.org.id)
         self.assertEqual(kwargs.get('title'), 'Nuevo Álbum')
         self.assertIn('Torneo de Verano', kwargs.get('body', ''))
+        self.assertEqual(kwargs.get('notification_type'), 'new_album')
+

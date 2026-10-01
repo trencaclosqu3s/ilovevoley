@@ -40,6 +40,7 @@ from .forms import (
     VideoForm,
 )
 from .models import Comment, Image, Video
+from .services import queue_match_media_push
 from .thumbnails import schedule_thumbnail_generation
 
 logger = logging.getLogger(__name__)
@@ -314,6 +315,8 @@ def video_create(request):
             video.created_by = request.user
             video.organization = request.tenant
             video.save()
+            if video.match_id and request.tenant:
+                queue_match_media_push(match_id=video.match_id, media_type='video', organization_id=request.tenant.id)
             messages.success(request, 'Vídeo añadido correctamente')
             return redirect('content:video_list')
     else:
@@ -349,6 +352,8 @@ def video_bulk_create(request):
                     created += 1
 
             if created:
+                if match and request.tenant:
+                    queue_match_media_push(match_id=match.id, media_type='video', organization_id=request.tenant.id)
                 messages.success(request, f'{created} vídeo(s) añadido(s) correctamente.')
             else:
                 messages.warning(request, 'No se añadió ningún vídeo. Rellena al menos un título y URL.')
@@ -672,7 +677,10 @@ def image_upload(request):
             else:
                 auto_tags_msg = f" Se detectaron automáticamente las etiquetas: {', '.join(image.auto_tags[:3])}." if image.auto_tags else ""
                 messages.success(request, f'Imagen subida correctamente. Está pendiente de moderación.{auto_tags_msg}')
-            
+
+            if image.match_id and request.tenant:
+                queue_match_media_push(match_id=image.match_id, media_type='photo', organization_id=request.tenant.id)
+
             return redirect('content:image_gallery')
         else:
             # El formulario no es válido, mostrar errores
@@ -922,7 +930,14 @@ def image_bulk_upload(request):
                     body=f'Se han subido nuevas fotos: {album_name}' if album_name else 'Se han subido nuevas fotos',
                     url=album_url,
                     category_ids=[int(c) for c in request.POST.getlist('categories') if c.isdigit()],
+                    notification_type='new_album',
                 )
+
+            if tenant and match_id:
+                try:
+                    queue_match_media_push(match_id=int(match_id), media_type='photo', organization_id=tenant.id)
+                except (TypeError, ValueError):
+                    pass
 
             # Redirigir al álbum si se agregaron fotos a uno existente
             existing_album_id = request.POST.get('existing_album_id')

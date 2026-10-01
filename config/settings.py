@@ -409,6 +409,8 @@ MATCH_CHANGE_NOTIFY_STAFF_ENABLED = env_config('MATCH_CHANGE_NOTIFY_STAFF_ENABLE
 # Copia global para superusuarios, para poder revisar los avisos de todos los tenants.
 MATCH_CHANGE_NOTIFY_SUPERUSERS = env_config('MATCH_CHANGE_NOTIFY_SUPERUSERS', default=True, cast=bool)
 MATCH_CHANGE_TEST_RECIPIENT = env_config('MATCH_CHANGE_TEST_RECIPIENT', default=None)
+# Notificaciones Web Push de modificaciones de partidos (desactivado por defecto tras flag #279)
+MATCH_CHANGE_PUSH_ENABLED = env_config('MATCH_CHANGE_PUSH_ENABLED', default=False, cast=bool)
 
 # Rutas ignoradas por el tracking de 404: escáneres de vulnerabilidades y bots que piden
 # rutas inexistentes (WordPress, phpMyAdmin, dotfiles...). No cuentan para el reporte
@@ -469,6 +471,10 @@ CELERY_BEAT_SCHEDULE = {
     'cleanup-expired-album-zips': {
         'task': 'cleanup_expired_album_zips',
         'schedule': 3600.0 * 24,
+    },
+    'send-match-reminders-2h': {
+        'task': 'send_match_reminders_2h',
+        'schedule': 600.0,
     },
 }
 

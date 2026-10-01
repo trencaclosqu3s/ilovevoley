@@ -170,6 +170,55 @@ class CategoryPreference(models.Model):
         return f'{self.user} @ {self.organization}'
 
 
+class NotificationType(models.TextChoices):
+    MATCH_RESULT = 'match_result', 'Resultados de partidos'
+    NEW_ALBUM = 'new_album', 'Nuevos álbumes de fotos'
+    MATCH_CHANGE = 'match_change', 'Cambios de horario o pista'
+    MATCH_REMINDER = 'match_reminder', 'Recordatorios previos al partido'
+    MATCH_MEDIA = 'match_media', 'Fotos y vídeos de partidos'
+
+
+class NotificationPreference(models.Model):
+    """Preferencia de un usuario para recibir un tipo de notificación push en un club concreto."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notification_preferences',
+        verbose_name='Usuario',
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='notification_preferences',
+        verbose_name='Organización / Club',
+    )
+    notification_type = models.CharField(
+        max_length=32,
+        choices=NotificationType.choices,
+        verbose_name='Tipo de notificación',
+    )
+    is_enabled = models.BooleanField(
+        default=True,
+        verbose_name='Activado',
+        help_text='Indica si el usuario desea recibir este tipo de notificación.',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'organization', 'notification_type')
+        verbose_name = 'Preferencia de notificación'
+        verbose_name_plural = 'Preferencias de notificaciones'
+        indexes = [
+            models.Index(fields=['organization', 'notification_type', 'is_enabled']),
+        ]
+
+    def __str__(self):
+        state = 'activado' if self.is_enabled else 'desactivado'
+        return f'{self.user} @ {self.organization} ({self.notification_type}: {state})'
+
+
 class WebPushSubscription(models.Model):
     """Suscripción de dispositivo a notificaciones Web Push vinculada a usuario y club."""
     user = models.ForeignKey(

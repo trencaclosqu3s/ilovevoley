@@ -52,3 +52,50 @@ class WebPushSubscriptionModelTest(TestCase):
         )
         self.assertIsNone(sub.user)
         self.assertEqual(sub.organization, self.org)
+
+
+class NotificationPreferenceModelTest(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(name='CV Teruel', slug='teruel')
+        self.user = User.objects.create_user(username='volleyballer', email='voley@test.es')
+
+    def test_create_notification_preference(self):
+        from ilovevoley.users.models import NotificationPreference, NotificationType
+
+        pref = NotificationPreference.objects.create(
+            user=self.user,
+            organization=self.org,
+            notification_type=NotificationType.MATCH_RESULT,
+            is_enabled=False,
+        )
+        self.assertEqual(pref.user, self.user)
+        self.assertEqual(pref.organization, self.org)
+        self.assertEqual(pref.notification_type, NotificationType.MATCH_RESULT)
+        self.assertFalse(pref.is_enabled)
+        self.assertIn('volleyballer', str(pref))
+
+    def test_notification_preference_default_is_enabled(self):
+        from ilovevoley.users.models import NotificationPreference, NotificationType
+
+        pref = NotificationPreference.objects.create(
+            user=self.user,
+            organization=self.org,
+            notification_type=NotificationType.NEW_ALBUM,
+        )
+        self.assertTrue(pref.is_enabled)
+
+    def test_notification_preference_unique_together(self):
+        from ilovevoley.users.models import NotificationPreference, NotificationType
+
+        NotificationPreference.objects.create(
+            user=self.user,
+            organization=self.org,
+            notification_type=NotificationType.MATCH_RESULT,
+        )
+        with self.assertRaises(IntegrityError):
+            NotificationPreference.objects.create(
+                user=self.user,
+                organization=self.org,
+                notification_type=NotificationType.MATCH_RESULT,
+            )
+

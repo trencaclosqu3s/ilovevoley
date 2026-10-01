@@ -149,3 +149,41 @@ class UserProfileViewsTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(list(self.user.preferred_categories_for(self.org1)), [self.cat1])
         self.assertEqual(list(self.user.preferred_categories_for(self.org2)), [self.cat2])
+
+    def test_profile_view_shows_notification_types_by_club(self):
+        from ilovevoley.users.models import NotificationPreference, NotificationType
+        NotificationPreference.objects.create(
+            user=self.user,
+            organization=self.org1,
+            notification_type=NotificationType.MATCH_RESULT,
+            is_enabled=False,
+        )
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('profile'))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn('Avisos activos por club', html)
+        self.assertIn('Nuevos álbumes de fotos', html)
+
+    def test_profile_edit_saves_notification_preferences(self):
+        from ilovevoley.users.models import NotificationPreference, NotificationType
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('profile_edit'), {
+            'username': 'socio',
+            'first_name': 'Socio',
+            'last_name': 'Editado',
+            f'preferred_categories_{self.org1.id}': [self.cat1.id],
+            f'preferred_categories_{self.org2.id}': [self.cat2.id],
+            f'notification_types_{self.org1.id}': [NotificationType.MATCH_RESULT],
+            f'notification_types_{self.org2.id}': [NotificationType.MATCH_RESULT, NotificationType.NEW_ALBUM],
+        })
+        self.assertEqual(response.status_code, 302)
+        pref_album_org1 = NotificationPreference.objects.get(
+            user=self.user, organization=self.org1, notification_type=NotificationType.NEW_ALBUM
+        )
+        self.assertFalse(pref_album_org1.is_enabled)
+        pref_result_org1 = NotificationPreference.objects.get(
+            user=self.user, organization=self.org1, notification_type=NotificationType.MATCH_RESULT
+        )
+        self.assertTrue(pref_result_org1.is_enabled)
+
