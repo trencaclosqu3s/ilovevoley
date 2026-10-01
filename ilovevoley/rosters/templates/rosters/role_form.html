@@ -72,7 +72,7 @@
                 {% if form.jersey_number %}
                 <div>
                     <label for="{{ form.jersey_number.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        {{ form.jersey_number.label }} <span class="text-gray-500 font-normal">(opcional)</span>
+                        {{ form.jersey_number.label }} <span class="text-gray-500 dark:text-gray-400 font-normal">(opcional)</span>
                     </label>
                     {{ form.jersey_number }}
                     {% if form.jersey_number.help_text %}
@@ -88,7 +88,7 @@
                 {% if form.position %}
                 <div>
                     <label for="{{ form.position.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        {{ form.position.label }} <span class="text-gray-500 font-normal">(opcional)</span>
+                        {{ form.position.label }} <span class="text-gray-500 dark:text-gray-400 font-normal">(opcional)</span>
                     </label>
                     {{ form.position }}
                     {% if form.position.help_text %}
@@ -124,7 +124,7 @@
             {% if form.notes %}
             <div>
                 <label for="{{ form.notes.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    {{ form.notes.label }} <span class="text-gray-500 font-normal">(opcional)</span>
+                    {{ form.notes.label }} <span class="text-gray-500 dark:text-gray-400 font-normal">(opcional)</span>
                 </label>
                 {{ form.notes }}
                 {% if form.notes.help_text %}
@@ -141,7 +141,7 @@
                 <a href="{% url 'rosters:person_detail' person.id %}" class="w-full sm:w-auto text-center px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition">
                     Cancelar
                 </a>
-                <button type="submit" class="w-full sm:flex-1 {% if role_type == 'player' %}bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white{% else %}bg-csj-yellow hover:bg-csj-yellow-dark text-gray-900{% endif %} px-6 py-3 rounded-lg font-semibold transition text-center">
+                <button type="submit" class="w-full sm:flex-1 {% if role_type == 'player' %}bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white{% else %}bg-csj-yellow hover:bg-csj-yellow-dark text-gray-900 dark:text-gray-900{% endif %} px-6 py-3 rounded-lg font-semibold transition text-center">
                     {{ submit_text }}
                 </button>
             </div>
