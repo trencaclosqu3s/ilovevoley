@@ -56,6 +56,13 @@ resuelve al mismo nombre, así que reutilizaría los contenedores `db` y `redis`
 de producción. Para una consulta puntual en producción se usa el compose por
 defecto: `docker compose run --rm web python manage.py <comando>`.
 
+**Despliegue:** usar `./deploy.sh`. El `entrypoint.sh` ya no ejecuta migraciones
+ni `collectstatic` (#118), así que un despliegue manual debe hacer, en este
+orden: `git pull`, `docker compose build`, `run --rm web python manage.py migrate`,
+`run --rm web python manage.py collectstatic --noinput` y `up -d`. Si se omite
+`collectstatic`, los estáticos nuevos dan 404 en producción (el storage tolera
+nombres fuera del manifest y sirve la URL sin hash).
+
 ## Restricciones y Reglas de Negocio
 
 - **Django fijado en 6.0.8** hasta que `django-celery-beat` soporte 6.1+.

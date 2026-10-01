@@ -1,6 +1,7 @@
 from unittest.mock import patch, MagicMock
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
+from py_vapid import Vapid
 from pywebpush import WebPushException
 from ilovevoley.core.models import Category, Organization
 from ilovevoley.users.models import CategoryPreference, NotificationPreference, NotificationType, WebPushSubscription
@@ -21,6 +22,16 @@ class WebPushTasksTest(TestCase):
             p256dh='test_p256dh',
             auth='test_auth',
         )
+
+    @patch('ilovevoley.users.webpush.pywebpush_send')
+    def test_send_web_push_accepts_pem_private_key(self, mock_webpush):
+        # pywebpush trata un str como base64 DER, no como PEM: hay que pasarle un Vapid.
+        vapid = Vapid()
+        vapid.generate_keys()
+        pem_text = vapid.private_pem().decode()
+        with override_settings(VAPID_PRIVATE_KEY=pem_text):
+            self.assertTrue(send_web_push(self.sub, {'title': 'Aviso'}))
+        self.assertIsInstance(mock_webpush.call_args.kwargs['vapid_private_key'], Vapid)
 
     @override_settings(VAPID_PRIVATE_KEY='test-private-key')
     @patch('ilovevoley.users.webpush.pywebpush_send')
