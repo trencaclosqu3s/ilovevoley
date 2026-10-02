@@ -1,6 +1,6 @@
 from collections import defaultdict
 import logging
-from typing import List
+from typing import List, Optional
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -20,7 +20,7 @@ User = get_user_model()
 
 
 def _dispatch_organization_push(
-    orgs, *, build, url: str, category_ids: List[int], notification_type: str
+    orgs, *, build, url: str, category_ids: List[int], notification_type: str, match_id: Optional[int] = None
 ) -> int:
     """Programa el push de cada organización tras el commit de la transacción actual.
 
@@ -41,6 +41,7 @@ def _dispatch_organization_push(
             'url': url,
             'category_ids': category_ids,
             'notification_type': notification_type,
+            'match_id': match_id,
         }
         transaction.on_commit(lambda kw=kwargs: notify_web_push_organization_task.delay(**kw), robust=True)
         sent += 1
@@ -363,6 +364,7 @@ def notify_match_result(match: Match, tenant=None) -> bool:
         url=reverse('competitions:match_detail', args=[match.id]),
         category_ids=match_category_ids(match),
         notification_type='match_result',
+        match_id=match.id,
     )
 
     return True
@@ -465,6 +467,7 @@ def notify_match_change_push(match: Match, changes: List[MatchChangeLog]) -> boo
         url=reverse('competitions:match_detail', args=[match.id]),
         category_ids=match_category_ids(match),
         notification_type='match_change',
+        match_id=match.id,
     ) > 0
 
 
@@ -518,6 +521,7 @@ def notify_match_reminder(match: Match) -> bool:
             url=reverse('competitions:match_detail', args=[match.id]),
             category_ids=match_category_ids(match),
             notification_type='match_reminder',
+            match_id=match.id,
         )
 
     return True

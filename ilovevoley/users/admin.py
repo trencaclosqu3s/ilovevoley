@@ -8,7 +8,10 @@ from django.utils.html import format_html, mark_safe
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
-from .models import CategoryPreference, Membership, NotificationPreference, User, WebPushSubscription
+from .models import (
+    CategoryPreference, Membership, NotificationPreference, User,
+    WebPushAudit, WebPushSubscription,
+)
 
 
 class MembershipInline(TabularInline):
@@ -343,3 +346,38 @@ class NotificationPreferenceAdmin(ModelAdmin):
     list_filter = ('organization', 'notification_type', 'is_enabled')
     search_fields = ('user__username', 'user__email')
     autocomplete_fields = ('user', 'organization')
+
+
+@admin.register(WebPushAudit)
+class WebPushAuditAdmin(ModelAdmin):
+    list_display = (
+        'created_at',
+        'organization',
+        'notification_type',
+        'match_id',
+        'candidates_count',
+        'dispatched_count',
+        'failed_count',
+    )
+    list_filter = ('organization', 'notification_type', 'created_at')
+    search_fields = ('organization__name', 'match_id')
+    readonly_fields = (
+        'created_at',
+        'organization',
+        'notification_type',
+        'match_id',
+        'candidates_count',
+        'dispatched_count',
+        'failed_count',
+    )
+    list_select_related = ('organization',)
+    date_hierarchy = 'created_at'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser

@@ -1,14 +1,17 @@
+from datetime import timedelta
 from unittest.mock import patch, MagicMock
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from py_vapid import Vapid
 from pywebpush import WebPushException
 from ilovevoley.core.models import Category, Organization
 from ilovevoley.users.models import (
-    CategoryPreference, Membership, NotificationPreference, NotificationType, WebPushSubscription,
+    CategoryPreference, Membership, NotificationPreference, NotificationType,
+    WebPushAudit, WebPushSubscription,
 )
 from ilovevoley.users.webpush import send_web_push
-from ilovevoley.users.tasks import notify_web_push_organization_task
+from ilovevoley.users.tasks import cleanup_expired_web_push_audits_task, notify_web_push_organization_task
 
 User = get_user_model()
 
@@ -290,4 +293,115 @@ class WebPushNotificationTypeFilterTest(TestCase):
 
         notified = {call.args[0].endpoint.rsplit('/', 1)[1] for call in mock_send.call_args_list}
         self.assertEqual(notified, {'sub_u1', 'sub_u4', 'sub_anon'})
+
+
+class WebPushAuditTest(TestCase):
+    """Auditoría de avisos push enviados (#316)."""
+
+    def setUp(self):
+        self.org = Organization.objects.create(name='CV Manacor', slug='manacor')
+
+    def test_audit_records_zero_candidates_when_organization_has_no_subscriptions(self):
+        """Regla de negocio: refleja candidatos 0 cuando la organización no tiene suscripciones (#313, #316)."""
+        dispatched = notify_web_push_organization_task(
+            organization_id=self.org.id,
+            title='Resultado',
+            body='3-0',
+            notification_type='match_result',
+            match_id=4643,
+        )
+
+        self.assertEqual(dispatched, 0)
+        audit = WebPushAudit.objects.get(organization=self.org)
+        self.assertEqual(audit.organization_id, self.org.id)
+        self.assertEqual(audit.notification_type, 'match_result')
+        self.assertEqual(audit.match_id, 4643)
+        self.assertEqual(audit.candidates_count, 0)
+        self.assertEqual(audit.dispatched_count, 0)
+        self.assertEqual(audit.failed_count, 0)
+
+    @patch('ilovevoley.users.tasks.send_web_push')
+    def test_audit_records_candidates_dispatched_and_failed(self, mock_send):
+        """La auditoría cuenta candidatos, envíos exitosos y fallidos sin guardar datos personales."""
+        user1 = User.objects.create_user(username='u1', email='u1@test.es')
+        user2 = User.objects.create_user(username='u2', email='u2@test.es')
+        WebPushSubscription.objects.create(
+            user=user1, organization=self.org,
+            endpoint='https://fcm.googleapis.com/fcm/send/token1', p256dh='k1', auth='a1',
+        )
+        WebPushSubscription.objects.create(
+            user=user2, organization=self.org,
+            endpoint='https://fcm.googleapis.com/fcm/send/token2', p256dh='k2', auth='a2',
+        )
+
+        # Primer envío tiene éxito, segundo falla
+        mock_send.side_effect = [True, False]
+
+        notify_web_push_organization_task(
+            organization_id=self.org.id,
+            title='Resultado final',
+            body='3-1',
+            notification_type='match_result',
+            match_id=123,
+        )
+
+        audit = WebPushAudit.objects.get(organization=self.org)
+        self.assertEqual(audit.candidates_count, 2)
+        self.assertEqual(audit.dispatched_count, 1)
+        self.assertEqual(audit.failed_count, 1)
+        self.assertEqual(audit.match_id, 123)
+
+    def test_cleanup_expired_web_push_audits(self):
+        """La tarea de retención borra filas de más de 90 días y conserva las recientes."""
+        now = timezone.now()
+        # Fila antigua (>90 días)
+        old_audit = WebPushAudit.objects.create(
+            organization=self.org,
+            notification_type='match_result',
+            candidates_count=5,
+            dispatched_count=5,
+            failed_count=0,
+        )
+        WebPushAudit.objects.filter(pk=old_audit.pk).update(
+            created_at=now - timedelta(days=91)
+        )
+
+        # Fila reciente (<90 días)
+        recent_audit = WebPushAudit.objects.create(
+            organization=self.org,
+            notification_type='match_result',
+            candidates_count=3,
+            dispatched_count=3,
+            failed_count=0,
+        )
+        WebPushAudit.objects.filter(pk=recent_audit.pk).update(
+            created_at=now - timedelta(days=30)
+        )
+
+        result = cleanup_expired_web_push_audits_task(days=90)
+
+        self.assertEqual(result, {'deleted': 1})
+        self.assertFalse(WebPushAudit.objects.filter(pk=old_audit.pk).exists())
+        self.assertTrue(WebPushAudit.objects.filter(pk=recent_audit.pk).exists())
+
+    @patch('ilovevoley.users.tasks.send_web_push', return_value=True)
+    @patch('ilovevoley.users.models.WebPushAudit.objects.create', side_effect=Exception('DB connection failed'))
+    def test_audit_failure_does_not_abort_or_fail_task(self, mock_create, mock_send):
+        """Un fallo al persistir la auditoría no debe abortar la tarea ni impedir devolver los envíos."""
+        user = User.objects.create_user(username='u_audit_fail', email='uaf@test.es')
+        WebPushSubscription.objects.create(
+            user=user, organization=self.org,
+            endpoint='https://fcm.googleapis.com/fcm/send/token_audit_fail', p256dh='k', auth='a',
+        )
+
+        with self.assertLogs('ilovevoley.users.tasks', level='WARNING') as cm:
+            dispatched = notify_web_push_organization_task(
+                organization_id=self.org.id,
+                title='Resultado',
+                body='3-0',
+            )
+
+        self.assertEqual(dispatched, 1)
+        self.assertTrue(any('error al registrar auditoría' in msg for msg in cm.output))
+
 
