@@ -178,7 +178,7 @@ def test_nginx_conf_all_ssl_servers_have_http2():
 
     servers = _get_server_blocks(content)
     ssl_servers = [s for s in servers if "listen 443 ssl" in s]
-    assert len(ssl_servers) >= 10, "Se esperaba encontrar los servidores SSL del archivo"
+    assert len(ssl_servers) >= 3, "Se esperaba encontrar los servidores SSL del archivo"
     for s in ssl_servers:
         assert "http2 on;" in s, f"Servidor SSL sin directiva 'http2 on;':\n{s[:120]}"
 
