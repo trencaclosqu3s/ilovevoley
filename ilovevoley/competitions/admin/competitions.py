@@ -314,8 +314,9 @@ class VenueAdmin(ModelAdmin):
     )
 
     def google_maps_url_link(self, obj):
-        if obj.google_maps_url:
-            return format_html('<a href="{}" target="_blank">Ver mapa</a>', obj.google_maps_url)
+        url = obj.maps_url
+        if url:
+            return format_html('<a href="{}" target="_blank">Ver mapa</a>', url)
         return '-'
     google_maps_url_link.short_description = 'Google Maps'
 

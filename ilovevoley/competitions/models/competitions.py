@@ -356,6 +356,8 @@ class Venue(models.Model):
         """Devuelve la URL directa a Maps o una URL de búsqueda como fallback."""
         if self.google_maps_url:
             return self.google_maps_url
+        if self.latitude is not None and self.longitude is not None:
+            return f'https://www.google.com/maps/search/?api=1&query={self.latitude},{self.longitude}'
         if self.full_address and self.full_address != _('Por confirmar'):
             import urllib.parse
             query = urllib.parse.quote_plus(self.full_address)
