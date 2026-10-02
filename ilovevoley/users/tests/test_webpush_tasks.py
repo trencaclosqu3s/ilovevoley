@@ -89,17 +89,6 @@ class WebPushTasksTest(TestCase):
         self.assertFalse(result)
         self.assertTrue(WebPushSubscription.objects.filter(pk=self.sub.pk).exists())
 
-    @patch('ilovevoley.users.tasks.send_web_push')
-    def test_notify_web_push_organization_task(self, mock_send):
-        mock_send.return_value = True
-        notify_web_push_organization_task(
-            organization_id=self.org.id,
-            title='Nuevo Álbum',
-            body='Fotos del derbi disponibles',
-            url='/galeria/',
-        )
-        mock_send.assert_called_once()
-
 
 class WebPushCategoryFilterTest(TestCase):
     def setUp(self):

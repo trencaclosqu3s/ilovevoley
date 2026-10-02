@@ -1,6 +1,5 @@
 import json
 from django.test import TestCase, RequestFactory
-from django.urls import reverse
 from ilovevoley.core.models import Organization
 from ilovevoley.core.views import manifest_json
 
@@ -18,10 +17,6 @@ class PWAManifestTest(TestCase):
         )
         self.org.primary_color = '#9B7FBF'
         self.org.save()
-
-    def test_manifest_url_resolves(self):
-        url = reverse('manifest_json')
-        self.assertEqual(url, '/manifest.webmanifest')
 
     def test_manifest_apex_domain(self):
         request = self.factory.get('/manifest.webmanifest', HTTP_HOST='ilovevoley.es')

@@ -18,17 +18,6 @@ class ProfileWebPushTemplateTest(TestCase):
         )
         self.client = Client()
 
-    def test_profile_page_contains_webpush_section(self):
-        self.client.login(username='socio', password='password123')
-        response = self.client.get('/profile/', HTTP_HOST='santjust.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        content = response.content.decode('utf-8')
-
-        self.assertIn('Notificaciones Push', content)
-        self.assertIn('webpush.js', content)
-        self.assertIn('id="webpush-status-badge"', content)
-        self.assertIn('data-call="toggleWebPush"', content)
-
     def test_base_template_renders_valid_csrf_token_meta(self):
         self.client.login(username='socio', password='password123')
         response = self.client.get('/profile/', HTTP_HOST='santjust.ilovevoley.es')

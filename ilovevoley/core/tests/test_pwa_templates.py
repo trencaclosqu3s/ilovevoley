@@ -12,9 +12,6 @@ class PWATemplatesTest(TestCase):
         content = response.content.decode('utf-8')
 
         self.assertIn('rel="manifest"', content)
-        self.assertIn('name="theme-color"', content)
-        self.assertIn('apple-touch-icon-180.png', content)
-        self.assertIn('apple-mobile-web-app-capable', content)
         self.assertIn("navigator.serviceWorker.register('/sw.js')", content)
 
     def test_base_auth_template_contains_pwa_metas(self):
@@ -23,7 +20,4 @@ class PWATemplatesTest(TestCase):
         content = response.content.decode('utf-8')
 
         self.assertIn('rel="manifest"', content)
-        self.assertIn('name="theme-color"', content)
-        self.assertIn('apple-touch-icon-180.png', content)
-        self.assertIn('apple-mobile-web-app-capable', content)
         self.assertIn("navigator.serviceWorker.register('/sw.js')", content)

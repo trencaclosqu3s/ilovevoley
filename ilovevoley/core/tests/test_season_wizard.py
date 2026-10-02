@@ -3,6 +3,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from ilovevoley.competitions.models import League
+from ilovevoley.core.forms import SeasonWizardForm
 from ilovevoley.core.models import Season
 from ilovevoley.core.services.season_wizard import preview_season, start_season
 
@@ -92,7 +93,8 @@ class SeasonWizardViewTest(TestCase):
         self.client.force_login(self.superuser)
         response = self.client.get(self.wizard_url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Nueva temporada')
+        self.assertIsInstance(response.context['form'], SeasonWizardForm)
+        self.assertIn('name', response.context['form'].fields)
 
     def test_post_valid_redirects_to_confirm(self):
         self.client.force_login(self.superuser)
@@ -104,13 +106,18 @@ class SeasonWizardViewTest(TestCase):
         self.client.force_login(self.superuser)
         response = self.client.post(self.wizard_url, {'name': 'temp'})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Formato de temporada no válido')
+        self.assertIn('name', response.context['form'].errors)
 
     def test_confirm_get_shows_summary(self):
         self.client.force_login(self.superuser)
         response = self.client.get(self.confirm_url, {'name': '2026-27'})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '2026-27')
+
+        summary = response.context['summary']
+        self.assertEqual(summary['name'], '2026-27')
+        self.assertEqual(summary['start_year'], 2026)
+        self.assertEqual(summary['end_year'], 2027)
+        self.assertTrue(summary['is_new'])
 
     def test_confirm_post_activates_season(self):
         Season.objects.create(

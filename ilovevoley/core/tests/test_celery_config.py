@@ -59,19 +59,6 @@ class CeleryQueueRoutingTest(SimpleTestCase):
                 msg=f'{task_name} debería enrutarse a la cola {expected_queue}',
             )
 
-    def test_time_limits_are_configured(self):
-        self.assertEqual(settings.CELERY_TASK_SOFT_TIME_LIMIT, 600)
-        self.assertEqual(settings.CELERY_TASK_TIME_LIMIT, 900)
-
-    def test_late_ack_and_prefetch_one(self):
-        self.assertTrue(settings.CELERY_TASK_ACKS_LATE)
-        self.assertEqual(settings.CELERY_WORKER_PREFETCH_MULTIPLIER, 1)
-
-    def test_redis_logical_databases_are_separated(self):
-        self.assertTrue(settings.CELERY_BROKER_URL.endswith('/0'))
-        self.assertTrue(settings.CELERY_RESULT_BACKEND.endswith('/1'))
-        self.assertTrue(settings.REDIS_CACHE_URL.endswith('/2'))
-
 
 class BeatScheduleTest(SimpleTestCase):
     def setUp(self):

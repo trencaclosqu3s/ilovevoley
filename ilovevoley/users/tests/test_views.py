@@ -84,9 +84,7 @@ class PendingApprovalViewTests(TestCase):
 
         response = self.client.get(reverse('pending_approval'), HTTP_HOST=HOST)
 
-        html = response.content.decode()
-        self.assertIn('Cuenta Pendiente de Aprobación', html)
-        self.assertIn('Tu cuenta ha sido creada', html)
+        self.assertIs(response.context['joining_club'], False)
 
     def test_activated_user_joining_club_sees_request_copy(self):
         self.user.is_approved = True
@@ -95,9 +93,7 @@ class PendingApprovalViewTests(TestCase):
 
         response = self.client.get(reverse('pending_approval'), HTTP_HOST=HOST)
 
-        html = response.content.decode()
-        self.assertIn('Solicitud Pendiente de Aprobación', html)
-        self.assertIn('enviado tu solicitud para unirte a', html)
+        self.assertIs(response.context['joining_club'], True)
 
 
 class UserProfileViewsTests(TestCase):
@@ -151,6 +147,7 @@ class UserProfileViewsTests(TestCase):
         self.assertEqual(list(self.user.preferred_categories_for(self.org2)), [self.cat2])
 
     def test_profile_view_shows_notification_types_by_club(self):
+        from ilovevoley.users.forms import AVAILABLE_NOTIFICATION_TYPES
         from ilovevoley.users.models import NotificationPreference, NotificationType
         NotificationPreference.objects.create(
             user=self.user,
@@ -161,9 +158,17 @@ class UserProfileViewsTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse('profile'))
         self.assertEqual(response.status_code, 200)
-        html = response.content.decode()
-        self.assertIn('Avisos activos por club', html)
-        self.assertIn('Nuevos álbumes de fotos', html)
+
+        org_prefs = {
+            item['organization'].id: item['notification_types']
+            for item in response.context['organization_preferences']
+        }
+        result_label = dict(AVAILABLE_NOTIFICATION_TYPES)[NotificationType.MATCH_RESULT]
+        album_label = dict(AVAILABLE_NOTIFICATION_TYPES)[NotificationType.NEW_ALBUM]
+
+        self.assertNotIn(result_label, org_prefs[self.org1.id])
+        self.assertIn(album_label, org_prefs[self.org1.id])
+        self.assertIn(result_label, org_prefs[self.org2.id])
 
     def test_profile_edit_saves_notification_preferences(self):
         from ilovevoley.users.models import NotificationPreference, NotificationType

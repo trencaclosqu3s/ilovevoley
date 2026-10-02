@@ -72,24 +72,32 @@ class AlbumZipFlowTests(TestCase):
         return Image.objects.create(**kwargs)
 
     def test_download_rejects_expired_signature(self):
-        self._img(title='a', match=self.match)
-        self.client.force_login(self.user)
-        host = 'testclub.ilovevoley.es'
-        job_id = self.client.post(
-            reverse('content:match_album_zip', args=[self.match.id]),
-            HTTP_HOST=host,
-        ).json()['job_id']
-        download_url = self.client.get(
-            reverse('content:album_zip_status', args=[job_id]),
-            HTTP_HOST=host,
-        ).json()['download_url']
+        from ilovevoley.content.album_zip import (
+            REL_DIR,
+            build_album_zip_file,
+            job_dest_path,
+            sign_download_token,
+        )
 
-        with mock.patch(
-            'ilovevoley.content.views_album_zip.parse_download_token',
-            return_value=None,
-        ):
-            response = self.client.get(download_url, HTTP_HOST=host)
+        self._img(title='a', match=self.match)
+        job_id = '11111111-2222-3333-4444-555555555555'
+        dest = job_dest_path(job_id)
+        build_album_zip_file(
+            queryset=Image.objects.filter(match=self.match, organization=self.org),
+            dest_path=dest,
+        )
+        self.assertTrue(dest.is_file())
+
+        rel_path = f'{REL_DIR}/{job_id}.zip'
+        stale = datetime(2000, 1, 1, tzinfo=dt_timezone.utc).timestamp()
+        with mock.patch('django.core.signing.time.time', return_value=stale):
+            token = sign_download_token(job_id, self.org.pk, rel_path, 'partido.zip')
+
+        self.client.force_login(self.user)
+        url = reverse('content:album_zip_download') + f'?token={token}'
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 404)
+        self.assertNotIn('X-Accel-Redirect', response)
 
     def test_build_zip_includes_only_approved_images_for_match(self):
         from django.conf import settings

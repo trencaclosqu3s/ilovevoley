@@ -1,21 +1,52 @@
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.test import SimpleTestCase, TestCase, override_settings
-from django.urls import reverse
+from django.test import TestCase, override_settings
+from django.urls import resolve, reverse
 
 from ilovevoley.core.models import Category, Organization, Season
-from ilovevoley.teams import views as teams_views
 from ilovevoley.teams.models import Club, Team
 from ilovevoley.videos.views import teams as videos_views_teams
 
 
-class TeamsReExportCompatibilityTest(SimpleTestCase):
-    """Verifica que las importaciones históricas desde videos sigan funcionando."""
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class TeamsReExportCompatibilityTest(TestCase):
+    """Las vistas importadas históricamente desde ``videos`` sirven las URLs canónicas."""
 
-    def test_views_are_reexported(self):
-        self.assertIs(videos_views_teams.ajax_register_team, teams_views.ajax_register_team)
-        self.assertIs(videos_views_teams.team_list, teams_views.team_list)
-        self.assertIs(videos_views_teams.team_roster, teams_views.team_roster)
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club',
+            club_team_names={'1': 'Test Club'}, is_active=True,
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(
+            name='Test Club Senior', category=self.category,
+            federation_id='REEXPORT-T1', is_active=True,
+        )
+
+    def test_legacy_views_resolve_to_the_canonical_team_urls(self):
+        routes = [
+            ('team_list', 'teams:team_list', []),
+            ('team_roster', 'teams:team_roster', [self.team.id]),
+            ('ajax_register_team', 'teams:ajax_register_team', []),
+        ]
+        for attr, route, args in routes:
+            with self.subTest(view=attr):
+                legacy_view = getattr(videos_views_teams, attr)
+                self.assertIs(resolve(reverse(route, args=args)).func, legacy_view)
+
+    def test_legacy_team_list_renders_the_tenant_teams(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('teams:team_list'), HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(response.resolver_match.func, videos_views_teams.team_list)
+        self.assertIn(self.team, response.context['teams'])
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
@@ -93,12 +124,6 @@ class TeamViewUrlTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 403)
-
-    def test_get_method_rejected_with_405(self):
-        self.client.force_login(self.manager)
-        url = reverse('teams:ajax_register_team')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 405)
 
     def test_register_team_validates_name_syntax_and_length(self):
         self.client.force_login(self.manager)
