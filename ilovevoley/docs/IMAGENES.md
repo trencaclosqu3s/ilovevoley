@@ -77,7 +77,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Configuración de subida
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 60 * 1024 * 1024  # 60MB (subidas en lote)
 ```
 
 #### Para servidor privado con `django-storages`:
