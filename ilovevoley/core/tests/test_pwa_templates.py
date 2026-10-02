@@ -40,8 +40,7 @@ class PWATemplatesTest(TestCase):
         content = response.content.decode('utf-8')
 
         self.assertIn('data-dropdown="club-switcher"', content)
-        self.assertIn('data-tenant-switch', content)
+        self.assertIn('data-dropdown-menu="club-switcher"', content)
         self.assertIn('Club Alpha', content)
         self.assertIn('Club Beta', content)
         self.assertIn('Actual', content)
-

@@ -249,12 +249,16 @@ def manifest_json(request):
     protocol = 'https' if not settings.DEBUG else 'http'
 
     # Scope extensions para permitir navegación in-app entre tenants y dominio base
-    active_slugs = Organization.objects.filter(is_active=True).values_list('slug', flat=True)
-    scope_extensions = [{'origin': f'{protocol}://{base_domain}'}]
-    for slug in active_slugs:
-        scope_extensions.append({'origin': f'{protocol}://{slug}.{base_domain}'})
-    if not settings.DEBUG:
-        scope_extensions.append({'origin': f'https://*.{base_domain}'})
+    if settings.DEBUG:
+        active_slugs = Organization.objects.filter(is_active=True).values_list('slug', flat=True)
+        scope_extensions = [{'origin': f'{protocol}://{base_domain}'}]
+        for slug in active_slugs:
+            scope_extensions.append({'origin': f'{protocol}://{slug}.{base_domain}'})
+    else:
+        scope_extensions = [
+            {'origin': f'https://{base_domain}'},
+            {'origin': f'https://*.{base_domain}'},
+        ]
 
     manifest_data = {
         'id': '/',
@@ -300,7 +304,12 @@ def manifest_json(request):
 
 def web_app_origin_association(request):
     """Devuelve la declaración de asociación de orígenes para PWA scope extensions."""
+    host = request.get_host()
+    origin_key = f'{request.scheme}://{host}/'
     data = {
+        origin_key: {
+            'scope': '/',
+        },
         'web_apps': [
             {
                 'manifest': '/manifest.webmanifest',
@@ -308,7 +317,7 @@ def web_app_origin_association(request):
                     'paths': ['/*'],
                 },
             }
-        ]
+        ],
     }
     response = JsonResponse(data, content_type='application/json; charset=utf-8')
     response['Cache-Control'] = 'public, max-age=86400'

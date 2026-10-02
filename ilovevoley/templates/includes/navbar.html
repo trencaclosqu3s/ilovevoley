@@ -196,15 +196,14 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                     </svg>
                                 </button>
-                                <div class="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-1" 
-                                     data-dropdown-menu="club-switcher"
-                                     role="menu">
+                                <div class="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 z-50 py-1" 
+                                     data-dropdown-menu="club-switcher">
                                     <div class="px-3 py-2 text-xs font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
                                         Tus clubes
                                     </div>
                                     {% for club in user_switch_clubs %}
                                         {% if club.is_current %}
-                                            <div class="flex items-center justify-between px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white font-medium" role="menuitem">
+                                            <div class="flex items-center justify-between px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white font-medium">
                                                 <span class="flex items-center gap-2.5 truncate">
                                                     <span class="w-5 h-5 rounded-md bg-csj-purple/10 text-csj-purple dark:bg-csj-yellow/10 dark:text-csj-yellow flex items-center justify-center text-xs font-bold flex-shrink-0">{{ club.name|first }}</span>
                                                     <span class="truncate">{{ club.name }}</span>
@@ -213,9 +212,7 @@
                                             </div>
                                         {% else %}
                                             <a href="{{ club.url }}" 
-                                               data-tenant-switch
-                                               class="flex items-center justify-between px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition" 
-                                               role="menuitem">
+                                               class="flex items-center justify-between px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                                                 <span class="flex items-center gap-2.5 truncate">
                                                     <span class="w-5 h-5 rounded-md bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 flex items-center justify-center text-xs font-bold flex-shrink-0">{{ club.name|first }}</span>
                                                     <span class="truncate">{{ club.name }}</span>
@@ -228,7 +225,6 @@
                                     {% endfor %}
                                     <div class="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
                                         <a href="{{ switch_club_url }}" 
-                                           data-tenant-switch
                                            class="block px-3 py-2 text-xs text-gray-500 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow transition">
                                             Ver todos los clubes...
                                         </a>
@@ -384,7 +380,6 @@
                                         </div>
                                     {% else %}
                                         <a href="{{ club.url }}" 
-                                           data-tenant-switch
                                            class="flex items-center justify-between px-3 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation text-sm">
                                             <span class="flex items-center gap-2.5 truncate">
                                                 <span class="w-5 h-5 rounded-md bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 flex items-center justify-center text-xs font-bold flex-shrink-0">{{ club.name|first }}</span>
@@ -397,7 +392,6 @@
                                     {% endif %}
                                 {% endfor %}
                                 <a href="{{ switch_club_url }}" 
-                                   data-tenant-switch
                                    class="block px-3 py-2 text-xs text-gray-500 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow transition">
                                     Ver todos los clubes...
                                 </a>
@@ -524,16 +518,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
-    });
-
-    // Navegación in-place para cambio de club en PWA (evita delegación a ventana externa en iOS/WebKit)
-    document.querySelectorAll('a[data-tenant-switch]').forEach(link => {
-        link.addEventListener('click', function(e) {
-            if (this.href) {
-                e.preventDefault();
-                window.location.href = this.href;
-            }
-        });
     });
 });
 </script>

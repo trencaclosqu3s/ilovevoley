@@ -1,9 +1,10 @@
 import json
-from django.test import TestCase, RequestFactory
+from django.test import TestCase, RequestFactory, override_settings
 from ilovevoley.core.models import Organization
 from ilovevoley.core.views import manifest_json
 
 
+@override_settings(ALLOWED_HOSTS=['ilovevoley.es', '.ilovevoley.es', 'localhost', 'testserver'])
 class PWAManifestTest(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
@@ -65,12 +66,13 @@ class PWAManifestTest(TestCase):
         data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(data['theme_color'], '#9B7FBF')
 
-    def test_manifest_includes_scope_extensions_for_tenants(self):
+    def test_manifest_includes_scope_extensions_in_debug(self):
         Organization.objects.create(slug='soller', name='CV Soller', is_active=True)
 
-        request = self.factory.get('/manifest.webmanifest', HTTP_HOST='santjosep.ilovevoley.es')
-        request.tenant = self.org
-        response = manifest_json(request)
+        with self.settings(DEBUG=True):
+            request = self.factory.get('/manifest.webmanifest', HTTP_HOST='santjosep.ilovevoley.es')
+            request.tenant = self.org
+            response = manifest_json(request)
 
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
@@ -78,6 +80,19 @@ class PWAManifestTest(TestCase):
         origins = [item['origin'] for item in data['scope_extensions']]
         self.assertTrue(any('santjosep' in o for o in origins))
         self.assertTrue(any('soller' in o for o in origins))
+
+    def test_manifest_includes_wildcard_scope_extensions_in_production(self):
+        with self.settings(DEBUG=False, TENANT_BASE_DOMAIN='ilovevoley.es'):
+            request = self.factory.get('/manifest.webmanifest', HTTP_HOST='santjosep.ilovevoley.es')
+            request.tenant = self.org
+            response = manifest_json(request)
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content.decode('utf-8'))
+        self.assertIn('scope_extensions', data)
+        origins = [item['origin'] for item in data['scope_extensions']]
+        self.assertIn('https://ilovevoley.es', origins)
+        self.assertIn('https://*.ilovevoley.es', origins)
 
     def test_web_app_origin_association(self):
         from ilovevoley.core.views import web_app_origin_association
@@ -90,4 +105,6 @@ class PWAManifestTest(TestCase):
         data = json.loads(response.content.decode('utf-8'))
         self.assertIn('web_apps', data)
         self.assertEqual(data['web_apps'][0]['manifest'], '/manifest.webmanifest')
-
+        origin_key = 'http://ilovevoley.es/'
+        self.assertIn(origin_key, data)
+        self.assertEqual(data[origin_key], {'scope': '/'})
