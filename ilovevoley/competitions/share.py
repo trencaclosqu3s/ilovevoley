@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from ilovevoley.core.security import safe_get
 from ilovevoley.videos.scraping import parse_acta_lineup
@@ -78,7 +79,7 @@ def group_match_media(videos, images, set_labels=None):
 
 
 def _build_group(number, set_labels, videos, images):
-    label = 'Sin set' if number is None else set_labels.get(number, f'Set {number}')
+    label = _('Sin set') if number is None else set_labels.get(number, _('Set %(number)s') % {'number': number})
     return {
         'set_number': number,
         'label': label,

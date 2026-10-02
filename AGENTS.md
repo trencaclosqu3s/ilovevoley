@@ -59,9 +59,19 @@ defecto: `docker compose run --rm web python manage.py <comando>`.
 **Despliegue:** usar `./deploy.sh`. El `entrypoint.sh` ya no ejecuta migraciones
 ni `collectstatic` (#118), así que un despliegue manual debe hacer, en este
 orden: `git pull`, `docker compose build`, `run --rm web python manage.py migrate`,
-`run --rm web python manage.py collectstatic --noinput` y `up -d`. Si se omite
-`collectstatic`, los estáticos nuevos dan 404 en producción (el storage tolera
-nombres fuera del manifest y sirve la URL sin hash).
+`run --rm web python manage.py collectstatic --noinput`, `run --rm web python
+manage.py compilemessages` y `up -d`. Si se omite `collectstatic`, los estáticos
+nuevos dan 404 en producción (el storage tolera nombres fuera del manifest y
+sirve la URL sin hash). Si se omite `compilemessages`, el catalán no aparece
+(usa `.mo`, gitignored); el build de la imagen ya los compila, así que solo hace
+falta repetirlo si se editan los `.po` sin reconstruir.
+
+**i18n:** idiomas `es` y `ca` sin prefijo de URL (`LocaleMiddleware` + vista
+`set_language` en `/i18n/setlang/`, cookie `django_language`). La preferencia se
+guarda en `User.preferred_language` y el middleware `UserLanguageMiddleware`
+la aplica solo si no hay elección explícita. Los catálogos viven en
+`locale/<lang>/LC_MESSAGES/django.po` (fuera de las apps, vía `LOCALE_PATHS`).
+Al añadir cadenas nuevas: `makemessages -l ca` y traducir antes de desplegar.
 
 ## Restricciones y Reglas de Negocio
 

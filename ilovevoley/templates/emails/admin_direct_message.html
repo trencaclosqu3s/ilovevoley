@@ -1,36 +1,37 @@
 {% extends "emails/base_email.html" %}
+{% load i18n %}
 
 {% block title %}{{ subject }} - {{ site_name }}{% endblock %}
 
-{% block header_subtitle %}{% if is_copy %}Copia de mensaje enviado{% else %}Mensaje de la Administración{% endif %}{% endblock %}
+{% block header_subtitle %}{% if is_copy %}{% trans "Copia de mensaje enviado" %}{% else %}{% trans "Mensaje de la Administración" %}{% endif %}{% endblock %}
 
 {% block content %}
     {% if is_copy %}
     <div class="alert warning" style="margin-bottom: 20px;">
-        <strong>📋 Copia para el administrador</strong><br>
-        <small>Este mensaje fue enviado a: <strong>{{ recipients_summary }}</strong></small>
+        <strong>{% trans "📋 Copia para el administrador" %}</strong><br>
+        <small>{% blocktrans %}Este mensaje fue enviado a: <strong>{{ recipients_summary }}</strong>{% endblocktrans %}</small>
     </div>
     {% endif %}
 
-    <h3>Hola {{ recipient_name }},</h3>
+    <h3>{% blocktrans with name=recipient_name %}Hola {{ name }},{% endblocktrans %}</h3>
     
     <div style="background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 18px 20px; margin: 20px 0; border-radius: 6px; font-size: 15px; line-height: 1.7; color: #1e293b; white-space: pre-line;">{{ message_body }}</div>
 
     <p style="margin-top: 25px; font-size: 14px; color: #475569;">
-        Atentamente,<br>
+        {% trans "Atentamente," %}<br>
         <strong style="color: #0f172a; font-size: 15px;">{{ admin_name }}</strong><br>
-        <span>Administración de {{ site_name }}</span>
+        <span>{% blocktrans %}Administración de {{ site_name }}{% endblocktrans %}</span>
     </p>
 {% endblock %}
 
 {% block footer %}
     {% if is_copy %}
-    <p>Esta es una copia generada automáticamente para el administrador de {{ site_name }}.</p>
+    <p>{% blocktrans %}Esta es una copia generada automáticamente para el administrador de {{ site_name }}.{% endblocktrans %}</p>
     {% else %}
-    <p>Este correo ha sido enviado por la administración de {{ site_name }}.</p>
+    <p>{% blocktrans %}Este correo ha sido enviado por la administración de {{ site_name }}.{% endblocktrans %}</p>
     {% if admin_email %}
-    <p>Puedes responder directamente a este correo para comunicarte con el administrador (o escribir a <a href="mailto:{{ admin_email }}">{{ admin_email }}</a>).</p>
+    <p>{% blocktrans %}Puedes responder directamente a este correo para comunicarte con el administrador (o escribir a <a href="mailto:{{ admin_email }}">{{ admin_email }}</a>).{% endblocktrans %}</p>
     {% endif %}
     {% endif %}
-    <p>© {% now "Y" %} {{ site_name }}. Todos los derechos reservados.</p>
+    <p>© {% now "Y" %} {{ site_name }}. {% trans "Todos los derechos reservados." %}</p>
 {% endblock %}

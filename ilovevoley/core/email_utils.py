@@ -7,6 +7,7 @@ from django.db import transaction
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils.html import strip_tags
+from django.utils.translation import gettext as _
 import os
 
 User = get_user_model()
@@ -190,7 +191,7 @@ def send_admin_email_to_users(subject, message_body, recipients, admin_user=None
     
     # Configurar Reply-To con el email del admin si está disponible
     reply_to = None
-    admin_name = 'Administración'
+    admin_name = _('Administración')
     admin_email = None
     if admin_user:
         admin_name = admin_user.get_full_name() or admin_user.username
@@ -230,9 +231,16 @@ def send_admin_email_to_users(subject, message_body, recipients, admin_user=None
 
         try:
             html_message = render_to_string(template_name, context)
-            plain_message = f"Hola {recipient_name},\n\n{message_body}\n\nAtentamente,\n{admin_name}\nAdministración de {site_name}"
+            plain_message = _(
+                'Hola %(name)s,\n\n%(body)s\n\nAtentamente,\n%(admin)s\nAdministración de %(site)s'
+            ) % {
+                'name': recipient_name,
+                'body': message_body,
+                'admin': admin_name,
+                'site': site_name,
+            }
             if admin_email:
-                plain_message += f"\n\nPuedes responder directamente a este correo ({admin_email})."
+                plain_message += _('\n\nPuedes responder directamente a este correo (%(email)s).') % {'email': admin_email}
 
             email = EmailMultiAlternatives(
                 subject=subject,
@@ -256,11 +264,11 @@ def send_admin_email_to_users(subject, message_body, recipients, admin_user=None
     # Si se solicitó copia y se envió al menos un correo
     if send_copy and admin_email and results['sent_count'] > 0:
         try:
-            copy_subject = f"[Copia] {subject}"
+            copy_subject = _('[Copia] %(subject)s') % {'subject': subject}
             copy_context = {
                 'site_name': site_name,
                 'subject': copy_subject,
-                'recipient_name': f"{admin_name} (Copia)",
+                'recipient_name': _('%(name)s (Copia)') % {'name': admin_name},
                 'message_body': message_body,
                 'admin_name': admin_name,
                 'admin_email': admin_email,
@@ -268,11 +276,16 @@ def send_admin_email_to_users(subject, message_body, recipients, admin_user=None
                 'recipients_summary': ', '.join(results['successful_emails']),
             }
             html_copy = render_to_string(template_name, copy_context)
-            plain_copy = (
-                f"[COPIA DE SEGURIDAD]\nMensaje enviado a: {', '.join(results['successful_emails'])}\n\n"
-                f"{message_body}\n\n"
-                f"Atentamente,\n{admin_name}\nAdministración de {site_name}"
-            )
+            plain_copy = _(
+                '[COPIA DE SEGURIDAD]\nMensaje enviado a: %(recipients)s\n\n'
+                '%(body)s\n\n'
+                'Atentamente,\n%(admin)s\nAdministración de %(site)s'
+            ) % {
+                'recipients': ', '.join(results['successful_emails']),
+                'body': message_body,
+                'admin': admin_name,
+                'site': site_name,
+            }
             copy_email = EmailMultiAlternatives(
                 subject=copy_subject,
                 body=plain_copy,

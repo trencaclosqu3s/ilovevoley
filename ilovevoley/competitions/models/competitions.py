@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.tenancy import MatchTenantQuerySet, TenantQuerySet
 
@@ -75,24 +76,24 @@ LeagueManager = models.Manager.from_queryset(LeagueQuerySet)
 
 class League(models.Model):
     COMPETITION_TYPES = [
-        ('regular', 'Liga Regular'),
-        ('playoff', 'Playoff'),
-        ('cup', 'Copa'),
-        ('friendly', 'Amistoso'),
+        ('regular', _('Liga Regular')),
+        ('playoff', _('Playoff')),
+        ('cup', _('Copa')),
+        ('friendly', _('Amistoso')),
     ]
 
     VISIBILITY_TYPES = [
-        ('main', 'Principal (mostrar en app)'),
-        ('reference', 'Referencia (solo admin)'),
-        ('historical', 'Histórica (solo admin)'),
-        ('external', 'Externa (solo admin)'),
+        ('main', _('Principal (mostrar en app)')),
+        ('reference', _('Referencia (solo admin)')),
+        ('historical', _('Histórica (solo admin)')),
+        ('external', _('Externa (solo admin)')),
     ]
 
     MATCH_FORMAT_CHOICES = [
-        ('standard', 'Estándar (5 sets, ganar 3)'),
-        ('alevin_balear', 'Alevín Balear (3 sets, jugar los 3)'),
-        ('tournament_3sets', 'Torneo 3 sets (ganar 2)'),
-        ('custom', 'Personalizado'),
+        ('standard', _('Estándar (5 sets, ganar 3)')),
+        ('alevin_balear', _('Alevín Balear (3 sets, jugar los 3)')),
+        ('tournament_3sets', _('Torneo 3 sets (ganar 2)')),
+        ('custom', _('Personalizado')),
     ]
 
     name = models.CharField(max_length=200)
@@ -104,7 +105,7 @@ class League(models.Model):
         null=True,
         blank=True,
         related_name='leagues',
-        verbose_name='Temporada',
+        verbose_name=_('Temporada'),
     )
     # Nuevo campo para soporte multi-categoría (torneos, copas)
     categories = models.ManyToManyField(
@@ -112,38 +113,38 @@ class League(models.Model):
         blank=True,
         related_name='leagues',
         db_table='videos_league_categories',
-        help_text='Categorías de la liga (puede ser múltiple para torneos/copas)'
+        help_text=_('Categorías de la liga (puede ser múltiple para torneos/copas)')
     )
     is_active = models.BooleanField(default=True)
     visibility_type = models.CharField(
         max_length=20,
         choices=VISIBILITY_TYPES,
         default='main',
-        help_text='Controla dónde se muestra la liga: Principal (en la app), Referencia (solo admin), Histórica (datos antiguos), Externa (otras ligas)'
+        help_text=_('Controla dónde se muestra la liga: Principal (en la app), Referencia (solo admin), Histórica (datos antiguos), Externa (otras ligas)')
     )
     is_historical = models.BooleanField(
         default=False,
-        help_text='Indica si es una liga de temporadas anteriores'
+        help_text=_('Indica si es una liga de temporadas anteriores')
     )
     is_our_team_related = models.BooleanField(
         default=True,
-        help_text='Indica si esta liga está relacionada con nuestro equipo'
+        help_text=_('Indica si esta liga está relacionada con nuestro equipo')
     )
     match_format = models.CharField(
         max_length=20,
         choices=MATCH_FORMAT_CHOICES,
         default='standard',
-        help_text='Formato de partido para esta liga'
+        help_text=_('Formato de partido para esta liga')
     )
     custom_max_sets = models.IntegerField(
         null=True,
         blank=True,
-        help_text='Máximo de sets (solo si formato es personalizado)'
+        help_text=_('Máximo de sets (solo si formato es personalizado)')
     )
     custom_sets_to_win = models.IntegerField(
         null=True,
         blank=True,
-        help_text='Sets necesarios para ganar (solo si formato es personalizado)'
+        help_text=_('Sets necesarios para ganar (solo si formato es personalizado)')
     )
     created_at = models.DateTimeField(auto_now_add=True)
     base_url = models.URLField(default='https://www.voleibolib.net')
@@ -155,21 +156,21 @@ class League(models.Model):
         null=True,
         blank=True,
         related_name='phases',
-        help_text='Liga padre si esta es una fase (ej: Liguilla Oro es fase de Liga Regular)'
+        help_text=_('Liga padre si esta es una fase (ej: Liguilla Oro es fase de Liga Regular)')
     )
     phase_name = models.CharField(
         max_length=100,
         blank=True,
-        help_text='Nombre de la fase (ej: "Liguilla Oro", "Liguilla Plata", "Playoffs")'
+        help_text=_('Nombre de la fase (ej: "Liguilla Oro", "Liguilla Plata", "Playoffs")')
     )
     phase_order = models.IntegerField(
         default=0,
-        help_text='Orden de la fase (0 = liga principal, 1+ = fases subsecuentes)'
+        help_text=_('Orden de la fase (0 = liga principal, 1+ = fases subsecuentes)')
     )
     display_name_override = models.CharField(
         max_length=200,
         blank=True,
-        help_text='Nombre personalizado para mostrar (opcional)'
+        help_text=_('Nombre personalizado para mostrar (opcional)')
     )
 
     objects = LeagueManager()
@@ -177,8 +178,8 @@ class League(models.Model):
     class Meta:
         db_table = 'videos_league'
         ordering = ['-created_at']
-        verbose_name = 'Liga'
-        verbose_name_plural = 'Ligas'
+        verbose_name = _('Liga')
+        verbose_name_plural = _('Ligas')
 
     def __str__(self):
         season = self.season.name if self.season_id else '—'
@@ -257,59 +258,59 @@ class Venue(models.Model):
     name = models.CharField(
         max_length=200,
         unique=True,
-        verbose_name='Nombre oficial',
-        help_text='Nombre canónico del pabellón o instalación deportiva'
+        verbose_name=_('Nombre oficial'),
+        help_text=_('Nombre canónico del pabellón o instalación deportiva')
     )
     short_name = models.CharField(
         max_length=100,
         blank=True,
-        verbose_name='Nombre corto',
-        help_text='Nombre abreviado para listados compactos'
+        verbose_name=_('Nombre corto'),
+        help_text=_('Nombre abreviado para listados compactos')
     )
     address = models.CharField(
         max_length=500,
         blank=True,
-        verbose_name='Dirección',
-        help_text='Dirección física completa (calle, número)'
+        verbose_name=_('Dirección'),
+        help_text=_('Dirección física completa (calle, número)')
     )
     city = models.CharField(
         max_length=100,
         blank=True,
-        verbose_name='Municipio'
+        verbose_name=_('Municipio')
     )
     postal_code = models.CharField(
         max_length=10,
         blank=True,
-        verbose_name='Código postal'
+        verbose_name=_('Código postal')
     )
     google_maps_url = models.URLField(
         max_length=500,
         blank=True,
-        verbose_name='Enlace Google Maps',
-        help_text='Enlace corto o directo a la ubicación en Google Maps (ej. https://maps.app.goo.gl/...)'
+        verbose_name=_('Enlace Google Maps'),
+        help_text=_('Enlace corto o directo a la ubicación en Google Maps (ej. https://maps.app.goo.gl/...)')
     )
     aliases = models.TextField(
         blank=True,
-        verbose_name='Nombres alternativos / Alias',
-        help_text='Variaciones de nombre separadas por coma o salto de línea usadas en federación (ej: Pav. Municipal Alaró, Pista 1, Pista 2)'
+        verbose_name=_('Nombres alternativos / Alias'),
+        help_text=_('Variaciones de nombre separadas por coma o salto de línea usadas en federación (ej: Pav. Municipal Alaró, Pista 1, Pista 2)')
     )
     latitude = models.DecimalField(
         max_digits=9,
         decimal_places=6,
         null=True,
         blank=True,
-        verbose_name='Latitud'
+        verbose_name=_('Latitud')
     )
     longitude = models.DecimalField(
         max_digits=9,
         decimal_places=6,
         null=True,
         blank=True,
-        verbose_name='Longitud'
+        verbose_name=_('Longitud')
     )
     is_active = models.BooleanField(
         default=True,
-        verbose_name='Activo'
+        verbose_name=_('Activo')
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -317,8 +318,8 @@ class Venue(models.Model):
     class Meta:
         db_table = 'videos_venue'
         ordering = ['city', 'name']
-        verbose_name = 'Pabellón / Sede'
-        verbose_name_plural = 'Pabellones / Sedes'
+        verbose_name = _('Pabellón / Sede')
+        verbose_name_plural = _('Pabellones / Sedes')
 
     def __str__(self):
         if self.city:
@@ -348,14 +349,14 @@ class Venue(models.Model):
             city_str = self.city.strip()
             if not any(city_str.lower() in p.lower() for p in parts):
                 parts.append(city_str)
-        return ', '.join(parts) if parts else 'Por confirmar'
+        return ', '.join(parts) if parts else _('Por confirmar')
 
     @property
     def maps_url(self) -> str | None:
         """Devuelve la URL directa a Maps o una URL de búsqueda como fallback."""
         if self.google_maps_url:
             return self.google_maps_url
-        if self.full_address and self.full_address != 'Por confirmar':
+        if self.full_address and self.full_address != _('Por confirmar'):
             import urllib.parse
             query = urllib.parse.quote_plus(self.full_address)
             return f'https://www.google.com/maps/search/?api=1&query={query}'
@@ -391,12 +392,12 @@ class MatchAllManager(models.Manager.from_queryset(MatchTenantQuerySet)):
 
 class Match(models.Model):
     MATCH_STATES = [
-        ('scheduled', 'Programado'),
-        ('in_progress', 'En Progreso'),
-        ('finished', 'Finalizado'),
-        ('postponed', 'Aplazado'),
-        ('cancelled', 'Cancelado'),
-        ('withdrawn', 'Retirado (equipo fuera de liga)'),
+        ('scheduled', _('Programado')),
+        ('in_progress', _('En Progreso')),
+        ('finished', _('Finalizado')),
+        ('postponed', _('Aplazado')),
+        ('cancelled', _('Cancelado')),
+        ('withdrawn', _('Retirado (equipo fuera de liga)')),
     ]
 
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='matches', null=True, blank=True)
@@ -407,16 +408,16 @@ class Match(models.Model):
     home_team_text = models.CharField(
         max_length=200,
         blank=True,
-        help_text='Nombre del equipo local para partidos amistosos sin equipo en BD'
+        help_text=_('Nombre del equipo local para partidos amistosos sin equipo en BD')
     )
     away_team_text = models.CharField(
         max_length=200,
         blank=True,
-        help_text='Nombre del equipo visitante para partidos amistosos sin equipo en BD'
+        help_text=_('Nombre del equipo visitante para partidos amistosos sin equipo en BD')
     )
     is_friendly = models.BooleanField(
         default=False,
-        help_text='Indica si es un partido amistoso creado manualmente'
+        help_text=_('Indica si es un partido amistoso creado manualmente')
     )
     match_date = models.DateTimeField()
     venue = models.CharField(max_length=200, blank=True)
@@ -426,7 +427,7 @@ class Match(models.Model):
         null=True,
         blank=True,
         related_name='matches',
-        verbose_name='Pabellón'
+        verbose_name=_('Pabellón')
     )
     city = models.CharField(max_length=100, blank=True)
     round_number = models.IntegerField(default=1)
@@ -436,47 +437,47 @@ class Match(models.Model):
     federation_id = models.CharField(max_length=200, unique=True, null=True, blank=True)
 
     # Información de árbitros y personal técnico
-    referee1 = models.CharField(max_length=200, blank=True, verbose_name='Árbitro 1')
-    referee2 = models.CharField(max_length=200, blank=True, verbose_name='Árbitro 2')
-    scorer = models.CharField(max_length=200, blank=True, verbose_name='Anotador')
-    timekeeper = models.CharField(max_length=200, blank=True, verbose_name='Cronometrador')
-    delegate = models.CharField(max_length=200, blank=True, verbose_name='Delegado')
+    referee1 = models.CharField(max_length=200, blank=True, verbose_name=_('Árbitro 1'))
+    referee2 = models.CharField(max_length=200, blank=True, verbose_name=_('Árbitro 2'))
+    scorer = models.CharField(max_length=200, blank=True, verbose_name=_('Anotador'))
+    timekeeper = models.CharField(max_length=200, blank=True, verbose_name=_('Cronometrador'))
+    delegate = models.CharField(max_length=200, blank=True, verbose_name=_('Delegado'))
 
     # Información detallada del campo
-    field_address = models.CharField(max_length=500, blank=True, verbose_name='Dirección del Campo')
+    field_address = models.CharField(max_length=500, blank=True, verbose_name=_('Dirección del Campo'))
 
     # IDs de la federación para matching
-    federation_club_local_id = models.CharField(max_length=50, blank=True, verbose_name='ID Club Local (Federación)')
-    federation_club_away_id = models.CharField(max_length=50, blank=True, verbose_name='ID Club Visitante (Federación)')
+    federation_club_local_id = models.CharField(max_length=50, blank=True, verbose_name=_('ID Club Local (Federación)'))
+    federation_club_away_id = models.CharField(max_length=50, blank=True, verbose_name=_('ID Club Visitante (Federación)'))
 
     # Información de acta oficial
-    acta_html = models.CharField(max_length=200, blank=True, verbose_name='Acta HTML')
+    acta_html = models.CharField(max_length=200, blank=True, verbose_name=_('Acta HTML'))
     acta_data = models.JSONField(
-        null=True, blank=True, verbose_name='Acta parseada',
-        help_text='JSON estructurado del acta federativa (convocados, alineaciones y sets)',
+        null=True, blank=True, verbose_name=_('Acta parseada'),
+        help_text=_('JSON estructurado del acta federativa (convocados, alineaciones y sets)'),
     )
     set_scores = models.JSONField(
-        null=True, blank=True, verbose_name='Parciales',
-        help_text=(
+        null=True, blank=True, verbose_name=_('Parciales'),
+        help_text=_(
             'Parciales del partido [[local, visitante], ...]. Procede del scraping '
             'de resultados o de la entrada manual; el acta tiene prioridad.'
         ),
     )
     result_penalized = models.BooleanField(
-        default=False, verbose_name='Resuelto por penalización',
-        help_text=(
+        default=False, verbose_name=_('Resuelto por penalización'),
+        help_text=_(
             'El resultado oficial (home_score/away_score) no refleja el juego del '
             'acta por una penalización o incomparecencia.'
         ),
     )
 
     result_notified_at = models.DateTimeField(
-        null=True, blank=True, verbose_name='Resultado notificado el',
-        help_text='Fecha y hora en que se envió la notificación push del resultado para evitar duplicados.',
+        null=True, blank=True, verbose_name=_('Resultado notificado el'),
+        help_text=_('Fecha y hora en que se envió la notificación push del resultado para evitar duplicados.'),
     )
     reminder_sent_at = models.DateTimeField(
-        null=True, blank=True, verbose_name='Recordatorio 2h enviado el',
-        help_text='Fecha y hora en que se envió el recordatorio push 2h antes del partido para evitar duplicados.',
+        null=True, blank=True, verbose_name=_('Recordatorio 2h enviado el'),
+        help_text=_('Fecha y hora en que se envió el recordatorio push 2h antes del partido para evitar duplicados.'),
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -490,8 +491,8 @@ class Match(models.Model):
     class Meta:
         db_table = 'videos_match'
         ordering = ['match_date']
-        verbose_name = 'Partido'
-        verbose_name_plural = 'Partidos'
+        verbose_name = _('Partido')
+        verbose_name_plural = _('Partidos')
         indexes = [
             models.Index(fields=['match_date'], name='match_date_idx'),
             models.Index(fields=['league', 'match_date'], name='match_league_date_idx'),
@@ -513,21 +514,21 @@ class Match(models.Model):
     def result_display(self):
         if self.home_score is not None and self.away_score is not None:
             return f'{self.home_score} - {self.away_score}'
-        return 'Sin resultado'
+        return _('Sin resultado')
 
     @property
     def home_team_display(self):
         """Retorna el nombre del equipo local (Team o texto)"""
         if self.home_team:
             return self.home_team.name
-        return self.home_team_text or 'Equipo Local'
+        return self.home_team_text or _('Equipo Local')
 
     @property
     def away_team_display(self):
         """Retorna el nombre del equipo visitante (Team o texto)"""
         if self.away_team:
             return self.away_team.name
-        return self.away_team_text or 'Equipo Visitante'
+        return self.away_team_text or _('Equipo Visitante')
 
     @property
     def is_official(self):
@@ -543,15 +544,15 @@ class Match(models.Model):
         if not self.is_friendly and self.pk is not None:
             # Validar equipo local para partidos oficiales ya guardados
             if not self.home_team and not self.home_team_text:
-                raise ValidationError('Debe especificar un equipo local (seleccionado o texto)')
+                raise ValidationError(_('Debe especificar un equipo local (seleccionado o texto)'))
 
             # Validar equipo visitante para partidos oficiales ya guardados
             if not self.away_team and not self.away_team_text:
-                raise ValidationError('Debe especificar un equipo visitante (seleccionado o texto)')
+                raise ValidationError(_('Debe especificar un equipo visitante (seleccionado o texto)'))
 
         # Si es amistoso, validar que no tenga federation_id
         if self.is_friendly and self.federation_id:
-            raise ValidationError('Los partidos amistosos no deben tener federation_id')
+            raise ValidationError(_('Los partidos amistosos no deben tener federation_id'))
 
         # Si tiene federation_id, no debe ser amistoso
         if self.federation_id and self.is_friendly:
@@ -560,33 +561,33 @@ class Match(models.Model):
 
 class ScrapingEndpoint(models.Model):
     ENDPOINT_TYPES = [
-        ('standings', 'Clasificación'),
-        ('results', 'Resultados'),
-        ('calendar', 'Calendario'),
-        ('json_results', 'Resultados JSON'),
+        ('standings', _('Clasificación')),
+        ('results', _('Resultados')),
+        ('calendar', _('Calendario')),
+        ('json_results', _('Resultados JSON')),
     ]
 
     PARSER_TYPES = [
-        ('table_standings', 'Tabla de Clasificación'),
-        ('match_results', 'Resultados de Partidos'),
-        ('match_calendar', 'Calendario de Partidos'),
-        ('json_matches', 'Partidos JSON (próximos)'),
-        ('json_results', 'Resultados JSON (finalizados)'),
-        ('json_unified', 'JSON Unificado (configurable)'),
+        ('table_standings', _('Tabla de Clasificación')),
+        ('match_results', _('Resultados de Partidos')),
+        ('match_calendar', _('Calendario de Partidos')),
+        ('json_matches', _('Partidos JSON (próximos)')),
+        ('json_results', _('Resultados JSON (finalizados)')),
+        ('json_unified', _('JSON Unificado (configurable)')),
     ]
 
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='endpoints')
     endpoint_type = models.CharField(max_length=20, choices=ENDPOINT_TYPES)
-    url_pattern = models.CharField(max_length=500, help_text='Usar {league_id}, {round}, etc. para parámetros dinámicos')
+    url_pattern = models.CharField(max_length=500, help_text=_('Usar {league_id}, {round}, etc. para parámetros dinámicos'))
     parser_type = models.CharField(max_length=30, choices=PARSER_TYPES)
     is_active = models.BooleanField(default=True)
-    extra_params = models.JSONField(default=dict, blank=True, help_text='Parámetros adicionales como JSON')
+    extra_params = models.JSONField(default=dict, blank=True, help_text=_('Parámetros adicionales como JSON'))
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'videos_scrapingendpoint'
-        verbose_name = 'Endpoint de Scraping'
-        verbose_name_plural = 'Endpoints de Scraping'
+        verbose_name = _('Endpoint de Scraping')
+        verbose_name_plural = _('Endpoints de Scraping')
         unique_together = ['league', 'endpoint_type']
 
     def __str__(self):
@@ -626,19 +627,19 @@ class Standing(models.Model):
     points_for = models.IntegerField(default=0)
     points_against = models.IntegerField(default=0)
     total_points = models.IntegerField(default=0)
-    wins_3_0 = models.IntegerField(default=0, verbose_name='Victorias 3-0')
-    wins_3_1 = models.IntegerField(default=0, verbose_name='Victorias 3-1')
-    wins_3_2 = models.IntegerField(default=0, verbose_name='Victorias 3-2')
-    losses_2_3 = models.IntegerField(default=0, verbose_name='Derrotas 2-3')
-    losses_1_3 = models.IntegerField(default=0, verbose_name='Derrotas 1-3')
-    losses_0_3 = models.IntegerField(default=0, verbose_name='Derrotas 0-3')
+    wins_3_0 = models.IntegerField(default=0, verbose_name=_('Victorias 3-0'))
+    wins_3_1 = models.IntegerField(default=0, verbose_name=_('Victorias 3-1'))
+    wins_3_2 = models.IntegerField(default=0, verbose_name=_('Victorias 3-2'))
+    losses_2_3 = models.IntegerField(default=0, verbose_name=_('Derrotas 2-3'))
+    losses_1_3 = models.IntegerField(default=0, verbose_name=_('Derrotas 1-3'))
+    losses_0_3 = models.IntegerField(default=0, verbose_name=_('Derrotas 0-3'))
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'videos_standing'
         ordering = ['position']
-        verbose_name = 'Clasificación'
-        verbose_name_plural = 'Clasificaciones'
+        verbose_name = _('Clasificación')
+        verbose_name_plural = _('Clasificaciones')
         unique_together = ['league', 'team']
 
     def __str__(self):
@@ -673,8 +674,8 @@ class MatchShareLink(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-        verbose_name = 'Enlace de partido'
-        verbose_name_plural = 'Enlaces de partido'
+        verbose_name = _('Enlace de partido')
+        verbose_name_plural = _('Enlaces de partido')
         indexes = [
             models.Index(fields=['match', '-created_at'], name='share_match_created_idx'),
         ]
@@ -704,15 +705,15 @@ class MatchLineup(models.Model):
     team = models.ForeignKey('teams.Team', on_delete=models.CASCADE, related_name='match_lineups')
     person = models.ForeignKey(
         'rosters.Person', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='match_lineups', verbose_name='Deportista',
+        related_name='match_lineups', verbose_name=_('Deportista'),
     )
 
-    jersey_number = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Dorsal')
-    name_acta = models.CharField(max_length=200, blank=True, verbose_name='Nombre en acta')
+    jersey_number = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=_('Dorsal'))
+    name_acta = models.CharField(max_length=200, blank=True, verbose_name=_('Nombre en acta'))
 
-    is_convocado = models.BooleanField(default=False, verbose_name='Convocado')
-    sets_played = models.PositiveSmallIntegerField(default=0, verbose_name='Sets jugados')
-    sets_started = models.PositiveSmallIntegerField(default=0, verbose_name='Sets como titular')
+    is_convocado = models.BooleanField(default=False, verbose_name=_('Convocado'))
+    sets_played = models.PositiveSmallIntegerField(default=0, verbose_name=_('Sets jugados'))
+    sets_started = models.PositiveSmallIntegerField(default=0, verbose_name=_('Sets como titular'))
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -720,8 +721,8 @@ class MatchLineup(models.Model):
     class Meta:
         db_table = 'videos_matchlineup'
         ordering = ['match', 'team', 'jersey_number']
-        verbose_name = 'Alineación de partido'
-        verbose_name_plural = 'Alineaciones de partido'
+        verbose_name = _('Alineación de partido')
+        verbose_name_plural = _('Alineaciones de partido')
         indexes = [
             models.Index(fields=['person', 'match'], name='lineup_person_match_idx'),
             models.Index(fields=['team', 'match'], name='lineup_team_match_idx'),
@@ -735,7 +736,7 @@ class MatchLineup(models.Model):
         ]
 
     def __str__(self):
-        quien = self.person.full_name if self.person else self.name_acta or 'Sin identificar'
+        quien = self.person.full_name if self.person else self.name_acta or _('Sin identificar')
         dorsal = f' #{self.jersey_number}' if self.jersey_number else ''
         return f'{quien}{dorsal} - {self.match_id}'
 
@@ -755,11 +756,11 @@ MatchChangeLogManager = models.Manager.from_queryset(MatchChangeLogQuerySet)
 
 class MatchChangeLog(models.Model):
     CHANGE_TYPES = [
-        ('datetime', 'Fecha / Hora'),
-        ('venue', 'Sede / Pabellón'),
-        ('status', 'Estado'),
-        ('score', 'Tanteo / Resultado'),
-        ('other', 'Otro'),
+        ('datetime', _('Fecha / Hora')),
+        ('venue', _('Sede / Pabellón')),
+        ('status', _('Estado')),
+        ('score', _('Tanteo / Resultado')),
+        ('other', _('Otro')),
     ]
 
     match = models.ForeignKey(Match, on_delete=models.CASCADE, related_name='change_logs')
@@ -769,7 +770,7 @@ class MatchChangeLog(models.Model):
     new_value = models.TextField(blank=True)
     is_last_minute = models.BooleanField(
         default=False,
-        help_text='Indica si el cambio se detectó con menos de 7 días de antelación al partido'
+        help_text=_('Indica si el cambio se detectó con menos de 7 días de antelación al partido')
     )
     detected_at = models.DateTimeField(auto_now_add=True)
     notified = models.BooleanField(default=False)
@@ -789,8 +790,8 @@ class MatchChangeLog(models.Model):
     class Meta:
         db_table = 'videos_matchchangelog'
         ordering = ['-detected_at']
-        verbose_name = 'Modificación de Partido'
-        verbose_name_plural = 'Modificaciones de Partidos'
+        verbose_name = _('Modificación de Partido')
+        verbose_name_plural = _('Modificaciones de Partidos')
         indexes = [
             models.Index(fields=['match', 'detected_at'], name='match_change_match_idx'),
             models.Index(fields=['is_last_minute', 'notified'], name='match_change_notif_idx'),

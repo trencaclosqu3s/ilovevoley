@@ -36,11 +36,15 @@ from ilovevoley.users.views import (
     RatelimitedPasswordResetFromKeyView,
     RatelimitedPasswordResetView,
     RatelimitedSignupView,
+    set_user_language,
 )
 
 urlpatterns = [
     re_path(r'^healthz/?$', healthz, name='healthz'),
     path(settings.ADMIN_URL, admin.site.urls),
+    # Cambio de idioma: fija la cookie estándar de Django y, si hay sesión, la
+    # preferencia en el perfil. Sin prefijos de idioma en las URLs.
+    path('i18n/setlang/', set_user_language, name='set_language'),
     # SEO, bots y seguridad
     path('robots.txt', robots_txt, name='robots_txt'),
     path('sitemap.xml', sitemap_xml, name='sitemap_xml'),

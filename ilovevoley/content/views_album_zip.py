@@ -4,6 +4,7 @@ from urllib.parse import quote
 from django.conf import settings
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.utils.text import get_valid_filename
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST
 from django_ratelimit.decorators import ratelimit
 
@@ -36,7 +37,7 @@ def _approved_album_qs(tenant, album_group_id):
 
 def _enqueue(request, *, scope, scope_id, filename, queryset):
     if not queryset.exists():
-        return JsonResponse({'error': 'No hay imágenes aprobadas para descargar.'}, status=400)
+        return JsonResponse({'error': _('No hay imágenes aprobadas para descargar.')}, status=400)
     job_id = create_pending_job(
         organization_id=request.tenant.pk,
         user_id=request.user.pk,
@@ -71,7 +72,7 @@ def request_match_album_zip(request, match_id):
 def request_album_group_zip(request, album_group_id):
     qs = _approved_album_qs(request.tenant, album_group_id)
     if not qs.exists():
-        raise Http404('Álbum no encontrado')
+        raise Http404(_('Álbum no encontrado'))
     album_name = qs.first().album_name or 'album'
     safe_name = get_valid_filename(album_name) or str(album_group_id)
     filename = get_valid_filename(f'album-{safe_name}.zip')
@@ -97,7 +98,7 @@ def album_zip_status(request, job_id):
         payload['download_url'] = state.get('download_url')
         payload['filename'] = state.get('filename')
     if state.get('status') == 'failed':
-        payload['error'] = state.get('error') or 'No se pudo generar el ZIP.'
+        payload['error'] = state.get('error') or _('No se pudo generar el ZIP.')
     return JsonResponse(payload)
 
 

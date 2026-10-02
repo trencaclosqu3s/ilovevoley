@@ -17,6 +17,7 @@ from django.shortcuts import redirect, render
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from ilovevoley.content.models import Image
@@ -76,8 +77,8 @@ def custom_429(request, exception=None):
     is_api = '/api/' in request.path or request.path.startswith('/api/')
     if is_ajax or is_json or is_api:
         return JsonResponse({
-            'error': 'Demasiadas peticiones',
-            'detail': 'Has superado el límite de intentos permitido. Por favor, espera un momento antes de volver a intentarlo.'
+            'error': _('Demasiadas peticiones'),
+            'detail': _('Has superado el límite de intentos permitido. Por favor, espera un momento antes de volver a intentarlo.')
         }, status=429)
     return render(request, '429.html', status=429)
 
@@ -250,7 +251,7 @@ def manifest_json(request):
         'id': '/',
         'name': 'I Love Voley',
         'short_name': 'ILoveVoley',
-        'description': 'Plataforma comunitaria de gestión, vídeos y seguimiento de voleibol',
+        'description': _('Plataforma comunitaria de gestión, vídeos y seguimiento de voleibol'),
         'lang': 'es',
         'dir': 'ltr',
         'start_url': '/',
@@ -328,9 +329,9 @@ def _get_pending_membership(user_id, tenant):
 def moderation_counts_api(request):
     """API para obtener contadores de elementos pendientes de moderación"""
     if not request.user.is_authenticated:
-        return JsonResponse({'success': False, 'error': 'No autenticado'}, status=401)
+        return JsonResponse({'success': False, 'error': _('No autenticado')}, status=401)
     if not _can_moderate_memberships(request):
-        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
 
     User = get_user_model()
     tenant = getattr(request, 'tenant', None)
@@ -464,7 +465,7 @@ def moderation_panel(request):
 def approve_user_api(request, user_id):
     """API para aprobar un usuario vía AJAX (superuser o manager del tenant)"""
     if not _can_moderate_memberships(request):
-        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
 
     User = get_user_model()
     tenant = getattr(request, 'tenant', None)
@@ -488,20 +489,20 @@ def approve_user_api(request, user_id):
 
         return JsonResponse({
             'success': True,
-            'message': f'Usuario {user.username} aprobado correctamente',
+            'message': _('Usuario %(username)s aprobado correctamente') % {'username': user.username},
             'user_name': user.username
         })
 
     except (User.DoesNotExist, Membership.DoesNotExist):
         return JsonResponse({
             'success': False,
-            'error': 'Usuario no encontrado o ya aprobado'
+            'error': _('Usuario no encontrado o ya aprobado')
         }, status=404)
     except Exception as e:
         logger.error(f"Error aprobando usuario {user_id}: {str(e)}")
         return JsonResponse({
             'success': False,
-            'error': 'Error interno del servidor'
+            'error': _('Error interno del servidor')
         }, status=500)
 
 
@@ -510,7 +511,7 @@ def approve_user_api(request, user_id):
 def reject_user_api(request, user_id):
     """API para rechazar un usuario vía AJAX (superuser o manager del tenant)"""
     if not _can_moderate_memberships(request):
-        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
 
     User = get_user_model()
     tenant = getattr(request, 'tenant', None)
@@ -541,20 +542,20 @@ def reject_user_api(request, user_id):
 
         return JsonResponse({
             'success': True,
-            'message': f'Usuario {user.username} rechazado correctamente',
+            'message': _('Usuario %(username)s rechazado correctamente') % {'username': user.username},
             'user_name': user.username
         })
 
     except (User.DoesNotExist, Membership.DoesNotExist):
         return JsonResponse({
             'success': False,
-            'error': 'Usuario no encontrado o ya procesado'
+            'error': _('Usuario no encontrado o ya procesado')
         }, status=404)
     except Exception as e:
         logger.error(f"Error rechazando usuario {user_id}: {str(e)}")
         return JsonResponse({
             'success': False,
-            'error': 'Error interno del servidor'
+            'error': _('Error interno del servidor')
         }, status=500)
 
 
@@ -563,7 +564,7 @@ def reject_user_api(request, user_id):
 def confirm_callup_api(request, player_id):
     """API para confirmar una convocatoria dudosa vía AJAX."""
     if not _can_moderate_memberships(request):
-        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
 
     tenant = getattr(request, 'tenant', None)
     from ilovevoley.competitions.models import CallUpPlayer
@@ -579,9 +580,9 @@ def confirm_callup_api(request, player_id):
                 id=player_id
             )
         else:
-            return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+            return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
     except CallUpPlayer.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Jugador convocado no encontrado'}, status=404)
+        return JsonResponse({'success': False, 'error': _('Jugador convocado no encontrado')}, status=404)
 
     player.match_status = CallUpPlayer.STATUS_CONFIRMED
     player.reviewed_by = request.user
@@ -598,7 +599,7 @@ def confirm_callup_api(request, player_id):
 def reject_callup_api(request, player_id):
     """API para descartar una convocatoria dudosa vía AJAX."""
     if not _can_moderate_memberships(request):
-        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
 
     tenant = getattr(request, 'tenant', None)
     from ilovevoley.competitions.models import CallUpPlayer
@@ -609,9 +610,9 @@ def reject_callup_api(request, player_id):
         elif request.user.is_superuser:
             player = CallUpPlayer.objects.get(id=player_id)
         else:
-            return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+            return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
     except CallUpPlayer.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Jugador convocado no encontrado'}, status=404)
+        return JsonResponse({'success': False, 'error': _('Jugador convocado no encontrado')}, status=404)
 
     player.match_status = CallUpPlayer.STATUS_REJECTED
     player.reviewed_by = request.user
@@ -654,15 +655,17 @@ def season_wizard_confirm(request):
     raw = request.POST.get('name') or request.GET.get('name') or ''
     summary = preview_season(raw)
     if not summary['valid']:
-        messages.error(request, 'Formato de temporada no válido.')
+        messages.error(request, _('Formato de temporada no válido.'))
         return redirect('core:season_wizard')
 
     if request.method == 'POST':
         summary = start_season(raw)
         messages.success(
             request,
-            f'Temporada {summary["season"].name} activada '
-            f'({summary["archived_leagues"]} liga(s) archivada(s)).',
+            _('Temporada %(name)s activada (%(count)s liga(s) archivada(s)).') % {
+                'name': summary["season"].name,
+                'count': summary["archived_leagues"],
+            },
         )
         return redirect('core:season_wizard')
 

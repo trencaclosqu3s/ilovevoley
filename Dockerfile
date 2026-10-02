@@ -24,10 +24,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# postgresql-client aporta pg_isready para entrypoint.sh, curl para healthcheck
+# postgresql-client aporta pg_isready para entrypoint.sh, curl para healthcheck.
+# gettext aporta msgfmt, necesario para `compilemessages` en el despliegue.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     curl \
+    gettext \
     && rm -rf /var/lib/apt/lists/*
 
 RUN adduser --disabled-password --gecos '' --uid 1000 appuser
@@ -37,10 +39,16 @@ RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
     pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt
 
 # El código pertenece a root: appuser lo lee pero no puede modificarlo.
-# Solo media y staticfiles son escribibles.
+# Solo media, staticfiles y locale (compilemessages) son escribibles.
 COPY . .
-RUN mkdir -p /app/media /app/staticfiles && \
-    chown appuser:appuser /app/media /app/staticfiles
+
+# Compilar los catálogos de traducción en build: los .mo son artefactos
+# derivados (gitignored) y appuser no puede escribir el locale si el usuario
+# que ejecuta el despliegue no coincide con el owner del bind-mount.
+RUN SECRET_KEY=build python manage.py compilemessages
+
+RUN mkdir -p /app/media /app/staticfiles /app/locale && \
+    chown -R appuser:appuser /app/media /app/staticfiles /app/locale
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

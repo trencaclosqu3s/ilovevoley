@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.tenancy import OrganizationTenantQuerySet, PersonRoleTenantQuerySet
 
@@ -19,39 +20,39 @@ class Person(models.Model):
     # Información personal básica
     first_name = models.CharField(
         max_length=100, 
-        verbose_name='Nombre',
-        help_text='Nombre de la persona'
+        verbose_name=_('Nombre'),
+        help_text=_('Nombre de la persona')
     )
     last_name = models.CharField(
         max_length=100, 
-        verbose_name='Apellidos',
-        help_text='Apellidos de la persona'
+        verbose_name=_('Apellidos'),
+        help_text=_('Apellidos de la persona')
     )
     birth_date = models.DateField(
         null=True, 
         blank=True, 
-        verbose_name='Fecha de Nacimiento',
-        help_text='Fecha de nacimiento (opcional)'
+        verbose_name=_('Fecha de Nacimiento'),
+        help_text=_('Fecha de nacimiento (opcional)')
     )
     photo = models.ImageField(
         upload_to=person_photo_upload_path,
         null=True,
         blank=True,
-        verbose_name='Foto',
-        help_text='Foto de la persona (opcional)'
+        verbose_name=_('Foto'),
+        help_text=_('Foto de la persona (opcional)')
     )
     
     # Información de contacto
     email = models.EmailField(
         blank=True,
-        verbose_name='Email',
-        help_text='Dirección de email (opcional)'
+        verbose_name=_('Email'),
+        help_text=_('Dirección de email (opcional)')
     )
     phone = models.CharField(
         max_length=20,
         blank=True,
-        verbose_name='Teléfono',
-        help_text='Número de teléfono (opcional)'
+        verbose_name=_('Teléfono'),
+        help_text=_('Número de teléfono (opcional)')
     )
     
     # Pertenencia a la organización (tenant). Determina la visibilidad y
@@ -63,8 +64,8 @@ class Person(models.Model):
         related_name='people',
         null=True,
         blank=True,
-        verbose_name='Organización',
-        help_text='Club/organización al que pertenece la ficha'
+        verbose_name=_('Organización'),
+        help_text=_('Club/organización al que pertenece la ficha')
     )
 
     # Vinculación con usuario de la plataforma
@@ -73,33 +74,33 @@ class Person(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name='Usuario Vinculado',
-        help_text='Usuario de la plataforma asociado (opcional)'
+        verbose_name=_('Usuario Vinculado'),
+        help_text=_('Usuario de la plataforma asociado (opcional)')
     )
     
     # Notas y observaciones
     notes = models.TextField(
         blank=True,
-        verbose_name='Notas',
-        help_text='Notas adicionales sobre la persona'
+        verbose_name=_('Notas'),
+        help_text=_('Notas adicionales sobre la persona')
     )
     
     # Estado y metadata
     is_active = models.BooleanField(
         default=True,
-        verbose_name='Activo',
-        help_text='¿Está activo en el club?'
+        verbose_name=_('Activo'),
+        help_text=_('¿Está activo en el club?')
     )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Creado'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Actualizado'))
 
     objects = OrganizationTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_person'
         ordering = ['last_name', 'first_name']
-        verbose_name = 'Ficha'
-        verbose_name_plural = 'Fichas'
+        verbose_name = _('Ficha')
+        verbose_name_plural = _('Fichas')
         indexes = [
             models.Index(fields=['last_name', 'first_name']),
             models.Index(fields=['is_active']),
@@ -146,7 +147,7 @@ class Person(models.Model):
     def age_display(self):
         """Muestra la edad de forma legible"""
         age = self.age
-        return f"{age} años" if age is not None else "No especificada"
+        return _('%(age)s años') % {'age': age} if age is not None else _('No especificada')
     
     @property
     def photo_preview(self):
@@ -154,7 +155,7 @@ class Person(models.Model):
         if self.photo:
             from django.utils.html import format_html
             return format_html('<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />', self.photo.url)
-        return "Sin foto"
+        return _("Sin foto")
     
     @property
     def contact_info(self):
@@ -164,7 +165,7 @@ class Person(models.Model):
             contact_parts.append(self.email)
         if self.phone:
             contact_parts.append(self.phone)
-        return " / ".join(contact_parts) or "Sin contacto"
+        return " / ".join(contact_parts) or _("Sin contacto")
     
     def get_player_roles(self):
         """Obtiene todos los roles de jugador de esta persona"""
@@ -190,11 +191,11 @@ class PlayerRole(models.Model):
     Una persona puede ser jugador en múltiples equipos.
     """
     POSITION_CHOICES = [
-        ('setter', 'Colocador'),
-        ('outside_hitter', 'Receptor'),
-        ('middle_blocker', 'Central'),
-        ('opposite', 'Opuesto'),
-        ('libero', 'Líbero'),
+        ('setter', _('Colocador')),
+        ('outside_hitter', _('Receptor')),
+        ('middle_blocker', _('Central')),
+        ('opposite', _('Opuesto')),
+        ('libero', _('Líbero')),
     ]
     
     # Relaciones
@@ -202,58 +203,58 @@ class PlayerRole(models.Model):
         Person,
         on_delete=models.CASCADE,
         related_name='player_roles',
-        verbose_name='Persona'
+        verbose_name=_('Persona')
     )
     team = models.ForeignKey(
         'teams.Team',
         on_delete=models.CASCADE,
         related_name='player_roles',
-        verbose_name='Equipo'
+        verbose_name=_('Equipo')
     )
     season = models.ForeignKey(
         'core.Season',
         on_delete=models.PROTECT,
         related_name='player_roles',
-        verbose_name='Temporada',
-        help_text='Temporada en la que el jugador pertenece al equipo',
+        verbose_name=_('Temporada'),
+        help_text=_('Temporada en la que el jugador pertenece al equipo'),
     )
 
     # Información específica del rol de jugador
     jersey_number = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
-        verbose_name='Número de Dorsal',
-        help_text='Número de la camiseta (opcional)'
+        verbose_name=_('Número de Dorsal'),
+        help_text=_('Número de la camiseta (opcional)')
     )
     position = models.CharField(
         max_length=20,
         choices=POSITION_CHOICES,
         blank=True,
-        verbose_name='Posición',
-        help_text='Posición preferida (opcional)'
+        verbose_name=_('Posición'),
+        help_text=_('Posición preferida (opcional)')
     )
     
     # Estado y metadata
     is_active = models.BooleanField(
         default=True,
-        verbose_name='Activo',
-        help_text='¿Está actualmente jugando en este equipo?'
+        verbose_name=_('Activo'),
+        help_text=_('¿Está actualmente jugando en este equipo?')
     )
     notes = models.TextField(
         blank=True,
-        verbose_name='Notas',
-        help_text='Notas específicas sobre este rol'
+        verbose_name=_('Notas'),
+        help_text=_('Notas específicas sobre este rol')
     )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Creado'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Actualizado'))
 
     objects = PersonRoleTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_playerrole'
         ordering = ['team', 'jersey_number', 'person__last_name', 'person__first_name']
-        verbose_name = 'Rol de Jugador'
-        verbose_name_plural = 'Roles de Jugador'
+        verbose_name = _('Rol de Jugador')
+        verbose_name_plural = _('Roles de Jugador')
         indexes = [
             models.Index(fields=['team', 'is_active']),
             models.Index(fields=['person', 'is_active']),
@@ -282,7 +283,7 @@ class PlayerRole(models.Model):
     @property
     def display_position(self):
         """Devuelve la posición en formato legible"""
-        return self.get_position_display() if self.position else "Sin posición"
+        return self.get_position_display() if self.position else _("Sin posición")
 
 
 class StaffRole(models.Model):
@@ -291,10 +292,10 @@ class StaffRole(models.Model):
     Una persona puede tener roles de staff en múltiples equipos.
     """
     STAFF_ROLES = [
-        ('head_coach', 'Entrenador/a'),
-        ('assistant_coach', 'Segundo Entrenador/a'),
-        ('delegate', 'Delegado/a'),
-        ('other', 'Otro'),
+        ('head_coach', _('Entrenador/a')),
+        ('assistant_coach', _('Segundo Entrenador/a')),
+        ('delegate', _('Delegado/a')),
+        ('other', _('Otro')),
     ]
     
     # Relaciones
@@ -302,51 +303,51 @@ class StaffRole(models.Model):
         Person,
         on_delete=models.CASCADE,
         related_name='staff_roles',
-        verbose_name='Persona'
+        verbose_name=_('Persona')
     )
     team = models.ForeignKey(
         'teams.Team',
         on_delete=models.CASCADE,
         related_name='staff_roles',
-        verbose_name='Equipo'
+        verbose_name=_('Equipo')
     )
     season = models.ForeignKey(
         'core.Season',
         on_delete=models.PROTECT,
         related_name='staff_roles',
-        verbose_name='Temporada',
-        help_text='Temporada en la que la persona desempeña el rol',
+        verbose_name=_('Temporada'),
+        help_text=_('Temporada en la que la persona desempeña el rol'),
     )
 
     # Información específica del rol de staff
     role = models.CharField(
         max_length=20,
         choices=STAFF_ROLES,
-        verbose_name='Rol',
-        help_text='Función que desempeña en el equipo'
+        verbose_name=_('Rol'),
+        help_text=_('Función que desempeña en el equipo')
     )
     
     # Estado y metadata
     is_active = models.BooleanField(
         default=True,
-        verbose_name='Activo',
-        help_text='¿Está actualmente trabajando con este equipo?'
+        verbose_name=_('Activo'),
+        help_text=_('¿Está actualmente trabajando con este equipo?')
     )
     notes = models.TextField(
         blank=True,
-        verbose_name='Notas',
-        help_text='Notas específicas sobre este rol'
+        verbose_name=_('Notas'),
+        help_text=_('Notas específicas sobre este rol')
     )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Creado'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Actualizado'))
 
     objects = PersonRoleTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_staffrole'
         ordering = ['team', 'role', 'person__last_name', 'person__first_name']
-        verbose_name = 'Rol de Staff'
-        verbose_name_plural = 'Roles de Staff'
+        verbose_name = _('Rol de Staff')
+        verbose_name_plural = _('Roles de Staff')
         indexes = [
             models.Index(fields=['team', 'is_active']),
             models.Index(fields=['person', 'is_active']),

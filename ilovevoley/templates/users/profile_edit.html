@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}Editar Perfil - I Love Voley{% endblock %}
+{% block title %}{% trans "Editar Perfil" %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8 max-w-3xl">
@@ -9,11 +9,11 @@
     <div class="mb-8">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-200 mb-2">Editar Perfil</h1>
-                <p class="text-gray-600 dark:text-gray-300">Actualiza tu información personal y preferencias</p>
+                <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "Editar Perfil" %}</h1>
+                <p class="text-gray-600 dark:text-gray-300">{% trans "Actualiza tu información personal y preferencias" %}</p>
             </div>
             <a href="{% url 'profile' %}" class="text-csj-purple dark:text-csj-yellow hover:text-csj-purple-dark dark:hover:text-csj-yellow-dark font-semibold">
-                ← Volver al Perfil
+                {% trans "← Volver al Perfil" %}
             </a>
         </div>
     </div>
@@ -32,7 +32,7 @@
             <!-- Avatar / Foto de Perfil -->
             <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    {{ form.avatar.label }} <span class="text-gray-500 dark:text-gray-400 font-normal">(opcional)</span>
+                    {{ form.avatar.label }} <span class="text-gray-500 dark:text-gray-400 font-normal">{% trans "(opcional)" %}</span>
                 </label>
                 
                 <div class="flex items-start space-x-6">
@@ -61,11 +61,11 @@
                             </svg>
                             <div class="space-y-1 text-sm">
                                 <label for="{{ form.avatar.id_for_label }}" class="relative cursor-pointer rounded-md font-medium text-csj-purple dark:text-csj-yellow hover:text-csj-purple-dark dark:hover:text-csj-yellow-dark focus-within:outline-none">
-                                    <span>Subir una foto</span>
+                                    <span>{% trans "Subir una foto" %}</span>
                                 </label>
-                                <p class="text-gray-500 dark:text-gray-400">o arrastra y suelta aquí</p>
+                                <p class="text-gray-500 dark:text-gray-400">{% trans "o arrastra y suelta aquí" %}</p>
                             </div>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">JPG, PNG, WebP, HEIC hasta 5MB</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">{% trans "JPG, PNG, WebP, HEIC hasta 5MB" %}</p>
                         </div>
                         
                         {% if form.avatar.errors %}
@@ -82,26 +82,26 @@
             <div id="crop-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
                     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Recortar Imagen de Perfil</h3>
-                        <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">Ajusta la imagen para que se vea perfecta en tu perfil</p>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{% trans "Recortar Imagen de Perfil" %}</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">{% trans "Ajusta la imagen para que se vea perfecta en tu perfil" %}</p>
                     </div>
                     
                     <div class="p-6">
                         <div class="crop-container">
-                            <img id="crop-image" src="" alt="Imagen a recortar" class="crop-image">
+                            <img id="crop-image" src="" alt="{% trans 'Imagen a recortar' %}" class="crop-image">
                         </div>
                     </div>
                     
                     <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
                         <button type="button" id="cancel-crop" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition">
-                            Cancelar
+                            {% trans "Cancelar" %}
                         </button>
                         <div class="space-x-3">
                             <button type="button" id="reset-crop" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition">
-                                Reiniciar
+                                {% trans "Reiniciar" %}
                             </button>
                             <button type="button" id="apply-crop" class="px-4 py-2 bg-csj-purple hover:bg-csj-purple-dark text-white font-medium rounded-lg transition">
-                                Aplicar Recorte
+                                {% trans "Aplicar Recorte" %}
                             </button>
                         </div>
                     </div>
@@ -121,10 +121,11 @@
 
             <!-- Email (se cambia desde el flujo de verificación de allauth) -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Correo Electrónico</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{% trans "Correo Electrónico" %}</label>
                 <p class="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{{ user.email|default:"—" }}</p>
+                {% url 'account_email' as account_email_url %}
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Para cambiarlo, <a href="{% url 'account_email' %}" class="text-csj-purple dark:text-csj-yellow hover:underline">gestiona tus direcciones de correo</a> y verifica la nueva.
+                    {% blocktrans %}Para cambiarlo, <a href="{{ account_email_url }}" class="text-csj-purple dark:text-csj-yellow hover:underline">gestiona tus direcciones de correo</a> y verifica la nueva.{% endblocktrans %}
                 </p>
             </div>
 
@@ -169,7 +170,7 @@
             <!-- Categorías de Interés -->
             <div>
                 <label class="block text-base font-semibold text-gray-800 dark:text-gray-200 mb-3">
-                    Categorías de Interés
+                    {% trans "Categorías de Interés" %}
                 </label>
                 {% if form.organization_category_fields %}
                     <div class="space-y-6">
@@ -197,14 +198,14 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-sm text-gray-500 dark:text-gray-400 italic">No tienes ningún club asociado para configurar categorías.</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 italic">{% trans "No tienes ningún club asociado para configurar categorías." %}</p>
                 {% endif %}
             </div>
 
             <!-- Tipos de Notificaciones Push -->
             <div>
                 <label class="block text-base font-semibold text-gray-800 dark:text-gray-200 mb-3">
-                    Tipos de Notificaciones Push
+                    {% trans "Tipos de Notificaciones Push" %}
                 </label>
                 {% if form.organization_notification_fields %}
                     <div class="space-y-6">
@@ -246,7 +247,7 @@
                     </div>
                     <div class="ml-3">
                         <p class="text-sm text-blue-700 dark:text-blue-300">
-                            Las categorías de interés te permiten personalizar el contenido que ves, pero no limitan tu acceso a otras categorías.
+                            {% trans "Las categorías de interés te permiten personalizar el contenido que ves, pero no limitan tu acceso a otras categorías." %}
                         </p>
                     </div>
                 </div>
@@ -255,10 +256,10 @@
             <!-- Botones -->
             <div class="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
                 <a href="{% url 'profile' %}" class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition">
-                    Cancelar
+                    {% trans "Cancelar" %}
                 </a>
                 <button type="submit" class="px-6 py-3 bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
-                    Guardar Cambios
+                    {% trans "Guardar Cambios" %}
                 </button>
             </div>
         </form>
@@ -392,13 +393,13 @@
         const hasValidType = validTypes.includes(file.type);
         
         if (!hasValidType && !hasValidExtension) {
-            alert('Formato no válido. Use JPG, PNG, WebP o HEIC');
+            alert('{% trans "Formato no válido. Use JPG, PNG, WebP o HEIC" %}');
             return;
         }
         
         // Validar tamaño (5MB máximo)
         if (file.size > 5 * 1024 * 1024) {
-            alert('El archivo es demasiado grande. Tamaño máximo: 5MB');
+            alert('{% trans "El archivo es demasiado grande. Tamaño máximo: 5MB" %}');
             return;
         }
         
@@ -494,7 +495,7 @@
             const img = document.createElement('img');
             img.id = 'avatar-preview';
             img.src = imageSrc;
-            img.alt = 'Vista previa';
+            img.alt = '{% trans "Vista previa" %}';
             img.className = 'w-32 h-32 rounded-lg object-cover border-4 border-gray-200 dark:border-gray-700 shadow-md';
             previewContainer.parentNode.replaceChild(img, previewContainer);
         } else {

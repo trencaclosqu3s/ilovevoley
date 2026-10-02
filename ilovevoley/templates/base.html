@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="es" class="transition-colors duration-200">
+{% load i18n %}{% get_current_language as CURRENT_LANGUAGE %}
+<html lang="{{ CURRENT_LANGUAGE }}" class="transition-colors duration-200">
 
 <head>
     <meta charset="UTF-8">
@@ -17,7 +18,7 @@
     <link rel="apple-touch-icon" href="{% static 'images/icons/apple-touch-icon-180.png' %}">
     <meta property="og:image" content="{{ tenant_share_image }}">
     <meta property="og:title" content="{% if tenant %}{{ tenant.name }}{% else %}I Love Voley{% endif %}">
-    <meta property="og:description" content="Vídeos y resultados de {% if tenant %}{{ tenant.name }}{% else %}tu club{% endif %} en I Love Voley.">
+    <meta property="og:description" content="{% if tenant %}{% blocktrans with club=tenant.name %}Vídeos y resultados de {{ club }} en I Love Voley.{% endblocktrans %}{% else %}{% blocktrans %}Vídeos y resultados de tu club en I Love Voley.{% endblocktrans %}{% endif %}">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary_large_image">
     <script src="{% static 'js/lightbox.js' %}"></script>
@@ -201,7 +202,7 @@
                                     d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
                                 </path>
                             </svg>
-                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Galería del Club</h3>
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">{% trans "Galería del Club" %}</h3>
                         </div>
 
                         <!-- Widget de Galería (Reemplaza a Instagram) -->
@@ -218,7 +219,7 @@
                                 </a>
                                 {% empty %}
                                 <div class="col-span-3 text-center py-8">
-                                    <p class="text-sm text-gray-500 italic">No hay fotos recientes</p>
+                                    <p class="text-sm text-gray-500 italic">{% trans "No hay fotos recientes" %}</p>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -227,7 +228,7 @@
                             <div class="mt-4 text-center">
                                 <a href="{% url 'content:image_gallery' %}"
                                     class="inline-flex items-center text-csj-purple dark:text-csj-yellow text-sm font-semibold hover:underline">
-                                    Ver galería completa
+                                    {% trans "Ver galería completa" %}
                                     <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M9 5l7 7-7 7"></path>
@@ -258,36 +259,36 @@
                         I Love Voley
                     </h3>
                     <p class="text-purple-200 text-sm leading-relaxed">
-                        Plataforma comunitaria para compartir partidos, fotos y momentos especiales.
+                        {% trans "Plataforma comunitaria para compartir partidos, fotos y momentos especiales." %}
                     </p>
                 </div>
 
                 <!-- Sección Central: Enlaces -->
                 <div class="text-center">
-                    <h3 class="text-lg font-bold mb-3">Enlaces</h3>
+                    <h3 class="text-lg font-bold mb-3">{% trans "Enlaces" %}</h3>
                     <nav class="space-y-2">
                         <a href="{% url 'core:about' %}"
                             class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
-                            Quiénes Somos
+                            {% trans "Quiénes Somos" %}
                         </a>
                         {% if tenant %}
                         <a href="{% url 'where_plays' %}"
                             class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
-                            ¿Dónde juega?
+                            {% trans "¿Dónde juega?" %}
                         </a>
                         {% endif %}
                         {% if user.is_authenticated %}
                         <a href="{% url 'content:video_list' %}"
                             class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
-                            Videos
+                            {% trans "Videos" %}
                         </a>
                         <a href="{% url 'content:image_gallery' %}"
                             class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
-                            Galería
+                            {% trans "Galería" %}
                         </a>
                         <a href="{% url 'competitions:calendar_view' %}"
                             class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
-                            Calendario
+                            {% trans "Calendario" %}
                         </a>
                         {% endif %}
                     </nav>
@@ -296,7 +297,7 @@
                 <!-- Sección Derecha: Redes Sociales -->
                 <div class="text-center md:text-right">
                     {% if tenant.instagram_url %}
-                    <h3 class="text-lg font-bold mb-3">Sigue al club</h3>
+                    <h3 class="text-lg font-bold mb-3">{% trans "Sigue al club" %}</h3>
                     <div class="flex justify-center md:justify-end space-x-4">
                         <a href="{{ tenant.instagram_url }}" target="_blank" rel="noopener"
                             class="text-purple-200 hover:text-csj-yellow transition-colors" title="Instagram">
@@ -320,14 +321,14 @@
                 <div class="flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0">
                     <!-- Copyright -->
                     <p class="text-purple-200 text-sm text-center sm:text-left">
-                        © {% now "Y" %} Desarrollado con 💜 por <a href="https://www.instagram.com/trencaclosques/"
+                        {% now "Y" as current_year %}{% blocktrans with year=current_year %}© {{ year }} Desarrollado con 💜 por <a href="https://www.instagram.com/trencaclosques/"
                             target="_blank" rel="noopener"
-                            class="font-semibold text-csj-yellow hover:text-yellow-200 transition-colors">trencaclosques</a>
+                            class="font-semibold text-csj-yellow hover:text-yellow-200 transition-colors">trencaclosques</a>{% endblocktrans %}
                     </p>
 
                     <!-- Mensaje adicional -->
                     <p class="text-purple-200 text-xs text-center sm:text-right">
-                        Proyecto sin ánimo de lucro · Para la comunidad del voley balear
+                        {% trans "Proyecto sin ánimo de lucro · Para la comunidad del voley balear" %}
                     </p>
                 </div>
             </div>

@@ -16,6 +16,7 @@ from django.db.models import Case, CharField, Count, Q, Value, When
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from ilovevoley.competitions.result_card import (
@@ -86,7 +87,7 @@ def build_calendar_matches_payload(matches, club_team_name):
             'id': match.id,
             'day': local_dt.day,
             'date': local_dt.strftime('%d/%m/%Y'),
-            'time': 'Sin horario confirmado' if time_str == '00:00' else time_str,
+            'time': _('Sin horario confirmado') if time_str == '00:00' else time_str,
             'home_team': match.home_team_display,
             'away_team': match.away_team_display,
             'home_team_logo': home_logo,
@@ -336,21 +337,21 @@ def match_result_card(request, match_id):
             id=match_id,
         )
     except Http404:
-        return JsonResponse({'error': 'Partido no encontrado'}, status=404)
+        return JsonResponse({'error': _('Partido no encontrado')}, status=404)
 
     card_format = request.GET.get('format', 'square')
     if card_format not in ('square', 'story'):
-        return JsonResponse({'error': 'Formato de tarjeta no válido'}, status=400)
+        return JsonResponse({'error': _('Formato de tarjeta no válido')}, status=400)
     card_style = request.GET.get('style', 'completa')
     if card_style not in CARD_STYLES:
-        return JsonResponse({'error': 'Estilo de tarjeta no válido'}, status=400)
+        return JsonResponse({'error': _('Estilo de tarjeta no válido')}, status=400)
     if (
         match.status != 'finished'
         or match.home_score is None
         or match.away_score is None
     ):
         return JsonResponse(
-            {'error': 'No se puede compartir un partido sin resultado finalizado'},
+            {'error': _('No se puede compartir un partido sin resultado finalizado')},
             status=400,
         )
 
@@ -364,13 +365,13 @@ def match_result_card(request, match_id):
             ).first()
         if not photo:
             return JsonResponse(
-                {'error': 'Selecciona una foto del partido para el estilo "marco"'},
+                {'error': _('Selecciona una foto del partido para el estilo "marco"')},
                 status=400,
             )
         photo_bytes = _file_field_bytes(photo.thumbnail_large or photo.image)
         if photo_bytes is None:
             return JsonResponse(
-                {'error': 'No se pudo leer la foto seleccionada'}, status=400
+                {'error': _('No se pudo leer la foto seleccionada')}, status=400
             )
 
     png = render_result_card(
@@ -436,7 +437,7 @@ def calendar_view(request):
             next_month_start = timezone.make_aware(datetime(year, month + 1, 1))
         prev_month = start_date - timedelta(days=1)
     except (ValueError, TypeError, OverflowError):
-        messages.warning(request, 'La fecha solicitada no es válida. Mostrando el mes actual.')
+        messages.warning(request, _('La fecha solicitada no es válida. Mostrando el mes actual.'))
         return redirect('competitions:calendar_view')
 
     monthly_matches = matches.filter(
@@ -487,9 +488,9 @@ def calendar_view(request):
 
     # Nombres de meses en español
     month_names_es = {
-        1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
-        5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
-        9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+        1: _('Enero'), 2: _('Febrero'), 3: _('Marzo'), 4: _('Abril'),
+        5: _('Mayo'), 6: _('Junio'), 7: _('Julio'), 8: _('Agosto'),
+        9: _('Septiembre'), 10: _('Octubre'), 11: _('Noviembre'), 12: _('Diciembre')
     }
 
     club_team_name = get_primary_club_team_name(request.tenant)
@@ -528,7 +529,10 @@ def friendly_match_create(request):
             match = form.save()
             messages.success(
                 request,
-                f'Partido amistoso creado: {match.home_team_display} vs {match.away_team_display}'
+                _('Partido amistoso creado: %(home)s vs %(away)s') % {
+                    'home': match.home_team_display,
+                    'away': match.away_team_display,
+                }
             )
             return redirect('competitions:calendar_view')
         else:
@@ -616,21 +620,21 @@ def ajax_add_match_result(request, match_id):
     try:
         match = Match.objects.for_tenant(request.tenant).select_related('league').get(id=match_id)
     except Match.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
+        return JsonResponse({'success': False, 'error': _('Partido no encontrado')}, status=404)
 
     # Verificar que el partido no tenga resultado ya
     if match.is_finished and match.home_score is not None and match.away_score is not None:
-        return JsonResponse({'success': False, 'error': 'Este partido ya tiene resultado'}, status=400)
+        return JsonResponse({'success': False, 'error': _('Este partido ya tiene resultado')}, status=400)
 
     # Verificar que el partido ya haya pasado o sea hoy
     if match.match_date.date() > timezone.now().date():
-        return JsonResponse({'success': False, 'error': 'No se puede agregar resultado a un partido futuro'}, status=400)
+        return JsonResponse({'success': False, 'error': _('No se puede agregar resultado a un partido futuro')}, status=400)
 
     # Parsear datos JSON
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'Datos inválidos'}, status=400)
+        return JsonResponse({'success': False, 'error': _('Datos inválidos')}, status=400)
 
     # Crear formulario con los datos
     form = MatchResultForm(data, instance=match)
@@ -641,7 +645,7 @@ def ajax_add_match_result(request, match_id):
         if match.league and not validate_volleyball_score(home_score, away_score, match.league):
             return JsonResponse({
                 'success': False,
-                'error': 'Marcador inválido para el formato de la liga.',
+                'error': _('Marcador inválido para el formato de la liga.'),
             }, status=400)
         try:
             match = form.save()
@@ -649,7 +653,7 @@ def ajax_add_match_result(request, match_id):
             logger.exception("Error al guardar resultado del partido %s", match_id)
             return JsonResponse({
                 'success': False,
-                'error': 'Error interno al guardar el resultado.',
+                'error': _('Error interno al guardar el resultado.'),
             }, status=500)
 
         # El resultado ya está persistido: un fallo del aviso (p. ej. Redis caído)
@@ -661,7 +665,7 @@ def ajax_add_match_result(request, match_id):
 
         return JsonResponse({
             'success': True,
-            'message': f'Resultado guardado: {match.result_display}',
+            'message': _('Resultado guardado: %(result)s') % {'result': match.result_display},
             'result_display': match.result_display,
             'home_score': match.home_score,
             'away_score': match.away_score
@@ -670,11 +674,11 @@ def ajax_add_match_result(request, match_id):
         # Recopilar errores del formulario
         errors = {}
         for field, field_errors in form.errors.items():
-            errors[field] = field_errors[0] if field_errors else 'Error desconocido'
+            errors[field] = field_errors[0] if field_errors else _('Error desconocido')
 
         return JsonResponse({
             'success': False,
-            'error': 'Datos inválidos',
+            'error': _('Datos inválidos'),
             'errors': errors
         }, status=400)
 
@@ -690,31 +694,31 @@ def ajax_edit_match_result(request, match_id):
     try:
         match = Match.objects.for_tenant(request.tenant).select_related('league').get(id=match_id)
     except Match.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
+        return JsonResponse({'success': False, 'error': _('Partido no encontrado')}, status=404)
 
     if match.acta_html or match.acta_data:
         return JsonResponse({
             'success': False,
-            'error': 'Este partido tiene acta oficial; los parciales se toman del acta.',
+            'error': _('Este partido tiene acta oficial; los parciales se toman del acta.'),
         }, status=400)
 
     if not match.is_finished:
         return JsonResponse({
             'success': False,
-            'error': 'El partido todavía no tiene resultado.',
+            'error': _('El partido todavía no tiene resultado.'),
         }, status=400)
 
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'Datos inválidos'}, status=400)
+        return JsonResponse({'success': False, 'error': _('Datos inválidos')}, status=400)
 
     form = MatchResultForm(data, instance=match)
     if not form.is_valid():
         errors = {field: field_errors[0] for field, field_errors in form.errors.items() if field_errors}
         return JsonResponse({
             'success': False,
-            'error': 'Datos inválidos',
+            'error': _('Datos inválidos'),
             'errors': errors,
         }, status=400)
 
@@ -724,12 +728,12 @@ def ajax_edit_match_result(request, match_id):
         logger.exception("Error al editar resultado del partido %s", match_id)
         return JsonResponse({
             'success': False,
-            'error': 'Error interno al guardar el resultado.',
+            'error': _('Error interno al guardar el resultado.'),
         }, status=500)
 
     return JsonResponse({
         'success': True,
-        'message': f'Resultado actualizado: {match.result_display}',
+        'message': _('Resultado actualizado: %(result)s') % {'result': match.result_display},
         'result_display': match.result_display,
         'home_score': match.home_score,
         'away_score': match.away_score,
@@ -748,10 +752,10 @@ def ajax_acta_lineup(request, match_id):
             'home_team', 'away_team'
         ).get(id=match_id)
     except Match.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Partido no encontrado'}, status=404)
+        return JsonResponse({'success': False, 'error': _('Partido no encontrado')}, status=404)
 
     if not match.acta_html:
-        return JsonResponse({'success': False, 'error': 'Este partido no tiene acta disponible'}, status=404)
+        return JsonResponse({'success': False, 'error': _('Este partido no tiene acta disponible')}, status=404)
 
     # El acta se persiste en el partido: una vez parseada no se vuelve a
     # descargar y queda disponible para los históricos por jugador.
@@ -767,12 +771,12 @@ def ajax_acta_lineup(request, match_id):
                 )
             except UnsafeURL as e:
                 logger.warning(f"URL de acta rechazada para el partido {match_id}: {e}")
-                return JsonResponse({'success': False, 'error': 'La URL del acta no es válida'}, status=400)
+                return JsonResponse({'success': False, 'error': _('La URL del acta no es válida')}, status=400)
             except http_requests.exceptions.Timeout:
-                return JsonResponse({'success': False, 'error': 'Tiempo de espera agotado al obtener el acta'}, status=504)
+                return JsonResponse({'success': False, 'error': _('Tiempo de espera agotado al obtener el acta')}, status=504)
             except http_requests.exceptions.RequestException as e:
                 logger.warning(f"Error obteniendo acta del partido {match_id}: {e}")
-                return JsonResponse({'success': False, 'error': 'No se pudo acceder al acta oficial'}, status=502)
+                return JsonResponse({'success': False, 'error': _('No se pudo acceder al acta oficial')}, status=502)
 
             try:
                 # Pasar bytes para que BeautifulSoup detecte el charset del meta tag
@@ -780,7 +784,7 @@ def ajax_acta_lineup(request, match_id):
                 lineup_data = parse_acta_lineup(acta_content)
             except Exception as e:
                 logger.error(f"Error parseando acta del partido {match_id}: {e}")
-                return JsonResponse({'success': False, 'error': 'Error al procesar el acta'}, status=500)
+                return JsonResponse({'success': False, 'error': _('Error al procesar el acta')}, status=500)
             cache.set(cache_key, lineup_data, 60 * 60 * 24)
 
         store_match_lineups(match, lineup_data)
@@ -1001,7 +1005,7 @@ def ajax_matches_by_category(request):
     # Formatear respuesta
     matches_data = []
     for match in matches:
-        league_name = match.league.name if match.league else 'Sin liga'
+        league_name = match.league.name if match.league else _('Sin liga')
         matches_data.append({
             'id': match.id,
             'text': f"{match.home_team_display} vs {match.away_team_display} - {match.match_date.strftime('%d/%m/%Y')} ({league_name})"
@@ -1062,7 +1066,7 @@ def match_share_create(request, match_id):
     )
     hours = request.POST.get('hours')
     create_match_share_link(match, request.tenant, request.user, hours=hours)
-    messages.success(request, 'Enlace para compartir creado.')
+    messages.success(request, _('Enlace para compartir creado.'))
     return redirect('competitions:match_detail', match_id=match.id)
 
 
@@ -1077,7 +1081,7 @@ def match_share_revoke(request, match_id, link_id):
         MatchShareLink, id=link_id, match=match, organization=request.tenant
     )
     revoke_match_share_link(link)
-    messages.success(request, 'Enlace revocado.')
+    messages.success(request, _('Enlace revocado.'))
     return redirect('competitions:match_detail', match_id=match.id)
 
 

@@ -1,24 +1,24 @@
 {% extends "emails/base_email.html" %}
+{% load i18n %}
 
-{% block title %}{{ count }} imágenes pendientes - {{ site_name }}{% endblock %}
+{% block title %}{% blocktrans %}{{ count }} imágenes pendientes - {{ site_name }}{% endblocktrans %}{% endblock %}
 
-{% block header_subtitle %}Lote de imágenes pendientes de moderación{% endblock %}
+{% block header_subtitle %}{% trans "Lote de imágenes pendientes de moderación" %}{% endblock %}
 
 {% block content %}
     <div class="alert warning">
-        <h2 style="margin-top: 0;">📷 {{ count }} imagen{{ count|pluralize:"es" }} subida{{ count|pluralize:"s" }}</h2>
+        <h2 style="margin-top: 0;">{% blocktrans count count=count %}📷 {{ count }} imagen subida{% plural %}📷 {{ count }} imágenes subidas{% endblocktrans %}</h2>
         <p>
-            <strong>{{ user.username }}</strong> ha subido un lote de imágenes
-            que requieren moderación.
+            {% blocktrans trimmed %}<strong>{{ user.username }}</strong> ha subido un lote de imágenes que requieren moderación.{% endblocktrans %}
         </p>
     </div>
 
-    <h3>Imágenes del lote:</h3>
+    <h3>{% trans "Imágenes del lote:" %}</h3>
     <table class="data-table">
         <tr>
             <th>#</th>
-            <th>Título</th>
-            <th>Tipo</th>
+            <th>{% trans "Título" %}</th>
+            <th>{% trans "Tipo" %}</th>
         </tr>
         {% for image in images %}
         <tr>
@@ -34,7 +34,7 @@
            style="background-color: #3498db; text-decoration: none; color: white;
                   padding: 12px 30px; border-radius: 5px; display: inline-block;
                   font-weight: bold; font-size: 16px;">
-            Ir al panel de moderación
+            {% trans "Ir al panel de moderación" %}
         </a>
     </div>
 {% endblock %}

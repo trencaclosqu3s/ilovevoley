@@ -12,6 +12,7 @@ from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.http import HttpResponseBadRequest, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django_ratelimit.decorators import ratelimit
 
 from ilovevoley.content.models import Image
@@ -164,8 +165,8 @@ def _resolve_token_tenant(token_data):
 def _inactive_tenant_response(request):
     return render(request, 'moderation_result.html', {
         'success': False,
-        'error': 'Organización no disponible',
-        'message': (
+        'error': _('Organización no disponible'),
+        'message': _(
             'La organización de este enlace de moderación no existe '
             'o está desactivada. El enlace ya no es válido.'
         ),
@@ -188,15 +189,15 @@ def moderate_user(request, token):
     if not token_data or token_data.item_type != 'user':
         return render(request, 'moderation_result.html', {
             'success': False,
-            'error': 'Token inválido o expirado',
-            'message': 'El enlace de moderación ha expirado o no es válido. Por favor, accede al panel de administración.'
+            'error': _('Token inválido o expirado'),
+            'message': _('El enlace de moderación ha expirado o no es válido. Por favor, accede al panel de administración.')
         }, status=400)
 
     if token_data.nonce and is_token_consumed(token_data.nonce):
         return render(request, 'moderation_result.html', {
             'success': False,
-            'error': 'Token ya utilizado',
-            'message': 'Este enlace de moderación ya ha sido utilizado anteriormente.'
+            'error': _('Token ya utilizado'),
+            'message': _('Este enlace de moderación ya ha sido utilizado anteriormente.')
         }, status=400)
 
     user = get_object_or_404(User, id=token_data.item_id)
@@ -207,13 +208,13 @@ def moderate_user(request, token):
     if not can_moderate(request.user, 'user', user, tenant):
         return render(request, 'moderation_result.html', {
             'success': False,
-            'error': 'Permiso denegado',
-            'message': 'No tienes permisos suficientes para moderar este usuario en esta organización.'
+            'error': _('Permiso denegado'),
+            'message': _('No tienes permisos suficientes para moderar este usuario en esta organización.')
         }, status=403)
 
     action = token_data.action
     if action not in ['approve', 'reject']:
-        return HttpResponseBadRequest("Acción inválida")
+        return HttpResponseBadRequest(_("Acción inválida"))
 
     from ilovevoley.users.models import Membership
 
@@ -225,23 +226,25 @@ def moderate_user(request, token):
                 return render(request, 'moderation_result.html', {
                     'success': True,
                     'already_moderated': True,
-                    'message': f'La membresía de {user.username} en {tenant.name} ya fue aprobada anteriormente.',
-                    'item_type': 'usuario',
+                    'message': _('La membresía de %(username)s en %(tenant)s ya fue aprobada anteriormente.') % {
+                        'username': user.username, 'tenant': tenant.name},
+                    'item_type': _('usuario'),
                     'user': user
                 })
         elif user.is_approved:
             return render(request, 'moderation_result.html', {
                 'success': True,
                 'already_moderated': True,
-                'message': f'El usuario {user.username} ya fue aprobado anteriormente.',
-                'item_type': 'usuario',
+                'message': _('El usuario %(username)s ya fue aprobado anteriormente.') % {
+                    'username': user.username},
+                'item_type': _('usuario'),
                 'user': user
             })
 
     # GET: Mostrar exclusivamente pantalla de confirmación
     if request.method == 'GET':
         return render(request, 'moderation_confirm.html', {
-            'item_type': 'usuario',
+            'item_type': _('usuario'),
             'action': action,
             'target_user': user,
             'tenant': tenant,
@@ -252,8 +255,8 @@ def moderate_user(request, token):
     if not mark_token_consumed(token_data.nonce):
         return render(request, 'moderation_result.html', {
             'success': False,
-            'error': 'Token ya utilizado',
-            'message': 'Este enlace de moderación ya ha sido utilizado anteriormente.'
+            'error': _('Token ya utilizado'),
+            'message': _('Este enlace de moderación ya ha sido utilizado anteriormente.')
         }, status=400)
 
     if action == 'approve':
@@ -271,12 +274,13 @@ def moderate_user(request, token):
                 site_name,
             )
 
-        org_msg = f" en {tenant.name}" if tenant else ""
+        org_msg = _(' en %(name)s') % {'name': tenant.name} if tenant else ""
         return render(request, 'moderation_result.html', {
             'success': True,
-            'action': 'aprobado',
-            'message': f'El usuario {user.username} ha sido aprobado correctamente{org_msg} y se le ha enviado un email de notificación.',
-            'item_type': 'usuario',
+            'action': _('aprobado'),
+            'message': _('El usuario %(username)s ha sido aprobado correctamente%(org)s y se le ha enviado un email de notificación.') % {
+                'username': user.username, 'org': org_msg},
+            'item_type': _('usuario'),
             'user': user
         })
 
@@ -297,12 +301,13 @@ def moderate_user(request, token):
                 site_name,
             )
 
-        org_msg = f" en {tenant.name}" if tenant else ""
+        org_msg = _(' en %(name)s') % {'name': tenant.name} if tenant else ""
         return render(request, 'moderation_result.html', {
             'success': True,
-            'action': 'rechazado',
-            'message': f'La solicitud de {user.username}{org_msg} ha sido rechazada y se le ha notificado por email.',
-            'item_type': 'usuario',
+            'action': _('rechazado'),
+            'message': _('La solicitud de %(username)s%(org)s ha sido rechazada y se le ha notificado por email.') % {
+                'username': user.username, 'org': org_msg},
+            'item_type': _('usuario'),
             'user': user
         })
 
@@ -323,15 +328,15 @@ def moderate_image(request, token):
     if not token_data or token_data.item_type != 'image':
         return render(request, 'moderation_result.html', {
             'success': False,
-            'error': 'Token inválido o expirado',
-            'message': 'El enlace de moderación ha expirado o no es válido. Por favor, accede al panel de administración.'
+            'error': _('Token inválido o expirado'),
+            'message': _('El enlace de moderación ha expirado o no es válido. Por favor, accede al panel de administración.')
         }, status=400)
 
     if token_data.nonce and is_token_consumed(token_data.nonce):
         return render(request, 'moderation_result.html', {
             'success': False,
-            'error': 'Token ya utilizado',
-            'message': 'Este enlace de moderación ya ha sido utilizado anteriormente.'
+            'error': _('Token ya utilizado'),
+            'message': _('Este enlace de moderación ya ha sido utilizado anteriormente.')
         }, status=400)
 
     image = get_object_or_404(Image, id=token_data.item_id)
@@ -343,23 +348,24 @@ def moderate_image(request, token):
     if not can_moderate(request.user, 'image', image, tenant):
         return render(request, 'moderation_result.html', {
             'success': False,
-            'error': 'Permiso denegado',
-            'message': 'No tienes permisos suficientes para moderar esta imagen.'
+            'error': _('Permiso denegado'),
+            'message': _('No tienes permisos suficientes para moderar esta imagen.')
         }, status=403)
 
     image_data_uri = image_to_data_uri(image.image)
 
     action = token_data.action
     if action not in ['approve', 'reject']:
-        return HttpResponseBadRequest("Acción inválida")
+        return HttpResponseBadRequest(_("Acción inválida"))
 
     if image.status != 'pending':
-        status_text = 'aprobada' if image.status == 'approved' else 'rechazada'
+        status_text = _('aprobada') if image.status == 'approved' else _('rechazada')
         return render(request, 'moderation_result.html', {
             'success': True,
             'already_moderated': True,
-            'message': f'La imagen "{image.title}" ya fue {status_text} anteriormente.',
-            'item_type': 'imagen',
+            'message': _('La imagen "%(title)s" ya fue %(status)s anteriormente.') % {
+                'title': image.title, 'status': status_text},
+            'item_type': _('imagen'),
             'image': image,
             'image_data_uri': image_data_uri,
         })
@@ -367,7 +373,7 @@ def moderate_image(request, token):
     # GET: Pantalla de confirmación
     if request.method == 'GET':
         return render(request, 'moderation_confirm.html', {
-            'item_type': 'imagen',
+            'item_type': _('imagen'),
             'action': action,
             'target_image': image,
             'image_data_uri': image_data_uri,
@@ -379,13 +385,13 @@ def moderate_image(request, token):
     if not mark_token_consumed(token_data.nonce):
         return render(request, 'moderation_result.html', {
             'success': False,
-            'error': 'Token ya utilizado',
-            'message': 'Este enlace de moderación ya ha sido utilizado anteriormente.'
+            'error': _('Token ya utilizado'),
+            'message': _('Este enlace de moderación ya ha sido utilizado anteriormente.')
         }, status=400)
 
     notes = request.POST.get('notes', '').strip()
     if action == 'approve':
-        default_notes = 'Aprobada mediante confirmación de email'
+        default_notes = _('Aprobada mediante confirmación de email')
         image.moderate(
             moderator=request.user,
             approved=True,
@@ -400,15 +406,16 @@ def moderate_image(request, token):
 
         return render(request, 'moderation_result.html', {
             'success': True,
-            'action': 'aprobada',
-            'message': f'La imagen "{image.title}" ha sido aprobada correctamente y el usuario ha sido notificado.',
-            'item_type': 'imagen',
+            'action': _('aprobada'),
+            'message': _('La imagen "%(title)s" ha sido aprobada correctamente y el usuario ha sido notificado.') % {
+                'title': image.title},
+            'item_type': _('imagen'),
             'image': image,
             'image_data_uri': image_data_uri,
         })
 
     elif action == 'reject':
-        default_notes = 'Rechazada mediante confirmación de email'
+        default_notes = _('Rechazada mediante confirmación de email')
         image.moderate(
             moderator=request.user,
             approved=False,
@@ -423,9 +430,10 @@ def moderate_image(request, token):
 
         return render(request, 'moderation_result.html', {
             'success': True,
-            'action': 'rechazada',
-            'message': f'La imagen "{image.title}" ha sido rechazada y el usuario ha sido notificado.',
-            'item_type': 'imagen',
+            'action': _('rechazada'),
+            'message': _('La imagen "%(title)s" ha sido rechazada y el usuario ha sido notificado.') % {
+                'title': image.title},
+            'item_type': _('imagen'),
             'image': image,
             'image_data_uri': image_data_uri,
         })

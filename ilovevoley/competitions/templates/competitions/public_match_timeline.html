@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
+{% load i18n %}
 
-{% block title %}{{ match.home_team_display }} vs {{ match.away_team_display }} - Multimedia{% endblock %}
+{% block title %}{% blocktrans with home=match.home_team_display away=match.away_team_display %}{{ home }} vs {{ away }} - Multimedia{% endblocktrans %}{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
@@ -11,7 +12,7 @@
                 {% if match.match_date %} · {{ match.match_date|date:"d/m/Y" }}{% endif %}
             </p>
             <h1 class="text-xl sm:text-2xl font-bold">
-                {{ match.home_team_display }} <span class="opacity-70">vs</span> {{ match.away_team_display }}
+                {{ match.home_team_display }} <span class="opacity-70">{% trans "vs" %}</span> {{ match.away_team_display }}
             </h1>
             <p class="text-2xl sm:text-3xl font-black mt-2">{{ match.result_display }}</p>
         </div>
@@ -31,7 +32,7 @@
                     <button type="button"
                             class="video-launch relative block w-full aspect-video bg-black group"
                             data-embed="{{ video.get_embed_url }}"
-                            aria-label="Reproducir {{ video.title }}">
+                            aria-label="{% blocktrans with title=video.title %}Reproducir {{ title }}{% endblocktrans %}">
                         {% if video.get_thumbnail_url %}
                             <img src="{{ video.get_thumbnail_url }}" alt="{{ video.title }}"
                                  loading="lazy" class="absolute inset-0 w-full h-full object-cover">
@@ -69,11 +70,11 @@
     {% endfor %}
 
     {% if not has_media %}
-        <p class="text-center text-gray-500 dark:text-gray-400 py-12">Todavía no hay contenido multimedia para este partido.</p>
+        <p class="text-center text-gray-500 dark:text-gray-400 py-12">{% trans "Todavía no hay contenido multimedia para este partido." %}</p>
     {% endif %}
 
     <p class="text-center text-xs text-gray-400 dark:text-gray-500 py-6">
-        Enlace temporal{% if link.expires_at %} · caduca el {{ link.expires_at|date:"d/m/Y H:i" }}{% endif %}
+        {% trans "Enlace temporal" %}{% if link.expires_at %}{% blocktrans with expires=link.expires_at|date:"d/m/Y H:i" %} · caduca el {{ expires }}{% endblocktrans %}{% endif %}
     </p>
 </div>
 

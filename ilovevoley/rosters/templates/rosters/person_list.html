@@ -1,5 +1,5 @@
 {% extends '../base.html' %}
-{% load static %}
+{% load static i18n %}
 
 {% block extra_css %}
 <style nonce="{{ csp_nonce }}">
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 {% endblock %}
 
-{% block title %}Personas del Club - I Love Voley{% endblock %}
+{% block title %}{% trans "Personas del Club" %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
@@ -169,15 +169,15 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="mb-6">
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">👥 Personas del Club</h1>
-                <p class="text-gray-600 dark:text-gray-400 mt-1">Jugadores, entrenadores y staff{% if tenant %} de {{ tenant.name }}{% endif %}</p>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">{% trans "👥 Personas del Club" %}</h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">{% trans "Jugadores, entrenadores y staff" %}{% if tenant %} {% blocktrans with tenant_name=tenant.name %}de {{ tenant_name }}{% endblocktrans %}{% endif %}</p>
             </div>
             {% if is_tenant_manager %}
             <a href="{% url 'rosters:person_create' %}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center justify-center touch-manipulation">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
-                Agregar Persona
+                {% trans "Agregar Persona" %}
             </a>
             {% endif %}
         </div>
@@ -191,23 +191,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="text" 
                        name="search" 
                        value="{{ search }}"
-                       placeholder="Buscar por nombre o email..."
+                       placeholder="{% trans 'Buscar por nombre o email...' %}"
                        class="auto-filter w-full px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white">
             </div>
             
             <!-- Tipo de rol -->
             <div>
                 <select name="role_type" class="auto-filter w-full px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white">
-                    <option value="">Todos los roles</option>
-                    <option value="player" {% if role_type == 'player' %}selected{% endif %}>Solo Jugadores</option>
-                    <option value="staff" {% if role_type == 'staff' %}selected{% endif %}>Solo Staff</option>
+                    <option value="">{% trans "Todos los roles" %}</option>
+                    <option value="player" {% if role_type == 'player' %}selected{% endif %}>{% trans "Solo Jugadores" %}</option>
+                    <option value="staff" {% if role_type == 'staff' %}selected{% endif %}>{% trans "Solo Staff" %}</option>
                 </select>
             </div>
             
             <!-- Botón limpiar -->
             <div class="flex gap-2">
                 <a href="{% url 'rosters:person_list' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition">
-                    Limpiar filtros
+                    {% trans "Limpiar filtros" %}
                 </a>
             </div>
         </form>
@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <!-- Marca visual "Tú" en la card del usuario conectado -->
                     {% if person.user == request.user %}
                         <div class="absolute top-2 right-2 bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg z-20">
-                            ⭐ Tú
+                            {% trans "⭐ Tú" %}
                         </div>
                     {% endif %}
                     
@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <!-- Edad -->
                         {% if person.age %}
                             <p class="text-center text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                {{ person.age }} años
+                                {% blocktrans with age=person.age %}{{ age }} años{% endblocktrans %}
                             </p>
                         {% endif %}
                         
@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                     </svg>
-                                    Tú
+                                    {% trans "Tú" %}
                                 </span>
                             </div>
                         {% elif person in request.user.children.all %}
@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
                                     </svg>
-                                    Tu hijo
+                                    {% trans "Tu hijo" %}
                                 </span>
                             </div>
                         {% endif %}
@@ -279,12 +279,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             {% if person.active_player_roles %}
                                 <div class="flex items-center justify-center" data-tooltip>
                                     <span class="bg-csj-purple dark:bg-csj-purple-dark text-white px-3 py-1 rounded text-xs font-medium">
-                                        🏐 Jugador
+                                        {% trans "🏐 Jugador" %}
                                     </span>
                                     <!-- Tooltip -->
                                     <div class="tooltip absolute bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg py-2 px-3 opacity-0 transition-opacity duration-200 pointer-events-none hidden">
                                         <div class="text-center">
-                                            <div class="font-medium mb-1">Equipos:</div>
+                                            <div class="font-medium mb-1">{% trans "Equipos:" %}</div>
                                             {% for role in person.active_player_roles %}
                                                 <div class="text-gray-300">{{ role.team.name }}</div>
                                             {% endfor %}
@@ -297,12 +297,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             {% if person.active_staff_roles %}
                                 <div class="flex items-center justify-center" data-tooltip>
                                     <span class="bg-csj-yellow text-gray-800 dark:text-gray-900 px-3 py-1 rounded text-xs font-medium">
-                                        🎯 Staff
+                                        {% trans "🎯 Staff" %}
                                     </span>
                                     <!-- Tooltip -->
                                     <div class="tooltip absolute bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg py-2 px-3 opacity-0 transition-opacity duration-200 pointer-events-none hidden">
                                         <div class="text-center">
-                                            <div class="font-medium mb-1">Equipos:</div>
+                                            <div class="font-medium mb-1">{% trans "Equipos:" %}</div>
                                             {% for role in person.active_staff_roles %}
                                                 <div class="text-gray-300">{{ role.team.name }}</div>
                                             {% endfor %}
@@ -313,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             {% endif %}
                             
                             {% if not person.active_player_roles and not person.active_staff_roles %}
-                                <p class="text-center text-xs text-gray-500 dark:text-gray-400 italic">Sin roles activos</p>
+                                <p class="text-center text-xs text-gray-500 dark:text-gray-400 italic">{% trans "Sin roles activos" %}</p>
                             {% endif %}
                         </div>
                     </div>
@@ -326,34 +326,34 @@ document.addEventListener('DOMContentLoaded', function() {
             <!-- Móvil (< sm) -->
             <div class="flex justify-between items-center sm:hidden mt-8 px-2">
                 {% if page_obj.has_previous %}
-                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Anterior</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Anterior" %}</a>
                 {% else %}
-                    <span class="px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm text-gray-300 dark:text-gray-600 rounded-lg">Anterior</span>
+                    <span class="px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm text-gray-300 dark:text-gray-600 rounded-lg">{% trans "Anterior" %}</span>
                 {% endif %}
                 <span class="text-xs text-gray-600 dark:text-gray-400">
-                    Pág. {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                    {% blocktrans with number=page_obj.number total=page_obj.paginator.num_pages %}Pág. {{ number }}/{{ total }}{% endblocktrans %}
                 </span>
                 {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Siguiente</a>
+                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Siguiente" %}</a>
                 {% else %}
-                    <span class="px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm text-gray-300 dark:text-gray-600 rounded-lg">Siguiente</span>
+                    <span class="px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm text-gray-300 dark:text-gray-600 rounded-lg">{% trans "Siguiente" %}</span>
                 {% endif %}
             </div>
 
             <!-- Escritorio (sm+) -->
             <div class="hidden sm:flex justify-center items-center space-x-2 mt-8">
                 {% if page_obj.has_previous %}
-                    <a href="?page=1{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Primera</a>
-                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Anterior</a>
+                    <a href="?page=1{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Primera" %}</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Anterior" %}</a>
                 {% endif %}
 
                 <span class="px-4 py-2 text-gray-700 dark:text-gray-300">
-                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                    {% blocktrans with number=page_obj.number total=page_obj.paginator.num_pages %}Página {{ number }} de {{ total }}{% endblocktrans %}
                 </span>
 
                 {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Siguiente</a>
-                    <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Última</a>
+                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Siguiente" %}</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Última" %}</a>
                 {% endif %}
             </div>
         {% endif %}
@@ -362,14 +362,14 @@ document.addEventListener('DOMContentLoaded', function() {
             <svg class="w-24 h-24 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path>
             </svg>
-            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">No se encontraron personas</h3>
-            <p class="text-gray-600 dark:text-gray-400 mb-4">{% if search or role_type %}Intenta ajustar los filtros{% else %}Aún no hay personas registradas{% endif %}</p>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">{% trans "No se encontraron personas" %}</h3>
+            <p class="text-gray-600 dark:text-gray-400 mb-4">{% if search or role_type %}{% trans "Intenta ajustar los filtros" %}{% else %}{% trans "Aún no hay personas registradas" %}{% endif %}</p>
             {% if is_tenant_manager %}
             <a href="{% url 'rosters:person_create' %}" class="inline-flex items-center bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
-                Agregar Primera Persona
+                {% trans "Agregar Primera Persona" %}
             </a>
             {% endif %}
         </div>

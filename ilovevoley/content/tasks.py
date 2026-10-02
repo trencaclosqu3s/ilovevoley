@@ -4,6 +4,7 @@ import logging
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from ilovevoley.content.models import Image
 from ilovevoley.content.thumbnails import generate_image_thumbnails
@@ -71,7 +72,7 @@ def analyze_image_with_vision_task(image_id, notify_if_pending=True):
                 status='approved',
                 moderated_by=image.uploaded_by,
                 moderation_date=timezone.now(),
-                moderation_notes='Auto-aprobada por Google Vision API',
+                moderation_notes=_('Auto-aprobada por Google Vision API'),
             )
             if not updated:
                 Image.objects.filter(pk=image.pk).update(**vision_fields)
@@ -107,7 +108,7 @@ def analyze_image_with_vision_task(image_id, notify_if_pending=True):
         if not settings.DEBUG and settings.NOTIFICATION_EMAIL_ENABLED:
             try:
                 send_notification_email(
-                    subject='Error en Google Vision API',
+                    subject=_('Error en Google Vision API'),
                     template_name='emails/vision_api_error.html',
                     context={
                         'error': str(e),
@@ -253,14 +254,14 @@ def notify_match_media_push_task(organization_id, match_id):
     teams_vs = f"{home_name} vs {away_name}"
 
     if has_photos and has_video_media:
-        title = f"Fotos y vídeos: {teams_vs}"
-        body = f"Se han subido fotos y vídeos del partido {match_display}"
+        title = _('Fotos y vídeos: %(teams)s') % {'teams': teams_vs}
+        body = _('Se han subido fotos y vídeos del partido %(match)s') % {'match': match_display}
     elif has_photos:
-        title = f"Fotos: {teams_vs}"
-        body = f"Se han subido fotos del partido {match_display}"
+        title = _('Fotos: %(teams)s') % {'teams': teams_vs}
+        body = _('Se han subido fotos del partido %(match)s') % {'match': match_display}
     elif has_video_media:
-        title = f"Vídeos: {teams_vs}"
-        body = f"Se han subido vídeos del partido {match_display}"
+        title = _('Vídeos: %(teams)s') % {'teams': teams_vs}
+        body = _('Se han subido vídeos del partido %(match)s') % {'match': match_display}
     else:
         return False
 

@@ -1,5 +1,6 @@
 from django import forms
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.mixins import get_club_team_names
 from ilovevoley.core.models import Season
@@ -16,11 +17,11 @@ class PersonForm(forms.ModelForm):
         widgets = {
             'first_name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
-                'placeholder': 'Ej: María'
+                'placeholder': _('Ej: María')
             }),
             'last_name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
-                'placeholder': 'Ej: García López'
+                'placeholder': _('Ej: García López')
             }),
             'birth_date': forms.DateInput(attrs={
                 'type': 'date',
@@ -42,24 +43,24 @@ class PersonForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
                 'rows': 3,
-                'placeholder': 'Algo que quieras que sepamos sobre esta persona...'
+                'placeholder': _('Algo que quieras que sepamos sobre esta persona...')
             }),
         }
         labels = {
-            'first_name': 'Nombre',
-            'last_name': 'Apellidos',
-            'birth_date': 'Fecha de Nacimiento',
-            'photo': 'Foto',
-            'email': 'Email de Contacto',
-            'phone': 'Teléfono',
-            'notes': 'Algo que quieras que sepamos',
+            'first_name': _('Nombre'),
+            'last_name': _('Apellidos'),
+            'birth_date': _('Fecha de Nacimiento'),
+            'photo': _('Foto'),
+            'email': _('Email de Contacto'),
+            'phone': _('Teléfono'),
+            'notes': _('Algo que quieras que sepamos'),
         }
         help_texts = {
-            'birth_date': 'Fecha de nacimiento (opcional)',
-            'photo': 'Foto de perfil (opcional, formatos: JPG, PNG, WebP)',
-            'email': 'Email de contacto (opcional)',
-            'phone': 'Número de teléfono de contacto (opcional)',
-            'notes': 'Información adicional que consideres relevante (opcional)',
+            'birth_date': _('Fecha de nacimiento (opcional)'),
+            'photo': _('Foto de perfil (opcional, formatos: JPG, PNG, WebP)'),
+            'email': _('Email de contacto (opcional)'),
+            'phone': _('Número de teléfono de contacto (opcional)'),
+            'notes': _('Información adicional que consideres relevante (opcional)'),
         }
     
     def __init__(self, *args, organization=None, **kwargs):
@@ -88,11 +89,11 @@ class PersonForm(forms.ModelForm):
         if photo:
             # Validar tamaño (5MB máximo)
             if photo.size > 5 * 1024 * 1024:
-                raise forms.ValidationError('El archivo es demasiado grande. Tamaño máximo: 5MB')
+                raise forms.ValidationError(_('El archivo es demasiado grande. Tamaño máximo: 5MB'))
             
             # Validar tipo de archivo
             if not photo.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                raise forms.ValidationError('Formato no válido. Use JPG, PNG o WebP')
+                raise forms.ValidationError(_('Formato no válido. Use JPG, PNG o WebP'))
 
         return photo
 
@@ -102,7 +103,7 @@ class PlayerRoleForm(forms.ModelForm):
     
     team = forms.ModelChoiceField(
         queryset=Team.objects.none(),  # Se configurará en __init__
-        label='Equipo',
+        label=_('Equipo'),
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white'
         })
@@ -117,7 +118,7 @@ class PlayerRoleForm(forms.ModelForm):
             }),
             'jersey_number': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
-                'placeholder': 'Ej: 10',
+                'placeholder': _('Ej: 10'),
                 'min': '1',
                 'max': '99'
             }),
@@ -127,21 +128,21 @@ class PlayerRoleForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
                 'rows': 2,
-                'placeholder': 'Notas sobre este rol en el equipo'
+                'placeholder': _('Notas sobre este rol en el equipo')
             }),
         }
         labels = {
-            'team': 'Equipo',
-            'season': 'Temporada',
-            'jersey_number': 'Número de Dorsal',
-            'position': 'Posición Principal',
-            'notes': 'Notas',
+            'team': _('Equipo'),
+            'season': _('Temporada'),
+            'jersey_number': _('Número de Dorsal'),
+            'position': _('Posición Principal'),
+            'notes': _('Notas'),
         }
         help_texts = {
-            'season': 'Temporada en la que el jugador pertenece al equipo',
-            'jersey_number': 'Número de camiseta (opcional)',
-            'position': 'Posición preferida del jugador (opcional)',
-            'notes': 'Información adicional sobre este rol (opcional)',
+            'season': _('Temporada en la que el jugador pertenece al equipo'),
+            'jersey_number': _('Número de camiseta (opcional)'),
+            'position': _('Posición preferida del jugador (opcional)'),
+            'notes': _('Información adicional sobre este rol (opcional)'),
         }
     
     def __init__(self, *args, **kwargs):
@@ -197,7 +198,7 @@ class PlayerRoleForm(forms.ModelForm):
                 existing = existing.exclude(pk=self.instance.pk)
             if existing.exists():
                 raise forms.ValidationError(
-                    'Esta persona ya tiene un rol de jugador en este equipo y temporada.'
+                    _('Esta persona ya tiene un rol de jugador en este equipo y temporada.')
                 )
         return cleaned
 
@@ -207,7 +208,7 @@ class StaffRoleForm(forms.ModelForm):
     
     team = forms.ModelChoiceField(
         queryset=Team.objects.none(),  # Se configurará en __init__
-        label='Equipo',
+        label=_('Equipo'),
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white'
         })
@@ -226,19 +227,19 @@ class StaffRoleForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
                 'rows': 2,
-                'placeholder': 'Notas sobre este rol en el equipo'
+                'placeholder': _('Notas sobre este rol en el equipo')
             }),
         }
         labels = {
-            'team': 'Equipo',
-            'season': 'Temporada',
-            'role': 'Rol en el Equipo',
-            'notes': 'Notas',
+            'team': _('Equipo'),
+            'season': _('Temporada'),
+            'role': _('Rol en el Equipo'),
+            'notes': _('Notas'),
         }
         help_texts = {
-            'season': 'Temporada en la que la persona desempeña el rol',
-            'role': 'Función que desempeña en el equipo',
-            'notes': 'Información adicional sobre este rol (opcional)',
+            'season': _('Temporada en la que la persona desempeña el rol'),
+            'role': _('Función que desempeña en el equipo'),
+            'notes': _('Información adicional sobre este rol (opcional)'),
         }
     
     def __init__(self, *args, **kwargs):
@@ -282,7 +283,7 @@ class StaffRoleForm(forms.ModelForm):
                 existing = existing.exclude(pk=self.instance.pk)
             if existing.exists():
                 raise forms.ValidationError(
-                    'Esta persona ya tiene ese rol en este equipo y temporada.'
+                    _('Esta persona ya tiene ese rol en este equipo y temporada.')
                 )
         return cleaned
 

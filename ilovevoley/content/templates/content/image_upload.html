@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}Subir Imagen{% endblock %}
+{% block title %}{% trans "Subir Imagen" %}{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Subir Nueva Imagen</h1>
-            <p class="text-gray-600 dark:text-gray-300 mt-1">Sube imágenes del club: partidos, celebraciones, entrenamientos y más</p>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{% trans "Subir Nueva Imagen" %}</h1>
+            <p class="text-gray-600 dark:text-gray-300 mt-1">{% trans "Sube imágenes del club: partidos, celebraciones, entrenamientos y más" %}</p>
         </div>
 
         <form method="post" enctype="multipart/form-data" id="image-upload-form">
@@ -23,15 +23,15 @@
                 <div id="drop-zone" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-csj-purple dark:hover:border-csj-yellow transition-colors duration-200 cursor-pointer">
                     <div id="drop-zone-content">
                         <i class="fas fa-cloud-upload-alt text-gray-400 dark:text-gray-500 text-4xl mb-4"></i>
-                        <p class="text-gray-600 dark:text-gray-300 mb-2">Arrastra tu imagen aquí o haz clic para seleccionar</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Formatos: JPG, PNG, WebP, HEIC • Máximo 10MB</p>
+                        <p class="text-gray-600 dark:text-gray-300 mb-2">{% trans "Arrastra tu imagen aquí o haz clic para seleccionar" %}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{% trans "Formatos: JPG, PNG, WebP, HEIC • Máximo 10MB" %}</p>
                     </div>
                     
                     <div id="image-preview" class="hidden">
-                        <img id="preview-img" src="" alt="Preview" class="max-w-full h-48 object-contain mx-auto rounded">
+                        <img id="preview-img" src="" alt="{% trans "Preview" %}" class="max-w-full h-48 object-contain mx-auto rounded">
                         <p id="preview-filename" class="mt-2 text-sm text-gray-600 dark:text-gray-300"></p>
                         <button type="button" data-call="clearPreview" class="mt-2 text-red-500 dark:text-red-400 hover:text-red-700 text-sm">
-                            <i class="fas fa-times mr-1"></i>Cambiar imagen
+                            <i class="fas fa-times mr-1"></i>{% trans "Cambiar imagen" %}
                         </button>
                     </div>
                 </div>
@@ -75,7 +75,7 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Selecciona el tipo que mejor describe tu imagen</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{% trans "Selecciona el tipo que mejor describe tu imagen" %}</p>
             </div>
 
             <!-- Categorías -->
@@ -84,8 +84,7 @@
                     {{ form.categories.label }}
                 </label>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                    Si seleccionas un partido, las categorías se asignarán automáticamente. 
-                    Si no, puedes seleccionar manualmente las categorías aquí.
+                    {% blocktrans trimmed %}Si seleccionas un partido, las categorías se asignarán automáticamente. Si no, puedes seleccionar manualmente las categorías aquí.{% endblocktrans %}
                 </p>
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
                     {% for checkbox in form.categories %}
@@ -118,7 +117,7 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Palabras clave separadas por comas (ej: gol, victoria, senior)</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{% trans "Palabras clave separadas por comas (ej: gol, victoria, senior)" %}</p>
             </div>
 
             <!-- Partido -->
@@ -138,7 +137,7 @@
                 <!-- Partidos recientes sugeridos -->
                 {% if recent_matches %}
                     <div class="mt-3">
-                        <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">Partidos recientes:</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">{% trans "Partidos recientes:" %}</p>
                         <div class="space-y-1">
                             {% for match in recent_matches|slice:":5" %}
                                 <button type="button" 
@@ -191,13 +190,13 @@
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
-                    Volver
+                    {% trans "Volver" %}
                 </a>
                 <button type="submit" class="w-full sm:w-auto text-center inline-flex items-center justify-center bg-csj-purple text-white px-6 py-2.5 rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                     </svg>
-                    Subir Imagen
+                    {% trans "Subir Imagen" %}
                 </button>
             </div>
         </form>
@@ -253,13 +252,13 @@ function handleFileSelect(file) {
     const hasValidType = validTypes.includes(file.type);
     
     if (!hasValidType && !hasValidExtension) {
-        alert('Formato no válido. Use JPG, PNG, WebP o HEIC');
+        alert('{% trans "Formato no válido. Use JPG, PNG, WebP o HEIC" %}');
         return;
     }
     
     // Validar tamaño (10MB)
     if (file.size > 10 * 1024 * 1024) {
-        alert('El archivo es demasiado grande. Máximo 10MB');
+        alert('{% trans "El archivo es demasiado grande. Máximo 10MB" %}');
         return;
     }
     
@@ -297,7 +296,7 @@ function selectMatch(matchId, matchName) {
 // Auto-generar título basado en el partido seleccionado
 document.getElementById('id_match').addEventListener('change', function() {
     const titleInput = document.getElementById('id_title');
-    if (!titleInput.value && this.selectedOptions[0] && this.selectedOptions[0].text !== 'Seleccionar partido (opcional)') {
+    if (!titleInput.value && this.selectedOptions[0] && this.selectedOptions[0].text !== '{% trans "Seleccionar partido (opcional)" %}') {
         const matchText = this.selectedOptions[0].text;
         const today = new Date().toLocaleDateString('es-ES');
         titleInput.value = `${matchText} - ${today}`;
@@ -313,13 +312,13 @@ document.getElementById('id_image_type').addEventListener('change', function() {
     if (this.value === 'match') {
         matchLabel.innerHTML = '{{ form.match.label }} <span class="text-red-500 dark:text-red-400">*</span>';
         if (helpText) {
-            helpText.textContent = 'Se recomienda seleccionar el partido correspondiente';
+            helpText.textContent = '{% trans "Se recomienda seleccionar el partido correspondiente" %}';
         }
         matchSection.classList.remove('opacity-50');
     } else {
         matchLabel.textContent = '{{ form.match.label }}';
         if (helpText) {
-            helpText.textContent = 'Opcional: vincula la imagen a un partido específico';
+            helpText.textContent = '{% trans "Opcional: vincula la imagen a un partido específico" %}';
         }
         matchSection.classList.add('opacity-50');
     }
