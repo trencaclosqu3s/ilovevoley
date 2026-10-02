@@ -147,12 +147,12 @@ class WebPushMultiClubTest(TestCase):
         self.club_a = Organization.objects.create(name='Club A', slug='club-a')
         self.club_b = Organization.objects.create(name='Club B', slug='club-b')
 
-    def _device(self, name, memberships):
+    def _device(self, name, memberships, subscribed_in=None):
         user = User.objects.create_user(username=name, email=f'{name}@test.es')
         for org, approved in memberships:
             Membership.objects.create(user=user, organization=org, is_approved=approved)
         WebPushSubscription.objects.create(
-            user=user, organization=self.club_a,
+            user=user, organization=subscribed_in or self.club_a,
             endpoint=f'https://push.example/{name}', p256dh='k', auth='a',
         )
 
@@ -161,11 +161,13 @@ class WebPushMultiClubTest(TestCase):
         self._device('multi', [(self.club_a, True), (self.club_b, True)])
         self._device('pending', [(self.club_a, True), (self.club_b, False)])
         self._device('only_club_a', [(self.club_a, True)])
+        # Suscrito en B y miembro de A y B: el JOIN da dos filas que casan, sin distinct() el aviso sale doble.
+        self._device('both_branches', [(self.club_a, True), (self.club_b, True)], subscribed_in=self.club_b)
 
         notify_web_push_organization_task(organization_id=self.club_b.id, title='t', body='b')
 
-        notified = [call.args[0].endpoint.rsplit('/', 1)[1] for call in mock_send.call_args_list]
-        self.assertEqual(notified, ['multi'])
+        notified = sorted(call.args[0].endpoint.rsplit('/', 1)[1] for call in mock_send.call_args_list)
+        self.assertEqual(notified, ['both_branches', 'multi'])
 
 
 class WebPushNotificationTypeFilterTest(TestCase):
