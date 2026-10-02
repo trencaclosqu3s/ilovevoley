@@ -6,16 +6,21 @@ Fecha: 2026-10-02. Estado actual: solo Google (`allauth==65.19.4`).
 
 | Proveedor | Viabilidad técnica | Trámite en el tercero | Decisión |
 |---|---|---|---|
-| Facebook | Sí, provider nativo | Alto (app Meta + revisión + política de privacidad) | Aplazar; implementar solo si hay demanda real |
-| Instagram | **No** | — | **Descartar** |
-| X / Twitter | Sí (`twitter_oauth2`) | Cuenta developer de pago por uso | **Descartar** |
-| Apple | Sí | Apple Developer Program (de pago) | Implementar **solo si** se publica app iOS |
-| Microsoft | Sí | Bajo (Entra ID, gratis) | No aporta al público objetivo |
-| Discord | Sí | Bajo (gratis) | No aporta al público objetivo |
+| Facebook | Sí, provider nativo | Alto (app Meta + revisión + política de privacidad) | **Descartado**: no encaja con el producto |
+| Instagram | **No** | — | **Descartado**: API cerrada, sin email |
+| X / Twitter | Sí (`twitter_oauth2`) | Cuenta developer de pago por uso | Descartado por ahora: email sin confirmar (el coste no es criterio) |
+| Apple | Sí | Apple Developer Program (de pago) | Descartado por ahora: relevante solo si se publica app iOS (el coste no es criterio) |
+| TikTok | Sí (`tiktok`) | Alto (evaluación de la app, redirect HTTPS fija) | Descartado por ahora: no devuelve email |
+| Discord | Sí | Bajo (gratis, sin revisión) | Descartado por ahora; mejor opción barata si se amplía |
+| Microsoft | Sí | Bajo (Entra ID, gratis) | Descartado: no aporta al público objetivo |
 
-Recomendación: no añadir proveedores ahora. Google cubre el caso de uso. Revisar Apple
-cuando se decida la publicación en App Store (ver
-`2026-09-30-mobile-packaging-pwa-capacitor-twa.md`).
+## Decisión
+
+No se añade ningún proveedor ahora: Google cubre el caso de uso. El público es joven, así
+que si se amplía, el orden de preferencia es **Discord** (email verificado, sin revisión),
+después **Apple** (si se publica app iOS, ver
+`2026-09-30-mobile-packaging-pwa-capacitor-twa.md`) y **TikTok** solo si se acepta pedir
+el email a mano y las cuentas duplicadas.
 
 ## Qué dice allauth
 
@@ -63,10 +68,27 @@ cuando se decida la publicación en App Store (ver
   llegan si no se registra el dominio de envío en Apple.
 - Estimación: 1 d de código + 0,5 d de trámite (si ya hay cuenta de developer).
 
-### Microsoft / Discord
-- Sin revisión. Entra ID (Microsoft) y el portal de Discord son gratuitos. Sin demanda
-  identificada entre clubes y familias de voleibol.
-- Estimación: 0,5 d cada uno.
+### TikTok
+- allauth tiene provider (`tiktok`). El scope básico (`user.info.basic`) solo devuelve
+  `open_id`, `display_name` y avatar: **no hay email**.
+- Con `SOCIALACCOUNT_EMAIL_REQUIRED = True` el usuario tendría que escribir el email en
+  un formulario; no estaría verificado, así que no se vincularía a cuentas existentes
+  (cuentas duplicadas).
+- Trámites: evaluación de la app antes de producción, términos de servicio, política de
+  privacidad y redirect URI HTTPS fija que TikTok valida y bloquea al enviar; la app pasa
+  de "staging" a "under review".
+- Al ser público joven, el `parent_info` del signup cobra más importancia.
+- Estimación: 0,5 d de código + tiempo de revisión de TikTok.
+
+### Discord
+- Email verificado, registro gratuito en el portal de developers y sin revisión. Llega a
+  público joven, por lo que es la opción barata mejor situada si se amplía.
+- Estimación: 0,5 d.
+
+### Microsoft
+- Sin revisión (Entra ID gratuito), pero sin demanda identificada entre clubes y
+  familias de voleibol.
+- Estimación: 0,5 d.
 
 ## Trabajo común a cualquier proveedor nuevo (0,5-1 d)
 
@@ -97,5 +119,7 @@ cuando se decida la publicación en App Store (ver
 - [allauth: Facebook](https://docs.allauth.org/en/latest/socialaccount/providers/facebook.html)
 - [allauth: Apple](https://docs.allauth.org/en/latest/socialaccount/providers/apple.html)
 - [allauth: X OAuth 2](https://docs.allauth.org/en/latest/socialaccount/providers/twitter_oauth2.html)
+- [allauth: TikTok](https://docs.allauth.org/en/latest/socialaccount/providers/tiktok.html)
+- [TikTok: Scopes Overview](https://developers.tiktok.com/docs/en/scopes-overview?enter_method=left_navigation)
 - [Cierre de la Instagram Basic Display API](https://dev.to/nick_johnson/instagram-basic-display-api-is-dead-build-what-works-instead-4ifm)
 - [Precios de la API de X 2026](https://postproxy.dev/blog/x-api-pricing-2026/)
