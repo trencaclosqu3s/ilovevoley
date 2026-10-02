@@ -25,6 +25,7 @@ from ilovevoley.core.forms import SeasonWizardForm
 from ilovevoley.core.models import Organization, Season
 from ilovevoley.core.services.season_wizard import preview_season, start_season
 from ilovevoley.core.tenant_utils import (
+    PWA_ORIGIN_ASSOCIATION_CACHE_KEY,
     approve_user_membership,
     build_absolute_url,
     build_tenant_url,
@@ -308,13 +309,12 @@ def web_app_origin_association(request):
     protocol = 'https' if not settings.DEBUG else 'http'
     base_domain = get_tenant_base_domain(request)
 
-    cache_key = 'pwa_origin_association_slugs'
-    active_slugs = cache.get(cache_key)
+    active_slugs = cache.get(PWA_ORIGIN_ASSOCIATION_CACHE_KEY)
     if active_slugs is None:
         active_slugs = list(
             Organization.objects.filter(is_active=True).values_list('slug', flat=True)
         )
-        cache.set(cache_key, active_slugs, timeout=86400)
+        cache.set(PWA_ORIGIN_ASSOCIATION_CACHE_KEY, active_slugs, timeout=300)
 
     data = {
         f'{protocol}://{base_domain}/': {
