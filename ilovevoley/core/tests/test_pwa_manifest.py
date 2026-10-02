@@ -1,11 +1,15 @@
 import json
-from django.test import TestCase, RequestFactory
+from django.conf import settings
+from django.core.cache import cache
+from django.test import TestCase, RequestFactory, override_settings
 from ilovevoley.core.models import Organization
 from ilovevoley.core.views import manifest_json
 
 
+@override_settings(ALLOWED_HOSTS=['ilovevoley.es', '.ilovevoley.es', 'localhost', 'testserver'])
 class PWAManifestTest(TestCase):
     def setUp(self):
+        cache.clear()
         self.factory = RequestFactory()
         self.org, _ = Organization.objects.get_or_create(
             slug='santjosep',
@@ -64,3 +68,67 @@ class PWAManifestTest(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(data['theme_color'], '#01696f')
+
+    def test_manifest_includes_scope_extensions_in_debug(self):
+        Organization.objects.create(slug='soller', name='CV Soller', is_active=True)
+
+        with self.settings(DEBUG=True):
+            request = self.factory.get('/manifest.webmanifest', HTTP_HOST='santjosep.ilovevoley.es')
+            request.tenant = self.org
+            response = manifest_json(request)
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content.decode('utf-8'))
+        self.assertIn('scope_extensions', data)
+        origins = [item['origin'] for item in data['scope_extensions']]
+        self.assertTrue(any('santjosep' in o for o in origins))
+        self.assertTrue(any('soller' in o for o in origins))
+
+    def test_manifest_includes_wildcard_scope_extensions_in_production(self):
+        with self.settings(DEBUG=False, TENANT_BASE_DOMAIN='ilovevoley.es'):
+            request = self.factory.get('/manifest.webmanifest', HTTP_HOST='santjosep.ilovevoley.es')
+            request.tenant = self.org
+            response = manifest_json(request)
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content.decode('utf-8'))
+        self.assertIn('scope_extensions', data)
+        origins = [item['origin'] for item in data['scope_extensions']]
+        self.assertIn('https://ilovevoley.es', origins)
+        self.assertIn('https://*.ilovevoley.es', origins)
+
+    def test_web_app_origin_association(self):
+        from ilovevoley.core.views import web_app_origin_association
+
+        with self.settings(TENANT_BASE_DOMAIN='ilovevoley.es'):
+            request = self.factory.get('/.well-known/web-app-origin-association', HTTP_HOST='santjosep.ilovevoley.es')
+            response = web_app_origin_association(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Content-Type'], 'application/json; charset=utf-8')
+        data = json.loads(response.content.decode('utf-8'))
+        self.assertIn('web_apps', data)
+        self.assertEqual(data['web_apps'][0]['manifest'], '/manifest.webmanifest')
+        base_domain = 'ilovevoley.es'
+        protocol = 'https' if not settings.DEBUG else 'http'
+        self.assertIn(f'{protocol}://{base_domain}/', data)
+        self.assertIn(f'{protocol}://santjosep.{base_domain}/', data)
+        self.assertEqual(data[f'{protocol}://santjosep.{base_domain}/'], {'scope': '/'})
+
+    def test_web_app_origin_association_invalidates_cache_on_organization_change(self):
+        from ilovevoley.core.views import web_app_origin_association
+
+        with self.settings(TENANT_BASE_DOMAIN='ilovevoley.es'):
+            request = self.factory.get('/.well-known/web-app-origin-association', HTTP_HOST='santjosep.ilovevoley.es')
+            response1 = web_app_origin_association(request)
+            data1 = json.loads(response1.content.decode('utf-8'))
+            protocol = 'https' if not settings.DEBUG else 'http'
+            self.assertNotIn(f'{protocol}://manacor.ilovevoley.es/', data1)
+
+            # Creating a new active organization triggers cache invalidation via post_save signal
+            Organization.objects.create(slug='manacor', name='CV Manacor', is_active=True)
+
+            response2 = web_app_origin_association(request)
+            data2 = json.loads(response2.content.decode('utf-8'))
+            self.assertIn(f'{protocol}://manacor.ilovevoley.es/', data2)
+

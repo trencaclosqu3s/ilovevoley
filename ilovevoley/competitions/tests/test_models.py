@@ -1,4 +1,5 @@
 from datetime import datetime, timezone as dt_timezone
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -138,6 +139,15 @@ class VenueModelTest(TestCase):
         )
         self.assertIn("https://www.google.com/maps/search/?api=1&query=", venue.maps_url)
         self.assertIn("Alar%C3%B3", venue.maps_url)
+
+    def test_venue_maps_url_with_coordinates_prioritizes_coords_over_address(self):
+        venue = Venue.objects.create(
+            name="Pavelló Test Coordenadas",
+            city="Algaida",
+            latitude=Decimal("39.564230"),
+            longitude=Decimal("2.895819"),
+        )
+        self.assertEqual(venue.maps_url, "https://www.google.com/maps/search/?api=1&query=39.564230,2.895819")
 
     def test_venue_matches_text(self):
         venue = Venue.objects.create(

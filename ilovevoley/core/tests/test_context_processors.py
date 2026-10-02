@@ -22,6 +22,60 @@ class TenantContextTest(TestCase):
         self.assertTrue(context['is_tenant_manager'])
         self.assertTrue(context['is_tenant_admin'])
         self.assertFalse(context['can_switch_club'])
+        self.assertEqual(context['user_switch_clubs'], [])
+
+    def test_user_with_multiple_memberships_gets_switch_clubs(self):
+        from ilovevoley.core.models import Organization
+        from ilovevoley.users.models import Membership
+
+        user = get_user_model().objects.create_user(username='multiclub', password='pass')
+        org1 = Organization.objects.create(slug='club1', name='Club Uno', primary_color='#111111', is_active=True)
+        org2 = Organization.objects.create(slug='club2', name='Club Dos', primary_color='#222222', is_active=True)
+        Membership.objects.create(user=user, organization=org1, is_approved=True)
+        Membership.objects.create(user=user, organization=org2, is_approved=True)
+
+        context = self._context(user=user, tenant=org1)
+
+        self.assertTrue(context['can_switch_club'])
+        switch_clubs = context['user_switch_clubs']
+        self.assertEqual(len(switch_clubs), 2)
+
+        current = next(c for c in switch_clubs if c['name'] == 'Club Uno')
+        other = next(c for c in switch_clubs if c['name'] == 'Club Dos')
+
+        self.assertTrue(current['is_current'])
+        self.assertFalse(other['is_current'])
+        self.assertEqual(current['name'], 'Club Uno')
+        self.assertEqual(other['name'], 'Club Dos')
+        self.assertIn('club2', other['url'])
+
+    def test_user_with_single_membership_cannot_switch_club(self):
+        from ilovevoley.core.models import Organization
+        from ilovevoley.users.models import Membership
+
+        user = get_user_model().objects.create_user(username='monoclub', password='pass')
+        org1 = Organization.objects.create(slug='club1', name='Club Uno', is_active=True)
+        Membership.objects.create(user=user, organization=org1, is_approved=True)
+
+        context = self._context(user=user, tenant=org1)
+
+        self.assertFalse(context['can_switch_club'])
+        self.assertEqual(context['user_switch_clubs'], [])
+
+    def test_inactive_organization_excluded_from_switch_clubs(self):
+        from ilovevoley.core.models import Organization
+        from ilovevoley.users.models import Membership
+
+        user = get_user_model().objects.create_user(username='inactiveorg', password='pass')
+        org1 = Organization.objects.create(slug='activeclub', name='Active Club', is_active=True)
+        org2 = Organization.objects.create(slug='inactiveclub', name='Inactive Club', is_active=False)
+        Membership.objects.create(user=user, organization=org1, is_approved=True)
+        Membership.objects.create(user=user, organization=org2, is_approved=True)
+
+        context = self._context(user=user, tenant=org1)
+
+        self.assertFalse(context['can_switch_club'])
+        self.assertEqual(context['user_switch_clubs'], [])
 
     def test_base_domain_resolves_to_ilovevoley_brand_colors(self):
         context = self._context(user=None, tenant=None)
@@ -89,3 +143,4 @@ class TenantContextTest(TestCase):
         self.assertEqual(context['tenant_gradient_to'], '#FF5500')
         self.assertEqual(context['tenant_gradient_from_rgb'], '255 85 0')
         self.assertEqual(context['tenant_gradient_to_rgb'], '255 85 0')
+

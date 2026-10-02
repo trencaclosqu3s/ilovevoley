@@ -30,6 +30,8 @@ class CalendarFeedLocationTest(TestCase):
         self.assertIn('geo:39.698457,2.802078', ics)
         self.assertIn('X-APPLE-STRUCTURED-LOCATION;', ics)
         self.assertIn('LOCATION:', ics)
+        self.assertIn('https://www.google.com/maps/search/?api=1&query=39.698457', ics)
+        self.assertIn('2.802078', ics)
 
     def test_venue_without_coordinates_keeps_plain_location_only(self):
         venue = Venue.objects.create(name='Pavelló Sin Coordenadas', address='Carrer Major 1', city='Campos')

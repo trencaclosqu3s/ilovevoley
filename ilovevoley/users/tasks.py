@@ -1,6 +1,8 @@
 from celery import shared_task
 from django.db.models import Q
 from ilovevoley.core.i18n import language_for
+from ilovevoley.core.models import Organization
+from ilovevoley.core.tenant_utils import build_absolute_url
 from .models import CategoryPreference, NotificationPreference, WebPushSubscription
 from .webpush import send_web_push
 
@@ -21,7 +23,12 @@ def notify_web_push_organization_task(
     el idioma de su usuario; sin traducción para ese idioma, o con dispositivo anónimo, se usan
     ``title`` y ``body``.
     """
-    subs = WebPushSubscription.objects.filter(organization_id=organization_id)
+    # Un dispositivo queda ligado a una sola organización (endpoint único), así que un
+    # usuario miembro de varios clubes solo recibiría los del club donde se suscribió.
+    subs = WebPushSubscription.objects.filter(
+        Q(organization_id=organization_id)
+        | Q(user__memberships__organization_id=organization_id, user__memberships__is_approved=True)
+    ).distinct()
     if category_ids:
         prefs = CategoryPreference.objects.filter(organization_id=organization_id)
         interested = prefs.filter(categories__in=category_ids).values('user_id')
@@ -36,13 +43,19 @@ def notify_web_push_organization_task(
         ).values('user_id')
         subs = subs.exclude(user_id__in=disabled_users)
 
+    # El aviso abre el dominio del club emisor, no el donde se suscribió el dispositivo.
+    target_url = url or '/'
+    org = Organization.objects.filter(pk=organization_id).first()
+    if org and target_url.startswith('/'):
+        target_url = build_absolute_url(target_url, tenant=org)
+
     dispatched = 0
     for sub in subs.select_related('user'):
         text = (translations or {}).get(language_for(sub.user)) or {'title': title, 'body': body}
         payload = {
             'title': text['title'],
             'body': text['body'],
-            'url': url or '/',
+            'url': target_url,
             'badge_count': badge_count,
         }
         if send_web_push(sub, payload):
