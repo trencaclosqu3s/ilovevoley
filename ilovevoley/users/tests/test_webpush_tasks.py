@@ -169,6 +169,17 @@ class WebPushMultiClubTest(TestCase):
         notified = sorted(call.args[0].endpoint.rsplit('/', 1)[1] for call in mock_send.call_args_list)
         self.assertEqual(notified, ['both_branches', 'multi'])
 
+    @patch('ilovevoley.users.tasks.send_web_push', return_value=True)
+    def test_push_url_points_to_emitting_club_domain(self, mock_send):
+        # #315: un dispositivo suscrito en A debe abrir el partido en el dominio de B, que emite el aviso
+        self._device('multi', [(self.club_a, True), (self.club_b, True)], subscribed_in=self.club_a)
+
+        notify_web_push_organization_task(organization_id=self.club_b.id, title='t', body='b', url='/competitions/partidos/1/')
+
+        payload = mock_send.call_args.args[1]
+        self.assertTrue(payload['url'].startswith(f'http://{self.club_b.slug}.') or payload['url'].startswith(f'https://{self.club_b.slug}.'))
+        self.assertTrue(payload['url'].endswith('/competitions/partidos/1/'))
+
 
 class WebPushNotificationTypeFilterTest(TestCase):
     def setUp(self):
