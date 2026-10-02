@@ -378,3 +378,6 @@ update_ovh_ip.sh
 
 # Planes de implementación generados por superpowers (andamiaje, no documentación)
 docs/superpowers/plans/
+
+# Vhosts adicionales del servidor, fuera del repo (#117)
+nginx-extra/
