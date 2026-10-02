@@ -393,13 +393,13 @@
         const hasValidType = validTypes.includes(file.type);
         
         if (!hasValidType && !hasValidExtension) {
-            alert('{% trans "Formato no válido. Use JPG, PNG, WebP o HEIC" %}');
+            alert('{% trans "Formato no válido. Use JPG, PNG, WebP o HEIC" as js_msg %}{{ js_msg|escapejs }}');
             return;
         }
         
         // Validar tamaño (5MB máximo)
         if (file.size > 5 * 1024 * 1024) {
-            alert('{% trans "El archivo es demasiado grande. Tamaño máximo: 5MB" %}');
+            alert('{% trans "El archivo es demasiado grande. Tamaño máximo: 5MB" as js_msg %}{{ js_msg|escapejs }}');
             return;
         }
         
@@ -495,7 +495,7 @@
             const img = document.createElement('img');
             img.id = 'avatar-preview';
             img.src = imageSrc;
-            img.alt = '{% trans "Vista previa" %}';
+            img.alt = '{% trans "Vista previa" as js_msg %}{{ js_msg|escapejs }}';
             img.className = 'w-32 h-32 rounded-lg object-cover border-4 border-gray-200 dark:border-gray-700 shadow-md';
             previewContainer.parentNode.replaceChild(img, previewContainer);
         } else {

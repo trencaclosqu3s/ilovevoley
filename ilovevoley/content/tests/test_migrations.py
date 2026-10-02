@@ -13,7 +13,7 @@ class ContentSeasonBackfillMigrationTest(TransactionTestCase):
     def setUp(self):
         super().setUp()
         self.executor = MigrationExecutor(connection)
-        self.executor.migrate([self.migrate_from])
+        db_state = self.executor.migrate([self.migrate_from])
         self.executor.loader.build_graph()
 
         old_apps = self.executor.loader.project_state([self.migrate_from]).apps
@@ -23,7 +23,9 @@ class ContentSeasonBackfillMigrationTest(TransactionTestCase):
         League = leaf_apps.get_model('competitions', 'League')
         Match = leaf_apps.get_model('competitions', 'Match')
         Team = leaf_apps.get_model('teams', 'Team')
-        User = leaf_apps.get_model('users', 'User')
+        # El estado real de la BD (no el de las hojas del grafo): users puede
+        # tener migraciones posteriores sin aplicar tras migrar content hacia atrás.
+        User = db_state.apps.get_model('users', 'User')
 
         season = Season.objects.create(name='2024-25', start_year=2024, end_year=2025)
         league = League.objects.create(name='Liga BF', federation_id='L-BF', season=season)
@@ -83,13 +85,15 @@ class PurgeExifGpsMetadataMigrationTest(TransactionTestCase):
     def setUp(self):
         super().setUp()
         self.executor = MigrationExecutor(connection)
-        self.executor.migrate([self.migrate_from])
+        db_state = self.executor.migrate([self.migrate_from])
         self.executor.loader.build_graph()
 
         old_apps = self.executor.loader.project_state([self.migrate_from]).apps
         leaf_apps = self.executor.loader.project_state(self.executor.loader.graph.leaf_nodes()).apps
 
-        User = leaf_apps.get_model('users', 'User')
+        # El estado real de la BD (no el de las hojas del grafo): users puede
+        # tener migraciones posteriores sin aplicar tras migrar content hacia atrás.
+        User = db_state.apps.get_model('users', 'User')
         user = User.objects.create(username='migration-test-user')
 
         Image = old_apps.get_model('content', 'Image')

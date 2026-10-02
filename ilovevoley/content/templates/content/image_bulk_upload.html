@@ -322,12 +322,12 @@ function handleFiles(files) {
         const hasValidType = validTypes.includes(file.type);
         
         if (!hasValidType && !hasValidExtension) {
-            errors.push(`${file.name} {% trans "no es una imagen válida" %}`);
+            errors.push(`${file.name} {% trans "no es una imagen válida" as js_msg %}{{ js_msg|escapejs }}`);
             return;
         }
         
         if (file.size > 10 * 1024 * 1024) {
-            errors.push(`${file.name} {% trans "es demasiado grande (máx 10MB)" %}`);
+            errors.push(`${file.name} {% trans "es demasiado grande (máx 10MB)" as js_msg %}{{ js_msg|escapejs }}`);
             return;
         }
         
@@ -336,12 +336,12 @@ function handleFiles(files) {
     
     // Mostrar errores si los hay
     if (errors.length > 0) {
-        alert(errors.slice(0, 3).join('\n') + (errors.length > 3 ? `\n... y ${errors.length - 3} {% trans "más" %}` : ''));
+        alert(errors.slice(0, 3).join('\n') + (errors.length > 3 ? `\n... y ${errors.length - 3} {% trans "más" as js_msg %}{{ js_msg|escapejs }}` : ''));
     }
     
     // Limitar a 20 imágenes
     if (validFiles.length > 20) {
-        alert('{% trans "Máximo 20 imágenes permitidas. Se seleccionarán las primeras 20." %}');
+        alert('{% trans "Máximo 20 imágenes permitidas. Se seleccionarán las primeras 20." as js_msg %}{{ js_msg|escapejs }}');
         selectedFiles = validFiles.slice(0, 20);
     } else {
         selectedFiles = validFiles;
@@ -424,7 +424,7 @@ async function displayPreviewsOptimized() {
         remainingDiv.innerHTML = `
             <div class="text-center">
                 <i class="fas fa-images text-gray-400 dark:text-gray-500 text-2xl mb-2"></i>
-                <p class="text-xs text-gray-600 dark:text-gray-300">+${selectedFiles.length - maxPreviews} {% trans "más" %}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-300">+${selectedFiles.length - maxPreviews} {% trans "más" as js_msg %}{{ js_msg|escapejs }}</p>
             </div>
         `;
         imagesGrid.appendChild(remainingDiv);
@@ -463,7 +463,7 @@ async function displayPreviewsOptimized() {
                         <button type="button" 
                                 data-call="removeImage" data-call-args="[${index}]"
                                 class="opacity-0 group-hover:opacity-100 bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600 transition-all">
-                            <i class="fas fa-trash mr-1"></i>{% trans "Eliminar" %}
+                            <i class="fas fa-trash mr-1"></i>{% trans "Eliminar" as js_msg %}{{ js_msg|escapejs }}
                         </button>
                     </div>
                     <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 truncate" title="${file.name}">${file.name}</p>
@@ -474,7 +474,7 @@ async function displayPreviewsOptimized() {
                     <div class="aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                         <i class="fas fa-exclamation-triangle text-red-400"></i>
                     </div>
-                    <p class="text-xs text-red-600 dark:text-red-400 mt-1 truncate" title="${file.name}">{% trans "Error" %}</p>
+                    <p class="text-xs text-red-600 dark:text-red-400 mt-1 truncate" title="${file.name}">{% trans "Error" as js_msg %}{{ js_msg|escapejs }}</p>
                 `;
             }
         }, i * 50); // Delay de 50ms entre cada imagen para no bloquear la UI
@@ -506,21 +506,21 @@ function createIndividualFieldsOptimized() {
                 <div class="flex-1 grid grid-cols-1 gap-2">
                     <div>
                         <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            {% trans "Título" %}
+                            {% trans "Título" as js_msg %}{{ js_msg|escapejs }}
                         </label>
                         <input type="text" 
                                name="title_${index}" 
                                value="${defaultTitle}"
-                               placeholder="{% trans "Título de la imagen" %}"
+                               placeholder="{% trans "Título de la imagen" as js_msg %}{{ js_msg|escapejs }}"
                                class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-csj-purple focus:border-transparent">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            {% trans "Descripción (opcional)" %}
+                            {% trans "Descripción (opcional)" as js_msg %}{{ js_msg|escapejs }}
                         </label>
                         <input type="text" 
                                name="description_${index}" 
-                               placeholder="{% trans "Descripción breve" %}"
+                               placeholder="{% trans "Descripción breve" as js_msg %}{{ js_msg|escapejs }}"
                                class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-csj-purple focus:border-transparent">
                     </div>
                 </div>
@@ -536,7 +536,7 @@ function createIndividualFieldsOptimized() {
         infoDiv.className = 'text-center text-sm text-gray-500 dark:text-gray-400 py-2';
         infoDiv.innerHTML = `
             <i class="fas fa-info-circle mr-1"></i>
-            {% trans "Los títulos y descripciones de las" %} ${selectedFiles.length - maxFields} {% trans "imágenes restantes se generarán automáticamente." %}
+            {% trans "Los títulos y descripciones de las" as js_msg %}{{ js_msg|escapejs }} ${selectedFiles.length - maxFields} {% trans "imágenes restantes se generarán automáticamente." as js_msg %}{{ js_msg|escapejs }}
         `;
         individualFields.appendChild(infoDiv);
     }
@@ -636,7 +636,7 @@ updateCategoriesState();
 document.getElementById('bulk-upload-form').addEventListener('submit', (e) => {
     if (selectedFiles.length === 0) {
         e.preventDefault();
-        alert('{% trans "Por favor, selecciona al menos una imagen." %}');
+        alert('{% trans "Por favor, selecciona al menos una imagen." as js_msg %}{{ js_msg|escapejs }}');
         return false;
     }
     
@@ -645,7 +645,7 @@ document.getElementById('bulk-upload-form').addEventListener('submit', (e) => {
         const albumNameInput = document.getElementById('id_album_name');
         if (!albumNameInput || !albumNameInput.value.trim()) {
             e.preventDefault();
-            alert('{% trans "Por favor, ingresa un nombre para el álbum." %}');
+            alert('{% trans "Por favor, ingresa un nombre para el álbum." as js_msg %}{{ js_msg|escapejs }}');
             albumNameInput.focus();
             return false;
         }
@@ -658,7 +658,7 @@ document.getElementById('bulk-upload-form').addEventListener('submit', (e) => {
     
     // Mostrar indicador de carga
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>{% trans "Subiendo..." %}';
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>{% trans "Subiendo..." as js_msg %}{{ js_msg|escapejs }}';
 });
 
 // Limpiar URLs de objetos cuando se cierre la página

@@ -766,13 +766,13 @@ function closeImageLightbox() {
 
     const baseUrl = root.dataset.cardUrl;
 
-    const GENERIC_ERROR = '{% trans "No se pudo generar la tarjeta. Inténtalo de nuevo" %}';
+    const GENERIC_ERROR = '{% trans "No se pudo generar la tarjeta. Inténtalo de nuevo" as js_msg %}{{ js_msg|escapejs }}';
 
     function buildCardUrl(format) {
         const params = new URLSearchParams({ format, style: root.dataset.cardStyle });
         if (root.dataset.cardStyle === 'marco') {
             if (!root.dataset.photoId) {
-                throw new Error('{% trans "Elige una foto del partido para el estilo \"Con foto\"" %}');
+                throw new Error('{% trans "Elige una foto del partido para el estilo \"Con foto\"" as js_msg %}{{ js_msg|escapejs }}');
             }
             params.set('photo_id', root.dataset.photoId);
         }
@@ -791,7 +791,7 @@ function closeImageLightbox() {
         const contentType = response.headers.get('Content-Type') || '';
 
         if (!response.ok) {
-            let message = '{% trans "No se pudo generar la tarjeta" %}';
+            let message = '{% trans "No se pudo generar la tarjeta" as js_msg %}{{ js_msg|escapejs }}';
             if (contentType.includes('application/json')) {
                 try {
                     const data = await response.json();
@@ -830,7 +830,7 @@ function closeImageLightbox() {
         try {
             const { blob, filename } = await fetchCard(format);
             downloadBlob(blob, filename);
-            if (window.showToast) window.showToast('info', '{% trans "Imagen descargada" %}');
+            if (window.showToast) window.showToast('info', '{% trans "Imagen descargada" as js_msg %}{{ js_msg|escapejs }}');
         } catch (error) {
             showCardError(error);
         }
@@ -844,7 +844,7 @@ function closeImageLightbox() {
         actionButtons.forEach(function(button) { button.disabled = true; });
         root.classList.add('opacity-75');
         if (window.showToast) {
-            window.showToast('info', '{% trans "Generando la tarjeta, puede tardar unos segundos…" %}');
+            window.showToast('info', '{% trans "Generando la tarjeta, puede tardar unos segundos…" as js_msg %}{{ js_msg|escapejs }}');
         }
         return run().finally(function() {
             actionButtons.forEach(function(button) { button.disabled = false; });
@@ -861,10 +861,10 @@ function closeImageLightbox() {
                 const { blob, filename, file } = ready;
                 ready = null;
                 button.textContent = originalLabel;
-                navigator.share({ files: [file], title: '{% trans "Resultado" %}', text: SHARE_TEXT }).catch(function(error) {
+                navigator.share({ files: [file], title: '{% trans "Resultado" as js_msg %}{{ js_msg|escapejs }}', text: SHARE_TEXT }).catch(function(error) {
                     if (error && error.name === 'AbortError') return;
                     downloadBlob(blob, filename);
-                    if (window.showToast) window.showToast('info', '{% trans "Imagen descargada" %}');
+                    if (window.showToast) window.showToast('info', '{% trans "Imagen descargada" as js_msg %}{{ js_msg|escapejs }}');
                 });
                 return;
             }
@@ -879,15 +879,15 @@ function closeImageLightbox() {
                     // toque. Se deja lista y se espera un segundo toque explícito.
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         ready = { blob, filename, file };
-                        button.textContent = '{% trans "Toca para compartir" %}';
+                        button.textContent = '{% trans "Toca para compartir" as js_msg %}{{ js_msg|escapejs }}';
                         if (window.showToast) {
-                            window.showToast('info', '{% trans "Imagen lista: vuelve a tocar \"Toca para compartir\"" %}');
+                            window.showToast('info', '{% trans "Imagen lista: vuelve a tocar \"Toca para compartir\"" as js_msg %}{{ js_msg|escapejs }}');
                         }
                         return;
                     }
 
                     downloadBlob(blob, filename);
-                    if (window.showToast) window.showToast('info', '{% trans "Imagen descargada" %}');
+                    if (window.showToast) window.showToast('info', '{% trans "Imagen descargada" as js_msg %}{{ js_msg|escapejs }}');
                 } catch (error) {
                     showCardError(error);
                 }
@@ -991,7 +991,7 @@ function openResultModal(matchId, homeTeam, awayTeam, options) {
     }
 
     const title = document.querySelector('#resultModal h3');
-    if (title) title.textContent = currentEditMode ? '{% trans "Editar Parciales" %}' : '{% trans "Agregar Resultado" %}';
+    if (title) title.textContent = currentEditMode ? '{% trans "Editar Parciales" as js_msg %}{{ js_msg|escapejs }}' : '{% trans "Agregar Resultado" as js_msg %}{{ js_msg|escapejs }}';
 
     // Mostrar modal
     document.getElementById('resultModal').classList.remove('hidden');
@@ -1032,22 +1032,22 @@ async function handleResultSubmit(e) {
 
     const setScores = matchSets ? matchSets.collect() : [];
     if (setScores === null) {
-        showResultError('{% trans "Completa o elimina las filas de parciales a medias" %}');
+        showResultError('{% trans "Completa o elimina las filas de parciales a medias" as js_msg %}{{ js_msg|escapejs }}');
         return;
     }
 
     // Sin parciales se valida el marcador a mano; con ellos se deriva en servidor.
     if (!setScores.length) {
         if (!homeScore || !awayScore) {
-            showResultError('{% trans "Por favor, introduce ambos marcadores" %}');
+            showResultError('{% trans "Por favor, introduce ambos marcadores" as js_msg %}{{ js_msg|escapejs }}');
             return;
         }
         if (homeScore < 0 || awayScore < 0) {
-            showResultError('{% trans "Los marcadores no pueden ser negativos" %}');
+            showResultError('{% trans "Los marcadores no pueden ser negativos" as js_msg %}{{ js_msg|escapejs }}');
             return;
         }
         if (homeScore == awayScore) {
-            showResultError('{% trans "En voleibol no puede haber empate" %}');
+            showResultError('{% trans "En voleibol no puede haber empate" as js_msg %}{{ js_msg|escapejs }}');
             return;
         }
     }
@@ -1089,11 +1089,11 @@ async function handleResultSubmit(e) {
                 window.location.reload();
             }, 1500);
         } else {
-            showResultError(data.error || '{% trans "Error al guardar el resultado" %}');
+            showResultError(data.error || '{% trans "Error al guardar el resultado" as js_msg %}{{ js_msg|escapejs }}');
         }
     } catch (error) {
         console.error('Error:', error);
-        showResultError('{% trans "Error de conexión. Inténtalo de nuevo." %}');
+        showResultError('{% trans "Error de conexión. Inténtalo de nuevo." as js_msg %}{{ js_msg|escapejs }}');
     }
 }
 
@@ -1223,7 +1223,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!players || !players.length) {
             var li = document.createElement('li');
             li.className = 'text-xs text-gray-400 dark:text-gray-500 italic';
-            li.textContent = '{% trans "Sin datos" %}';
+            li.textContent = '{% trans "Sin datos" as js_msg %}{{ js_msg|escapejs }}';
             ul.appendChild(li);
             return;
         }
@@ -1306,7 +1306,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!sets || !sets.length) {
             var msg = document.createElement('p');
             msg.className = 'text-xs text-gray-400 dark:text-gray-500 italic';
-            msg.textContent = '{% trans "Sin datos de sets." %}';
+            msg.textContent = '{% trans "Sin datos de sets." as js_msg %}{{ js_msg|escapejs }}';
             container.appendChild(msg);
             return;
         }
@@ -1395,7 +1395,7 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(data) {
         document.getElementById('lineup-loading').classList.add('hidden');
         if (!data.success) {
-            document.getElementById('lineup-error-message').textContent = data.error || '{% trans "No se pudo cargar el acta." %}';
+            document.getElementById('lineup-error-message').textContent = data.error || '{% trans "No se pudo cargar el acta." as js_msg %}{{ js_msg|escapejs }}';
             document.getElementById('lineup-error').classList.remove('hidden');
             return;
         }
@@ -1408,7 +1408,7 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch(function() {
         document.getElementById('lineup-loading').classList.add('hidden');
-        document.getElementById('lineup-error-message').textContent = '{% trans "Error de conexión al cargar el acta." %}';
+        document.getElementById('lineup-error-message').textContent = '{% trans "Error de conexión al cargar el acta." as js_msg %}{{ js_msg|escapejs }}';
         document.getElementById('lineup-error').classList.remove('hidden');
     });
 })();
@@ -1419,7 +1419,7 @@ function openPlayerModal(player) {
     var p = player.person;
     document.getElementById('playerFullName').textContent = p.full_name || player.name_acta || '';
     document.getElementById('playerPosition').textContent = p.position || '';
-    document.getElementById('playerJersey').textContent = player.number !== null ? '{% trans "Dorsal:" %} ' + player.number : '';
+    document.getElementById('playerJersey').textContent = player.number !== null ? '{% trans "Dorsal:" as js_msg %}{{ js_msg|escapejs }} ' + player.number : '';
 
     // Foto
     var photoDiv = document.getElementById('playerPhoto');

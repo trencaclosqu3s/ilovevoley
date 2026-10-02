@@ -252,13 +252,13 @@ function handleFileSelect(file) {
     const hasValidType = validTypes.includes(file.type);
     
     if (!hasValidType && !hasValidExtension) {
-        alert('{% trans "Formato no válido. Use JPG, PNG, WebP o HEIC" %}');
+        alert('{% trans "Formato no válido. Use JPG, PNG, WebP o HEIC" as js_msg %}{{ js_msg|escapejs }}');
         return;
     }
     
     // Validar tamaño (10MB)
     if (file.size > 10 * 1024 * 1024) {
-        alert('{% trans "El archivo es demasiado grande. Máximo 10MB" %}');
+        alert('{% trans "El archivo es demasiado grande. Máximo 10MB" as js_msg %}{{ js_msg|escapejs }}');
         return;
     }
     
@@ -296,7 +296,7 @@ function selectMatch(matchId, matchName) {
 // Auto-generar título basado en el partido seleccionado
 document.getElementById('id_match').addEventListener('change', function() {
     const titleInput = document.getElementById('id_title');
-    if (!titleInput.value && this.selectedOptions[0] && this.selectedOptions[0].text !== '{% trans "Seleccionar partido (opcional)" %}') {
+    if (!titleInput.value && this.selectedOptions[0] && this.selectedOptions[0].text !== '{% trans "Seleccionar partido (opcional)" as js_msg %}{{ js_msg|escapejs }}') {
         const matchText = this.selectedOptions[0].text;
         const today = new Date().toLocaleDateString('es-ES');
         titleInput.value = `${matchText} - ${today}`;
@@ -312,13 +312,13 @@ document.getElementById('id_image_type').addEventListener('change', function() {
     if (this.value === 'match') {
         matchLabel.innerHTML = '{{ form.match.label }} <span class="text-red-500 dark:text-red-400">*</span>';
         if (helpText) {
-            helpText.textContent = '{% trans "Se recomienda seleccionar el partido correspondiente" %}';
+            helpText.textContent = '{% trans "Se recomienda seleccionar el partido correspondiente" as js_msg %}{{ js_msg|escapejs }}';
         }
         matchSection.classList.remove('opacity-50');
     } else {
         matchLabel.textContent = '{{ form.match.label }}';
         if (helpText) {
-            helpText.textContent = '{% trans "Opcional: vincula la imagen a un partido específico" %}';
+            helpText.textContent = '{% trans "Opcional: vincula la imagen a un partido específico" as js_msg %}{{ js_msg|escapejs }}';
         }
         matchSection.classList.add('opacity-50');
     }

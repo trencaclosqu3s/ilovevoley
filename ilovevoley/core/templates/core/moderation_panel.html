@@ -491,7 +491,7 @@ window.moderateImage = function(imageId, action, buttonElement) {
 
 // Funciones para moderar convocatorias dudosas
 function confirmCallup(playerId, btn) {
-    if (!confirm('{% trans "¿Confirmar esta convocatoria? Se notificará a los socios del club." %}')) return;
+    if (!confirm('{% trans "¿Confirmar esta convocatoria? Se notificará a los socios del club." as js_msg %}{{ js_msg|escapejs }}')) return;
     btn.disabled = true;
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     fetch(`/core/api/callups/${playerId}/confirm/`, {
@@ -510,18 +510,18 @@ function confirmCallup(playerId, btn) {
                 setTimeout(() => card.remove(), 400);
             }
         } else {
-            alert(data.error || '{% trans "Error al confirmar convocatoria" %}');
+            alert(data.error || '{% trans "Error al confirmar convocatoria" as js_msg %}{{ js_msg|escapejs }}');
             btn.disabled = false;
         }
     })
     .catch(err => {
-        alert('{% trans "Error de conexión" %}');
+        alert('{% trans "Error de conexión" as js_msg %}{{ js_msg|escapejs }}');
         btn.disabled = false;
     });
 }
 
 function rejectCallup(playerId, btn) {
-    if (!confirm('{% trans "¿Descartar esta convocatoria para tu club?" %}')) return;
+    if (!confirm('{% trans "¿Descartar esta convocatoria para tu club?" as js_msg %}{{ js_msg|escapejs }}')) return;
     btn.disabled = true;
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     fetch(`/core/api/callups/${playerId}/reject/`, {
@@ -540,12 +540,12 @@ function rejectCallup(playerId, btn) {
                 setTimeout(() => card.remove(), 400);
             }
         } else {
-            alert(data.error || '{% trans "Error al descartar convocatoria" %}');
+            alert(data.error || '{% trans "Error al descartar convocatoria" as js_msg %}{{ js_msg|escapejs }}');
             btn.disabled = false;
         }
     })
     .catch(err => {
-        alert('{% trans "Error de conexión" %}');
+        alert('{% trans "Error de conexión" as js_msg %}{{ js_msg|escapejs }}');
         btn.disabled = false;
     });
 }

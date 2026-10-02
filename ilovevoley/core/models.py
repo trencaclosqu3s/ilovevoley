@@ -197,6 +197,10 @@ class Organization(models.Model):
     logo            = models.ImageField(upload_to='organizations/logos/', null=True, blank=True)
     primary_color   = models.CharField(max_length=7, default='#9B7FBF', validators=[_hex_color_validator])
     secondary_color = models.CharField(max_length=7, default='#7B5FA0', blank=True, validators=[_hex_color_validator])
+    gradient_color  = models.CharField(
+        max_length=7, blank=True, validators=[_hex_color_validator],
+        help_text=_('Color final del degradado de la cabecera del perfil. Vacío: usa el color secundario.'),
+    )
     instagram_url   = models.URLField(blank=True, help_text=_('URL del perfil de Instagram del club'))
     default_home    = models.CharField(
         max_length=20,

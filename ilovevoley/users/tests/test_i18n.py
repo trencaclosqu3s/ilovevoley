@@ -52,7 +52,7 @@ class SetLanguageViewTests(TestCase):
         )
 
         self.user.refresh_from_db()
-        self.assertEqual(self.user.preferred_language, 'es')
+        self.assertEqual(self.user.preferred_language, '')
 
 
 class UserLanguageMiddlewareTests(TestCase):
@@ -117,3 +117,26 @@ class CatalanCatalogTests(TestCase):
             from django.utils.translation import gettext as _
 
             self.assertEqual(_('Calendario de partidos'), 'Calendari de partits')
+
+
+class ScriptTranslationEscapingTests(TestCase):
+    """Un ``{% trans %}`` dentro de ``<script>`` debe ir con ``escapejs``.
+
+    El catalán usa apóstrofos (``No s'ha pogut…``); sin escapar rompen el
+    literal JS y el navegador descarta el script entero.
+    """
+
+    def test_trans_inside_script_blocks_is_escaped(self):
+        import re
+        from django.conf import settings
+
+        files = (settings.BASE_DIR / 'ilovevoley').rglob('*.html')
+        script = re.compile(r'<script\b[^>]*>(.*?)</script>', re.S)
+        bare_trans = re.compile(r'\{%\s*(?:trans|translate)\s+"(?:[^"\\]|\\.)*"\s*%\}')
+        offenders = [
+            f for f in files
+            for block in script.findall(f.read_text(encoding='utf-8'))
+            if bare_trans.search(block)
+        ]
+
+        self.assertEqual(offenders, [])

@@ -18,7 +18,7 @@ class OrganizationAdmin(ModelAdmin):
     search_fields = ['slug', 'name']
     readonly_fields = ['club_teams_count', 'club_names_status']
     fields = [
-        'slug', 'name', 'logo', 'primary_color', 'secondary_color',
+        'slug', 'name', 'logo', 'primary_color', 'secondary_color', 'gradient_color',
         'instagram_url', 'default_home', 'club', 'club_team_names', 'is_active',
         'notify_match_changes', 'has_male_branch', 'has_female_branch',
         'has_mixed_branch', 'club_teams_count', 'club_names_status',

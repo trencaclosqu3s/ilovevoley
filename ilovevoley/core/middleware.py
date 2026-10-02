@@ -48,9 +48,7 @@ class UserLanguageMiddleware:
         if user is not None and user.is_authenticated:
             preferred = getattr(user, 'preferred_language', '')
             if preferred and preferred in dict(settings.LANGUAGES):
-                explicit = request.COOKIES.get(settings.LANGUAGE_COOKIE_NAME) or \
-                    request.session.get(settings.LANGUAGE_COOKIE_NAME)
-                if not explicit:
+                if not request.COOKIES.get(settings.LANGUAGE_COOKIE_NAME):
                     translation.activate(preferred)
                     request.LANGUAGE_CODE = preferred
         return self.get_response(request)

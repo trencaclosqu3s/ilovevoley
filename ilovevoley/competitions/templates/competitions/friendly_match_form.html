@@ -312,7 +312,7 @@ class TeamAutocomplete {
         if (teams.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'autocomplete-item';
-            empty.textContent = '{% trans "No se encontraron equipos. Puedes escribir el nombre libremente." %}';
+            empty.textContent = '{% trans "No se encontraron equipos. Puedes escribir el nombre libremente." as js_msg %}{{ js_msg|escapejs }}';
             this.resultsDiv.appendChild(empty);
             this.resultsDiv.classList.remove('hidden');
             return;
@@ -330,7 +330,7 @@ class TeamAutocomplete {
 
             const detailEl = document.createElement('div');
             detailEl.className = 'autocomplete-item-detail';
-            detailEl.textContent = team.display || '{% trans "Equipo rival (otro club)" %}';
+            detailEl.textContent = team.display || '{% trans "Equipo rival (otro club)" as js_msg %}{{ js_msg|escapejs }}';
 
             item.append(nameEl, detailEl);
             item.addEventListener('click', () => {
@@ -364,7 +364,7 @@ class TeamAutocomplete {
         const badge = document.createElement('div');
         badge.className = 'selected-team-badge';
         const label = document.createElement('span');
-        label.textContent = '✓ {% trans "Equipo seleccionado:" %} ' + teamName;
+        label.textContent = '✓ {% trans "Equipo seleccionado:" as js_msg %}{{ js_msg|escapejs }} ' + teamName;
         const clearBtn = document.createElement('button');
         clearBtn.type = 'button';
         clearBtn.id = clearButtonId;

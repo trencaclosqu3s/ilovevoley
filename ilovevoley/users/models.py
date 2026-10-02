@@ -40,9 +40,10 @@ class User(AbstractUser):
     preferred_language = models.CharField(
         max_length=5,
         choices=[('es', 'Español'), ('ca', 'Català')],
-        default='es',
+        blank=True,
+        default='',
         verbose_name=_('Idioma preferido'),
-        help_text=_('Idioma en el que se muestra la interfaz.'),
+        help_text=_('Idioma en el que se muestra la interfaz. Vacío: el del navegador.'),
     )
 
     def __str__(self):

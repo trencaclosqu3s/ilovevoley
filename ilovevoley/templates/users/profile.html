@@ -439,7 +439,7 @@
             // Cambiar el texto del botón temporalmente
             const button = event.target.closest('button');
             const originalHTML = button.innerHTML;
-            button.innerHTML = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>{% trans "¡Copiado!" %}';
+            button.innerHTML = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>{% trans "¡Copiado!" as js_msg %}{{ js_msg|escapejs }}';
             button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
             button.classList.add('bg-green-600');
             
@@ -469,11 +469,11 @@
     });
     
     function confirmRegenerateToken() {
-        if (confirm('{% trans "⚠️ ¿Estás seguro de que quieres regenerar la URL?" %}\n\n' +
-                    '{% trans "• La URL actual dejará de funcionar" %}\n' +
-                    '{% trans "• Tendrás que volver a suscribirte con la nueva URL" %}\n' +
-                    '{% trans "• Esto es útil si cambiaste de categorías o quieres dejar de recibir partidos" %}\n\n' +
-                    '{% trans "¿Continuar?" %}')) {
+        if (confirm('{% trans "⚠️ ¿Estás seguro de que quieres regenerar la URL?" as js_msg %}{{ js_msg|escapejs }}\n\n' +
+                    '{% trans "• La URL actual dejará de funcionar" as js_msg %}{{ js_msg|escapejs }}\n' +
+                    '{% trans "• Tendrás que volver a suscribirte con la nueva URL" as js_msg %}{{ js_msg|escapejs }}\n' +
+                    '{% trans "• Esto es útil si cambiaste de categorías o quieres dejar de recibir partidos" as js_msg %}{{ js_msg|escapejs }}\n\n' +
+                    '{% trans "¿Continuar?" as js_msg %}{{ js_msg|escapejs }}')) {
             regenerateToken();
         }
     }
@@ -493,16 +493,16 @@
                 document.getElementById('calendar-url').value = data.calendar_url;
                 
                 // Mostrar mensaje de éxito
-                alert('{% trans "✅ URL regenerada correctamente." %}\n\n' +
-                      '{% trans "La URL anterior ya no funciona." %}\n' +
-                      '{% trans "Si quieres seguir recibiendo partidos, copia la nueva URL y vuelve a suscribirte en tu calendario." %}');
+                alert('{% trans "✅ URL regenerada correctamente." as js_msg %}{{ js_msg|escapejs }}\n\n' +
+                      '{% trans "La URL anterior ya no funciona." as js_msg %}{{ js_msg|escapejs }}\n' +
+                      '{% trans "Si quieres seguir recibiendo partidos, copia la nueva URL y vuelve a suscribirte en tu calendario." as js_msg %}{{ js_msg|escapejs }}');
             } else {
-                alert('{% trans "❌ Error al regenerar la URL: " %}' + (data.error || '{% trans "Error desconocido" %}'));
+                alert('{% trans "❌ Error al regenerar la URL: " as js_msg %}{{ js_msg|escapejs }}' + (data.error || '{% trans "Error desconocido" as js_msg %}{{ js_msg|escapejs }}'));
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('{% trans "❌ Error al regenerar la URL. Por favor, inténtalo de nuevo." %}');
+            alert('{% trans "❌ Error al regenerar la URL. Por favor, inténtalo de nuevo." as js_msg %}{{ js_msg|escapejs }}');
         });
     }
 </script>

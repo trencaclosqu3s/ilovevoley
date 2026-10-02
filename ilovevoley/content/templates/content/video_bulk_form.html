@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (categorySelect && matchSelect) {
         categorySelect.addEventListener('change', function () {
             const categoryId = this.value;
-            matchSelect.innerHTML = '<option value="">{% trans "Cargando partidos..." %}</option>';
+            matchSelect.innerHTML = '<option value="">{% trans "Cargando partidos..." as js_msg %}{{ js_msg|escapejs }}</option>';
             matchSelect.disabled = true;
             fetch(`{% url 'competitions:ajax_matches_by_category' %}?category_id=${categoryId}`)
                 .then(r => r.json())
@@ -113,8 +113,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     const empty = document.createElement('option');
                     empty.value = '';
                     empty.textContent = categoryId
-                        ? '{% trans "Seleccionar partido de" %} ' + categorySelect.options[categorySelect.selectedIndex].text + ' {% trans "(opcional)" %}'
-                        : '{% trans "Seleccionar partido del club (opcional)" %}';
+                        ? '{% trans "Seleccionar partido de" as js_msg %}{{ js_msg|escapejs }} ' + categorySelect.options[categorySelect.selectedIndex].text + ' {% trans "(opcional)" as js_msg %}{{ js_msg|escapejs }}'
+                        : '{% trans "Seleccionar partido del club (opcional)" as js_msg %}{{ js_msg|escapejs }}';
                     matchSelect.appendChild(empty);
                     data.matches.forEach(m => {
                         const opt = document.createElement('option');
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     matchSelect.disabled = false;
                 })
                 .catch(() => {
-                    matchSelect.innerHTML = '<option value="">{% trans "Error cargando partidos" %}</option>';
+                    matchSelect.innerHTML = '<option value="">{% trans "Error cargando partidos" as js_msg %}{{ js_msg|escapejs }}</option>';
                     matchSelect.disabled = false;
                 });
         });

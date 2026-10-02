@@ -121,6 +121,16 @@ class P1P2NotificationTasksTest(TestCase):
         self.assertIn('aprobada', mail.outbox[0].subject.lower())
         self.assertEqual(mail.outbox[0].to, ['member@test.com'])
 
+    def test_moderation_result_email_uses_recipient_language(self):
+        from ilovevoley.core.tasks import notify_user_moderation_result_task
+
+        self.user.preferred_language = 'ca'
+        self.user.save()
+
+        notify_user_moderation_result_task(self.user.id, True, 'http://example.test/')
+
+        self.assertEqual(mail.outbox[0].subject, 'El teu compte ha estat aprovat a I Love Voley')
+
     def test_send_404_alert_task_sends_mail(self):
         from ilovevoley.core.tasks import send_404_immediate_alert_task
 

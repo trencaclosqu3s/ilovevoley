@@ -33,14 +33,15 @@ class TenantContextTest(TestCase):
         self.assertEqual(context['tenant_gradient_from_rgb'], '1 105 111')
         self.assertEqual(context['tenant_gradient_to_rgb'], '0 77 82')
 
-    def test_sant_josep_tenant_resolves_to_yellow_gradient(self):
+    def test_explicit_gradient_color_overrides_secondary(self):
         from ilovevoley.core.models import Organization
 
         org = Organization(
-            slug='santjosep',
-            name='Club Sant Josep',
+            slug='club-amarillo',
+            name='Club Amarillo',
             primary_color='#9B7FBF',
             secondary_color='#7B5FA0',
+            gradient_color='#F4D47C',
         )
 
         context = self._context(user=None, tenant=org)

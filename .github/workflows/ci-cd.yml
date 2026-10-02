@@ -83,6 +83,9 @@ jobs:
       - name: No debe haber migraciones pendientes de generar
         run: python manage.py makemigrations --check --dry-run
 
+      - name: Compilar catálogos de traducción
+        run: python manage.py compilemessages
+
       - name: Tests
         run: python -m pytest --create-db -v
 

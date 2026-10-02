@@ -73,13 +73,6 @@ if ! docker compose run --rm web python manage.py collectstatic --noinput; then
     rollback
 fi
 
-# Compilar catálogos de traducción (.po -> .mo)
-echo "🌍 Compilando mensajes de traducción..."
-if ! docker compose run --rm web python manage.py compilemessages; then
-    echo "❌ Error al compilar los mensajes de traducción."
-    rollback
-fi
-
 # Actualizar y reiniciar contenedores
 echo "♻️  Actualizando servicios (mínimo downtime)..."
 if ! docker compose up -d --remove-orphans; then

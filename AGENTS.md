@@ -72,6 +72,11 @@ guarda en `User.preferred_language` y el middleware `UserLanguageMiddleware`
 la aplica solo si no hay elección explícita. Los catálogos viven en
 `locale/<lang>/LC_MESSAGES/django.po` (fuera de las apps, vía `LOCALE_PATHS`).
 Al añadir cadenas nuevas: `makemessages -l ca` y traducir antes de desplegar.
+`preferred_language` vacío = sin elegir (se respeta el idioma del navegador).
+Los avisos fuera de petición (emails, push, Celery) se componen en el idioma de
+cada destinatario con `ilovevoley.core.i18n`: `send_notification_email` acepta un
+`subject` callable y `push_message(builder)` genera las traducciones del push.
+Dentro de `<script>`, todo `{% trans %}` va con `as x` + `{{ x|escapejs }}`.
 
 ## Restricciones y Reglas de Negocio
 

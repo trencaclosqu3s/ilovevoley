@@ -253,20 +253,20 @@ function markAsReviewed(button) {
         }
     })
     .then(response => {
-        if (!response.ok) throw new Error('{% trans "Error de autorización" %}');
+        if (!response.ok) throw new Error('{% trans "Error de autorización" as js_msg %}{{ js_msg|escapejs }}');
         return response.json();
     })
     .then(data => {
         if (data.status === 'success') {
             const badge = document.createElement('span');
             badge.className = 'inline-flex items-center text-green-700 dark:text-green-400 font-medium bg-green-50 dark:bg-green-950/40 px-2 py-1 rounded';
-            badge.textContent = '✓ {% trans "Revisado por" %} ' + (data.reviewed_by || 'Admin');
+            badge.textContent = '✓ {% trans "Revisado por" as js_msg %}{{ js_msg|escapejs }} ' + (data.reviewed_by || 'Admin');
             container.replaceChildren(badge);
         }
     })
     .catch(err => {
         button.disabled = false;
-        alert('{% trans "No se pudo marcar como revisado:" %} ' + err.message);
+        alert('{% trans "No se pudo marcar como revisado:" as js_msg %}{{ js_msg|escapejs }} ' + err.message);
     });
 }
 </script>

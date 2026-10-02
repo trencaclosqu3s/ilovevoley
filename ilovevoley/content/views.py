@@ -929,6 +929,7 @@ def image_bulk_upload(request):
             # Despachar notificación push asíncrona al club si se creó un nuevo álbum
             tenant = getattr(request, 'tenant', None)
             if tenant and create_album and not match_id:
+                from ilovevoley.core.i18n import push_message
                 from ilovevoley.users.tasks import notify_web_push_organization_task
                 album_url = (
                     reverse('content:album_group_images', args=[album_group_id])
@@ -937,11 +938,11 @@ def image_bulk_upload(request):
                 )
                 notify_web_push_organization_task.delay(
                     organization_id=tenant.id,
-                    title=_('Nuevo Álbum'),
-                    body=(
+                    **push_message(lambda: (
+                        _('Nuevo Álbum'),
                         _('Se han subido nuevas fotos: %(album)s') % {'album': album_name}
-                        if album_name else _('Se han subido nuevas fotos')
-                    ),
+                        if album_name else _('Se han subido nuevas fotos'),
+                    )),
                     url=album_url,
                     category_ids=[int(c) for c in request.POST.getlist('categories') if c.isdigit()],
                     notification_type='new_album',
