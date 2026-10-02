@@ -201,7 +201,7 @@ send_notification_email(
    ```bash
    # Opción 1: Registro tradicional en /accounts/signup/
    # Opción 2: Usar comando de test
-   python manage.py test_email_notifications --type new_user
+   python manage.py send_test_emails --type new_user
    ```
 
 2. **Revisar email** enviado a superusers

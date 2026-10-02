@@ -23,7 +23,7 @@ Se ha mejorado el sistema de notificaciones por email para que **automáticament
 - **`ilovevoley/users/signals.py`**: Ahora usa `email_utils` centralizado
 - **`ilovevoley/videos/signals.py`**: Ahora usa `email_utils` centralizado  
 - **`ilovevoley/core/middleware.py`**: Usa `get_admin_emails()` para reportes 404
-- **`ilovevoley/users/management/commands/test_email_notifications.py`**: Actualizado para usar el sistema dinámico
+- **`ilovevoley/users/management/commands/send_test_emails.py`**: Actualizado para usar el sistema dinámico
 - **`ilovevoley/docs/NOTIFICACIONES_EMAIL.md`**: Documentación actualizada
 
 ### Eliminado:
@@ -93,13 +93,13 @@ print(get_admin_emails())
 
 ```bash
 # Verificar configuración y ver qué superusers tienen email
-docker-compose exec web python manage.py test_email_notifications --test-type=config
+docker-compose exec web python manage.py send_test_emails --test-type=config
 
 # Enviar emails de prueba a todos los superusers
-docker-compose exec web python manage.py test_email_notifications --test-type=all
+docker-compose exec web python manage.py send_test_emails --test-type=all
 
 # Enviar a un email específico para pruebas
-docker-compose exec web python manage.py test_email_notifications --test-type=all --email=tu-email@gmail.com
+docker-compose exec web python manage.py send_test_emails --test-type=all --email=tu-email@gmail.com
 ```
 
 ## ⚠️ Compatibilidad con Configuración Anterior
@@ -139,7 +139,7 @@ Todas las notificaciones a administradores ahora usan el sistema dinámico:
 
 3. Verificar configuración SMTP:
    ```bash
-   docker-compose exec web python manage.py test_email_notifications --test-type=config
+   docker-compose exec web python manage.py send_test_emails --test-type=config
    ```
 
 ### "Quiero añadir un email adicional que no es superuser"
