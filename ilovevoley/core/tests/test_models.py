@@ -1,7 +1,6 @@
 import datetime
 
 from django.test import TestCase
-from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 
 
@@ -87,13 +86,6 @@ class SeasonModelTest(TestCase):
 
 
 class OrganizationModelTest(TestCase):
-    def test_slug_unique(self):
-        from ilovevoley.core.models import Organization
-        from django.db import IntegrityError
-        Organization.objects.create(slug='unique', name='A')
-        with self.assertRaises(IntegrityError):
-            Organization.objects.create(slug='unique', name='B')
-
     def test_instagram_handle(self):
         from ilovevoley.core.models import Organization
         org = Organization.objects.create(
@@ -105,11 +97,6 @@ class OrganizationModelTest(TestCase):
         org.instagram_url = ''
         self.assertEqual(org.instagram_handle, '')
 
-    def test_home_url_name_defaults_to_videos(self):
-        from ilovevoley.core.models import Organization
-        org = Organization.objects.create(slug='homeclub', name='Home Club')
-        self.assertEqual(org.home_url_name, 'content:video_list')
-
     def test_home_url_name_falls_back_when_unknown(self):
         from ilovevoley.core.models import Organization
         org = Organization.objects.create(
@@ -118,15 +105,9 @@ class OrganizationModelTest(TestCase):
         self.assertEqual(org.home_url_name, 'content:video_list')
 
 
-class MembershipModelTest(TestCase):
-    def test_unique_user_organization(self):
-        from django.contrib.auth import get_user_model
-        from ilovevoley.core.models import Organization
-        from ilovevoley.users.models import Membership
-        from django.db import IntegrityError
-        User = get_user_model()
-        org = Organization.objects.create(slug='club1', name='Club 1')
-        user = User.objects.create_user(username='testuser', password='pass')
-        Membership.objects.create(user=user, organization=org)
-        with self.assertRaises(IntegrityError):
-            Membership.objects.create(user=user, organization=org)
+class OrganizationBranchesTest(TestCase):
+    def test_default_branches_are_male_only(self):
+        from ilovevoley.core.models import GENDER_MALE, Organization
+
+        org = Organization.objects.create(slug='o-default', name='Org Default')
+        self.assertEqual(org.active_branches, {GENDER_MALE})

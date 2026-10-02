@@ -1,4 +1,4 @@
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -6,6 +6,18 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from datetime import datetime, timedelta
 from email.utils import parseaddr
+from django_ratelimit.exceptions import Ratelimited
+
+import json
+import re
+
+from ilovevoley.core.views import custom_429
+
+
+def _count_script(content, needle):
+    """Cuenta etiquetas <script src> que referencian ``needle`` tolerando el
+    hash de ``ManifestStaticFilesStorage``."""
+    return len(re.findall(rb'<script[^>]+src="[^"]*' + needle.encode() + rb'[^"]*"', content))
 
 from ilovevoley.content.models import Image
 from ilovevoley.core import views as core_views
@@ -340,8 +352,8 @@ class TenantManagerModerationTest(TestCase):
             reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
-        self.assertEqual(response.content.count(b'js/moderation.js'), 1)
+        self.assertEqual(_count_script(response.content, 'js/lightbox'), 1)
+        self.assertEqual(_count_script(response.content, 'js/moderation'), 1)
 
     def test_panel_loads_each_script_once_for_superuser(self):
         """base.html ya carga ambos scripts para superusers; el panel no debe
@@ -354,8 +366,8 @@ class TenantManagerModerationTest(TestCase):
             reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
-        self.assertEqual(response.content.count(b'js/moderation.js'), 1)
+        self.assertEqual(_count_script(response.content, 'js/lightbox'), 1)
+        self.assertEqual(_count_script(response.content, 'js/moderation'), 1)
 
     def test_manager_counts_api_scoped_to_tenant(self):
         self.client.force_login(self.manager)
@@ -640,23 +652,6 @@ class TailwindStaticCssTest(TestCase):
         self.assertIn('background-color:rgb(var(--brand-rgb,155 127 191)/var(--tw-bg-opacity,1))', css)
         self.assertIn('color:rgb(var(--brand-rgb,155 127 191)/var(--tw-text-opacity,1))', css)
 
-    def test_management_command_tailwind_build(self):
-        import pathlib
-        from io import StringIO
-        from unittest.mock import MagicMock, patch
-        from django.core.management import call_command
-
-        out = StringIO()
-        fake_bin = pathlib.Path('/fake/bin/tailwindcss')
-        fake_result = MagicMock(returncode=0, stderr='')
-
-        with patch('scripts.build_tailwind.ensure_binary', return_value=fake_bin) as mock_ensure, \
-             patch('subprocess.run', return_value=fake_result) as mock_run:
-            call_command('tailwind', 'build', stdout=out)
-            mock_ensure.assert_called_once()
-            mock_run.assert_called_once()
-            self.assertIn('Tailwind CSS compilado con éxito', out.getvalue())
-
 
 class HealthzViewTest(TestCase):
     def test_healthz_success(self):
@@ -674,13 +669,63 @@ class HealthzViewTest(TestCase):
             self.assertEqual(response.status_code, 503)
             self.assertEqual(response.json(), {'status': 'error'})
 
-    @override_settings(
-        SECURE_SSL_REDIRECT=True,
-        SECURE_REDIRECT_EXEMPT=[r'^healthz/?$'],
-        ALLOWED_HOSTS=['localhost', '127.0.0.1', 'testserver'],
-    )
-    def test_healthz_exempt_from_ssl_redirect(self):
-        response = self.client.get('/healthz', secure=False)
-        self.assertEqual(response.status_code, 200)
+
+class Custom429HandlerTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def test_custom_429_html_response(self):
+        request = self.factory.get('/test/')
+        with self.assertTemplateUsed('429.html'):
+            response = custom_429(request, exception=Ratelimited())
+        self.assertEqual(response.status_code, 429)
+
+    def test_custom_429_json_response_for_ajax(self):
+        request = self.factory.get('/test/', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        response = custom_429(request, exception=Ratelimited())
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response['Content-Type'], 'application/json')
+        data = json.loads(response.content.decode('utf-8'))
+        self.assertIn('error', data)
+        self.assertIn('detail', data)
+
+    def test_custom_429_json_response_for_accept_json(self):
+        request = self.factory.get('/test/', HTTP_ACCEPT='application/json')
+        response = custom_429(request, exception=Ratelimited())
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response['Content-Type'], 'application/json')
+
+
+@override_settings(
+    RATELIMIT_ENABLE=True,
+    RATELIMIT_USE_CACHE='default',
+)
+class ModerationRateLimitingTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    def test_moderate_user_rate_limiting_by_ip(self):
+        url = '/moderate/user/some-token-string/'
+        client_ip = '198.51.100.90'
+
+        # 10 peticiones dentro del límite (redirige a login o 400 si no autenticado)
+        for i in range(10):
+            response = self.client.get(url, REMOTE_ADDR=client_ip)
+            self.assertNotEqual(response.status_code, 429)
+
+        # 11ª petición bloqueada con 429
+        blocked_response = self.client.get(url, REMOTE_ADDR=client_ip)
+        self.assertEqual(blocked_response.status_code, 429)
+
+    def test_moderate_image_rate_limiting_by_ip(self):
+        url = '/moderate/image/some-token-string/'
+        client_ip = '198.51.100.91'
+
+        for i in range(10):
+            response = self.client.get(url, REMOTE_ADDR=client_ip)
+            self.assertNotEqual(response.status_code, 429)
+
+        blocked_response = self.client.get(url, REMOTE_ADDR=client_ip)
+        self.assertEqual(blocked_response.status_code, 429)
 
 

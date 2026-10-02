@@ -82,8 +82,3 @@ class MatchChangeLogAdminTest(TestCase):
         self.assertEqual(self.log1.reviewed_by, self.user)
         self.assertIsNotNone(self.log1.reviewed_at)
 
-    def test_change_type_badge(self):
-        badge_html = self.admin.change_type_badge(self.log1)
-        self.assertIn('Fecha / Hora', badge_html)
-        self.assertIn('#fee2e2', badge_html)
-

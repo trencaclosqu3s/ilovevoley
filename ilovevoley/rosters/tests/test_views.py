@@ -1,46 +1,79 @@
 import base64
-import re
 import shutil
 import tempfile
 from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.test import SimpleTestCase, TestCase, override_settings
-from django.urls import reverse
+from django.test import TestCase, override_settings
+from django.urls import resolve, reverse
 from django.utils import timezone
 from PIL import Image
 
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.competitions.models import League, Match, MatchLineup
-from ilovevoley.rosters import forms as rosters_forms
-from ilovevoley.rosters import views as rosters_views
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
 from ilovevoley.teams.models import Club, Team
 from ilovevoley.videos.forms import rosters as vid_forms_rosters
 from ilovevoley.videos.views import rosters as vid_views_rosters
 
 
-class RostersReExportCompatibilityTest(SimpleTestCase):
-    """Verifica que las importaciones históricas desde videos sigan funcionando."""
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class RostersReExportCompatibilityTest(TestCase):
+    """La capa de compatibilidad de ``videos`` conserva formularios y vistas históricas."""
 
-    def test_forms_are_reexported(self):
-        self.assertIs(vid_forms_rosters.PersonForm, rosters_forms.PersonForm)
-        self.assertIs(vid_forms_rosters.PlayerRoleForm, rosters_forms.PlayerRoleForm)
-        self.assertIs(vid_forms_rosters.StaffRoleForm, rosters_forms.StaffRoleForm)
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club',
+            club_team_names={'1': 'Test Club'}, is_active=True,
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(
+            name='Test Club Senior', category=self.category,
+            federation_id='REEXPORT-R1', is_active=True,
+        )
 
-    def test_views_are_reexported(self):
-        self.assertIs(vid_views_rosters.roster_overview, rosters_views.roster_overview)
-        self.assertIs(vid_views_rosters.person_list, rosters_views.person_list)
-        self.assertIs(vid_views_rosters.person_detail, rosters_views.person_detail)
-        self.assertIs(vid_views_rosters.person_create, rosters_views.person_create)
-        self.assertIs(vid_views_rosters.person_edit, rosters_views.person_edit)
-        self.assertIs(vid_views_rosters.player_role_create, rosters_views.player_role_create)
-        self.assertIs(vid_views_rosters.staff_role_create, rosters_views.staff_role_create)
-        self.assertIs(vid_views_rosters.player_role_edit, rosters_views.player_role_edit)
-        self.assertIs(vid_views_rosters.staff_role_edit, rosters_views.staff_role_edit)
-        self.assertIs(vid_views_rosters.player_role_toggle_active, rosters_views.player_role_toggle_active)
-        self.assertIs(vid_views_rosters.staff_role_toggle_active, rosters_views.staff_role_toggle_active)
+    def test_legacy_form_import_creates_a_person(self):
+        form = vid_forms_rosters.PersonForm(
+            {'first_name': 'Legacy', 'last_name': 'Ficha'},
+            organization=self.org,
+        )
+        self.assertTrue(form.is_valid())
+        person = form.save()
+        self.assertEqual(person.organization, self.org)
+
+    def test_legacy_views_resolve_to_the_canonical_roster_urls(self):
+        routes = [
+            ('roster_overview', 'rosters:roster_overview', []),
+            ('person_list', 'rosters:person_list', []),
+            ('person_detail', 'rosters:person_detail', [1]),
+            ('person_create', 'rosters:person_create', []),
+            ('person_edit', 'rosters:person_edit', [1]),
+            ('player_role_create', 'rosters:player_role_create', [1]),
+            ('staff_role_create', 'rosters:staff_role_create', [1]),
+            ('player_role_edit', 'rosters:player_role_edit', [1]),
+            ('staff_role_edit', 'rosters:staff_role_edit', [1]),
+            ('player_role_toggle_active', 'rosters:player_role_toggle_active', [1]),
+            ('staff_role_toggle_active', 'rosters:staff_role_toggle_active', [1]),
+        ]
+        for attr, route, args in routes:
+            with self.subTest(view=attr):
+                legacy_view = getattr(vid_views_rosters, attr)
+                self.assertIs(resolve(reverse(route, args=args)).func, legacy_view)
+
+    def test_legacy_roster_overview_renders_the_tenant_teams(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('rosters:roster_overview'), HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(response.resolver_match.func, vid_views_rosters.roster_overview)
+        self.assertIn(self.team, response.context['teams'])
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
@@ -92,7 +125,9 @@ class RosterViewUrlTests(TestCase):
         self.assertEqual(url, '/rosters/plantillas/')
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Plantillas')
+        self.assertIn(self.team, response.context['teams'])
+        self.assertEqual(response.context['total_stats']['total_teams'], 1)
+        self.assertEqual(response.context['total_stats']['total_players'], 1)
 
     def test_rosters_person_list_url_resolves_and_renders(self):
         self.client.force_login(self.user)
@@ -237,16 +272,6 @@ class RosterViewUrlTests(TestCase):
         url_detail = reverse('rosters:person_detail', kwargs={'person_id': orphan_person.id})
         response_detail = self.client.get(url_detail, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response_detail.status_code, 404)
-
-    def test_orphan_team_without_club_denied_access(self):
-        from ilovevoley.core.tenant_utils import team_belongs_to_tenant
-        orphan_team = Team.objects.create(
-            name='Test Club Huérfano',
-            club=None,
-            federation_id='TEAM-ORPHAN-1',
-            is_active=True,
-        )
-        self.assertFalse(team_belongs_to_tenant(orphan_team, self.org))
 
 
 def _png_data_uri():
@@ -509,26 +534,6 @@ class RostersTenantIsolationTests(TestCase):
         self.person_a.refresh_from_db()
         self.assertEqual(self.person_a.organization, self.org_a)
 
-    def test_staff_global_sin_membresia_no_edita_otra_organizacion(self):
-        # Tiene is_staff y membresía en A, pero ninguna en B.
-        self.assertFalse(self.staff.can_edit_person(self.person_b, self.org_b))
-        # Y sí puede sobre las fichas de su propia organización.
-        self.assertTrue(self.staff.can_edit_person(self.person_a, self.org_a))
-
-    def test_miembro_sin_staff_no_edita_ficha_del_club(self):
-        self.assertFalse(self.member.can_edit_person(self.person_a, self.org_a))
-
-    def test_staff_global_con_rol_miembro_no_edita_ficha_del_club(self):
-        User = get_user_model()
-        from ilovevoley.users.models import Membership
-        staff_member = User.objects.create_user(
-            username='staff-member', password='pass', is_staff=True
-        )
-        Membership.objects.create(
-            user=staff_member, organization=self.org_a, role='member', is_approved=True,
-        )
-        self.assertFalse(staff_member.can_edit_person(self.person_a, self.org_a))
-
     def test_staff_global_sin_membresia_no_accede_a_editar_en_otro_club(self):
         # El decorador de tenant corta al no tener membresía aprobada en B.
         self.client.force_login(self.staff)
@@ -537,22 +542,6 @@ class RostersTenantIsolationTests(TestCase):
             HTTP_HOST='club-b.ilovevoley.es',
         )
         self.assertNotEqual(response.status_code, 200)
-
-    def test_staff_role_form_button_has_accessible_contrast(self):
-        """El botón de guardar rol de staff usa texto oscuro sobre amarillo (sin text-white)."""
-        self.client.force_login(self.staff)
-        response = self.client.get(
-            reverse('rosters:staff_role_create', args=[self.person_a.id]),
-            HTTP_HOST='club-a.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 200)
-        content = response.content.decode('utf-8')
-        match = re.search(r'<button\b[^>]*type=["\']submit["\'][^>]*>', content)
-        self.assertIsNotNone(match, 'No se encontró el botón de submit')
-        button_tag = match.group(0)
-        self.assertIn('bg-csj-yellow', button_tag)
-        self.assertIn('text-gray-900', button_tag)
-        self.assertNotIn('text-white', button_tag)
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])

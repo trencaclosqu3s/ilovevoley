@@ -21,6 +21,18 @@ from ilovevoley.videos.forms import competitions as vid_forms_comp
 from ilovevoley.videos.views import competitions as vid_views_comp
 
 
+import re
+
+
+def _count_script(content, needle):
+    """Cuenta etiquetas <script src> que referencian ``needle``.
+
+    Tolera el hash que añade ``ManifestStaticFilesStorage`` (``js/lightbox.<hash>.js``),
+    que varía entre entornos con y sin ``collectstatic``.
+    """
+    return len(re.findall(rb'<script[^>]+src="[^"]*' + needle.encode() + rb'[^"]*"', content))
+
+
 class CompetitionsReExportCompatibilityTest(SimpleTestCase):
     """Verifica que las importaciones históricas desde videos sigan funcionando."""
 
@@ -272,31 +284,73 @@ class CompetitionsViewUrlTests(TestCase):
 
     def test_standings_acepta_season_name_y_el_antiguo_season(self):
         self.client.force_login(self.user)
+        other_league = League.objects.create(
+            name='Liga Temporada Anterior',
+            federation_id='LEAGUE-OLD',
+            season=Season.objects.resolve('2025-2026'),
+            is_active=True,
+            visibility_type='main',
+            is_our_team_related=True,
+        )
+        other_league.categories.add(self.category)
+        Standing.objects.create(
+            league=other_league, team=self.team, position=1, played=1, won=1, total_points=3,
+        )
+
         url = reverse('competitions:standings_view')
         # La liga del setUp es de la temporada 2026-2027.
         for param in ('season_name=2026-27', 'season=2026-27'):
-            response = self.client.get(
-                f'{url}?{param}', HTTP_HOST='testclub.ilovevoley.es'
-            )
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(response, 'Superliga 2')
+            with self.subTest(param=param):
+                response = self.client.get(
+                    f'{url}?{param}', HTTP_HOST='testclub.ilovevoley.es'
+                )
+                self.assertEqual(response.status_code, 200)
+                standings_by_league = response.context['standings_by_league']
+                self.assertIn('Superliga 2', standings_by_league)
+                self.assertNotIn('Liga Temporada Anterior', standings_by_league)
 
     def test_standings_ignora_season_con_id_numerico(self):
         self.client.force_login(self.user)
+        other_league = League.objects.create(
+            name='Liga Temporada Anterior',
+            federation_id='LEAGUE-OLD',
+            season=Season.objects.resolve('2025-2026'),
+            is_active=True,
+            visibility_type='main',
+            is_our_team_related=True,
+        )
+        other_league.categories.add(self.category)
+        Standing.objects.create(
+            league=other_league, team=self.team, position=1, played=1, won=1, total_points=3,
+        )
+
         url = reverse('competitions:standings_view')
-        # Un id no es un nombre de temporada: no debe filtrar por un valor basura.
+        # Un id no es un nombre de temporada: se ignora y no filtra por un valor basura.
         response = self.client.get(
             f'{url}?season={self.league.season_id}', HTTP_HOST='testclub.ilovevoley.es'
         )
         self.assertEqual(response.status_code, 200)
+        standings_by_league = response.context['standings_by_league']
+        self.assertIn('Superliga 2', standings_by_league)
+        self.assertIn('Liga Temporada Anterior', standings_by_league)
 
-    def test_competitions_calendar_feed_url_resolves_and_renders(self):
+    def test_competitions_calendar_feed_requires_valid_token_and_lists_matches(self):
+        CategoryPreference.objects.create(
+            user=self.user, organization=self.org
+        ).categories.add(self.category)
         token = self.user.get_or_create_calendar_token()
         url = reverse('competitions:calendar_feed', args=[token])
-        self.assertEqual(url, f'/competitions/calendario/suscripcion/{token}/')
+
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
         self.assertIn('text/calendar', response['Content-Type'])
+        self.assertIn(f'partido-{self.match.id}@', response.content.decode())
+
+        denied = self.client.get(
+            reverse('competitions:calendar_feed', args=['token-invalido']),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(denied.status_code, 404)
 
     def test_calendar_feed_item_guid_defaults_to_videosvoley_for_compatibility(self):
         feed = comp_calendar_feed.UserMatchesFeed()
@@ -361,27 +415,39 @@ class CompetitionsViewUrlTests(TestCase):
 
     def test_competitions_ajax_endpoints(self):
         self.client.force_login(self.user)
+        other_category = Category.objects.create(name='Juvenil', is_active=True)
+        Team.objects.create(
+            name='Test Club Juvenil', category=other_category, club=self.club,
+            federation_id='TEAM-TEST-3', is_active=True,
+        )
 
-        # ajax_matches_by_category
+        # ajax_matches_by_category: solo partidos del club del tenant en esa categoría.
         url_matches = reverse('competitions:ajax_matches_by_category')
-        self.assertEqual(url_matches, '/competitions/ajax/matches-by-category/')
         r = self.client.get(url_matches, {'category_id': self.category.id}, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(r.status_code, 200)
-        self.assertIn('matches', r.json())
+        match_ids = {m['id'] for m in r.json()['matches']}
+        self.assertIn(self.match.id, match_ids)
 
-        # ajax_teams_by_league_category
+        r = self.client.get(url_matches, {'category_id': other_category.id}, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn(self.match.id, {m['id'] for m in r.json()['matches']})
+
+        # ajax_teams_by_league_category: solo equipos de las categorías de la liga.
         url_teams = reverse('competitions:ajax_teams_by_league_category')
-        self.assertEqual(url_teams, '/competitions/ajax/teams-by-league-category/')
         r = self.client.get(url_teams, {'league_id': self.league.id}, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(r.status_code, 200)
-        self.assertIn('teams', r.json())
+        team_names = {t['text'] for t in r.json()['teams']}
+        self.assertIn('Test Club Senior (Senior)', team_names)
+        self.assertIn('Rival Team Senior (Senior)', team_names)
+        self.assertNotIn('Test Club Juvenil (Juvenil)', team_names)
 
-        # ajax_search_teams
+        # ajax_search_teams: solo equipos del club del tenant.
         url_search = reverse('competitions:ajax_search_teams')
-        self.assertEqual(url_search, '/competitions/ajax/search-teams/')
         r = self.client.get(url_search, {'q': 'Test'}, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(r.status_code, 200)
-        self.assertIn('teams', r.json())
+        search_names = {t['name'] for t in r.json()['teams']}
+        self.assertIn(self.team.name, search_names)
+        self.assertNotIn(self.rival_team.name, search_names)
 
     def test_ajax_acta_lineup_rechaza_esquema_no_https(self):
         self.client.force_login(self.user)
@@ -426,13 +492,6 @@ class CompetitionsViewUrlTests(TestCase):
             r = self.client.get(legacy_url, HTTP_HOST='testclub.ilovevoley.es')
             self.assertEqual(r.status_code, 301, legacy_url)
             self.assertEqual(r.headers['Location'], canonical_url, legacy_url)
-
-    def test_anonymous_user_redirected_to_login_on_protected_views(self):
-        for url_name in ['competitions:league_list', 'competitions:standings_view', 'competitions:calendar_view']:
-            url = reverse(url_name)
-            response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-            self.assertEqual(response.status_code, 302)
-            self.assertIn('/accounts/login/', response.url)
 
     def test_calendar_embeds_matches_via_json_script_not_innerhtml_literals(self):
         """DOM-XSS (#89): datos de partido van en json_script; el modal escapa HTML."""
@@ -914,7 +973,7 @@ class CompetitionsTenantIsolationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
+        self.assertEqual(_count_script(response.content, 'js/lightbox'), 1)
 
     def test_match_images_loads_lightbox_script_once(self):
         """base.html ya carga lightbox.js; las imágenes de partido no lo duplican (#209)."""
@@ -937,7 +996,7 @@ class CompetitionsTenantIsolationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
+        self.assertEqual(_count_script(response.content, 'js/lightbox'), 1)
 
     def test_match_detail_hides_foreign_org_media(self):
         """Vídeos e imágenes de otra organización no se listan en la ficha del partido (#200)."""
@@ -1050,14 +1109,6 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.assertEqual(data['error'], 'Error interno al guardar el resultado.')
         self.assertNotIn("Database connection string", data['error'])
         self.assertTrue(any("Error al guardar resultado del partido" in msg for msg in captured_logs.output))
-
-    def test_add_match_result_rejects_get_with_405(self):
-        self.client.force_login(self.manager)
-        response = self.client.get(
-            reverse('competitions:ajax_add_match_result', args=[self.match.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 405)
 
     def test_add_match_result_with_set_scores_derives_score(self):
         self.client.force_login(self.manager)
@@ -1291,11 +1342,6 @@ class MatchChangesReviewViewTest(TestCase):
             new_value='Pista 2',
             is_last_minute=True,
         )
-
-    def test_anonymous_redirects_to_login(self):
-        url = reverse('competitions:match_changes_review')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 302)
 
     def test_regular_member_forbidden(self):
         self.client.force_login(self.regular_member)

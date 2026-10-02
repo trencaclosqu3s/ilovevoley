@@ -1,5 +1,7 @@
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
+
 import pytest
 from django.conf import settings
 from django.test import RequestFactory
@@ -73,7 +75,10 @@ def test_python_reverse_calls_can_resolve():
 
 
 def test_unfold_sidebar_navigation_can_resolve():
-    """Comprueba que todos los links definidos en UNFOLD['SIDEBAR']['navigation'] se resuelven correctamente."""
+    """Los enlaces de UNFOLD['SIDEBAR']['navigation'] deben resolver en el
+    URLconf actual. Los ``reverse_lazy`` se materializan a su URL y cada
+    destino se pasa por ``resolve()``; un enlace solo válido como texto
+    (o roto) hace fallar el barrido."""
     unfold_settings = getattr(settings, 'UNFOLD', {})
     sidebar = unfold_settings.get('SIDEBAR', {})
     navigation = sidebar.get('navigation', [])
@@ -83,12 +88,16 @@ def test_unfold_sidebar_navigation_can_resolve():
     for section in navigation:
         for item in section.get('items', []):
             link = item.get('link')
+            if link is None:
+                continue
             checked += 1
             try:
-                resolved_link = str(link)
-                assert resolved_link, "El enlace resuelto no puede ser vacío"
+                url = str(link)
+                resolve(urlsplit(url).path)
             except Exception as e:
-                failures.append(f"Sección '{section.get('title')}' -> '{item.get('title')}': {e}")
+                failures.append(
+                    f"Sección '{section.get('title')}' -> '{item.get('title')}': {e}"
+                )
 
     assert checked >= 10, f"Se esperaban al menos 10 enlaces en la barra lateral de Unfold, se encontraron {checked}"
     assert not failures, f"Fallo al resolver enlaces de Unfold Admin:\n" + "\n".join(failures)

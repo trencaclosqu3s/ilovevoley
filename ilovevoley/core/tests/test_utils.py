@@ -173,3 +173,23 @@ class EnsurePendingMembershipTest(TestCase):
 
         self.assertIsNone(ensure_pending_membership(root, self.org))
         self.assertIsNone(ensure_pending_membership(self.user, None))
+
+
+class InferGenderFromNameTest(SimpleTestCase):
+    """Normalización del género implícito en el nombre de una categoría."""
+
+    def test_detects_gender_from_name(self):
+        from ilovevoley.core.models import (
+            GENDER_FEMALE, GENDER_MALE, GENDER_MIXED, infer_gender_from_name,
+        )
+
+        self.assertEqual(infer_gender_from_name('Senior Femenino'), GENDER_FEMALE)
+        self.assertEqual(infer_gender_from_name('Infantil femenina'), GENDER_FEMALE)
+        self.assertEqual(infer_gender_from_name('Alevín Masculino'), GENDER_MALE)
+        self.assertEqual(infer_gender_from_name('Cadete Mixto'), GENDER_MIXED)
+
+    def test_unknown_or_empty_returns_blank(self):
+        from ilovevoley.core.models import infer_gender_from_name
+
+        self.assertEqual(infer_gender_from_name('Senior'), '')
+        self.assertEqual(infer_gender_from_name(''), '')

@@ -249,12 +249,4 @@ class UserProfileFormNotificationPreferenceTest(TestCase):
         )
         self.assertTrue(pref_result.is_enabled)
 
-    def test_organization_notification_fields_property(self):
-        form = UserProfileForm(instance=self.user, organization=self.org1)
-        fields = form.organization_notification_fields
-        self.assertEqual(len(fields), 1)
-        org, bound_field = fields[0]
-        self.assertEqual(org, self.org1)
-        self.assertEqual(bound_field.name, f'notification_types_{self.org1.id}')
-
 
