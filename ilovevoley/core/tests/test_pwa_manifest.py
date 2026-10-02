@@ -64,3 +64,30 @@ class PWAManifestTest(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(data['theme_color'], '#9B7FBF')
+
+    def test_manifest_includes_scope_extensions_for_tenants(self):
+        Organization.objects.create(slug='soller', name='CV Soller', is_active=True)
+
+        request = self.factory.get('/manifest.webmanifest', HTTP_HOST='santjosep.ilovevoley.es')
+        request.tenant = self.org
+        response = manifest_json(request)
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content.decode('utf-8'))
+        self.assertIn('scope_extensions', data)
+        origins = [item['origin'] for item in data['scope_extensions']]
+        self.assertTrue(any('santjosep' in o for o in origins))
+        self.assertTrue(any('soller' in o for o in origins))
+
+    def test_web_app_origin_association(self):
+        from ilovevoley.core.views import web_app_origin_association
+
+        request = self.factory.get('/.well-known/web-app-origin-association', HTTP_HOST='ilovevoley.es')
+        response = web_app_origin_association(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Content-Type'], 'application/json; charset=utf-8')
+        data = json.loads(response.content.decode('utf-8'))
+        self.assertIn('web_apps', data)
+        self.assertEqual(data['web_apps'][0]['manifest'], '/manifest.webmanifest')
+

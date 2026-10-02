@@ -30,6 +30,7 @@ from ilovevoley.core.views import (
     security_txt,
     service_worker,
     sitemap_xml,
+    web_app_origin_association,
 )
 from ilovevoley.users.views import (
     RatelimitedLoginView,
@@ -49,6 +50,7 @@ urlpatterns = [
     path('offline/', offline_view, name='offline_fallback'),
     path('sw.js', service_worker, name='service_worker'),
     path('.well-known/security.txt', security_txt, name='security_txt'),
+    path('.well-known/web-app-origin-association', web_app_origin_association, name='web_app_origin_association'),
     # Vistas de autenticación con rate limiting (prioritarias sobre allauth.urls)
     path('accounts/login/', RatelimitedLoginView.as_view(), name='account_login'),
     path('accounts/signup/', RatelimitedSignupView.as_view(), name='account_signup'),

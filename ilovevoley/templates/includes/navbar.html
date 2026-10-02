@@ -180,12 +180,61 @@
                         {% endif %}
                         
                         {% if tenant and can_switch_club %}
-                            <a href="{{ switch_club_url }}" aria-label="Cambiar de club" class="text-sm lg:text-base text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition font-medium flex items-center gap-2" title="Cambiar de club">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-                                </svg>
-                                <span class="hidden lg:inline">Cambiar de club</span>
-                            </a>
+                            <!-- Selector In-App de Clubes (Desktop) -->
+                            <div class="relative group" data-dropdown="club-switcher">
+                                <button type="button" 
+                                        class="text-sm lg:text-base text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition font-medium flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" 
+                                        data-dropdown-toggle="club-switcher" 
+                                        aria-label="Cambiar de club" 
+                                        aria-haspopup="true"
+                                        title="Cambiar de club">
+                                    <svg class="w-5 h-5 lg:w-6 lg:h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                                    </svg>
+                                    <span class="hidden lg:inline">Cambiar de club</span>
+                                    <svg class="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                                <div class="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-1" 
+                                     data-dropdown-menu="club-switcher"
+                                     role="menu">
+                                    <div class="px-3 py-2 text-xs font-semibold text-gray-400 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
+                                        Tus clubes
+                                    </div>
+                                    {% for club in user_switch_clubs %}
+                                        {% if club.is_current %}
+                                            <div class="flex items-center justify-between px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white font-medium" role="menuitem">
+                                                <span class="flex items-center gap-2.5 truncate">
+                                                    <span class="w-5 h-5 rounded-md bg-csj-purple/10 text-csj-purple dark:bg-csj-yellow/10 dark:text-csj-yellow flex items-center justify-center text-xs font-bold flex-shrink-0">{{ club.name|first }}</span>
+                                                    <span class="truncate">{{ club.name }}</span>
+                                                </span>
+                                                <span class="text-xs text-csj-purple dark:text-csj-yellow font-semibold ml-2">Actual</span>
+                                            </div>
+                                        {% else %}
+                                            <a href="{{ club.url }}" 
+                                               data-tenant-switch
+                                               class="flex items-center justify-between px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition" 
+                                               role="menuitem">
+                                                <span class="flex items-center gap-2.5 truncate">
+                                                    <span class="w-5 h-5 rounded-md bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 flex items-center justify-center text-xs font-bold flex-shrink-0">{{ club.name|first }}</span>
+                                                    <span class="truncate">{{ club.name }}</span>
+                                                </span>
+                                                <svg class="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                                </svg>
+                                            </a>
+                                        {% endif %}
+                                    {% endfor %}
+                                    <div class="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
+                                        <a href="{{ switch_club_url }}" 
+                                           data-tenant-switch
+                                           class="block px-3 py-2 text-xs text-gray-500 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow transition">
+                                            Ver todos los clubes...
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         {% endif %}
 
                         <a href="{% url 'profile' %}" class="text-sm lg:text-base text-gray-600 dark:text-gray-300 hover:text-csj-purple dark:hover:text-csj-yellow transition font-medium flex items-center gap-2">
@@ -315,12 +364,46 @@
                 </a>
 
                 {% if tenant and can_switch_club %}
-                    <a href="{{ switch_club_url }}" class="flex items-center px-4 py-4 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation">
-                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-                        </svg>
-                        <span class="font-medium">Cambiar de club</span>
-                    </a>
+                    <div class="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
+                        <div class="px-4 py-2">
+                            <div class="flex items-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                                </svg>
+                                <span>Cambiar de club</span>
+                            </div>
+                            <div class="space-y-1">
+                                {% for club in user_switch_clubs %}
+                                    {% if club.is_current %}
+                                        <div class="flex items-center justify-between px-3 py-3 rounded-lg bg-gray-100 dark:bg-gray-700/60 text-gray-900 dark:text-white font-medium text-sm">
+                                            <span class="flex items-center gap-2.5 truncate">
+                                                <span class="w-5 h-5 rounded-md bg-csj-purple/10 text-csj-purple dark:bg-csj-yellow/10 dark:text-csj-yellow flex items-center justify-center text-xs font-bold flex-shrink-0">{{ club.name|first }}</span>
+                                                <span class="truncate">{{ club.name }}</span>
+                                            </span>
+                                            <span class="text-xs text-csj-purple dark:text-csj-yellow font-semibold ml-2">Actual</span>
+                                        </div>
+                                    {% else %}
+                                        <a href="{{ club.url }}" 
+                                           data-tenant-switch
+                                           class="flex items-center justify-between px-3 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition touch-manipulation text-sm">
+                                            <span class="flex items-center gap-2.5 truncate">
+                                                <span class="w-5 h-5 rounded-md bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 flex items-center justify-center text-xs font-bold flex-shrink-0">{{ club.name|first }}</span>
+                                                <span class="truncate">{{ club.name }}</span>
+                                            </span>
+                                            <svg class="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                            </svg>
+                                        </a>
+                                    {% endif %}
+                                {% endfor %}
+                                <a href="{{ switch_club_url }}" 
+                                   data-tenant-switch
+                                   class="block px-3 py-2 text-xs text-gray-500 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow transition">
+                                    Ver todos los clubes...
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 {% endif %}
                 
                 {% if can_add %}
@@ -441,6 +524,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+    });
+
+    // Navegación in-place para cambio de club en PWA (evita delegación a ventana externa en iOS/WebKit)
+    document.querySelectorAll('a[data-tenant-switch]').forEach(link => {
+        link.addEventListener('click', function(e) {
+            if (this.href) {
+                e.preventDefault();
+                window.location.href = this.href;
+            }
+        });
     });
 });
 </script>
