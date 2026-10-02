@@ -11,6 +11,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -23,13 +24,15 @@ from django.views.decorators.http import require_POST
 from ilovevoley.content.models import Image
 from ilovevoley.core.context_processors import DEFAULT_BRAND
 from ilovevoley.core.forms import SeasonWizardForm
-from ilovevoley.core.models import Season
+from ilovevoley.core.models import Organization, Season
 from ilovevoley.core.services.season_wizard import preview_season, start_season
 from ilovevoley.core.tenant_utils import (
+    PWA_ORIGIN_ASSOCIATION_CACHE_KEY,
     approve_user_membership,
     build_absolute_url,
     build_tenant_url,
     can_moderate_images,
+    get_tenant_base_domain,
     reject_user_membership,
     user_is_tenant_manager,
 )
@@ -246,6 +249,21 @@ def manifest_json(request):
     """Devuelve el manifiesto W3C estandarizado para la PWA comunitaria I Love Voley."""
     tenant = getattr(request, 'tenant', None)
     theme_color = tenant.primary_color if tenant and tenant.primary_color else DEFAULT_BRAND
+    base_domain = get_tenant_base_domain(request)
+    protocol = 'https' if not settings.DEBUG else 'http'
+
+    # Scope extensions para permitir navegación in-app entre tenants y dominio base
+    if settings.DEBUG:
+        active_slugs = Organization.objects.filter(is_active=True).values_list('slug', flat=True)
+        scope_extensions = [{'origin': f'{protocol}://{base_domain}'}]
+        for slug in active_slugs:
+            scope_extensions.append({'origin': f'{protocol}://{slug}.{base_domain}'})
+    else:
+        scope_extensions = [
+            {'origin': f'https://{base_domain}'},
+            {'origin': f'https://*.{base_domain}'},
+        ]
+
 
     manifest_data = {
         'id': '/',
@@ -256,6 +274,7 @@ def manifest_json(request):
         'dir': 'ltr',
         'start_url': '/',
         'scope': '/',
+        'scope_extensions': scope_extensions,
         'display': 'standalone',
         'theme_color': theme_color,
         'background_color': '#ffffff',
@@ -284,6 +303,42 @@ def manifest_json(request):
     response = JsonResponse(manifest_data, content_type='application/manifest+json; charset=utf-8')
     response['Cache-Control'] = 'public, max-age=3600'
     response['Vary'] = 'Host'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+def web_app_origin_association(request):
+    """Devuelve la declaración de asociación de orígenes para PWA scope extensions."""
+    protocol = 'https' if not settings.DEBUG else 'http'
+    base_domain = get_tenant_base_domain(request)
+
+    active_slugs = cache.get(PWA_ORIGIN_ASSOCIATION_CACHE_KEY)
+    if active_slugs is None:
+        active_slugs = list(
+            Organization.objects.filter(is_active=True).values_list('slug', flat=True)
+        )
+        cache.set(PWA_ORIGIN_ASSOCIATION_CACHE_KEY, active_slugs, timeout=300)
+
+    data = {
+        f'{protocol}://{base_domain}/': {
+            'scope': '/',
+        },
+        'web_apps': [
+            {
+                'manifest': '/manifest.webmanifest',
+                'details': {
+                    'paths': ['/*'],
+                },
+            }
+        ],
+    }
+    for slug in active_slugs:
+        data[f'{protocol}://{slug}.{base_domain}/'] = {
+            'scope': '/',
+        }
+
+    response = JsonResponse(data, content_type='application/json; charset=utf-8')
+    response['Cache-Control'] = 'public, max-age=86400'
     response['X-Content-Type-Options'] = 'nosniff'
     return response
 

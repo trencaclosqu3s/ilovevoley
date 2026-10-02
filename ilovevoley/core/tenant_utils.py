@@ -32,11 +32,15 @@ def hex_to_rgb_channels(hex_color, default='155 127 191'):
     return f'{red} {green} {blue}'
 
 
+PWA_ORIGIN_ASSOCIATION_CACHE_KEY = 'pwa_origin_association_slugs'
+
+
 def _org_cache_key(slug):
     return f'{ORG_CACHE_PREFIX}{slug}'
 
 
 def invalidate_organization_cache(slug):
+    cache.delete(PWA_ORIGIN_ASSOCIATION_CACHE_KEY)
     if slug:
         cache.delete(_org_cache_key(slug))
 
