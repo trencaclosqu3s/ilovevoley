@@ -29,8 +29,9 @@ class AppleLocationFeed(ICal20Feed):
 
     def write_items(self, calendar):
         super().write_items(calendar)
-        # Los componentes se añaden en el mismo orden que self.items.
-        for element, item in zip(calendar.subcomponents, self.items):
+        # Los componentes VEVENT se añaden en el mismo orden que self.items.
+        events = [c for c in calendar.subcomponents if getattr(c, 'name', None) == 'VEVENT']
+        for element, item in zip(events, self.items):
             apple_location = item.get('apple_location')
             if apple_location:
                 element.add(
