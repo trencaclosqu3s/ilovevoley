@@ -172,6 +172,17 @@ class WebPushMultiClubTest(TestCase):
         notified = sorted(call.args[0].endpoint.rsplit('/', 1)[1] for call in mock_send.call_args_list)
         self.assertEqual(notified, ['both_branches', 'multi'])
 
+    @patch('ilovevoley.users.tasks.send_web_push', return_value=True)
+    def test_push_url_points_to_emitting_club_domain(self, mock_send):
+        # #315: un dispositivo suscrito en A debe abrir el partido en el dominio de B, que emite el aviso
+        self._device('multi', [(self.club_a, True), (self.club_b, True)], subscribed_in=self.club_a)
+
+        notify_web_push_organization_task(organization_id=self.club_b.id, title='t', body='b', url='/competitions/partidos/1/')
+
+        payload = mock_send.call_args.args[1]
+        self.assertTrue(payload['url'].startswith(f'http://{self.club_b.slug}.') or payload['url'].startswith(f'https://{self.club_b.slug}.'))
+        self.assertTrue(payload['url'].endswith('/competitions/partidos/1/'))
+
 
 class WebPushNotificationTypeFilterTest(TestCase):
     def setUp(self):
@@ -372,4 +383,25 @@ class WebPushAuditTest(TestCase):
         self.assertEqual(result, {'deleted': 1})
         self.assertFalse(WebPushAudit.objects.filter(pk=old_audit.pk).exists())
         self.assertTrue(WebPushAudit.objects.filter(pk=recent_audit.pk).exists())
+
+    @patch('ilovevoley.users.tasks.send_web_push', return_value=True)
+    @patch('ilovevoley.users.models.WebPushAudit.objects.create', side_effect=Exception('DB connection failed'))
+    def test_audit_failure_does_not_abort_or_fail_task(self, mock_create, mock_send):
+        """Un fallo al persistir la auditoría no debe abortar la tarea ni impedir devolver los envíos."""
+        user = User.objects.create_user(username='u_audit_fail', email='uaf@test.es')
+        WebPushSubscription.objects.create(
+            user=user, organization=self.org,
+            endpoint='https://fcm.googleapis.com/fcm/send/token_audit_fail', p256dh='k', auth='a',
+        )
+
+        with self.assertLogs('ilovevoley.users.tasks', level='WARNING') as cm:
+            dispatched = notify_web_push_organization_task(
+                organization_id=self.org.id,
+                title='Resultado',
+                body='3-0',
+            )
+
+        self.assertEqual(dispatched, 1)
+        self.assertTrue(any('error al registrar auditoría' in msg for msg in cm.output))
+
 

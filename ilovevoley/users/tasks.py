@@ -1,10 +1,15 @@
 import logging
 from datetime import timedelta
 from celery import shared_task
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from ilovevoley.core.i18n import language_for
-from .models import CategoryPreference, NotificationPreference, WebPushAudit, WebPushSubscription
+from ilovevoley.core.models import Organization
+from ilovevoley.core.tenant_utils import build_absolute_url
+from .models import (
+    CategoryPreference, NotificationPreference, WebPushAudit, WebPushSubscription,
+)
 from .webpush import send_web_push
 
 logger = logging.getLogger(__name__)
@@ -49,6 +54,12 @@ def notify_web_push_organization_task(
     candidates = list(subs.select_related('user'))
     candidate_count = len(candidates)
 
+    # El aviso abre el dominio del club emisor, no el donde se suscribió el dispositivo.
+    target_url = url or '/'
+    org = Organization.objects.filter(pk=organization_id).first()
+    if org and target_url.startswith('/'):
+        target_url = build_absolute_url(target_url, tenant=org)
+
     dispatched = 0
     failed = 0
     for sub in candidates:
@@ -56,7 +67,7 @@ def notify_web_push_organization_task(
         payload = {
             'title': text['title'],
             'body': text['body'],
-            'url': url or '/',
+            'url': target_url,
             'badge_count': badge_count,
         }
         if send_web_push(sub, payload):
@@ -65,17 +76,22 @@ def notify_web_push_organization_task(
             failed += 1
 
     try:
-        WebPushAudit.objects.create(
-            organization_id=organization_id,
-            notification_type=str(notification_type) if notification_type else '',
-            match_id=match_id,
-            candidates_count=candidate_count,
-            dispatched_count=dispatched,
-            failed_count=failed,
-        )
+        with transaction.atomic():
+            WebPushAudit.objects.create(
+                organization_id=organization_id,
+                notification_type=str(notification_type) if notification_type else '',
+                match_id=match_id,
+                candidates_count=candidate_count,
+                dispatched_count=dispatched,
+                failed_count=failed,
+            )
     except Exception as exc:
-        logger.warning('notify_web_push_organization_task: error al registrar auditoría: %s', exc)
+        logger.warning(
+            'notify_web_push_organization_task: error al registrar auditoría (org=%s): %s',
+            organization_id, exc, exc_info=True,
+        )
     return dispatched
+
 
 
 @shared_task(name='cleanup_expired_web_push_audits')
