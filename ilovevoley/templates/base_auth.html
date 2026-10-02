@@ -9,7 +9,7 @@
     <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
     <link rel="icon" type="image/png" href="{% static 'images/logo_app.png' %}">
     <link rel="manifest" href="{% url 'manifest_json' %}">
-    <meta name="theme-color" content="{{ tenant_color|default:'#9B7FBF' }}">
+    <meta name="theme-color" content="{{ tenant_color|default:'#01696f' }}">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -28,6 +28,10 @@
         --brand-rgb: {{ tenant_color_rgb }};
         --brand-dark: {{ tenant_color_dark }};
         --brand-dark-rgb: {{ tenant_color_dark_rgb }};
+        --brand-gradient-from: {{ tenant_gradient_from }};
+        --brand-gradient-from-rgb: {{ tenant_gradient_from_rgb }};
+        --brand-gradient-to: {{ tenant_gradient_to }};
+        --brand-gradient-to-rgb: {{ tenant_gradient_to_rgb }};
       }
     </style>
     

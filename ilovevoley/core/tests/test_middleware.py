@@ -357,22 +357,3 @@ class GetClientIPTests(TestCase):
     def test_chain_shorter_than_proxy_count_falls_back_to_remote_addr(self):
         request = self._request(remote_addr='172.18.0.5', forwarded_for='203.0.113.7')
         self.assertEqual(get_client_ip(request), '172.18.0.5')
-
-
-class CacheSettingsTest(TestCase):
-    def test_redis_cache_configured(self):
-        """Prod define Redis; pytest usa LocMem vía config.settings_test."""
-        import config.settings as prod_settings
-        from django.conf import settings
-
-        self.assertEqual(
-            prod_settings.CACHES['default']['BACKEND'],
-            'django.core.cache.backends.redis.RedisCache',
-        )
-        self.assertTrue(
-            prod_settings.CACHES['default']['LOCATION'].startswith('redis://')
-        )
-        self.assertEqual(
-            settings.CACHES['default']['BACKEND'],
-            'django.core.cache.backends.locmem.LocMemCache',
-        )

@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from ilovevoley.content.models import Image
+from ilovevoley.core.context_processors import DEFAULT_BRAND
 from ilovevoley.core.forms import SeasonWizardForm
 from ilovevoley.core.models import Season
 from ilovevoley.core.services.season_wizard import preview_season, start_season
@@ -243,7 +244,7 @@ def security_txt(request):
 def manifest_json(request):
     """Devuelve el manifiesto W3C estandarizado para la PWA comunitaria I Love Voley."""
     tenant = getattr(request, 'tenant', None)
-    theme_color = tenant.primary_color if tenant and tenant.primary_color else '#9B7FBF'
+    theme_color = tenant.primary_color if tenant and tenant.primary_color else DEFAULT_BRAND
 
     manifest_data = {
         'id': '/',

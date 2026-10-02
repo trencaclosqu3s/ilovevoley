@@ -89,8 +89,13 @@ nombres fuera del manifest y sirve la URL sin hash).
 
 ## Testing
 
-Un test existe solo si protege una decisión propia del producto. No basta con
-que suba cobertura.
+**Obligatorio antes de crear o modificar un test: justificar que es necesario
+según `docs/ai-guidelines/testing-guidelines.md`.** No basta con que suba
+cobertura ni con que sea fácil de escribir. Si el test no encaja en ninguna de
+las reglas de "debe existir" de esa guía, no se escribe. Deja la justificación
+explícita (en la conversación y, si aplica, en el mensaje de commit o PR).
+
+Un test existe solo si protege una decisión propia del producto.
 
 **Debe existir si**: protege una regla de negocio; cubre un caso límite que ya
 falló o sería caro detectar en producción; verifica una transformación de datos
@@ -105,7 +110,8 @@ mock; prueba getters, setters o properties simples.
 
 **Antes de añadir un test**: si falla, ¿qué comportamiento real se habría roto?
 ¿Obligaría a cambiar código de producto o solo el test? ¿Prueba nuestra lógica o
-la de la librería?
+la de la librería? ¿Hay ya otro test que cubra el mismo riesgo? Si no hay una
+respuesta concreta, no se escribe o se reescribe.
 
 **Estructura**: `app_name/tests/` con `__init__.py`, separando `test_models.py`,
 `test_views.py`, `test_forms.py`, `test_utils.py`, `test_templatetags.py`,

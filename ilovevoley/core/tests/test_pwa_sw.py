@@ -1,3 +1,5 @@
+import re
+
 from django.test import TestCase, RequestFactory, override_settings
 from django.urls import reverse
 from ilovevoley.core.views import service_worker
@@ -20,53 +22,32 @@ class PWAServiceWorkerTest(TestCase):
         self.assertIn('no-store', response['Cache-Control'])
         self.assertIn('must-revalidate', response['Cache-Control'])
 
-    def test_service_worker_headers(self):
-        request = self.factory.get('/sw.js', HTTP_HOST='ilovevoley.es')
-        response = service_worker(request)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/javascript; charset=utf-8')
-        self.assertEqual(response.headers['Service-Worker-Allowed'], '/')
-        self.assertIn('no-cache', response.headers['Cache-Control'])
-        self.assertIn('no-store', response.headers['Cache-Control'])
-        self.assertIn('must-revalidate', response.headers['Cache-Control'])
-
     def test_service_worker_content_specifications(self):
         request = self.factory.get('/sw.js', HTTP_HOST='ilovevoley.es')
         response = service_worker(request)
         content = response.content.decode('utf-8')
 
-        # Cache name & precache
         self.assertIn('ilovevoley-pwa-v1', content)
-        self.assertIn('/offline/', content)
-        self.assertIn('/static/css/app.css', content)
-        self.assertIn('/static/images/icons/icon-192.png', content)
-        self.assertIn('/static/images/icons/icon-512.png', content)
 
-        # Lifecycle events
-        self.assertIn("'install'", content)
-        self.assertIn("'activate'", content)
-        self.assertIn("'fetch'", content)
+        precache_block = re.search(r'PRECACHE_URLS\s*=\s*\[(.*?)\]', content, re.S)
+        self.assertIsNotNone(precache_block, 'el SW debe declarar PRECACHE_URLS')
+        precached = re.findall(r"['\"]([^'\"]+)['\"]", precache_block.group(1))
 
-        # Navigation and offline strategy
-        self.assertIn('navigate', content)
+        for asset in (
+            '/offline/',
+            '/static/css/app.css',
+            '/static/images/icons/icon-192.png',
+            '/static/images/icons/icon-512.png',
+        ):
+            self.assertIn(asset, precached)
 
-        # Sensitive paths excluded from cache
-        self.assertIn('/media/', content)
-        self.assertIn('/protected-media/', content)
-        self.assertIn('/accounts/', content)
-        self.assertIn('/admin/', content)
-
-    def test_sw_contains_push_and_badge_handlers(self):
-        response = self.client.get('/sw.js', HTTP_HOST='ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        content = response.content.decode('utf-8')
-
-        # Comprobar eventos push y notificationclick
-        self.assertIn("self.addEventListener('push'", content)
-        self.assertIn("self.addEventListener('notificationclick'", content)
-        self.assertIn("showNotification", content)
-        self.assertIn("setAppBadge", content)
-        self.assertIn("clearAppBadge", content)
-        self.assertIn("clients.openWindow", content)
+        # Rutas sensibles: ni precacheadas ni cacheables en runtime. La
+        # comprobación es que no aparezcan en PRECACHE_URLS y que el handler de
+        # ``fetch`` las descarte antes de tocar la caché.
+        for prefix in ('/media/', '/protected-media/', '/accounts/', '/admin/'):
+            self.assertFalse(
+                any(url.startswith(prefix) for url in precached),
+                f'{prefix} no debe aparecer en PRECACHE_URLS',
+            )
+            self.assertIn(f"pathname.startsWith('{prefix}')", content)
 

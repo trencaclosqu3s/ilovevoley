@@ -1,11 +1,8 @@
 import pytest
 from django.contrib.admin.sites import AdminSite
-from django.contrib.auth import get_user_model
 from ilovevoley.competitions.models import FederationCallUp, CallUpPlayer
-from ilovevoley.competitions.admin.callups import CallUpPlayerAdmin, FederationCallUpAdmin
-from ilovevoley.core.models import Season, Organization
-
-User = get_user_model()
+from ilovevoley.competitions.admin.callups import CallUpPlayerAdmin
+from ilovevoley.core.models import Season
 
 
 @pytest.mark.django_db
@@ -30,9 +27,3 @@ def test_callup_player_admin_reject_action():
     admin.reject_matches(None, CallUpPlayer.objects.filter(pk=player.pk))
     player.refresh_from_db()
     assert player.match_status == 'rejected'
-
-
-@pytest.mark.django_db
-def test_federation_callup_admin_registration():
-    admin = FederationCallUpAdmin(FederationCallUp, AdminSite())
-    assert admin is not None

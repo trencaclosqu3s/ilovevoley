@@ -2,7 +2,6 @@ from django.test import TestCase, RequestFactory, override_settings
 from django.contrib.auth import get_user_model
 from django.contrib.admin.sites import AdminSite
 from django.core import mail
-from django.urls import reverse
 from django.contrib.messages.storage.fallback import FallbackStorage
 from ilovevoley.core.email_utils import send_admin_email_to_users
 from ilovevoley.users.admin import UserAdmin
@@ -128,6 +127,13 @@ class UserAdminEmailActionTests(TestCase):
             last_name='Ruiz',
             password='password123'
         )
+        self.user_no_email = User.objects.create_user(
+            username='sin_correo',
+            email='',
+            first_name='Sin',
+            last_name='Correo',
+            password='password123'
+        )
 
     def _setup_request(self, request):
         request.user = self.admin_user
@@ -135,20 +141,17 @@ class UserAdminEmailActionTests(TestCase):
         setattr(request, '_messages', FallbackStorage(request))
 
     def test_bulk_action_get_form(self):
-        """Prueba que la acción masiva muestra el formulario intermedio"""
-        request = self.factory.post('/admin/users/user/', {
+        """Prueba que la acción masiva muestra el formulario intermedio y
+        separa destinatarios con correo de los que no lo tienen."""
+        self.client.force_login(self.admin_user)
+        response = self.client.post('/admin/users/user/', {
             'action': 'send_email_action',
-            '_selected_action': [str(self.user1.pk)],
+            '_selected_action': [str(self.user1.pk), str(self.user_no_email.pk)],
         })
-        self._setup_request(request)
-
-        qs = User.objects.filter(pk=self.user1.pk)
-        response = self.admin.send_email_action(request, qs)
 
         self.assertEqual(response.status_code, 200)
-        content = response.content.decode('utf-8')
-        self.assertIn('Enviar correo', content)
-        self.assertIn('carlos@example.com', content)
+        self.assertEqual(list(response.context['users_with_email']), [self.user1])
+        self.assertEqual(list(response.context['users_without_email']), [self.user_no_email])
 
     @override_settings(**CELERY_EAGER)
     def test_bulk_action_post_send_success(self):
@@ -175,15 +178,16 @@ class UserAdminEmailActionTests(TestCase):
         self.assertEqual(mail.outbox[0].subject, 'Mensaje masivo de prueba')
 
     def test_detail_action_get_form(self):
-        """Prueba que la acción de detalle muestra el formulario intermedio"""
-        request = self.factory.get(f'/admin/users/user/{self.user1.pk}/send_email_detail_action/')
-        self._setup_request(request)
+        """Prueba que la acción de detalle muestra el formulario intermedio con
+        el usuario como único destinatario y marcado como no masivo."""
+        self.client.force_login(self.admin_user)
+        response = self.client.get(
+            f'/admin/users/user/{self.user1.pk}/send_email_detail_action/'
+        )
 
-        response = self.admin.send_email_detail_action(request, self.user1.pk)
         self.assertEqual(response.status_code, 200)
-        content = response.content.decode('utf-8')
-        self.assertIn('Carlos Ruiz', content)
-        self.assertIn('carlos@example.com', content)
+        self.assertEqual(list(response.context['users_with_email']), [self.user1])
+        self.assertFalse(response.context['is_bulk'])
 
     @override_settings(**CELERY_EAGER)
     def test_detail_action_post_success(self):

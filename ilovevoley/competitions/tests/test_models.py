@@ -1,9 +1,12 @@
+from datetime import datetime, timezone as dt_timezone
+
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match, MatchChangeLog, Venue
-from ilovevoley.core.models import Organization
+from ilovevoley.core.models import Organization, Season
 from ilovevoley.teams.models import Club, Team
 
 User = get_user_model()
@@ -79,27 +82,6 @@ class MatchChangeLogTest(TestCase):
 
         cls.user = User.objects.create_user(username='admin_director', email='director@test.com')
 
-    def test_create_match_change_log_fields(self):
-        log = MatchChangeLog.objects.create(
-            match=self.match_own,
-            change_type='datetime',
-            field_name='match_date',
-            old_value='2026-10-01 10:00',
-            new_value='2026-10-01 12:00',
-            is_last_minute=True,
-        )
-        self.assertIsNotNone(log.id)
-        self.assertEqual(log.change_type, 'datetime')
-        self.assertEqual(log.field_name, 'match_date')
-        self.assertTrue(log.is_last_minute)
-        self.assertFalse(log.notified)
-        self.assertIsNone(log.notified_at)
-        self.assertFalse(log.reviewed)
-        self.assertIsNone(log.reviewed_by)
-        self.assertIsNone(log.reviewed_at)
-        self.assertIsNotNone(log.detected_at)
-        self.assertIn('match_date', str(log))
-
     def test_for_tenant_filters_by_club_matches(self):
         log_own = MatchChangeLog.objects.create(
             match=self.match_own,
@@ -129,7 +111,7 @@ class MatchChangeLogTest(TestCase):
 
 
 class VenueModelTest(TestCase):
-    def test_venue_creation_and_str(self):
+    def test_venue_full_address_composes_name_address_and_city(self):
         venue = Venue.objects.create(
             name="Pavelló Test Joan Pericás Riera",
             city="Bunyola",
@@ -137,9 +119,7 @@ class VenueModelTest(TestCase):
             google_maps_url="https://maps.app.goo.gl/sample123",
             aliases="Pav. Juan Pericas Riera, Pav. Bunyola"
         )
-        self.assertEqual(str(venue), "Pavelló Test Joan Pericás Riera (Bunyola)")
         self.assertEqual(venue.full_address, "Pavelló Test Joan Pericás Riera, Son Serra s/n, Bunyola")
-        self.assertEqual(venue.maps_url, "https://maps.app.goo.gl/sample123")
 
     def test_venue_full_address_avoids_duplicate_fragments(self):
         venue = Venue.objects.create(
@@ -170,14 +150,196 @@ class VenueModelTest(TestCase):
         self.assertTrue(venue.matches_text("pav. test son angelats"))
         self.assertFalse(venue.matches_text("Pav. Germans Escalas"))
 
-    def test_match_venue_ref_relation(self):
-        venue = Venue.objects.create(name="Pabellón Central Test", city="Palma")
-        match = Match.objects.create(
-            match_date=timezone.now(),
-            venue_ref=venue,
-            home_team_text="Local",
-            away_team_text="Visitante"
-        )
-        self.assertEqual(match.venue_ref, venue)
-        self.assertIn(match, venue.matches.all())
 
+
+class MatchManagerTests(TestCase):
+    """El manager por defecto oculta los partidos retirados. Regla no evidente."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.league = League.objects.create(
+            name='Liga', federation_id='LIG-M', season=Season.objects.resolve('2024-25'),
+        )
+        cls.a = Team.objects.create(name='A', federation_id='T-A')
+        cls.b = Team.objects.create(name='B', federation_id='T-B')
+        cls.jugado = Match.objects.create(
+            league=cls.league, home_team=cls.a, away_team=cls.b,
+            match_date=datetime(2024, 11, 3, 12, 0, tzinfo=dt_timezone.utc),
+            status='finished', federation_id='M-OK',
+        )
+        cls.retirado = Match.objects.create(
+            league=cls.league, home_team=cls.a, away_team=cls.b,
+            match_date=datetime(2024, 11, 10, 12, 0, tzinfo=dt_timezone.utc),
+            status='withdrawn', federation_id='M-W',
+        )
+
+    def test_manager_por_defecto_oculta_los_retirados(self):
+        self.assertEqual(list(Match.objects.all()), [self.jugado])
+
+    def test_all_objects_incluye_los_retirados(self):
+        self.assertEqual(Match.all_objects.count(), 2)
+
+
+class LeagueManagerTests(TestCase):
+    """visible_in_app() exige tres condiciones a la vez, no una."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.principal = League.objects.create(
+            name='Principal', federation_id='L-M', season=Season.objects.resolve('2024-25'),
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+        cls.inactiva = League.objects.create(
+            name='Inactiva', federation_id='L-I', season=Season.objects.resolve('2024-25'),
+            is_active=False, visibility_type='main', is_our_team_related=True,
+        )
+        cls.ajena = League.objects.create(
+            name='Ajena', federation_id='L-E', season=Season.objects.resolve('2024-25'),
+            is_active=True, visibility_type='external', is_our_team_related=False,
+        )
+        cls.historica = League.objects.create(
+            name='Historica', federation_id='L-H', season=Season.objects.resolve('2019-20'),
+            is_active=True, visibility_type='historical', is_historical=True,
+        )
+
+    def _nombres(self, queryset):
+        return set(queryset.values_list('name', flat=True))
+
+    def test_visible_in_app_solo_devuelve_la_que_cumple_las_tres_condiciones(self):
+        self.assertEqual(self._nombres(League.objects.visible_in_app()), {'Principal'})
+
+    def test_reference_leagues_agrupa_los_tres_tipos_no_principales(self):
+        self.assertEqual(
+            self._nombres(League.objects.reference_leagues()), {'Ajena', 'Historica'}
+        )
+
+    def test_historical_leagues_exige_el_flag_ademas_del_tipo(self):
+        self.assertEqual(self._nombres(League.objects.historical_leagues()), {'Historica'})
+
+    def test_external_leagues_exige_no_estar_relacionada_con_nuestro_equipo(self):
+        self.assertEqual(self._nombres(League.objects.external_leagues()), {'Ajena'})
+
+
+class LeaguePhaseTests(TestCase):
+    """Fases de liga: la recursión sube al padre y agrega sus partidos."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.regular = League.objects.create(
+            name='Liga Regular', federation_id='L-R', season=Season.objects.resolve('2024-25'),
+        )
+        cls.oro = League.objects.create(
+            name='Liga Regular', federation_id='L-ORO', season=Season.objects.resolve('2024-25'),
+            parent_league=cls.regular, phase_name='Liguilla Oro', phase_order=1,
+        )
+        cls.plata = League.objects.create(
+            name='Liga Regular', federation_id='L-PLA', season=Season.objects.resolve('2024-25'),
+            parent_league=cls.regular, phase_name='Liguilla Plata', phase_order=2,
+        )
+        cls.a = Team.objects.create(name='A', federation_id='TP-A')
+        cls.b = Team.objects.create(name='B', federation_id='TP-B')
+        cls.partido_regular = Match.objects.create(
+            league=cls.regular, home_team=cls.a, away_team=cls.b,
+            match_date=datetime(2024, 10, 5, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='MP-1',
+        )
+        cls.partido_oro = Match.objects.create(
+            league=cls.oro, home_team=cls.a, away_team=cls.b,
+            match_date=datetime(2025, 2, 8, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='MP-2',
+        )
+
+    def test_is_phase_distingue_la_liga_raiz_de_sus_fases(self):
+        self.assertFalse(self.regular.is_phase)
+        self.assertTrue(self.oro.is_phase)
+
+    def test_root_league_sube_hasta_la_raiz_desde_una_fase(self):
+        self.assertEqual(self.oro.root_league, self.regular)
+
+    def test_get_all_phases_devuelve_la_raiz_primero_y_luego_las_fases_ordenadas(self):
+        self.assertEqual(
+            self.regular.get_all_phases(), [self.regular, self.oro, self.plata]
+        )
+
+    def test_get_all_phases_desde_una_fase_devuelve_lo_mismo_que_desde_la_raiz(self):
+        self.assertEqual(self.oro.get_all_phases(), self.regular.get_all_phases())
+
+    def test_get_combined_matches_agrega_los_partidos_de_todas_las_fases(self):
+        self.assertEqual(
+            set(self.regular.get_combined_matches()),
+            {self.partido_regular, self.partido_oro},
+        )
+
+    def test_get_combined_matches_desde_una_fase_agrega_igual(self):
+        self.assertEqual(
+            set(self.oro.get_combined_matches()),
+            {self.partido_regular, self.partido_oro},
+        )
+
+    def test_display_name_prioriza_el_override_sobre_el_nombre_de_fase(self):
+        self.oro.display_name_override = 'Fase de Oro 24/25'
+        self.assertEqual(self.oro.display_name, 'Fase de Oro 24/25')
+
+    def test_display_name_concatena_el_nombre_de_fase_si_no_hay_override(self):
+        self.assertEqual(self.oro.display_name, 'Liga Regular - Liguilla Oro')
+
+
+class MatchCleanTests(TestCase):
+    """Validación propia de Match, que no cubre ningún validador de Django."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.league = League.objects.create(
+            name='Liga', federation_id='L-C', season=Season.objects.resolve('2024-25'),
+        )
+        cls.a = Team.objects.create(name='A', federation_id='TC-A')
+        cls.b = Team.objects.create(name='B', federation_id='TC-B')
+
+    def test_un_amistoso_no_puede_llevar_federation_id(self):
+        partido = Match(
+            is_friendly=True,
+            federation_id='F-1',
+            home_team_text='Equipo invitado',
+            away_team_text='Sant Josep',
+            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
+        )
+        with self.assertRaises(ValidationError):
+            partido.clean()
+
+    def test_un_partido_oficial_ya_guardado_exige_equipo_local(self):
+        partido = Match.objects.create(
+            league=self.league, home_team=self.a, away_team=self.b,
+            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='MC-1',
+        )
+        partido.home_team = None
+        with self.assertRaises(ValidationError):
+            partido.clean()
+
+    def test_un_partido_oficial_ya_guardado_exige_equipo_visitante(self):
+        partido = Match.objects.create(
+            league=self.league, home_team=self.a, away_team=self.b,
+            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
+            federation_id='MC-2',
+        )
+        partido.away_team = None
+        with self.assertRaises(ValidationError):
+            partido.clean()
+
+    def test_un_partido_oficial_sin_guardar_no_exige_equipos(self):
+        # La validación solo aplica si self.pk is not None: durante la creación
+        # es el formulario quien valida.
+        partido = Match(
+            league=self.league,
+            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
+        )
+        partido.clean()  # no debe lanzar
+
+    def test_un_amistoso_con_equipos_en_texto_es_valido(self):
+        partido = Match(
+            is_friendly=True,
+            home_team_text='Equipo invitado',
+            away_team_text='Sant Josep',
+            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
+        )
+        partido.clean()  # no debe lanzar

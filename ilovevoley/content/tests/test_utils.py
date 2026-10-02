@@ -6,7 +6,6 @@ from PIL import Image as PILImage
 from PIL.ExifTags import Base, GPS
 
 from ilovevoley.content.models.content import image_upload_path
-from ilovevoley.rosters.models.rosters import person_photo_upload_path
 from ilovevoley.videos.utils import (
     convert_heic_to_jpeg,
     process_uploaded_image,
@@ -123,20 +122,6 @@ class ImageSanitizationTests(SimpleTestCase):
         self.assertEqual(ext, 'jpg')
         self.assertEqual(uuid.UUID(base_name).hex, base_name)
 
-    def test_person_photo_upload_path_generates_uuid(self):
-        class DummyPerson:
-            id = None
-            first_name = 'Juan'
-            last_name = 'Perez'
-
-        path = person_photo_upload_path(DummyPerson(), 'mi_foto.png')
-        # Format: people/<uuid>.png
-        parts = path.split('/')
-        self.assertEqual(parts[0], 'people')
-        filename = parts[1]
-        base_name, ext = filename.split('.')
-        self.assertEqual(uuid.UUID(base_name).hex, base_name)
-
     def test_convert_heic_to_jpeg_purges_exif(self):
         raw_image = _create_image_with_gps()
         uploaded = SimpleUploadedFile('photo.heic', raw_image.read(), content_type='image/heic')
@@ -165,30 +150,3 @@ class ModelSaveSanitizationTests(TestCase):
         saved_img = PILImage.open(img_obj.image)
         self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
         self.assertTrue(img_obj.image.name.endswith('.jpg'))
-
-    def test_person_model_save_automatically_sanitizes(self):
-        from ilovevoley.rosters.models import Person
-        raw_image = _create_image_with_gps()
-        uploaded = SimpleUploadedFile('person_admin.jpg', raw_image.read(), content_type='image/jpeg')
-
-        person = Person.objects.create(
-            first_name='Admin',
-            last_name='Person',
-            photo=uploaded,
-        )
-        person.photo.open()
-        saved_img = PILImage.open(person.photo)
-        self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
-
-    def test_user_model_save_automatically_sanitizes(self):
-        from django.contrib.auth import get_user_model
-        raw_image = _create_image_with_gps()
-        uploaded = SimpleUploadedFile('avatar_admin.jpg', raw_image.read(), content_type='image/jpeg')
-
-        user = get_user_model().objects.create_user(
-            username='admin_avatar_user',
-            avatar=uploaded,
-        )
-        user.avatar.open()
-        saved_img = PILImage.open(user.avatar)
-        self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})

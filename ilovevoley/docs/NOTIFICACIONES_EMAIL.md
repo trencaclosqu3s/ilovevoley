@@ -89,18 +89,18 @@ EMAIL_HOST_PASSWORD=tu-password
 
 ```bash
 # Verificar configuración
-docker-compose exec web python manage.py test_email_notifications --test-type=config
+docker-compose exec web python manage.py send_test_emails --test-type=config
 
 # Probar todas las notificaciones
-docker-compose exec web python manage.py test_email_notifications --test-type=all
+docker-compose exec web python manage.py send_test_emails --test-type=all
 
 # Probar tipo específico
-docker-compose exec web python manage.py test_email_notifications --test-type=user
-docker-compose exec web python manage.py test_email_notifications --test-type=image
-docker-compose exec web python manage.py test_email_notifications --test-type=404
+docker-compose exec web python manage.py send_test_emails --test-type=user
+docker-compose exec web python manage.py send_test_emails --test-type=image
+docker-compose exec web python manage.py send_test_emails --test-type=404
 
 # Enviar a email específico
-docker-compose exec web python manage.py test_email_notifications --test-type=all --email=tu-email@example.com
+docker-compose exec web python manage.py send_test_emails --test-type=all --email=tu-email@example.com
 ```
 
 ### Prueba Rápida
@@ -201,7 +201,7 @@ Edita `base_email.html` para cambiar:
 
 1. **Verificar configuración**:
    ```bash
-   docker-compose exec web python manage.py test_email_notifications --test-type=config
+   docker-compose exec web python manage.py send_test_emails --test-type=config
    ```
 
 2. **Revisar logs**:
@@ -276,7 +276,7 @@ Para ver estadísticas de emails enviados, puedes crear un modelo de log persona
 
 Usa el comando de prueba durante desarrollo:
 ```bash
-docker-compose exec web python manage.py test_email_notifications --test-type=all --email=tu-email-dev@example.com
+docker-compose exec web python manage.py send_test_emails --test-type=all --email=tu-email-dev@example.com
 ```
 
 ## 📚 Referencias

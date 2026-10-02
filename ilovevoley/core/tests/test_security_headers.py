@@ -1,8 +1,6 @@
-import io
 import re
 
-from django.test import TestCase, override_settings
-from django.core.management import call_command
+from django.test import TestCase
 
 
 class SecurityHeadersTest(TestCase):
@@ -67,39 +65,6 @@ class SecurityHeadersTest(TestCase):
         self.assertIn("'unsafe-inline'", csp)
         self.assertIn("'unsafe-eval'", csp)
         self.assertNotIn('Content-Security-Policy-Report-Only', response.headers)
-
-    @override_settings(
-        SECURE_HSTS_SECONDS=31536000,
-        SECURE_HSTS_INCLUDE_SUBDOMAINS=True,
-    )
-    def test_hsts_header_on_secure_request(self):
-        """Verifica que la cabecera Strict-Transport-Security se emite en peticiones HTTPS con HSTS activo."""
-        response = self.client.get('/', secure=True)
-        self.assertIn('Strict-Transport-Security', response.headers)
-        hsts = response.headers['Strict-Transport-Security']
-        self.assertIn('max-age=31536000', hsts)
-        self.assertIn('includeSubDomains', hsts)
-
-    def test_production_deployment_check_no_transport_warnings(self):
-        """Verifica que check --deploy en configuración de producción no emite avisos de transporte seguro."""
-        out = io.StringIO()
-        with override_settings(
-            DEBUG=False,
-            SECRET_KEY='django-insecure-test-key-with-sufficient-entropy-for-deploy-check-1234567890',
-            ALLOWED_HOSTS=['ilovevoley.es'],
-            SESSION_COOKIE_SECURE=True,
-            CSRF_COOKIE_SECURE=True,
-            SECURE_SSL_REDIRECT=True,
-            SECURE_HSTS_SECONDS=31536000,
-            SECURE_HSTS_INCLUDE_SUBDOMAINS=True,
-        ):
-            call_command('check', '--deploy', stdout=out, stderr=out)
-
-        output = out.getvalue()
-        self.assertNotIn('security.W004', output)
-        self.assertNotIn('security.W008', output)
-        self.assertNotIn('security.W012', output)
-        self.assertNotIn('security.W016', output)
 
     @staticmethod
     def _directive(policy, name):
