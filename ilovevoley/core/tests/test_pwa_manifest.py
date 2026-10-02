@@ -1,4 +1,5 @@
 import json
+from django.conf import settings
 from django.test import TestCase, RequestFactory, override_settings
 from ilovevoley.core.models import Organization
 from ilovevoley.core.views import manifest_json
@@ -95,16 +96,20 @@ class PWAManifestTest(TestCase):
         self.assertIn('https://*.ilovevoley.es', origins)
 
     def test_web_app_origin_association(self):
+        from ilovevoley.core.tenant_utils import get_tenant_base_domain
         from ilovevoley.core.views import web_app_origin_association
 
-        request = self.factory.get('/.well-known/web-app-origin-association', HTTP_HOST='ilovevoley.es')
-        response = web_app_origin_association(request)
+        with self.settings(TENANT_BASE_DOMAIN='ilovevoley.es'):
+            request = self.factory.get('/.well-known/web-app-origin-association', HTTP_HOST='santjosep.ilovevoley.es')
+            response = web_app_origin_association(request)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers['Content-Type'], 'application/json; charset=utf-8')
         data = json.loads(response.content.decode('utf-8'))
         self.assertIn('web_apps', data)
         self.assertEqual(data['web_apps'][0]['manifest'], '/manifest.webmanifest')
-        origin_key = 'http://ilovevoley.es/'
-        self.assertIn(origin_key, data)
-        self.assertEqual(data[origin_key], {'scope': '/'})
+        base_domain = 'ilovevoley.es'
+        protocol = 'https' if not settings.DEBUG else 'http'
+        self.assertIn(f'{protocol}://{base_domain}/', data)
+        self.assertIn(f'{protocol}://santjosep.{base_domain}/', data)
+        self.assertEqual(data[f'{protocol}://santjosep.{base_domain}/'], {'scope': '/'})

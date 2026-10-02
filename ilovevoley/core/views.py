@@ -11,6 +11,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -304,10 +305,19 @@ def manifest_json(request):
 
 def web_app_origin_association(request):
     """Devuelve la declaración de asociación de orígenes para PWA scope extensions."""
-    host = request.get_host()
-    origin_key = f'{request.scheme}://{host}/'
+    protocol = 'https' if not settings.DEBUG else 'http'
+    base_domain = get_tenant_base_domain(request)
+
+    cache_key = 'pwa_origin_association_slugs'
+    active_slugs = cache.get(cache_key)
+    if active_slugs is None:
+        active_slugs = list(
+            Organization.objects.filter(is_active=True).values_list('slug', flat=True)
+        )
+        cache.set(cache_key, active_slugs, timeout=86400)
+
     data = {
-        origin_key: {
+        f'{protocol}://{base_domain}/': {
             'scope': '/',
         },
         'web_apps': [
@@ -319,6 +329,11 @@ def web_app_origin_association(request):
             }
         ],
     }
+    for slug in active_slugs:
+        data[f'{protocol}://{slug}.{base_domain}/'] = {
+            'scope': '/',
+        }
+
     response = JsonResponse(data, content_type='application/json; charset=utf-8')
     response['Cache-Control'] = 'public, max-age=86400'
     response['X-Content-Type-Options'] = 'nosniff'
