@@ -9,7 +9,6 @@ from .tenant_utils import (
 
 DEFAULT_BRAND = '#01696f'
 DEFAULT_BRAND_DARK = '#004d52'
-DEFAULT_BRAND_GRADIENT_TO = '#004d52'
 SANT_JOSEP_YELLOW = '#F4D47C'
 
 
@@ -21,17 +20,16 @@ def tenant_context(request):
         brand = org.primary_color if org.primary_color else DEFAULT_BRAND
         brand_dark = org.secondary_color if org.secondary_color else DEFAULT_BRAND_DARK
         gradient_from = brand
+        # Sant Josep mantiene su identidad histórica morado→amarillo (#297).
         if getattr(org, 'slug', None) == 'santjosep':
             gradient_to = SANT_JOSEP_YELLOW
-        elif org.secondary_color:
-            gradient_to = org.secondary_color
         else:
-            gradient_to = brand_dark
+            gradient_to = org.secondary_color or brand
     else:
         brand = DEFAULT_BRAND
         brand_dark = DEFAULT_BRAND_DARK
         gradient_from = DEFAULT_BRAND
-        gradient_to = DEFAULT_BRAND_GRADIENT_TO
+        gradient_to = DEFAULT_BRAND_DARK
     
     is_manager = False
     is_admin = False
