@@ -282,6 +282,7 @@ def notify_match_media_push_task(organization_id, match_id):
         url=url,
         category_ids=category_ids,
         notification_type='match_media',
+        match_id=match_id,
     )
     return True
 

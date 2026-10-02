@@ -279,3 +279,60 @@ class WebPushSubscription(models.Model):
     def __str__(self):
         owner = self.user.username if self.user else 'Anónimo'
         return f'{owner} @ {self.organization.name} ({self.endpoint[:30]}...)'
+
+
+class WebPushAudit(models.Model):
+    """Auditoría mínima de envíos push por ejecución de tarea (#316).
+
+    No guarda el texto del push ni datos de usuarios. Se limpia periódicamente
+    para mantener una retención acotada (90 días).
+    """
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='web_push_audits',
+        verbose_name=_('Organización / Club'),
+    )
+    notification_type = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        verbose_name=_('Tipo de notificación'),
+    )
+    match_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name=_('ID de partido'),
+    )
+    candidates_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_('Dispositivos candidatos'),
+    )
+    dispatched_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_('Enviados'),
+    )
+    failed_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_('Fallidos'),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        verbose_name=_('Fecha'),
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = _('Auditoría de aviso push')
+        verbose_name_plural = _('Auditorías de avisos push')
+        indexes = [
+            models.Index(fields=['organization', 'notification_type', '-created_at']),
+        ]
+
+    def __str__(self):
+        type_str = self.notification_type or 'general'
+        date_str = self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else ''
+        return f'{date_str} @ {self.organization.name} ({type_str}): {self.dispatched_count}/{self.candidates_count}'
