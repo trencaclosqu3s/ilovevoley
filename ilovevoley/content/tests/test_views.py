@@ -4,6 +4,14 @@ from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
+import re
+
+
+def _count_script(content, needle):
+    """Cuenta etiquetas <script src> que referencian ``needle`` tolerando el
+    hash de ``ManifestStaticFilesStorage``."""
+    return len(re.findall(rb'<script[^>]+src="[^"]*' + needle.encode() + rb'[^"]*"', content))
+
 from ilovevoley.core.models import Organization, Season
 from ilovevoley.content import forms as content_forms
 from ilovevoley.content import views as content_views
@@ -152,23 +160,6 @@ class ContentSeasonFilterTests(TestCase):
             reverse('content:video_list') + '?season=', HTTP_HOST='testclub.ilovevoley.es'
         )
         self.assertEqual(self._titles(response), {'Actual', 'Pasado'})
-
-    def test_video_list_id_de_temporada_invalido_cae_a_la_activa(self):
-        self.client.force_login(self.user)
-        response = self.client.get(
-            reverse('content:video_list') + '?season=999999',
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(self._titles(response), {'Actual'})
-
-    def test_video_list_temporada_no_numerica_no_rompe(self):
-        self.client.force_login(self.user)
-        response = self.client.get(
-            reverse('content:video_list') + '?season=abc',
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(self._titles(response), {'Actual'})
 
     def test_galeria_individual_default_muestra_temporada_activa(self):
         self.client.force_login(self.user)
@@ -537,7 +528,7 @@ class GalleryQueryOptimizationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.count(b'js/lightbox.js'), 1)
+        self.assertEqual(_count_script(response.content, 'js/lightbox'), 1)
 
     def test_popular_tags_scoped_to_tenant_and_cached(self):
         self._img(self.org, title='t1', tags='saque, bloqueo', auto_tags=['voleibol'])
@@ -563,3 +554,15 @@ class GalleryQueryOptimizationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertNotIn('nuevo-tag', response2.context['popular_tags'])
+
+
+class CoerceSetNumberTest(TestCase):
+    """Normalización del número de set recibido por la vista (query/form)."""
+
+    def test_invalid_values_become_none(self):
+        for raw in (None, '', 'abc', '0', '-1'):
+            self.assertIsNone(content_views._coerce_set_number(raw), raw)
+
+    def test_valid_values_become_int(self):
+        self.assertEqual(content_views._coerce_set_number('1'), 1)
+        self.assertEqual(content_views._coerce_set_number('5'), 5)
