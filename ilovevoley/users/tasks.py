@@ -56,9 +56,10 @@ def notify_web_push_organization_task(
 
     # El aviso abre el dominio del club emisor, no el donde se suscribió el dispositivo.
     target_url = url or '/'
-    org = Organization.objects.filter(pk=organization_id).first()
-    if org and target_url.startswith('/'):
-        target_url = build_absolute_url(target_url, tenant=org)
+    if target_url.startswith('/'):
+        org = Organization.objects.filter(pk=organization_id).first()
+        if org:
+            target_url = build_absolute_url(target_url, tenant=org)
 
     dispatched = 0
     failed = 0
@@ -93,10 +94,10 @@ def notify_web_push_organization_task(
     return dispatched
 
 
-
 @shared_task(name='cleanup_expired_web_push_audits')
 def cleanup_expired_web_push_audits_task(days=90):
     """Elimina registros de auditoría de avisos push con más de ``days`` días de antigüedad."""
+
     cutoff = timezone.now() - timedelta(days=days)
     deleted, _ = WebPushAudit.objects.filter(created_at__lt=cutoff).delete()
     return {'deleted': deleted}
