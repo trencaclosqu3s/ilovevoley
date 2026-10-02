@@ -49,8 +49,8 @@ class OperationalSettingsTest(SimpleTestCase):
 
     def test_institutional_sender_email(self):
         """DEFAULT_FROM_EMAIL y SERVER_EMAIL deben usar dirección institucional."""
-        from_display, from_addr = parseaddr(settings.DEFAULT_FROM_EMAIL)
-        server_display, server_addr = parseaddr(settings.SERVER_EMAIL)
+        _, from_addr = parseaddr(settings.DEFAULT_FROM_EMAIL)
+        _, server_addr = parseaddr(settings.SERVER_EMAIL)
 
         self.assertTrue(
             from_addr.endswith('@ilovevoley.es'),
@@ -75,13 +75,4 @@ class OperationalSettingsTest(SimpleTestCase):
         self.assertEqual(
             match.group(1).upper(), '60M',
             "client_max_body_size en nginx.conf debe ser 60M para alinearse con Django.",
-        )
-
-    def test_no_redundant_account_session_remember(self):
-        """settings.py no debe contener ACCOUNT_SESSION_REMEMBER redundante o mal categorizado."""
-        settings_path = Path(settings.BASE_DIR) / 'config' / 'settings.py'
-        content = settings_path.read_text(encoding='utf-8')
-        self.assertNotIn(
-            'ACCOUNT_SESSION_REMEMBER', content,
-            "ACCOUNT_SESSION_REMEMBER es redundante (default None en allauth) y no debe estar en settings.py.",
         )

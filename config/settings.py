@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 import re
+import sys
 from pathlib import Path
 from decouple import config as env_config
 from django.templatetags.static import static
@@ -275,6 +276,17 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Statement timeout (PostgreSQL): protege workers web de consultas colgadas.
+# Se desactiva automáticamente en comandos de migración/gestión y Celery, o con DB_STATEMENT_TIMEOUT=0.
+_db_statement_timeout = env_config('DB_STATEMENT_TIMEOUT', default='30000')
+_is_batch_or_migration = any(
+    cmd in sys.argv for cmd in ['migrate', 'makemigrations', 'dumpdata', 'loaddata']
+) or any('celery' in arg for arg in sys.argv)
+
+_db_options = {}
+if _db_statement_timeout and _db_statement_timeout != '0' and not _is_batch_or_migration:
+    _db_options['options'] = f"-c statement_timeout={_db_statement_timeout}"
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -290,9 +302,7 @@ DATABASES = {
         'PORT': env_config('DB_PORT', default='5432'),
         'CONN_MAX_AGE': env_config('DB_CONN_MAX_AGE', default=60, cast=int),
         'CONN_HEALTH_CHECKS': env_config('DB_CONN_HEALTH_CHECKS', default=True, cast=bool),
-        'OPTIONS': {
-            'options': f"-c statement_timeout={env_config('DB_STATEMENT_TIMEOUT', default='30000')}",
-        },
+        'OPTIONS': _db_options,
     }
 }
 
