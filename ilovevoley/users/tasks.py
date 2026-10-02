@@ -21,7 +21,12 @@ def notify_web_push_organization_task(
     el idioma de su usuario; sin traducción para ese idioma, o con dispositivo anónimo, se usan
     ``title`` y ``body``.
     """
-    subs = WebPushSubscription.objects.filter(organization_id=organization_id)
+    # Un dispositivo queda ligado a una sola organización (endpoint único), así que un
+    # usuario miembro de varios clubes solo recibiría los del club donde se suscribió.
+    subs = WebPushSubscription.objects.filter(
+        Q(organization_id=organization_id)
+        | Q(user__memberships__organization_id=organization_id, user__memberships__is_approved=True)
+    ).distinct()
     if category_ids:
         prefs = CategoryPreference.objects.filter(organization_id=organization_id)
         interested = prefs.filter(categories__in=category_ids).values('user_id')
