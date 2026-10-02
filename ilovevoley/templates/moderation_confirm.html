@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Confirmar Moderación - I Love Voley{% endblock %}
+{% block title %}{% trans "Confirmar Moderación" %} - I Love Voley{% endblock %}
 
 {% block content %}
+{% trans "No proporcionado" as not_provided %}
 <div class="container mx-auto px-4 py-12">
     <div class="max-w-2xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border {% if action == 'approve' %}border-green-200 dark:border-green-800{% else %}border-red-200 dark:border-red-800{% endif %}">
@@ -12,12 +14,12 @@
                         <svg class="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <h2 class="text-xl font-bold">Confirmar Aprobación de {{ item_type|title }}</h2>
+                        <h2 class="text-xl font-bold">{% with item_label=item_type|title %}{% blocktrans with item=item_label %}Confirmar Aprobación de {{ item }}{% endblocktrans %}{% endwith %}</h2>
                     {% else %}
                         <svg class="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                         </svg>
-                        <h2 class="text-xl font-bold">Confirmar Rechazo de {{ item_type|title }}</h2>
+                        <h2 class="text-xl font-bold">{% with item_label=item_type|title %}{% blocktrans with item=item_label %}Confirmar Rechazo de {{ item }}{% endblocktrans %}{% endwith %}</h2>
                     {% endif %}
                 </div>
             </div>
@@ -25,19 +27,20 @@
             <div class="p-6">
                 {% if target_user %}
                     <p class="text-gray-700 dark:text-gray-300 mb-4">
-                        ¿Estás seguro de que deseas <strong>{% if action == 'approve' %}aprobar{% else %}rechazar{% endif %}</strong> al siguiente usuario?
+                        {% if action == 'approve' %}{% trans "aprobar" as action_verb %}{% else %}{% trans "rechazar" as action_verb %}{% endif %}
+                        {% blocktrans with verb=action_verb %}¿Estás seguro de que deseas <strong>{{ verb }}</strong> al siguiente usuario?{% endblocktrans %}
                     </p>
                     <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
                         <ul class="text-gray-800 dark:text-gray-200 space-y-2">
-                            <li><strong>Usuario:</strong> {{ target_user.username }}</li>
-                            <li><strong>Email:</strong> {{ target_user.email|default:"No proporcionado" }}</li>
-                            <li><strong>Nombre completo:</strong> {{ target_user.get_full_name|default:"No proporcionado" }}</li>
+                            <li><strong>{% trans "Usuario:" %}</strong> {{ target_user.username }}</li>
+                            <li><strong>{% trans "Email:" %}</strong> {{ target_user.email|default:not_provided }}</li>
+                            <li><strong>{% trans "Nombre completo:" %}</strong> {{ target_user.get_full_name|default:not_provided }}</li>
                             {% if target_user.parent_info %}
-                                <li><strong>Información familiar:</strong> {{ target_user.parent_info }}</li>
+                                <li><strong>{% trans "Información familiar:" %}</strong> {{ target_user.parent_info }}</li>
                             {% endif %}
-                            <li><strong>Fecha de registro:</strong> {{ target_user.date_joined|date:"d/m/Y H:i" }}</li>
+                            <li><strong>{% trans "Fecha de registro:" %}</strong> {{ target_user.date_joined|date:"d/m/Y H:i" }}</li>
                             {% if tenant %}
-                                <li><strong>Club:</strong> {{ tenant.name }}</li>
+                                <li><strong>{% trans "Club:" %}</strong> {{ tenant.name }}</li>
                             {% endif %}
                         </ul>
                     </div>
@@ -45,16 +48,17 @@
 
                 {% if target_image %}
                     <p class="text-gray-700 dark:text-gray-300 mb-4">
-                        ¿Estás seguro de que deseas <strong>{% if action == 'approve' %}aprobar{% else %}rechazar{% endif %}</strong> la siguiente imagen?
+                        {% if action == 'approve' %}{% trans "aprobar" as action_verb %}{% else %}{% trans "rechazar" as action_verb %}{% endif %}
+                        {% blocktrans with verb=action_verb %}¿Estás seguro de que deseas <strong>{{ verb }}</strong> la siguiente imagen?{% endblocktrans %}
                     </p>
                     <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
                         <ul class="text-gray-800 dark:text-gray-200 space-y-2 mb-4">
-                            <li><strong>Título:</strong> {{ target_image.title }}</li>
-                            <li><strong>Subida por:</strong> {{ target_image.uploaded_by.username }}</li>
-                            <li><strong>Tipo:</strong> {{ target_image.get_image_type_display }}</li>
-                            <li><strong>Fecha de subida:</strong> {{ target_image.upload_date|date:"d/m/Y H:i" }}</li>
+                            <li><strong>{% trans "Título:" %}</strong> {{ target_image.title }}</li>
+                            <li><strong>{% trans "Subida por:" %}</strong> {{ target_image.uploaded_by.username }}</li>
+                            <li><strong>{% trans "Tipo:" %}</strong> {{ target_image.get_image_type_display }}</li>
+                            <li><strong>{% trans "Fecha de subida:" %}</strong> {{ target_image.upload_date|date:"d/m/Y H:i" }}</li>
                             {% if tenant %}
-                                <li><strong>Club:</strong> {{ tenant.name }}</li>
+                                <li><strong>{% trans "Club:" %}</strong> {{ tenant.name }}</li>
                             {% endif %}
                         </ul>
                         {% if image_data_uri %}
@@ -76,14 +80,14 @@
                     
                     {% if target_image %}
                         <div class="mb-4">
-                            <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notas de moderación (opcional):</label>
-                            <input type="text" name="notes" id="notes" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Motivo o comentarios...">
+                            <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Notas de moderación (opcional):" %}</label>
+                            <input type="text" name="notes" id="notes" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="{% trans "Motivo o comentarios..." %}">
                         </div>
                     {% endif %}
 
                     <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                         <a href="{% url 'landing' %}" class="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-200 font-medium">
-                            ← Cancelar y volver
+                            {% trans "← Cancelar y volver" %}
                         </a>
 
                         {% if action == 'approve' %}
@@ -91,14 +95,14 @@
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                 </svg>
-                                Confirmar Aprobación
+                                {% trans "Confirmar Aprobación" %}
                             </button>
                         {% else %}
                             <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-6 rounded-lg transition duration-200 shadow flex items-center">
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                 </svg>
-                                Confirmar Rechazo
+                                {% trans "Confirmar Rechazo" %}
                             </button>
                         {% endif %}
                     </div>

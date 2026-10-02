@@ -8,7 +8,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST
+from django.views.i18n import set_language
 from django_ratelimit.decorators import ratelimit
 from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
 from ilovevoley.core.models import Organization
@@ -44,7 +46,7 @@ def pending_approval(request):
             if form.is_valid():
                 form.save()
 
-                messages.success(request, 'Información familiar guardada correctamente. Tu cuenta será revisada pronto.')
+                messages.success(request, _('Información familiar guardada correctamente. Tu cuenta será revisada pronto.'))
                 return redirect('pending_approval')
         else:
             form = ParentInfoForm(instance=request.user)
@@ -128,16 +130,32 @@ def profile_edit(request):
                     return render(request, 'users/profile_edit.html', {'form': form})
             
             form.save()
-            messages.success(request, 'Tu perfil ha sido actualizado correctamente.')
+            messages.success(request, _('Tu perfil ha sido actualizado correctamente.'))
             return redirect('profile')
         else:
-            messages.error(request, 'Por favor corrige los errores en el formulario.')
+            messages.error(request, _('Por favor corrige los errores en el formulario.'))
     else:
         form = UserProfileForm(instance=request.user, organization=tenant)
     
     return render(request, 'users/profile_edit.html', {
         'form': form
     })
+
+
+@require_POST
+def set_user_language(request):
+    """Cambia el idioma de la interfaz.
+
+    Persiste la preferencia en el perfil cuando hay sesión autenticada y delega
+    en la vista estándar de Django, que fija la cookie ``django_language`` y
+    redirige a ``next``.
+    """
+    language = request.POST.get('language')
+    if request.user.is_authenticated and language in dict(settings.LANGUAGES):
+        if request.user.preferred_language != language:
+            request.user.preferred_language = language
+            request.user.save(update_fields=['preferred_language'])
+    return set_language(request)
 
 
 @login_required
@@ -304,7 +322,7 @@ def webpush_subscribe(request):
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return HttpResponseBadRequest('JSON inválido')
+        return HttpResponseBadRequest(_('JSON inválido'))
 
     endpoint = (data.get('endpoint') or '').strip()
     raw_keys = data.get('keys')
@@ -314,12 +332,12 @@ def webpush_subscribe(request):
     user_agent = (data.get('user_agent') or request.META.get('HTTP_USER_AGENT', ''))[:500]
 
     if not endpoint or not p256dh or not auth:
-        return HttpResponseBadRequest('Faltan parámetros obligatorios de la suscripción (endpoint, p256dh, auth)')
+        return HttpResponseBadRequest(_('Faltan parámetros obligatorios de la suscripción (endpoint, p256dh, auth)'))
 
     # El endpoint lo elige el cliente y el worker hace POST a esa URL: sin lista
     # blanca el endpoint anónimo sería un SSRF ciego contra la red interna.
     if not is_valid_push_endpoint(endpoint):
-        return HttpResponseBadRequest('Endpoint de suscripción no válido')
+        return HttpResponseBadRequest(_('Endpoint de suscripción no válido'))
 
     user = request.user if request.user.is_authenticated else None
 
@@ -338,12 +356,12 @@ def webpush_subscribe(request):
         )
 
     if not organization:
-        return JsonResponse({'success': False, 'error': 'No hay club activo'}, status=400)
+        return JsonResponse({'success': False, 'error': _('No hay club activo')}, status=400)
 
     # Una suscripción con dueño solo la renueva su dueño; las anónimas pueden reclamarse al iniciar sesión.
     existing = WebPushSubscription.objects.filter(endpoint=endpoint).first()
     if existing and existing.user_id and existing.user_id != getattr(user, 'id', None):
-        return JsonResponse({'success': False, 'error': 'Suscripción de otro usuario'}, status=403)
+        return JsonResponse({'success': False, 'error': _('Suscripción de otro usuario')}, status=403)
 
     WebPushSubscription.objects.update_or_create(
         endpoint=endpoint,
@@ -364,7 +382,7 @@ def webpush_unsubscribe(request):
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return HttpResponseBadRequest('JSON inválido')
+        return HttpResponseBadRequest(_('JSON inválido'))
 
     endpoint = (data.get('endpoint') or '').strip()
     if endpoint:

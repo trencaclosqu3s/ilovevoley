@@ -1,3 +1,4 @@
+{% load i18n %}
 {# Botón + polling para descargar álbum en ZIP. Requiere download_zip_url. #}
 {% if total_images %}
 {% csrf_token %}
@@ -7,7 +8,7 @@
         data-status-url-template="{% url 'content:album_zip_status' '00000000-0000-0000-0000-000000000000' %}"
         class="inline-flex items-center px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 text-sm disabled:opacity-60 disabled:cursor-wait">
     <i class="fas fa-file-archive mr-2" aria-hidden="true"></i>
-    <span id="album-zip-btn-label">Descargar álbum en ZIP</span>
+    <span id="album-zip-btn-label">{% trans "Descargar álbum en ZIP" %}</span>
 </button>
 <script nonce="{{ csp_nonce }}">
 (function () {
@@ -36,36 +37,36 @@
 
     async function poll(jobId, attemptsLeft) {
         if (attemptsLeft <= 0) {
-            label.textContent = 'Descargar álbum en ZIP';
+            label.textContent = '{% trans "Descargar álbum en ZIP" as js_msg %}{{ js_msg|escapejs }}';
             btn.disabled = false;
-            alert('La preparación del ZIP está tardando demasiado. Inténtalo de nuevo.');
+            alert('{% trans "La preparación del ZIP está tardando demasiado. Inténtalo de nuevo." as js_msg %}{{ js_msg|escapejs }}');
             return;
         }
         const res = await fetch(statusUrl(jobId), {
             headers: { 'Accept': 'application/json' },
             credentials: 'same-origin',
         });
-        if (!res.ok) throw new Error('Estado no disponible');
+        if (!res.ok) throw new Error('{% trans "Estado no disponible" as js_msg %}{{ js_msg|escapejs }}');
         const data = await res.json();
         if (data.status === 'ready' && data.download_url) {
-            label.textContent = 'Descargar álbum en ZIP';
+            label.textContent = '{% trans "Descargar álbum en ZIP" as js_msg %}{{ js_msg|escapejs }}';
             btn.disabled = false;
             window.location.href = data.download_url;
             return;
         }
         if (data.status === 'failed') {
-            label.textContent = 'Descargar álbum en ZIP';
+            label.textContent = '{% trans "Descargar álbum en ZIP" as js_msg %}{{ js_msg|escapejs }}';
             btn.disabled = false;
-            alert(data.error || 'No se pudo generar el ZIP.');
+            alert(data.error || '{% trans "No se pudo generar el ZIP." as js_msg %}{{ js_msg|escapejs }}');
             return;
         }
-        label.textContent = 'Preparando ZIP…';
+        label.textContent = '{% trans "Preparando ZIP…" as js_msg %}{{ js_msg|escapejs }}';
         setTimeout(function () { poll(jobId, attemptsLeft - 1); }, 2000);
     }
 
     btn.addEventListener('click', async function () {
         btn.disabled = true;
-        label.textContent = 'Preparando ZIP…';
+        label.textContent = '{% trans "Preparando ZIP…" as js_msg %}{{ js_msg|escapejs }}';
         try {
             const res = await fetch(startUrl, {
                 method: 'POST',
@@ -77,13 +78,13 @@
             });
             const data = await res.json().catch(function () { return {}; });
             if (!res.ok) {
-                throw new Error(data.error || 'No se pudo iniciar la descarga');
+                throw new Error(data.error || '{% trans "No se pudo iniciar la descarga" as js_msg %}{{ js_msg|escapejs }}');
             }
             await poll(data.job_id, 30);
         } catch (err) {
-            label.textContent = 'Descargar álbum en ZIP';
+            label.textContent = '{% trans "Descargar álbum en ZIP" as js_msg %}{{ js_msg|escapejs }}';
             btn.disabled = false;
-            alert(err.message || 'Error al preparar el ZIP');
+            alert(err.message || '{% trans "Error al preparar el ZIP" as js_msg %}{{ js_msg|escapejs }}');
         }
     });
 })();

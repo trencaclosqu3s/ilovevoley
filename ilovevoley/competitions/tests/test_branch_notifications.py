@@ -80,3 +80,25 @@ class MatchBranchEmailFilterTest(TestCase):
         email = mail.outbox[0]
         recipients = list(email.to) + list(email.bcc)
         self.assertIn('c@example.com', recipients)
+
+    def test_partial_send_marks_logs_to_avoid_resending_to_delivered_language(self):
+        from unittest.mock import patch
+
+        User.objects.filter(email='b@example.com').update(preferred_language='ca')
+        match = Match.objects.create(
+            league=self.league, home_team=self.team_c, away_team=self.team_b,
+            match_date=timezone.now() + timedelta(days=2), venue='X',
+        )
+        log = self._log(match)
+
+        with override_settings(MATCH_CHANGE_NOTIFY_STAFF_ENABLED=True), patch(
+            'django.core.mail.EmailMultiAlternatives.send', side_effect=[1, RuntimeError('smtp')],
+        ) as mock_send:
+            sent = notify_match_changes([log])
+
+        # Dos grupos de idioma: el segundo envío es el que falla.
+        self.assertEqual(mock_send.call_count, 2)
+
+        log.refresh_from_db()
+        self.assertEqual(sent, 1)
+        self.assertTrue(log.notified)

@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Resultado de Moderación - I Love Voley{% endblock %}
+{% block title %}{% trans "Resultado de Moderación" %} - I Love Voley{% endblock %}
 
 {% block content %}
+{% trans "No proporcionado" as not_provided %}
 <div class="container mx-auto px-4 py-12">
     <div class="max-w-2xl mx-auto">
         {% if success %}
@@ -14,9 +16,9 @@
                     <div>
                         <h2 class="text-2xl font-bold">
                             {% if already_moderated %}
-                                Ya Moderado
+                                {% trans "Ya Moderado" %}
                             {% else %}
-                                ✓ {{ action|title }} Correctamente
+                                {% with action_label=action|title %}{% blocktrans with action=action_label %}✓ {{ action }} Correctamente{% endblocktrans %}{% endwith %}
                             {% endif %}
                         </h2>
                     </div>
@@ -25,22 +27,22 @@
                 
                 {% if user %}
                     <div class="mt-4 p-4 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-800">
-                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Detalles del Usuario:</h3>
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">{% trans "Detalles del Usuario:" %}</h3>
                         <ul class="text-gray-700 dark:text-gray-300">
-                            <li><strong>Usuario:</strong> {{ user.username }}</li>
-                            <li><strong>Email:</strong> {{ user.email|default:"No proporcionado" }}</li>
-                            <li><strong>Nombre:</strong> {{ user.get_full_name|default:"No proporcionado" }}</li>
+                            <li><strong>{% trans "Usuario:" %}</strong> {{ user.username }}</li>
+                            <li><strong>{% trans "Email:" %}</strong> {{ user.email|default:not_provided }}</li>
+                            <li><strong>{% trans "Nombre:" %}</strong> {{ user.get_full_name|default:not_provided }}</li>
                         </ul>
                     </div>
                 {% endif %}
                 
                 {% if image %}
                     <div class="mt-4 p-4 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-800">
-                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Detalles de la Imagen:</h3>
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">{% trans "Detalles de la Imagen:" %}</h3>
                         <ul class="text-gray-700 dark:text-gray-300 mb-3">
-                            <li><strong>Título:</strong> {{ image.title }}</li>
-                            <li><strong>Subida por:</strong> {{ image.uploaded_by.username }}</li>
-                            <li><strong>Tipo:</strong> {{ image.get_image_type_display }}</li>
+                            <li><strong>{% trans "Título:" %}</strong> {{ image.title }}</li>
+                            <li><strong>{% trans "Subida por:" %}</strong> {{ image.uploaded_by.username }}</li>
+                            <li><strong>{% trans "Tipo:" %}</strong> {{ image.get_image_type_display }}</li>
                         </ul>
                         {% if image_data_uri %}
                             <img src="{{ image_data_uri }}" alt="{{ image.title }}" 
@@ -58,7 +60,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                     <div>
-                        <h2 class="text-2xl font-bold">✗ Error en la Moderación</h2>
+                        <h2 class="text-2xl font-bold">{% trans "✗ Error en la Moderación" %}</h2>
                     </div>
                 </div>
                 <p class="text-lg mb-2"><strong>{{ error }}</strong></p>
@@ -68,22 +70,22 @@
         
         <div class="text-center mt-8">
             <a href="/" class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition duration-300 shadow">
-                🏠 Volver al Inicio
+                {% trans "🏠 Volver al Inicio" %}
             </a>
             
             {% if user.is_superuser %}
                 <a href="/admin/" class="inline-block bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition duration-300 shadow ml-4">
-                    🔧 Ir al Admin
+                    {% trans "🔧 Ir al Admin" %}
                 </a>
             {% endif %}
         </div>
         
         <div class="mt-8 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
-            <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-2">ℹ️ Información</h3>
+            <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-2">{% trans "ℹ️ Información" %}</h3>
             <p class="text-blue-800 dark:text-blue-200 text-sm">
-                Esta acción se realizó mediante un enlace seguro de moderación enviado por email. 
+                {% trans "Esta acción se realizó mediante un enlace seguro de moderación enviado por email." %} 
                 {% if success and not already_moderated %}
-                    El {{ item_type }} ha sido procesado correctamente y se han enviado las notificaciones correspondientes.
+                    {% blocktrans with item=item_type %}El {{ item }} ha sido procesado correctamente y se han enviado las notificaciones correspondientes.{% endblocktrans %}
                 {% endif %}
             </p>
         </div>

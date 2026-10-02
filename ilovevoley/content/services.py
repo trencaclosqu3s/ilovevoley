@@ -2,6 +2,7 @@
 import logging
 
 from django.core.exceptions import PermissionDenied
+from django.utils.translation import gettext as _
 
 from ilovevoley.core.tenant_utils import can_moderate_images
 
@@ -27,24 +28,24 @@ def moderate_image(actor, tenant, image, decision, notes='', validate_permission
         ValueError: Si la decisión no es válida o si la imagen ya fue moderada.
     """
     if not actor or not actor.is_authenticated:
-        raise PermissionDenied("Se requiere autenticación para moderar.")
+        raise PermissionDenied(_("Se requiere autenticación para moderar."))
 
     # Validar permisos generales de moderación
     if validate_permission and not can_moderate_images(actor, tenant):
-        raise PermissionDenied("No tienes permisos para moderar imágenes en esta organización.")
+        raise PermissionDenied(_("No tienes permisos para moderar imágenes en esta organización."))
 
     # Aislamiento multi-tenant: si hay tenant, la imagen debe pertenecer estrictamente a él
     if tenant is not None:
         if image.organization_id != tenant.id:
-            raise PermissionDenied("No puedes moderar una imagen perteneciente a otra organización.")
+            raise PermissionDenied(_("No puedes moderar una imagen perteneciente a otra organización."))
     elif not actor.is_superuser:
-        raise PermissionDenied("Solo un superusuario puede moderar imágenes a nivel global.")
+        raise PermissionDenied(_("Solo un superusuario puede moderar imágenes a nivel global."))
 
 
 
     # Validar estado de la imagen
     if image.status != 'pending':
-        raise ValueError("La imagen no está en estado pendiente de moderación.")
+        raise ValueError(_("La imagen no está en estado pendiente de moderación."))
 
     # Validar decisión
     if isinstance(decision, str):
@@ -53,11 +54,11 @@ def moderate_image(actor, tenant, image, decision, notes='', validate_permission
         elif decision == 'reject':
             approved = False
         else:
-            raise ValueError(f"Decisión de moderación no válida: {decision}")
+            raise ValueError(_("Decisión de moderación no válida: %(decision)s") % {'decision': decision})
     elif isinstance(decision, bool):
         approved = decision
     else:
-        raise ValueError(f"Decisión de moderación no válida: {decision}")
+        raise ValueError(_("Decisión de moderación no válida: %(decision)s") % {'decision': decision})
 
     # Delegar en el método del modelo para actualizar campos y persistir
     image.moderate(moderator=actor, approved=approved, notes=notes)

@@ -22,3 +22,70 @@ class TenantContextTest(TestCase):
         self.assertTrue(context['is_tenant_manager'])
         self.assertTrue(context['is_tenant_admin'])
         self.assertFalse(context['can_switch_club'])
+
+    def test_base_domain_resolves_to_ilovevoley_brand_colors(self):
+        context = self._context(user=None, tenant=None)
+
+        self.assertEqual(context['tenant_color'], '#01696f')
+        self.assertEqual(context['tenant_color_dark'], '#004d52')
+        self.assertEqual(context['tenant_gradient_from'], '#01696f')
+        self.assertEqual(context['tenant_gradient_to'], '#004d52')
+        self.assertEqual(context['tenant_gradient_from_rgb'], '1 105 111')
+        self.assertEqual(context['tenant_gradient_to_rgb'], '0 77 82')
+
+    def test_explicit_gradient_color_overrides_secondary(self):
+        from ilovevoley.core.models import Organization
+
+        org = Organization(
+            slug='club-amarillo',
+            name='Club Amarillo',
+            primary_color='#9B7FBF',
+            secondary_color='#7B5FA0',
+            gradient_color='#F4D47C',
+        )
+
+        context = self._context(user=None, tenant=org)
+
+        self.assertEqual(context['tenant_color'], '#9B7FBF')
+        self.assertEqual(context['tenant_color_dark'], '#7B5FA0')
+        self.assertEqual(context['tenant_gradient_from'], '#9B7FBF')
+        self.assertEqual(context['tenant_gradient_to'], '#F4D47C')
+        self.assertEqual(context['tenant_gradient_from_rgb'], '155 127 191')
+        self.assertEqual(context['tenant_gradient_to_rgb'], '244 212 124')
+
+    def test_generic_tenant_uses_secondary_color_for_gradient(self):
+        from ilovevoley.core.models import Organization
+
+        org = Organization(
+            slug='balears',
+            name='Selecció Balear',
+            primary_color='#C8102E',
+            secondary_color='#003DA5',
+        )
+
+        context = self._context(user=None, tenant=org)
+
+        self.assertEqual(context['tenant_color'], '#C8102E')
+        self.assertEqual(context['tenant_color_dark'], '#003DA5')
+        self.assertEqual(context['tenant_gradient_from'], '#C8102E')
+        self.assertEqual(context['tenant_gradient_to'], '#003DA5')
+        self.assertEqual(context['tenant_gradient_from_rgb'], '200 16 46')
+        self.assertEqual(context['tenant_gradient_to_rgb'], '0 61 165')
+
+    def test_tenant_without_secondary_color_uses_primary_for_gradient(self):
+        from ilovevoley.core.models import Organization
+
+        org = Organization(
+            slug='soller',
+            name='CV Sóller',
+            primary_color='#FF5500',
+            secondary_color='',
+        )
+
+        context = self._context(user=None, tenant=org)
+
+        self.assertEqual(context['tenant_color'], '#FF5500')
+        self.assertEqual(context['tenant_gradient_from'], '#FF5500')
+        self.assertEqual(context['tenant_gradient_to'], '#FF5500')
+        self.assertEqual(context['tenant_gradient_from_rgb'], '255 85 0')
+        self.assertEqual(context['tenant_gradient_to_rgb'], '255 85 0')

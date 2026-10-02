@@ -1,34 +1,37 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Nueva temporada - I Love Voley{% endblock %}
+{% block title %}{% trans "Nueva temporada" %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-12">
     <div class="max-w-xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div class="bg-csj-purple dark:bg-csj-purple-dark px-6 py-4 text-white">
-                <h2 class="text-xl font-bold">Nueva temporada</h2>
-                <p class="text-sm opacity-90 mt-1">Paso 1 de 2 · operación de plataforma</p>
+                <h2 class="text-xl font-bold">{% trans "Nueva temporada" %}</h2>
+                <p class="text-sm opacity-90 mt-1">{% trans "Paso 1 de 2 · operación de plataforma" %}</p>
             </div>
 
             <div class="p-6">
                 <p class="text-gray-700 dark:text-gray-300 mb-4">
+                    {% blocktrans trimmed %}
                     Este wizard crea (si no existe) la temporada indicada y la activa.
                     Las ligas de la temporada saliente se archivan (pasan a históricas)
                     para que dejen de aparecer por defecto, sin borrar nada: el histórico
                     sigue consultable.
+                    {% endblocktrans %}
                 </p>
 
                 {% if current_season %}
                     <div class="p-4 mb-6 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                         <p class="text-sm text-gray-700 dark:text-gray-300">
-                            Temporada activa actual: <strong>{{ current_season.name }}</strong>
+                            {% blocktrans with season=current_season.name %}Temporada activa actual: <strong>{{ season }}</strong>{% endblocktrans %}
                         </p>
                     </div>
                 {% else %}
                     <div class="p-4 mb-6 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg border border-yellow-200 dark:border-yellow-700">
                         <p class="text-sm text-yellow-800 dark:text-yellow-200">
-                            No hay ninguna temporada activa marcada.
+                            {% trans "No hay ninguna temporada activa marcada." %}
                         </p>
                     </div>
                 {% endif %}
@@ -51,10 +54,10 @@
 
                     <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                         <a href="{% url 'landing' %}" class="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 font-medium">
-                            ← Cancelar
+                            {% trans "← Cancelar" %}
                         </a>
                         <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white font-bold py-2.5 px-6 rounded-lg transition shadow">
-                            Revisar y confirmar
+                            {% trans "Revisar y confirmar" %}
                         </button>
                     </div>
                 </form>

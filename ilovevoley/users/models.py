@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 import secrets
 
 
@@ -8,12 +9,12 @@ class User(AbstractUser):
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     is_approved = models.BooleanField(
         default=False,
-        help_text='Indica si el usuario ha sido aprobado por un administrador para acceder al contenido.'
+        help_text=_('Indica si el usuario ha sido aprobado por un administrador para acceder al contenido.')
     )
     parent_info = models.TextField(
         blank=True,
-        verbose_name='Información Familiar',
-        help_text='Indica de qué niño/a eres padre/familiar (ej: "papá de Juanito de Infantil")'
+        verbose_name=_('Información Familiar'),
+        help_text=_('Indica de qué niño/a eres padre/familiar (ej: "papá de Juanito de Infantil")')
     )
     # Calendar subscription token (for .ics feed)
     calendar_token = models.CharField(
@@ -21,8 +22,8 @@ class User(AbstractUser):
         unique=True,
         null=True,
         blank=True,
-        verbose_name='Token de Suscripción al Calendario',
-        help_text='Token único para suscribirse al calendario de partidos vía .ics'
+        verbose_name=_('Token de Suscripción al Calendario'),
+        help_text=_('Token único para suscribirse al calendario de partidos vía .ics')
     )
     
     # Relación con fichas de hijos (para padres)
@@ -30,8 +31,19 @@ class User(AbstractUser):
         'rosters.Person',
         blank=True,
         related_name='parents',
-        verbose_name='Hijos',
-        help_text='Fichas de los hijos que puedes editar'
+        verbose_name=_('Hijos'),
+        help_text=_('Fichas de los hijos que puedes editar')
+    )
+
+    # Idioma preferido de la interfaz. Los nombres de idioma se muestran en su
+    # propio idioma (endónimos), por eso no se traducen.
+    preferred_language = models.CharField(
+        max_length=5,
+        choices=[('es', 'Español'), ('ca', 'Català')],
+        blank=True,
+        default='',
+        verbose_name=_('Idioma preferido'),
+        help_text=_('Idioma en el que se muestra la interfaz. Vacío: el del navegador.'),
     )
 
     def __str__(self):
@@ -116,9 +128,9 @@ from ilovevoley.core.models import Category, Organization
 
 class Membership(models.Model):
     ROLES = [
-        ('admin', 'Admin'),
-        ('manager', 'Manager'),
-        ('member', 'Miembro'),
+        ('admin', _('Admin')),
+        ('manager', _('Manager')),
+        ('member', _('Miembro')),
     ]
 
     user         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='memberships')
@@ -129,8 +141,8 @@ class Membership(models.Model):
 
     class Meta:
         unique_together = ('user', 'organization')
-        verbose_name = 'Membresía'
-        verbose_name_plural = 'Membresías'
+        verbose_name = _('Membresía')
+        verbose_name_plural = _('Membresías')
 
     def __str__(self):
         return f'{self.user} @ {self.organization} ({self.role})'
@@ -157,25 +169,25 @@ class CategoryPreference(models.Model):
         Category,
         blank=True,
         related_name='category_preferences',
-        verbose_name='Categorías de Interés',
-        help_text='Categorías de contenido que deseas ver en este club',
+        verbose_name=_('Categorías de Interés'),
+        help_text=_('Categorías de contenido que deseas ver en este club'),
     )
 
     class Meta:
         unique_together = ('user', 'organization')
-        verbose_name = 'Preferencia de categorías'
-        verbose_name_plural = 'Preferencias de categorías'
+        verbose_name = _('Preferencia de categorías')
+        verbose_name_plural = _('Preferencias de categorías')
 
     def __str__(self):
         return f'{self.user} @ {self.organization}'
 
 
 class NotificationType(models.TextChoices):
-    MATCH_RESULT = 'match_result', 'Resultados de partidos'
-    NEW_ALBUM = 'new_album', 'Nuevos álbumes de fotos'
-    MATCH_CHANGE = 'match_change', 'Cambios de horario o pista'
-    MATCH_REMINDER = 'match_reminder', 'Recordatorios previos al partido'
-    MATCH_MEDIA = 'match_media', 'Fotos y vídeos de partidos'
+    MATCH_RESULT = 'match_result', _('Resultados de partidos')
+    NEW_ALBUM = 'new_album', _('Nuevos álbumes de fotos')
+    MATCH_CHANGE = 'match_change', _('Cambios de horario o pista')
+    MATCH_REMINDER = 'match_reminder', _('Recordatorios previos al partido')
+    MATCH_MEDIA = 'match_media', _('Fotos y vídeos de partidos')
 
 
 class NotificationPreference(models.Model):
@@ -185,31 +197,31 @@ class NotificationPreference(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='notification_preferences',
-        verbose_name='Usuario',
+        verbose_name=_('Usuario'),
     )
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
         related_name='notification_preferences',
-        verbose_name='Organización / Club',
+        verbose_name=_('Organización / Club'),
     )
     notification_type = models.CharField(
         max_length=32,
         choices=NotificationType.choices,
-        verbose_name='Tipo de notificación',
+        verbose_name=_('Tipo de notificación'),
     )
     is_enabled = models.BooleanField(
         default=True,
-        verbose_name='Activado',
-        help_text='Indica si el usuario desea recibir este tipo de notificación.',
+        verbose_name=_('Activado'),
+        help_text=_('Indica si el usuario desea recibir este tipo de notificación.'),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('user', 'organization', 'notification_type')
-        verbose_name = 'Preferencia de notificación'
-        verbose_name_plural = 'Preferencias de notificaciones'
+        verbose_name = _('Preferencia de notificación')
+        verbose_name_plural = _('Preferencias de notificaciones')
         indexes = [
             models.Index(fields=['organization', 'notification_type', 'is_enabled']),
         ]
@@ -227,39 +239,39 @@ class WebPushSubscription(models.Model):
         null=True,
         blank=True,
         related_name='web_push_subscriptions',
-        verbose_name='Usuario',
+        verbose_name=_('Usuario'),
     )
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
         related_name='web_push_subscriptions',
-        verbose_name='Organización / Club',
+        verbose_name=_('Organización / Club'),
     )
     endpoint = models.TextField(
         unique=True,
-        verbose_name='Push Service Endpoint',
-        help_text='URL de entrega proporcionada por el servicio Push del navegador (FCM, Apple APNs, etc.)',
+        verbose_name=_('Push Service Endpoint'),
+        help_text=_('URL de entrega proporcionada por el servicio Push del navegador (FCM, Apple APNs, etc.)'),
     )
     p256dh = models.CharField(
         max_length=255,
-        verbose_name='Clave Pública P-256 (Dispositivo)',
+        verbose_name=_('Clave Pública P-256 (Dispositivo)'),
     )
     auth = models.CharField(
         max_length=255,
-        verbose_name='Token de Autenticación Criptográfica',
+        verbose_name=_('Token de Autenticación Criptográfica'),
     )
     user_agent = models.CharField(
         max_length=500,
         blank=True,
         default='',
-        verbose_name='User Agent',
+        verbose_name=_('User Agent'),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Suscripción Web Push'
-        verbose_name_plural = 'Suscripciones Web Push'
+        verbose_name = _('Suscripción Web Push')
+        verbose_name_plural = _('Suscripciones Web Push')
         indexes = [
             models.Index(fields=['organization', 'user']),
         ]

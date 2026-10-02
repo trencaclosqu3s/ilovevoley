@@ -1,40 +1,41 @@
 {% extends "emails/base_email.html" %}
+{% load i18n %}
 
-{% block title %}Reporte diario 404 - {{ site_name }}{% endblock %}
+{% block title %}{% blocktrans %}Reporte diario 404 - {{ site_name }}{% endblocktrans %}{% endblock %}
 
-{% block header_subtitle %}Reporte Diario de Errores 404{% endblock %}
+{% block header_subtitle %}{% trans "Reporte Diario de Errores 404" %}{% endblock %}
 
 {% block content %}
     <div class="alert warning">
-        <h2 style="margin-top: 0;">📊 Reporte de errores 404</h2>
-        <p>Resumen de páginas no encontradas para el día <strong>{{ date }}</strong></p>
+        <h2 style="margin-top: 0;">{% trans "📊 Reporte de errores 404" %}</h2>
+        <p>{% blocktrans %}Resumen de páginas no encontradas para el día <strong>{{ date }}</strong>{% endblocktrans %}</p>
     </div>
 
-    <h3>📈 Estadísticas generales:</h3>
+    <h3>{% trans "📈 Estadísticas generales:" %}</h3>
     <table class="data-table">
         <tr>
-            <th>Total de errores 404:</th>
+            <th>{% trans "Total de errores 404:" %}</th>
             <td><strong>{{ total_errors }}</strong></td>
         </tr>
         <tr>
-            <th>URLs únicas afectadas:</th>
+            <th>{% trans "URLs únicas afectadas:" %}</th>
             <td><strong>{{ unique_urls }}</strong></td>
         </tr>
         <tr>
-            <th>Fecha del reporte:</th>
+            <th>{% trans "Fecha del reporte:" %}</th>
             <td>{{ date }}</td>
         </tr>
     </table>
 
-    <h3>🔝 Top 10 URLs más problemáticas:</h3>
+    <h3>{% trans "🔝 Top 10 URLs más problemáticas:" %}</h3>
     {% if top_errors %}
     <table class="data-table">
         <thead>
             <tr>
                 <th style="width: 10%;">#</th>
                 <th style="width: 60%;">URL</th>
-                <th style="width: 15%;">Errores</th>
-                <th style="width: 15%;">Última vez</th>
+                <th style="width: 15%;">{% trans "Errores" %}</th>
+                <th style="width: 15%;">{% trans "Última vez" %}</th>
             </tr>
         </thead>
         <tbody>
@@ -59,73 +60,75 @@
         </tbody>
     </table>
     {% else %}
-    <p style="color: #27ae60;">✅ No se registraron errores 404 para este día.</p>
+    <p style="color: #27ae60;">{% trans "✅ No se registraron errores 404 para este día." %}</p>
     {% endif %}
 
     {% if top_errors %}
-    <h3>🔍 Análisis detallado de la URL más problemática:</h3>
+    <h3>{% trans "🔍 Análisis detallado de la URL más problemática:" %}</h3>
     {% with top_error=top_errors.0 %}
     <div class="alert">
-        <h4 style="margin-top: 0;">URL: <code>{{ top_error.0 }}</code></h4>
-        <p><strong>Total de errores:</strong> {{ top_error.1|length }}</p>
+        <h4 style="margin-top: 0;">{% blocktrans %}URL: <code>{{ top_error.0 }}</code>{% endblocktrans %}</h4>
+        <p><strong>{% trans "Total de errores:" %}</strong> {{ top_error.1|length }}</p>
         
-        <h5>Detalles de accesos:</h5>
+        <h5>{% trans "Detalles de accesos:" %}</h5>
         <ul>
             {% for error in top_error.1|slice:":5" %}
             <li>
                 <strong>{{ error.timestamp|date:"H:i:s" }}</strong> - 
-                {{ error.method }} desde {{ error.ip }}
-                {% if error.user != "Anonymous" %} (Usuario: {{ error.user }}){% endif %}
+                {{ error.method }} {% trans "desde" %} {{ error.ip }}
+                {% if error.user != "Anonymous" %} {% blocktrans %}(Usuario: {{ error.user }}){% endblocktrans %}{% endif %}
                 {% if error.referer %}
-                <br><small style="color: #666;">Referer: {{ error.referer|truncatechars:80 }}</small>
+                <br><small style="color: #666;">{% trans "Referer:" %} {{ error.referer|truncatechars:80 }}</small>
                 {% endif %}
             </li>
             {% endfor %}
             {% if top_error.1|length > 5 %}
-            <li><em>... y {{ top_error.1|length|add:"-5" }} error{{ top_error.1|length|add:"-5"|pluralize:"es" }} más</em></li>
+            {% with extra=top_error.1|length|add:"-5" %}
+            <li><em>{% blocktrans count count=extra %}... y {{ count }} error más{% plural %}... y {{ count }} errores más{% endblocktrans %}</em></li>
+            {% endwith %}
             {% endif %}
         </ul>
     </div>
     {% endwith %}
 
-    <h3>🕐 Distribución por horas:</h3>
-    <p>Los errores se distribuyeron a lo largo del día de la siguiente manera:</p>
+    <h3>{% trans "🕐 Distribución por horas:" %}</h3>
+    <p>{% trans "Los errores se distribuyeron a lo largo del día de la siguiente manera:" %}</p>
     <!-- Aquí podrías añadir un gráfico simple o tabla de distribución horaria -->
     <div class="alert">
-        <p><strong>💡 Sugerencia:</strong> Revisar las URLs más problemáticas puede ayudar a identificar:</p>
+        <p>{% blocktrans %}<strong>💡 Sugerencia:</strong> Revisar las URLs más problemáticas puede ayudar a identificar:{% endblocktrans %}</p>
         <ul>
-            <li>Enlaces rotos en el sitio web</li>
-            <li>URLs incorrectas en contenido externo</li>
-            <li>Problemas de SEO o indexación</li>
-            <li>Intentos de acceso a recursos que ya no existen</li>
+            <li>{% trans "Enlaces rotos en el sitio web" %}</li>
+            <li>{% trans "URLs incorrectas en contenido externo" %}</li>
+            <li>{% trans "Problemas de SEO o indexación" %}</li>
+            <li>{% trans "Intentos de acceso a recursos que ya no existen" %}</li>
         </ul>
     </div>
     {% endif %}
 
-    <h3>🔧 Acciones recomendadas:</h3>
+    <h3>{% trans "🔧 Acciones recomendadas:" %}</h3>
     {% if total_errors > 0 %}
     <ol>
-        <li><strong>Revisar URLs frecuentes:</strong> Investigar las URLs con más errores para identificar patrones</li>
-        <li><strong>Verificar enlaces internos:</strong> Comprobar si hay enlaces rotos en el sitio</li>
-        <li><strong>Implementar redirects:</strong> Configurar redirecciones para URLs que han cambiado</li>
-        <li><strong>Actualizar sitemap:</strong> Asegurar que el sitemap XML esté actualizado</li>
-        <li><strong>Revisar robots.txt:</strong> Verificar que no esté bloqueando URLs importantes</li>
+        <li>{% blocktrans %}<strong>Revisar URLs frecuentes:</strong> Investigar las URLs con más errores para identificar patrones{% endblocktrans %}</li>
+        <li>{% blocktrans %}<strong>Verificar enlaces internos:</strong> Comprobar si hay enlaces rotos en el sitio{% endblocktrans %}</li>
+        <li>{% blocktrans %}<strong>Implementar redirects:</strong> Configurar redirecciones para URLs que han cambiado{% endblocktrans %}</li>
+        <li>{% blocktrans %}<strong>Actualizar sitemap:</strong> Asegurar que el sitemap XML esté actualizado{% endblocktrans %}</li>
+        <li>{% blocktrans %}<strong>Revisar robots.txt:</strong> Verificar que no esté bloqueando URLs importantes{% endblocktrans %}</li>
     </ol>
     {% else %}
     <div class="alert success">
-        <p><strong>🎉 ¡Excelente!</strong> No se registraron errores 404 en este día. El sitio web está funcionando correctamente.</p>
+        <p>{% blocktrans %}<strong>🎉 ¡Excelente!</strong> No se registraron errores 404 en este día. El sitio web está funcionando correctamente.{% endblocktrans %}</p>
     </div>
     {% endif %}
 
     <div class="alert">
-        <h4 style="margin-top: 0;">📋 Nota técnica</h4>
-        <p>Este reporte se genera automáticamente cada día a partir de los errores 404 capturados por el sistema. Los datos se mantienen durante 48 horas antes de ser eliminados automáticamente.</p>
-        <p><strong>Próximo reporte:</strong> Mañana a la misma hora</p>
+        <h4 style="margin-top: 0;">{% trans "📋 Nota técnica" %}</h4>
+        <p>{% trans "Este reporte se genera automáticamente cada día a partir de los errores 404 capturados por el sistema. Los datos se mantienen durante 48 horas antes de ser eliminados automáticamente." %}</p>
+        <p>{% blocktrans %}<strong>Próximo reporte:</strong> Mañana a la misma hora{% endblocktrans %}</p>
     </div>
 
     <div style="text-align: center; margin: 25px 0;">
         <a href="/admin/" class="button">
-            🔧 Acceder al Panel de Admin
+            {% trans "🔧 Acceder al Panel de Admin" %}
         </a>
     </div>
 {% endblock %}

@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin
 
 from ..models import Club, Team
@@ -14,23 +15,23 @@ class ClubAdmin(ModelAdmin):
     autocomplete_fields = ('default_venue',)
     
     fieldsets = (
-        ('Información Básica', {
+        (_('Información Básica'), {
             'fields': ('federation_id', 'official_name')
         }),
-        ('Contacto', {
+        (_('Contacto'), {
             'fields': ('president', 'email', 'phone', 'address')
         }),
-        ('Sede', {
+        (_('Sede'), {
             'fields': ('default_venue', 'venue_name', 'venue_address', 'province')
         }),
-        ('Redes Sociales', {
+        (_('Redes Sociales'), {
             'fields': ('website', 'instagram', 'facebook', 'twitter'),
             'classes': ('collapse',)
         }),
-        ('Logo', {
+        (_('Logo'), {
             'fields': ('logo_url', 'logo_federation_url')
         }),
-        ('Metadata', {
+        (_('Metadata'), {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         })
@@ -41,7 +42,7 @@ class ClubAdmin(ModelAdmin):
     def teams_count(self, obj):
         """Muestra el número de equipos asociados"""
         return obj.teams.count()
-    teams_count.short_description = 'Equipos'
+    teams_count.short_description = _('Equipos')
     
     def logo_preview(self, obj):
         """Muestra preview del logo"""
@@ -51,7 +52,7 @@ class ClubAdmin(ModelAdmin):
                 obj.logo_federation_url
             )
         return '-'
-    logo_preview.short_description = 'Logo'
+    logo_preview.short_description = _('Logo')
     
     def sync_selected_clubs(self, request, queryset):
         """Acción para sincronizar datos de clubes seleccionados"""
@@ -63,11 +64,11 @@ class ClubAdmin(ModelAdmin):
         
         try:
             # Aquí se podría implementar sync específico por club
-            self.message_user(request, f'Iniciado sync para {len(club_ids)} club(s)')
+            self.message_user(request, _('Iniciado sync para %(count)s club(s)') % {'count': len(club_ids)})
         except Exception as e:
-            self.message_user(request, f'Error durante sync: {e}', level='ERROR')
+            self.message_user(request, _('Error durante sync: %(error)s') % {'error': e}, level='ERROR')
     
-    sync_selected_clubs.short_description = "Sincronizar datos de clubes seleccionados"
+    sync_selected_clubs.short_description = _("Sincronizar datos de clubes seleccionados")
 
 
 
@@ -81,26 +82,26 @@ class TeamAdmin(ModelAdmin):
     autocomplete_fields = ('club', 'category', 'parent_team')
     
     fieldsets = (
-        ('Información Básica', {
+        (_('Información Básica'), {
             'fields': ('name', 'federation_id', 'club', 'category', 'gender', 'is_active')
         }),
-        ('Configuración de Variantes', {
+        (_('Configuración de Variantes'), {
             'fields': (
                 'parent_team', 'variant_type', 'variant_name',
                 'variant_description', 'is_temporary_variant', 'temporary_end_date'
             ),
-            'description': 'Configura si este equipo es una variante de otro',
+            'description': _('Configura si este equipo es una variante de otro'),
             'classes': ('collapse',)
         }),
-        ('Patrocinio', {
+        (_('Patrocinio'), {
             'fields': ('sponsor_name',),
-            'description': 'Nombre completo del equipo incluyendo patrocinadores'
+            'description': _('Nombre completo del equipo incluyendo patrocinadores')
         }),
-        ('Logo', {
+        (_('Logo'), {
             'fields': ('logo_url', 'display_logo'),
             'classes': ('collapse',)
         }),
-        ('Metadata', {
+        (_('Metadata'), {
             'fields': ('created_at',),
             'classes': ('collapse',)
         })
@@ -111,14 +112,14 @@ class TeamAdmin(ModelAdmin):
     def club_name(self, obj):
         """Muestra el nombre del club asociado"""
         return obj.club.official_name if obj.club else '-'
-    club_name.short_description = 'Club'
+    club_name.short_description = _('Club')
 
     def display_name_admin(self, obj):
         """Muestra el nombre con indentación si es una variante"""
         if obj.parent_team:
             return f"  └─ {obj.display_name_with_variant}"
         return obj.name
-    display_name_admin.short_description = 'Nombre'
+    display_name_admin.short_description = _('Nombre')
 
     def variant_indicator(self, obj):
         """Muestra un indicador visual si el equipo tiene variantes o es una variante"""
@@ -133,17 +134,17 @@ class TeamAdmin(ModelAdmin):
                 obj.variants.count()
             )
         return '-'
-    variant_indicator.short_description = 'Variante'
+    variant_indicator.short_description = _('Variante')
 
     def players_count(self, obj):
         """Muestra el número de jugadores activos usando nueva estructura Person-Role"""
         return obj.player_roles.filter(is_active=True).count()
-    players_count.short_description = 'Jugadores'
+    players_count.short_description = _('Jugadores')
     
     def staff_count(self, obj):
         """Muestra el número de miembros del staff activos usando nueva estructura Person-Role"""
         return obj.staff_roles.filter(is_active=True).count()
-    staff_count.short_description = 'Staff'
+    staff_count.short_description = _('Staff')
     
     def logo_preview(self, obj):
         """Muestra preview del logo del equipo o club"""
@@ -154,7 +155,7 @@ class TeamAdmin(ModelAdmin):
                 logo_url
             )
         return '-'
-    logo_preview.short_description = 'Logo'
+    logo_preview.short_description = _('Logo')
     
     def match_to_clubs(self, request, queryset):
         """Acción para hacer matching automático de equipos seleccionados"""
@@ -163,7 +164,7 @@ class TeamAdmin(ModelAdmin):
         
         teams_without_club = queryset.filter(club__isnull=True)
         if not teams_without_club.exists():
-            self.message_user(request, 'Todos los equipos seleccionados ya tienen club asignado')
+            self.message_user(request, _('Todos los equipos seleccionados ya tienen club asignado'))
             return
         
         try:
@@ -178,30 +179,30 @@ class TeamAdmin(ModelAdmin):
                     matched_count += 1
             
             if matched_count > 0:
-                self.message_user(request, f'Se asociaron {matched_count} equipo(s) con clubes')
+                self.message_user(request, _('Se asociaron %(count)s equipo(s) con clubes') % {'count': matched_count})
             else:
-                self.message_user(request, 'No se pudieron hacer matches automáticos')
+                self.message_user(request, _('No se pudieron hacer matches automáticos'))
                 
         except Exception as e:
-            self.message_user(request, f'Error durante matching: {e}', level='ERROR')
+            self.message_user(request, _('Error durante matching: %(error)s') % {'error': e}, level='ERROR')
     
-    match_to_clubs.short_description = "Hacer matching automático con clubes"
+    match_to_clubs.short_description = _("Hacer matching automático con clubes")
     
     def activate_teams(self, request, queryset):
         """Acción para activar equipos seleccionados"""
         updated = queryset.filter(is_active=False).update(is_active=True)
         if updated:
-            self.message_user(request, f'{updated} equipo(s) activado(s) correctamente.')
+            self.message_user(request, _('%(count)s equipo(s) activado(s) correctamente.') % {'count': updated})
         else:
-            self.message_user(request, 'Todos los equipos seleccionados ya estaban activos.')
-    activate_teams.short_description = "Activar equipos seleccionados"
+            self.message_user(request, _('Todos los equipos seleccionados ya estaban activos.'))
+    activate_teams.short_description = _("Activar equipos seleccionados")
     
     def deactivate_teams(self, request, queryset):
         """Acción para desactivar equipos seleccionados"""
         updated = queryset.filter(is_active=True).update(is_active=False)
         if updated:
-            self.message_user(request, f'{updated} equipo(s) desactivado(s) correctamente.')
-            self.message_user(request, 'Los partidos de estos equipos se marcarán como retirados en el próximo scraping.', level='WARNING')
+            self.message_user(request, _('%(count)s equipo(s) desactivado(s) correctamente.') % {'count': updated})
+            self.message_user(request, _('Los partidos de estos equipos se marcarán como retirados en el próximo scraping.'), level='WARNING')
         else:
-            self.message_user(request, 'Todos los equipos seleccionados ya estaban inactivos.')
-    deactivate_teams.short_description = "Desactivar equipos seleccionados"
+            self.message_user(request, _('Todos los equipos seleccionados ya estaban inactivos.'))
+    deactivate_teams.short_description = _("Desactivar equipos seleccionados")

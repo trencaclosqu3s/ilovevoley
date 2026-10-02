@@ -11,13 +11,14 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 
 ALBUM_ZIP_SALT = 'ilovevoley.album_zip.v1'
 JOB_CACHE_PREFIX = 'album_zip:job:'
 REL_DIR = 'tmp/album_zips'
-USER_FACING_FAILURE = 'No se pudo generar el archivo ZIP. Inténtelo más tarde.'
+USER_FACING_FAILURE = _('No se pudo generar el archivo ZIP. Inténtelo más tarde.')
 
 
 def album_zip_max_age():

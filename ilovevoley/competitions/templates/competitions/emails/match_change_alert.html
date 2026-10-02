@@ -1,17 +1,18 @@
 {% extends "emails/base_email.html" %}
+{% load i18n %}
 
-{% block title %}Modificación federativa: {{ match.home_team_display }} vs {{ match.away_team_display }}{% endblock %}
+{% block title %}{% blocktrans with home=match.home_team_display away=match.away_team_display %}Modificación federativa: {{ home }} vs {{ away }}{% endblocktrans %}{% endblock %}
 
 {% block header_title %}
-    🏐 Modificación de Partido
+    🏐 {% trans "Modificación de Partido" %}
 {% endblock %}
 
 {% block content %}
     {% if is_test_mode %}
     <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 20px; border-radius: 4px;">
-        <strong style="color: #92400e;">⚠️ Modo de pruebas activo</strong>
+        <strong style="color: #92400e;">⚠️ {% trans "Modo de pruebas activo" %}</strong>
         <p style="margin: 4px 0 0 0; color: #b45309; font-size: 13px;">
-            Este correo se envía únicamente a la dirección de prueba o superusuarios para validación previa al envío a delegados.
+            {% trans "Este correo se envía únicamente a la dirección de prueba o superusuarios para validación previa al envío a delegados." %}
         </p>
     </div>
     {% endif %}
@@ -22,21 +23,21 @@
         </h2>
         {% if match.league %}
         <p style="color: #64748b; font-size: 14px; margin: 2px 0;">
-            <strong>Competición:</strong> {{ match.league.name }}
+            <strong>{% trans "Competición:" %}</strong> {{ match.league.name }}
         </p>
         {% endif %}
     </div>
 
     <p style="color: #334155; line-height: 1.5;">
-        Se han detectado variaciones federativas oficiales para este encuentro:
+        {% trans "Se han detectado variaciones federativas oficiales para este encuentro:" %}
     </p>
 
     <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
         <thead>
             <tr style="background-color: #f1f5f9; text-align: left; border-bottom: 2px solid #cbd5e1;">
-                <th style="padding: 10px; color: #475569;">Tipo</th>
-                <th style="padding: 10px; color: #475569;">Valor Anterior</th>
-                <th style="padding: 10px; color: #475569;">Nuevo Valor Oficial</th>
+                <th style="padding: 10px; color: #475569;">{% trans "Tipo" %}</th>
+                <th style="padding: 10px; color: #475569;">{% trans "Valor Anterior" %}</th>
+                <th style="padding: 10px; color: #475569;">{% trans "Nuevo Valor Oficial" %}</th>
             </tr>
         </thead>
         <tbody>
@@ -59,7 +60,7 @@
     <div style="text-align: center; margin-top: 30px;">
         {% if match_url %}
         <a href="{{ match_url }}" class="button" style="background-color: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">
-            Ver Partido en la Plataforma
+            {% trans "Ver Partido en la Plataforma" %}
         </a>
         {% endif %}
     </div>

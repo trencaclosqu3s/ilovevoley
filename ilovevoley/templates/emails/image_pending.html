@@ -1,110 +1,115 @@
 {% extends "emails/base_email.html" %}
+{% load i18n %}
 
-{% block title %}Nueva imagen pendiente - {{ site_name }}{% endblock %}
+{% block title %}{% blocktrans %}Nueva imagen pendiente - {{ site_name }}{% endblocktrans %}{% endblock %}
 
-{% block header_subtitle %}Nueva Imagen Pendiente de Moderación{% endblock %}
+{% block header_subtitle %}{% trans "Nueva Imagen Pendiente de Moderación" %}{% endblock %}
 
 {% block content %}
+    {% trans "Sin descripción" as no_description %}
+    {% trans "Sin etiquetas" as no_tags %}
+    {% trans "No proporcionado" as not_provided %}
+    {% trans "Sin categoría" as no_category %}
     <div class="alert warning">
-        <h2 style="margin-top: 0;">📷 Nueva imagen subida</h2>
-        <p>Un usuario ha subido una nueva imagen que requiere moderación antes de ser publicada.</p>
+        <h2 style="margin-top: 0;">{% trans "📷 Nueva imagen subida" %}</h2>
+        <p>{% trans "Un usuario ha subido una nueva imagen que requiere moderación antes de ser publicada." %}</p>
     </div>
 
-    <h3>Detalles de la imagen:</h3>
+    <h3>{% trans "Detalles de la imagen:" %}</h3>
     <table class="data-table">
         <tr>
-            <th>Título:</th>
+            <th>{% trans "Título:" %}</th>
             <td><strong>{{ image.title }}</strong></td>
         </tr>
         <tr>
-            <th>Descripción:</th>
-            <td>{{ image.description|default:"Sin descripción"|truncatewords:20 }}</td>
+            <th>{% trans "Descripción:" %}</th>
+            <td>{{ image.description|default:no_description|truncatewords:20 }}</td>
         </tr>
         <tr>
-            <th>Tipo de imagen:</th>
+            <th>{% trans "Tipo de imagen:" %}</th>
             <td>{{ image.get_image_type_display }}</td>
         </tr>
         <tr>
-            <th>Etiquetas:</th>
-            <td>{{ image.tags|default:"Sin etiquetas" }}</td>
+            <th>{% trans "Etiquetas:" %}</th>
+            <td>{{ image.tags|default:no_tags }}</td>
         </tr>
         <tr>
-            <th>Fecha de subida:</th>
+            <th>{% trans "Fecha de subida:" %}</th>
             <td>{{ image.upload_date|date:"d/m/Y H:i" }}</td>
         </tr>
         <tr>
-            <th>Estado actual:</th>
+            <th>{% trans "Estado actual:" %}</th>
             <td><span style="color: #f39c12;">⏳ {{ image.get_status_display }}</span></td>
         </tr>
     </table>
 
-    <h3>Información del usuario:</h3>
+    <h3>{% trans "Información del usuario:" %}</h3>
     <table class="data-table">
         <tr>
-            <th>Usuario:</th>
+            <th>{% trans "Usuario:" %}</th>
             <td><strong>{{ user.username }}</strong></td>
         </tr>
         <tr>
-            <th>Email:</th>
-            <td>{{ user.email|default:"No proporcionado" }}</td>
+            <th>{% trans "Email:" %}</th>
+            <td>{{ user.email|default:not_provided }}</td>
         </tr>
         <tr>
-            <th>Nombre completo:</th>
-            <td>{{ user.get_full_name|default:"No proporcionado" }}</td>
+            <th>{% trans "Nombre completo:" %}</th>
+            <td>{{ user.get_full_name|default:not_provided }}</td>
         </tr>
         <tr>
-            <th>Imágenes subidas anteriormente:</th>
-            <td>{{ user.uploaded_images.count }} imagen{{ user.uploaded_images.count|pluralize:"a,as" }}</td>
+            <th>{% trans "Imágenes subidas anteriormente:" %}</th>
+            <td>{% blocktrans count count=user.uploaded_images.count %}{{ count }} imagen{% plural %}{{ count }} imágenes{% endblocktrans %}</td>
         </tr>
     </table>
 
     {% if image.match %}
-    <h3>Partido asociado:</h3>
+    <h3>{% trans "Partido asociado:" %}</h3>
     <table class="data-table">
         <tr>
-            <th>Partido:</th>
+            <th>{% trans "Partido:" %}</th>
             <td><strong>{{ image.match }}</strong></td>
         </tr>
         <tr>
-            <th>Liga:</th>
+            <th>{% trans "Liga:" %}</th>
             <td>{{ image.match.league.name }}</td>
         </tr>
         <tr>
-            <th>Fecha del partido:</th>
+            <th>{% trans "Fecha del partido:" %}</th>
             <td>{{ image.match.match_date|date:"d/m/Y" }}</td>
         </tr>
         <tr>
-            <th>Categoría:</th>
-            <td>{{ image.category.name|default:"Sin categoría" }}</td>
+            <th>{% trans "Categoría:" %}</th>
+            <td>{{ image.category.name|default:no_category }}</td>
         </tr>
     </table>
     {% endif %}
 
     {% if image.auto_tags %}
     <div class="alert">
-        <h4 style="margin-top: 0;">🤖 Etiquetas automáticas detectadas</h4>
-        <p><strong>Google Vision API:</strong> {{ image.auto_tags|join:", " }}</p>
+        <h4 style="margin-top: 0;">{% trans "🤖 Etiquetas automáticas detectadas" %}</h4>
+        <p>{% blocktrans with tags=image.auto_tags|join:", " %}<strong>Google Vision API:</strong> {{ tags }}{% endblocktrans %}</p>
         {% if not image.vision_api_safe %}
-            <p style="color: #e74c3c;"><strong>⚠️ Advertencia:</strong> La imagen puede contener contenido inapropiado según el análisis automático.</p>
+            <p style="color: #e74c3c;">{% blocktrans %}<strong>⚠️ Advertencia:</strong> La imagen puede contener contenido inapropiado según el análisis automático.{% endblocktrans %}</p>
         {% endif %}
     </div>
     {% endif %}
 
-    <h3>Acciones requeridas:</h3>
-    <p><strong>¡Puedes aprobar o rechazar esta imagen directamente desde aquí!</strong></p>
-    <p style="color: #7f8c8d; font-size: 14px;">La imagen está adjunta a este email para que puedas revisarla fácilmente. Haz clic en uno de los botones de abajo para tomar una decisión rápida.</p>
+    <h3>{% trans "Acciones requeridas:" %}</h3>
+    <p>{% blocktrans %}<strong>¡Puedes aprobar o rechazar esta imagen directamente desde aquí!</strong>{% endblocktrans %}</p>
+    <p style="color: #7f8c8d; font-size: 14px;">{% trans "La imagen está adjunta a este email para que puedas revisarla fácilmente. Haz clic en uno de los botones de abajo para tomar una decisión rápida." %}</p>
 
     <div style="text-align: center; margin: 30px 0;">
         <table cellspacing="0" cellpadding="0" style="margin: 0 auto;">
             <tr>
                 <td style="padding: 0 10px;">
                     <a href="{{ approve_url }}" class="button" style="background-color: #27ae60; text-decoration: none; color: white; padding: 12px 30px; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
-                        ✓ Aprobar Imagen
+                        {% trans "✓ Aprobar Imagen" %}
                     </a>
                 </td>
                 <td style="padding: 0 10px;">
                     <a href="{{ reject_url }}" class="button" style="background-color: #e74c3c; text-decoration: none; color: white; padding: 12px 30px; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
-                        ✗ Rechazar Imagen
+                        {% trans "✗ Rechazar Imagen" %}
                     </a>
                 </td>
             </tr>
@@ -112,35 +117,35 @@
     </div>
 
     <p style="text-align: center; color: #95a5a6; font-size: 13px; margin: 20px 0;">
-        <em>O si necesitas añadir notas de moderación, accede al panel de administración:</em>
+        <em>{% trans "O si necesitas añadir notas de moderación, accede al panel de administración:" %}</em>
     </p>
 
     <div style="text-align: center; margin: 15px 0;">
         <a href="{{ admin_url }}" style="background-color: #95a5a6; text-decoration: none; color: white; padding: 10px 25px; border-radius: 5px; display: inline-block; font-size: 14px;">
-            🔧 Ver en Admin Panel
+            {% trans "🔧 Ver en Admin Panel" %}
         </a>
     </div>
 
     {% if image_cid %}
     <div class="alert">
-        <h4 style="margin-top: 0;">🖼️ Vista previa de la imagen</h4>
+        <h4 style="margin-top: 0;">{% trans "🖼️ Vista previa de la imagen" %}</h4>
         <p style="text-align: center;">
             <img src="cid:{{ image_cid }}" alt="{{ image.title }}" style="max-width: 100%; max-height: 400px; border-radius: 5px; border: 1px solid #ddd;">
         </p>
         <p style="text-align: center; color: #7f8c8d; font-size: 13px; margin-top: 10px;">
-            <em>La imagen también está adjunta al email para que puedas descargarla si lo necesitas.</em>
+            <em>{% trans "La imagen también está adjunta al email para que puedas descargarla si lo necesitas." %}</em>
         </p>
     </div>
     {% endif %}
 
     <div class="alert">
-        <h4 style="margin-top: 0;">📋 Recordatorio de moderación</h4>
-        <p>Las imágenes deben cumplir con las normas de la comunidad:</p>
+        <h4 style="margin-top: 0;">{% trans "📋 Recordatorio de moderación" %}</h4>
+        <p>{% trans "Las imágenes deben cumplir con las normas de la comunidad:" %}</p>
         <ul>
-            <li>Contenido relacionado con voleibol o deportes</li>
-            <li>Sin contenido ofensivo o inapropiado</li>
-            <li>Calidad mínima aceptable</li>
-            <li>Sin violación de derechos de autor</li>
+            <li>{% trans "Contenido relacionado con voleibol o deportes" %}</li>
+            <li>{% trans "Sin contenido ofensivo o inapropiado" %}</li>
+            <li>{% trans "Calidad mínima aceptable" %}</li>
+            <li>{% trans "Sin violación de derechos de autor" %}</li>
         </ul>
     </div>
 {% endblock %}

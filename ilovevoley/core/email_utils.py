@@ -7,6 +7,10 @@ from django.db import transaction
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils.html import strip_tags
+from django.utils import translation
+from django.utils.translation import gettext as _
+
+from .i18n import group_emails_by_language, language_for
 import os
 
 User = get_user_model()
@@ -76,6 +80,33 @@ def get_moderation_recipients(tenant=None):
 
 
 def send_notification_email(subject, template_name, context, recipient_list=None, attachments=None, embedded_images=None):
+    """Envía el aviso a cada destinatario en su idioma (``User.preferred_language``).
+
+    ``subject`` puede ser un ``str`` o un callable sin argumentos que lo componga con
+    el idioma activo; con un ``str`` ya traducido el asunto no cambia por destinatario.
+    Devuelve ``True`` solo si todos los grupos de idioma se enviaron.
+    """
+    if not settings.NOTIFICATION_EMAIL_ENABLED:
+        return False
+    if not recipient_list:
+        recipient_list = get_admin_emails()
+    if not recipient_list:
+        return _send_notification_email(
+            subject() if callable(subject) else subject,
+            template_name, context, recipient_list, attachments, embedded_images,
+        )
+
+    results = []
+    for lang, emails in group_emails_by_language(recipient_list).items():
+        with translation.override(lang):
+            results.append(_send_notification_email(
+                subject() if callable(subject) else subject,
+                template_name, context, emails, attachments, embedded_images,
+            ))
+    return all(results)
+
+
+def _send_notification_email(subject, template_name, context, recipient_list=None, attachments=None, embedded_images=None):
     """
     Envía email de notificación usando template HTML
     
@@ -190,7 +221,7 @@ def send_admin_email_to_users(subject, message_body, recipients, admin_user=None
     
     # Configurar Reply-To con el email del admin si está disponible
     reply_to = None
-    admin_name = 'Administración'
+    admin_name = None
     admin_email = None
     if admin_user:
         admin_name = admin_user.get_full_name() or admin_user.username
@@ -217,73 +248,89 @@ def send_admin_email_to_users(subject, message_body, recipients, admin_user=None
         user_email = user_email.strip()
         recipient_name = user.get_full_name() or user.username if hasattr(user, 'username') else user_email
 
-        context = {
-            'site_name': site_name,
-            'subject': subject,
-            'recipient': user,
-            'recipient_name': recipient_name,
-            'message_body': message_body,
-            'admin_name': admin_name,
-            'admin_email': admin_email,
-            'is_copy': False,
-        }
+        with translation.override(language_for(user)):
+            admin_label = admin_name or _('Administración')
+            context = {
+                'site_name': site_name,
+                'subject': subject,
+                'recipient': user,
+                'recipient_name': recipient_name,
+                'message_body': message_body,
+                'admin_name': admin_label,
+                'admin_email': admin_email,
+                'is_copy': False,
+            }
 
-        try:
-            html_message = render_to_string(template_name, context)
-            plain_message = f"Hola {recipient_name},\n\n{message_body}\n\nAtentamente,\n{admin_name}\nAdministración de {site_name}"
-            if admin_email:
-                plain_message += f"\n\nPuedes responder directamente a este correo ({admin_email})."
+            try:
+                html_message = render_to_string(template_name, context)
+                plain_message = _(
+                    'Hola %(name)s,\n\n%(body)s\n\nAtentamente,\n%(admin)s\nAdministración de %(site)s'
+                ) % {
+                    'name': recipient_name,
+                    'body': message_body,
+                    'admin': admin_label,
+                    'site': site_name,
+                }
+                if admin_email:
+                    plain_message += _('\n\nPuedes responder directamente a este correo (%(email)s).') % {'email': admin_email}
 
-            email = EmailMultiAlternatives(
-                subject=subject,
-                body=plain_message,
-                from_email=from_email,
-                to=[user_email],
-                reply_to=reply_to,
-            )
-            email.attach_alternative(html_message, "text/html")
-            email.send(fail_silently=False)
+                email = EmailMultiAlternatives(
+                    subject=subject,
+                    body=plain_message,
+                    from_email=from_email,
+                    to=[user_email],
+                    reply_to=reply_to,
+                )
+                email.attach_alternative(html_message, "text/html")
+                email.send(fail_silently=False)
 
-            results['sent_count'] += 1
-            results['successful_emails'].append(user_email)
-            logger.info(f"Correo de admin enviado a {user_email} (Asunto: {subject})")
-        except Exception as e:
-            error_msg = f"Error enviando a {user_email}: {str(e)}"
-            logger.error(error_msg)
-            results['failed_count'] += 1
-            results['errors'].append(error_msg)
+                results['sent_count'] += 1
+                results['successful_emails'].append(user_email)
+                logger.info(f"Correo de admin enviado a {user_email} (Asunto: {subject})")
+            except Exception as e:
+                error_msg = f"Error enviando a {user_email}: {str(e)}"
+                logger.error(error_msg)
+                results['failed_count'] += 1
+                results['errors'].append(error_msg)
 
     # Si se solicitó copia y se envió al menos un correo
     if send_copy and admin_email and results['sent_count'] > 0:
-        try:
-            copy_subject = f"[Copia] {subject}"
-            copy_context = {
-                'site_name': site_name,
-                'subject': copy_subject,
-                'recipient_name': f"{admin_name} (Copia)",
-                'message_body': message_body,
-                'admin_name': admin_name,
-                'admin_email': admin_email,
-                'is_copy': True,
-                'recipients_summary': ', '.join(results['successful_emails']),
-            }
-            html_copy = render_to_string(template_name, copy_context)
-            plain_copy = (
-                f"[COPIA DE SEGURIDAD]\nMensaje enviado a: {', '.join(results['successful_emails'])}\n\n"
-                f"{message_body}\n\n"
-                f"Atentamente,\n{admin_name}\nAdministración de {site_name}"
-            )
-            copy_email = EmailMultiAlternatives(
-                subject=copy_subject,
-                body=plain_copy,
-                from_email=from_email,
-                to=[admin_email],
-            )
-            copy_email.attach_alternative(html_copy, "text/html")
-            copy_email.send(fail_silently=False)
-            logger.info(f"Copia de correo de admin enviada a {admin_email}")
-        except Exception as e:
-            logger.warning(f"No se pudo enviar la copia al admin {admin_email}: {str(e)}")
+        with translation.override(language_for(admin_user)):
+            admin_name = admin_name or _('Administración')
+            try:
+                copy_subject = _('[Copia] %(subject)s') % {'subject': subject}
+                copy_context = {
+                    'site_name': site_name,
+                    'subject': copy_subject,
+                    'recipient_name': _('%(name)s (Copia)') % {'name': admin_name},
+                    'message_body': message_body,
+                    'admin_name': admin_name,
+                    'admin_email': admin_email,
+                    'is_copy': True,
+                    'recipients_summary': ', '.join(results['successful_emails']),
+                }
+                html_copy = render_to_string(template_name, copy_context)
+                plain_copy = _(
+                    '[COPIA DE SEGURIDAD]\nMensaje enviado a: %(recipients)s\n\n'
+                    '%(body)s\n\n'
+                    'Atentamente,\n%(admin)s\nAdministración de %(site)s'
+                ) % {
+                    'recipients': ', '.join(results['successful_emails']),
+                    'body': message_body,
+                    'admin': admin_name,
+                    'site': site_name,
+                }
+                copy_email = EmailMultiAlternatives(
+                    subject=copy_subject,
+                    body=plain_copy,
+                    from_email=from_email,
+                    to=[admin_email],
+                )
+                copy_email.attach_alternative(html_copy, "text/html")
+                copy_email.send(fail_silently=False)
+                logger.info(f"Copia de correo de admin enviada a {admin_email}")
+            except Exception as e:
+                logger.warning(f"No se pudo enviar la copia al admin {admin_email}: {str(e)}")
 
     return results
 

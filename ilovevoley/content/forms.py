@@ -2,6 +2,7 @@ from django import forms
 from django.conf import settings
 from django.db.models import Q
 from django.forms import formset_factory
+from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.competitions.models import Match
 from ilovevoley.core.mixins import get_club_team_filter
@@ -16,7 +17,7 @@ class VideoForm(forms.ModelForm):
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Ej: Partido vs Pòrtol  - 15/10/2025'
+                'placeholder': _('Ej: Partido vs Pòrtol  - 15/10/2025')
             }),
             'youtube_url': forms.URLInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
@@ -25,7 +26,7 @@ class VideoForm(forms.ModelForm):
             'description': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'rows': 3,
-                'placeholder': 'Descripción opcional del partido'
+                'placeholder': _('Descripción opcional del partido')
             }),
             'category': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
@@ -36,20 +37,20 @@ class VideoForm(forms.ModelForm):
             'set_number': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'min': 1,
-                'placeholder': 'Ej: 1 (opcional)',
+                'placeholder': _('Ej: 1 (opcional)'),
             }),
             'season': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
             }),
         }
         labels = {
-            'title': 'Título',
-            'youtube_url': 'URL de YouTube',
-            'description': 'Descripción',
-            'category': 'Categoría',
-            'match': 'Partido (opcional)',
-            'set_number': 'Set (opcional)',
-            'season': 'Temporada (opcional)',
+            'title': _('Título'),
+            'youtube_url': _('URL de YouTube'),
+            'description': _('Descripción'),
+            'category': _('Categoría'),
+            'match': _('Partido (opcional)'),
+            'set_number': _('Set (opcional)'),
+            'season': _('Temporada (opcional)'),
         }
 
     def __init__(self, *args, **kwargs):
@@ -122,9 +123,9 @@ class VideoForm(forms.ModelForm):
         
         # Actualizar label basado en contexto
         if category:
-            self.fields['match'].empty_label = f"Seleccionar partido de {category.name} (opcional)"
+            self.fields['match'].empty_label = _('Seleccionar partido de %(name)s (opcional)') % {'name': category.name}
         else:
-            self.fields['match'].empty_label = "Seleccionar partido del club (opcional)"
+            self.fields['match'].empty_label = _("Seleccionar partido del club (opcional)")
 
 
 class CommentForm(forms.ModelForm):
@@ -135,7 +136,7 @@ class CommentForm(forms.ModelForm):
             'content': forms.Textarea(attrs={
                 'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent resize-none',
                 'rows': 2,
-                'placeholder': '¡Añade un comentario de apoyo! 💪'
+                'placeholder': _('¡Añade un comentario de apoyo! 💪')
             }),
         }
         labels = {
@@ -158,12 +159,12 @@ class ImageUploadForm(forms.ModelForm):
             }),
             'title': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Título descriptivo de la imagen'
+                'placeholder': _('Título descriptivo de la imagen')
             }),
             'description': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'rows': 3,
-                'placeholder': 'Descripción opcional'
+                'placeholder': _('Descripción opcional')
             }),
             'image_type': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
@@ -174,7 +175,7 @@ class ImageUploadForm(forms.ModelForm):
             }),
             'tags': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Ej: gol, victoria, senior, entrenamiento (separadas por comas)',
+                'placeholder': _('Ej: gol, victoria, senior, entrenamiento (separadas por comas)'),
                 'data-toggle': 'tags'
             }),
             'match': forms.Select(attrs={
@@ -185,7 +186,7 @@ class ImageUploadForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
                 'min': 1,
                 'id': 'id_set_number',
-                'placeholder': 'Ej: 1 (opcional)',
+                'placeholder': _('Ej: 1 (opcional)'),
             }),
             'season': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
@@ -193,15 +194,15 @@ class ImageUploadForm(forms.ModelForm):
             }),
         }
         labels = {
-            'image': 'Imagen',
-            'title': 'Título',
-            'description': 'Descripción',
-            'image_type': 'Tipo de imagen',
-            'categories': 'Categorías',
-            'tags': 'Etiquetas',
-            'match': 'Partido (opcional)',
-            'set_number': 'Set (opcional)',
-            'season': 'Temporada (opcional)',
+            'image': _('Imagen'),
+            'title': _('Título'),
+            'description': _('Descripción'),
+            'image_type': _('Tipo de imagen'),
+            'categories': _('Categorías'),
+            'tags': _('Etiquetas'),
+            'match': _('Partido (opcional)'),
+            'set_number': _('Set (opcional)'),
+            'season': _('Temporada (opcional)'),
         }
 
     def __init__(self, *args, **kwargs):
@@ -220,7 +221,7 @@ class ImageUploadForm(forms.ModelForm):
 
         # Configurar queryset de categorías activas
         self.fields['categories'].queryset = Category.objects.filter(is_active=True).order_by('name')
-        self.fields['categories'].help_text = 'Selecciona una o más categorías (opcional si se vincula un partido)'
+        self.fields['categories'].help_text = _('Selecciona una o más categorías (opcional si se vincula un partido)')
 
         # Filtrar partidos del club
         self._setup_match_queryset()
@@ -258,7 +259,7 @@ class ImageUploadForm(forms.ModelForm):
             # Solo partidos pasados
             self.fields['match'].queryset = past_matches.order_by('-match_date')
         
-        self.fields['match'].empty_label = "Seleccionar partido (opcional)"
+        self.fields['match'].empty_label = _("Seleccionar partido (opcional)")
     
     def _setup_conditional_logic(self):
         """Configura la lógica condicional entre tipo de imagen y partido"""
@@ -267,21 +268,21 @@ class ImageUploadForm(forms.ModelForm):
             image_type = self.data.get('image_type')
             if image_type == 'match':
                 # Para imágenes de partido, sugerir que seleccionen un partido
-                self.fields['match'].help_text = 'Se recomienda seleccionar el partido correspondiente'
+                self.fields['match'].help_text = _('Se recomienda seleccionar el partido correspondiente')
             else:
                 # Para otros tipos, el partido es completamente opcional
-                self.fields['match'].help_text = 'Opcional: vincula la imagen a un partido específico'
+                self.fields['match'].help_text = _('Opcional: vincula la imagen a un partido específico')
 
     def clean_image(self):
         image = self.cleaned_data.get('image')
         if image:
             # Validar tamaño (10MB máximo)
             if image.size > 10 * 1024 * 1024:
-                raise forms.ValidationError('El archivo es demasiado grande. Tamaño máximo: 10MB')
+                raise forms.ValidationError(_('El archivo es demasiado grande. Tamaño máximo: 10MB'))
             
             # Validar tipo de archivo
             if not image.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif')):
-                raise forms.ValidationError('Formato no válido. Use JPG, PNG, WebP o HEIC')
+                raise forms.ValidationError(_('Formato no válido. Use JPG, PNG, WebP o HEIC'))
         
         return image
     
@@ -293,11 +294,13 @@ class ImageUploadForm(forms.ModelForm):
             cleaned_tags = [tag.strip().lower() for tag in tags.split(',') if tag.strip()]
             # Limitar número de etiquetas
             if len(cleaned_tags) > 10:
-                raise forms.ValidationError('Máximo 10 etiquetas permitidas')
+                raise forms.ValidationError(_('Máximo 10 etiquetas permitidas'))
             # Limitar longitud de cada etiqueta
             for tag in cleaned_tags:
                 if len(tag) > 30:
-                    raise forms.ValidationError(f'La etiqueta "{tag}" es demasiado larga (máximo 30 caracteres)')
+                    raise forms.ValidationError(
+                        _('La etiqueta "%(tag)s" es demasiado larga (máximo 30 caracteres)') % {'tag': tag}
+                    )
             return ', '.join(cleaned_tags)
         return ''
     
@@ -317,14 +320,14 @@ class ImageModerationForm(forms.ModelForm):
     """Formulario para moderación de imágenes por admin"""
     
     MODERATION_ACTIONS = [
-        ('approve', 'Aprobar'),
-        ('reject', 'Rechazar'),
+        ('approve', _('Aprobar')),
+        ('reject', _('Rechazar')),
     ]
     
     action = forms.ChoiceField(
         choices=MODERATION_ACTIONS,
         widget=forms.RadioSelect,
-        label='Acción'
+        label=_('Acción')
     )
     
     class Meta:
@@ -334,11 +337,11 @@ class ImageModerationForm(forms.ModelForm):
             'moderation_notes': forms.Textarea(attrs={
                 'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg',
                 'rows': 3,
-                'placeholder': 'Notas de moderación (opcional)'
+                'placeholder': _('Notas de moderación (opcional)')
             }),
         }
         labels = {
-            'moderation_notes': 'Notas',
+            'moderation_notes': _('Notas'),
         }
 
     def __init__(self, *args, **kwargs):
@@ -350,44 +353,44 @@ class ImageFilterForm(forms.Form):
     """Formulario para filtrar la galería de imágenes"""
     
     STATUS_CHOICES = [
-        ('', 'Todos los estados'),
-        ('pending', 'Pendientes'),
-        ('approved', 'Aprobadas'),
-        ('rejected', 'Rechazadas'),
+        ('', _('Todos los estados')),
+        ('pending', _('Pendientes')),
+        ('approved', _('Aprobadas')),
+        ('rejected', _('Rechazadas')),
     ]
     
     IMAGE_TYPE_CHOICES = [
-        ('', 'Todos los tipos'),
-        ('match', 'Partido'),
-        ('celebration', 'Celebración'),
-        ('training', 'Entrenamiento'),
-        ('team_photo', 'Foto de Equipo'),
-        ('facilities', 'Instalaciones'),
-        ('other', 'Otro'),
+        ('', _('Todos los tipos')),
+        ('match', _('Partido')),
+        ('celebration', _('Celebración')),
+        ('training', _('Entrenamiento')),
+        ('team_photo', _('Foto de Equipo')),
+        ('facilities', _('Instalaciones')),
+        ('other', _('Otro')),
     ]
     
     MATCH_FILTER_CHOICES = [
-        ('', 'Todas las imágenes'),
-        ('with_match', 'Con partido vinculado'),
-        ('without_match', 'Sin partido vinculado'),
+        ('', _('Todas las imágenes')),
+        ('with_match', _('Con partido vinculado')),
+        ('without_match', _('Sin partido vinculado')),
     ]
     
     search = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-            'placeholder': 'Buscar por título, descripción o etiquetas...'
+            'placeholder': _('Buscar por título, descripción o etiquetas...')
         }),
-        label='Buscar'
+        label=_('Buscar')
     )
     
     tags = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-            'placeholder': 'Buscar por etiquetas específicas...'
+            'placeholder': _('Buscar por etiquetas específicas...')
         }),
-        label='Etiquetas'
+        label=_('Etiquetas')
     )
     
     image_type = forms.ChoiceField(
@@ -396,7 +399,7 @@ class ImageFilterForm(forms.Form):
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
         }),
-        label='Tipo'
+        label=_('Tipo')
     )
     
     match_filter = forms.ChoiceField(
@@ -405,17 +408,17 @@ class ImageFilterForm(forms.Form):
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
         }),
-        label='Partido'
+        label=_('Partido')
     )
     
     category = forms.ModelChoiceField(
         queryset=Category.objects.filter(is_active=True),
         required=False,
-        empty_label='Todas las categorías',
+        empty_label=_('Todas las categorías'),
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
         }),
-        label='Categoría'
+        label=_('Categoría')
     )
     
     status = forms.ChoiceField(
@@ -424,7 +427,7 @@ class ImageFilterForm(forms.Form):
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
         }),
-        label='Estado'
+        label=_('Estado')
     )
 
 
@@ -435,14 +438,14 @@ class VideoEntryForm(forms.Form):
     """Fila de título + URL para el formulario de subida múltiple de vídeos."""
     title = forms.CharField(
         max_length=200,
-        label='Título',
+        label=_('Título'),
         widget=forms.TextInput(attrs={
             'class': INPUT_CSS,
-            'placeholder': 'Ej: Primer tiempo',
+            'placeholder': _('Ej: Primer tiempo'),
         }),
     )
     youtube_url = forms.URLField(
-        label='URL de YouTube',
+        label=_('URL de YouTube'),
         widget=forms.URLInput(attrs={
             'class': INPUT_CSS,
             'placeholder': 'https://www.youtube.com/watch?v=...',
@@ -451,11 +454,11 @@ class VideoEntryForm(forms.Form):
     set_number = forms.IntegerField(
         required=False,
         min_value=1,
-        label='Set (opcional)',
+        label=_('Set (opcional)'),
         widget=forms.NumberInput(attrs={
             'class': INPUT_CSS,
             'min': 1,
-            'placeholder': 'Set',
+            'placeholder': _('Set'),
         }),
     )
 
@@ -468,15 +471,15 @@ class VideoBulkSharedForm(forms.Form):
     category = forms.ModelChoiceField(
         queryset=Category.objects.filter(is_active=True).order_by('name'),
         required=False,
-        label='Categoría',
-        empty_label='Todas las categorías',
+        label=_('Categoría'),
+        empty_label=_('Todas las categorías'),
         widget=forms.Select(attrs={'class': INPUT_CSS, 'id': 'id_category'}),
     )
     match = forms.ModelChoiceField(
         queryset=Match.objects.none(),
         required=False,
-        label='Partido (opcional)',
-        empty_label='Seleccionar partido del club (opcional)',
+        label=_('Partido (opcional)'),
+        empty_label=_('Seleccionar partido del club (opcional)'),
         widget=forms.Select(attrs={'class': INPUT_CSS, 'id': 'id_match'}),
     )
 
@@ -503,7 +506,7 @@ class VideoBulkSharedForm(forms.Form):
                 Q(league__categories=category)
             )
             final_query = club_query & category_query
-            self.fields['match'].empty_label = f'Seleccionar partido de {category.name} (opcional)'
+            self.fields['match'].empty_label = _('Seleccionar partido de %(name)s (opcional)') % {'name': category.name}
         else:
             final_query = club_query
 

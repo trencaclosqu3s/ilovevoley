@@ -1,4 +1,4 @@
-<!-- Banner de Cookies -->
+{% load i18n %}<!-- Banner de Cookies -->
 <div id="cookie-banner" class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-lg border-t-4 border-csj-purple dark:border-csj-purple-dark z-50 transform translate-y-full transition-transform duration-300 ease-in-out hidden">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="lg:flex lg:items-center lg:justify-between">
@@ -8,21 +8,21 @@
                         <span class="text-2xl">🍪</span>
                     </div>
                     <div class="text-sm text-gray-700 dark:text-gray-300">
-                        <p class="font-medium mb-1">Esta web utiliza cookies</p>
+                        <p class="font-medium mb-1">{% trans "Esta web utiliza cookies" %}</p>
                         <p class="text-gray-600 dark:text-gray-300">
-                            Utilizamos cookies de sesión necesarias para el funcionamiento del sitio y cookies de Google OAuth para la autenticación. 
+                            {% blocktrans trimmed %}Utilizamos cookies de sesión necesarias para el funcionamiento del sitio y cookies de Google OAuth para la autenticación. 
                             Al continuar navegando, aceptas su uso.
-                            <a href="#" id="cookie-info-link" class="text-csj-purple dark:text-csj-yellow hover:text-csj-purple-dark dark:hover:text-csj-yellow-dark underline font-medium">Más información</a>
+                            <a href="#" id="cookie-info-link" class="text-csj-purple dark:text-csj-yellow hover:text-csj-purple-dark dark:hover:text-csj-yellow-dark underline font-medium">Más información</a>{% endblocktrans %}
                         </p>
                     </div>
                 </div>
             </div>
             <div class="mt-4 lg:mt-0 lg:ml-6 flex space-x-3">
                 <button id="cookie-accept" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-semibold transition text-sm touch-manipulation">
-                    Aceptar
+                    {% trans "Aceptar" %}
                 </button>
                 <button id="cookie-reject" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg font-semibold transition text-sm touch-manipulation">
-                    Rechazar
+                    {% trans "Rechazar" %}
                 </button>
             </div>
         </div>
@@ -35,30 +35,30 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-96 overflow-y-auto">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Información sobre cookies</h3>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{% trans "Información sobre cookies" %}</h3>
                     <button id="close-cookie-modal" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-2xl font-bold">
                         ×
                     </button>
                 </div>
                 <div class="text-sm text-gray-700 dark:text-gray-300 space-y-3">
-                    <p><strong>¿Qué son las cookies?</strong></p>
-                    <p>Las cookies son pequeños archivos de texto que se almacenan en tu dispositivo cuando visitas un sitio web.</p>
+                    <p><strong>{% trans "¿Qué son las cookies?" %}</strong></p>
+                    <p>{% trans "Las cookies son pequeños archivos de texto que se almacenan en tu dispositivo cuando visitas un sitio web." %}</p>
                     
-                    <p><strong>Cookies que utilizamos:</strong></p>
+                    <p><strong>{% trans "Cookies que utilizamos:" %}</strong></p>
                     <ul class="list-disc list-inside space-y-1 ml-4">
-                        <li><strong>Cookies de sesión (Django):</strong> Necesarias para mantener tu sesión activa y proteger contra ataques CSRF. Se eliminan al cerrar el navegador.</li>
-                        <li><strong>Cookies de autenticación (Google OAuth):</strong> Utilizadas para el proceso de login con Google. Gestionadas por Google según su política de privacidad.</li>
+                        <li><strong>{% trans "Cookies de sesión (Django):" %}</strong> {% trans "Necesarias para mantener tu sesión activa y proteger contra ataques CSRF. Se eliminan al cerrar el navegador." %}</li>
+                        <li><strong>{% trans "Cookies de autenticación (Google OAuth):" %}</strong> {% trans "Utilizadas para el proceso de login con Google. Gestionadas por Google según su política de privacidad." %}</li>
                     </ul>
                     
-                    <p><strong>Finalidad:</strong></p>
-                    <p>Las cookies son estrictamente necesarias para el funcionamiento de la aplicación y no se utilizan para tracking o publicidad.</p>
+                    <p><strong>{% trans "Finalidad:" %}</strong></p>
+                    <p>{% trans "Las cookies son estrictamente necesarias para el funcionamiento de la aplicación y no se utilizan para tracking o publicidad." %}</p>
                     
-                    <p><strong>Gestión:</strong></p>
-                    <p>Puedes configurar tu navegador para rechazar cookies, aunque esto puede afectar el funcionamiento del sitio.</p>
+                    <p><strong>{% trans "Gestión:" %}</strong></p>
+                    <p>{% trans "Puedes configurar tu navegador para rechazar cookies, aunque esto puede afectar el funcionamiento del sitio." %}</p>
                 </div>
                 <div class="mt-6 flex justify-end">
                     <button id="close-cookie-modal-btn" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-semibold transition text-sm">
-                        Entendido
+                        {% trans "Entendido" %}
                     </button>
                 </div>
             </div>

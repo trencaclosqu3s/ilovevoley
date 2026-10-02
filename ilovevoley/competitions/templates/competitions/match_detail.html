@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}{{ match.home_team_display }} vs {{ match.away_team_display }} - I Love Voley{% endblock %}
+{% block title %}{% blocktrans with home=match.home_team_display away=match.away_team_display %}{{ home }} vs {{ away }} - I Love Voley{% endblocktrans %}{% endblock %}
 
 {% block content %}
+{% trans "Foto del partido" as photo_default %}
 <div class="space-y-6">
     <!-- Header del partido -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark">
@@ -19,7 +20,7 @@
                             {{ match.home_team.variant_name }}
                         </span>
                     {% endif %}
-                    <span class="text-gray-500 dark:text-gray-400 mx-2">vs</span>
+                    <span class="text-gray-500 dark:text-gray-400 mx-2">{% trans "vs" %}</span>
                     <span class="{% if 'SANT JOSEP' in match.away_team_display %}text-csj-purple dark:text-csj-yellow{% endif %}">
                         {{ match.away_team_display }}
                     </span>
@@ -34,11 +35,11 @@
                 <div class="flex flex-wrap gap-2 sm:gap-3">
                     <a href="{% url 'competitions:calendar_view' %}"
                        class="inline-flex items-center px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition text-sm">
-                        📅 Calendario
+                        📅 {% trans "Calendario" %}
                     </a>
                     <a href="{% url 'competitions:league_detail' match.league.id %}" 
                        class="inline-flex items-center px-3 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
-                        📋 Liga
+                        📋 {% trans "Liga" %}
                     </a>
                 </div>
             </div>
@@ -52,7 +53,7 @@
                     </svg>
                     {{ match.match_date|date:"d/m/Y" }}
                     {% if match.match_date|date:"H:i" == "00:00" %}
-                        <span class="text-orange-600 dark:text-orange-400 ml-1">Sin horario confirmado</span>
+                        <span class="text-orange-600 dark:text-orange-400 ml-1">{% trans "Sin horario confirmado" %}</span>
                     {% else %}
                         {{ match.match_date|date:"H:i" }}
                     {% endif %}
@@ -63,7 +64,7 @@
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
                     </svg>
-                    J{{ match.round_number }}
+                    {% blocktrans with round=match.round_number %}J{{ round }}{% endblocktrans %}
                 </div>
 
                 <!-- Categorías -->
@@ -81,7 +82,7 @@
                 <!-- Indicador de amistoso -->
                 {% if match.is_friendly %}
                     <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-green-700 dark:text-green-200 bg-green-100 dark:bg-green-900">
-                        🏐 Amistoso
+                        🏐 {% trans "Amistoso" %}
                     </div>
                 {% endif %}
 
@@ -95,7 +96,7 @@
                     </div>
                     {% if match.result_penalized %}
                         <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200">
-                            ⚠️ Resuelto por penalización
+                            ⚠️ {% trans "Resuelto por penalización" %}
                         </div>
                     {% endif %}
                     {% if set_scores %}
@@ -109,7 +110,7 @@
                         <button type="button" data-call="openEditSetsModal"
                                 data-call-args='[{{ match.id }}, "{{ match.home_team_display|escapejs }}", "{{ match.away_team_display|escapejs }}"]'
                                 class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
-                            Editar parciales
+                            {% trans "Editar parciales" %}
                         </button>
                     {% endif %}
                     <div id="result-card-actions"
@@ -121,21 +122,21 @@
                                 <button type="button"
                                         data-card-style-option="completa"
                                         class="result-card-style-btn px-3 py-1 rounded-full font-medium transition bg-csj-purple text-white">
-                                    Completa
+                                    {% trans "Completa" %}
                                 </button>
                                 <button type="button"
                                         data-card-style-option="marco"
                                         class="result-card-style-btn px-3 py-1 rounded-full font-medium transition text-gray-600 dark:text-gray-300">
-                                    Con foto
+                                    {% trans "Con foto" %}
                                 </button>
                             </div>
                             <div id="result-card-photo-picker" class="hidden flex flex-wrap items-center gap-2">
-                                <span class="text-xs text-gray-500 dark:text-gray-400">Elige una foto:</span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">{% trans "Elige una foto:" %}</span>
                                 {% for image in images|slice:":8" %}
                                     <button type="button"
                                             class="result-card-photo-option w-12 h-12 rounded-lg overflow-hidden border-2 border-transparent focus:outline-none"
                                             data-photo-id="{{ image.id }}"
-                                            title="{{ image.title|default:'Foto del partido' }}">
+                                            title="{{ image.title|default:photo_default }}">
                                         {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover" sizes="48px" %}
                                     </button>
                                 {% endfor %}
@@ -152,22 +153,22 @@
                             <button type="button"
                                     data-card-format="square"
                                     class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
-                                Compartir 1:1
+                                {% trans "Compartir 1:1" %}
                             </button>
                             <button type="button"
                                     data-card-format="story"
                                     class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple hover:opacity-90 text-white transition shadow-md">
-                                Compartir Story
+                                {% trans "Compartir Story" %}
                             </button>
                             <button type="button"
                                     data-card-format="square"
                                     class="result-card-download inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
-                                Descargar 1:1
+                                {% trans "Descargar 1:1" %}
                             </button>
                             <button type="button"
                                     data-card-format="story"
                                     class="result-card-download inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
-                                Descargar Story
+                                {% trans "Descargar Story" %}
                             </button>
                         </div>
                     </div>
@@ -175,7 +176,7 @@
                         <div id="result-card-photo-modal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black bg-opacity-60">
                             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col">
                                 <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                                    <h3 class="font-semibold text-gray-800 dark:text-gray-100">Elige una foto</h3>
+                                    <h3 class="font-semibold text-gray-800 dark:text-gray-100">{% trans "Elige una foto" %}</h3>
                                     <button type="button" id="result-card-photo-modal-close"
                                             class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none">&times;</button>
                                 </div>
@@ -184,7 +185,7 @@
                                         <button type="button"
                                                 class="result-card-photo-option aspect-square rounded-lg overflow-hidden border-2 border-transparent focus:outline-none"
                                                 data-photo-id="{{ image.id }}"
-                                                title="{{ image.title|default:'Foto del partido' }}">
+                                                title="{{ image.title|default:photo_default }}">
                                             {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover" sizes="120px" %}
                                         </button>
                                     {% endfor %}
@@ -199,7 +200,7 @@
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                             </svg>
-                            Agregar resultado
+                            {% trans "Agregar resultado" %}
                         </button>
                     {% else %}
                         <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
@@ -257,7 +258,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                     </svg>
                     <div>
-                        <div class="font-medium text-gray-800 dark:text-gray-200">Estado</div>
+                        <div class="font-medium text-gray-800 dark:text-gray-200">{% trans "Estado" %}</div>
                         <div class="text-xs">{{ match.get_status_display }}</div>
                     </div>
                 </div>
@@ -270,14 +271,14 @@
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        Personal Oficial
+                        {% trans "Personal Oficial" %}
                     </h3>
                     
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                         <!-- Árbitros -->
                         {% if match.referee1 or match.referee2 %}
                             <div class="space-y-1">
-                                <div class="font-medium text-gray-700 dark:text-gray-300">Árbitros</div>
+                                <div class="font-medium text-gray-700 dark:text-gray-300">{% trans "Árbitros" %}</div>
                                 {% if match.referee1 %}
                                     <div class="text-gray-600 dark:text-gray-400">• {{ match.referee1 }}</div>
                                 {% endif %}
@@ -290,15 +291,15 @@
                         <!-- Personal técnico -->
                         {% if match.scorer or match.timekeeper or match.delegate %}
                             <div class="space-y-1">
-                                <div class="font-medium text-gray-700 dark:text-gray-300">Personal Técnico</div>
+                                <div class="font-medium text-gray-700 dark:text-gray-300">{% trans "Personal Técnico" %}</div>
                                 {% if match.scorer %}
-                                    <div class="text-gray-600 dark:text-gray-400">Anotador: {{ match.scorer }}</div>
+                                    <div class="text-gray-600 dark:text-gray-400">{% trans "Anotador:" %} {{ match.scorer }}</div>
                                 {% endif %}
                                 {% if match.timekeeper %}
-                                    <div class="text-gray-600 dark:text-gray-400">Cronometrador: {{ match.timekeeper }}</div>
+                                    <div class="text-gray-600 dark:text-gray-400">{% trans "Cronometrador:" %} {{ match.timekeeper }}</div>
                                 {% endif %}
                                 {% if match.delegate %}
-                                    <div class="text-gray-600 dark:text-gray-400">Delegado: {{ match.delegate }}</div>
+                                    <div class="text-gray-600 dark:text-gray-400">{% trans "Delegado:" %} {{ match.delegate }}</div>
                                 {% endif %}
                             </div>
                         {% endif %}
@@ -306,12 +307,12 @@
                         <!-- Acta oficial -->
                         {% if match.acta_html %}
                             <div class="space-y-1">
-                                <div class="font-medium text-gray-700 dark:text-gray-300">Acta Oficial</div>
+                                <div class="font-medium text-gray-700 dark:text-gray-300">{% trans "Acta Oficial" %}</div>
                                 <div class="text-gray-600 dark:text-gray-400">
                                     <a href="{{ match.acta_html }}" 
                                        target="_blank" 
                                        class="text-csj-purple dark:text-csj-yellow hover:text-purple-700 underline">
-                                        Ver acta oficial
+                                        {% trans "Ver acta oficial" %}
                                     </a>
                                 </div>
                             </div>
@@ -330,7 +331,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
                 </svg>
-                Acta del partido
+                {% trans "Acta del partido" %}
             </h2>
         </div>
 
@@ -341,7 +342,7 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span class="text-sm text-gray-500 dark:text-gray-400">Cargando alineación desde el acta oficial...</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{% trans "Cargando alineación desde el acta oficial..." %}</span>
             </div>
         </div>
 
@@ -353,7 +354,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                     </svg>
-                    <span id="lineup-error-message">No se pudo cargar la alineación.</span>
+                    <span id="lineup-error-message">{% trans "No se pudo cargar la alineación." %}</span>
                 </div>
             </div>
         </div>
@@ -363,19 +364,19 @@
 
             <!-- Convocados -->
             <div class="p-4 sm:p-6">
-                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">Convocados</h3>
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">{% trans "Convocados" %}</h3>
                 <div class="grid grid-cols-2 gap-4 sm:gap-6">
                     <div class="bg-csj-purple bg-opacity-5 rounded-lg p-3 sm:p-4">
                         <div class="mb-2">
-                            <div class="text-xs font-semibold text-csj-purple dark:text-csj-yellow uppercase tracking-wide mb-0.5">Local</div>
-                            <div class="text-xs text-gray-400 dark:text-gray-500">Cap: <span id="lineup-home-captain" class="font-medium text-gray-600 dark:text-gray-300"></span></div>
+                            <div class="text-xs font-semibold text-csj-purple dark:text-csj-yellow uppercase tracking-wide mb-0.5">{% trans "Local" %}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500">{% trans "Cap:" %} <span id="lineup-home-captain" class="font-medium text-gray-600 dark:text-gray-300"></span></div>
                         </div>
                         <ul id="lineup-home-list" class="space-y-0.5"></ul>
                     </div>
                     <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 sm:p-4">
                         <div class="mb-2">
-                            <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-0.5">Visitante</div>
-                            <div class="text-xs text-gray-400 dark:text-gray-500">Cap: <span id="lineup-away-captain" class="font-medium text-gray-600 dark:text-gray-300"></span></div>
+                            <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-0.5">{% trans "Visitante" %}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500">{% trans "Cap:" %} <span id="lineup-away-captain" class="font-medium text-gray-600 dark:text-gray-300"></span></div>
                         </div>
                         <ul id="lineup-away-list" class="space-y-0.5"></ul>
                     </div>
@@ -384,13 +385,13 @@
 
             <!-- Sets -->
             <div class="p-4 sm:p-6">
-                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">Desarrollo por sets</h3>
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">{% trans "Desarrollo por sets" %}</h3>
                 <div id="lineup-sets" class="space-y-3"></div>
             </div>
 
             <div class="px-4 py-2">
                 <p class="text-xs text-gray-400 dark:text-gray-500 italic text-center">
-                    * Datos extraídos del acta oficial. ↑N&nbsp;=&nbsp;sustituido por dorsal N.
+                    {% trans "* Datos extraídos del acta oficial. ↑N = sustituido por dorsal N." %}
                 </p>
             </div>
         </div>
@@ -402,12 +403,12 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
             <div class="bg-gray-50 dark:bg-gray-700/50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                 <h2 class="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200">
-                    📹 Videos del partido ({{ videos.count }})
+                    📹 {% blocktrans count counter=videos.count %}Videos del partido ({{ counter }}){% plural %}Videos del partido ({{ counter }}){% endblocktrans %}
                 </h2>
                 {% if can_manage_videos %}
                     <a href="{% url 'content:video_bulk_create' %}?match={{ match.id }}"
                        class="inline-flex items-center px-3 py-1.5 bg-csj-purple hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition">
-                        + Añadir vídeos
+                        + {% trans "Añadir vídeos" %}
                     </a>
                 {% endif %}
             </div>
@@ -448,7 +449,7 @@
                                     {% endif %}
                                     <span>{{ video.created_at|date:"d/m/Y" }}</span>
                                 </div>
-                                <span>Por {{ video.created_by.username }}</span>
+                                <span>{% blocktrans with author=video.created_by.username %}Por {{ author }}{% endblocktrans %}</span>
                             </div>
                         </div>
                     </div>
@@ -461,12 +462,12 @@
             <svg class="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
             </svg>
-            <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">No hay videos para este partido</h3>
+            <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">{% trans "No hay videos para este partido" %}</h3>
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Aún no se han subido videos para este enfrentamiento. 
+                {% trans "Aún no se han subido videos para este enfrentamiento." %} 
                 {% if can_manage_videos %}
                     <a href="{% url 'content:video_bulk_create' %}?match={{ match.id }}" class="text-csj-purple dark:text-csj-yellow hover:text-csj-purple-dark font-medium">
-                        ¡Sé el primero en añadir uno!
+                        {% trans "¡Sé el primero en añadir uno!" %}
                     </a>
                 {% endif %}
             </p>
@@ -478,11 +479,11 @@
         <div class="bg-gray-50 dark:bg-gray-700/50 rounded-t-lg px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex justify-between items-center">
                 <h2 class="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200">
-                    📸 Galería del partido
+                    📸 {% trans "Galería del partido" %}
                 </h2>
                 <a href="{% url 'content:match_images' match.id %}" 
                    class="text-csj-purple dark:text-csj-yellow hover:text-purple-700 text-sm font-medium">
-                    Ver todas →
+                    {% trans "Ver todas →" %}
                 </a>
             </div>
         </div>
@@ -505,7 +506,7 @@
                     <div class="text-center mt-4">
                         <a href="{% url 'content:match_images' match.id %}"
                            class="inline-flex items-center px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
-                            Ver las {{ images.count }} imágenes →
+                            {% blocktrans count counter=images.count %}Ver la {{ counter }} imagen →{% plural %}Ver las {{ counter }} imágenes →{% endblocktrans %}
                         </a>
                     </div>
                 {% endif %}
@@ -513,9 +514,9 @@
         {% else %}
             <div class="p-8 sm:p-12 text-center">
                 <div class="text-gray-400 dark:text-gray-500 text-4xl mb-4">📸</div>
-                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay imágenes para este partido</h3>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{% trans "No hay imágenes para este partido" %}</h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Aún no se han subido imágenes para este enfrentamiento.
+                    {% trans "Aún no se han subido imágenes para este enfrentamiento." %}
                 </p>
                 <!-- Menú desplegable de subida -->
                 <div class="relative z-20">
@@ -524,7 +525,7 @@
                         <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                         </svg>
-                        Subir imagen
+                        {% trans "Subir imagen" %}
                         <svg class="w-2.5 h-2.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
@@ -538,14 +539,14 @@
                                 <svg class="w-4 h-4 mr-2 text-csj-purple dark:text-csj-yellow inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                 </svg>
-                                Subir una imagen
+                                {% trans "Subir una imagen" %}
                             </a>
                             <a href="{% url 'content:image_bulk_upload' %}?match={{ match.id }}" 
                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap">
                                 <svg class="w-4 h-4 mr-2 text-csj-purple dark:text-csj-yellow inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
                                 </svg>
-                                Subir múltiples imágenes
+                                {% trans "Subir múltiples imágenes" %}
                             </a>
                         </div>
                     </div>
@@ -557,23 +558,23 @@
     {% if can_manage_videos %}
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
         <div class="bg-gray-50 dark:bg-gray-700/50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 class="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200">🔗 Compartir galería</h2>
+            <h2 class="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200">🔗 {% trans "Compartir galería" %}</h2>
         </div>
         <div class="p-4 sm:p-6 space-y-4">
             <form method="post" action="{% url 'competitions:match_share_create' match.id %}" class="flex flex-col sm:flex-row gap-3 sm:items-end">
                 {% csrf_token %}
                 <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Caducidad del enlace</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Caducidad del enlace" %}</label>
                     <select name="hours" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                         {% for hours in share_hours_choices %}
                             <option value="{{ hours }}" {% if hours == share_default_hours %}selected{% endif %}>
-                                {% if hours == 168 %}7 días{% else %}{{ hours }} horas{% endif %}
+                                {% if hours == 168 %}{% trans "7 días" %}{% else %}{% blocktrans with hours=hours %}{{ hours }} horas{% endblocktrans %}{% endif %}
                             </option>
                         {% endfor %}
                     </select>
                 </div>
                 <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-semibold transition touch-manipulation">
-                    Generar enlace
+                    {% trans "Generar enlace" %}
                 </button>
             </form>
 
@@ -585,14 +586,14 @@
                                 <input type="text" readonly value="{{ item.url }}"
                                        class="w-full text-xs sm:text-sm bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-gray-600 dark:text-gray-300">
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    {% if item.link.revoked_at %}Revocado{% elif item.link.is_active %}Caduca {{ item.link.expires_at|date:"d/m/Y H:i" }}{% else %}Caducado{% endif %}
+                                    {% if item.link.revoked_at %}{% trans "Revocado" %}{% elif item.link.is_active %}{% blocktrans with expires=item.link.expires_at|date:"d/m/Y H:i" %}Caduca {{ expires }}{% endblocktrans %}{% else %}{% trans "Caducado" %}{% endif %}
                                 </p>
                             </div>
                             {% if item.link.is_active %}
                                 <form method="post" action="{% url 'competitions:match_share_revoke' match.id item.link.id %}">
                                     {% csrf_token %}
                                     <button type="submit" class="text-red-600 dark:text-red-400 hover:text-red-700 text-sm font-medium whitespace-nowrap">
-                                        Revocar
+                                        {% trans "Revocar" %}
                                     </button>
                                 </form>
                             {% endif %}
@@ -600,7 +601,7 @@
                     {% endfor %}
                 </ul>
             {% else %}
-                <p class="text-sm text-gray-500 dark:text-gray-400">No hay enlaces activos para este partido.</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{% trans "No hay enlaces activos para este partido." %}</p>
             {% endif %}
         </div>
     </div>
@@ -608,27 +609,27 @@
 
     <!-- Navegación -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3 sm:mb-4">🔗 Enlaces relacionados</h3>
+        <h3 class="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3 sm:mb-4">🔗 {% trans "Enlaces relacionados" %}</h3>
         <div class="flex flex-wrap gap-2 sm:gap-3">
             <a href="{% url 'content:video_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition text-sm">
-                🎬 <span class="hidden sm:inline ml-1">Ver</span> Videos
+                🎬 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Videos" %}
             </a>
             <a href="{% url 'competitions:calendar_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition text-sm">
-                📅 <span class="hidden sm:inline ml-1">Ver</span> Calendario
+                📅 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Calendario" %}
             </a>
             <a href="{% url 'competitions:standings_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
-                🏆 <span class="hidden sm:inline ml-1">Ver</span> Clasificación
+                🏆 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Clasificación" %}
             </a>
             <a href="{% url 'competitions:league_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition text-sm">
-                📋 <span class="hidden sm:inline ml-1">Ver</span> Ligas
+                📋 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Ligas" %}
             </a>
             <a href="{% url 'content:image_gallery' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition text-sm">
-                📸 <span class="hidden sm:inline ml-1">Ver</span> Galería
+                📸 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Galería" %}
             </a>
         </div>
     </div>
@@ -640,7 +641,7 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex justify-between items-center">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Agregar Resultado</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{% trans "Agregar Resultado" %}</h3>
                 <button data-call="closeResultModal" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -651,14 +652,14 @@
         <div class="p-6">
             <div class="text-center mb-6">
                 <div id="resultMatchInfo" class="text-lg font-semibold text-gray-800 dark:text-gray-200"></div>
-                <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Introduce el marcador final</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">{% trans "Introduce el marcador final" %}</div>
             </div>
             
             <form id="resultForm" class="space-y-6">
                 <div class="flex items-center justify-center space-x-8">
                     <!-- Equipo Local -->
                     <div class="text-center">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" id="homeTeamLabel">Local</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" id="homeTeamLabel">{% trans "Local" %}</label>
                         <input type="number" id="homeScore" name="home_score" min="0" max="99" 
                                class="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
                                placeholder="0" required>
@@ -669,7 +670,7 @@
                     
                     <!-- Equipo Visitante -->
                     <div class="text-center">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" id="awayTeamLabel">Visitante</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" id="awayTeamLabel">{% trans "Visitante" %}</label>
                         <input type="number" id="awayScore" name="away_score" min="0" max="99" 
                                class="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
                                placeholder="0" required>
@@ -679,15 +680,15 @@
                 <!-- Parciales (opcional) -->
                 <div class="space-y-2">
                     <div class="flex items-center justify-between">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Parciales (opcional)</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Parciales (opcional)" %}</label>
                         <button type="button" id="addSetRow"
                                 class="text-sm font-medium text-csj-purple dark:text-csj-yellow hover:underline">
-                            + Añadir set
+                            + {% trans "Añadir set" %}
                         </button>
                     </div>
                     <div id="setRows" class="space-y-2"></div>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                        Si rellenas los parciales, el marcador se calcula automáticamente.
+                        {% trans "Si rellenas los parciales, el marcador se calcula automáticamente." %}
                     </p>
                 </div>
 
@@ -698,11 +699,11 @@
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" data-call="closeResultModal" 
                             class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                        Cancelar
+                        {% trans "Cancelar" %}
                     </button>
                     <button type="submit" 
                             class="px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-csj-purple-dark transition">
-                        Guardar Resultado
+                        {% trans "Guardar Resultado" %}
                     </button>
                 </div>
             </form>
@@ -714,7 +715,7 @@
 <div id="playerProfileModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
     <div class="bg-white dark:bg-gray-800 rounded-lg max-w-sm w-full shadow-xl">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Ficha del jugador</h3>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">{% trans "Ficha del jugador" %}</h3>
             <button data-call="closePlayerModal" class="text-gray-400 dark:text-gray-500 hover:text-gray-600">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -737,7 +738,7 @@
             <div id="playerProfileLink" class="hidden mt-2">
                 <a id="playerProfileUrl" href="#"
                    class="inline-flex items-center px-4 py-2 bg-csj-purple text-white rounded-lg text-sm hover:bg-purple-700 transition w-full justify-center">
-                    Ver ficha completa
+                    {% trans "Ver ficha completa" %}
                     <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                     </svg>
@@ -765,13 +766,13 @@ function closeImageLightbox() {
 
     const baseUrl = root.dataset.cardUrl;
 
-    const GENERIC_ERROR = 'No se pudo generar la tarjeta. Inténtalo de nuevo';
+    const GENERIC_ERROR = '{% trans "No se pudo generar la tarjeta. Inténtalo de nuevo" as js_msg %}{{ js_msg|escapejs }}';
 
     function buildCardUrl(format) {
         const params = new URLSearchParams({ format, style: root.dataset.cardStyle });
         if (root.dataset.cardStyle === 'marco') {
             if (!root.dataset.photoId) {
-                throw new Error('Elige una foto del partido para el estilo "Con foto"');
+                throw new Error('{% trans "Elige una foto del partido para el estilo \"Con foto\"" as js_msg %}{{ js_msg|escapejs }}');
             }
             params.set('photo_id', root.dataset.photoId);
         }
@@ -790,7 +791,7 @@ function closeImageLightbox() {
         const contentType = response.headers.get('Content-Type') || '';
 
         if (!response.ok) {
-            let message = 'No se pudo generar la tarjeta';
+            let message = '{% trans "No se pudo generar la tarjeta" as js_msg %}{{ js_msg|escapejs }}';
             if (contentType.includes('application/json')) {
                 try {
                     const data = await response.json();
@@ -829,7 +830,7 @@ function closeImageLightbox() {
         try {
             const { blob, filename } = await fetchCard(format);
             downloadBlob(blob, filename);
-            if (window.showToast) window.showToast('info', 'Imagen descargada');
+            if (window.showToast) window.showToast('info', '{% trans "Imagen descargada" as js_msg %}{{ js_msg|escapejs }}');
         } catch (error) {
             showCardError(error);
         }
@@ -843,7 +844,7 @@ function closeImageLightbox() {
         actionButtons.forEach(function(button) { button.disabled = true; });
         root.classList.add('opacity-75');
         if (window.showToast) {
-            window.showToast('info', 'Generando la tarjeta, puede tardar unos segundos…');
+            window.showToast('info', '{% trans "Generando la tarjeta, puede tardar unos segundos…" as js_msg %}{{ js_msg|escapejs }}');
         }
         return run().finally(function() {
             actionButtons.forEach(function(button) { button.disabled = false; });
@@ -860,10 +861,10 @@ function closeImageLightbox() {
                 const { blob, filename, file } = ready;
                 ready = null;
                 button.textContent = originalLabel;
-                navigator.share({ files: [file], title: 'Resultado', text: SHARE_TEXT }).catch(function(error) {
+                navigator.share({ files: [file], title: '{% trans "Resultado" as js_msg %}{{ js_msg|escapejs }}', text: SHARE_TEXT }).catch(function(error) {
                     if (error && error.name === 'AbortError') return;
                     downloadBlob(blob, filename);
-                    if (window.showToast) window.showToast('info', 'Imagen descargada');
+                    if (window.showToast) window.showToast('info', '{% trans "Imagen descargada" as js_msg %}{{ js_msg|escapejs }}');
                 });
                 return;
             }
@@ -878,15 +879,15 @@ function closeImageLightbox() {
                     // toque. Se deja lista y se espera un segundo toque explícito.
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         ready = { blob, filename, file };
-                        button.textContent = 'Toca para compartir';
+                        button.textContent = '{% trans "Toca para compartir" as js_msg %}{{ js_msg|escapejs }}';
                         if (window.showToast) {
-                            window.showToast('info', 'Imagen lista: vuelve a tocar "Toca para compartir"');
+                            window.showToast('info', '{% trans "Imagen lista: vuelve a tocar \"Toca para compartir\"" as js_msg %}{{ js_msg|escapejs }}');
                         }
                         return;
                     }
 
                     downloadBlob(blob, filename);
-                    if (window.showToast) window.showToast('info', 'Imagen descargada');
+                    if (window.showToast) window.showToast('info', '{% trans "Imagen descargada" as js_msg %}{{ js_msg|escapejs }}');
                 } catch (error) {
                     showCardError(error);
                 }
@@ -990,7 +991,7 @@ function openResultModal(matchId, homeTeam, awayTeam, options) {
     }
 
     const title = document.querySelector('#resultModal h3');
-    if (title) title.textContent = currentEditMode ? 'Editar Parciales' : 'Agregar Resultado';
+    if (title) title.textContent = currentEditMode ? '{% trans "Editar Parciales" as js_msg %}{{ js_msg|escapejs }}' : '{% trans "Agregar Resultado" as js_msg %}{{ js_msg|escapejs }}';
 
     // Mostrar modal
     document.getElementById('resultModal').classList.remove('hidden');
@@ -1031,22 +1032,22 @@ async function handleResultSubmit(e) {
 
     const setScores = matchSets ? matchSets.collect() : [];
     if (setScores === null) {
-        showResultError('Completa o elimina las filas de parciales a medias');
+        showResultError('{% trans "Completa o elimina las filas de parciales a medias" as js_msg %}{{ js_msg|escapejs }}');
         return;
     }
 
     // Sin parciales se valida el marcador a mano; con ellos se deriva en servidor.
     if (!setScores.length) {
         if (!homeScore || !awayScore) {
-            showResultError('Por favor, introduce ambos marcadores');
+            showResultError('{% trans "Por favor, introduce ambos marcadores" as js_msg %}{{ js_msg|escapejs }}');
             return;
         }
         if (homeScore < 0 || awayScore < 0) {
-            showResultError('Los marcadores no pueden ser negativos');
+            showResultError('{% trans "Los marcadores no pueden ser negativos" as js_msg %}{{ js_msg|escapejs }}');
             return;
         }
         if (homeScore == awayScore) {
-            showResultError('En voleibol no puede haber empate');
+            showResultError('{% trans "En voleibol no puede haber empate" as js_msg %}{{ js_msg|escapejs }}');
             return;
         }
     }
@@ -1088,11 +1089,11 @@ async function handleResultSubmit(e) {
                 window.location.reload();
             }, 1500);
         } else {
-            showResultError(data.error || 'Error al guardar el resultado');
+            showResultError(data.error || '{% trans "Error al guardar el resultado" as js_msg %}{{ js_msg|escapejs }}');
         }
     } catch (error) {
         console.error('Error:', error);
-        showResultError('Error de conexión. Inténtalo de nuevo.');
+        showResultError('{% trans "Error de conexión. Inténtalo de nuevo." as js_msg %}{{ js_msg|escapejs }}');
     }
 }
 
@@ -1222,7 +1223,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!players || !players.length) {
             var li = document.createElement('li');
             li.className = 'text-xs text-gray-400 dark:text-gray-500 italic';
-            li.textContent = 'Sin datos';
+            li.textContent = '{% trans "Sin datos" as js_msg %}{{ js_msg|escapejs }}';
             ul.appendChild(li);
             return;
         }
@@ -1305,7 +1306,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!sets || !sets.length) {
             var msg = document.createElement('p');
             msg.className = 'text-xs text-gray-400 dark:text-gray-500 italic';
-            msg.textContent = 'Sin datos de sets.';
+            msg.textContent = '{% trans "Sin datos de sets." as js_msg %}{{ js_msg|escapejs }}';
             container.appendChild(msg);
             return;
         }
@@ -1394,7 +1395,7 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(data) {
         document.getElementById('lineup-loading').classList.add('hidden');
         if (!data.success) {
-            document.getElementById('lineup-error-message').textContent = data.error || 'No se pudo cargar el acta.';
+            document.getElementById('lineup-error-message').textContent = data.error || '{% trans "No se pudo cargar el acta." as js_msg %}{{ js_msg|escapejs }}';
             document.getElementById('lineup-error').classList.remove('hidden');
             return;
         }
@@ -1407,7 +1408,7 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch(function() {
         document.getElementById('lineup-loading').classList.add('hidden');
-        document.getElementById('lineup-error-message').textContent = 'Error de conexión al cargar el acta.';
+        document.getElementById('lineup-error-message').textContent = '{% trans "Error de conexión al cargar el acta." as js_msg %}{{ js_msg|escapejs }}';
         document.getElementById('lineup-error').classList.remove('hidden');
     });
 })();
@@ -1418,7 +1419,7 @@ function openPlayerModal(player) {
     var p = player.person;
     document.getElementById('playerFullName').textContent = p.full_name || player.name_acta || '';
     document.getElementById('playerPosition').textContent = p.position || '';
-    document.getElementById('playerJersey').textContent = player.number !== null ? 'Dorsal: ' + player.number : '';
+    document.getElementById('playerJersey').textContent = player.number !== null ? '{% trans "Dorsal:" as js_msg %}{{ js_msg|escapejs }} ' + player.number : '';
 
     // Foto
     var photoDiv = document.getElementById('playerPhoto');

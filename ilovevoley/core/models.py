@@ -9,22 +9,23 @@ from django.db.models import Q
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
-_hex_color_validator = RegexValidator(r'^#[0-9a-fA-F]{6}$', 'Introduce un color hexadecimal válido (ej: #9B7FBF)')
+_hex_color_validator = RegexValidator(r'^#[0-9a-fA-F]{6}$', _('Introduce un color hexadecimal válido (ej: #9B7FBF)'))
 
 # Una temporada empieza el 1 de septiembre y termina el 31 de agosto.
 SEASON_START_MONTH = 9
-_INVALID_SEASON_MSG = 'Formato de temporada no válido (ej: 2025-26).'
+_INVALID_SEASON_MSG = _('Formato de temporada no válido (ej: 2025-26).')
 
 # Ramas/géneros soportados. Vacío = sin especificar.
 GENDER_MALE = 'male'
 GENDER_FEMALE = 'female'
 GENDER_MIXED = 'mixed'
 GENDER_CHOICES = [
-    ('', 'Sin especificar'),
-    (GENDER_MALE, 'Masculino'),
-    (GENDER_FEMALE, 'Femenino'),
-    (GENDER_MIXED, 'Mixto'),
+    ('', _('Sin especificar')),
+    (GENDER_MALE, _('Masculino')),
+    (GENDER_FEMALE, _('Femenino')),
+    (GENDER_MIXED, _('Mixto')),
 ]
 
 
@@ -103,10 +104,10 @@ class SeasonManager(models.Manager):
 
 
 class Season(models.Model):
-    name = models.CharField(max_length=20, unique=True, help_text='Nombre canónico, ej: 2025-26')
-    start_year = models.IntegerField(help_text='Año de inicio, ej: 2025')
-    end_year = models.IntegerField(help_text='Año de fin, ej: 2026')
-    is_current = models.BooleanField(default=False, help_text='Temporada activa (solo puede haber una)')
+    name = models.CharField(max_length=20, unique=True, help_text=_('Nombre canónico, ej: 2025-26'))
+    start_year = models.IntegerField(help_text=_('Año de inicio, ej: 2025'))
+    end_year = models.IntegerField(help_text=_('Año de fin, ej: 2026'))
+    is_current = models.BooleanField(default=False, help_text=_('Temporada activa (solo puede haber una)'))
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = SeasonManager()
@@ -114,8 +115,8 @@ class Season(models.Model):
     class Meta:
         db_table = 'videos_season'
         ordering = ['-start_year']
-        verbose_name = 'Temporada'
-        verbose_name_plural = 'Temporadas'
+        verbose_name = _('Temporada')
+        verbose_name_plural = _('Temporadas')
         constraints = [
             models.UniqueConstraint(
                 fields=['is_current'],
@@ -162,15 +163,15 @@ class Category(models.Model):
         blank=True,
         default='',
         db_index=True,
-        verbose_name='Género / Rama',
-        help_text='Vacío si la categoría es genérica (ej. "Senior").',
+        verbose_name=_('Género / Rama'),
+        help_text=_('Vacío si la categoría es genérica (ej. "Senior").'),
     )
 
     class Meta:
         db_table = 'videos_category'
         ordering = ['name']
-        verbose_name = 'Categoría'
-        verbose_name_plural = 'Categorías'
+        verbose_name = _('Categoría')
+        verbose_name_plural = _('Categorías')
 
     def __str__(self):
         return self.name
@@ -181,9 +182,9 @@ class Organization(models.Model):
     HOME_IMAGES       = 'images'
     HOME_COMPETITIONS = 'competitions'
     HOME_CHOICES = [
-        (HOME_VIDEOS, 'Vídeos'),
-        (HOME_IMAGES, 'Imágenes'),
-        (HOME_COMPETITIONS, 'Ligas y partidos'),
+        (HOME_VIDEOS, _('Vídeos')),
+        (HOME_IMAGES, _('Imágenes')),
+        (HOME_COMPETITIONS, _('Ligas y partidos')),
     ]
     HOME_URL_NAMES = {
         HOME_VIDEOS: 'content:video_list',
@@ -196,12 +197,16 @@ class Organization(models.Model):
     logo            = models.ImageField(upload_to='organizations/logos/', null=True, blank=True)
     primary_color   = models.CharField(max_length=7, default='#9B7FBF', validators=[_hex_color_validator])
     secondary_color = models.CharField(max_length=7, default='#7B5FA0', blank=True, validators=[_hex_color_validator])
-    instagram_url   = models.URLField(blank=True, help_text='URL del perfil de Instagram del club')
+    gradient_color  = models.CharField(
+        max_length=7, blank=True, validators=[_hex_color_validator],
+        help_text=_('Color final del degradado de la cabecera del perfil. Vacío: usa el color secundario.'),
+    )
+    instagram_url   = models.URLField(blank=True, help_text=_('URL del perfil de Instagram del club'))
     default_home    = models.CharField(
         max_length=20,
         choices=HOME_CHOICES,
         default=HOME_VIDEOS,
-        help_text='Sección a la que redirige la raíz del tenant.',
+        help_text=_('Sección a la que redirige la raíz del tenant.'),
     )
     club_team_names = models.JSONField(default=dict, help_text='{"Senior": "SANT JOSEP", "Juvenil": "SANT JOSEP B"}')
     club            = models.ForeignKey(
@@ -210,33 +215,33 @@ class Organization(models.Model):
         null=True,
         blank=True,
         related_name='organizations',
-        help_text='Club federativo vinculado (opcional; null p.ej. para selecciones)',
+        help_text=_('Club federativo vinculado (opcional; null p.ej. para selecciones)'),
     )
     is_active       = models.BooleanField(default=True)
     notify_match_changes = models.BooleanField(
         default=True,
-        help_text='Recibir avisos de cambios federativos de los partidos de sus equipos',
+        help_text=_('Recibir avisos de cambios federativos de los partidos de sus equipos'),
     )
     has_male_branch = models.BooleanField(
         default=True,
-        verbose_name='Rama masculina activa',
-        help_text='Recibir avisos de partidos masculinos.',
+        verbose_name=_('Rama masculina activa'),
+        help_text=_('Recibir avisos de partidos masculinos.'),
     )
     has_female_branch = models.BooleanField(
         default=False,
-        verbose_name='Rama femenina activa',
-        help_text='Recibir avisos de partidos femeninos.',
+        verbose_name=_('Rama femenina activa'),
+        help_text=_('Recibir avisos de partidos femeninos.'),
     )
     has_mixed_branch = models.BooleanField(
         default=False,
-        verbose_name='Rama mixta activa',
-        help_text='Recibir avisos de partidos mixtos.',
+        verbose_name=_('Rama mixta activa'),
+        help_text=_('Recibir avisos de partidos mixtos.'),
     )
     created_at      = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = 'Organización'
-        verbose_name_plural = 'Organizaciones'
+        verbose_name = _('Organización')
+        verbose_name_plural = _('Organizaciones')
         ordering = ['name']
 
     def __str__(self):

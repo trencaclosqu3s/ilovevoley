@@ -122,6 +122,21 @@ class WebPushCategoryFilterTest(TestCase):
         notified = {call.args[0].endpoint.rsplit('/', 1)[1] for call in mock_send.call_args_list}
         self.assertEqual(notified, {'match', 'nopref', 'anon'})
 
+    @patch('ilovevoley.users.tasks.send_web_push', return_value=True)
+    def test_organization_push_uses_language_of_each_user(self, mock_send):
+        """Cada dispositivo recibe el aviso en el idioma de su usuario; el anónimo, el por defecto."""
+        self._sub('ca', User.objects.create_user(username='ca', preferred_language='ca'))
+        self._sub('unset', User.objects.create_user(username='unset'))
+        self._sub('anon', None)
+
+        notify_web_push_organization_task(
+            organization_id=self.org.id, title='Hola', body='b',
+            translations={'es': {'title': 'Hola', 'body': 'b'}, 'ca': {'title': 'Bon dia', 'body': 'c'}},
+        )
+
+        titles = {c.args[0].endpoint.rsplit('/', 1)[1]: c.args[1]['title'] for c in mock_send.call_args_list}
+        self.assertEqual(titles, {'ca': 'Bon dia', 'unset': 'Hola', 'anon': 'Hola'})
+
 
 class WebPushNotificationTypeFilterTest(TestCase):
     def setUp(self):

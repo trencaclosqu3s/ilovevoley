@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 from django.db.models import Prefetch, Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
@@ -77,7 +78,7 @@ def roster_overview(request):
             total_stats["teams_with_good_roster"] += 1
         
         # Estadísticas por categoría
-        cat_name = team.category.name if team.category else "Sin categoría"
+        cat_name = team.category.name if team.category else _("Sin categoría")
         if cat_name not in total_stats["categories_summary"]:
             total_stats["categories_summary"][cat_name] = {
                 "teams": 0, "players": 0, "staff": 0
@@ -234,8 +235,8 @@ def person_create(request):
                     messages.error(request, str(e))
                     return render(request, 'rosters/person_form.html', {
                         'form': form,
-                        'title': 'Agregar Nueva Persona',
-                        'submit_text': 'Crear Persona',
+                        'title': _('Agregar Nueva Persona'),
+                        'submit_text': _('Crear Persona'),
                     })
             
             # Si el usuario no tiene un person vinculado, vincular este
@@ -243,15 +244,15 @@ def person_create(request):
                 person.user = request.user
             
             person.save()
-            messages.success(request, '¡Persona creada exitosamente! Ahora puedes agregar roles de jugador o staff.')
+            messages.success(request, _('¡Persona creada exitosamente! Ahora puedes agregar roles de jugador o staff.'))
             return redirect('rosters:person_detail', person_id=person.id)
     else:
         form = PersonForm()
     
     context = {
         'form': form,
-        'title': 'Agregar Nueva Persona',
-        'submit_text': 'Crear Persona',
+        'title': _('Agregar Nueva Persona'),
+        'submit_text': _('Crear Persona'),
     }
     
     return render(request, 'rosters/person_form.html', context)
@@ -268,7 +269,7 @@ def person_edit(request, person_id):
     can_edit = request.user.can_edit_person(person, request.tenant)
     
     if not can_edit:
-        messages.error(request, 'No tienes permisos para editar esta persona.')
+        messages.error(request, _('No tienes permisos para editar esta persona.'))
         return redirect('rosters:person_detail', person_id=person.id)
     
     if request.method == 'POST':
@@ -292,23 +293,23 @@ def person_edit(request, person_id):
                     return render(request, 'rosters/person_form.html', {
                         'form': form,
                         'person': person,
-                        'title': f'Editar {person.full_name}',
-                        'submit_text': 'Guardar Cambios',
+                        'title': _('Editar %(name)s') % {'name': person.full_name},
+                        'submit_text': _('Guardar Cambios'),
                     })
             
             form.save()
-            messages.success(request, '¡Información actualizada correctamente!')
+            messages.success(request, _('¡Información actualizada correctamente!'))
             return redirect('rosters:person_detail', person_id=person.id)
         else:
-            messages.error(request, 'Por favor corrige los errores en el formulario.')
+            messages.error(request, _('Por favor corrige los errores en el formulario.'))
     else:
         form = PersonForm(instance=person)
     
     context = {
         'form': form,
         'person': person,
-        'title': f'Editar {person.full_name}',
-        'submit_text': 'Guardar Cambios',
+        'title': _('Editar %(name)s') % {'name': person.full_name},
+        'submit_text': _('Guardar Cambios'),
     }
     
     return render(request, 'rosters/person_form.html', context)
@@ -324,7 +325,7 @@ def player_role_create(request, person_id):
     # Verificar permisos
     can_edit = request.user.can_edit_person(person, request.tenant)
     if not can_edit:
-        messages.error(request, 'No tienes permisos para agregar roles a esta persona.')
+        messages.error(request, _('No tienes permisos para agregar roles a esta persona.'))
         return redirect('rosters:person_detail', person_id=person.id)
     
     if request.method == 'POST':
@@ -333,7 +334,7 @@ def player_role_create(request, person_id):
             player_role = form.save(commit=False)
             player_role.person = person
             player_role.save()
-            messages.success(request, f'¡Rol de jugador agregado en {player_role.team.name}!')
+            messages.success(request, _('¡Rol de jugador agregado en %(team)s!') % {'team': player_role.team.name})
             return redirect('rosters:person_detail', person_id=person.id)
     else:
         form = PlayerRoleForm(person=person, organization=request.tenant)
@@ -341,8 +342,8 @@ def player_role_create(request, person_id):
     context = {
         'form': form,
         'person': person,
-        'title': f'Agregar Rol de Jugador - {person.full_name}',
-        'submit_text': 'Agregar Rol',
+        'title': _('Agregar Rol de Jugador - %(name)s') % {'name': person.full_name},
+        'submit_text': _('Agregar Rol'),
         'role_type': 'player',
     }
     
@@ -359,7 +360,7 @@ def staff_role_create(request, person_id):
     # Verificar permisos
     can_edit = request.user.can_edit_person(person, request.tenant)
     if not can_edit:
-        messages.error(request, 'No tienes permisos para agregar roles a esta persona.')
+        messages.error(request, _('No tienes permisos para agregar roles a esta persona.'))
         return redirect('rosters:person_detail', person_id=person.id)
     
     if request.method == 'POST':
@@ -368,7 +369,7 @@ def staff_role_create(request, person_id):
             staff_role = form.save(commit=False)
             staff_role.person = person
             staff_role.save()
-            messages.success(request, f'¡Rol de staff agregado en {staff_role.team.name}!')
+            messages.success(request, _('¡Rol de staff agregado en %(team)s!') % {'team': staff_role.team.name})
             return redirect('rosters:person_detail', person_id=person.id)
     else:
         form = StaffRoleForm(person=person, organization=request.tenant)
@@ -376,8 +377,8 @@ def staff_role_create(request, person_id):
     context = {
         'form': form,
         'person': person,
-        'title': f'Agregar Rol de Staff - {person.full_name}',
-        'submit_text': 'Agregar Rol',
+        'title': _('Agregar Rol de Staff - %(name)s') % {'name': person.full_name},
+        'submit_text': _('Agregar Rol'),
         'role_type': 'staff',
     }
     
@@ -395,14 +396,14 @@ def player_role_edit(request, role_id):
     # Verificar permisos
     can_edit = request.user.can_edit_person(player_role.person, request.tenant)
     if not can_edit:
-        messages.error(request, 'No tienes permisos para editar este rol.')
+        messages.error(request, _('No tienes permisos para editar este rol.'))
         return redirect('rosters:person_detail', person_id=player_role.person.id)
     
     if request.method == 'POST':
         form = PlayerRoleForm(request.POST, instance=player_role, person=player_role.person, organization=request.tenant)
         if form.is_valid():
             form.save()
-            messages.success(request, '¡Rol actualizado correctamente!')
+            messages.success(request, _('¡Rol actualizado correctamente!'))
             return redirect('rosters:person_detail', person_id=player_role.person.id)
     else:
         form = PlayerRoleForm(instance=player_role, person=player_role.person, organization=request.tenant)
@@ -411,8 +412,8 @@ def player_role_edit(request, role_id):
         'form': form,
         'person': player_role.person,
         'player_role': player_role,
-        'title': f'Editar Rol de Jugador - {player_role.person.full_name}',
-        'submit_text': 'Guardar Cambios',
+        'title': _('Editar Rol de Jugador - %(name)s') % {'name': player_role.person.full_name},
+        'submit_text': _('Guardar Cambios'),
         'role_type': 'player',
     }
     
@@ -430,14 +431,14 @@ def staff_role_edit(request, role_id):
     # Verificar permisos
     can_edit = request.user.can_edit_person(staff_role.person, request.tenant)
     if not can_edit:
-        messages.error(request, 'No tienes permisos para editar este rol.')
+        messages.error(request, _('No tienes permisos para editar este rol.'))
         return redirect('rosters:person_detail', person_id=staff_role.person.id)
     
     if request.method == 'POST':
         form = StaffRoleForm(request.POST, instance=staff_role, person=staff_role.person, organization=request.tenant)
         if form.is_valid():
             form.save()
-            messages.success(request, '¡Rol actualizado correctamente!')
+            messages.success(request, _('¡Rol actualizado correctamente!'))
             return redirect('rosters:person_detail', person_id=staff_role.person.id)
     else:
         form = StaffRoleForm(instance=staff_role, person=staff_role.person, organization=request.tenant)
@@ -446,8 +447,8 @@ def staff_role_edit(request, role_id):
         'form': form,
         'person': staff_role.person,
         'staff_role': staff_role,
-        'title': f'Editar Rol de Staff - {staff_role.person.full_name}',
-        'submit_text': 'Guardar Cambios',
+        'title': _('Editar Rol de Staff - %(name)s') % {'name': staff_role.person.full_name},
+        'submit_text': _('Guardar Cambios'),
         'role_type': 'staff',
     }
     
@@ -465,13 +466,15 @@ def player_role_toggle_active(request, role_id):
     # Verificar permisos
     can_edit = request.user.can_edit_person(player_role.person, request.tenant)
     if not can_edit:
-        return JsonResponse({'success': False, 'error': 'Sin permisos'}, status=403)
+        return JsonResponse({'success': False, 'error': _('Sin permisos')}, status=403)
     
     player_role.is_active = not player_role.is_active
     player_role.save()
     
-    status = 'activado' if player_role.is_active else 'desactivado'
-    messages.success(request, f'Rol de jugador {status} correctamente.')
+    if player_role.is_active:
+        messages.success(request, _('Rol de jugador activado correctamente.'))
+    else:
+        messages.success(request, _('Rol de jugador desactivado correctamente.'))
     
     return JsonResponse({'success': True, 'is_active': player_role.is_active})
 
@@ -487,13 +490,15 @@ def staff_role_toggle_active(request, role_id):
     # Verificar permisos
     can_edit = request.user.can_edit_person(staff_role.person, request.tenant)
     if not can_edit:
-        return JsonResponse({'success': False, 'error': 'Sin permisos'}, status=403)
+        return JsonResponse({'success': False, 'error': _('Sin permisos')}, status=403)
     
     staff_role.is_active = not staff_role.is_active
     staff_role.save()
     
-    status = 'activado' if staff_role.is_active else 'desactivado'
-    messages.success(request, f'Rol de staff {status} correctamente.')
+    if staff_role.is_active:
+        messages.success(request, _('Rol de staff activado correctamente.'))
+    else:
+        messages.success(request, _('Rol de staff desactivado correctamente.'))
     
     return JsonResponse({'success': True, 'is_active': staff_role.is_active})
 

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.models import GENDER_CHOICES
 from ilovevoley.core.tenancy import TeamTenantQuerySet
@@ -19,7 +20,7 @@ class Club(models.Model):
         null=True,
         blank=True,
         related_name='clubs',
-        verbose_name='Pabellón habitual'
+        verbose_name=_('Pabellón habitual')
     )
     province = models.CharField(max_length=100, blank=True)
     instagram = models.URLField(blank=True)
@@ -33,8 +34,8 @@ class Club(models.Model):
     class Meta:
         db_table = 'videos_club'
         ordering = ['official_name']
-        verbose_name = 'Club'
-        verbose_name_plural = 'Clubes'
+        verbose_name = _('Club')
+        verbose_name_plural = _('Clubes')
 
     def __str__(self):
         return self.official_name
@@ -51,7 +52,7 @@ class Team(models.Model):
     name = models.CharField(max_length=200)
     federation_id = models.CharField(max_length=200, unique=True)
     club = models.ForeignKey(Club, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams')
-    sponsor_name = models.CharField(max_length=200, blank=True, help_text='Nombre con patrocinador si aplica')
+    sponsor_name = models.CharField(max_length=200, blank=True, help_text=_('Nombre con patrocinador si aplica'))
     logo_url = models.URLField(blank=True, null=True)
     category = models.ForeignKey(
         'core.Category',
@@ -59,17 +60,17 @@ class Team(models.Model):
         null=True,
         blank=True,
         related_name='teams',
-        help_text='Categoría asignada automáticamente durante el scraping'
+        help_text=_('Categoría asignada automáticamente durante el scraping')
     )
     gender = models.CharField(
         max_length=10,
         choices=GENDER_CHOICES,
         blank=True,
         default='',
-        verbose_name='Género / Rama',
-        help_text='Vacío = hereda el género de la categoría.',
+        verbose_name=_('Género / Rama'),
+        help_text=_('Vacío = hereda el género de la categoría.'),
     )
-    is_active = models.BooleanField(default=True, help_text='Indica si el equipo sigue activo en las competiciones')
+    is_active = models.BooleanField(default=True, help_text=_('Indica si el equipo sigue activo en las competiciones'))
     created_at = models.DateTimeField(auto_now_add=True)
 
     # Sistema de variantes de equipo
@@ -79,36 +80,36 @@ class Team(models.Model):
         null=True,
         blank=True,
         related_name='variants',
-        help_text='Equipo principal si este es una variante (ej: Sant Josep A, Sant Josep Groc)'
+        help_text=_('Equipo principal si este es una variante (ej: Sant Josep A, Sant Josep Groc)')
     )
     variant_type = models.CharField(
         max_length=20,
         choices=[
-            ('split', 'División de Equipo (A/B)'),
-            ('color', 'Variante de Color (Groc/Lila)'),
-            ('temporary', 'Temporal (Torneo)'),
-            ('other', 'Otro'),
+            ('split', _('División de Equipo (A/B)')),
+            ('color', _('Variante de Color (Groc/Lila)')),
+            ('temporary', _('Temporal (Torneo)')),
+            ('other', _('Otro')),
         ],
         blank=True,
-        help_text='Tipo de variante'
+        help_text=_('Tipo de variante')
     )
     variant_name = models.CharField(
         max_length=50,
         blank=True,
-        help_text='Nombre de la variante (ej: "A", "B", "Groc", "Lila")'
+        help_text=_('Nombre de la variante (ej: "A", "B", "Groc", "Lila")')
     )
     variant_description = models.TextField(
         blank=True,
-        help_text='Descripción de la variante'
+        help_text=_('Descripción de la variante')
     )
     is_temporary_variant = models.BooleanField(
         default=False,
-        help_text='Marca si es una variante temporal (ej: para un torneo específico)'
+        help_text=_('Marca si es una variante temporal (ej: para un torneo específico)')
     )
     temporary_end_date = models.DateField(
         null=True,
         blank=True,
-        help_text='Fecha estimada de finalización si es variante temporal'
+        help_text=_('Fecha estimada de finalización si es variante temporal')
     )
 
     objects = TeamTenantQuerySet.as_manager()
@@ -116,8 +117,8 @@ class Team(models.Model):
     class Meta:
         db_table = 'videos_team'
         ordering = ['name']
-        verbose_name = 'Equipo'
-        verbose_name_plural = 'Equipos'
+        verbose_name = _('Equipo')
+        verbose_name_plural = _('Equipos')
 
     def __str__(self):
         return self.display_name_with_variant
