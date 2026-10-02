@@ -45,7 +45,7 @@ COPY . .
 # Compilar los catálogos de traducción en build: los .mo son artefactos
 # derivados (gitignored) y appuser no puede escribir el locale si el usuario
 # que ejecuta el despliegue no coincide con el owner del bind-mount.
-RUN SECRET_KEY=build python manage.py compilemessages
+RUN SECRET_KEY=build DB_PASSWORD=build python manage.py compilemessages
 
 RUN mkdir -p /app/media /app/staticfiles /app/locale && \
     chown -R appuser:appuser /app/media /app/staticfiles /app/locale
