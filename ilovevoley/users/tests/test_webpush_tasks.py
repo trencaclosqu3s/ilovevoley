@@ -4,7 +4,9 @@ from django.contrib.auth import get_user_model
 from py_vapid import Vapid
 from pywebpush import WebPushException
 from ilovevoley.core.models import Category, Organization
-from ilovevoley.users.models import CategoryPreference, NotificationPreference, NotificationType, WebPushSubscription
+from ilovevoley.users.models import (
+    CategoryPreference, Membership, NotificationPreference, NotificationType, WebPushSubscription,
+)
 from ilovevoley.users.webpush import send_web_push
 from ilovevoley.users.tasks import notify_web_push_organization_task
 
@@ -136,6 +138,34 @@ class WebPushCategoryFilterTest(TestCase):
 
         titles = {c.args[0].endpoint.rsplit('/', 1)[1]: c.args[1]['title'] for c in mock_send.call_args_list}
         self.assertEqual(titles, {'ca': 'Bon dia', 'unset': 'Hola', 'anon': 'Hola'})
+
+
+class WebPushMultiClubTest(TestCase):
+    """Un dispositivo se guarda con una sola organización, pero el usuario puede ser de varias (#313)."""
+
+    def setUp(self):
+        self.club_a = Organization.objects.create(name='Club A', slug='club-a')
+        self.club_b = Organization.objects.create(name='Club B', slug='club-b')
+
+    def _device(self, name, memberships):
+        user = User.objects.create_user(username=name, email=f'{name}@test.es')
+        for org, approved in memberships:
+            Membership.objects.create(user=user, organization=org, is_approved=approved)
+        WebPushSubscription.objects.create(
+            user=user, organization=self.club_a,
+            endpoint=f'https://push.example/{name}', p256dh='k', auth='a',
+        )
+
+    @patch('ilovevoley.users.tasks.send_web_push', return_value=True)
+    def test_push_reaches_approved_members_of_another_club(self, mock_send):
+        self._device('multi', [(self.club_a, True), (self.club_b, True)])
+        self._device('pending', [(self.club_a, True), (self.club_b, False)])
+        self._device('only_club_a', [(self.club_a, True)])
+
+        notify_web_push_organization_task(organization_id=self.club_b.id, title='t', body='b')
+
+        notified = [call.args[0].endpoint.rsplit('/', 1)[1] for call in mock_send.call_args_list]
+        self.assertEqual(notified, ['multi'])
 
 
 class WebPushNotificationTypeFilterTest(TestCase):
