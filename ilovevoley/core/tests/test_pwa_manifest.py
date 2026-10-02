@@ -42,7 +42,7 @@ class PWAManifestTest(TestCase):
         self.assertEqual(data['start_url'], '/')
         self.assertEqual(data['scope'], '/')
         self.assertEqual(data['display'], 'standalone')
-        self.assertEqual(data['theme_color'], '#9B7FBF')
+        self.assertEqual(data['theme_color'], '#01696f')
         self.assertEqual(data['background_color'], '#ffffff')
         self.assertTrue(len(data['icons']) >= 3)
 
@@ -67,7 +67,7 @@ class PWAManifestTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(data['theme_color'], '#9B7FBF')
+        self.assertEqual(data['theme_color'], '#01696f')
 
     def test_manifest_includes_scope_extensions_in_debug(self):
         Organization.objects.create(slug='soller', name='CV Soller', is_active=True)
@@ -131,3 +131,4 @@ class PWAManifestTest(TestCase):
             response2 = web_app_origin_association(request)
             data2 = json.loads(response2.content.decode('utf-8'))
             self.assertIn(f'{protocol}://manacor.ilovevoley.es/', data2)
+

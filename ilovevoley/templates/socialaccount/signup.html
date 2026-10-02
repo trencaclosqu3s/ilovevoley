@@ -1,6 +1,7 @@
 {% extends "base_auth.html" %}
+{% load i18n %}
 
-{% block title %}Completar Registro - I Love Voley{% endblock %}
+{% block title %}{% trans "Completar Registro" %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="w-full max-w-md">
@@ -8,8 +9,8 @@
         <!-- Logo del club -->
         <div class="text-center mb-6">
             {% include 'includes/tenant_logo.html' %}
-            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Completar Registro</h2>
-            <p class="text-sm text-gray-600 mt-2">Estás usando tu cuenta de Google</p>
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">{% trans "Completar Registro" %}</h2>
+            <p class="text-sm text-gray-600 mt-2">{% trans "Estás usando tu cuenta de Google" %}</p>
         </div>
         
         <form method="post" action="{% url 'socialaccount_signup' %}" class="space-y-6">
@@ -48,18 +49,18 @@
             
             <div class="bg-yellow-50 border-l-4 border-csj-yellow p-4 rounded">
                 <p class="text-sm text-gray-700">
-                    ℹ️ Tu cuenta debe ser aprobada por un administrador antes de poder acceder al contenido.
+                    {% trans "ℹ️ Tu cuenta debe ser aprobada por un administrador antes de poder acceder al contenido." %}
                 </p>
             </div>
             
             <button type="submit" class="w-full bg-csj-purple hover:bg-csj-purple-dark text-white py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation">
-                Completar Registro
+                {% trans "Completar Registro" %}
             </button>
         </form>
         
         <p class="mt-6 text-center text-sm text-gray-600">
-            ¿Ya tienes cuenta? 
-            <a href="{% url 'account_login' %}" class="text-csj-purple hover:text-csj-purple-dark font-semibold">Inicia sesión</a>
+            {% trans "¿Ya tienes cuenta?" %} 
+            <a href="{% url 'account_login' %}" class="text-csj-purple hover:text-csj-purple-dark font-semibold">{% trans "Inicia sesión" %}</a>
         </p>
     </div>
 </div>

@@ -1,16 +1,16 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}Quiénes Somos - I Love Voley{% endblock %}
+{% block title %}{% trans "Quiénes Somos" %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
     <!-- Hero Section -->
     <div class="bg-gradient-to-r from-csj-purple to-csj-purple-dark text-white px-6 py-12 sm:px-8 sm:py-16">
         <div class="max-w-4xl mx-auto text-center">
-            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">Quiénes Somos</h1>
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">{% trans "Quiénes Somos" %}</h1>
             <p class="text-lg sm:text-xl text-purple-100">
-                Una iniciativa familiar para las comunidades de voleibol
+                {% trans "Una iniciativa familiar para las comunidades de voleibol" %}
             </p>
         </div>
     </div>
@@ -20,19 +20,23 @@
         <!-- Nuestra Historia -->
         <section class="mb-12">
             <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">
-                Nuestra Historia
+                {% trans "Nuestra Historia" %}
             </h2>
             <div class="prose prose-lg max-w-none text-gray-700 dark:text-gray-300 space-y-4">
                 <p class="text-lg leading-relaxed">
+                    {% blocktrans trimmed %}
                     Esta plataforma nace del amor por el voleibol y del deseo de compartir momentos especiales con nuestras familias.
                     Somos <strong>José Alberto Martín</strong>, padre de <strong>Lluc</strong> y <strong>Jan</strong>,
                     y <strong>Paula Sepúlveda</strong>, madre de <strong>Marc</strong>.
+                    {% endblocktrans %}
                 </p>
                 <p class="text-lg leading-relaxed">
-                    Empezamos en el <strong>CV Sant Josep Obrer</strong>. Paula retransmitía los partidos en directo
+                    {% blocktrans trimmed with club="CV Sant Josep Obrer" brand="I Love Voley" %}
+                    Empezamos en el <strong>{{ club }}</strong>. Paula retransmitía los partidos en directo
                     y José Alberto construyó esta web para que las familias pudieran guardarlos y volver a verlos cuando quisieran.
-                    Con el tiempo, I Love Voley ha crecido y hoy da cabida a más clubs y comunidades del voleibol balear
+                    Con el tiempo, {{ brand }} ha crecido y hoy da cabida a más clubs y comunidades del voleibol balear
                     que quieren compartir su día a día de la misma forma.
+                    {% endblocktrans %}
                 </p>
             </div>
         </section>
@@ -43,21 +47,21 @@
         <!-- Nuestro Propósito -->
         <section class="mb-12">
             <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">
-                Nuestro Propósito
+                {% trans "Nuestro Propósito" %}
             </h2>
             <div class="bg-csj-yellow bg-opacity-20 rounded-lg p-6 sm:p-8 border-l-4 border-csj-yellow">
                 <p class="text-lg text-gray-800 dark:text-gray-200 leading-relaxed mb-4">
-                    Creamos esta web para:
+                    {% trans "Creamos esta web para:" %}
                 </p>
                 <ul class="space-y-3 text-gray-700 dark:text-gray-300 list-disc list-inside">
                     <li>
-                        <strong>Compartir los partidos</strong> que retransmitimos, para que las familias puedan verlos cuando quieran.
+                        {% blocktrans trimmed %}<strong>Compartir los partidos</strong> que retransmitimos, para que las familias puedan verlos cuando quieran.{% endblocktrans %}
                     </li>
                     <li>
-                        <strong>Centralizar el calendario</strong> con partidos, resultados y clasificaciones en un solo lugar.
+                        {% blocktrans trimmed %}<strong>Centralizar el calendario</strong> con partidos, resultados y clasificaciones en un solo lugar.{% endblocktrans %}
                     </li>
                     <li>
-                        <strong>Crear un espacio común</strong> con galería de fotos y un punto de encuentro para familias y jugadores.
+                        {% blocktrans trimmed %}<strong>Crear un espacio común</strong> con galería de fotos y un punto de encuentro para familias y jugadores.{% endblocktrans %}
                     </li>
                 </ul>
             </div>
@@ -69,34 +73,34 @@
         <!-- Valores y Compromiso -->
         <section class="mb-12">
             <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">
-                Nuestros Valores
+                {% trans "Nuestros Valores" %}
             </h2>
             <div class="grid sm:grid-cols-2 gap-6">
                 <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-6 border-2 border-purple-200 dark:border-purple-800">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">Protección de Menores</h3>
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "Protección de Menores" %}</h3>
                     <p class="text-gray-700 dark:text-gray-300">
-                        El acceso está restringido y controlado para garantizar un entorno seguro donde los menores estén protegidos.
+                        {% trans "El acceso está restringido y controlado para garantizar un entorno seguro donde los menores estén protegidos." %}
                     </p>
                 </div>
 
                 <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-6 border-2 border-purple-200 dark:border-purple-800">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">Sin Ánimo de Lucro</h3>
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "Sin Ánimo de Lucro" %}</h3>
                     <p class="text-gray-700 dark:text-gray-300">
-                        Esta plataforma es completamente gratuita y sin interés económico. Es un proyecto familiar para la comunidad.
+                        {% trans "Esta plataforma es completamente gratuita y sin interés económico. Es un proyecto familiar para la comunidad." %}
                     </p>
                 </div>
 
                 <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-6 border-2 border-purple-200 dark:border-purple-800">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">Espíritu Familiar</h3>
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "Espíritu Familiar" %}</h3>
                     <p class="text-gray-700 dark:text-gray-300">
-                        Creado por familias, para familias. Queremos que todos podamos revivir los mejores momentos de nuestros hijos.
+                        {% trans "Creado por familias, para familias. Queremos que todos podamos revivir los mejores momentos de nuestros hijos." %}
                     </p>
                 </div>
 
                 <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-6 border-2 border-purple-200 dark:border-purple-800">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">Pasión por el Voleibol</h3>
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "Pasión por el Voleibol" %}</h3>
                     <p class="text-gray-700 dark:text-gray-300">
-                        Promovemos los valores del deporte y queremos que esta plataforma inspire a más jóvenes a practicarlo.
+                        {% trans "Promovemos los valores del deporte y queremos que esta plataforma inspire a más jóvenes a practicarlo." %}
                     </p>
                 </div>
             </div>
@@ -108,32 +112,36 @@
         <!-- Agradecimientos -->
         <section class="mb-8">
             <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">
-                Agradecimientos
+                {% trans "Agradecimientos" %}
             </h2>
             <div class="bg-gradient-to-r from-csj-yellow to-yellow-200 dark:from-yellow-900/40 dark:to-yellow-800/20 rounded-lg p-6 sm:p-8">
                 <p class="text-lg text-gray-800 dark:text-gray-200 leading-relaxed mb-4">
-                    Queremos agradecer especialmente al <strong>Club Volei Sant Josep Obrer</strong>, donde nació este proyecto,
+                    {% blocktrans trimmed with club="Club Volei Sant Josep Obrer" brand="I Love Voley" %}
+                    Queremos agradecer especialmente al <strong>{{ club }}</strong>, donde nació este proyecto,
                     por crear un ambiente donde nuestros hijos pueden crecer, aprender y disfrutar del voleibol.
                     También a todos los clubs, entrenadores y jugadores que forman parte de esta comunidad,
-                    y a las familias que os sumáis desde otros clubs y hacéis posible que I Love Voley siga creciendo.
+                    y a las familias que os sumáis desde otros clubs y hacéis posible que {{ brand }} siga creciendo.
+                    {% endblocktrans %}
                 </p>
                 <p class="text-lg text-gray-800 dark:text-gray-200 leading-relaxed">
+                    {% blocktrans trimmed %}
                     Esta plataforma es nuestra forma de devolver un poco de lo mucho que el voleibol nos ha dado.
                     <strong>¡Gracias a todos!</strong> 🏐
+                    {% endblocktrans %}
                 </p>
             </div>
         </section>
 
         <!-- Call to Action -->
         <div class="text-center mt-12 pt-8 border-t-2 border-gray-200 dark:border-gray-700">
-            <p class="text-gray-600 dark:text-gray-300 mb-6">¿Tienes alguna sugerencia o quieres colaborar con la plataforma?</p>
+            <p class="text-gray-600 dark:text-gray-300 mb-6">{% trans "¿Tienes alguna sugerencia o quieres colaborar con la plataforma?" %}</p>
             {% if user.is_authenticated %}
                 <a href="{% url 'profile' %}" class="inline-block bg-csj-purple hover:bg-csj-purple-dark text-white px-8 py-3 rounded-lg font-semibold transition-colors shadow-md">
-                    Ir a Mi Perfil
+                    {% trans "Ir a Mi Perfil" %}
                 </a>
             {% else %}
                 <a href="{% url 'account_login' %}" class="inline-block bg-csj-purple hover:bg-csj-purple-dark text-white px-8 py-3 rounded-lg font-semibold transition-colors shadow-md">
-                    Únete a la Comunidad
+                    {% trans "Únete a la Comunidad" %}
                 </a>
             {% endif %}
         </div>

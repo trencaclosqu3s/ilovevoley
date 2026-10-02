@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load i18n %}
 
 {% block title %}{{ video.title }}{% if tenant %} - {{ tenant.name }}{% endif %}{% endblock %}
 
@@ -10,7 +11,7 @@
             <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
-            Volver a videos
+            {% trans "Volver a videos" %}
         </a>
     </div>
 
@@ -38,7 +39,7 @@
     <!-- Sección de comentarios -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
         <h2 class="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
-            Comentarios 
+            {% trans "Comentarios" %} 
             {% if comments %}
                 <span class="text-sm font-normal text-gray-500 dark:text-gray-400">({{ comments.count }})</span>
             {% endif %}
@@ -51,7 +52,7 @@
                 {{ comment_form.content }}
             </div>
             <button type="submit" class="w-full sm:w-auto bg-csj-purple hover:bg-csj-purple-dark text-white py-3 sm:py-2 px-6 rounded-lg font-semibold transition touch-manipulation">
-                Añadir Comentario
+                {% trans "Añadir Comentario" %}
             </button>
         </form>
 
@@ -82,7 +83,7 @@
                 <div class="mx-auto w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-3">
                     <span class="text-xl">💬</span>
                 </div>
-                <p class="text-sm sm:text-base">Aún no hay comentarios. ¡Sé el primero en comentar!</p>
+                <p class="text-sm sm:text-base">{% trans "Aún no hay comentarios. ¡Sé el primero en comentar!" %}</p>
             </div>
         {% endif %}
     </div>

@@ -59,7 +59,7 @@ jobs:
       - name: Instalar dependencias del sistema
         run: |
           sudo apt-get update
-          sudo apt-get install -y libheif-dev libde265-dev pkg-config
+          sudo apt-get install -y libheif-dev libde265-dev pkg-config gettext
 
       - name: Instalar dependencias Python
         run: pip install -r requirements-dev.txt
@@ -82,6 +82,9 @@ jobs:
 
       - name: No debe haber migraciones pendientes de generar
         run: python manage.py makemigrations --check --dry-run
+
+      - name: Compilar catálogos de traducción
+        run: python manage.py compilemessages
 
       - name: Tests
         run: python -m pytest --create-db -v

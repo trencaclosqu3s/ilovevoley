@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
+{% load i18n %}
 
-{% block title %}Añadir Vídeos{% if tenant %} - {{ tenant.name }}{% endif %}{% endblock %}
+{% block title %}{% trans "Añadir Vídeos" %}{% if tenant %} - {{ tenant.name }}{% endif %}{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto">
-    <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">Añadir Vídeos</h2>
+    <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">{% trans "Añadir Vídeos" %}</h2>
 
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
         <form method="post" class="space-y-6" id="bulk-video-form">
@@ -39,7 +40,7 @@
             <div id="video-rows" class="space-y-4">
                 {% for form in formset %}
                     <div class="video-row border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 relative">
-                        <button type="button" class="remove-row absolute top-2 right-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition text-lg leading-none" title="Eliminar">✕</button>
+                        <button type="button" class="remove-row absolute top-2 right-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition text-lg leading-none" title="{% trans "Eliminar" %}">✕</button>
                         {{ form.DELETE.as_hidden }}
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ form.title.label }}</label>
@@ -68,20 +69,20 @@
 
             <button type="button" id="add-row"
                 class="w-full border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-csj-purple dark:hover:border-csj-yellow text-gray-500 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow px-4 py-3 rounded-lg font-medium transition text-sm">
-                + Añadir otro vídeo
+                + {% trans "Añadir otro vídeo" %}
             </button>
 
             <div class="flex flex-col sm:flex-row gap-4 pt-2">
                 <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
-                    Guardar vídeos
+                    {% trans "Guardar vídeos" %}
                 </button>
                 {% if match_id %}
                     <a href="{% url 'competitions:match_detail' match_id %}" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
-                        Cancelar
+                        {% trans "Cancelar" %}
                     </a>
                 {% else %}
                     <a href="{% url 'content:video_list' %}" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
-                        Cancelar
+                        {% trans "Cancelar" %}
                     </a>
                 {% endif %}
             </div>
@@ -89,8 +90,8 @@
     </div>
 
     <div class="mt-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <h3 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">💡 Recuerda: usa vídeos "No listados"</h3>
-        <p class="text-sm text-blue-700 dark:text-blue-300">Los vídeos "Privados" no se pueden incrustar. Usa siempre "No listados" en YouTube.</p>
+        <h3 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">{% trans '💡 Recuerda: usa vídeos "No listados"' %}</h3>
+        <p class="text-sm text-blue-700 dark:text-blue-300">{% trans 'Los vídeos "Privados" no se pueden incrustar. Usa siempre "No listados" en YouTube.' %}</p>
     </div>
 </div>
 
@@ -103,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (categorySelect && matchSelect) {
         categorySelect.addEventListener('change', function () {
             const categoryId = this.value;
-            matchSelect.innerHTML = '<option value="">Cargando partidos...</option>';
+            matchSelect.innerHTML = '<option value="">{% trans "Cargando partidos..." as js_msg %}{{ js_msg|escapejs }}</option>';
             matchSelect.disabled = true;
             fetch(`{% url 'competitions:ajax_matches_by_category' %}?category_id=${categoryId}`)
                 .then(r => r.json())
@@ -112,8 +113,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     const empty = document.createElement('option');
                     empty.value = '';
                     empty.textContent = categoryId
-                        ? `Seleccionar partido de ${categorySelect.options[categorySelect.selectedIndex].text} (opcional)`
-                        : 'Seleccionar partido del club (opcional)';
+                        ? '{% trans "Seleccionar partido de" as js_msg %}{{ js_msg|escapejs }} ' + categorySelect.options[categorySelect.selectedIndex].text + ' {% trans "(opcional)" as js_msg %}{{ js_msg|escapejs }}'
+                        : '{% trans "Seleccionar partido del club (opcional)" as js_msg %}{{ js_msg|escapejs }}';
                     matchSelect.appendChild(empty);
                     data.matches.forEach(m => {
                         const opt = document.createElement('option');
@@ -124,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     matchSelect.disabled = false;
                 })
                 .catch(() => {
-                    matchSelect.innerHTML = '<option value="">Error cargando partidos</option>';
+                    matchSelect.innerHTML = '<option value="">{% trans "Error cargando partidos" as js_msg %}{{ js_msg|escapejs }}</option>';
                     matchSelect.disabled = false;
                 });
         });

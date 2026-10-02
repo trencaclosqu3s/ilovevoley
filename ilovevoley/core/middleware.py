@@ -13,6 +13,7 @@ from django.utils.html import strip_tags
 from django.core.cache import cache
 from django.shortcuts import redirect
 from django.utils import timezone
+from django.utils import translation
 from .email_utils import get_admin_emails
 from .tenant_utils import get_organization_by_slug
 
@@ -27,6 +28,30 @@ SENSITIVE_URL_PATTERNS = [
     (re.compile(r'(/accounts/confirm-email/)[^/]+(/?)'), r'\1[REDACTED]\2'),
     (re.compile(r'(/p/partido/)[^/]+(/?)'), r'\1[REDACTED]\2'),
 ]
+
+
+class UserLanguageMiddleware:
+    """Aplica el idioma preferido guardado en el perfil del usuario.
+
+    La cookie ``django_language`` (gestionada por ``LocaleMiddleware`` y por la
+    vista ``set_language``) siempre tiene prioridad: si el usuario ya eligió un
+    idioma explícitamente en este dispositivo, no se pisa. La preferencia
+    guardada en el perfil solo entra cuando no hay elección explícita, de modo
+    que un usuario que inicia sesión en un dispositivo nuevo recupera su idioma.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, 'user', None)
+        if user is not None and user.is_authenticated:
+            preferred = getattr(user, 'preferred_language', '')
+            if preferred and preferred in dict(settings.LANGUAGES):
+                if not request.COOKIES.get(settings.LANGUAGE_COOKIE_NAME):
+                    translation.activate(preferred)
+                    request.LANGUAGE_CODE = preferred
+        return self.get_response(request)
 
 
 def sanitize_path(url_or_path: str) -> str:

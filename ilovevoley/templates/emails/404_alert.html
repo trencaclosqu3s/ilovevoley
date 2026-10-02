@@ -1,111 +1,112 @@
 {% extends "emails/base_email.html" %}
+{% load i18n %}
 
-{% block title %}Alerta 404 - {{ site_name }}{% endblock %}
+{% block title %}{% blocktrans %}Alerta 404 - {{ site_name }}{% endblocktrans %}{% endblock %}
 
-{% block header_subtitle %}🚨 Alerta de Errores 404{% endblock %}
+{% block header_subtitle %}{% trans "🚨 Alerta de Errores 404" %}{% endblock %}
 
 {% block content %}
     <div class="alert error">
-        <h2 style="margin-top: 0;">🚨 ALERTA: Alto número de errores 404</h2>
-        <p>Se han detectado <strong>{{ count }} errores 404</strong> en la última hora ({{ hour }}). Esto puede indicar un problema que requiere atención inmediata.</p>
+        <h2 style="margin-top: 0;">{% trans "🚨 ALERTA: Alto número de errores 404" %}</h2>
+        <p>{% blocktrans %}Se han detectado <strong>{{ count }} errores 404</strong> en la última hora ({{ hour }}). Esto puede indicar un problema que requiere atención inmediata.{% endblocktrans %}</p>
     </div>
 
-    <h3>📊 Resumen de la alerta:</h3>
+    <h3>{% trans "📊 Resumen de la alerta:" %}</h3>
     <table class="data-table">
         <tr>
-            <th>Número de errores:</th>
+            <th>{% trans "Número de errores:" %}</th>
             <td><strong style="color: #e74c3c;">{{ count }}</strong></td>
         </tr>
         <tr>
-            <th>Período:</th>
-            <td>Última hora ({{ hour }})</td>
+            <th>{% trans "Período:" %}</th>
+            <td>{% blocktrans %}Última hora ({{ hour }}){% endblocktrans %}</td>
         </tr>
         <tr>
-            <th>Última URL afectada:</th>
+            <th>{% trans "Última URL afectada:" %}</th>
             <td><code style="background: #f8f9fa; padding: 2px 4px; border-radius: 3px;">{{ last_url }}</code></td>
         </tr>
         <tr>
-            <th>Momento de la alerta:</th>
+            <th>{% trans "Momento de la alerta:" %}</th>
             <td>{% now "d/m/Y H:i:s" %}</td>
         </tr>
     </table>
 
     <div class="alert warning">
-        <h4 style="margin-top: 0;">⚠️ Posibles causas</h4>
-        <p>Un alto número de errores 404 en poco tiempo puede deberse a:</p>
+        <h4 style="margin-top: 0;">{% trans "⚠️ Posibles causas" %}</h4>
+        <p>{% trans "Un alto número de errores 404 en poco tiempo puede deberse a:" %}</p>
         <ul>
-            <li><strong>Enlaces rotos masivos:</strong> Cambios en la estructura de URLs</li>
-            <li><strong>Problemas de deploy:</strong> Recursos no desplegados correctamente</li>
-            <li><strong>Ataques automatizados:</strong> Bots intentando acceder a URLs inexistentes</li>
-            <li><strong>Errores de configuración:</strong> Problemas en el servidor web o aplicación</li>
-            <li><strong>Contenido eliminado:</strong> Páginas o recursos recientemente eliminados</li>
-            <li><strong>SEO/Crawlers:</strong> Motores de búsqueda accediendo a URLs obsoletas</li>
+            <li>{% blocktrans %}<strong>Enlaces rotos masivos:</strong> Cambios en la estructura de URLs{% endblocktrans %}</li>
+            <li>{% blocktrans %}<strong>Problemas de deploy:</strong> Recursos no desplegados correctamente{% endblocktrans %}</li>
+            <li>{% blocktrans %}<strong>Ataques automatizados:</strong> Bots intentando acceder a URLs inexistentes{% endblocktrans %}</li>
+            <li>{% blocktrans %}<strong>Errores de configuración:</strong> Problemas en el servidor web o aplicación{% endblocktrans %}</li>
+            <li>{% blocktrans %}<strong>Contenido eliminado:</strong> Páginas o recursos recientemente eliminados{% endblocktrans %}</li>
+            <li>{% blocktrans %}<strong>SEO/Crawlers:</strong> Motores de búsqueda accediendo a URLs obsoletas{% endblocktrans %}</li>
         </ul>
     </div>
 
-    <h3>🔍 Acciones inmediatas recomendadas:</h3>
+    <h3>{% trans "🔍 Acciones inmediatas recomendadas:" %}</h3>
     <ol>
         <li>
-            <strong>Verificar el sitio:</strong>
+            <strong>{% trans "Verificar el sitio:" %}</strong>
             <ul>
-                <li>Comprobar que la página principal funciona correctamente</li>
-                <li>Probar las secciones más importantes del sitio</li>
-                <li>Verificar que no hay problemas de conectividad</li>
+                <li>{% trans "Comprobar que la página principal funciona correctamente" %}</li>
+                <li>{% trans "Probar las secciones más importantes del sitio" %}</li>
+                <li>{% trans "Verificar que no hay problemas de conectividad" %}</li>
             </ul>
         </li>
         <li>
-            <strong>Revisar logs detallados:</strong>
+            <strong>{% trans "Revisar logs detallados:" %}</strong>
             <ul>
-                <li>Examinar los logs del servidor web</li>
-                <li>Identificar patrones en las URLs problemáticas</li>
-                <li>Verificar si los errores vienen de IPs específicas</li>
+                <li>{% trans "Examinar los logs del servidor web" %}</li>
+                <li>{% trans "Identificar patrones en las URLs problemáticas" %}</li>
+                <li>{% trans "Verificar si los errores vienen de IPs específicas" %}</li>
             </ul>
         </li>
         <li>
-            <strong>Verificar deploy reciente:</strong>
+            <strong>{% trans "Verificar deploy reciente:" %}</strong>
             <ul>
-                <li>¿Se ha realizado algún deploy en las últimas horas?</li>
-                <li>¿Se han movido o eliminado archivos importantes?</li>
-                <li>¿Hay cambios en la configuración del servidor?</li>
+                <li>{% trans "¿Se ha realizado algún deploy en las últimas horas?" %}</li>
+                <li>{% trans "¿Se han movido o eliminado archivos importantes?" %}</li>
+                <li>{% trans "¿Hay cambios en la configuración del servidor?" %}</li>
             </ul>
         </li>
         <li>
-            <strong>Monitorear tendencia:</strong>
+            <strong>{% trans "Monitorear tendencia:" %}</strong>
             <ul>
-                <li>Observar si el número de errores sigue aumentando</li>
-                <li>Verificar si se trata de un pico temporal</li>
-                <li>Comprobar métricas de tráfico general</li>
+                <li>{% trans "Observar si el número de errores sigue aumentando" %}</li>
+                <li>{% trans "Verificar si se trata de un pico temporal" %}</li>
+                <li>{% trans "Comprobar métricas de tráfico general" %}</li>
             </ul>
         </li>
     </ol>
 
     <div style="text-align: center; margin: 25px 0;">
         <a href="/admin/" class="button">
-            🔧 Ir al Panel de Admin
+            {% trans "🔧 Ir al Panel de Admin" %}
         </a>
     </div>
 
     <div class="alert">
-        <h4 style="margin-top: 0;">📈 Umbral de alerta</h4>
-        <p>Esta alerta se activa cuando se detectan 10 o más errores 404 en una hora. El objetivo es identificar rápidamente problemas que podrían afectar la experiencia del usuario.</p>
-        <p><strong>Próxima verificación:</strong> En la siguiente hora</p>
+        <h4 style="margin-top: 0;">{% trans "📈 Umbral de alerta" %}</h4>
+        <p>{% trans "Esta alerta se activa cuando se detectan 10 o más errores 404 en una hora. El objetivo es identificar rápidamente problemas que podrían afectar la experiencia del usuario." %}</p>
+        <p>{% blocktrans %}<strong>Próxima verificación:</strong> En la siguiente hora{% endblocktrans %}</p>
     </div>
 
-    <h3>🚀 Pasos de resolución típicos:</h3>
+    <h3>{% trans "🚀 Pasos de resolución típicos:" %}</h3>
     <ul>
-        <li><strong>Si es un problema de deploy:</strong> Verificar y re-desplegar los recursos faltantes</li>
-        <li><strong>Si son enlaces rotos:</strong> Configurar redirects 301 a las nuevas URLs</li>
-        <li><strong>Si es un ataque automatizado:</strong> Considerar bloquear IPs problemáticas</li>
-        <li><strong>Si son recursos movidos:</strong> Actualizar enlaces internos y sitemap</li>
-        <li><strong>Si es tráfico legítimo:</strong> Implementar páginas 404 personalizadas útiles</li>
+        <li>{% blocktrans %}<strong>Si es un problema de deploy:</strong> Verificar y re-desplegar los recursos faltantes{% endblocktrans %}</li>
+        <li>{% blocktrans %}<strong>Si son enlaces rotos:</strong> Configurar redirects 301 a las nuevas URLs{% endblocktrans %}</li>
+        <li>{% blocktrans %}<strong>Si es un ataque automatizado:</strong> Considerar bloquear IPs problemáticas{% endblocktrans %}</li>
+        <li>{% blocktrans %}<strong>Si son recursos movidos:</strong> Actualizar enlaces internos y sitemap{% endblocktrans %}</li>
+        <li>{% blocktrans %}<strong>Si es tráfico legítimo:</strong> Implementar páginas 404 personalizadas útiles{% endblocktrans %}</li>
     </ul>
 
     <div class="alert error">
-        <h4 style="margin-top: 0;">⏰ Tiempo de respuesta</h4>
-        <p><strong>Recomendación:</strong> Investigar este problema en los próximos 15-30 minutos para minimizar el impacto en los usuarios y SEO.</p>
+        <h4 style="margin-top: 0;">{% trans "⏰ Tiempo de respuesta" %}</h4>
+        <p>{% blocktrans %}<strong>Recomendación:</strong> Investigar este problema en los próximos 15-30 minutos para minimizar el impacto en los usuarios y SEO.{% endblocktrans %}</p>
     </div>
 
     <p style="margin-top: 30px; text-align: center;">
-        <strong>🔔 Este es un mensaje automático del sistema de monitoreo de {{ site_name }}</strong>
+        <strong>{% blocktrans %}🔔 Este es un mensaje automático del sistema de monitoreo de {{ site_name }}{% endblocktrans %}</strong>
     </p>
 {% endblock %}

@@ -1,6 +1,7 @@
 {% extends "base_auth.html" %}
+{% load i18n %}
 
-{% block title %}Pendiente de Aprobación - I Love Voley{% endblock %}
+{% block title %}{% trans "Pendiente de Aprobación" %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="w-full max-w-lg">
@@ -8,16 +9,16 @@
         <div class="text-center mb-6">
             <div class="text-6xl mb-4">⏳</div>
             <h1 class="text-2xl font-bold text-gray-800 mb-2">
-                {% if joining_club %}Solicitud Pendiente de Aprobación{% else %}Cuenta Pendiente de Aprobación{% endif %}
+                {% if joining_club %}{% trans "Solicitud Pendiente de Aprobación" %}{% else %}{% trans "Cuenta Pendiente de Aprobación" %}{% endif %}
             </h1>
         </div>
 
         <div class="space-y-4 mb-6">
             {% if needs_parent_info %}
             <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                <h3 class="font-semibold text-red-800 mb-2">⚠️ Información Requerida</h3>
+                <h3 class="font-semibold text-red-800 mb-2">{% trans "⚠️ Información Requerida" %}</h3>
                 <p class="text-red-700 text-sm">
-                    Para aprobar tu cuenta, necesitamos que indiques de qué menor eres familiar. Esta información es obligatoria por seguridad.
+                    {% trans "Para aprobar tu cuenta, necesitamos que indiques de qué menor eres familiar. Esta información es obligatoria por seguridad." %}
                 </p>
             </div>
 
@@ -34,59 +35,59 @@
                     <p class="mt-1 text-xs text-gray-500">{{ form.parent_info.help_text }}</p>
                 </div>
                 <button type="submit" class="w-full bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-3 rounded-lg font-semibold transition touch-manipulation">
-                    Guardar Información
+                    {% trans "Guardar Información" %}
                 </button>
             </form>
             {% else %}
             <div class="bg-csj-yellow bg-opacity-20 border-l-4 border-csj-yellow p-4 rounded">
-                <h3 class="font-semibold text-gray-800 mb-2">¡Hola {{ user.first_name|default:user.username }}!</h3>
+                <h3 class="font-semibold text-gray-800 mb-2">{% blocktrans with user_name=user.first_name|default:user.username %}¡Hola {{ user_name }}!{% endblocktrans %}</h3>
                 {% if joining_club %}
                 <p class="text-gray-700 text-sm">
-                    Hemos enviado tu solicitud para unirte a <strong>{{ tenant.name }}</strong>. Un administrador la revisará y tendrás acceso en cuanto la apruebe.
+                    {% blocktrans with club=tenant.name %}Hemos enviado tu solicitud para unirte a <strong>{{ club }}</strong>. Un administrador la revisará y tendrás acceso en cuanto la apruebe.{% endblocktrans %}
                 </p>
                 {% else %}
                 <p class="text-gray-700 text-sm">
-                    Tu cuenta ha sido creada correctamente, pero necesita ser aprobada por un administrador antes de que puedas acceder al contenido.
+                    {% trans "Tu cuenta ha sido creada correctamente, pero necesita ser aprobada por un administrador antes de que puedas acceder al contenido." %}
                 </p>
                 {% endif %}
             </div>
             {% endif %}
 
             <div class="bg-gray-50 p-4 rounded">
-                <h4 class="font-semibold text-gray-800 mb-2">¿Por qué necesito aprobación?</h4>
+                <h4 class="font-semibold text-gray-800 mb-2">{% trans "¿Por qué necesito aprobación?" %}</h4>
                 <p class="text-gray-600 text-sm">
-                    Para proteger la privacidad de los menores que aparecen en los vídeos, todas las cuentas deben ser validadas manualmente por los administradores de esta plataforma comunitaria.
+                    {% trans "Para proteger la privacidad de los menores que aparecen en los vídeos, todas las cuentas deben ser validadas manualmente por los administradores de esta plataforma comunitaria." %}
                 </p>
             </div>
 
             <div class="bg-gray-50 p-4 rounded">
-                <h4 class="font-semibold text-gray-800 mb-2">¿Qué hago ahora?</h4>
+                <h4 class="font-semibold text-gray-800 mb-2">{% trans "¿Qué hago ahora?" %}</h4>
                 <ul class="text-gray-600 text-sm space-y-1">
-                    <li>• Un administrador revisará tu solicitud</li>
-                    <li>• Recibirás acceso en cuanto sea aprobada</li>
-                    <li>• Puedes cerrar esta página y volver más tarde</li>
+                    <li>{% trans "• Un administrador revisará tu solicitud" %}</li>
+                    <li>{% trans "• Recibirás acceso en cuanto sea aprobada" %}</li>
+                    <li>{% trans "• Puedes cerrar esta página y volver más tarde" %}</li>
                 </ul>
             </div>
         </div>
 
         <div class="text-center space-y-4">
             <div class="text-xs text-gray-500">
-                <strong>Email registrado:</strong> {{ user.email }}
+                {% blocktrans with email=user.email %}<strong>Email registrado:</strong> {{ email }}{% endblocktrans %}
             </div>
             
             <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                 <a href="{% url 'account_logout' %}" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 sm:py-2 rounded-lg font-medium transition text-center touch-manipulation">
-                    Cerrar Sesión
+                    {% trans "Cerrar Sesión" %}
                 </a>
                 <a href="{% url 'pending_approval' %}" class="flex-1 bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-3 sm:py-2 rounded-lg font-medium transition text-center touch-manipulation">
-                    Verificar Estado
+                    {% trans "Verificar Estado" %}
                 </a>
             </div>
         </div>
 
         <div class="mt-6 pt-4 border-t border-gray-200 text-center">
             <p class="text-xs text-gray-500">
-                Si tienes dudas, contacta con los administradores de esta plataforma comunitaria{% if tenant %} de {{ tenant.name }}{% endif %}
+                {% trans "Si tienes dudas, contacta con los administradores de esta plataforma comunitaria" %}{% if tenant %} {% blocktrans with club=tenant.name %}de {{ club }}{% endblocktrans %}{% endif %}
             </p>
         </div>
     </div>

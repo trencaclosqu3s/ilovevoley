@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}{{ team.name }} - Plantilla - I Love Voley{% endblock %}
+{% block title %}{{ team.name }} - {% trans "Plantilla" %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
@@ -11,7 +11,7 @@
             <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
-            Volver a equipos
+            {% trans "Volver a equipos" %}
         </a>
     </div>
 
@@ -20,7 +20,7 @@
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div class="flex items-center">
                 {% if team.display_logo %}
-                    <img src="{{ team.display_logo }}" alt="Logo {{ team.name }}" 
+                    <img src="{{ team.display_logo }}" alt="{% trans 'Logo' %} {{ team.name }}"
                          class="w-16 h-16 object-contain rounded border mr-4">
                 {% else %}
                     <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded border dark:border-gray-600 mr-4 flex items-center justify-center">
@@ -45,7 +45,7 @@
             <div class="flex items-center gap-2">
                 {% if user.is_staff %}
                     <a href="{% url 'admin:teams_team_change' team.id %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition text-sm whitespace-nowrap">
-                        ⚙️ Editar
+                        {% trans "⚙️ Editar" %}
                     </a>
                 {% endif %}
             </div>
@@ -56,19 +56,19 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 text-center border-t-4 border-csj-purple dark:border-csj-purple-dark">
             <div class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ stats.total_players }}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Jugadores Activos</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">{% trans "Jugadores Activos" %}</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 text-center border-t-4 border-csj-yellow dark:border-csj-yellow-dark">
             <div class="text-2xl font-bold text-csj-yellow-dark dark:text-csj-yellow">{{ stats.total_staff }}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Miembros del Staff</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">{% trans "Miembros del Staff" %}</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 text-center border-t-4 border-green-400 dark:border-green-500">
             <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ stats.players_with_jersey }}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Con Dorsal</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">{% trans "Con Dorsal" %}</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 text-center border-t-4 border-blue-400 dark:border-blue-500">
             <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ stats.positions_covered }}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Posiciones</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">{% trans "Posiciones" %}</div>
         </div>
     </div>
 
@@ -77,9 +77,9 @@
         <form method="get" class="flex items-center gap-2">
             {% if selected_position %}<input type="hidden" name="position" value="{{ selected_position }}">{% endif %}
             {% if selected_role %}<input type="hidden" name="role" value="{{ selected_role }}">{% endif %}
-            <label for="season" class="text-sm font-medium text-gray-700 dark:text-gray-300">Temporada</label>
+            <label for="season" class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Temporada" %}</label>
             <select name="season" id="season" class="auto-filter px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white">
-                <option value="">Todas las temporadas</option>
+                <option value="">{% trans "Todas las temporadas" %}</option>
                 {% for season in seasons %}
                     <option value="{{ season.id }}" {% if selected_season == season.id|stringformat:"s" %}selected{% endif %}>{{ season.name }}</option>
                 {% endfor %}
@@ -90,17 +90,17 @@
     <!-- Toggle de vista global -->
     <div class="flex justify-center sm:justify-end mb-6">
         <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-            <button id="grid-view" aria-label="Vista de tarjetas" title="Vista de tarjetas" class="flex items-center px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm">
+            <button id="grid-view" aria-label="{% trans 'Vista de tarjetas' %}" title="{% trans 'Vista de tarjetas' %}" class="flex items-center px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm">
                 <svg class="w-4 h-4 sm:mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
                 </svg>
-                <span class="hidden sm:inline">Tarjetas</span>
+                <span class="hidden sm:inline">{% trans "Tarjetas" %}</span>
             </button>
-            <button id="list-view" aria-label="Vista de lista" title="Vista de lista" class="flex items-center px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
+            <button id="list-view" aria-label="{% trans 'Vista de lista' %}" title="{% trans 'Vista de lista' %}" class="flex items-center px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
                 <svg class="w-4 h-4 sm:mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
                 </svg>
-                <span class="hidden sm:inline">Lista</span>
+                <span class="hidden sm:inline">{% trans "Lista" %}</span>
             </button>
         </div>
     </div>
@@ -108,15 +108,15 @@
     <!-- Sección de Jugadores -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-6">
         <div class="border-l-4 border-csj-purple dark:border-csj-yellow pl-4 mb-6">
-            <h2 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">👥 Jugadores</h2>
-            <p class="text-sm text-gray-600 dark:text-gray-400">Plantilla actual del equipo</p>
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{% trans "👥 Jugadores" %}</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400">{% trans "Plantilla actual del equipo" %}</p>
         </div>
 
         <!-- Filtros de posición -->
         {% if player_roles %}
             <div class="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2">
                 <a href="?{% if season_filtered %}season={{ selected_season }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if not selected_position %}bg-csj-purple dark:bg-csj-purple-dark text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
-                    Todas las posiciones
+                    {% trans "Todas las posiciones" %}
                 </a>
                 {% for value, display in position_choices %}
                     <a href="?{% if season_filtered %}season={{ selected_season }}&{% endif %}position={{ value }}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if selected_position == value %}bg-csj-purple dark:bg-csj-purple-dark text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
@@ -132,7 +132,7 @@
                         <!-- Marca visual "Tú" en la card del usuario conectado -->
                         {% if player_role.person.user == request.user %}
                             <div class="absolute top-2 right-2 bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg z-20">
-                                ⭐ Tú
+                                {% trans "⭐ Tú" %}
                             </div>
                         {% endif %}
                         
@@ -170,7 +170,7 @@
                                     <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
                                     </svg>
-                                    {{ player_role.person.age }} años
+                                    {% blocktrans with age=player_role.person.age %}{{ age }} años{% endblocktrans %}
                                 </div>
                             {% endif %}
                         </div>
@@ -204,12 +204,12 @@
                                                 {{ player_role.person.full_name }}
                                             </h3>
                                             {% if player_role.person.age %}
-                                                <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{{ player_role.person.age }} años</span>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{% blocktrans with age=player_role.person.age %}{{ age }} años{% endblocktrans %}</span>
                                             {% endif %}
                                         </div>
                                         {% if player_role.person.user == request.user %}
                                             <span class="bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ml-2">
-                                                ⭐ Tú
+                                                {% trans "⭐ Tú" %}
                                             </span>
                                         {% endif %}
                                     </div>
@@ -234,11 +234,11 @@
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Foto</th>
-                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nombre</th>
-                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dorsal</th>
-                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Posición</th>
-                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Edad</th>
+                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{% trans "Foto" %}</th>
+                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{% trans "Nombre" %}</th>
+                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{% trans "Dorsal" %}</th>
+                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{% trans "Posición" %}</th>
+                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{% trans "Edad" %}</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -258,7 +258,7 @@
                                             {% endif %}
                                             {% if player_role.person.user == request.user %}
                                                 <span class="ml-2 bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium">
-                                                    ⭐ Tú
+                                                    {% trans "⭐ Tú" %}
                                                 </span>
                                             {% endif %}
                                         </div>
@@ -284,7 +284,7 @@
                                     </td>
                                     <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                                         {% if player_role.person.age %}
-                                            {{ player_role.person.age }} años
+                                            {% blocktrans with age=player_role.person.age %}{{ age }} años{% endblocktrans %}
                                         {% else %}
                                             <span class="text-gray-400 dark:text-gray-500">-</span>
                                         {% endif %}
@@ -302,14 +302,14 @@
                 </svg>
                 <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
                     {% if selected_position %}
-                        No hay jugadores en la posición seleccionada
+                        {% trans "No hay jugadores en la posición seleccionada" %}
                     {% else %}
-                        No hay jugadores registrados
+                        {% trans "No hay jugadores registrados" %}
                     {% endif %}
                 </h3>
                 {% if user.is_staff %}
                     <a href="{% url 'admin:rosters_playerrole_add' %}?team={{ team.id }}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-4 py-2 rounded-lg font-medium transition inline-block">
-                        ➕ Agregar Jugador
+                        {% trans "➕ Agregar Jugador" %}
                     </a>
                 {% endif %}
             </div>
@@ -319,15 +319,15 @@
     <!-- Sección de Staff -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-6">
         <div class="border-l-4 border-csj-yellow dark:border-csj-yellow-dark pl-4 mb-6">
-            <h2 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">🎯 Cuerpo Técnico</h2>
-            <p class="text-sm text-gray-600 dark:text-gray-400">Staff y equipo técnico</p>
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{% trans "🎯 Cuerpo Técnico" %}</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400">{% trans "Staff y equipo técnico" %}</p>
         </div>
 
         <!-- Filtros de rol -->
         {% if staff_roles %}
             <div class="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2">
                 <a href="?{% if season_filtered %}season={{ selected_season }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if not selected_role %}bg-csj-yellow dark:bg-csj-yellow-dark text-gray-800 dark:text-gray-900{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
-                    Todos los roles
+                    {% trans "Todos los roles" %}
                 </a>
                 {% for value, display in role_choices %}
                     <a href="?{% if season_filtered %}season={{ selected_season }}&{% endif %}role={{ value }}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if selected_role == value %}bg-csj-yellow dark:bg-csj-yellow-dark text-gray-800 dark:text-gray-900{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
@@ -343,7 +343,7 @@
                         <!-- Marca visual "Tú" en la card del usuario conectado -->
                         {% if staff_role.person.user == request.user %}
                             <div class="absolute top-2 right-2 bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg z-20">
-                                ⭐ Tú
+                                {% trans "⭐ Tú" %}
                             </div>
                         {% endif %}
                         
@@ -417,12 +417,12 @@
                                                 {{ staff_role.person.full_name }}
                                             </h3>
                                             {% if staff_role.person.age %}
-                                                <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{{ staff_role.person.age }} años</span>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{% blocktrans with age=staff_role.person.age %}{{ age }} años{% endblocktrans %}</span>
                                             {% endif %}
                                         </div>
                                         {% if staff_role.person.user == request.user %}
                                             <span class="bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ml-2">
-                                                ⭐ Tú
+                                                {% trans "⭐ Tú" %}
                                             </span>
                                         {% endif %}
                                     </div>
@@ -461,11 +461,11 @@
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Foto</th>
-                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nombre</th>
-                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Rol</th>
-                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Teléfono</th>
-                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
+                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{% trans "Foto" %}</th>
+                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{% trans "Nombre" %}</th>
+                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{% trans "Rol" %}</th>
+                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{% trans "Teléfono" %}</th>
+                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{% trans "Email" %}</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -485,7 +485,7 @@
                                             {% endif %}
                                             {% if staff_role.person.user == request.user %}
                                                 <span class="ml-2 bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium">
-                                                    ⭐ Tú
+                                                    {% trans "⭐ Tú" %}
                                                 </span>
                                             {% endif %}
                                         </div>
@@ -525,14 +525,14 @@
                 </svg>
                 <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
                     {% if selected_role %}
-                        No hay miembros del staff en el rol seleccionado
+                        {% trans "No hay miembros del staff en el rol seleccionado" %}
                     {% else %}
-                        No hay miembros del staff registrados
+                        {% trans "No hay miembros del staff registrados" %}
                     {% endif %}
                 </h3>
                 {% if user.is_staff %}
                     <a href="{% url 'admin:rosters_staffrole_add' %}?team={{ team.id }}" class="bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 dark:text-gray-900 px-4 py-2 rounded-lg font-medium transition inline-block">
-                        ➕ Agregar Staff
+                        {% trans "➕ Agregar Staff" %}
                     </a>
                 {% endif %}
             </div>
@@ -548,7 +548,7 @@
                         <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path>
                         </svg>
-                        Distribución por Posiciones
+                        {% trans "Distribución por Posiciones" %}
                     </h3>
                     <div class="space-y-2">
                         {% for position, count in stats.positions_distribution.items %}
@@ -567,7 +567,7 @@
                         <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path>
                         </svg>
-                        Distribución por Roles
+                        {% trans "Distribución por Roles" %}
                     </h3>
                     <div class="space-y-2">
                         {% for role, count in stats.roles_distribution.items %}

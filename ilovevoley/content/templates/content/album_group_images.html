@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}Álbum de Imágenes{% endblock %}
+{% block title %}{% trans "Álbum de Imágenes" %}{% endblock %}
 
 {% block content %}
 <div class="w-full max-w-full">
@@ -26,7 +26,7 @@
                     {% endif %}
                     <div class="flex items-center min-w-0">
                         <i class="fas fa-images mr-1 sm:mr-2 text-xs sm:text-sm flex-shrink-0"></i>
-                        <span class="text-xs sm:text-sm lg:text-base truncate">{{ total_images }} imagen{{ total_images|pluralize:"es" }}</span>
+                        <span class="text-xs sm:text-sm lg:text-base truncate">{% blocktrans count counter=total_images %}{{ counter }} imagen{% plural %}{{ counter }} imágenes{% endblocktrans %}</span>
                     </div>
                 </div>
                 
@@ -45,11 +45,11 @@
                 {% include 'content/_album_zip_button.html' with download_zip_url=download_zip_url total_images=total_images %}
                 <a href="{% url 'content:image_bulk_upload' %}?album_group_id={{ album.album_group_id }}"
                    class="inline-flex items-center px-3 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm">
-                    <i class="fas fa-plus mr-2"></i>Agregar más fotos
+                    <i class="fas fa-plus mr-2"></i>{% trans "Agregar más fotos" %}
                 </a>
                 <a href="{% url 'content:image_gallery' %}"
                    class="inline-flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 text-sm">
-                    <i class="fas fa-arrow-left mr-2"></i>Volver a la galería
+                    <i class="fas fa-arrow-left mr-2"></i>{% trans "Volver a la galería" %}
                 </a>
             </div>
         </div>
@@ -85,11 +85,11 @@
                     {% if page_obj.has_previous %}
                         <a href="?page={{ page_obj.previous_page_number }}" 
                            class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple dark:text-csj-yellow bg-white dark:bg-gray-800 border border-csj-purple dark:border-csj-purple-dark rounded-md hover:bg-csj-purple hover:text-white transition-colors">
-                            ← Anterior
+                            {% trans "← Anterior" %}
                         </a>
                     {% else %}
                         <span class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md cursor-not-allowed">
-                            ← Anterior
+                            {% trans "← Anterior" %}
                         </span>
                     {% endif %}
 
@@ -113,11 +113,11 @@
                     {% if page_obj.has_next %}
                         <a href="?page={{ page_obj.next_page_number }}" 
                            class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple dark:text-csj-yellow bg-white dark:bg-gray-800 border border-csj-purple dark:border-csj-purple-dark rounded-md hover:bg-csj-purple hover:text-white transition-colors">
-                            Siguiente →
+                            {% trans "Siguiente →" %}
                         </a>
                     {% else %}
                         <span class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md cursor-not-allowed">
-                            Siguiente →
+                            {% trans "Siguiente →" %}
                         </span>
                     {% endif %}
                 </nav>
@@ -125,13 +125,13 @@
             
             <!-- Info de paginación -->
             <div class="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4 px-2">
-                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} imágenes totales)
+                {% blocktrans with number=page_obj.number total_pages=page_obj.paginator.num_pages total=page_obj.paginator.count %}Página {{ number }} de {{ total_pages }} ({{ total }} imágenes totales){% endblocktrans %}
             </div>
         {% endif %}
     {% else %}
         <div class="text-center py-8 sm:py-12 px-4">
             <i class="fas fa-images text-gray-400 dark:text-gray-500 text-4xl sm:text-6xl mb-4"></i>
-            <h3 class="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay imágenes en este álbum</h3>
+            <h3 class="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{% trans "No hay imágenes en este álbum" %}</h3>
         </div>
     {% endif %}
     </div>

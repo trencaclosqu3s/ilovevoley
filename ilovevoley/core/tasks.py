@@ -5,7 +5,10 @@ import os
 from celery import shared_task
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.utils import translation
+from django.utils.translation import gettext as _
 
+from ilovevoley.core.i18n import group_emails_by_language
 from ilovevoley.core.email_utils import get_moderation_recipients, send_notification_email
 
 logger = logging.getLogger(__name__)
@@ -68,7 +71,7 @@ def notify_image_pending_task(image_id):
         'reject_url': build_absolute_url(reject_path, tenant=tenant),
     }
     return send_notification_email(
-        subject=f'Nueva imagen pendiente de moderación: {image.title}',
+        subject=lambda: _('Nueva imagen pendiente de moderación: %(title)s') % {'title': image.title},
         template_name='emails/image_pending.html',
         context=context,
         recipient_list=get_moderation_recipients(tenant),
@@ -109,7 +112,7 @@ def notify_images_pending_batch_task(image_ids):
         ),
     }
     return send_notification_email(
-        subject=f'{len(images)} nuevas imágenes pendientes de moderación',
+        subject=lambda: _('%(count)s nuevas imágenes pendientes de moderación') % {'count': len(images)},
         template_name='emails/images_pending_batch.html',
         context=context,
         recipient_list=get_moderation_recipients(tenant),
@@ -143,7 +146,7 @@ def notify_new_user_pending_task(user_id, tenant_id, moderation_url, is_oauth=Fa
         'moderation_url': moderation_url,
     }
     return send_notification_email(
-        subject=f'Nuevo usuario pendiente de aprobación: {user.username}',
+        subject=lambda: _('Nuevo usuario pendiente de aprobación: %(username)s') % {'username': user.username},
         template_name='emails/new_user_pending.html',
         context=context,
         recipient_list=get_moderation_recipients(tenant),
@@ -183,7 +186,8 @@ def notify_membership_pending_task(membership_id):
         ),
     }
     return send_notification_email(
-        subject=f'Nueva membresía pendiente: {user.username} en {organization.name}',
+        subject=lambda: _('Nueva membresía pendiente: %(username)s en %(organization)s') % {
+            'username': user.username, 'organization': organization.name},
         template_name='emails/new_membership_pending.html',
         context=context,
         recipient_list=get_moderation_recipients(organization),
@@ -224,16 +228,17 @@ def send_404_immediate_alert_task(count, hour, last_url, recipient_list):
         'site_name': 'I Love Voley',
         'last_url': last_url,
     }
-    html_message = render_to_string('emails/404_alert.html', context)
-    plain_message = strip_tags(html_message)
-    send_mail(
-        subject=f'Alerta: {count} errores 404 en la última hora',
-        message=plain_message,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=recipient_list,
-        html_message=html_message,
-        fail_silently=False,
-    )
+    for lang, emails in group_emails_by_language(recipient_list).items():
+        with translation.override(lang):
+            html_message = render_to_string('emails/404_alert.html', context)
+            send_mail(
+                subject=_('Alerta: %(count)s errores 404 en la última hora') % {'count': count},
+                message=strip_tags(html_message),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=emails,
+                html_message=html_message,
+                fail_silently=False,
+            )
     return True
 
 
@@ -249,7 +254,7 @@ def notify_user_moderation_result_task(user_id, approved, site_url=None, site_na
     resolved_site_name = site_name or 'I Love Voley'
     if approved:
         return send_notification_email(
-            subject='Tu cuenta ha sido aprobada en I Love Voley',
+            subject=lambda: _('Tu cuenta ha sido aprobada en I Love Voley'),
             template_name='emails/user_approved.html',
             context={
                 'user': user,
@@ -259,7 +264,7 @@ def notify_user_moderation_result_task(user_id, approved, site_url=None, site_na
             recipient_list=[user.email],
         )
     return send_notification_email(
-        subject='Actualización de tu solicitud en I Love Voley',
+        subject=lambda: _('Actualización de tu solicitud en I Love Voley'),
         template_name='emails/user_rejected.html',
         context={'user': user, 'site_name': resolved_site_name},
         recipient_list=[user.email],
@@ -278,10 +283,10 @@ def notify_image_moderation_result_task(image_id, approved, site_name=None):
         return False
 
     return send_notification_email(
-        subject=(
-            f'Tu imagen "{image.title}" ha sido '
-            f'{"aprobada" if approved else "rechazada"}'
-        ),
+        subject=lambda: _('Tu imagen "%(title)s" ha sido %(status)s') % {
+            'title': image.title,
+            'status': _('aprobada') if approved else _('rechazada'),
+        },
         template_name=(
             'emails/image_approved.html' if approved else 'emails/image_rejected.html'
         ),

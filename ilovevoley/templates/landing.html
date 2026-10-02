@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}ilovevoley — Tu plataforma de voleibol{% endblock %}
+{% block title %}ilovevoley — {% trans "Tu plataforma de voleibol" %}{% endblock %}
 
 {% block sidebar %}{% endblock %}
 
@@ -23,7 +23,7 @@
   <div class="text-center mb-14">
     <img src="{% static 'images/logo.svg' %}" alt="ilovevoley" class="h-14 sm:h-20 w-auto mx-auto mb-5 drop-shadow-sm">
     <p class="text-gray-500 dark:text-gray-400 text-base sm:text-lg">
-      Selecciona tu club para continuar
+      {% trans "Selecciona tu club para continuar" %}
     </p>
   </div>
 
@@ -31,7 +31,7 @@
   <!-- Tus clubes -->
   <div class="w-full max-w-xl mb-10">
     <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4 px-1">
-      Tus clubes
+      {% trans "Tus clubes" %}
     </h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
       {% for org in user_organizations %}
@@ -52,11 +52,11 @@
           <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
           </svg>
-          Miembro
+          {% trans "Miembro" %}
         </span>
 
         <div class="mt-4 flex items-center text-sm font-semibold transition-transform group-hover:translate-x-0.5 tenant-accent-{{ org.id }} tenant-text">
-          Entrar
+          {% trans "Entrar" %}
           <svg class="w-4 h-4 ml-1 transition-transform duration-200 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
           </svg>
@@ -70,7 +70,7 @@
   <!-- Otros clubes -->
   <div class="w-full max-w-xl">
     <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4 px-1">
-      Otros clubes
+      {% trans "Otros clubes" %}
     </h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
       {% for org in other_organizations %}
@@ -88,7 +88,7 @@
         <h3 class="text-base font-semibold text-gray-800 dark:text-white">{{ org.name }}</h3>
 
         <div class="mt-4 flex items-center text-sm font-semibold transition-transform group-hover:translate-x-0.5 tenant-accent-{{ org.id }} tenant-text">
-          Entrar
+          {% trans "Entrar" %}
           <svg class="w-4 h-4 ml-1 transition-transform duration-200 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
           </svg>
@@ -125,13 +125,13 @@
       </div>
     </a>
     {% empty %}
-    <p class="col-span-2 text-center text-gray-400 dark:text-gray-500 py-12">No hay clubs activos.</p>
+    <p class="col-span-2 text-center text-gray-400 dark:text-gray-500 py-12">{% trans "No hay clubs activos." %}</p>
     {% endfor %}
   </div>
   {% endif %}
 
   <p class="mt-10 text-xs text-gray-400 dark:text-gray-600">
-    ¿Tu club no aparece? Contacta con el administrador.
+    {% trans "¿Tu club no aparece? Contacta con el administrador." %}
   </p>
 
 </div>

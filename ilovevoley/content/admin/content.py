@@ -6,6 +6,7 @@ from django.contrib.admin import helpers
 from django.shortcuts import render
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin, TabularInline
 
 from ..models import Video, Image
@@ -35,7 +36,7 @@ class ImageInline(TabularInline):
                 obj.image.url
             )
         return '-'
-    thumbnail_preview.short_description = 'Img'
+    thumbnail_preview.short_description = _('Img')
 
     def has_add_permission(self, request, obj=None):
         """No permitir agregar desde inline"""
@@ -53,20 +54,20 @@ class ImageAdmin(ModelAdmin):
     filter_horizontal = ('categories',)
 
     fieldsets = (
-        ('Imagen', {
+        (_('Imagen'), {
             'fields': ('thumbnail_preview', 'image', 'title', 'description', 'image_type', 'tags', 'original_format', 'was_converted')
         }),
-        ('Asociación', {
+        (_('Asociación'), {
             'fields': ('match', 'set_number', 'categories', 'season'),
-            'description': 'Categorías y temporada se asignan automáticamente desde el partido, pero puedes modificarlas'
+            'description': _('Categorías y temporada se asignan automáticamente desde el partido, pero puedes modificarlas')
         }),
-        ('Moderación', {
+        (_('Moderación'), {
             'fields': ('status', 'moderated_by', 'moderation_date', 'moderation_notes')
         }),
         ('Google Vision API', {
             'fields': ('vision_api_checked', 'vision_api_safe', 'vision_api_details'),
             'classes': ('collapse',),
-            'description': 'Información de verificación automática de contenido'
+            'description': _('Información de verificación automática de contenido')
         }),
         ('Metadata', {
             'fields': ('uploaded_by', 'upload_date'),
@@ -89,7 +90,7 @@ class ImageAdmin(ModelAdmin):
         if obj.album_name:
             return obj.album_name
         return '-'
-    album_display.short_description = 'Álbum'
+    album_display.short_description = _('Álbum')
     album_display.admin_order_field = 'album_name'
 
     def categories_display_admin(self, obj):
@@ -98,7 +99,7 @@ class ImageAdmin(ModelAdmin):
         if cats:
             return ', '.join([cat.name for cat in cats])
         return '-'
-    categories_display_admin.short_description = 'Categorías'
+    categories_display_admin.short_description = _('Categorías')
 
     def get_queryset(self, request):
         """Optimizar consultas con select_related y prefetch_related"""
@@ -113,15 +114,15 @@ class ImageAdmin(ModelAdmin):
             status='approved',
             moderated_by=request.user,
             moderation_date=timezone.now(),
-            moderation_notes='Aprobada masivamente desde admin'
+            moderation_notes=_('Aprobada masivamente desde admin')
         )
 
         if updated:
-            self.message_user(request, f'{updated} imagen(es) aprobada(s) correctamente.')
+            self.message_user(request, _('%(count)s imagen(es) aprobada(s) correctamente.') % {'count': updated})
         else:
-            self.message_user(request, 'No hay imágenes pendientes para aprobar.')
+            self.message_user(request, _('No hay imágenes pendientes para aprobar.'))
 
-    approve_images.short_description = "Aprobar imágenes seleccionadas"
+    approve_images.short_description = _("Aprobar imágenes seleccionadas")
 
     def reject_images(self, request, queryset):
         """Acción masiva para rechazar imágenes"""
@@ -129,20 +130,20 @@ class ImageAdmin(ModelAdmin):
             status='rejected',
             moderated_by=request.user,
             moderation_date=timezone.now(),
-            moderation_notes='Rechazada masivamente desde admin'
+            moderation_notes=_('Rechazada masivamente desde admin')
         )
 
         if updated:
-            self.message_user(request, f'{updated} imagen(es) rechazada(s) correctamente.')
+            self.message_user(request, _('%(count)s imagen(es) rechazada(s) correctamente.') % {'count': updated})
         else:
-            self.message_user(request, 'No hay imágenes pendientes para rechazar.')
+            self.message_user(request, _('No hay imágenes pendientes para rechazar.'))
 
-    reject_images.short_description = "Rechazar imágenes seleccionadas"
+    reject_images.short_description = _("Rechazar imágenes seleccionadas")
 
     def check_with_vision_api(self, request, queryset):
         """Acción para verificar imágenes con Google Vision API"""
         if not getattr(settings, 'GOOGLE_VISION_ENABLED', False):
-            self.message_user(request, 'Google Vision API no está habilitada.', level='WARNING')
+            self.message_user(request, _('Google Vision API no está habilitada.'), level='WARNING')
             return
 
         try:
@@ -164,23 +165,23 @@ class ImageAdmin(ModelAdmin):
                             image.status = 'rejected'
                             image.moderated_by = request.user
                             image.moderation_date = timezone.now()
-                            image.moderation_notes = 'Auto-rechazada por Google Vision API'
+                            image.moderation_notes = _('Auto-rechazada por Google Vision API')
 
                         image.save()
                         checked_count += 1
 
                     except Exception as e:
-                        self.message_user(request, f'Error verificando {image.title}: {e}', level='ERROR')
+                        self.message_user(request, _('Error verificando %(title)s: %(error)s') % {'title': image.title, 'error': e}, level='ERROR')
 
             if checked_count > 0:
-                self.message_user(request, f'{checked_count} imagen(es) verificada(s) con Vision API.')
+                self.message_user(request, _('%(count)s imagen(es) verificada(s) con Vision API.') % {'count': checked_count})
                 if unsafe_count > 0:
-                    self.message_user(request, f'{unsafe_count} imagen(es) marcada(s) como insegura(s).', level='WARNING')
+                    self.message_user(request, _('%(count)s imagen(es) marcada(s) como insegura(s).') % {'count': unsafe_count}, level='WARNING')
 
         except ImportError:
-            self.message_user(request, 'Utilidad de Vision API no disponible.', level='ERROR')
+            self.message_user(request, _('Utilidad de Vision API no disponible.'), level='ERROR')
 
-    check_with_vision_api.short_description = "Verificar con Google Vision API"
+    check_with_vision_api.short_description = _("Verificar con Google Vision API")
 
     def assign_to_album(self, request, queryset):
         """Asignar imágenes seleccionadas a un álbum nuevo o existente."""
@@ -189,18 +190,18 @@ class ImageAdmin(ModelAdmin):
             if action_type == 'new':
                 album_name = request.POST.get('album_name', '').strip()
                 if not album_name:
-                    self.message_user(request, 'El nombre del álbum no puede estar vacío.', level='ERROR')
+                    self.message_user(request, _('El nombre del álbum no puede estar vacío.'), level='ERROR')
                     return None
                 album_id = uuid.uuid4()
             else:
                 raw_id = request.POST.get('album_group_id', '').strip()
                 if not raw_id:
-                    self.message_user(request, 'Selecciona un álbum existente.', level='ERROR')
+                    self.message_user(request, _('Selecciona un álbum existente.'), level='ERROR')
                     return None
                 try:
                     album_id = uuid.UUID(raw_id)
                 except ValueError:
-                    self.message_user(request, 'Álbum no válido.', level='ERROR')
+                    self.message_user(request, _('Álbum no válido.'), level='ERROR')
                     return None
                 album_name = Image.objects.filter(album_group_id=album_id).values_list('album_name', flat=True).first() or ''
 
@@ -209,7 +210,7 @@ class ImageAdmin(ModelAdmin):
                 album_group_id=album_id,
                 album_name=album_name,
             )
-            self.message_user(request, f'{updated} foto(s) asignada(s) al álbum "{album_name}".')
+            self.message_user(request, _('%(count)s foto(s) asignada(s) al álbum "%(album)s".') % {'count': updated, 'album': album_name})
             return None
 
         existing_albums = (
@@ -225,27 +226,27 @@ class ImageAdmin(ModelAdmin):
             'queryset': queryset,
             'existing_albums': existing_albums,
             'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
-            'title': 'Asignar álbum a imágenes seleccionadas',
+            'title': _('Asignar álbum a imágenes seleccionadas'),
         })
 
-    assign_to_album.short_description = "Asignar a álbum"
+    assign_to_album.short_description = _("Asignar a álbum")
 
     def assign_to_match(self, request, queryset):
         """Asignar imágenes seleccionadas a un partido."""
         if 'apply' in request.POST:
             match_id = request.POST.get('match_id', '').strip()
             if not match_id:
-                self.message_user(request, 'Selecciona un partido.', level='ERROR')
+                self.message_user(request, _('Selecciona un partido.'), level='ERROR')
                 return None
             try:
                 match = Match.objects.get(pk=match_id)
             except Match.DoesNotExist:
-                self.message_user(request, 'Partido no encontrado.', level='ERROR')
+                self.message_user(request, _('Partido no encontrado.'), level='ERROR')
                 return None
 
             ids = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
             updated = Image.objects.filter(pk__in=ids).update(match=match)
-            self.message_user(request, f'{updated} foto(s) asignada(s) al partido "{match}".')
+            self.message_user(request, _('%(count)s foto(s) asignada(s) al partido "%(match)s".') % {'count': updated, 'match': match})
             return None
 
         from django.utils import timezone
@@ -275,10 +276,10 @@ class ImageAdmin(ModelAdmin):
             'queryset': queryset,
             'matches': matches,
             'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
-            'title': 'Asignar partido a imágenes seleccionadas',
+            'title': _('Asignar partido a imágenes seleccionadas'),
         })
 
-    assign_to_match.short_description = "Asignar a partido"
+    assign_to_match.short_description = _("Asignar a partido")
 
     def unassign_album(self, request, queryset):
         """Quitar el álbum de las imágenes seleccionadas."""
@@ -287,21 +288,21 @@ class ImageAdmin(ModelAdmin):
             album_name='',
         )
         if updated:
-            self.message_user(request, f'{updated} foto(s) desasignada(s) de su álbum.')
+            self.message_user(request, _('%(count)s foto(s) desasignada(s) de su álbum.') % {'count': updated})
         else:
-            self.message_user(request, 'Las imágenes seleccionadas no pertenecían a ningún álbum.')
+            self.message_user(request, _('Las imágenes seleccionadas no pertenecían a ningún álbum.'))
 
-    unassign_album.short_description = "Desasignar álbum"
+    unassign_album.short_description = _("Desasignar álbum")
 
     def unassign_match(self, request, queryset):
         """Quitar el partido de las imágenes seleccionadas."""
         updated = queryset.filter(match__isnull=False).update(match=None, set_number=None)
         if updated:
-            self.message_user(request, f'{updated} foto(s) desasignada(s) de su partido.')
+            self.message_user(request, _('%(count)s foto(s) desasignada(s) de su partido.') % {'count': updated})
         else:
-            self.message_user(request, 'Las imágenes seleccionadas no tenían partido asignado.')
+            self.message_user(request, _('Las imágenes seleccionadas no tenían partido asignado.'))
 
-    unassign_match.short_description = "Desasignar partido"
+    unassign_match.short_description = _("Desasignar partido")
 
     def save_model(self, request, obj, form, change):
         """Auto-asignar moderador en cambios de estado"""

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}Galería de Imágenes{% endblock %}
+{% block title %}{% trans "Galería de Imágenes" %}{% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/auto_filters.js' %}"></script>
@@ -11,14 +11,13 @@
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 sm:p-4 lg:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark mb-4 sm:mb-6 relative z-30">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div class="flex-1 min-w-0 w-full sm:w-auto">
-            <h1 class="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900 dark:text-gray-100">Galería de Imágenes</h1>
+            <h1 class="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900 dark:text-gray-100">{% trans "Galería de Imágenes" %}</h1>
             <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
                 {% if view_mode == 'albums' %}
-                {{ total_albums }} álbumes • {{ total_single_images }} imágenes individuales{% if pending_images > 0 %}
-                • {{ pending_images }} pendientes de moderación{% endif %}
+                {% blocktrans count counter=total_albums %}{{ counter }} álbum • {{ total_single_images }} imágenes individuales{% plural %}{{ counter }} álbumes • {{ total_single_images }} imágenes individuales{% endblocktrans %}{% if pending_images > 0 %}
+                • {% blocktrans count counter=pending_images %}{{ counter }} pendiente de moderación{% plural %}{{ counter }} pendientes de moderación{% endblocktrans %}{% endif %}
                 {% else %}
-                {{ total_images }} imágenes totales{% if pending_images > 0 %} • {{ pending_images }} pendientes de
-                moderación{% endif %}
+                {% blocktrans count counter=total_images %}{{ counter }} imagen total{% plural %}{{ counter }} imágenes totales{% endblocktrans %}{% if pending_images > 0 %} • {% blocktrans count counter=pending_images %}{{ counter }} pendiente de moderación{% plural %}{{ counter }} pendientes de moderación{% endblocktrans %}{% endif %}
                 {% endif %}
             </p>
         </div>
@@ -34,7 +33,7 @@
                             d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                         </path>
                     </svg>
-                    Álbumes
+                    {% trans "Álbumes" %}
                 </a>
                 <a href="{% url 'content:image_gallery_individual' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
                     class="flex-1 sm:flex-none justify-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-center
@@ -44,7 +43,7 @@
                             d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
                         </path>
                     </svg>
-                    Individual
+                    {% trans "Individual" %}
                 </a>
             </div>
 
@@ -56,7 +55,7 @@
                         d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z">
                     </path>
                 </svg>
-                <span>Filtros</span>
+                <span>{% trans "Filtros" %}</span>
                 <span id="activeFiltersCount"
                     class="ml-1 hidden px-1.5 py-0.5 bg-white dark:bg-gray-700 text-csj-purple dark:text-csj-yellow rounded-full text-xs font-bold"></span>
             </button>
@@ -64,13 +63,13 @@
             <!-- Menú desplegable de subida -->
             <div class="relative flex-1 sm:flex-none z-40">
                 <button id="upload-menu-btn"
-                    aria-label="Subir Imagen"
+                    aria-label="{% trans "Subir Imagen" %}"
                     class="w-full justify-center bg-csj-purple text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-csj-purple-dark transition text-sm flex items-center whitespace-nowrap">
                     <svg class="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
-                    <span class="hidden sm:inline">Subir Imagen</span>
-                    <span class="sm:hidden">Subir</span>
+                    <span class="hidden sm:inline">{% trans "Subir Imagen" %}</span>
+                    <span class="sm:hidden">{% trans "Subir" %}</span>
                     <svg class="w-3 h-3 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
@@ -87,7 +86,7 @@
                                     d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
                                 </path>
                             </svg>
-                            Subir una imagen
+                            {% trans "Subir una imagen" %}
                         </a>
                         <a href="{% url 'content:image_bulk_upload' %}"
                             class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap">
@@ -97,7 +96,7 @@
                                     d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
                                 </path>
                             </svg>
-                            Subir múltiples imágenes
+                            {% trans "Subir múltiples imágenes" %}
                         </a>
                     </div>
                 </div>
@@ -174,14 +173,14 @@
             <div>
                 {{ filter_form.search.label_tag }}
                 <input type="text" name="search" id="id_search" value="{{ filter_form.search.value|default:'' }}"
-                    placeholder="Buscar por título, descripción o etiquetas..."
+                    placeholder="{% trans "Buscar por título, descripción o etiquetas..." %}"
                     class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
             </div>
             <div>
                 {{ filter_form.category.label_tag }}
                 <select name="category" id="id_category"
                     class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
-                    <option value="">Todas las categorías</option>
+                    <option value="">{% trans "Todas las categorías" %}</option>
                     {% for cat in filter_form.fields.category.queryset %}
                     <option value="{{ cat.id }}" {% if filter_form.category.value == cat.id|stringformat:"s" %}selected{% endif %}>
                         {{ cat.name }}
@@ -190,10 +189,10 @@
                 </select>
             </div>
             <div>
-                <label for="id_season" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Temporada</label>
+                <label for="id_season" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Temporada" %}</label>
                 <select name="season" id="id_season"
                     class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
-                    <option value="">Todas las temporadas</option>
+                    <option value="">{% trans "Todas las temporadas" %}</option>
                     {% for season in seasons %}
                     <option value="{{ season.id }}" {% if selected_season == season.id|stringformat:"s" %}selected{% endif %}>
                         {{ season.name }}
@@ -206,7 +205,7 @@
                 {{ filter_form.status.label_tag }}
                 <select name="status" id="id_status"
                     class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
-                    <option value="">Todos los estados</option>
+                    <option value="">{% trans "Todos los estados" %}</option>
                     {% for status_choice in filter_form.fields.status.choices %}
                     {% if status_choice.0 %}
                     <option value="{{ status_choice.0 }}" {% if filter_form.status.value == status_choice.0 %}selected{% endif %}>
@@ -220,7 +219,7 @@
             <div class="flex items-end">
                 <a href="{% url 'content:image_gallery' %}"
                     class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition w-full text-center">
-                    Limpiar filtros
+                    {% trans "Limpiar filtros" %}
                 </a>
             </div>
         </div>
@@ -233,10 +232,10 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <span>Mostrando solo tus categorías preferidas</span>
+                <span>{% trans "Mostrando solo tus categorías preferidas" %}</span>
             </div>
             <a href="?show_all=1" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800">
-                Ver todas
+                {% trans "Ver todas" %}
             </a>
         </div>
         {% elif show_all %}
@@ -249,10 +248,10 @@
                         d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
                     </path>
                 </svg>
-                <span>Mostrando todas las categorías</span>
+                <span>{% trans "Mostrando todas las categorías" %}</span>
             </div>
             <a href="?" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">
-                Filtrar por preferencias
+                {% trans "Filtrar por preferencias" %}
             </a>
         </div>
         {% endif %}
@@ -396,8 +395,8 @@
                                         {% if item.image.status == 'pending' %}bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200
                                         {% elif item.image.status == 'rejected' %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200
                                         {% endif %}">
-                    {% if item.image.status == 'pending' %}Pendiente
-                    {% elif item.image.status == 'rejected' %}Rechazada
+                    {% if item.image.status == 'pending' %}{% trans "Pendiente" %}
+                    {% elif item.image.status == 'rejected' %}{% trans "Rechazada" %}
                     {% endif %}
                 </span>
                 {% endif %}
@@ -437,9 +436,9 @@
                                     {% if item.status == 'pending' %}bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200
                                     {% elif item.status == 'rejected' %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200
                                     {% endif %}">
-                    {% if item.status == 'pending' %}Pendiente
-                    {% elif item.status == 'rejected' %}Rechazada
-                    {% endif %}
+                {% if item.status == 'pending' %}{% trans "Pendiente" %}
+                {% elif item.status == 'rejected' %}{% trans "Rechazada" %}
+                {% endif %}
                 </span>
                 {% endif %}
             </div>
@@ -486,12 +485,12 @@
             {% if page_obj.has_previous %}
             <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
                 class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple dark:text-csj-yellow bg-white dark:bg-gray-800 border border-csj-purple dark:border-csj-purple-dark rounded-md hover:bg-csj-purple hover:text-white transition-colors">
-                ← Anterior
+                {% trans "← Anterior" %}
             </a>
             {% else %}
             <span
                 class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md cursor-not-allowed">
-                ← Anterior
+                {% trans "← Anterior" %}
             </span>
             {% endif %}
 
@@ -516,12 +515,12 @@
             {% if page_obj.has_next %}
             <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
                 class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple dark:text-csj-yellow bg-white dark:bg-gray-800 border border-csj-purple dark:border-csj-purple-dark rounded-md hover:bg-csj-purple hover:text-white transition-colors">
-                Siguiente →
+                {% trans "Siguiente →" %}
             </a>
             {% else %}
             <span
                 class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md cursor-not-allowed">
-                Siguiente →
+                {% trans "Siguiente →" %}
             </span>
             {% endif %}
         </nav>
@@ -530,29 +529,25 @@
     <!-- Info de paginación -->
     <div class="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4 px-2">
         {% if view_mode == 'albums' %}
-        Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} elementos
-        totales)
+        {% blocktrans with number=page_obj.number total_pages=page_obj.paginator.num_pages total=page_obj.paginator.count trimmed %}Página {{ number }} de {{ total_pages }} ({{ total }} elementos totales){% endblocktrans %}
         {% else %}
-        Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} imágenes
-        totales)
+        {% blocktrans with number=page_obj.number total_pages=page_obj.paginator.num_pages total=page_obj.paginator.count trimmed %}Página {{ number }} de {{ total_pages }} ({{ total }} imágenes totales){% endblocktrans %}
         {% endif %}
     </div>
     {% endif %}
     {% else %}
     <div class="text-center py-8 sm:py-12 px-4">
         <i class="fas fa-images text-gray-400 dark:text-gray-500 text-4xl sm:text-6xl mb-4"></i>
-        <h3 class="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No se encontraron imágenes</h3>
-        <p class="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-4">No hay imágenes que coincidan con los filtros seleccionados.
+        <h3 class="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{% trans "No se encontraron imágenes" %}</h3>
+        <p class="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-4">{% trans "No hay imágenes que coincidan con los filtros seleccionados." %}
         </p>
         <a href="{% url 'content:image_upload' %}"
             class="bg-csj-purple text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm sm:text-base">
-            <i class="fas fa-plus mr-2"></i>Subir primera imagen
+            <i class="fas fa-plus mr-2"></i>{% trans "Subir primera imagen" %}
         </a>
     </div>
     {% endif %}
 </div>
-
-{% load static %}
 
 <script nonce="{{ csp_nonce }}">
     // Toggle de filtros para móvil

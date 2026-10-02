@@ -1,12 +1,14 @@
 from celery import shared_task
 from django.db.models import Q
+from ilovevoley.core.i18n import language_for
 from .models import CategoryPreference, NotificationPreference, WebPushSubscription
 from .webpush import send_web_push
 
 
 @shared_task(name='notify_web_push_organization')
 def notify_web_push_organization_task(
-    organization_id, title, body, url=None, badge_count=None, category_ids=None, notification_type=None
+    organization_id, title, body, url=None, badge_count=None, category_ids=None, notification_type=None,
+    translations=None,
 ):
     """Broadcast a push notification to the devices of an organization.
 
@@ -15,6 +17,9 @@ def notify_web_push_organization_task(
     Con ``notification_type`` se excluyen los usuarios que hayan desactivado expresamente ese tipo
     de aviso para esta organización (por defecto todos los tipos están activos; los dispositivos
     anónimos reciben todo).
+    ``translations`` (``{lang: {'title', 'body'}}``) permite enviar a cada dispositivo el texto en
+    el idioma de su usuario; sin traducción para ese idioma, o con dispositivo anónimo, se usan
+    ``title`` y ``body``.
     """
     subs = WebPushSubscription.objects.filter(organization_id=organization_id)
     if category_ids:
@@ -31,15 +36,15 @@ def notify_web_push_organization_task(
         ).values('user_id')
         subs = subs.exclude(user_id__in=disabled_users)
 
-    payload = {
-        'title': title,
-        'body': body,
-        'url': url or '/',
-        'badge_count': badge_count,
-    }
-
     dispatched = 0
-    for sub in subs:
+    for sub in subs.select_related('user'):
+        text = (translations or {}).get(language_for(sub.user)) or {'title': title, 'body': body}
+        payload = {
+            'title': text['title'],
+            'body': text['body'],
+            'url': url or '/',
+            'badge_count': badge_count,
+        }
         if send_web_push(sub, payload):
             dispatched += 1
     return dispatched

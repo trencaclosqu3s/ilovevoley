@@ -7,8 +7,10 @@ from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
+from django.utils.translation import gettext as _, gettext_noop
 
+from ilovevoley.core.i18n import group_emails_by_language, push_message
 from ilovevoley.competitions.models import CallUpPlayer, Match, MatchChangeLog
 from ilovevoley.competitions.services.branches import match_branches, organization_branch_q
 from ilovevoley.core.tenant_utils import build_absolute_url
@@ -18,22 +20,24 @@ User = get_user_model()
 
 
 def _dispatch_organization_push(
-    orgs, *, title: str, body: str, url: str, category_ids: List[int], notification_type: str
+    orgs, *, build, url: str, category_ids: List[int], notification_type: str
 ) -> int:
     """Programa el push de cada organización tras el commit de la transacción actual.
 
     Devuelve cuántas organizaciones se encolaron. Concentra aquí el bucle que
-    antes se repetía igual en resultado, cambios y recordatorio.
+    antes se repetía igual en resultado, cambios y recordatorio. ``build`` devuelve
+    ``(título, cuerpo)`` y se ejecuta una vez por idioma para avisar a cada
+    dispositivo en el de su usuario.
     """
     from django.db import transaction
     from ilovevoley.users.tasks import notify_web_push_organization_task
 
+    message = push_message(build)
     sent = 0
     for org in orgs:
         kwargs = {
             'organization_id': org.id,
-            'title': title,
-            'body': body,
+            **message,
             'url': url,
             'category_ids': category_ids,
             'notification_type': notification_type,
@@ -244,38 +248,47 @@ def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
             'site_name': 'I Love Voley',
         }
 
-        subject = f"[Aviso de Partido] Modificación federativa: {match.home_team_display} vs {match.away_team_display}"
-        html_content = render_to_string('competitions/emails/match_change_alert.html', context)
-        text_content = render_to_string('competitions/emails/match_change_alert.txt', context)
+        # Un correo por idioma, cada uno en el del destinatario. Preservar la privacidad
+        # entre clubes rivales y miembros del staff usando BCC.
+        groups_sent = 0
+        for lang, lang_recipients in group_emails_by_language(recipients).items():
+            try:
+                with translation.override(lang):
+                    subject = _('[Aviso de Partido] Modificación federativa: %(home)s vs %(away)s') % {
+                        'home': match.home_team_display,
+                        'away': match.away_team_display,
+                    }
+                    html_content = render_to_string('competitions/emails/match_change_alert.html', context)
+                    text_content = render_to_string('competitions/emails/match_change_alert.txt', context)
 
-        try:
-            # Preservar la privacidad entre clubes rivales y miembros del staff usando BCC
-            if len(recipients) == 1:
-                to_emails = recipients
-                bcc_emails = []
-            else:
-                to_emails = [from_email]
-                bcc_emails = recipients
+                if len(lang_recipients) == 1:
+                    to_emails = lang_recipients
+                    bcc_emails = []
+                else:
+                    to_emails = [from_email]
+                    bcc_emails = lang_recipients
 
-            msg = EmailMultiAlternatives(
-                subject=subject,
-                body=text_content,
-                from_email=from_email,
-                to=to_emails,
-                bcc=bcc_emails,
-            )
-            msg.attach_alternative(html_content, "text/html")
-            msg.send(fail_silently=False)
+                msg = EmailMultiAlternatives(
+                    subject=subject,
+                    body=text_content,
+                    from_email=from_email,
+                    to=to_emails,
+                    bcc=bcc_emails,
+                )
+                msg.attach_alternative(html_content, "text/html")
+                msg.send(fail_silently=False)
+                groups_sent += 1
+            except Exception as e:
+                logger.error(
+                    f"Error al enviar notificación de cambios ({lang}) para partido {match.id}: {e}",
+                    exc_info=True,
+                )
 
-            # Marcar logs como notificados en bloque
+        # Con envío parcial se marcan igualmente: reintentar reenviaría a quien ya lo recibió.
+        if groups_sent:
             log_ids = [log.pk for log in logs]
             MatchChangeLog.objects.filter(pk__in=log_ids).update(notified=True, notified_at=now)
-
             sent_count += 1
-            logger.info(f"Notificación de cambios enviada para partido {match.id} a {len(recipients)} destinatarios")
-
-        except Exception as e:
-            logger.error(f"Error al enviar notificación de cambios para partido {match.id}: {e}", exc_info=True)
 
     return sent_count
 
@@ -296,8 +309,11 @@ def format_match_result_body(match: Match) -> str:
     scores = match_set_scores(match)
     if scores:
         sets_str = ", ".join(f"{h}-{a}" for h, a in scores)
-        return f"Marcador final: {match.result_display} ({sets_str})"
-    return f"Marcador final: {match.result_display}"
+        return _("Marcador final: %(result)s (%(sets)s)") % {
+            'result': match.result_display,
+            'sets': sets_str,
+        }
+    return _("Marcador final: %(result)s") % {'result': match.result_display}
 
 
 def notify_match_result(match: Match, tenant=None) -> bool:
@@ -335,15 +351,15 @@ def notify_match_result(match: Match, tenant=None) -> bool:
     if not orgs:
         return True
 
-    home_name = match.home_team_display
-    away_name = match.away_team_display
-    title = f"Resultado: {home_name} vs {away_name}"
-    body = format_match_result_body(match)
+    def build():
+        title = _("Resultado: %(home)s vs %(away)s") % {
+            'home': match.home_team_display, 'away': match.away_team_display,
+        }
+        return title, format_match_result_body(match)
 
     _dispatch_organization_push(
         orgs,
-        title=title,
-        body=body,
+        build=build,
         url=reverse('competitions:match_detail', args=[match.id]),
         category_ids=match_category_ids(match),
         notification_type='match_result',
@@ -355,9 +371,9 @@ def notify_match_result(match: Match, tenant=None) -> bool:
 # Etiqueta legible de cada campo de sede en el cuerpo del push: los tres comparten
 # `change_type='venue'`, así que sin el `field_name` todo salía como "Nueva pista".
 _VENUE_FIELD_LABELS = {
-    'venue': 'pista',
-    'field_address': 'dirección',
-    'city': 'localidad',
+    'venue': gettext_noop('pista'),
+    'field_address': gettext_noop('dirección'),
+    'city': gettext_noop('localidad'),
 }
 
 
@@ -375,34 +391,34 @@ def format_match_change_push(match: Match, changes: List[MatchChangeLog]) -> tup
 
     # Título
     if has_postponed:
-        title = f"Partido aplazado: {teams_vs}"
+        title = _("Partido aplazado: %(teams)s") % {'teams': teams_vs}
     elif has_cancelled:
-        title = f"Partido suspendido: {teams_vs}"
+        title = _("Partido suspendido: %(teams)s") % {'teams': teams_vs}
     elif has_datetime and has_venue:
-        title = f"Cambio de horario y pista: {teams_vs}"
+        title = _("Cambio de horario y pista: %(teams)s") % {'teams': teams_vs}
     elif has_datetime:
-        title = f"Cambio de horario: {teams_vs}"
+        title = _("Cambio de horario: %(teams)s") % {'teams': teams_vs}
     elif has_venue:
-        title = f"Cambio de pista: {teams_vs}"
+        title = _("Cambio de pista: %(teams)s") % {'teams': teams_vs}
     else:
-        title = f"Modificación de partido: {teams_vs}"
+        title = _("Modificación de partido: %(teams)s") % {'teams': teams_vs}
 
     # Cuerpo
     details = []
     if has_postponed:
-        details.append(f"El partido {teams_dash} ha sido aplazado")
+        details.append(_("El partido %(teams)s ha sido aplazado") % {'teams': teams_dash})
     elif has_cancelled:
-        details.append(f"El partido {teams_dash} ha sido suspendido")
+        details.append(_("El partido %(teams)s ha sido suspendido") % {'teams': teams_dash})
     else:
-        details.append(f"Modificación en el partido {teams_dash}")
+        details.append(_("Modificación en el partido %(teams)s") % {'teams': teams_dash})
 
     change_items = []
     for c in changes:
         if c.change_type == 'datetime':
-            change_items.append(f"Nueva fecha/hora: {c.new_value}")
+            change_items.append(_("Nueva fecha/hora: %(value)s") % {'value': c.new_value})
         elif c.change_type == 'venue':
-            label = _VENUE_FIELD_LABELS.get(c.field_name, 'pista')
-            change_items.append(f"Nueva {label}: {c.new_value}")
+            label = _(_VENUE_FIELD_LABELS.get(c.field_name, 'pista'))
+            change_items.append(_("Nueva %(label)s: %(value)s") % {'label': label, 'value': c.new_value})
 
     if change_items:
         body = f"{details[0]}. {'. '.join(change_items)}."
@@ -443,12 +459,9 @@ def notify_match_change_push(match: Match, changes: List[MatchChangeLog]) -> boo
     if q is not None:
         orgs = orgs.filter(q)
 
-    title, body = format_match_change_push(match, changes)
-
     return _dispatch_organization_push(
         orgs,
-        title=title,
-        body=body,
+        build=lambda: format_match_change_push(match, changes),
         url=reverse('competitions:match_detail', args=[match.id]),
         category_ids=match_category_ids(match),
         notification_type='match_change',
@@ -491,13 +504,17 @@ def notify_match_reminder(match: Match) -> bool:
 
         home_name = match.home_team_display
         away_name = match.away_team_display
-        title = f"Recordatorio de partido: {home_name} vs {away_name}"
-        body = f"El partido {home_name} - {away_name} empieza en 2 h. ¡Ve preparando las rodilleras!"
+
+        def build():
+            return (
+                _("Recordatorio de partido: %(home)s vs %(away)s") % {'home': home_name, 'away': away_name},
+                _("El partido %(home)s - %(away)s empieza en 2 h. ¡Ve preparando las rodilleras!")
+                % {'home': home_name, 'away': away_name},
+            )
 
         _dispatch_organization_push(
             orgs,
-            title=title,
-            body=body,
+            build=build,
             url=reverse('competitions:match_detail', args=[match.id]),
             category_ids=match_category_ids(match),
             notification_type='match_reminder',
@@ -528,15 +545,24 @@ def notify_callup_confirmed(player: CallUpPlayer) -> bool:
             ).values_list('team__category_id', flat=True).distinct()
         )
 
-    title = f"Convocatoria {player.callup.notification_label}: {player.raw_full_name}"
-    body = f"{player.raw_full_name} ha sido convocado/a para {player.callup.title}."
+    def build():
+        return (
+            _("Convocatoria %(label)s: %(name)s") % {
+                'label': player.callup.notification_label,
+                'name': player.raw_full_name,
+            },
+            _("%(name)s ha sido convocado/a para %(title)s.") % {
+                'name': player.raw_full_name,
+                'title': player.callup.title,
+            },
+        )
+
     url = f"https://voleibolib.federatio.com/upload/descargas/{player.callup.source_url}" if player.callup.source_url else '/'
 
     from ilovevoley.users.tasks import notify_web_push_organization_task
     notify_web_push_organization_task.delay(
         organization_id=player.organization_id,
-        title=title,
-        body=body,
+        **push_message(build),
         url=url,
         category_ids=category_ids,
         notification_type='callup_confirmed',
@@ -556,15 +582,21 @@ def notify_callup_suspected(player: CallUpPlayer) -> bool:
     player.notification_sent = True
     player.save(update_fields=['notification_sent'])
 
-    title = f"Posible convocatoria detectada: {player.raw_full_name}"
-    body = f"Se ha detectado una posible convocatoria de {player.raw_full_name} ({player.raw_club}). Revisa y confirma en el panel."
+    def build():
+        return (
+            _("Posible convocatoria detectada: %(name)s") % {'name': player.raw_full_name},
+            _("Se ha detectado una posible convocatoria de %(name)s (%(club)s). Revisa y confirma en el panel.") % {
+                'name': player.raw_full_name,
+                'club': player.raw_club,
+            },
+        )
+
     url = '/core/moderacion/#convocatorias'
 
     from ilovevoley.users.tasks import notify_web_push_organization_task
     notify_web_push_organization_task.delay(
         organization_id=player.organization_id,
-        title=title,
-        body=body,
+        **push_message(build),
         url=url,
         category_ids=[],
         notification_type='admin_alert',

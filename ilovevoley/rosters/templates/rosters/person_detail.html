@@ -1,5 +1,5 @@
 {% extends '../base.html' %}
-{% load static %}
+{% load static i18n %}
 
 {% block title %}{{ person.full_name }} - I Love Voley{% endblock %}
 
@@ -11,7 +11,7 @@
             <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
-            Volver a personas
+            {% trans "Volver a personas" %}
         </a>
     </div>
 
@@ -42,7 +42,7 @@
                                     <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
                                     </svg>
-                                    {{ person.age }} años
+                                    {% blocktrans with age=person.age %}{{ age }} años{% endblocktrans %}
                                 </span>
                             {% endif %}
                             
@@ -51,14 +51,14 @@
                                     <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                     </svg>
-                                    Usuario vinculado
+                                    {% trans "Usuario vinculado" %}
                                 </span>
                             {% elif person in request.user.children.all %}
                                 <span class="flex items-center text-blue-600 dark:text-blue-400">
                                     <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
                                     </svg>
-                                    Tu hijo
+                                    {% trans "Tu hijo" %}
                                 </span>
                             {% endif %}
                         </div>
@@ -69,7 +69,7 @@
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                             </svg>
-                            Editar
+                            {% trans "Editar" %}
                         </a>
                     {% endif %}
                 </div>
@@ -77,7 +77,7 @@
                 <!-- Información de contacto -->
                 {% if person.email or person.phone %}
                     <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2">
-                        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Contacto</h3>
+                        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{% trans "Contacto" %}</h3>
                         {% if person.email %}
                             <div class="flex items-center text-sm text-gray-600 dark:text-gray-400">
                                 <svg class="w-4 h-4 mr-2 text-csj-purple dark:text-csj-yellow" fill="currentColor" viewBox="0 0 20 20">
@@ -102,7 +102,7 @@
                 <!-- Información de padres -->
                 {% if person.parents.exists %}
                     <div class="mt-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded">
-                        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">👨‍👩‍👧‍👦 Padres que pueden editar esta ficha</h3>
+                        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{% trans "👨‍👩‍👧‍👦 Padres que pueden editar esta ficha" %}</h3>
                         <div class="space-y-1">
                             {% for parent in person.parents.all %}
                                 <div class="flex items-center text-sm text-gray-600 dark:text-gray-400">
@@ -119,7 +119,7 @@
                 <!-- Notas -->
                 {% if person.notes %}
                     <div class="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-csj-yellow p-4 rounded">
-                        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Notas</h3>
+                        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{% trans "Notas" %}</h3>
                         <p class="text-sm text-gray-600 dark:text-gray-400">{{ person.notes }}</p>
                     </div>
                 {% endif %}
@@ -132,14 +132,14 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
             <div class="border-l-4 border-csj-purple dark:border-csj-yellow pl-4">
-                <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">📊 Estadísticas</h2>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Histórico a partir de las actas federativas</p>
+                <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">{% trans "📊 Estadísticas" %}</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400">{% trans "Histórico a partir de las actas federativas" %}</p>
             </div>
 
             <form method="get" class="flex items-center gap-2">
-                <label for="season" class="text-sm font-medium text-gray-700 dark:text-gray-300">Temporada</label>
+                <label for="season" class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Temporada" %}</label>
                 <select name="season" id="season" data-submit-on-change class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-csj-purple focus:border-transparent">
-                    <option value="" {% if not stat_season %}selected{% endif %}>Todas las temporadas</option>
+                    <option value="" {% if not stat_season %}selected{% endif %}>{% trans "Todas las temporadas" %}</option>
                     {% for season in seasons %}
                         <option value="{{ season.id }}" {% if stat_season and stat_season.id == season.id %}selected{% endif %}>
                             {{ season.name }}
@@ -152,23 +152,23 @@
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
                 <p class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ player_stats.convocatorias }}</p>
-                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Convocatorias</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{% trans "Convocatorias" %}</p>
             </div>
             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
                 <p class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ player_stats.partidos_jugados }}</p>
-                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Partidos jugados</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{% trans "Partidos jugados" %}</p>
             </div>
             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
                 <p class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ player_stats.titularidades }}</p>
-                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Titularidades</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{% trans "Titularidades" %}</p>
             </div>
             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
                 <p class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ player_stats.sets_disputados }}</p>
-                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Sets disputados</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{% trans "Sets disputados" %}</p>
             </div>
             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
                 <p class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ player_stats.sets_titular }}</p>
-                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Sets como titular</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{% trans "Sets como titular" %}</p>
             </div>
         </div>
     </div>
@@ -178,8 +178,8 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         <div class="flex justify-between items-center mb-4">
             <div class="border-l-4 border-csj-purple dark:border-csj-yellow pl-4">
-                <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">🏐 Roles de Jugador</h2>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Equipos donde juega</p>
+                <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">{% trans "🏐 Roles de Jugador" %}</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400">{% trans "Equipos donde juega" %}</p>
             </div>
             
             {% if can_edit %}
@@ -187,7 +187,7 @@
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
-                    Agregar Rol
+                    {% trans "Agregar Rol" %}
                 </a>
             {% endif %}
         </div>
@@ -214,7 +214,7 @@
                                 
                                 {% if not player_role.is_active %}
                                     <span class="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2 py-1 rounded text-xs font-medium">
-                                        Inactivo
+                                        {% trans "Inactivo" %}
                                     </span>
                                 {% endif %}
                             </div>
@@ -230,7 +230,7 @@
                         
                         {% if can_edit %}
                             <div class="flex gap-2 ml-4">
-                                <a href="{% url 'rosters:player_role_edit' player_role.id %}" class="text-gray-600 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow transition p-2" title="Editar">
+                                <a href="{% url 'rosters:player_role_edit' player_role.id %}" class="text-gray-600 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow transition p-2" title="{% trans 'Editar' %}">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                     </svg>
@@ -241,7 +241,7 @@
                 {% endfor %}
             </div>
         {% else %}
-            <p class="text-center text-gray-500 dark:text-gray-400 py-8 italic">No tiene roles de jugador registrados</p>
+            <p class="text-center text-gray-500 dark:text-gray-400 py-8 italic">{% trans "No tiene roles de jugador registrados" %}</p>
         {% endif %}
     </div>
 
@@ -249,8 +249,8 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         <div class="flex justify-between items-center mb-4">
             <div class="border-l-4 border-csj-yellow dark:border-csj-yellow-dark pl-4">
-                <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">🎯 Roles de Staff</h2>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Equipos donde forma parte del cuerpo técnico</p>
+                <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">{% trans "🎯 Roles de Staff" %}</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400">{% trans "Equipos donde forma parte del cuerpo técnico" %}</p>
             </div>
             
             {% if can_edit %}
@@ -258,7 +258,7 @@
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
-                    Agregar Rol
+                    {% trans "Agregar Rol" %}
                 </a>
             {% endif %}
         </div>
@@ -277,7 +277,7 @@
                                 
                                 {% if not staff_role.is_active %}
                                     <span class="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2 py-1 rounded text-xs font-medium">
-                                        Inactivo
+                                        {% trans "Inactivo" %}
                                     </span>
                                 {% endif %}
                             </div>
@@ -293,7 +293,7 @@
                         
                         {% if can_edit %}
                             <div class="flex gap-2 ml-4">
-                                <a href="{% url 'rosters:staff_role_edit' staff_role.id %}" class="text-gray-600 dark:text-gray-400 hover:text-csj-yellow dark:hover:text-csj-yellow-dark transition p-2" title="Editar">
+                                <a href="{% url 'rosters:staff_role_edit' staff_role.id %}" class="text-gray-600 dark:text-gray-400 hover:text-csj-yellow dark:hover:text-csj-yellow-dark transition p-2" title="{% trans 'Editar' %}">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                     </svg>
@@ -304,7 +304,7 @@
                 {% endfor %}
             </div>
         {% else %}
-            <p class="text-center text-gray-500 dark:text-gray-400 py-8 italic">No tiene roles de staff registrados</p>
+            <p class="text-center text-gray-500 dark:text-gray-400 py-8 italic">{% trans "No tiene roles de staff registrados" %}</p>
         {% endif %}
     </div>
 </div>

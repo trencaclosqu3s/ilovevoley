@@ -1,84 +1,87 @@
 {% extends "emails/base_email.html" %}
+{% load i18n %}
 
-{% block title %}Nuevo usuario pendiente - {{ site_name }}{% endblock %}
+{% block title %}{% blocktrans %}Nuevo usuario pendiente - {{ site_name }}{% endblocktrans %}{% endblock %}
 
-{% block header_subtitle %}Nuevo Usuario Pendiente de Aprobación{% endblock %}
+{% block header_subtitle %}{% trans "Nuevo Usuario Pendiente de Aprobación" %}{% endblock %}
 
 {% block content %}
+    {% trans "No proporcionado" as not_provided %}
+    {% trans "Nunca" as never %}
     <div class="alert warning">
-        <h2 style="margin-top: 0;">🔔 Nuevo usuario registrado</h2>
-        <p>Se ha registrado un nuevo usuario que requiere aprobación para acceder al sistema.</p>
+        <h2 style="margin-top: 0;">{% trans "🔔 Nuevo usuario registrado" %}</h2>
+        <p>{% trans "Se ha registrado un nuevo usuario que requiere aprobación para acceder al sistema." %}</p>
     </div>
 
-    <h3>Detalles del usuario:</h3>
+    <h3>{% trans "Detalles del usuario:" %}</h3>
     <table class="data-table">
         <tr>
-            <th>Nombre de usuario:</th>
+            <th>{% trans "Nombre de usuario:" %}</th>
             <td><strong>{{ user.username }}</strong></td>
         </tr>
         <tr>
-            <th>Email:</th>
-            <td>{{ user.email|default:"No proporcionado" }}</td>
+            <th>{% trans "Email:" %}</th>
+            <td>{{ user.email|default:not_provided }}</td>
         </tr>
         <tr>
-            <th>Nombre completo:</th>
-            <td>{{ user.get_full_name|default:"No proporcionado" }}</td>
+            <th>{% trans "Nombre completo:" %}</th>
+            <td>{{ user.get_full_name|default:not_provided }}</td>
         </tr>
         <tr>
-            <th>Información Familiar:</th>
+            <th>{% trans "Información Familiar:" %}</th>
             <td>
                 {% if user.parent_info %}
                     <strong style="color: #e67e22;">{{ user.parent_info }}</strong>
                 {% else %}
-                    <span style="color: #95a5a6; font-style: italic;">No proporcionado</span>
+                    <span style="color: #95a5a6; font-style: italic;">{% trans "No proporcionado" %}</span>
                 {% endif %}
             </td>
         </tr>
         <tr>
-            <th>Fecha de registro:</th>
+            <th>{% trans "Fecha de registro:" %}</th>
             <td>{{ user.date_joined|date:"d/m/Y H:i" }}</td>
         </tr>
         <tr>
-            <th>Tipo de registro:</th>
+            <th>{% trans "Tipo de registro:" %}</th>
             <td>
                 {% if is_oauth %}
                     <span style="color: #3498db;">Google OAuth</span>
                 {% else %}
-                    <span style="color: #27ae60;">Registro tradicional</span>
+                    <span style="color: #27ae60;">{% trans "Registro tradicional" %}</span>
                 {% endif %}
             </td>
         </tr>
         <tr>
-            <th>Estado actual:</th>
-            <td><span style="color: #f39c12;">⏳ Pendiente de aprobación</span></td>
+            <th>{% trans "Estado actual:" %}</th>
+            <td><span style="color: #f39c12;">{% trans "⏳ Pendiente de aprobación" %}</span></td>
         </tr>
     </table>
 
-    <h3>Acciones requeridas:</h3>
+    <h3>{% trans "Acciones requeridas:" %}</h3>
     <p>
         {% if tenant %}
-            Este usuario ha solicitado unirse a <strong>{{ tenant.name }}</strong> y está pendiente de aprobación.
+            {% blocktrans %}Este usuario ha solicitado unirse a <strong>{{ tenant.name }}</strong> y está pendiente de aprobación.{% endblocktrans %}
         {% else %}
-            Este usuario está pendiente de aprobación.
+            {% trans "Este usuario está pendiente de aprobación." %}
         {% endif %}
     </p>
-    <p style="color: #7f8c8d; font-size: 14px;">Revisa y aprueba o rechaza la solicitud desde el panel de moderación.</p>
+    <p style="color: #7f8c8d; font-size: 14px;">{% trans "Revisa y aprueba o rechaza la solicitud desde el panel de moderación." %}</p>
 
     <div style="text-align: center; margin: 30px 0;">
         <a href="{{ moderation_url }}" class="button" style="background-color: #27ae60; text-decoration: none; color: white; padding: 12px 30px; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
-            🔔 Revisar en el panel de moderación
+            {% trans "🔔 Revisar en el panel de moderación" %}
         </a>
     </div>
 
     <div class="alert">
-        <h4 style="margin-top: 0;">💡 Recordatorio</h4>
-        <p>Los usuarios no aprobados no pueden acceder a la funcionalidad completa del sistema. Recuerde revisar y aprobar usuarios legítimos de manera oportuna.</p>
+        <h4 style="margin-top: 0;">{% trans "💡 Recordatorio" %}</h4>
+        <p>{% trans "Los usuarios no aprobados no pueden acceder a la funcionalidad completa del sistema. Recuerde revisar y aprobar usuarios legítimos de manera oportuna." %}</p>
     </div>
 
-    <h3>Información adicional:</h3>
+    <h3>{% trans "Información adicional:" %}</h3>
     <ul>
-        <li><strong>Total de usuarios registrados:</strong> {{ user.id }}</li>
-        <li><strong>Último login:</strong> {{ user.last_login|date:"d/m/Y H:i"|default:"Nunca" }}</li>
-        <li><strong>Usuario activo:</strong> {% if user.is_active %}Sí{% else %}No{% endif %}</li>
+        <li><strong>{% trans "Total de usuarios registrados:" %}</strong> {{ user.id }}</li>
+        <li><strong>{% trans "Último login:" %}</strong> {{ user.last_login|date:"d/m/Y H:i"|default:never }}</li>
+        <li><strong>{% trans "Usuario activo:" %}</strong> {% if user.is_active %}{% trans "Sí" %}{% else %}{% trans "No" %}{% endif %}</li>
     </ul>
 {% endblock %}

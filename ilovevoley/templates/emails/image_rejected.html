@@ -1,96 +1,97 @@
 {% extends "emails/base_email.html" %}
+{% load i18n %}
 
-{% block title %}Imagen no aprobada - {{ site_name }}{% endblock %}
+{% block title %}{% blocktrans %}Imagen no aprobada - {{ site_name }}{% endblocktrans %}{% endblock %}
 
-{% block header_subtitle %}Información sobre tu imagen subida{% endblock %}
+{% block header_subtitle %}{% trans "Información sobre tu imagen subida" %}{% endblock %}
 
 {% block content %}
     <div class="alert error">
-        <h2 style="margin-top: 0;">📷 Imagen no aprobada</h2>
-        <p>Lamentamos informarte que tu imagen "<strong>{{ image.title }}</strong>" no ha podido ser aprobada para publicación en {{ site_name }}.</p>
+        <h2 style="margin-top: 0;">{% trans "📷 Imagen no aprobada" %}</h2>
+        <p>{% blocktrans %}Lamentamos informarte que tu imagen "<strong>{{ image.title }}</strong>" no ha podido ser aprobada para publicación en {{ site_name }}.{% endblocktrans %}</p>
     </div>
 
-    <h3>Hola {{ user.get_full_name|default:user.username }},</h3>
+    <h3>{% blocktrans with name=user.get_full_name|default:user.username %}Hola {{ name }},{% endblocktrans %}</h3>
     
-    <p>Hemos revisado cuidadosamente la imagen que subiste, pero no ha podido ser aprobada de acuerdo con nuestras normas de la comunidad.</p>
+    <p>{% trans "Hemos revisado cuidadosamente la imagen que subiste, pero no ha podido ser aprobada de acuerdo con nuestras normas de la comunidad." %}</p>
 
-    <h3>Detalles de la imagen:</h3>
+    <h3>{% trans "Detalles de la imagen:" %}</h3>
     <table class="data-table">
         <tr>
-            <th>Título:</th>
+            <th>{% trans "Título:" %}</th>
             <td><strong>{{ image.title }}</strong></td>
         </tr>
         {% if image.description %}
         <tr>
-            <th>Descripción:</th>
+            <th>{% trans "Descripción:" %}</th>
             <td>{{ image.description }}</td>
         </tr>
         {% endif %}
         <tr>
-            <th>Tipo:</th>
+            <th>{% trans "Tipo:" %}</th>
             <td>{{ image.get_image_type_display }}</td>
         </tr>
         <tr>
-            <th>Fecha de subida:</th>
+            <th>{% trans "Fecha de subida:" %}</th>
             <td>{{ image.upload_date|date:"d/m/Y H:i" }}</td>
         </tr>
         <tr>
-            <th>Fecha de revisión:</th>
+            <th>{% trans "Fecha de revisión:" %}</th>
             <td>{{ image.moderation_date|date:"d/m/Y H:i" }}</td>
         </tr>
     </table>
 
     {% if moderation_notes %}
     <div class="alert warning">
-        <h4 style="margin-top: 0;">📝 Motivo del rechazo</h4>
-        <p><strong>Notas del moderador:</strong></p>
+        <h4 style="margin-top: 0;">{% trans "📝 Motivo del rechazo" %}</h4>
+        <p><strong>{% trans "Notas del moderador:" %}</strong></p>
         <p>{{ moderation_notes }}</p>
     </div>
     {% endif %}
 
-    <h3>Normas de la comunidad:</h3>
-    <p>Para que una imagen sea aprobada, debe cumplir con los siguientes criterios:</p>
+    <h3>{% trans "Normas de la comunidad:" %}</h3>
+    <p>{% trans "Para que una imagen sea aprobada, debe cumplir con los siguientes criterios:" %}</p>
     <ul>
-        <li>📸 <strong>Contenido apropiado:</strong> La imagen debe estar relacionada con voleibol, deportes o la comunidad</li>
-        <li>🚫 <strong>Sin contenido ofensivo:</strong> No se permite lenguaje ofensivo, violencia o contenido inapropiado</li>
-        <li>🎯 <strong>Calidad mínima:</strong> La imagen debe tener suficiente calidad y claridad</li>
-        <li>©️ <strong>Derechos de autor:</strong> Solo imágenes propias o con permisos adecuados</li>
-        <li>🏐 <strong>Relevancia:</strong> Debe ser relevante para la comunidad de voleibol</li>
-        <li>🔞 <strong>Contenido apropiado:</strong> No se permite contenido para adultos o inapropiado</li>
+        <li>{% blocktrans %}📸 <strong>Contenido apropiado:</strong> La imagen debe estar relacionada con voleibol, deportes o la comunidad{% endblocktrans %}</li>
+        <li>{% blocktrans %}🚫 <strong>Sin contenido ofensivo:</strong> No se permite lenguaje ofensivo, violencia o contenido inapropiado{% endblocktrans %}</li>
+        <li>{% blocktrans %}🎯 <strong>Calidad mínima:</strong> La imagen debe tener suficiente calidad y claridad{% endblocktrans %}</li>
+        <li>{% blocktrans %}©️ <strong>Derechos de autor:</strong> Solo imágenes propias o con permisos adecuados{% endblocktrans %}</li>
+        <li>{% blocktrans %}🏐 <strong>Relevancia:</strong> Debe ser relevante para la comunidad de voleibol{% endblocktrans %}</li>
+        <li>{% blocktrans %}🔞 <strong>Contenido apropiado:</strong> No se permite contenido para adultos o inapropiado{% endblocktrans %}</li>
     </ul>
 
     <div class="alert">
-        <h4 style="margin-top: 0;">💡 ¿Qué puedes hacer ahora?</h4>
+        <h4 style="margin-top: 0;">{% trans "💡 ¿Qué puedes hacer ahora?" %}</h4>
         <ul>
-            <li><strong>Revisar las normas:</strong> Asegúrate de entender nuestras pautas de contenido</li>
-            <li><strong>Subir una nueva imagen:</strong> Puedes intentar con otra imagen que cumpla las normas</li>
-            <li><strong>Contactar al equipo:</strong> Si crees que ha habido un error, puedes contactarnos</li>
-            <li><strong>Mejorar el contenido:</strong> Ajusta el título, descripción o la imagen misma</li>
+            <li>{% blocktrans %}<strong>Revisar las normas:</strong> Asegúrate de entender nuestras pautas de contenido{% endblocktrans %}</li>
+            <li>{% blocktrans %}<strong>Subir una nueva imagen:</strong> Puedes intentar con otra imagen que cumpla las normas{% endblocktrans %}</li>
+            <li>{% blocktrans %}<strong>Contactar al equipo:</strong> Si crees que ha habido un error, puedes contactarnos{% endblocktrans %}</li>
+            <li>{% blocktrans %}<strong>Mejorar el contenido:</strong> Ajusta el título, descripción o la imagen misma{% endblocktrans %}</li>
         </ul>
     </div>
 
-    <h3>Consejos para futuras subidas:</h3>
+    <h3>{% trans "Consejos para futuras subidas:" %}</h3>
     <ul>
-        <li>🏐 Enfócate en momentos deportivos, celebraciones o aspectos técnicos del voleibol</li>
-        <li>📝 Usa títulos descriptivos y apropiados</li>
-        <li>🏷️ Añade etiquetas relevantes que ayuden a categorizar la imagen</li>
-        <li>🎯 Asocia imágenes con partidos específicos cuando sea posible</li>
-        <li>✨ Asegúrate de que la calidad de la imagen sea buena</li>
+        <li>{% trans "🏐 Enfócate en momentos deportivos, celebraciones o aspectos técnicos del voleibol" %}</li>
+        <li>{% trans "📝 Usa títulos descriptivos y apropiados" %}</li>
+        <li>{% trans "🏷️ Añade etiquetas relevantes que ayuden a categorizar la imagen" %}</li>
+        <li>{% trans "🎯 Asocia imágenes con partidos específicos cuando sea posible" %}</li>
+        <li>{% trans "✨ Asegúrate de que la calidad de la imagen sea buena" %}</li>
     </ul>
 
     <div style="text-align: center; margin: 25px 0;">
         <a href="{{ site_url }}" class="button">
-            📤 Subir Nueva Imagen
+            {% trans "📤 Subir Nueva Imagen" %}
         </a>
     </div>
 
     <div class="alert">
-        <h4 style="margin-top: 0;">🤝 No te desanimes</h4>
-        <p>Entendemos que puede ser decepcionante, pero nuestras normas están diseñadas para mantener una comunidad positiva y segura para todos. Te animamos a seguir participando y compartiendo contenido que enriquezca nuestra comunidad de voleibol.</p>
+        <h4 style="margin-top: 0;">{% trans "🤝 No te desanimes" %}</h4>
+        <p>{% trans "Entendemos que puede ser decepcionante, pero nuestras normas están diseñadas para mantener una comunidad positiva y segura para todos. Te animamos a seguir participando y compartiendo contenido que enriquezca nuestra comunidad de voleibol." %}</p>
     </div>
 
     <p style="margin-top: 30px;">
-        <strong>Gracias por tu comprensión</strong><br>
-        Valoramos tu participación en {{ site_name }} y esperamos ver tus futuras contribuciones.
+        <strong>{% trans "Gracias por tu comprensión" %}</strong><br>
+        {% blocktrans %}Valoramos tu participación en {{ site_name }} y esperamos ver tus futuras contribuciones.{% endblocktrans %}
     </p>
 {% endblock %}

@@ -1,58 +1,59 @@
 {% extends "emails/base_email.html" %}
+{% load i18n %}
 
-{% block title %}Imagen aprobada - {{ site_name }}{% endblock %}
+{% block title %}{% blocktrans %}Imagen aprobada - {{ site_name }}{% endblocktrans %}{% endblock %}
 
-{% block header_subtitle %}¡Tu imagen ha sido aprobada!{% endblock %}
+{% block header_subtitle %}{% trans "¡Tu imagen ha sido aprobada!" %}{% endblock %}
 
 {% block content %}
     <div class="alert success">
-        <h2 style="margin-top: 0;">🎉 ¡Excelente!</h2>
-        <p>Tu imagen "<strong>{{ image.title }}</strong>" ha sido revisada y aprobada. Ya está disponible en la galería de {{ site_name }}.</p>
+        <h2 style="margin-top: 0;">{% trans "🎉 ¡Excelente!" %}</h2>
+        <p>{% blocktrans %}Tu imagen "<strong>{{ image.title }}</strong>" ha sido revisada y aprobada. Ya está disponible en la galería de {{ site_name }}.{% endblocktrans %}</p>
     </div>
 
-    <h3>Hola {{ user.get_full_name|default:user.username }},</h3>
+    <h3>{% blocktrans with name=user.get_full_name|default:user.username %}Hola {{ name }},{% endblocktrans %}</h3>
     
-    <p>Nos complace informarte que la imagen que subiste ha pasado exitosamente nuestro proceso de moderación.</p>
+    <p>{% trans "Nos complace informarte que la imagen que subiste ha pasado exitosamente nuestro proceso de moderación." %}</p>
 
-    <h3>Detalles de la imagen aprobada:</h3>
+    <h3>{% trans "Detalles de la imagen aprobada:" %}</h3>
     <table class="data-table">
         <tr>
-            <th>Título:</th>
+            <th>{% trans "Título:" %}</th>
             <td><strong>{{ image.title }}</strong></td>
         </tr>
         {% if image.description %}
         <tr>
-            <th>Descripción:</th>
+            <th>{% trans "Descripción:" %}</th>
             <td>{{ image.description }}</td>
         </tr>
         {% endif %}
         <tr>
-            <th>Tipo:</th>
+            <th>{% trans "Tipo:" %}</th>
             <td>{{ image.get_image_type_display }}</td>
         </tr>
         <tr>
-            <th>Fecha de subida:</th>
+            <th>{% trans "Fecha de subida:" %}</th>
             <td>{{ image.upload_date|date:"d/m/Y H:i" }}</td>
         </tr>
         <tr>
-            <th>Fecha de aprobación:</th>
+            <th>{% trans "Fecha de aprobación:" %}</th>
             <td>{{ image.moderation_date|date:"d/m/Y H:i" }}</td>
         </tr>
         {% if image.match %}
         <tr>
-            <th>Partido asociado:</th>
+            <th>{% trans "Partido asociado:" %}</th>
             <td>{{ image.match }}</td>
         </tr>
         {% endif %}
         {% if image.category %}
         <tr>
-            <th>Categoría:</th>
+            <th>{% trans "Categoría:" %}</th>
             <td>{{ image.category.name }}</td>
         </tr>
         {% endif %}
         {% if image.tags_display %}
         <tr>
-            <th>Etiquetas:</th>
+            <th>{% trans "Etiquetas:" %}</th>
             <td>{{ image.tags_display }}</td>
         </tr>
         {% endif %}
@@ -60,44 +61,44 @@
 
     {% if moderation_notes %}
     <div class="alert">
-        <h4 style="margin-top: 0;">📝 Notas del moderador</h4>
+        <h4 style="margin-top: 0;">{% trans "📝 Notas del moderador" %}</h4>
         <p>{{ moderation_notes }}</p>
     </div>
     {% endif %}
 
-    <h3>¿Qué significa esto?</h3>
+    <h3>{% trans "¿Qué significa esto?" %}</h3>
     <ul>
-        <li>📸 Tu imagen ya está visible en la galería pública</li>
-        <li>🔗 Otros usuarios pueden verla y comentarla</li>
-        <li>🏷️ Aparece en las búsquedas por etiquetas y categorías</li>
+        <li>{% trans "📸 Tu imagen ya está visible en la galería pública" %}</li>
+        <li>{% trans "🔗 Otros usuarios pueden verla y comentarla" %}</li>
+        <li>{% trans "🏷️ Aparece en las búsquedas por etiquetas y categorías" %}</li>
         {% if image.match %}
-        <li>🏐 Está asociada al partido correspondiente</li>
+        <li>{% trans "🏐 Está asociada al partido correspondiente" %}</li>
         {% endif %}
-        <li>📊 Contribuye a la historia visual de la temporada</li>
+        <li>{% trans "📊 Contribuye a la historia visual de la temporada" %}</li>
     </ul>
 
     <div style="text-align: center; margin: 25px 0;">
         <a href="{{ site_url }}" class="button">
-            🖼️ Ver en la Galería
+            {% trans "🖼️ Ver en la Galería" %}
         </a>
     </div>
 
     <div class="alert success">
-        <h4 style="margin-top: 0;">🙏 ¡Gracias por tu contribución!</h4>
-        <p>Tu participación ayuda a construir una rica galería visual de momentos deportivos. Te animamos a seguir compartiendo tus mejores capturas del voleibol.</p>
+        <h4 style="margin-top: 0;">{% trans "🙏 ¡Gracias por tu contribución!" %}</h4>
+        <p>{% trans "Tu participación ayuda a construir una rica galería visual de momentos deportivos. Te animamos a seguir compartiendo tus mejores capturas del voleibol." %}</p>
     </div>
 
-    <h3>Sigue compartiendo:</h3>
-    <p>¿Tienes más imágenes fantásticas? Te invitamos a:</p>
+    <h3>{% trans "Sigue compartiendo:" %}</h3>
+    <p>{% trans "¿Tienes más imágenes fantásticas? Te invitamos a:" %}</p>
     <ul>
-        <li>Subir más fotos de partidos y entrenamientos</li>
-        <li>Usar etiquetas descriptivas para ayudar a otros a encontrar tu contenido</li>
-        <li>Asociar imágenes con partidos específicos cuando sea posible</li>
-        <li>Comentar y valorar imágenes de otros usuarios</li>
+        <li>{% trans "Subir más fotos de partidos y entrenamientos" %}</li>
+        <li>{% trans "Usar etiquetas descriptivas para ayudar a otros a encontrar tu contenido" %}</li>
+        <li>{% trans "Asociar imágenes con partidos específicos cuando sea posible" %}</li>
+        <li>{% trans "Comentar y valorar imágenes de otros usuarios" %}</li>
     </ul>
 
     <p style="margin-top: 30px;">
-        <strong>¡Gracias por hacer crecer nuestra comunidad!</strong><br>
-        Cada imagen que compartes enriquece la experiencia de todos los usuarios de {{ site_name }}.
+        <strong>{% trans "¡Gracias por hacer crecer nuestra comunidad!" %}</strong><br>
+        {% blocktrans %}Cada imagen que compartes enriquece la experiencia de todos los usuarios de {{ site_name }}.{% endblocktrans %}
     </p>
 {% endblock %}

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Panel de Moderación - I Love Voley{% endblock %}
+{% block title %}{% trans "Panel de Moderación" %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
@@ -12,13 +13,13 @@
                     <svg class="w-7 h-7 lg:w-8 lg:h-8 text-csj-purple dark:text-csj-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                     </svg>
-                    <span>Panel de Moderación</span>
+                    <span>{% trans "Panel de Moderación" %}</span>
                 </h1>
-                <p class="text-gray-600 dark:text-gray-300">{% if can_moderate_images %}Gestiona usuarios e imágenes pendientes de aprobación{% else %}Gestiona las solicitudes de membresía pendientes de tu club{% endif %}</p>
+                <p class="text-gray-600 dark:text-gray-300">{% if can_moderate_images %}{% trans "Gestiona usuarios e imágenes pendientes de aprobación" %}{% else %}{% trans "Gestiona las solicitudes de membresía pendientes de tu club" %}{% endif %}</p>
             </div>
             <div class="text-right">
                 <div class="text-3xl font-bold text-csj-purple dark:text-csj-yellow">{{ pending_users_count|add:pending_images_count|add:pending_callups_count }}</div>
-                <div class="text-sm text-gray-500 dark:text-gray-400">elemento{{ pending_users_count|add:pending_images_count|add:pending_callups_count|pluralize:"s" }} pendiente{{ pending_users_count|add:pending_images_count|add:pending_callups_count|pluralize:"s" }}</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">{% blocktrans count counter=pending_users_count|add:pending_images_count|add:pending_callups_count %}elemento pendiente{% plural %}elementos pendientes{% endblocktrans %}</div>
             </div>
         </div>
     </div>
@@ -29,9 +30,9 @@
             <div class="flex items-center">
                 <div class="text-3xl mr-4">👥</div>
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Usuarios Pendientes</h3>
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">{% trans "Usuarios Pendientes" %}</h3>
                     <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ pending_users_count }}</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-300">Esperando aprobación</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">{% trans "Esperando aprobación" %}</p>
                 </div>
             </div>
         </div>
@@ -41,9 +42,9 @@
             <div class="flex items-center">
                 <div class="text-3xl mr-4">📸</div>
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Imágenes Pendientes</h3>
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">{% trans "Imágenes Pendientes" %}</h3>
                     <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ pending_images_count }}</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-300">Esperando moderación</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">{% trans "Esperando moderación" %}</p>
                 </div>
             </div>
         </div>
@@ -53,9 +54,9 @@
             <div class="flex items-center">
                 <div class="text-3xl mr-4">🏐</div>
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800">Convocatorias</h3>
+                    <h3 class="text-lg font-semibold text-gray-800">{% trans "Convocatorias" %}</h3>
                     <p class="text-2xl font-bold text-amber-600">{{ pending_callups_count }}</p>
-                    <p class="text-sm text-gray-600">Por confirmar o descartar</p>
+                    <p class="text-sm text-gray-600">{% trans "Por confirmar o descartar" %}</p>
                 </div>
             </div>
         </div>
@@ -68,7 +69,7 @@
     {% if pending_users %}
     <div class="mb-12">
         <div class="flex items-center mb-6">
-            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 dark:text-gray-200 mr-3">👥 Usuarios Pendientes</h2>
+            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 dark:text-gray-200 mr-3">{% trans "👥 Usuarios Pendientes" %}</h2>
             <span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_users_count }}</span>
         </div>
         
@@ -97,7 +98,7 @@
                     {% if user.parent_info %}
                     <div class="mb-4 p-3 bg-csj-yellow bg-opacity-20 rounded-lg border-l-4 border-csj-yellow">
                         <div class="flex items-center mb-1">
-                            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 mr-2">👨‍👩‍👧‍👦 Información Familiar:</span>
+                            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 mr-2">{% trans "👨‍👩‍👧‍👦 Información Familiar:" %}</span>
                         </div>
                         <p class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ user.parent_info }}</p>
                     </div>
@@ -106,20 +107,20 @@
                     <!-- Detalles adicionales -->
                     <div class="space-y-2 mb-4">
                         <div class="flex justify-between text-sm">
-                            <span class="text-gray-600 dark:text-gray-300">Email:</span>
-                            <span class="text-gray-800 dark:text-gray-200">{{ user.email|default:"No proporcionado" }}</span>
+                            <span class="text-gray-600 dark:text-gray-300">{% trans "Email:" %}</span>
+                            <span class="text-gray-800 dark:text-gray-200">{% trans "No proporcionado" as no_proporcionado %}{{ user.email|default:no_proporcionado }}</span>
                         </div>
                         <div class="flex justify-between text-sm">
-                            <span class="text-gray-600 dark:text-gray-300">Registro:</span>
+                            <span class="text-gray-600 dark:text-gray-300">{% trans "Registro:" %}</span>
                             <span class="text-gray-800 dark:text-gray-200">{{ user.date_joined|date:"d/m/Y H:i" }}</span>
                         </div>
                         <div class="flex justify-between text-sm">
-                            <span class="text-gray-600 dark:text-gray-300">Tipo:</span>
+                            <span class="text-gray-600 dark:text-gray-300">{% trans "Tipo:" %}</span>
                             <span class="text-gray-800 dark:text-gray-200">
                                 {% if user.socialaccount_set.exists %}
                                     <span class="text-blue-600 dark:text-blue-400">Google OAuth</span>
                                 {% else %}
-                                    <span class="text-green-600 dark:text-green-400">Registro tradicional</span>
+                                    <span class="text-green-600 dark:text-green-400">{% trans "Registro tradicional" %}</span>
                                 {% endif %}
                             </span>
                         </div>
@@ -130,12 +131,12 @@
                         <button 
                             data-call="approveUser" data-call-args='[{{ user.id }}]' data-call-this
                             class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
-                            ✅ Aprobar
+                            {% trans "✅ Aprobar" %}
                         </button>
                         <button 
                             data-call="rejectUser" data-call-args='[{{ user.id }}]' data-call-this
                             class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
-                            ❌ Rechazar
+                            {% trans "❌ Rechazar" %}
                         </button>
                     </div>
                 </div>
@@ -149,7 +150,7 @@
     {% if pending_callups %}
     <div id="convocatorias" class="mb-12">
         <div class="flex items-center mb-6">
-            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 mr-3">🏐 Convocatorias federativas por confirmar</h2>
+            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 mr-3">{% trans "🏐 Convocatorias federativas por confirmar" %}</h2>
             <span class="bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_callups_count }}</span>
         </div>
 
@@ -159,41 +160,41 @@
                 <div class="flex items-start justify-between mb-4">
                     <div>
                         <span class="inline-block bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded mb-2">
-                            Coincidencia: {{ player.match_score|floatformat:2 }}
+                            {% blocktrans with score=player.match_score|floatformat:2 %}Coincidencia: {{ score }}{% endblocktrans %}
                         </span>
                         <h3 class="text-lg font-bold text-gray-900">{{ player.raw_full_name }}</h3>
-                        <p class="text-sm text-gray-600">Club en PDF: <span class="font-medium text-gray-800">{{ player.raw_club }}</span></p>
+                        <p class="text-sm text-gray-600">{% blocktrans with club=player.raw_club %}Club en PDF: <span class="font-medium text-gray-800">{{ club }}</span>{% endblocktrans %}</p>
                         {% if player.raw_birth_year %}
-                        <p class="text-xs text-gray-500">Año nacimiento: {{ player.raw_birth_year }}</p>
+                        <p class="text-xs text-gray-500">{% blocktrans with year=player.raw_birth_year %}Año nacimiento: {{ year }}{% endblocktrans %}</p>
                         {% endif %}
                     </div>
                     {% if player.callup.source_url %}
                     <a href="https://voleibolib.federatio.com/upload/descargas/{{ player.callup.source_url }}" target="_blank" rel="noopener noreferrer" class="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                        📄 Ver PDF
+                        {% trans "📄 Ver PDF" %}
                     </a>
                     {% endif %}
                 </div>
 
                 <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 mb-4 text-sm space-y-1">
-                    <div><span class="text-gray-500">Circular:</span> <span class="font-medium text-gray-800">{{ player.callup.title }}</span></div>
+                    <div><span class="text-gray-500">{% trans "Circular:" %}</span> <span class="font-medium text-gray-800">{{ player.callup.title }}</span></div>
                     {% if player.callup.circular_date %}
-                    <div><span class="text-gray-500">Fecha:</span> {{ player.callup.circular_date|date:"d/m/Y" }}</div>
+                    <div><span class="text-gray-500">{% trans "Fecha:" %}</span> {{ player.callup.circular_date|date:"d/m/Y" }}</div>
                     {% endif %}
                     <div>
-                        <span class="text-gray-500">Tipo:</span> {{ player.callup.get_callup_type_display }}
+                        <span class="text-gray-500">{% trans "Tipo:" %}</span> {{ player.callup.get_callup_type_display }}
                     </div>
                     <div>
-                        <span class="text-gray-500">Modalidad:</span> {{ player.callup.get_modality_display }} |
-                        <span class="text-gray-500">Categoría:</span> {{ player.callup.category_name|default:"-" }} ({{ player.callup.get_gender_display }})
+                        <span class="text-gray-500">{% trans "Modalidad:" %}</span> {{ player.callup.get_modality_display }} |
+                        <span class="text-gray-500">{% trans "Categoría:" %}</span> {{ player.callup.category_name|default:"-" }} ({{ player.callup.get_gender_display }})
                     </div>
                 </div>
 
                 {% if player.person %}
                 <div class="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4 text-sm">
-                    <div class="font-semibold text-blue-900 mb-1">Ficha sugerida del club:</div>
+                    <div class="font-semibold text-blue-900 mb-1">{% trans "Ficha sugerida del club:" %}</div>
                     <div class="text-blue-800 font-medium">{{ player.person.full_name }}</div>
                     {% if player.person.birth_date %}
-                    <div class="text-xs text-blue-600">Nacimiento: {{ player.person.birth_date|date:"d/m/Y" }}</div>
+                    <div class="text-xs text-blue-600">{% blocktrans with birth=player.person.birth_date|date:"d/m/Y" %}Nacimiento: {{ birth }}{% endblocktrans %}</div>
                     {% endif %}
                     {% if player.match_notes %}
                     <div class="text-xs text-gray-600 mt-1 italic">{{ player.match_notes }}</div>
@@ -201,8 +202,8 @@
                 </div>
                 {% else %}
                 <div class="p-3 bg-amber-50 rounded-lg border border-amber-200 mb-4 text-sm">
-                    <div class="font-semibold text-amber-900 mb-1">Jugador del club sin ficha vinculada:</div>
-                    <div class="text-xs text-amber-800">{{ player.match_notes|default:"El club coincide con la circular pero no se encontró la ficha en la plantilla actual." }}</div>
+                    <div class="font-semibold text-amber-900 mb-1">{% trans "Jugador del club sin ficha vinculada:" %}</div>
+                    <div class="text-xs text-amber-800">{% trans "El club coincide con la circular pero no se encontró la ficha en la plantilla actual." as sin_ficha %}{{ player.match_notes|default:sin_ficha }}</div>
                 </div>
                 {% endif %}
 
@@ -210,12 +211,12 @@
                     <button
                         data-call="confirmCallup" data-call-args='[{{ player.id }}]' data-call-this
                         class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm touch-manipulation">
-                        ✅ Confirmar convocatoria
+                        {% trans "✅ Confirmar convocatoria" %}
                     </button>
                     <button
                         data-call="rejectCallup" data-call-args='[{{ player.id }}]' data-call-this
                         class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm touch-manipulation">
-                        ❌ Descartar
+                        {% trans "❌ Descartar" %}
                     </button>
                 </div>
             </div>
@@ -228,7 +229,7 @@
     {% if can_moderate_images and pending_images %}
     <div class="mb-8">
         <div class="flex items-center mb-6">
-            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 dark:text-gray-200 mr-3">📸 Imágenes Pendientes</h2>
+            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 dark:text-gray-200 mr-3">{% trans "📸 Imágenes Pendientes" %}</h2>
             <span class="bg-purple-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_images_count }}</span>
         </div>
         
@@ -239,7 +240,7 @@
                 <div class="aspect-w-16 aspect-h-12 cursor-pointer" data-call="openModerationLightbox" data-call-args='[{{ image.id }}]'>
                     {% include 'content/_thumbnail.html' with image=image css_class="w-full h-48 object-cover rounded-t-lg hover:opacity-90 transition-opacity" sizes="(min-width: 1024px) 50vw, 100vw" %}
                     <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                        🔍 Click para ampliar
+                        {% trans "🔍 Click para ampliar" %}
                     </div>
                 </div>
                 
@@ -247,7 +248,7 @@
                     <!-- Título y usuario -->
                     <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">{{ image.title }}</h3>
                     <div class="flex items-center mb-3">
-                        <span class="text-sm text-gray-600 dark:text-gray-300 mr-2">👤 Subida por:</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-300 mr-2">{% trans "👤 Subida por:" %}</span>
                         <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ image.uploaded_by.username }}</span>
                     </div>
                     
@@ -259,11 +260,11 @@
                     <!-- Tipo y fecha -->
                     <div class="space-y-1 mb-4">
                         <div class="flex justify-between text-sm">
-                            <span class="text-gray-600 dark:text-gray-300">Tipo:</span>
+                            <span class="text-gray-600 dark:text-gray-300">{% trans "Tipo:" %}</span>
                             <span class="text-gray-800 dark:text-gray-200">{{ image.get_image_type_display }}</span>
                         </div>
                         <div class="flex justify-between text-sm">
-                            <span class="text-gray-600 dark:text-gray-300">Subida:</span>
+                            <span class="text-gray-600 dark:text-gray-300">{% trans "Subida:" %}</span>
                             <span class="text-gray-800 dark:text-gray-200">{{ image.upload_date|date:"d/m/Y H:i" }}</span>
                         </div>
                     </div>
@@ -272,7 +273,7 @@
                     {% if image.match %}
                     <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
                         <div class="text-sm">
-                            <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">🏐 Partido:</div>
+                            <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">{% trans "🏐 Partido:" %}</div>
                             <div class="text-blue-700 dark:text-blue-300">{{ image.match }}</div>
                             <div class="text-xs text-blue-600 dark:text-blue-400 mt-1">{{ image.match.match_date|date:"d/m/Y" }}</div>
                         </div>
@@ -281,44 +282,44 @@
                     
                     <!-- Razón de pendiente y análisis de Vision API -->
                     <div class="mb-4">
-                        <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📋 Estado:</div>
+                        <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{% trans "📋 Estado:" %}</div>
                         {% if image.vision_api_checked %}
                             {% if not image.vision_api_safe %}
                                 <div class="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-800">
-                                    <div class="text-red-800 dark:text-red-200 font-medium mb-2">⚠️ Moderación automática</div>
+                                    <div class="text-red-800 dark:text-red-200 font-medium mb-2">{% trans "⚠️ Moderación automática" %}</div>
                                     <div class="text-sm text-red-700 dark:text-red-300">
                                         {% if image.vision_api_details.reasons %}
                                             {% for reason in image.vision_api_details.reasons %}
                                                 <div class="mb-1">
                                                     {% if "violence" in reason %}
-                                                        🚨 Posible contenido violento
+                                                        {% trans "🚨 Posible contenido violento" %}
                                                     {% elif "racy" in reason %}
-                                                        🔞 Contenido sugerente detectado
+                                                        {% trans "🔞 Contenido sugerente detectado" %}
                                                     {% elif "spoof" in reason %}
-                                                        🎭 Posible contenido falso/spam
+                                                        {% trans "🎭 Posible contenido falso/spam" %}
                                                     {% elif "medical" in reason %}
-                                                        🏥 Contenido médico detectado
+                                                        {% trans "🏥 Contenido médico detectado" %}
                                                     {% else %}
-                                                        ⚠️ {{ reason }}
+                                                        {% blocktrans with reason=reason %}⚠️ {{ reason }}{% endblocktrans %}
                                                     {% endif %}
                                                 </div>
                                             {% endfor %}
                                         {% else %}
-                                            Contenido marcado para revisión manual
+                                            {% trans "Contenido marcado para revisión manual" %}
                                         {% endif %}
                                     </div>
                                 </div>
                             {% else %}
                                 <div class="p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                                    <div class="text-yellow-800 dark:text-yellow-200 font-medium">💭 Revisión manual</div>
-                                    <div class="text-sm text-yellow-700 dark:text-yellow-300">Requiere aprobación manual</div>
+                                    <div class="text-yellow-800 dark:text-yellow-200 font-medium">{% trans "💭 Revisión manual" %}</div>
+                                    <div class="text-sm text-yellow-700 dark:text-yellow-300">{% trans "Requiere aprobación manual" %}</div>
                                 </div>
                             {% endif %}
                             
                             <!-- Texto detectado si existe -->
                             {% if image.vision_api_details.detected_text %}
                             <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                                <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">📝 Texto detectado:</div>
+                                <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "📝 Texto detectado:" %}</div>
                                 <div class="text-sm text-gray-600 dark:text-gray-300 max-h-20 overflow-y-auto">
                                     {{ image.vision_api_details.detected_text|truncatewords:20 }}
                                 </div>
@@ -326,8 +327,8 @@
                             {% endif %}
                         {% else %}
                             <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                                <div class="text-gray-700 dark:text-gray-300 font-medium">📝 Revisión manual</div>
-                                <div class="text-sm text-gray-600 dark:text-gray-300">Sin análisis automático</div>
+                                <div class="text-gray-700 dark:text-gray-300 font-medium">{% trans "📝 Revisión manual" %}</div>
+                                <div class="text-sm text-gray-600 dark:text-gray-300">{% trans "Sin análisis automático" %}</div>
                             </div>
                         {% endif %}
                     </div>
@@ -335,14 +336,14 @@
                     <!-- Etiquetas -->
                     {% if image.tags or image.auto_tags %}
                     <div class="mb-4">
-                        <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">🏷️ Etiquetas:</div>
+                        <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{% trans "🏷️ Etiquetas:" %}</div>
                         <div class="flex flex-wrap gap-1">
                             {% if image.tags %}
-                                <span class="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full">📝 {{ image.tags }}</span>
+                                <span class="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full">{% blocktrans with tags=image.tags %}📝 {{ tags }}{% endblocktrans %}</span>
                             {% endif %}
                             {% if image.auto_tags %}
                                 {% for tag in image.auto_tags %}
-                                <span class="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 text-xs px-2 py-1 rounded-full">🤖 {{ tag }}</span>
+                                <span class="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 text-xs px-2 py-1 rounded-full">{% blocktrans with tag=tag %}🤖 {{ tag }}{% endblocktrans %}</span>
                                 {% endfor %}
                             {% endif %}
                         </div>
@@ -354,12 +355,12 @@
                         <button 
                             data-call="moderateImage" data-call-args='[{{ image.id }}, "approve"]' data-call-this
                             class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
-                            ✅ Aprobar
+                            {% trans "✅ Aprobar" %}
                         </button>
                         <button 
                             data-call="moderateImage" data-call-args='[{{ image.id }}, "reject"]' data-call-this
                             class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
-                            ❌ Rechazar
+                            {% trans "❌ Rechazar" %}
                         </button>
                     </div>
                 </div>
@@ -373,10 +374,10 @@
     {% if not pending_users and not pending_images %}
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-12 text-center border-t-4 border-green-500">
         <div class="text-6xl mb-4">🎉</div>
-        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">¡Todo al día!</h2>
-        <p class="text-gray-600 dark:text-gray-300 mb-6">{% if can_moderate_images %}No hay usuarios ni imágenes pendientes de moderación.{% else %}No hay solicitudes de membresía pendientes.{% endif %}</p>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "¡Todo al día!" %}</h2>
+        <p class="text-gray-600 dark:text-gray-300 mb-6">{% if can_moderate_images %}{% trans "No hay usuarios ni imágenes pendientes de moderación." %}{% else %}{% trans "No hay solicitudes de membresía pendientes." %}{% endif %}</p>
         <a href="{% url 'content:video_list' %}" class="inline-block bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-            🏐 Volver a Videos
+            {% trans "🏐 Volver a Videos" %}
         </a>
     </div>
     {% endif %}
@@ -490,7 +491,7 @@ window.moderateImage = function(imageId, action, buttonElement) {
 
 // Funciones para moderar convocatorias dudosas
 function confirmCallup(playerId, btn) {
-    if (!confirm('¿Confirmar esta convocatoria? Se notificará a los socios del club.')) return;
+    if (!confirm('{% trans "¿Confirmar esta convocatoria? Se notificará a los socios del club." as js_msg %}{{ js_msg|escapejs }}')) return;
     btn.disabled = true;
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     fetch(`/core/api/callups/${playerId}/confirm/`, {
@@ -509,18 +510,18 @@ function confirmCallup(playerId, btn) {
                 setTimeout(() => card.remove(), 400);
             }
         } else {
-            alert(data.error || 'Error al confirmar convocatoria');
+            alert(data.error || '{% trans "Error al confirmar convocatoria" as js_msg %}{{ js_msg|escapejs }}');
             btn.disabled = false;
         }
     })
     .catch(err => {
-        alert('Error de conexión');
+        alert('{% trans "Error de conexión" as js_msg %}{{ js_msg|escapejs }}');
         btn.disabled = false;
     });
 }
 
 function rejectCallup(playerId, btn) {
-    if (!confirm('¿Descartar esta convocatoria para tu club?')) return;
+    if (!confirm('{% trans "¿Descartar esta convocatoria para tu club?" as js_msg %}{{ js_msg|escapejs }}')) return;
     btn.disabled = true;
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     fetch(`/core/api/callups/${playerId}/reject/`, {
@@ -539,12 +540,12 @@ function rejectCallup(playerId, btn) {
                 setTimeout(() => card.remove(), 400);
             }
         } else {
-            alert(data.error || 'Error al descartar convocatoria');
+            alert(data.error || '{% trans "Error al descartar convocatoria" as js_msg %}{{ js_msg|escapejs }}');
             btn.disabled = false;
         }
     })
     .catch(err => {
-        alert('Error de conexión');
+        alert('{% trans "Error de conexión" as js_msg %}{{ js_msg|escapejs }}');
         btn.disabled = false;
     });
 }

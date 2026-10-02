@@ -1,44 +1,45 @@
 {% extends "emails/base_email.html" %}
+{% load i18n %}
 
-{% block title %}Error en Google Vision API{% endblock %}
+{% block title %}{% trans "Error en" %} Google Vision API{% endblock %}
 
 {% block content %}
-<h2 style="color: #dc3545; margin-bottom: 20px;">⚠️ Error en Google Vision API</h2>
+<h2 style="color: #dc3545; margin-bottom: 20px;">⚠️ {% trans "Error en" %} Google Vision API</h2>
 
-<p>Se ha producido un error al procesar una imagen con Google Vision API.</p>
+<p>{% trans "Se ha producido un error al procesar una imagen con" %} Google Vision API.</p>
 
 <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
-    <h3 style="color: #721c24; margin-top: 0;">Detalles del Error</h3>
-    <p style="margin: 5px 0;"><strong>Error:</strong> {{ error }}</p>
-    <p style="margin: 5px 0;"><strong>Usuario:</strong> {{ user.username }} ({{ user.email }})</p>
-    <p style="margin: 5px 0;"><strong>Título de imagen:</strong> {{ image_title }}</p>
-    <p style="margin: 5px 0;"><strong>Fecha:</strong> {{ now|date:"d/m/Y H:i" }}</p>
+    <h3 style="color: #721c24; margin-top: 0;">{% trans "Detalles del Error" %}</h3>
+    <p style="margin: 5px 0;"><strong>{% trans "Error:" %}</strong> {{ error }}</p>
+    <p style="margin: 5px 0;"><strong>{% trans "Usuario:" %}</strong> {{ user.username }} ({{ user.email }})</p>
+    <p style="margin: 5px 0;"><strong>{% trans "Título de imagen:" %}</strong> {{ image_title }}</p>
+    <p style="margin: 5px 0;"><strong>{% trans "Fecha:" %}</strong> {{ now|date:"d/m/Y H:i" }}</p>
 </div>
 
-<h3>Posibles Causas</h3>
+<h3>{% trans "Posibles Causas" %}</h3>
 <ul style="line-height: 1.8;">
-    <li><strong>Credenciales inválidas o expiradas:</strong> Verificar GOOGLE_APPLICATION_CREDENTIALS</li>
-    <li><strong>Cuota excedida:</strong> Revisar límites de la API en Google Cloud Console</li>
-    <li><strong>Permisos insuficientes:</strong> La cuenta de servicio necesita permisos de Vision API</li>
-    <li><strong>Red/Conectividad:</strong> Problemas de conexión con Google Cloud</li>
-    <li><strong>Archivo corrupto:</strong> La imagen puede estar dañada o en formato no soportado</li>
+    <li>{% blocktrans %}<strong>Credenciales inválidas o expiradas:</strong> Verificar{% endblocktrans %} GOOGLE_APPLICATION_CREDENTIALS</li>
+    <li>{% blocktrans %}<strong>Cuota excedida:</strong> Revisar límites de la API en{% endblocktrans %} Google Cloud Console</li>
+    <li>{% blocktrans %}<strong>Permisos insuficientes:</strong> La cuenta de servicio necesita permisos de{% endblocktrans %} Vision API</li>
+    <li>{% blocktrans %}<strong>Red/Conectividad:</strong> Problemas de conexión con{% endblocktrans %} Google Cloud</li>
+    <li>{% blocktrans %}<strong>Archivo corrupto:</strong> La imagen puede estar dañada o en formato no soportado{% endblocktrans %}</li>
 </ul>
 
-<h3>Acciones Recomendadas</h3>
+<h3>{% trans "Acciones Recomendadas" %}</h3>
 <ol style="line-height: 1.8;">
-    <li>Revisar los logs del servidor para más detalles</li>
-    <li>Verificar la configuración en el panel de administración</li>
-    <li>Ejecutar: <code style="background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px;">python manage.py check_production_config</code></li>
-    <li>Si el problema persiste, considerar deshabilitar temporalmente Vision API</li>
+    <li>{% trans "Revisar los logs del servidor para más detalles" %}</li>
+    <li>{% trans "Verificar la configuración en el panel de administración" %}</li>
+    <li>{% trans "Ejecutar:" %} <code style="background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px;">python manage.py check_production_config</code></li>
+    <li>{% blocktrans %}Si el problema persiste, considerar deshabilitar temporalmente{% endblocktrans %} Vision API</li>
 </ol>
 
 <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;">
-    <p style="margin: 0;"><strong>Nota:</strong> La imagen ha quedado pendiente de moderación manual y el usuario ha sido notificado.</p>
+    <p style="margin: 0;"><strong>{% trans "Nota:" %}</strong> {% trans "La imagen ha quedado pendiente de moderación manual y el usuario ha sido notificado." %}</p>
 </div>
 
 <div style="margin-top: 30px; text-align: center;">
     <a href="{{ site_url }}admin/" style="display: inline-block; padding: 12px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-        Ir al Panel de Administración
+        {% trans "Ir al Panel de Administración" %}
     </a>
 </div>
 {% endblock %}
