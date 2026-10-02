@@ -248,10 +248,11 @@ def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
             'site_name': 'I Love Voley',
         }
 
-        try:
-            # Un correo por idioma, cada uno en el del destinatario. Preservar la privacidad
-            # entre clubes rivales y miembros del staff usando BCC.
-            for lang, lang_recipients in group_emails_by_language(recipients).items():
+        # Un correo por idioma, cada uno en el del destinatario. Preservar la privacidad
+        # entre clubes rivales y miembros del staff usando BCC.
+        groups_sent = 0
+        for lang, lang_recipients in group_emails_by_language(recipients).items():
+            try:
                 with translation.override(lang):
                     subject = _('[Aviso de Partido] Modificación federativa: %(home)s vs %(away)s') % {
                         'home': match.home_team_display,
@@ -276,16 +277,18 @@ def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
                 )
                 msg.attach_alternative(html_content, "text/html")
                 msg.send(fail_silently=False)
+                groups_sent += 1
+            except Exception as e:
+                logger.error(
+                    f"Error al enviar notificación de cambios ({lang}) para partido {match.id}: {e}",
+                    exc_info=True,
+                )
 
-            # Marcar logs como notificados en bloque
+        # Con envío parcial se marcan igualmente: reintentar reenviaría a quien ya lo recibió.
+        if groups_sent:
             log_ids = [log.pk for log in logs]
             MatchChangeLog.objects.filter(pk__in=log_ids).update(notified=True, notified_at=now)
-
             sent_count += 1
-            logger.info(f"Notificación de cambios enviada para partido {match.id} a {len(recipients)} destinatarios")
-
-        except Exception as e:
-            logger.error(f"Error al enviar notificación de cambios para partido {match.id}: {e}", exc_info=True)
 
     return sent_count
 
