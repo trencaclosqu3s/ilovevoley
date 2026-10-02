@@ -135,14 +135,18 @@ self.addEventListener('notificationclick', (event) => {
         navigator.clearAppBadge().catch(() => {});
     }
 
-    // Solo URLs del propio origen; cualquier otra cae en la portada
+    // Solo el propio origen o subdominios del mismo dominio base (push de otro club); lo demás cae en la portada
+    const baseDomain = self.location.hostname.split('.').slice(-2).join('.');
     const requested = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin);
-    const fullTargetUrl = requested.origin === self.location.origin ? requested.href : self.location.origin + '/';
+    const sameSite = requested.protocol === self.location.protocol
+        && (requested.hostname === baseDomain || requested.hostname.endsWith('.' + baseDomain));
+    const fullTargetUrl = sameSite ? requested.href : self.location.origin + '/';
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
             // Reutiliza una ventana abierta de la app en vez de abrir otra
-            const client = clientList.find((c) => 'focus' in c);
+            // WindowClient.navigate() no cruza orígenes: si el destino es otro club, se abre ventana nueva
+            const client = clientList.find((c) => 'focus' in c && new URL(c.url).origin === requested.origin);
             if (client) {
                 return client.focus().then((focused) => (focused && 'navigate' in focused ? focused.navigate(fullTargetUrl) : null));
             }
