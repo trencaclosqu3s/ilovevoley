@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.models import Season
 from ilovevoley.core.tenancy import OrganizationTenantQuerySet
@@ -49,8 +50,8 @@ class Video(models.Model):
         null=True,
         blank=True,
         related_name='videos',
-        verbose_name='Temporada',
-        help_text='Temporada a la que pertenece el vídeo',
+        verbose_name=_('Temporada'),
+        help_text=_('Temporada a la que pertenece el vídeo'),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -60,14 +61,14 @@ class Video(models.Model):
         null=True,
         blank=True,
         related_name='videos',
-        verbose_name='Organización',
+        verbose_name=_('Organización'),
     )
     set_number = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
         validators=[MinValueValidator(1)],
-        verbose_name='Set',
-        help_text='Número de set al que pertenece (opcional, solo para vídeos de partido)',
+        verbose_name=_('Set'),
+        help_text=_('Número de set al que pertenece (opcional, solo para vídeos de partido)'),
     )
 
     objects = OrganizationTenantQuerySet.as_manager()
@@ -171,37 +172,37 @@ def image_upload_path(instance, filename):
 
 class Image(models.Model):
     MODERATION_STATUS = [
-        ('pending', 'Pendiente de Moderación'),
-        ('approved', 'Aprobada'),
-        ('rejected', 'Rechazada'),
+        ('pending', _('Pendiente de Moderación')),
+        ('approved', _('Aprobada')),
+        ('rejected', _('Rechazada')),
     ]
 
     IMAGE_TYPES = [
-        ('match', 'Partido'),
-        ('celebration', 'Celebración'),
-        ('training', 'Entrenamiento'),
-        ('team_photo', 'Foto de Equipo'),
-        ('facilities', 'Instalaciones'),
-        ('other', 'Otro'),
+        ('match', _('Partido')),
+        ('celebration', _('Celebración')),
+        ('training', _('Entrenamiento')),
+        ('team_photo', _('Foto de Equipo')),
+        ('facilities', _('Instalaciones')),
+        ('other', _('Otro')),
     ]
 
     image = models.ImageField(
         upload_to=image_upload_path,
         validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'])],
-        help_text='Formatos permitidos: JPG, PNG, WebP, HEIC. Tamaño máximo: 10MB'
+        help_text=_('Formatos permitidos: JPG, PNG, WebP, HEIC. Tamaño máximo: 10MB')
     )
-    title = models.CharField(max_length=200, help_text='Título descriptivo de la imagen')
-    description = models.TextField(blank=True, help_text='Descripción opcional')
+    title = models.CharField(max_length=200, help_text=_('Título descriptivo de la imagen'))
+    description = models.TextField(blank=True, help_text=_('Descripción opcional'))
 
     # Campos para tracking de conversión de formato
     original_format = models.CharField(
         max_length=10,
         blank=True,
-        help_text='Formato original del archivo (ej: heic, jpg)'
+        help_text=_('Formato original del archivo (ej: heic, jpg)')
     )
     was_converted = models.BooleanField(
         default=False,
-        help_text='Indica si la imagen fue convertida desde otro formato'
+        help_text=_('Indica si la imagen fue convertida desde otro formato')
     )
 
     # Miniaturas derivadas (WebP/AVIF) para galerías responsivas
@@ -210,28 +211,28 @@ class Image(models.Model):
         blank=True,
         null=True,
         editable=False,
-        verbose_name='Miniatura 400px WebP',
+        verbose_name=_('Miniatura 400px WebP'),
     )
     thumbnail_large = models.ImageField(
         upload_to='image_thumbnails/',
         blank=True,
         null=True,
         editable=False,
-        verbose_name='Miniatura 1600px WebP',
+        verbose_name=_('Miniatura 1600px WebP'),
     )
     thumbnail_small_avif = models.ImageField(
         upload_to='image_thumbnails/',
         blank=True,
         null=True,
         editable=False,
-        verbose_name='Miniatura 400px AVIF',
+        verbose_name=_('Miniatura 400px AVIF'),
     )
     thumbnail_large_avif = models.ImageField(
         upload_to='image_thumbnails/',
         blank=True,
         null=True,
         editable=False,
-        verbose_name='Miniatura 1600px AVIF',
+        verbose_name=_('Miniatura 1600px AVIF'),
     )
 
     # Tipo y etiquetas
@@ -239,17 +240,17 @@ class Image(models.Model):
         max_length=20,
         choices=IMAGE_TYPES,
         default='other',
-        help_text='Tipo de imagen'
+        help_text=_('Tipo de imagen')
     )
     tags = models.CharField(
         max_length=500,
         blank=True,
-        help_text='Etiquetas separadas por comas (ej: gol, victoria, senior)'
+        help_text=_('Etiquetas separadas por comas (ej: gol, victoria, senior)')
     )
     auto_tags = models.JSONField(
         default=list,
         blank=True,
-        help_text='Etiquetas detectadas automáticamente por Vision API'
+        help_text=_('Etiquetas detectadas automáticamente por Vision API')
     )
 
     # Relaciones
@@ -259,24 +260,24 @@ class Image(models.Model):
         null=True,
         blank=True,
         related_name='images',
-        help_text='Partido al que pertenece la imagen (opcional)'
+        help_text=_('Partido al que pertenece la imagen (opcional)')
     )
     album_group_id = models.UUIDField(
         null=True,
         blank=True,
-        help_text='ID de grupo para agrupar imágenes en un álbum sin partido vinculado'
+        help_text=_('ID de grupo para agrupar imágenes en un álbum sin partido vinculado')
     )
     album_name = models.CharField(
         max_length=200,
         blank=True,
-        help_text='Nombre del álbum cuando las imágenes están agrupadas sin partido'
+        help_text=_('Nombre del álbum cuando las imágenes están agrupadas sin partido')
     )
     categories = models.ManyToManyField(
         'core.Category',
         blank=True,
         related_name='images',
         db_table='videos_image_categories',
-        help_text='Categorías asociadas a la imagen. Se asigna automáticamente desde el partido o manualmente'
+        help_text=_('Categorías asociadas a la imagen. Se asigna automáticamente desde el partido o manualmente')
     )
     season = models.ForeignKey(
         'core.Season',
@@ -284,15 +285,15 @@ class Image(models.Model):
         null=True,
         blank=True,
         related_name='images',
-        verbose_name='Temporada',
-        help_text='Temporada a la que pertenece la imagen',
+        verbose_name=_('Temporada'),
+        help_text=_('Temporada a la que pertenece la imagen'),
     )
     set_number = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
         validators=[MinValueValidator(1)],
-        verbose_name='Set',
-        help_text='Número de set al que pertenece la imagen (opcional, solo si hay partido)',
+        verbose_name=_('Set'),
+        help_text=_('Número de set al que pertenece la imagen (opcional, solo si hay partido)'),
     )
 
     # Metadatos
@@ -308,7 +309,7 @@ class Image(models.Model):
         max_length=20,
         choices=MODERATION_STATUS,
         default='pending',
-        help_text='Estado de moderación'
+        help_text=_('Estado de moderación')
     )
     moderated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -320,7 +321,7 @@ class Image(models.Model):
     moderation_date = models.DateTimeField(null=True, blank=True)
     moderation_notes = models.TextField(
         blank=True,
-        help_text='Notas internas de moderación'
+        help_text=_('Notas internas de moderación')
     )
 
     # Google Vision API (opcional)
@@ -334,7 +335,7 @@ class Image(models.Model):
         null=True,
         blank=True,
         related_name='images',
-        verbose_name='Organización',
+        verbose_name=_('Organización'),
     )
 
     objects = OrganizationTenantQuerySet.as_manager()
@@ -342,8 +343,8 @@ class Image(models.Model):
     class Meta:
         db_table = 'videos_image'
         ordering = ['-upload_date']
-        verbose_name = 'Imagen'
-        verbose_name_plural = 'Imágenes'
+        verbose_name = _('Imagen')
+        verbose_name_plural = _('Imágenes')
         indexes = [
             models.Index(fields=['status']),
             models.Index(fields=['match']),

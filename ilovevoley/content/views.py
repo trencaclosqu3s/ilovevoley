@@ -14,6 +14,7 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
@@ -197,7 +198,7 @@ def build_album_gallery_page(images_qs, page_number, per_page=12):
             hydrated.append({
                 'type': 'album_group',
                 'album_group_id': row['album_group_id'],
-                'album_name': row['album_name'] or 'Álbum',
+                'album_name': row['album_name'] or _('Álbum'),
                 'images': covers_by_group[row['album_group_id']],
                 'image_count': row['image_count'],
                 'upload_date': row['sort_date'],
@@ -280,13 +281,13 @@ def video_list(request):
     if request.GET.get('test_toast'):
         test_type = request.GET.get('test_toast')
         if test_type == 'success':
-            messages.success(request, '¡Toast de éxito funcionando correctamente!')
+            messages.success(request, _('¡Toast de éxito funcionando correctamente!'))
         elif test_type == 'error':
-            messages.error(request, 'Toast de error funcionando correctamente')
+            messages.error(request, _('Toast de error funcionando correctamente'))
         elif test_type == 'warning':
-            messages.warning(request, 'Toast de advertencia funcionando correctamente')
+            messages.warning(request, _('Toast de advertencia funcionando correctamente'))
         elif test_type == 'info':
-            messages.info(request, 'Toast de información funcionando correctamente')
+            messages.info(request, _('Toast de información funcionando correctamente'))
     
     return render(request, 'content/video_list.html', {
         'page_obj': page_obj,
@@ -317,7 +318,7 @@ def video_create(request):
             video.save()
             if video.match_id and request.tenant:
                 queue_match_media_push(match_id=video.match_id, media_type='video', organization_id=request.tenant.id)
-            messages.success(request, 'Vídeo añadido correctamente')
+            messages.success(request, _('Vídeo añadido correctamente'))
             return redirect('content:video_list')
     else:
         form = VideoForm(organization=request.tenant)
@@ -354,9 +355,9 @@ def video_bulk_create(request):
             if created:
                 if match and request.tenant:
                     queue_match_media_push(match_id=match.id, media_type='video', organization_id=request.tenant.id)
-                messages.success(request, f'{created} vídeo(s) añadido(s) correctamente.')
+                messages.success(request, _('%(count)s vídeo(s) añadido(s) correctamente.') % {'count': created})
             else:
-                messages.warning(request, 'No se añadió ningún vídeo. Rellena al menos un título y URL.')
+                messages.warning(request, _('No se añadió ningún vídeo. Rellena al menos un título y URL.'))
                 return render(request, 'content/video_bulk_form.html', {
                     'shared_form': shared_form,
                     'formset': formset,
@@ -393,7 +394,7 @@ def video_detail(request, video_id):
             comment.video = video
             comment.user = request.user
             comment.save()
-            messages.success(request, '¡Comentario añadido correctamente!')
+            messages.success(request, _('¡Comentario añadido correctamente!'))
             return redirect('content:video_detail', video_id=video.id)
     else:
         comment_form = CommentForm()
@@ -625,7 +626,7 @@ def image_upload(request):
                 image.status = 'approved'
                 image.moderated_by = request.user
                 image.moderation_date = timezone.now()
-                image.moderation_notes = 'Aprobada automáticamente por superusuario'
+                image.moderation_notes = _('Aprobada automáticamente por superusuario')
                 image.vision_api_checked = False
                 image.vision_api_safe = True
                 image.vision_api_details = {'skipped': 'Superuser approval - bypassed Vision API'}
@@ -672,11 +673,15 @@ def image_upload(request):
             
             # Mensaje dinámico según el estado de la imagen
             if image.status == 'approved':
-                auto_tags_msg = f" Se detectaron automáticamente las etiquetas: {', '.join(image.auto_tags[:3])}." if image.auto_tags else ""
-                messages.success(request, f'Imagen subida y aprobada automáticamente.{auto_tags_msg}')
+                auto_tags_msg = (
+                    _(' Se detectaron automáticamente las etiquetas: %(tags)s.') % {'tags': ', '.join(image.auto_tags[:3])}
+                ) if image.auto_tags else ''
+                messages.success(request, _('Imagen subida y aprobada automáticamente.') + auto_tags_msg)
             else:
-                auto_tags_msg = f" Se detectaron automáticamente las etiquetas: {', '.join(image.auto_tags[:3])}." if image.auto_tags else ""
-                messages.success(request, f'Imagen subida correctamente. Está pendiente de moderación.{auto_tags_msg}')
+                auto_tags_msg = (
+                    _(' Se detectaron automáticamente las etiquetas: %(tags)s.') % {'tags': ', '.join(image.auto_tags[:3])}
+                ) if image.auto_tags else ''
+                messages.success(request, _('Imagen subida correctamente. Está pendiente de moderación.') + auto_tags_msg)
 
             # Solo se avisa de contenido ya visible: `match_detail` únicamente muestra
             # imágenes aprobadas. Una imagen pendiente se avisa al aprobarse (Vision o
@@ -689,7 +694,7 @@ def image_upload(request):
             # El formulario no es válido, mostrar errores
             for field, errors in form.errors.items():
                 for error in errors:
-                    messages.error(request, f'{field}: {error}')
+                    messages.error(request, _('%(field)s: %(error)s') % {'field': field, 'error': error})
     else:
         # Pre-cargar partido si se pasa en la URL
         initial_data = {}
@@ -742,7 +747,7 @@ def image_bulk_upload(request):
         uploaded_files = request.FILES.getlist('images')
         
         if not uploaded_files:
-            messages.error(request, 'No se seleccionaron imágenes.')
+            messages.error(request, _('No se seleccionaron imágenes.'))
             return redirect('content:image_bulk_upload')
         
         # Datos compartidos para todas las imágenes
@@ -775,14 +780,14 @@ def image_bulk_upload(request):
                 existing_images = Image.objects.filter(album_group_id=album_uuid)
                 if existing_images.exists():
                     album_group_id = album_uuid
-                    album_name = existing_images.first().album_name or 'Álbum'
+                    album_name = existing_images.first().album_name or _('Álbum')
                     shared_data['album_group_id'] = album_group_id
                     shared_data['album_name'] = album_name
                 else:
-                    messages.error(request, 'El álbum especificado no existe.')
+                    messages.error(request, _('El álbum especificado no existe.'))
                     return redirect('content:image_bulk_upload')
             except (ValueError, ValidationError):
-                messages.error(request, 'ID de álbum inválido.')
+                messages.error(request, _('ID de álbum inválido.'))
                 return redirect('content:image_bulk_upload')
         else:
             # Código original: crear nuevo álbum si se marca
@@ -790,7 +795,7 @@ def image_bulk_upload(request):
             album_name = request.POST.get('album_name', '').strip()
             if create_album and not match_id:
                 if not album_name:
-                    messages.error(request, 'El nombre del álbum es obligatorio cuando se agrupan imágenes.')
+                    messages.error(request, _('El nombre del álbum es obligatorio cuando se agrupan imágenes.'))
                     return redirect('content:image_bulk_upload')
                 album_group_id = uuid.uuid4()
                 shared_data['album_group_id'] = album_group_id
@@ -811,11 +816,11 @@ def image_bulk_upload(request):
                 # Validar tipo y tamaño de archivo
                 content_type = getattr(uploaded_file, 'content_type', '') or ''
                 if not content_type.startswith('image/'):
-                    errors.append(f'{uploaded_file.name}: No es una imagen válida')
+                    errors.append(_('%(name)s: No es una imagen válida') % {'name': uploaded_file.name})
                     continue
 
                 if uploaded_file.size > 10 * 1024 * 1024:  # 10MB
-                    errors.append(f'{uploaded_file.name}: Archivo demasiado grande (máx 10MB)')
+                    errors.append(_('%(name)s: Archivo demasiado grande (máx 10MB)') % {'name': uploaded_file.name})
                     continue
 
                 # Obtener título y descripción individual
@@ -837,7 +842,7 @@ def image_bulk_upload(request):
                     image.status = 'approved'
                     image.moderated_by = request.user
                     image.moderation_date = timezone.now()
-                    image.moderation_notes = 'Aprobada automáticamente por superusuario'
+                    image.moderation_notes = _('Aprobada automáticamente por superusuario')
                     image.vision_api_checked = False
                     image.vision_api_safe = True
                     image.vision_api_details = {'skipped': 'Superuser approval - bypassed Vision API'}
@@ -892,7 +897,7 @@ def image_bulk_upload(request):
 
             except Exception as e:
                 logger.error(f"Error procesando {uploaded_file.name}: {str(e)}")
-                errors.append(f'{uploaded_file.name}: {str(e)}')
+                errors.append(_('%(name)s: %(error)s') % {'name': uploaded_file.name, 'error': str(e)})
 
         if vision_ids or pending_ids:
             from ilovevoley.content.tasks import analyze_image_with_vision_task
@@ -912,13 +917,13 @@ def image_bulk_upload(request):
 
         # Mensajes de resultado
         if success_count > 0:
-            messages.success(request, f'✅ {success_count} imagen(es) subida(s) correctamente.')
+            messages.success(request, _('✅ %(count)s imagen(es) subida(s) correctamente.') % {'count': success_count})
 
         if errors:
             for error in errors[:5]:  # Mostrar máximo 5 errores
                 messages.warning(request, error)
             if len(errors) > 5:
-                messages.warning(request, f'... y {len(errors) - 5} error(es) más.')
+                messages.warning(request, _('... y %(count)s error(es) más.') % {'count': len(errors) - 5})
 
         if success_count > 0:
             # Despachar notificación push asíncrona al club si se creó un nuevo álbum
@@ -932,8 +937,11 @@ def image_bulk_upload(request):
                 )
                 notify_web_push_organization_task.delay(
                     organization_id=tenant.id,
-                    title='Nuevo Álbum',
-                    body=f'Se han subido nuevas fotos: {album_name}' if album_name else 'Se han subido nuevas fotos',
+                    title=_('Nuevo Álbum'),
+                    body=(
+                        _('Se han subido nuevas fotos: %(album)s') % {'album': album_name}
+                        if album_name else _('Se han subido nuevas fotos')
+                    ),
                     url=album_url,
                     category_ids=[int(c) for c in request.POST.getlist('categories') if c.isdigit()],
                     notification_type='new_album',
@@ -952,7 +960,7 @@ def image_bulk_upload(request):
             if existing_album_id:
                 messages.success(
                     request,
-                    f'✅ {success_count} imagen(es) agregada(s) al álbum correctamente.'
+                    _('✅ %(count)s imagen(es) agregada(s) al álbum correctamente.') % {'count': success_count}
                 )
                 return redirect('content:album_group_images', album_group_id=existing_album_id)
             else:
@@ -978,7 +986,7 @@ def image_bulk_upload(request):
                 first_image = album_images.first()
                 existing_album = {
                     'album_group_id': str(album_uuid),
-                    'album_name': first_image.album_name or 'Álbum',
+                    'album_name': first_image.album_name or _('Álbum'),
                     'image_count': album_images.count(),
                     'upload_date': first_image.upload_date,
                 }
@@ -1051,7 +1059,7 @@ def image_detail(request, image_id):
 
     # Solo mostrar imágenes aprobadas a usuarios normales (managers/admins del tenant pueden ver pendientes)
     if not user_is_tenant_manager(request.user, request.tenant) and image.status != 'approved':
-        messages.error(request, 'Imagen no disponible.')
+        messages.error(request, _('Imagen no disponible.'))
         return redirect('content:image_gallery')
     
     # Imágenes relacionadas del mismo partido
@@ -1107,7 +1115,7 @@ def album_group_images(request, album_group_id):
     ).select_related('uploaded_by').prefetch_related('categories').order_by('-upload_date')
     
     if not images.exists():
-        raise Http404("Álbum no encontrado")
+        raise Http404(_("Álbum no encontrado"))
     
     # Obtener información del álbum desde la primera imagen
     first_image = images.first()
@@ -1120,7 +1128,7 @@ def album_group_images(request, album_group_id):
     # Preparar información del álbum
     album_info = {
         'album_group_id': album_group_id,
-        'album_name': first_image.album_name or 'Álbum',
+        'album_name': first_image.album_name or _('Álbum'),
         'upload_date': first_image.upload_date,
         'categories': first_image.categories.all(),
         'image_type': first_image.get_image_type_display(),
@@ -1187,8 +1195,8 @@ def image_moderate_action(request, image_id):
                 notes=notes,
             )
             
-            action_text = 'aprobada' if action == 'approve' else 'rechazada'
-            messages.success(request, f'Imagen {action_text} correctamente.')
+            action_text = _('aprobada') if action == 'approve' else _('rechazada')
+            messages.success(request, _('Imagen %(action)s correctamente.') % {'action': action_text})
             return redirect('content:image_moderation')
     else:
         form = ImageModerationForm()
@@ -1228,8 +1236,8 @@ def image_moderate_bulk(request):
                 except ValueError:
                     continue
             
-            action_text = 'aprobadas' if action == 'approve' else 'rechazadas'
-            messages.success(request, f'{count} imágenes {action_text}.')
+            action_text = _('aprobadas') if action == 'approve' else _('rechazadas')
+            messages.success(request, _('%(count)s imágenes %(action)s.') % {'count': count, 'action': action_text})
         
         return redirect('content:image_moderation')
     
@@ -1243,7 +1251,7 @@ def moderate_image_api(request, image_id):
     """API para moderar una imagen vía AJAX con aislamiento por organización."""
     tenant = getattr(request, 'tenant', None)
     if not can_moderate_images(request.user, tenant):
-        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
 
     try:
         if tenant is not None:
@@ -1251,7 +1259,7 @@ def moderate_image_api(request, image_id):
         elif request.user.is_superuser:
             image = Image.objects.get(id=image_id, status='pending')
         else:
-            return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+            return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
 
         action = request.POST.get('action')  # 'approve' o 'reject'
         notes = request.POST.get('notes', '')
@@ -1259,7 +1267,7 @@ def moderate_image_api(request, image_id):
         if action not in ['approve', 'reject']:
             return JsonResponse({
                 'success': False,
-                'error': 'Acción no válida'
+                'error': _('Acción no válida')
             }, status=400)
         
         moderate_image(
@@ -1270,11 +1278,11 @@ def moderate_image_api(request, image_id):
             notes=notes,
         )
         
-        action_text = 'aprobada' if action == 'approve' else 'rechazada'
+        action_text = _('aprobada') if action == 'approve' else _('rechazada')
         
         return JsonResponse({
             'success': True,
-            'message': f'Imagen "{image.title}" {action_text} correctamente',
+            'message': _('Imagen "%(title)s" %(action)s correctamente') % {'title': image.title, 'action': action_text},
             'image_title': image.title,
             'action': action
         })
@@ -1282,13 +1290,13 @@ def moderate_image_api(request, image_id):
     except Image.DoesNotExist:
         return JsonResponse({
             'success': False,
-            'error': 'Imagen no encontrada o ya moderada'
+            'error': _('Imagen no encontrada o ya moderada')
         }, status=404)
     except Exception as e:
         logger.error(f"Error moderando imagen {image_id}: {str(e)}")
         return JsonResponse({
             'success': False,
-            'error': 'Error interno del servidor'
+            'error': _('Error interno del servidor')
         }, status=500)
 
 

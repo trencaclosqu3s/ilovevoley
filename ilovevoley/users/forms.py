@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.models import Category, Organization
 from .models import CategoryPreference, NotificationPreference, NotificationType
@@ -15,11 +16,11 @@ class CustomSignupForm(forms.Form):
     parent_info = forms.CharField(
         max_length=500,
         required=True,
-        label='Información Familiar',
-        help_text='Indica de qué niño/a eres padre/familiar (ej: "papá de Juanito de Infantil")',
+        label=_('Información Familiar'),
+        help_text=_('Indica de qué niño/a eres padre/familiar (ej: "papá de Juanito de Infantil")'),
         widget=forms.Textarea(attrs={
             'rows': 3,
-            'placeholder': 'Ejemplo: Madre/Padre/etc de Pepito Pérez del equipo Infantil',
+            'placeholder': _('Ejemplo: Madre/Padre/etc de Pepito Pérez del equipo Infantil'),
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent'
         })
     )
@@ -40,14 +41,14 @@ class ParentInfoForm(forms.ModelForm):
             'parent_info': forms.Textarea(attrs={
                 'rows': 3,
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Ejemplo: Madre/Padre/etc de Pepito Pérez del equipo Infantil'
+                'placeholder': _('Ejemplo: Madre/Padre/etc de Pepito Pérez del equipo Infantil')
             }),
         }
         labels = {
-            'parent_info': 'Información Familiar'
+            'parent_info': _('Información Familiar')
         }
         help_texts = {
-            'parent_info': 'Indica de qué niño/a eres padre/familiar para que podamos aprobar tu cuenta'
+            'parent_info': _('Indica de qué niño/a eres padre/familiar para que podamos aprobar tu cuenta')
         }
 
 
@@ -70,7 +71,7 @@ class UserProfileForm(forms.ModelForm):
             'parent_info': forms.Textarea(attrs={
                 'rows': 3,
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Ejemplo: Madre/Padre/etc de Pepito Pérez del equipo Infantil'
+                'placeholder': _('Ejemplo: Madre/Padre/etc de Pepito Pérez del equipo Infantil')
             }),
 
             'username': forms.TextInput(attrs={
@@ -84,15 +85,15 @@ class UserProfileForm(forms.ModelForm):
             }),
         }
         labels = {
-            'avatar': 'Foto de Perfil',
-            'username': 'Nombre de Usuario',
-            'first_name': 'Nombre',
-            'last_name': 'Apellidos',
-            'parent_info': 'Información Familiar',
+            'avatar': _('Foto de Perfil'),
+            'username': _('Nombre de Usuario'),
+            'first_name': _('Nombre'),
+            'last_name': _('Apellidos'),
+            'parent_info': _('Información Familiar'),
         }
         help_texts = {
-            'avatar': 'Sube una imagen para tu perfil (opcional)',
-            'parent_info': 'Indica de qué niño/a eres padre/familiar',
+            'avatar': _('Sube una imagen para tu perfil (opcional)'),
+            'parent_info': _('Indica de qué niño/a eres padre/familiar'),
         }
 
     def __init__(self, *args, organization=None, **kwargs):
@@ -135,8 +136,8 @@ class UserProfileForm(forms.ModelForm):
                 widget=forms.CheckboxSelectMultiple(attrs={
                     'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'
                 }),
-                label=f'Categorías de Interés en {org.name}',
-                help_text=f'Selecciona las categorías que te interesan en {org.name}',
+                label=_('Categorías de Interés en %(org)s') % {'org': org.name},
+                help_text=_('Selecciona las categorías que te interesan en %(org)s') % {'org': org.name},
             )
             if org.id in preferences_by_org:
                 self.initial[field_name] = preferences_by_org[org.id]
@@ -148,8 +149,8 @@ class UserProfileForm(forms.ModelForm):
                 widget=forms.CheckboxSelectMultiple(attrs={
                     'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'
                 }),
-                label=f'Avisos Push en {org.name}',
-                help_text=f'Selecciona qué avisos push deseas recibir en {org.name}',
+                label=_('Avisos Push en %(org)s') % {'org': org.name},
+                help_text=_('Selecciona qué avisos push deseas recibir en %(org)s') % {'org': org.name},
             )
             disabled = disabled_notifications_by_org.get(org.id, set())
             self.initial[notif_field_name] = [t for t in all_type_values if t not in disabled]
@@ -220,11 +221,11 @@ class UserProfileForm(forms.ModelForm):
         if avatar:
             # Validar tamaño (5MB máximo)
             if avatar.size > 5 * 1024 * 1024:
-                raise forms.ValidationError('El archivo es demasiado grande. Tamaño máximo: 5MB')
+                raise forms.ValidationError(_('El archivo es demasiado grande. Tamaño máximo: 5MB'))
             
             # Validar tipo de archivo
             if not avatar.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif')):
-                raise forms.ValidationError('Formato no válido. Use JPG, PNG, WebP o HEIC')
+                raise forms.ValidationError(_('Formato no válido. Use JPG, PNG, WebP o HEIC'))
 
         return avatar
 

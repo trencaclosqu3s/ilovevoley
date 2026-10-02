@@ -1,19 +1,20 @@
-Aviso de Modificación Federativa de Partido
+{% load i18n %}{% trans "Aviso de Modificación Federativa de Partido" %}
 =============================================
 
-{% if is_test_mode %}[MODO PRUEBAS / SIMULACIÓN]{% endif %}
+{% if is_test_mode %}[{% trans "MODO PRUEBAS / SIMULACIÓN" %}]{% endif %}
 
-Partido: {{ match.home_team_display }} vs {{ match.away_team_display }}
-{% if match.league %}Competición: {{ match.league.name }}{% endif %}
+{% blocktrans with home=match.home_team_display away=match.away_team_display %}Partido: {{ home }} vs {{ away }}{% endblocktrans %}
+{% if match.league %}{% blocktrans with league=match.league.name %}Competición: {{ league }}{% endblocktrans %}{% endif %}
 
-Se han detectado las siguientes variaciones oficiales:
+{% trans "Se han detectado las siguientes variaciones oficiales:" %}
+{% trans "(vacío)" as empty_label %}
 {% for change in changes %}
-- {{ change.get_change_type_display }} ({{ change.field_name }}):
-  Anterior: {{ change.old_value|default:"(vacío)" }}
-  Nuevo:    {{ change.new_value|default:"(vacío)" }}
+- {% blocktrans with change_type=change.get_change_type_display field=change.field_name %}{{ change_type }} ({{ field }}):{% endblocktrans %}
+  {% blocktrans with old_value=change.old_value|default:empty_label %}Anterior: {{ old_value }}{% endblocktrans %}
+  {% blocktrans with new_value=change.new_value|default:empty_label %}Nuevo:    {{ new_value }}{% endblocktrans %}
 {% endfor %}
 
 {% if match_url %}
-Puedes consultar los detalles del partido aquí:
+{% trans "Puedes consultar los detalles del partido aquí:" %}
 {{ match_url }}
 {% endif %}

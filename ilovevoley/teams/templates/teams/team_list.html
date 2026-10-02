@@ -1,24 +1,24 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}Equipos del Club - I Love Voley{% endblock %}
+{% block title %}{% trans "Equipos del Club" %} - I Love Voley{% endblock %}
 
 {% block content %}
 <!-- Header -->
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark mb-6">
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div class="flex-1 min-w-0">
-            <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-200">🏐 Equipos del Club</h2>
-            <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">Gestión de plantillas y equipos</p>
+            <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-200">{% trans "🏐 Equipos del Club" %}</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">{% trans "Gestión de plantillas y equipos" %}</p>
         </div>
         
         <div class="flex items-center gap-2">
             <a href="{% url 'rosters:roster_overview' %}" class="bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 dark:text-gray-900 px-4 py-2 rounded-lg font-semibold transition text-sm whitespace-nowrap">
-                📋 Vista General
+                {% trans "📋 Vista General" %}
             </a>
             {% if user.is_staff %}
                 <a href="{% url 'admin:teams_team_changelist' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg font-medium transition text-sm whitespace-nowrap">
-                    ⚙️ Admin
+                    {% trans "⚙️ Admin" %}
                 </a>
             {% endif %}
         </div>
@@ -30,9 +30,9 @@
     <form method="get" class="space-y-4 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-4 sm:items-end">
         <!-- Filtro por categoría -->
         <div class="flex-1">
-            <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtrar por Categoría</label>
+            <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Filtrar por Categoría" %}</label>
             <select name="category" id="category" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
-                <option value="">Todas las categorías</option>
+                <option value="">{% trans "Todas las categorías" %}</option>
                 {% for cat in categories %}
                     <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == selected_category %}selected{% endif %}>
                         {{ cat.name }}
@@ -43,9 +43,9 @@
         
         <!-- Filtro por temporada -->
         <div class="flex-1">
-            <label for="season" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtrar por Temporada</label>
+            <label for="season" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Filtrar por Temporada" %}</label>
             <select name="season" id="season" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
-                <option value="">Todas las temporadas</option>
+                <option value="">{% trans "Todas las temporadas" %}</option>
                 {% for season in seasons %}
                     <option value="{{ season.id }}" {% if selected_season == season.id|stringformat:"s" %}selected{% endif %}>{{ season.name }}</option>
                 {% endfor %}
@@ -57,17 +57,17 @@
             <input type="checkbox" name="show_all" value="1" id="show_all" {% if show_all %}checked{% endif %}
                    class="h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 dark:border-gray-600 rounded">
             <label for="show_all" class="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                Mostrar todas las categorías
+                {% trans "Mostrar todas las categorías" %}
             </label>
         </div>
         
         <!-- Botones -->
         <div class="flex gap-2">
             <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-medium transition">
-                🔍 Filtrar
+                {% trans "🔍 Filtrar" %}
             </button>
             <a href="{% url 'teams:team_list' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg font-medium transition">
-                Limpiar filtros
+                {% trans "Limpiar filtros" %}
             </a>
         </div>
     </form>
@@ -79,10 +79,10 @@
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <span>Mostrando solo equipos de tus categorías preferidas</span>
+                <span>{% trans "Mostrando solo equipos de tus categorías preferidas" %}</span>
             </div>
             <a href="?show_all=1" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
-                Ver todos los equipos
+                {% trans "Ver todos los equipos" %}
             </a>
         </div>
     {% elif show_all %}
@@ -92,10 +92,10 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                 </svg>
-                <span>Mostrando todas las categorías</span>
+                <span>{% trans "Mostrando todas las categorías" %}</span>
             </div>
             <a href="?" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300">
-                Filtrar por preferencias
+                {% trans "Filtrar por preferencias" %}
             </a>
         </div>
     {% endif %}
@@ -110,7 +110,7 @@
                 <div class="p-4 border-b border-gray-100 dark:border-gray-700">
                     <div class="flex items-center mb-3">
                         {% if team.display_logo %}
-                            <img src="{{ team.display_logo }}" alt="Logo {{ team.name }}" 
+                            <img src="{{ team.display_logo }}" alt="{% trans 'Logo' %} {{ team.name }}"
                                  class="w-12 h-12 object-contain rounded border mr-3">
                         {% else %}
                             <div class="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded border mr-3 flex items-center justify-content center">
@@ -142,18 +142,18 @@
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div class="text-center">
                             <div class="text-lg font-bold text-csj-purple dark:text-csj-yellow">{{ team.active_players_count }}</div>
-                            <div class="text-xs text-gray-600 dark:text-gray-300">Jugadores</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-300">{% trans "Jugadores" %}</div>
                         </div>
                         <div class="text-center">
                             <div class="text-lg font-bold text-csj-yellow-dark">{{ team.active_staff_count }}</div>
-                            <div class="text-xs text-gray-600 dark:text-gray-300">Staff</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-300">{% trans "Staff" %}</div>
                         </div>
                     </div>
 
                     <!-- Botón de acción -->
                     <a href="{% url 'teams:team_roster' team.id %}" 
                        class="block w-full bg-csj-purple hover:bg-csj-purple-dark text-white text-center py-2 rounded-lg font-medium transition text-sm">
-                        👥 Ver Plantilla
+                        {% trans "👥 Ver Plantilla" %}
                     </a>
                     
                     {% if team.active_players_count == 0 and team.active_staff_count == 0 %}
@@ -162,7 +162,7 @@
                                 <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
                                 </svg>
-                                Plantilla vacía
+                                {% trans "Plantilla vacía" %}
                             </span>
                         </div>
                     {% endif %}
@@ -178,23 +178,23 @@
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
             </svg>
         </div>
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">No hay equipos disponibles</h3>
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">{% trans "No hay equipos disponibles" %}</h3>
         <p class="text-gray-600 dark:text-gray-300 mb-4">
             {% if selected_category %}
-                No se encontraron equipos en la categoría seleccionada.
+                {% trans "No se encontraron equipos en la categoría seleccionada." %}
             {% else %}
-                No hay equipos del club registrados actualmente.
+                {% trans "No hay equipos del club registrados actualmente." %}
             {% endif %}
         </p>
         <div class="flex gap-2 justify-center">
             {% if selected_category %}
                 <a href="{% url 'teams:team_list' %}" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-medium transition">
-                    Ver todos los equipos
+                    {% trans "Ver todos los equipos" %}
                 </a>
             {% endif %}
             {% if user.is_staff %}
                 <a href="{% url 'admin:teams_team_add' %}" class="bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 dark:text-gray-900 px-4 py-2 rounded-lg font-medium transition">
-                    ➕ Agregar Equipo
+                    {% trans "➕ Agregar Equipo" %}
                 </a>
             {% endif %}
         </div>

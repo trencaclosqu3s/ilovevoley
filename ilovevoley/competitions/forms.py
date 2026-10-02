@@ -1,5 +1,6 @@
 from django import forms
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.models import Category, Season
 from ilovevoley.teams.models import Club, Team
@@ -13,8 +14,8 @@ class MatchAdminForm(forms.ModelForm):
     filter_by_category = forms.BooleanField(
         required=False,
         initial=True,
-        label='Filtrar equipos por categoría de la liga',
-        help_text='Desmarca para ver todos los equipos disponibles'
+        label=_('Filtrar equipos por categoría de la liga'),
+        help_text=_('Desmarca para ver todos los equipos disponibles')
     )
 
     class Meta:
@@ -54,8 +55,8 @@ class MatchAdminForm(forms.ModelForm):
             self.fields['away_team'].queryset = filtered_teams
 
             # Actualizar help text
-            self.fields['home_team'].help_text = f'Equipos de la categoría: {league_category.name}'
-            self.fields['away_team'].help_text = f'Equipos de la categoría: {league_category.name}'
+            self.fields['home_team'].help_text = _('Equipos de la categoría: %(category)s') % {'category': league_category.name}
+            self.fields['away_team'].help_text = _('Equipos de la categoría: %(category)s') % {'category': league_category.name}
         else:
             # Mostrar todos los equipos
             self.fields['home_team'].queryset = Team.objects.all().order_by('name')
@@ -78,8 +79,8 @@ class FriendlyMatchForm(forms.ModelForm):
     category = forms.ModelChoiceField(
         queryset=Category.objects.filter(is_active=True),
         required=True,
-        label='Categoría',
-        help_text='Selecciona la categoría del partido',
+        label=_('Categoría'),
+        help_text=_('Selecciona la categoría del partido'),
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
             'id': 'id_category'
@@ -89,14 +90,14 @@ class FriendlyMatchForm(forms.ModelForm):
     # Campo de búsqueda para equipo local (con autocompletado)
     home_team_search = forms.CharField(
         required=False,
-        label='Equipo Local (buscar)',
+        label=_('Equipo Local (buscar)'),
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-            'placeholder': 'Busca un equipo existente o escribe el nombre...',
+            'placeholder': _('Busca un equipo existente o escribe el nombre...'),
             'id': 'id_home_team_search',
             'autocomplete': 'off'
         }),
-        help_text='Comienza a escribir para buscar equipos existentes'
+        help_text=_('Comienza a escribir para buscar equipos existentes')
     )
 
     # Campo oculto para el ID del equipo local seleccionado
@@ -108,14 +109,14 @@ class FriendlyMatchForm(forms.ModelForm):
     # Campo de búsqueda para equipo visitante (con autocompletado)
     away_team_search = forms.CharField(
         required=False,
-        label='Equipo Visitante (buscar)',
+        label=_('Equipo Visitante (buscar)'),
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-            'placeholder': 'Busca un equipo existente o escribe el nombre...',
+            'placeholder': _('Busca un equipo existente o escribe el nombre...'),
             'id': 'id_away_team_search',
             'autocomplete': 'off'
         }),
-        help_text='Comienza a escribir para buscar equipos existentes'
+        help_text=_('Comienza a escribir para buscar equipos existentes')
     )
 
     # Campo oculto para el ID del equipo visitante seleccionado
@@ -127,7 +128,7 @@ class FriendlyMatchForm(forms.ModelForm):
     # Campos para registrar equipos nuevos
     register_home_team = forms.BooleanField(
         required=False,
-        label='Registrar equipo local para futuros partidos',
+        label=_('Registrar equipo local para futuros partidos'),
         widget=forms.CheckboxInput(attrs={
             'class': 'rounded border-gray-300 text-csj-purple focus:ring-csj-purple',
             'id': 'id_register_home_team'
@@ -137,8 +138,8 @@ class FriendlyMatchForm(forms.ModelForm):
     home_team_club = forms.ModelChoiceField(
         required=False,
         queryset=None,  # Se configurará en __init__
-        label='Club del equipo local',
-        empty_label='Seleccionar club (opcional)',
+        label=_('Club del equipo local'),
+        empty_label=_('Seleccionar club (opcional)'),
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
             'id': 'id_home_team_club'
@@ -147,7 +148,7 @@ class FriendlyMatchForm(forms.ModelForm):
 
     register_away_team = forms.BooleanField(
         required=False,
-        label='Registrar equipo visitante para futuros partidos',
+        label=_('Registrar equipo visitante para futuros partidos'),
         widget=forms.CheckboxInput(attrs={
             'class': 'rounded border-gray-300 text-csj-purple focus:ring-csj-purple',
             'id': 'id_register_away_team'
@@ -157,8 +158,8 @@ class FriendlyMatchForm(forms.ModelForm):
     away_team_club = forms.ModelChoiceField(
         required=False,
         queryset=None,  # Se configurará en __init__
-        label='Club del equipo visitante',
-        empty_label='Seleccionar club (opcional)',
+        label=_('Club del equipo visitante'),
+        empty_label=_('Seleccionar club (opcional)'),
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
             'id': 'id_away_team_club'
@@ -175,17 +176,17 @@ class FriendlyMatchForm(forms.ModelForm):
             }),
             'venue': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Ej: Polideportivo Municipal'
+                'placeholder': _('Ej: Polideportivo Municipal')
             }),
             'city': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': 'Ej: Palma'
+                'placeholder': _('Ej: Palma')
             }),
         }
         labels = {
-            'match_date': 'Fecha y Hora',
-            'venue': 'Instalación',
-            'city': 'Ciudad',
+            'match_date': _('Fecha y Hora'),
+            'venue': _('Instalación'),
+            'city': _('Ciudad'),
         }
 
     def __init__(self, *args, **kwargs):
@@ -227,7 +228,7 @@ class FriendlyMatchForm(forms.ModelForm):
             home_team_search = home_team_search.strip()
 
         if not home_team_id and not home_team_search:
-            raise forms.ValidationError('Debes especificar un equipo local')
+            raise forms.ValidationError(_('Debes especificar un equipo local'))
 
         # Validar equipo visitante
         away_team_id = cleaned_data.get('away_team_id')
@@ -238,7 +239,7 @@ class FriendlyMatchForm(forms.ModelForm):
             away_team_search = away_team_search.strip()
 
         if not away_team_id and not away_team_search:
-            raise forms.ValidationError('Debes especificar un equipo visitante')
+            raise forms.ValidationError(_('Debes especificar un equipo visitante'))
 
         # Guardar los valores procesados en cleaned_data
         cleaned_data['home_team_search'] = home_team_search or ''
@@ -381,8 +382,8 @@ class MatchResultForm(forms.ModelForm):
             }),
         }
         labels = {
-            'home_score': 'Local',
-            'away_score': 'Visitante',
+            'home_score': _('Local'),
+            'away_score': _('Visitante'),
         }
 
     def __init__(self, *args, **kwargs):
@@ -402,17 +403,17 @@ class MatchResultForm(forms.ModelForm):
                 try:
                     normalized.append([int(score[0]), int(score[1])])
                 except (TypeError, ValueError, IndexError):
-                    raise forms.ValidationError('Formato de parciales no válido.')
+                    raise forms.ValidationError(_('Formato de parciales no válido.'))
 
             if league and not validate_set_scores(normalized, league):
                 raise forms.ValidationError(
-                    'Parciales inválidos para el formato de la liga.'
+                    _('Parciales inválidos para el formato de la liga.')
                 )
 
             home_won = sum(1 for home, away in normalized if home > away)
             away_won = len(normalized) - home_won
             if home_won == away_won:
-                raise forms.ValidationError('Los parciales no pueden terminar en empate.')
+                raise forms.ValidationError(_('Los parciales no pueden terminar en empate.'))
 
             cleaned_data['set_scores'] = normalized
             cleaned_data['home_score'] = home_won
@@ -424,13 +425,13 @@ class MatchResultForm(forms.ModelForm):
         away_score = cleaned_data.get('away_score')
 
         if home_score is None or away_score is None:
-            raise forms.ValidationError('Introduce el marcador o los parciales.')
+            raise forms.ValidationError(_('Introduce el marcador o los parciales.'))
 
         if home_score < 0 or away_score < 0:
-            raise forms.ValidationError('Los marcadores no pueden ser negativos.')
+            raise forms.ValidationError(_('Los marcadores no pueden ser negativos.'))
 
         if home_score == away_score:
-            raise forms.ValidationError('En voleibol no puede haber empate. Revisa los marcadores.')
+            raise forms.ValidationError(_('En voleibol no puede haber empate. Revisa los marcadores.'))
 
         return cleaned_data
 

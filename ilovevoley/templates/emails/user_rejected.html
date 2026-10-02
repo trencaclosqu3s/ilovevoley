@@ -1,34 +1,35 @@
 {% extends "emails/base_email.html" %}
+{% load i18n %}
 
-{% block title %}Actualización de tu solicitud - {{ site_name }}{% endblock %}
+{% block title %}{% blocktrans %}Actualización de tu solicitud - {{ site_name }}{% endblocktrans %}{% endblock %}
 
-{% block header_subtitle %}Actualización sobre tu solicitud{% endblock %}
+{% block header_subtitle %}{% trans "Actualización sobre tu solicitud" %}{% endblock %}
 
 {% block content %}
-    <h3>Hola {{ user.get_full_name|default:user.username }},</h3>
+    <h3>{% blocktrans with name=user.get_full_name|default:user.username %}Hola {{ name }},{% endblocktrans %}</h3>
     
-    <p>Gracias por tu interés en <strong>{{ site_name }}</strong>.</p>
+    <p>{% blocktrans %}Gracias por tu interés en <strong>{{ site_name }}</strong>.{% endblocktrans %}</p>
     
-    <p>Hemos revisado tu solicitud de registro y en este momento no hemos podido aprobar tu acceso a la plataforma.</p>
+    <p>{% trans "Hemos revisado tu solicitud de registro y en este momento no hemos podido aprobar tu acceso a la plataforma." %}</p>
 
-    <h3>¿Por qué?</h3>
-    <p>Esta plataforma es privada y está destinada a la comunidad de voleibol de <strong>I Love Voley</strong>:</p>
+    <h3>{% trans "¿Por qué?" %}</h3>
+    <p>{% trans "Esta plataforma es privada y está destinada a la comunidad de voleibol de" %} <strong>I Love Voley</strong>:</p>
     <ul>
-        <li>👨‍👩‍👧‍👦 Familias de jugadores</li>
-        <li>🏐 Jugadores actuales</li>
-        <li>👥 Entrenadores y personal de los clubs</li>
+        <li>{% trans "👨‍👩‍👧‍👦 Familias de jugadores" %}</li>
+        <li>{% trans "🏐 Jugadores actuales" %}</li>
+        <li>{% trans "👥 Entrenadores y personal de los clubs" %}</li>
     </ul>
 
     <div class="alert warning">
-        <h4 style="margin-top: 0;">💡 ¿Formas parte de la comunidad?</h4>
-        <p>Si eres familiar de un jugador o tienes relación con el club y crees que esto es un error, <strong>ponte en contacto con nosotros</strong>.</p>
+        <h4 style="margin-top: 0;">{% trans "💡 ¿Formas parte de la comunidad?" %}</h4>
+        <p>{% blocktrans %}Si eres familiar de un jugador o tienes relación con el club y crees que esto es un error, <strong>ponte en contacto con nosotros</strong>.{% endblocktrans %}</p>
         <p style="margin-top: 10px;">
-            Puedes responder a este correo o buscarnos directamente en el club. Estaremos encantados de ayudarte.
+            {% trans "Puedes responder a este correo o buscarnos directamente en el club. Estaremos encantados de ayudarte." %}
         </p>
     </div>
 
     <p style="margin-top: 30px;">
-        Gracias por tu comprensión.<br>
-        <strong>Equipo de {{ site_name }}</strong>
+        {% trans "Gracias por tu comprensión." %}<br>
+        <strong>{% blocktrans %}Equipo de {{ site_name }}{% endblocktrans %}</strong>
     </p>
 {% endblock %}

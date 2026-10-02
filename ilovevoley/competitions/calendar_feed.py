@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.http import Http404
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django_ical.feedgenerator import ICal20Feed
 from django_ical.views import ICalFeed
 
@@ -60,10 +61,10 @@ class UserMatchesFeed(ICalFeed):
             user = User.objects.get(calendar_token=token, is_active=True)
             return user
         except User.DoesNotExist:
-            raise Http404("Token de calendario inválido")
+            raise Http404(_("Token de calendario inválido"))
 
     def title(self, obj):
-        return f'I Love Voley - Partidos de {obj.username}'
+        return _('I Love Voley - Partidos de %(username)s') % {'username': obj.username}
 
     @staticmethod
     def _preferred_categories(user, organizations):
@@ -85,7 +86,7 @@ class UserMatchesFeed(ICalFeed):
             parts.append(', '.join([o.name for o in orgs]))
         if categories:
             parts.append(', '.join([c.name for c in categories]))
-        return f'Calendario de partidos: {" · ".join(parts)}' if parts else 'Calendario de partidos de voleibol'
+        return _('Calendario de partidos: %(parts)s') % {'parts': " · ".join(parts)} if parts else _('Calendario de partidos de voleibol')
 
     def items(self, obj):
         """
@@ -152,22 +153,22 @@ class UserMatchesFeed(ICalFeed):
         categories = []
         if item.league:
             categories = list(item.league.categories.all())
-        category_name = ', '.join([c.name for c in categories]) if categories else 'Sin Categoría'
+        category_name = ', '.join([c.name for c in categories]) if categories else _('Sin Categoría')
 
         # Prefijo para partidos cancelados
         prefix = ''
         if item.status == 'cancelled':
-            prefix = '❌ CANCELADO - '
+            prefix = _('❌ CANCELADO - ')
 
         title = f'{prefix}🏐 [{category_name}] {item.home_team_display} vs {item.away_team_display}'
 
         # Añadir indicador de amistoso
         if item.is_friendly:
-            title = f'🏐 {title} [AMISTOSO]'
+            title = _('🏐 %(title)s [AMISTOSO]') % {'title': title}
 
         # Marcar como PROVISIONAL si la hora es 00:00 (indica que no está confirmada)
         if item.match_date.hour == 0 and item.match_date.minute == 0:
-            title = f'{title} [PROVISIONAL]'
+            title = _('%(title)s [PROVISIONAL]') % {'title': title}
 
         return title
 
@@ -177,46 +178,46 @@ class UserMatchesFeed(ICalFeed):
 
         # Advertencia si está cancelado
         if item.status == 'cancelled':
-            description_parts.append('❌ PARTIDO CANCELADO')
+            description_parts.append(_('❌ PARTIDO CANCELADO'))
             description_parts.append('')
 
         # Advertencia si es provisional
         if item.match_date.hour == 0 and item.match_date.minute == 0:
-            description_parts.append('⚠️ HORARIO PROVISIONAL - Pendiente de confirmación')
+            description_parts.append(_('⚠️ HORARIO PROVISIONAL - Pendiente de confirmación'))
             description_parts.append('')
 
         if item.league:
-            description_parts.append(f'Liga: {item.league.name}')
+            description_parts.append(_('Liga: %(league)s') % {'league': item.league.name})
         else:
-            description_parts.append('Liga: Amistoso')
+            description_parts.append(_('Liga: Amistoso'))
 
         # Agregar todas las categorías
         if item.league:
             categories = list(item.league.categories.all())
             if categories:
                 category_names = ', '.join([c.name for c in categories])
-                description_parts.append(f'Categoría: {category_names}')
+                description_parts.append(_('Categoría: %(names)s') % {'names': category_names})
         elif item.is_friendly:
-            description_parts.append('Categoría: Amistoso')
+            description_parts.append(_('Categoría: Amistoso'))
 
         if item.round_number:
-            description_parts.append(f'Jornada: {item.round_number}')
+            description_parts.append(_('Jornada: %(round)s') % {'round': item.round_number})
 
         if item.home_score is not None and item.away_score is not None:
-            description_parts.append(f'Resultado: {item.home_score} - {item.away_score}')
+            description_parts.append(_('Resultado: %(home)s - %(away)s') % {'home': item.home_score, 'away': item.away_score})
 
         # Bloque de ubicación y enlace a mapa
         info = self._location_info(item)
-        if info['location_text'] and info['location_text'] != 'Por confirmar':
+        if info['location_text'] and info['location_text'] != _('Por confirmar'):
             description_parts.append('')
-            description_parts.append(f'📍 Ubicación: {info["location_text"]}')
+            description_parts.append(_('📍 Ubicación: %(location)s') % {'location': info["location_text"]})
             if info['maps_url']:
-                description_parts.append(f'🗺️ Cómo llegar: {info["maps_url"]}')
+                description_parts.append(_('🗺️ Cómo llegar: %(url)s') % {'url': info["maps_url"]})
 
         # Agregar enlace al partido en la web
         try:
             match_url = reverse("competitions:match_detail", args=[item.id])
-            description_parts.append(f'\nVer más información en la web: {match_url}')
+            description_parts.append(_('\nVer más información en la web: %(url)s') % {'url': match_url})
         except NoReverseMatch:
             pass
 

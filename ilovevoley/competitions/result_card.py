@@ -9,6 +9,7 @@ from typing import Callable, Iterable
 
 from django.conf import settings
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 from ilovevoley.core.security import safe_get
@@ -308,11 +309,11 @@ def render_result_card(
     logo_fetcher: LogoFetcher | None = None,
 ) -> bytes:
     if card_format not in CARD_SIZES:
-        raise ValueError(f'format inválido: {card_format}')
+        raise ValueError(_('format inválido: %(format)s') % {'format': card_format})
     if card_style not in CARD_STYLES:
-        raise ValueError(f'estilo inválido: {card_style}')
+        raise ValueError(_('estilo inválido: %(style)s') % {'style': card_style})
     if card_style == 'marco' and not photo:
-        raise ValueError('el estilo "marco" requiere una foto')
+        raise ValueError(_('el estilo "marco" requiere una foto'))
 
     width, height = CARD_SIZES[card_format]
     metrics = _FORMAT_METRICS[card_format]
@@ -368,7 +369,7 @@ def render_result_card(
         home_name, home_font, away_name, away_font, name_row_height = _fit_team_names(
             draw, match, name_max_width
         )
-        _, sets_height = _sets_row_size(draw, set_list, font_pill, 20, 9, 14)
+        _unused_width, sets_height = _sets_row_size(draw, set_list, font_pill, 20, 9, 14)
         footer_font = font_xs
         footer_bbox = draw.textbbox((0, 0), 'ilovevoley', font=footer_font)
         footer_height = footer_bbox[3] - footer_bbox[1]
@@ -417,7 +418,7 @@ def render_result_card(
         home_name, home_font, away_name, away_font, name_row_height = _fit_team_names(
             draw, match, name_max_width
         )
-        _, sets_height = _sets_row_size(draw, set_list, font_pill, 20, 9, 14)
+        _unused_width, sets_height = _sets_row_size(draw, set_list, font_pill, 20, 9, 14)
         card_height = (
             2 * card_pad + crest_size + 24 + name_row_height
             + (24 + sets_height if set_list else 0)

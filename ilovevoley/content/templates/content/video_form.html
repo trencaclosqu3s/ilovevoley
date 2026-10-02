@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
+{% load i18n %}
 
-{% block title %}Añadir Nuevo Vídeo{% if tenant %} - {{ tenant.name }}{% endif %}{% endblock %}
+{% block title %}{% trans "Añadir Nuevo Vídeo" %}{% if tenant %} - {{ tenant.name }}{% endif %}{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto">
-    <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">Añadir Nuevo Vídeo</h2>
+    <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">{% trans "Añadir Nuevo Vídeo" %}</h2>
     
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
         <form method="post" class="space-y-6">
@@ -27,32 +28,32 @@
             
             <div class="flex flex-col sm:flex-row gap-4 pt-4">
                 <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
-                    Guardar Vídeo
+                    {% trans "Guardar Vídeo" %}
                 </button>
                 <a href="{% url 'content:video_list' %}" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
-                    Cancelar
+                    {% trans "Cancelar" %}
                 </a>
             </div>
         </form>
     </div>
     
     <div class="mt-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <h3 class="font-semibold text-blue-800 dark:text-blue-200 mb-3">💡 Cómo configurar tu vídeo de YouTube:</h3>
+        <h3 class="font-semibold text-blue-800 dark:text-blue-200 mb-3">{% trans "💡 Cómo configurar tu vídeo de YouTube:" %}</h3>
         <div class="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-400 p-3 mb-3">
-            <p class="text-sm text-yellow-800 dark:text-yellow-200 font-semibold">⚠️ IMPORTANTE: Usa vídeos "No listados", NO "Privados"</p>
+            <p class="text-sm text-yellow-800 dark:text-yellow-200 font-semibold">{% trans '⚠️ IMPORTANTE: Usa vídeos "No listados", NO "Privados"' %}</p>
         </div>
         <ol class="text-sm text-blue-700 dark:text-blue-300 space-y-2 list-decimal list-inside">
-            <li><strong>Configura el vídeo como "No listado"</strong> en YouTube (NO uses "Privado")</li>
-            <li>Los vídeos "No listados":
+            <li>{% blocktrans %}<strong>Configura el vídeo como "No listado"</strong> en YouTube (NO uses "Privado"){% endblocktrans %}</li>
+            <li>{% trans 'Los vídeos "No listados":' %}
                 <ul class="ml-6 mt-1 space-y-1 list-disc list-inside text-xs">
-                    <li>Solo son visibles con el enlace directo</li>
-                    <li>No aparecen en búsquedas ni en tu canal</li>
-                    <li>SÍ se pueden incrustar en esta web</li>
+                    <li>{% trans "Solo son visibles con el enlace directo" %}</li>
+                    <li>{% trans "No aparecen en búsquedas ni en tu canal" %}</li>
+                    <li>{% trans "SÍ se pueden incrustar en esta web" %}</li>
                 </ul>
             </li>
-            <li>Los vídeos "Privados" NO funcionan para incrustar (darán error)</li>
-            <li>Copia el enlace del vídeo desde la barra del navegador</li>
-            <li>Pégalo en el campo "URL de YouTube" de arriba</li>
+            <li>{% trans 'Los vídeos "Privados" NO funcionan para incrustar (darán error)' %}</li>
+            <li>{% trans "Copia el enlace del vídeo desde la barra del navegador" %}</li>
+            <li>{% trans 'Pégalo en el campo "URL de YouTube" de arriba' %}</li>
         </ol>
     </div>
 </div>
@@ -67,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const categoryId = this.value;
             
             // Limpiar opciones actuales del select de partidos
-            matchSelect.innerHTML = '<option value="">Cargando partidos...</option>';
+            matchSelect.innerHTML = '<option value="">{% trans "Cargando partidos..." %}</option>';
             matchSelect.disabled = true;
             
             // Hacer petición AJAX para obtener partidos filtrados
@@ -81,8 +82,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     const emptyOption = document.createElement('option');
                     emptyOption.value = '';
                     emptyOption.textContent = categoryId ? 
-                        `Seleccionar partido de ${categorySelect.options[categorySelect.selectedIndex].text} (opcional)` : 
-                        'Seleccionar partido del club (opcional)';
+                        '{% trans "Seleccionar partido de" %} ' + categorySelect.options[categorySelect.selectedIndex].text + ' {% trans "(opcional)" %}' : 
+                        '{% trans "Seleccionar partido del club (opcional)" %}';
                     matchSelect.appendChild(emptyOption);
                     
                     // Agregar partidos
@@ -97,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(error => {
                     console.error('Error fetching matches:', error);
-                    matchSelect.innerHTML = '<option value="">Error cargando partidos</option>';
+                    matchSelect.innerHTML = '<option value="">{% trans "Error cargando partidos" %}</option>';
                     matchSelect.disabled = false;
                 });
         });

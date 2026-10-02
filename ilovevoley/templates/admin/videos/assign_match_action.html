@@ -4,7 +4,7 @@
 {% block content %}
 <h1>{{ title }}</h1>
 
-<p>{{ queryset.count }} foto(s) seleccionada(s):</p>
+<p>{% blocktrans with count=queryset.count %}{{ count }} foto(s) seleccionada(s):{% endblocktrans %}</p>
 <ul style="margin-bottom:1em; padding:0; list-style:none;">
     {% for obj in queryset %}
         <li style="display:inline-block; margin:4px;">
@@ -26,22 +26,22 @@
 
     <fieldset class="module aligned">
         <div class="form-row">
-            <label for="match_id" style="font-weight:bold;">Partido:</label>
+            <label for="match_id" style="font-weight:bold;">{% trans "Partido:" %}</label>
             <select name="match_id" id="match_id" style="margin-left:8px; width:400px;">
-                <option value="">— Selecciona un partido —</option>
+                <option value="">{% trans "— Selecciona un partido —" %}</option>
                 {% for match in matches %}
                     <option value="{{ match.pk }}">{{ match.match_date|date:"d/m/Y" }} — {{ match }}</option>
                 {% endfor %}
             </select>
             {% if not matches %}
-                <p style="color:#666; margin-left:8px;">No se encontraron partidos del club.</p>
+                <p style="color:#666; margin-left:8px;">{% trans "No se encontraron partidos del club." %}</p>
             {% endif %}
         </div>
     </fieldset>
 
     <div class="submit-row" style="margin-top:16px;">
-        <input type="submit" name="apply" value="Asignar partido" class="default">
-        <a href="../" style="margin-left:16px;">Cancelar</a>
+        <input type="submit" name="apply" value="{% trans 'Asignar partido' %}" class="default">
+        <a href="../" style="margin-left:16px;">{% trans "Cancelar" %}</a>
     </div>
 </form>
 {% endblock %}

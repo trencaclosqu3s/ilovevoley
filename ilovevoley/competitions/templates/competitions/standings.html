@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}Clasificación - I Love Voley{% endblock %}
+{% block title %}{% trans "Clasificación" %} - I Love Voley{% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/auto_filters.js' %}"></script>
@@ -13,8 +13,8 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div class="flex-1 min-w-0">
-                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-2">🏆 Clasificación</h1>
-                <p class="text-sm sm:text-base text-gray-600 dark:text-gray-300">Posiciones actuales de las ligas</p>
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-2">🏆 {% trans "Clasificación" %}</h1>
+                <p class="text-sm sm:text-base text-gray-600 dark:text-gray-300">{% trans "Posiciones actuales de las ligas" %}</p>
             </div>
 
             <!-- Botón de filtros (solo móvil) -->
@@ -25,7 +25,7 @@
                         d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z">
                     </path>
                 </svg>
-                Filtros
+                {% trans "Filtros" %}
                 <span id="activeFiltersCount"
                     class="ml-1 hidden px-1.5 py-0.5 bg-white text-csj-purple rounded-full text-xs font-bold"></span>
             </button>
@@ -38,10 +38,10 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <!-- Filtro de Categoría -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoría</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Categoría" %}</label>
                     <select name="category"
                         class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent text-sm sm:text-base">
-                        <option value="">Todas las categorías</option>
+                        <option value="">{% trans "Todas las categorías" %}</option>
                         {% for category in categories %}
                         <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
                             {{ category.name }}
@@ -52,10 +52,10 @@
 
                 <!-- Filtro de Liga -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Liga</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Liga" %}</label>
                     <select name="league"
                         class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent text-sm sm:text-base">
-                        <option value="">Todas las ligas</option>
+                        <option value="">{% trans "Todas las ligas" %}</option>
                         {% for league in leagues %}
                         <option value="{{ league.id }}" {% if selected_league == league.id|stringformat:"s" %}selected{% endif %}>
                             {{ league.name }}
@@ -66,10 +66,10 @@
 
                 <!-- Filtro de Temporada -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Temporada</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Temporada" %}</label>
                     <select name="season_name"
                         class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent text-sm sm:text-base">
-                        <option value="">Todas las temporadas</option>
+                        <option value="">{% trans "Todas las temporadas" %}</option>
                         {% for season in seasons %}
                         <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>
                             {{ season }}
@@ -84,7 +84,7 @@
                 <input type="checkbox" name="show_archived" id="show_archived" value="1" {% if show_archived %}checked{% endif %} data-submit-on-change
                     class="h-4 w-4 text-csj-purple dark:text-csj-yellow focus:ring-csj-purple border-gray-300 dark:border-gray-600 rounded">
                 <label for="show_archived" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                    Mostrar ligas archivadas, de referencia o históricas
+                    {% trans "Mostrar ligas archivadas, de referencia o históricas" %}
                 </label>
             </div>
 
@@ -96,10 +96,10 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
-                    <span>Mostrando solo tus categorías preferidas</span>
+                    <span>{% trans "Mostrando solo tus categorías preferidas" %}</span>
                 </div>
                 <a href="?show_all=1" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800">
-                    Ver todas
+                    {% trans "Ver todas" %}
                 </a>
             </div>
             {% elif show_all %}
@@ -112,10 +112,10 @@
                             d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
                         </path>
                     </svg>
-                    <span>Mostrando todas las categorías</span>
+                    <span>{% trans "Mostrando todas las categorías" %}</span>
                 </div>
                 <a href="?" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800">
-                    Filtrar por preferencias
+                    {% trans "Filtrar por preferencias" %}
                 </a>
             </div>
             {% endif %}
@@ -141,7 +141,7 @@
                     </div>
                 </div>
                 <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                    Temporada {{ league_data.league.season }}
+                    {% blocktrans with season=league_data.league.season %}Temporada {{ season }}{% endblocktrans %}
                 </div>
             </div>
         </div>
@@ -153,35 +153,35 @@
                     <tr>
                         <th scope="col"
                             class="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Pos
+                            {% trans "Pos" %}
                         </th>
                         <th scope="col"
                             class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Equipo
+                            {% trans "Equipo" %}
                         </th>
                         <th scope="col"
                             class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            PJ
+                            {% trans "PJ" %}
                         </th>
                         <th scope="col"
                             class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            G
+                            {% trans "G" %}
                         </th>
                         <th scope="col"
                             class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            P
+                            {% trans "P" %}
                         </th>
                         <th scope="col"
                             class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
-                            Sets
+                            {% trans "Sets" %}
                         </th>
                         <th scope="col"
                             class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
-                            Puntos
+                            {% trans "Puntos" %}
                         </th>
                         <th scope="col"
                             class="px-2 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Pts
+                            {% trans "Pts" %}
                         </th>
                     </tr>
                 </thead>
@@ -293,7 +293,7 @@
         {% if club_team_name in standing.team.name %}
         <div class="bg-csj-purple bg-opacity-10 dark:bg-opacity-20 p-4 border-t border-csj-purple dark:border-csj-purple-dark border-opacity-30">
             <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                📊 Estadísticas detalladas de {{ standing.team.name }}
+                📊 {% blocktrans with team=standing.team.name %}Estadísticas detalladas de {{ team }}{% endblocktrans %}
             </h4>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
                 <div class="bg-white dark:bg-gray-800 rounded p-2 text-center">
@@ -335,28 +335,28 @@
                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
             </path>
         </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No hay clasificaciones disponibles</h3>
+        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">{% trans "No hay clasificaciones disponibles" %}</h3>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            No se encontraron datos de clasificación para los filtros seleccionados.
+            {% trans "No se encontraron datos de clasificación para los filtros seleccionados." %}
         </p>
     </div>
     {% endif %}
 
     <!-- Enlaces rápidos -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">🔗 Enlaces relacionados</h3>
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">🔗 {% trans "Enlaces relacionados" %}</h3>
         <div class="flex flex-wrap gap-3">
             <a href="{% url 'competitions:calendar_view' %}"
                 class="inline-flex items-center px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-semibold transition">
-                📅 Ver calendario
+                📅 {% trans "Ver calendario" %}
             </a>
             <a href="{% url 'competitions:league_list' %}"
                 class="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold transition">
-                📋 Ver ligas
+                📋 {% trans "Ver ligas" %}
             </a>
             <a href="{% url 'content:video_list' %}"
                 class="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold transition">
-                🎬 <span class="hidden sm:inline ml-1">Ver</span> Videos
+                🎬 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Videos" %}
             </a>
         </div>
     </div>

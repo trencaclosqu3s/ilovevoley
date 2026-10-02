@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.db import transaction
 from django.db.models import Count, Q
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin
 from ilovevoley.teams.models import Team
 from ilovevoley.teams.services import MATCH_THRESHOLD, find_best_club
@@ -37,7 +38,7 @@ class OrganizationAdmin(ModelAdmin):
         if count is None:
             count = obj.club.teams.filter(is_active=True).count()
         return count
-    club_teams_count.short_description = 'Equipos activos'
+    club_teams_count.short_description = _('Equipos activos')
 
     def club_names_status(self, obj):
         """Avisa si club_team_names no casa con ningún equipo del club."""
@@ -47,7 +48,7 @@ class OrganizationAdmin(ModelAdmin):
         if not names:
             return format_html(
                 '<span style="color:#b45309;">{}</span>',
-                'Sin club_team_names',
+                _('Sin club_team_names'),
             )
         q = Q()
         for name in names:
@@ -56,11 +57,11 @@ class OrganizationAdmin(ModelAdmin):
             return format_html('<span style="color:#15803d;">{}</span>', 'OK')
         return format_html(
             '<span style="color:#b91c1c;">{}</span>',
-            'club_team_names no casa con ningún equipo del club',
+            _('club_team_names no casa con ningún equipo del club'),
         )
-    club_names_status.short_description = 'Consistencia de nombres'
+    club_names_status.short_description = _('Consistencia de nombres')
 
-    @admin.action(description='Asignar club a equipos huérfanos por coincidencia de nombre')
+    @admin.action(description=_('Asignar club a equipos huérfanos por coincidencia de nombre'))
     def assign_club_to_orphan_teams(self, request, queryset):
         """Rellena Team.club en equipos sin club que casan con el club de la org."""
         total = 0
@@ -77,10 +78,14 @@ class OrganizationAdmin(ModelAdmin):
                     total += len(matched)
                     self.message_user(
                         request,
-                        f'{org.slug}: {len(matched)} equipo(s) asignado(s) a {org.club}.',
+                        _('%(slug)s: %(count)s equipo(s) asignado(s) a %(club)s.') % {
+                            'slug': org.slug,
+                            'count': len(matched),
+                            'club': org.club,
+                        },
                     )
         if not total:
-            self.message_user(request, 'No se encontraron equipos huérfanos por coincidencia de nombre.')
+            self.message_user(request, _('No se encontraron equipos huérfanos por coincidencia de nombre.'))
 
 
 @admin.register(Category)
@@ -93,7 +98,7 @@ class CategoryAdmin(ModelAdmin):
     def leagues_count(self, obj):
         """Muestra el número de ligas asociadas"""
         return obj.leagues.count()
-    leagues_count.short_description = 'Ligas'
+    leagues_count.short_description = _('Ligas')
 
     def get_search_results(self, request, queryset, search_term):
         """Mejora la búsqueda para autocomplete"""
@@ -110,12 +115,12 @@ class SeasonAdmin(ModelAdmin):
     readonly_fields = ('start_year', 'end_year', 'created_at')
     actions = ('mark_as_current',)
 
-    @admin.action(description='Marcar como temporada activa')
+    @admin.action(description=_('Marcar como temporada activa'))
     def mark_as_current(self, request, queryset):
         season = queryset.order_by('-start_year').first()
         if not season:
-            self.message_user(request, 'No se seleccionó ninguna temporada.', level='error')
+            self.message_user(request, _('No se seleccionó ninguna temporada.'), level='error')
             return
         season.is_current = True
         season.save()
-        self.message_user(request, f'{season.name} marcada como temporada activa.')
+        self.message_user(request, _('%(name)s marcada como temporada activa.') % {'name': season.name})
