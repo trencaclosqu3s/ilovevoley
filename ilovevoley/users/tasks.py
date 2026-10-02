@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from celery import shared_task
 from django.db.models import Q
@@ -5,6 +6,8 @@ from django.utils import timezone
 from ilovevoley.core.i18n import language_for
 from .models import CategoryPreference, NotificationPreference, WebPushAudit, WebPushSubscription
 from .webpush import send_web_push
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task(name='notify_web_push_organization')
@@ -61,14 +64,17 @@ def notify_web_push_organization_task(
         else:
             failed += 1
 
-    WebPushAudit.objects.create(
-        organization_id=organization_id,
-        notification_type=str(notification_type) if notification_type else '',
-        match_id=match_id,
-        candidates_count=candidate_count,
-        dispatched_count=dispatched,
-        failed_count=failed,
-    )
+    try:
+        WebPushAudit.objects.create(
+            organization_id=organization_id,
+            notification_type=str(notification_type) if notification_type else '',
+            match_id=match_id,
+            candidates_count=candidate_count,
+            dispatched_count=dispatched,
+            failed_count=failed,
+        )
+    except Exception as exc:
+        logger.warning('notify_web_push_organization_task: error al registrar auditoría: %s', exc)
     return dispatched
 
 

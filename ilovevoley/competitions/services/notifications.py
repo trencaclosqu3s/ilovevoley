@@ -1,6 +1,6 @@
 from collections import defaultdict
 import logging
-from typing import List
+from typing import List, Optional
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -20,7 +20,7 @@ User = get_user_model()
 
 
 def _dispatch_organization_push(
-    orgs, *, build, url: str, category_ids: List[int], notification_type: str, match_id: int = None
+    orgs, *, build, url: str, category_ids: List[int], notification_type: str, match_id: Optional[int] = None
 ) -> int:
     """Programa el push de cada organización tras el commit de la transacción actual.
 

@@ -285,7 +285,7 @@ class WebPushAudit(models.Model):
     """Auditoría mínima de envíos push por ejecución de tarea (#316).
 
     No guarda el texto del push ni datos de usuarios. Se limpia periódicamente
-    para mantener una retención acotada (60-90 días).
+    para mantener una retención acotada (90 días).
     """
 
     organization = models.ForeignKey(

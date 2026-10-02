@@ -210,22 +210,34 @@ class UserAdminEmailActionTests(TestCase):
 
 
 class WebPushAuditAdminTest(TestCase):
-    """Verifica que el admin de WebPushAudit sea de solo lectura (#316)."""
+    """Verifica que el admin de WebPushAudit sea de solo lectura y permita cascade delete (#316)."""
 
     def setUp(self):
         self.site = AdminSite()
         self.model_admin = WebPushAuditAdmin(WebPushAudit, self.site)
         self.factory = RequestFactory()
-        self.user = User.objects.create_superuser(
+        self.superuser = User.objects.create_superuser(
             username='admin_audit',
             email='audit@example.com',
             password='password123',
         )
+        self.staff_user = User.objects.create_user(
+            username='staff_audit',
+            email='staff@example.com',
+            is_staff=True,
+            password='password123',
+        )
 
-    def test_admin_is_read_only(self):
-        request = self.factory.get('/admin/users/webpushaudit/')
-        request.user = self.user
+    def test_admin_is_read_only_and_allows_superuser_delete(self):
+        request_staff = self.factory.get('/admin/users/webpushaudit/')
+        request_staff.user = self.staff_user
 
-        self.assertFalse(self.model_admin.has_add_permission(request))
-        self.assertFalse(self.model_admin.has_change_permission(request))
-        self.assertFalse(self.model_admin.has_delete_permission(request))
+        self.assertFalse(self.model_admin.has_add_permission(request_staff))
+        self.assertFalse(self.model_admin.has_change_permission(request_staff))
+        self.assertFalse(self.model_admin.has_delete_permission(request_staff))
+
+        request_admin = self.factory.get('/admin/users/webpushaudit/')
+        request_admin.user = self.superuser
+        self.assertFalse(self.model_admin.has_add_permission(request_admin))
+        self.assertFalse(self.model_admin.has_change_permission(request_admin))
+        self.assertTrue(self.model_admin.has_delete_permission(request_admin))
