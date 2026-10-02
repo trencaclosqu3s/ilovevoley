@@ -7,16 +7,31 @@ from .tenant_utils import (
     hex_to_rgb_channels,
 )
 
-DEFAULT_BRAND = '#9B7FBF'
-DEFAULT_BRAND_DARK = '#7B5FA0'
+DEFAULT_BRAND = '#01696f'
+DEFAULT_BRAND_DARK = '#004d52'
+DEFAULT_BRAND_GRADIENT_TO = '#004d52'
+SANT_JOSEP_YELLOW = '#F4D47C'
 
 
 def tenant_context(request):
     org = getattr(request, 'tenant', None)
     share_image_path = org.logo.url if org and org.logo else static('images/logo_app.png')
 
-    brand = org.primary_color if org and org.primary_color else DEFAULT_BRAND
-    brand_dark = org.secondary_color if org and org.secondary_color else DEFAULT_BRAND_DARK
+    if org:
+        brand = org.primary_color if org.primary_color else DEFAULT_BRAND
+        brand_dark = org.secondary_color if org.secondary_color else DEFAULT_BRAND_DARK
+        gradient_from = brand
+        if getattr(org, 'slug', None) == 'santjosep':
+            gradient_to = SANT_JOSEP_YELLOW
+        elif org.secondary_color:
+            gradient_to = org.secondary_color
+        else:
+            gradient_to = brand_dark
+    else:
+        brand = DEFAULT_BRAND
+        brand_dark = DEFAULT_BRAND_DARK
+        gradient_from = DEFAULT_BRAND
+        gradient_to = DEFAULT_BRAND_GRADIENT_TO
     
     is_manager = False
     is_admin = False
@@ -57,8 +72,12 @@ def tenant_context(request):
         'tenant': org,
         'tenant_color': brand,
         'tenant_color_dark': brand_dark,
-        'tenant_color_rgb': hex_to_rgb_channels(brand, '155 127 191'),
-        'tenant_color_dark_rgb': hex_to_rgb_channels(brand_dark, '123 95 160'),
+        'tenant_color_rgb': hex_to_rgb_channels(brand, '1 105 111'),
+        'tenant_color_dark_rgb': hex_to_rgb_channels(brand_dark, '0 77 82'),
+        'tenant_gradient_from': gradient_from,
+        'tenant_gradient_to': gradient_to,
+        'tenant_gradient_from_rgb': hex_to_rgb_channels(gradient_from, '1 105 111'),
+        'tenant_gradient_to_rgb': hex_to_rgb_channels(gradient_to, '0 77 82'),
         'tenant_base_domain': get_tenant_base_domain(request),
         'build_tenant_url': lambda slug: build_tenant_url(slug, request),
         'tenant_share_image': request.build_absolute_uri(share_image_path),
