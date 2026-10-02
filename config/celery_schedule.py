@@ -27,6 +27,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'cleanup_expired_album_zips',
         'schedule': timedelta(days=1),
     },
+    # Limpieza de auditoría de avisos push (retención 90 días).
+    'cleanup-expired-web-push-audits': {
+        'task': 'cleanup_expired_web_push_audits',
+        'schedule': timedelta(days=1),
+    },
     # Recordatorio push 2 h antes del partido. Ventana de ±15 min por pasada, así
     # que una cadencia de 10 min no deja huecos.
     'send-match-reminders-2h': {

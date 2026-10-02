@@ -4,7 +4,8 @@ from django.contrib.admin.sites import AdminSite
 from django.core import mail
 from django.contrib.messages.storage.fallback import FallbackStorage
 from ilovevoley.core.email_utils import send_admin_email_to_users
-from ilovevoley.users.admin import UserAdmin
+from ilovevoley.users.admin import UserAdmin, WebPushAuditAdmin
+from ilovevoley.users.models import WebPushAudit
 
 User = get_user_model()
 
@@ -206,3 +207,25 @@ class UserAdminEmailActionTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ['carlos@example.com'])
         self.assertEqual(mail.outbox[0].subject, 'Aviso individual')
+
+
+class WebPushAuditAdminTest(TestCase):
+    """Verifica que el admin de WebPushAudit sea de solo lectura (#316)."""
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.model_admin = WebPushAuditAdmin(WebPushAudit, self.site)
+        self.factory = RequestFactory()
+        self.user = User.objects.create_superuser(
+            username='admin_audit',
+            email='audit@example.com',
+            password='password123',
+        )
+
+    def test_admin_is_read_only(self):
+        request = self.factory.get('/admin/users/webpushaudit/')
+        request.user = self.user
+
+        self.assertFalse(self.model_admin.has_add_permission(request))
+        self.assertFalse(self.model_admin.has_change_permission(request))
+        self.assertFalse(self.model_admin.has_delete_permission(request))
