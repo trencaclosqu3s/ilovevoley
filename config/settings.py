@@ -98,9 +98,6 @@ LOGOUT_REDIRECT_URL = '/'
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 
-# Suprimir mensajes automáticos de allauth
-ACCOUNT_SESSION_REMEMBER = None
-
 # Verificación de email opcional: los registros locales reciben el correo de
 # verificación, pero pueden entrar sin confirmarlo. La autenticación por email
 # de un login social solo se permite si la cuenta local verificó su email
@@ -291,6 +288,11 @@ DATABASES = {
         ),
         'HOST': env_config('DB_HOST', default='db'),
         'PORT': env_config('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': env_config('DB_CONN_MAX_AGE', default=60, cast=int),
+        'CONN_HEALTH_CHECKS': env_config('DB_CONN_HEALTH_CHECKS', default=True, cast=bool),
+        'OPTIONS': {
+            'options': f"-c statement_timeout={env_config('DB_STATEMENT_TIMEOUT', default='30000')}",
+        },
     }
 }
 
@@ -380,8 +382,8 @@ MATCH_SHARE_LINK_MAX_HOURS = env_config('MATCH_SHARE_LINK_MAX_HOURS', default=72
 ALBUM_ZIP_LINK_MAX_AGE = env_config('ALBUM_ZIP_LINK_MAX_AGE', default=24 * 3600, cast=int)
 
 # Configuración de subida de archivos
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = env_config('FILE_UPLOAD_MAX_MEMORY_SIZE', default=10 * 1024 * 1024, cast=int)  # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = env_config('DATA_UPLOAD_MAX_MEMORY_SIZE', default=60 * 1024 * 1024, cast=int)  # 60MB
 
 # Configuración para Google Vision API (opcional)
 GOOGLE_VISION_ENABLED = env_config('GOOGLE_VISION_ENABLED', default=False, cast=bool)
@@ -400,8 +402,8 @@ EMAIL_PORT = env_config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = env_config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = env_config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env_config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = env_config('DEFAULT_FROM_EMAIL', default='Admin I Love Voley <josealbertomartin@gmail.com>')
-SERVER_EMAIL = env_config('SERVER_EMAIL', default='Admin I Love Voley <josealbertomartin@gmail.com>')
+DEFAULT_FROM_EMAIL = env_config('DEFAULT_FROM_EMAIL', default='I Love Voley <notificaciones@ilovevoley.es>')
+SERVER_EMAIL = env_config('SERVER_EMAIL', default='I Love Voley <notificaciones@ilovevoley.es>')
 
 # Contacto de seguridad publicado en /.well-known/security.txt (acepta "Nombre <correo>")
 SECURITY_CONTACT_EMAIL = env_config('SECURITY_CONTACT_EMAIL', default=DEFAULT_FROM_EMAIL)
