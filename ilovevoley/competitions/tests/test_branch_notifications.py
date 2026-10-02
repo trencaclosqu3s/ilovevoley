@@ -93,8 +93,11 @@ class MatchBranchEmailFilterTest(TestCase):
 
         with override_settings(MATCH_CHANGE_NOTIFY_STAFF_ENABLED=True), patch(
             'django.core.mail.EmailMultiAlternatives.send', side_effect=[1, RuntimeError('smtp')],
-        ):
+        ) as mock_send:
             sent = notify_match_changes([log])
+
+        # Dos grupos de idioma: el segundo envío es el que falla.
+        self.assertEqual(mock_send.call_count, 2)
 
         log.refresh_from_db()
         self.assertEqual(sent, 1)
