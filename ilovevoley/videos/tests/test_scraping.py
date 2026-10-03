@@ -652,6 +652,82 @@ class ProcessJsonMatchesUnifiedTests(TestCase):
         # Total matches in DB should remain 1, no duplicate created
         self.assertEqual(Match.all_objects.count(), 1)
 
+    def test_creates_match_with_canonical_acta_url_from_relative_json_value(self):
+        """El JSON federativo sirve sólo 'acta_XXXX.html'; debe guardarse la URL canónica completa."""
+        partidos_data = [{
+            'ID': 85846,
+            'ELOCAL': 'CLUB VOLEIBOL EIVISSA',
+            'EVISITANTE': 'CD MESTRAL IBIZA VOLEY',
+            'FECHA': '03/10/2026',
+            'HORA': '12:00',
+            'TORNEO': 8246,
+            'acta_html': 'acta_10932.html',
+        }]
+
+        created, updated = self.scraper._process_json_matches_unified(
+            self.league, partidos_data, 'Juvenil', '8246', '1'
+        )
+
+        self.assertEqual(created, 1)
+        match = Match.objects.get(federation_id='85846')
+        self.assertEqual(
+            match.acta_html,
+            'https://voleibolib.federatio.com/actas/85846/acta_10932.html',
+        )
+
+    def test_updates_match_with_canonical_acta_url_and_preserves_existing(self):
+        """Normaliza el acta al actualizar y no borra el acta oficial si un JSON posterior viene sin ella."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        match_date = datetime(2026, 10, 3, 12, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=match_date,
+            federation_id='85846',
+            status='scheduled',
+        )
+
+        partidos_data = [{
+            'ID': 85846,
+            'ELOCAL': 'CLUB VOLEIBOL EIVISSA',
+            'EVISITANTE': 'CD MESTRAL IBIZA VOLEY',
+            'FECHA': '03/10/2026',
+            'HORA': '12:00',
+            'TORNEO': 8246,
+            'acta_html': 'acta_10932.html',
+        }]
+
+        self.scraper._process_json_matches_unified(
+            self.league, partidos_data, 'Juvenil', '8246', '1'
+        )
+        match.refresh_from_db()
+        self.assertEqual(
+            match.acta_html,
+            'https://voleibolib.federatio.com/actas/85846/acta_10932.html',
+        )
+
+        # Segundo scrape donde el JSON no envía acta (p. ej. campo vacío o ausente):
+        partidos_data_sin_acta = [{
+            'ID': 85846,
+            'ELOCAL': 'CLUB VOLEIBOL EIVISSA',
+            'EVISITANTE': 'CD MESTRAL IBIZA VOLEY',
+            'FECHA': '03/10/2026',
+            'HORA': '12:00',
+            'TORNEO': 8246,
+            'acta_html': '',
+        }]
+        self.scraper._process_json_matches_unified(
+            self.league, partidos_data_sin_acta, 'Juvenil', '8246', '1'
+        )
+        match.refresh_from_db()
+        self.assertEqual(
+            match.acta_html,
+            'https://voleibolib.federatio.com/actas/85846/acta_10932.html',
+        )
+
 
 # ---------------------------------------------------------------------------
 # Withdrawn team detection: evaluación una sola vez con la unión del scrape (#235)

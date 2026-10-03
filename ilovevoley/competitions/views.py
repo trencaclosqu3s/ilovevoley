@@ -352,15 +352,16 @@ def _load_set_scores_for_card(match):
     scraping de resultados y la entrada manual). Solo descarga y parsea el HTML
     como fallback para actas antiguas sin ``acta_data`` guardado.
     """
-    if match.acta_data is not None or not match.acta_html:
+    acta_url = match.official_acta_url or match.acta_html
+    if match.acta_data is not None or not acta_url:
         return match_set_scores(match)
 
-    cache_key = _acta_lineup_cache_key(match.acta_html)
+    cache_key = _acta_lineup_cache_key(acta_url)
     try:
         lineup_data = cache.get(cache_key)
         if lineup_data is None:
             acta_content = safe_get(
-                match.acta_html,
+                acta_url,
                 allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
             )
             lineup_data = parse_acta_lineup(acta_content)
@@ -816,7 +817,8 @@ def ajax_acta_lineup(request, match_id):
     except Match.DoesNotExist:
         return JsonResponse({'success': False, 'error': _('Partido no encontrado')}, status=404)
 
-    if not match.acta_html:
+    acta_url = match.official_acta_url or match.acta_html
+    if not acta_url:
         return JsonResponse({'success': False, 'error': _('Este partido no tiene acta disponible')}, status=404)
 
     # El acta se persiste en el partido: una vez parseada no se vuelve a
@@ -824,12 +826,12 @@ def ajax_acta_lineup(request, match_id):
     lineup_data = match.acta_data
     if lineup_data is None:
         # Solo se cachea el parseo correcto; los errores de red se reintentan en la siguiente petición.
-        cache_key = _acta_lineup_cache_key(match.acta_html)
+        cache_key = _acta_lineup_cache_key(acta_url)
         lineup_data = cache.get(cache_key)
         if lineup_data is None:
             try:
                 acta_content = safe_get(
-                    match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
+                    acta_url, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
                 )
             except UnsafeURL as e:
                 logger.warning(f"URL de acta rechazada para el partido {match_id}: {e}")

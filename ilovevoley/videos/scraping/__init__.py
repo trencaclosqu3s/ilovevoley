@@ -13,6 +13,7 @@ __all__ = [
     'league_max_sets',
     'parse_set_scores_string',
     'is_penalty_result',
+    'build_acta_url',
     'ScrapingError',
     'BaseParser',
     # parsers

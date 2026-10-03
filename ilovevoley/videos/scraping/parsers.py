@@ -10,7 +10,13 @@ from bs4 import BeautifulSoup
 from django.utils import timezone
 
 from ..models import League
-from .base import BaseParser, ScrapingError, parse_set_scores_string, validate_volleyball_score
+from .base import (
+    BaseParser,
+    ScrapingError,
+    build_acta_url,
+    parse_set_scores_string,
+    validate_volleyball_score,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -498,7 +504,7 @@ class JSONMatchesParser(BaseParser):
             'federation_club_local_id': federation_club_local_id,
             'federation_club_away_id': federation_club_away_id,
             'federation_id': str(partido_data.get('ID', '')),
-            'acta_html': (partido_data.get('acta_html') or '').strip(),
+            'acta_html': build_acta_url(partido_data.get('acta_html'), partido_data.get('ID')),
             'categoria': categoria_name,
             'grupo_id': grupo_id,
         }
@@ -639,7 +645,7 @@ class JSONUnifiedParser(BaseParser):
         federation_club_away_id = str(partido_data.get('ID_CLUB_VISITANTE', ''))
         
         # Información adicional
-        acta_html = (partido_data.get('acta_html') or '').strip()
+        acta_html = build_acta_url(partido_data.get('acta_html'), partido_data.get('ID'))
         comentario = (partido_data.get('COMENTARIO') or '').strip()
         resultado_web = partido_data.get('RESULTADO_WEB', False)
         

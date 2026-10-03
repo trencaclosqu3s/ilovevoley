@@ -569,6 +569,25 @@ class Match(models.Model):
         if self.federation_id and self.is_friendly:
             self.is_friendly = False  # Auto-corregir
 
+    @property
+    def official_acta_url(self) -> str:
+        """URL canónica del acta oficial en el servidor federativo."""
+        if not self.acta_html:
+            return ''
+        if self.acta_html.startswith(('http://', 'https://')):
+            return self.acta_html
+        if self.federation_id:
+            return f"https://voleibolib.federatio.com/actas/{self.federation_id}/{self.acta_html}"
+        return self.acta_html
+
+    def save(self, *args, **kwargs):
+        if self.acta_html and not self.acta_html.startswith(('http://', 'https://')) and self.federation_id:
+            self.acta_html = f"https://voleibolib.federatio.com/actas/{self.federation_id}/{self.acta_html}"
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None and 'acta_html' not in update_fields:
+                kwargs['update_fields'] = list(update_fields) + ['acta_html']
+        super().save(*args, **kwargs)
+
 
 class ScrapingEndpoint(models.Model):
     ENDPOINT_TYPES = [

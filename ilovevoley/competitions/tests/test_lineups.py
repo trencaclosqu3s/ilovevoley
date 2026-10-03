@@ -319,3 +319,53 @@ class BackfillActasCommandTests(TestCase):
         with patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.safe_get') as get:
             call_command('backfill_acta_lineups')
         get.assert_not_called()
+
+    def test_official_acta_url_resolves_canonical_url_for_relative_acta(self):
+        """Si un registro histórico contiene sólo 'acta_XXXX.html', official_acta_url debe componer el dominio oficial."""
+        # Forzar un valor relativo directo en BD evitando el save() de normalización
+        Match.all_objects.filter(pk=self.match.pk).update(
+            federation_id='85846',
+            acta_html='acta_10932.html',
+        )
+        self.match.refresh_from_db()
+        self.assertEqual(
+            self.match.official_acta_url,
+            'https://voleibolib.federatio.com/actas/85846/acta_10932.html',
+        )
+
+    def test_save_normalizes_relative_acta_html(self):
+        """Al guardar un Match con ruta relativa, save() normaliza a la URL absoluta oficial."""
+        match = Match(
+            league=self.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now(), round_number=2, status='scheduled',
+            federation_id='99999', acta_html='acta_001.html',
+        )
+        match.save()
+        match.refresh_from_db()
+        self.assertEqual(
+            match.acta_html,
+            'https://voleibolib.federatio.com/actas/99999/acta_001.html',
+        )
+
+    def test_backfill_resolves_relative_acta_url(self):
+        """El comando de backfill debe solicitar la URL oficial aunque el partido tuviera ruta relativa."""
+        Match.all_objects.filter(pk=self.match.pk).update(
+            federation_id='85846',
+            acta_html='acta_10932.html',
+        )
+        self.match.refresh_from_db()
+        data = _lineup_data(
+            home_convocados=['1 Uno'],
+            sets=[_set('Set 1', _six(1), _six(11))],
+        )
+        with patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.safe_get',
+                   return_value=b'<html></html>') as mock_safe_get, \
+                patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.parse_acta_lineup',
+                      return_value=data):
+            call_command('backfill_acta_lineups')
+
+        mock_safe_get.assert_called_once_with(
+            'https://voleibolib.federatio.com/actas/85846/acta_10932.html',
+            allowed_hosts=['federacion.example'],
+        )
+
