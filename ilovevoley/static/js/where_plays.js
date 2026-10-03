@@ -27,17 +27,18 @@
             'Cómo llegar</a>';
     }
 
-    function renderMatches(matches) {
+    function renderMatches(matches, showSide) {
         return matches.map(function (match) {
             const when = escapeHtml(match.date) + (match.has_time ? ' · ' + escapeHtml(match.time) : ' · hora por confirmar');
+            const side = (showSide && match.is_home !== undefined) ?
+                '<span class="text-xs text-gray-500 dark:text-gray-400">' + (match.is_home ? 'Local' : 'Visitante') + '</span>' : '';
             return '<li class="border-t border-gray-200 dark:border-gray-700 pt-3">' +
                 '<div class="flex items-center justify-between gap-2">' +
                     '<span class="text-sm font-semibold text-csj-purple dark:text-csj-yellow">' + when + '</span>' +
-                    '<span class="text-xs text-gray-500 dark:text-gray-400">' + (match.is_home ? 'Local' : 'Visitante') + '</span>' +
+                    side +
                 '</div>' +
                 '<p class="text-gray-800 dark:text-gray-200">' + escapeHtml(match.home_name) + ' vs ' + escapeHtml(match.away_name) + '</p>' +
-                '<p class="text-sm text-gray-500 dark:text-gray-400">' + escapeHtml(match.location_text) + '</p>' +
-                venueLink(match.maps_url) +
+                (showSide ? '<p class="text-sm text-gray-500 dark:text-gray-400">' + escapeHtml(match.location_text) + '</p>' + venueLink(match.maps_url) : '') +
             '</li>';
         }).join('');
     }
@@ -51,10 +52,29 @@
         '</div>';
     }
 
+    function renderVenueCard(venue) {
+        const address = venue.street || venue.address;
+        let body = '';
+        if (venue.matches && venue.matches.length) {
+            body = '<ul class="mt-3 space-y-3">' + renderMatches(venue.matches, false) + '</ul>';
+        }
+        return '<article class="bg-white dark:bg-gray-800 rounded-xl shadow border-l-4 border-csj-yellow p-4">' +
+            '<div class="flex items-center justify-between gap-2">' +
+                '<h2 class="text-lg font-bold text-gray-800 dark:text-gray-200">' + escapeHtml(venue.name) + '</h2>' +
+                '<span class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Sede</span>' +
+            '</div>' +
+            (venue.city ? '<p class="text-sm text-gray-500 dark:text-gray-400">' + escapeHtml(venue.city) + '</p>' : '') +
+            (address ? '<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">' + escapeHtml(address) + '</p>' : '') +
+            venueLink(venue.maps_url) +
+            body +
+        '</article>';
+    }
+
     function renderCard(result) {
+        if (result.type === 'venue') return renderVenueCard(result);
         let body;
         if (result.matches && result.matches.length) {
-            body = '<ul class="mt-3 space-y-3">' + renderMatches(result.matches) + '</ul>';
+            body = '<ul class="mt-3 space-y-3">' + renderMatches(result.matches, true) + '</ul>';
         } else if (result.default_venue) {
             body = renderDefaultVenue(result.default_venue);
         } else {
@@ -70,7 +90,7 @@
         '</article>';
     }
 
-    const emptyMessage = '<p class="text-center text-gray-500 dark:text-gray-400 py-6">No se han encontrado equipos.</p>';
+    const emptyMessage = '<p class="text-center text-gray-500 dark:text-gray-400 py-6">No se han encontrado resultados.</p>';
     const errorMessage = '<p class="text-center text-gray-500 dark:text-gray-400 py-6">No se ha podido buscar. Inténtalo de nuevo.</p>';
 
     let timer = null;

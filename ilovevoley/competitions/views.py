@@ -51,7 +51,7 @@ from .models import League, Match, MatchChangeLog, MatchShareLink, Standing
 from .services.lineups import resolve_acta_team, store_match_lineups
 from .services.notifications import notify_match_result
 from .services.sets import extract_set_scores, match_set_scores
-from .services.where_plays import MIN_QUERY_LENGTH, search_team_locations
+from .services.where_plays import MIN_QUERY_LENGTH, search_locations
 from .share import (
     ALLOWED_HOURS,
     create_match_share_link,
@@ -1215,7 +1215,7 @@ def public_match_media(request, token, image_id):
 
 
 def where_plays(request):
-    """Página pública "¿Dónde juega el rival?": sede de los próximos partidos.
+    """Página pública "Sedes y pabellones": equipos, próximos partidos y sedes.
 
     No requiere autenticación; se acota a la organización resuelta por el
     subdominio (``request.tenant``). El buscador funciona sin JS (envío normal
@@ -1226,7 +1226,7 @@ def where_plays(request):
         return redirect('landing')
 
     query = (request.GET.get('q') or '').strip()
-    results = search_team_locations(tenant, query) if len(query) >= MIN_QUERY_LENGTH else []
+    results = search_locations(tenant, query) if len(query) >= MIN_QUERY_LENGTH else []
     return render(request, 'competitions/where_plays.html', {
         'query': query,
         'results': results,
@@ -1235,7 +1235,7 @@ def where_plays(request):
 
 
 def where_plays_search(request):
-    """Endpoint JSON del buscador en vivo de "¿Dónde juega el rival?"."""
+    """Endpoint JSON del buscador en vivo de "Sedes y pabellones"."""
     tenant = getattr(request, 'tenant', None)
     if tenant is None:
         return JsonResponse({'results': []})
@@ -1243,7 +1243,7 @@ def where_plays_search(request):
     query = (request.GET.get('q') or '').strip()
     if len(query) < MIN_QUERY_LENGTH:
         return JsonResponse({'results': [], 'min_query_length': MIN_QUERY_LENGTH})
-    return JsonResponse({'results': search_team_locations(tenant, query)})
+    return JsonResponse({'results': search_locations(tenant, query)})
 
 
 @tenant_access_required(manager=True)
