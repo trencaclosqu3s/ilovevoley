@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -253,6 +253,10 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertEqual(len(response.context['leagues']), 1)
 
         season = Season.objects.resolve('2026-2027')
+        rival_extra = Team.objects.create(
+            name='Rival Third Party', category=self.category,
+            federation_id='RIVAL-TP', is_active=True,
+        )
         for i in range(3):
             rival = Team.objects.create(
                 name=f'Rival Extra {i}', category=self.category,
@@ -270,10 +274,22 @@ class CompetitionsViewUrlTests(TestCase):
             Standing.objects.create(
                 league=lg, team=self.team, position=1, played=1, won=1, total_points=3,
             )
+            # Partido retirado (no debe contar en matches_count)
+            Match.objects.create(
+                league=lg, home_team=self.team, away_team=rival,
+                match_date=timezone.now() - timedelta(days=10),
+                round_number=99, status='withdrawn',
+            )
+            # Partido entre rivales ajenos al club (no debe seleccionarse como próximo partido)
+            Match.objects.create(
+                league=lg, home_team=rival, away_team=rival_extra,
+                match_date=timezone.now() + timedelta(hours=1),
+                round_number=0, status='scheduled',
+            )
             for m_idx in range(4):
                 Match.objects.create(
                     league=lg, home_team=self.team, away_team=rival,
-                    match_date=timezone.now() + timezone.timedelta(days=m_idx + 1),
+                    match_date=timezone.now() + timedelta(days=m_idx + 1),
                     round_number=m_idx + 1, status='scheduled',
                     is_friendly=(m_idx % 2 == 1),
                 )
@@ -282,6 +298,13 @@ class CompetitionsViewUrlTests(TestCase):
             response2 = self.client.get(url, params, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(len(response2.context['leagues']), 4)
         self.assertEqual(len(ctx2), baseline)
+
+        # Verificar que el partido retirado no se cuenta en matches_count (4 + 1 ajeno = 5)
+        extra_league = next(l for l in response2.context['leagues'] if l.name == 'Liga Extra 0')
+        self.assertEqual(extra_league.matches_count, 5)
+        # Verificar que el próximo partido oficial mostrado es del club y no el del rival ajeno
+        self.assertIsNotNone(extra_league.next_official_match)
+        self.assertIn('Test Club Senior', extra_league.next_official_match.home_team_display)
 
     def test_acta_lineup_is_fetched_once_and_cached(self):
         self.client.force_login(self.user)

@@ -12,7 +12,10 @@ from django.core.paginator import Paginator
 from django.core.cache import cache
 from django.db import transaction
 from django.urls import reverse
-from django.db.models import Case, CharField, Count, Exists, OuterRef, Q, Value, When
+from django.db.models import (
+    Case, CharField, Count, Exists, IntegerField, OuterRef, Q, Subquery, Value, When,
+)
+from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -147,11 +150,33 @@ def league_list(request):
     if not show_past:
         leagues = leagues.filter(has_pending_subquery)
 
+    matches_count_subquery = Coalesce(
+        Subquery(
+            Match.objects.filter(league=OuterRef('pk'))
+            .values('league')
+            .annotate(c=Count('*'))
+            .values('c'),
+            output_field=IntegerField(),
+        ),
+        0,
+    )
+
+    standings_count_subquery = Coalesce(
+        Subquery(
+            Standing.objects.filter(league=OuterRef('pk'))
+            .values('league')
+            .annotate(c=Count('*'))
+            .values('c'),
+            output_field=IntegerField(),
+        ),
+        0,
+    )
+
     # Ordenar: ligas oficiales primero, luego amistosas, y por nombre dentro de cada tipo
     leagues = leagues.annotate(
         has_pending_matches_annotated=has_pending_subquery,
-        matches_count=Count('matches', distinct=True),
-        standings_count=Count('standings', distinct=True),
+        matches_count=matches_count_subquery,
+        standings_count=standings_count_subquery,
         sort_priority=Case(
             When(competition_type='friendly', then=Value(2)),
             default=Value(1),
@@ -163,24 +188,23 @@ def league_list(request):
     league_ids = [l.id for l in leagues_list]
     if league_ids:
         club_q = get_club_team_filter(request.tenant)
+        matches_qs = Match.objects.filter(
+            league_id__in=league_ids,
+            status='scheduled',
+        ).filter(club_q)
+        if not show_friendly:
+            matches_qs = matches_qs.filter(is_friendly=False)
+
         upcoming_matches = (
-            Match.objects.filter(
-                league_id__in=league_ids,
-                status='scheduled',
-            )
-            .filter(club_q)
+            matches_qs
             .select_related('home_team', 'away_team')
             .order_by('match_date')
         )
         next_official = {}
         next_friendly = {}
         for match in upcoming_matches:
-            if not match.is_friendly:
-                if match.league_id not in next_official:
-                    next_official[match.league_id] = match
-            else:
-                if match.league_id not in next_friendly:
-                    next_friendly[match.league_id] = match
+            target = next_friendly if match.is_friendly else next_official
+            target.setdefault(match.league_id, match)
 
         for league in leagues_list:
             league.next_official_match = next_official.get(league.id)

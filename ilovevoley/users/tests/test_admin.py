@@ -273,16 +273,16 @@ class UserAdminQueryCountTests(TestCase):
             response = self.client.get('/admin/users/user/')
         self.assertEqual(response.status_code, 200)
 
-        # Con get_queryset anotado, no debe haber queries individuales por fila para contar hijos (contra videos_person)
+        from ilovevoley.rosters.models import Person
+        person_table = Person._meta.db_table
         individual_person_queries = [
             q['sql'] for q in ctx.captured_queries
-            if 'videos_person' in q['sql'].lower()
+            if person_table in q['sql'].lower()
         ]
         self.assertEqual(len(individual_person_queries), 0)
 
         # Verificar que el número de queries es constante al añadir más usuarios
         base_query_count = len(ctx.captured_queries)
-        from ilovevoley.rosters.models import Person
         p = Person.objects.first()
         for i in range(10, 20):
             u = User.objects.create_user(
