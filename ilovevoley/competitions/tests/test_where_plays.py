@@ -235,6 +235,25 @@ class VenueSearchServiceTests(TestCase):
         ]
         self.assertEqual(len(match_queries), 1)
 
+    def test_noisy_venue_does_not_starve_other_venues(self):
+        """Una sede con muchos partidos tempranos no debe consumir el cupo de las
+        demás: el límite es por sede (ROW_NUMBER particionado), no global."""
+        extra = Venue.objects.create(name='Pav. Test Altre', city='Ciutatprova')
+        for days in range(2, 7):
+            Match.objects.create(
+                league=self.league, home_team=self.team, away_team=self.rival,
+                match_date=timezone.now() + timedelta(days=days),
+                venue_ref=self.venue, round_number=days, status='scheduled',
+            )
+        Match.objects.create(
+            league=self.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now() + timedelta(days=30),
+            venue_ref=extra, round_number=20, status='scheduled',
+        )
+        results = {r['name']: r for r in search_venues(self.org, 'Ciutatprova')}
+        self.assertEqual(len(results['Pav. Test Ciutatprova']['matches']), 5)
+        self.assertEqual(len(results['Pav. Test Altre']['matches']), 1)
+
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'ilovevoley.es'])
 class WherePlaysViewTests(TestCase):

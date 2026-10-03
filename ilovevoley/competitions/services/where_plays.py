@@ -11,7 +11,8 @@ Devuelve dos tipos de coincidencias:
   se disputan allí dentro de las ligas del tenant.
 """
 
-from django.db.models import Q
+from django.db.models import Q, Window
+from django.db.models.functions import RowNumber
 from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match, Venue
@@ -187,19 +188,27 @@ def search_venues(
     if league_ids:
         now = timezone.now()
         venue_ids = [venue.id for venue in venues]
-        upcoming = (
+        # ROW_NUMBER() por sede: limita a ``max_matches`` los partidos de cada
+        # pabellón sin que una sede ruidosa consuma el cupo de las demás.
+        ranked = (
             Match.objects.filter(
                 venue_ref_id__in=venue_ids,
                 league_id__in=league_ids,
                 match_date__gte=now,
             )
+            .annotate(
+                row_number=Window(
+                    expression=RowNumber(),
+                    partition_by=['venue_ref_id'],
+                    order_by='match_date',
+                ),
+            )
+            .filter(row_number__lte=max_matches)
             .select_related('home_team', 'away_team', 'venue_ref')
-            .order_by('match_date')[:max_venues * max_matches]
+            .order_by('match_date')
         )
-        for match in upcoming:
-            bucket = matches_by_venue.setdefault(match.venue_ref_id, [])
-            if len(bucket) < max_matches:
-                bucket.append(match)
+        for match in ranked:
+            matches_by_venue.setdefault(match.venue_ref_id, []).append(match)
 
     results = []
     for venue in venues:
