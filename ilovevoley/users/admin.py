@@ -67,8 +67,8 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     change_password_form = AdminPasswordChangeForm
-    list_display = ['username', 'email', 'first_name', 'last_name', 'parent_info_short', 'children_count', 'approval_status', 'is_staff', 'date_joined']
-    list_filter = ['is_approved', 'is_staff', 'is_superuser', 'is_active', 'date_joined']
+    list_display = ['username', 'email', 'first_name', 'last_name', 'parent_info_short', 'children_count', 'approval_status', 'is_staff', 'last_login', 'date_joined']
+    list_filter = ['is_approved', 'is_staff', 'is_superuser', 'is_active', 'last_login', 'date_joined']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'parent_info']
     filter_horizontal = ['children']
     
