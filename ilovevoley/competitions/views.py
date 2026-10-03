@@ -12,7 +12,7 @@ from django.core.paginator import Paginator
 from django.core.cache import cache
 from django.db import transaction
 from django.urls import reverse
-from django.db.models import Case, CharField, Count, Q, Value, When
+from django.db.models import Case, CharField, Count, Exists, OuterRef, Q, Value, When
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -108,7 +108,11 @@ def build_calendar_matches_payload(matches, club_team_name):
 @tenant_access_required()
 def league_list(request):
     """Vista para mostrar todas las ligas disponibles"""
-    leagues = League.objects.for_tenant(request.tenant).prefetch_related('matches__videos')
+    leagues = (
+        League.objects.for_tenant(request.tenant)
+        .select_related('season')
+        .prefetch_related('categories')
+    )
     categories = Category.objects.filter(is_active=True).order_by('name')
 
     # Variable para controlar si mostrar todo el contenido
@@ -130,17 +134,24 @@ def league_list(request):
         # Excluir ligas de partidos amistosos
         leagues = leagues.exclude(competition_type='friendly')
 
+    now = timezone.now()
+    has_pending_subquery = Exists(
+        Match.objects.filter(
+            league=OuterRef('pk'),
+            status__in=['scheduled', 'in_progress'],
+            match_date__gte=now,
+        )
+    )
+
     # Filtrar ligas pasadas si no se quiere mostrar
     if not show_past:
-        # Solo mostrar ligas con partidos pendientes
-        now = timezone.now()
-        leagues = leagues.filter(
-            matches__status__in=['scheduled', 'in_progress'],
-            matches__match_date__gte=now
-        ).distinct()
+        leagues = leagues.filter(has_pending_subquery)
 
     # Ordenar: ligas oficiales primero, luego amistosas, y por nombre dentro de cada tipo
     leagues = leagues.annotate(
+        has_pending_matches_annotated=has_pending_subquery,
+        matches_count=Count('matches', distinct=True),
+        standings_count=Count('standings', distinct=True),
         sort_priority=Case(
             When(competition_type='friendly', then=Value(2)),
             default=Value(1),
@@ -148,8 +159,35 @@ def league_list(request):
         )
     ).order_by('sort_priority', 'name')
 
+    leagues_list = list(leagues)
+    league_ids = [l.id for l in leagues_list]
+    if league_ids:
+        club_q = get_club_team_filter(request.tenant)
+        upcoming_matches = (
+            Match.objects.filter(
+                league_id__in=league_ids,
+                status='scheduled',
+            )
+            .filter(club_q)
+            .select_related('home_team', 'away_team')
+            .order_by('match_date')
+        )
+        next_official = {}
+        next_friendly = {}
+        for match in upcoming_matches:
+            if not match.is_friendly:
+                if match.league_id not in next_official:
+                    next_official[match.league_id] = match
+            else:
+                if match.league_id not in next_friendly:
+                    next_friendly[match.league_id] = match
+
+        for league in leagues_list:
+            league.next_official_match = next_official.get(league.id)
+            league.next_friendly_match = next_friendly.get(league.id)
+
     return render(request, 'competitions/league_list.html', {
-        'leagues': leagues,
+        'leagues': leagues_list,
         'categories': categories,
         'selected_category': category_filter,
         'show_all': show_all,

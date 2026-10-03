@@ -244,6 +244,45 @@ class CompetitionsViewUrlTests(TestCase):
         names = {team['name'] for team in response.json()['teams']}
         self.assertEqual(names, {'Test Club Senior', 'Test Club Senior 0', 'Test Club Senior 1', 'Test Club Senior 2'})
 
+    def test_league_list_queries_do_not_grow_with_leagues_or_matches(self):
+        """Verifica que el listado de ligas no sufra N+1 al crecer ligas y partidos (#Sentry 150560754)."""
+        self.client.force_login(self.user)
+        url = reverse('competitions:league_list')
+        params = {'show_friendly': '1', 'show_past': '1'}
+        baseline, response = self._count_queries(url, params)
+        self.assertEqual(len(response.context['leagues']), 1)
+
+        season = Season.objects.resolve('2026-2027')
+        for i in range(3):
+            rival = Team.objects.create(
+                name=f'Rival Extra {i}', category=self.category,
+                federation_id=f'RIVAL-EXTRA-{i}', is_active=True,
+            )
+            lg = League.objects.create(
+                name=f'Liga Extra {i}',
+                federation_id=f'LEAGUE-EXTRA-{i}',
+                season=season,
+                is_active=True,
+                visibility_type='main',
+                is_our_team_related=True,
+            )
+            lg.categories.add(self.category)
+            Standing.objects.create(
+                league=lg, team=self.team, position=1, played=1, won=1, total_points=3,
+            )
+            for m_idx in range(4):
+                Match.objects.create(
+                    league=lg, home_team=self.team, away_team=rival,
+                    match_date=timezone.now() + timezone.timedelta(days=m_idx + 1),
+                    round_number=m_idx + 1, status='scheduled',
+                    is_friendly=(m_idx % 2 == 1),
+                )
+
+        with CaptureQueriesContext(connection) as ctx2:
+            response2 = self.client.get(url, params, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(len(response2.context['leagues']), 4)
+        self.assertEqual(len(ctx2), baseline)
+
     def test_acta_lineup_is_fetched_once_and_cached(self):
         self.client.force_login(self.user)
         self.match.acta_html = 'https://federacion.example/acta/1'

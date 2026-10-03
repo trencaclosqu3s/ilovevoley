@@ -188,6 +188,8 @@ class League(models.Model):
     @property
     def has_pending_matches(self):
         """Indica si la liga tiene partidos pendientes (programados o en curso)"""
+        if hasattr(self, 'has_pending_matches_annotated'):
+            return bool(self.has_pending_matches_annotated)
         from django.utils import timezone
         now = timezone.now()
         return self.matches.filter(
@@ -213,6 +215,13 @@ class League(models.Model):
     def is_past_league(self):
         """Indica si la liga es del pasado (sin partidos pendientes)"""
         return not self.has_pending_matches
+
+    @property
+    def has_standings(self):
+        """Indica si la liga tiene registros de clasificación"""
+        if hasattr(self, 'standings_count'):
+            return self.standings_count > 0
+        return self.standings.exists()
 
     @property
     def is_phase(self):

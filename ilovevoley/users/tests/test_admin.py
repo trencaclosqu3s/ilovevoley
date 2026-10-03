@@ -241,3 +241,59 @@ class WebPushAuditAdminTest(TestCase):
         self.assertFalse(self.model_admin.has_add_permission(request_admin))
         self.assertFalse(self.model_admin.has_change_permission(request_admin))
         self.assertTrue(self.model_admin.has_delete_permission(request_admin))
+
+
+class UserAdminQueryCountTests(TestCase):
+    """Verifica que el changelist de UserAdmin no sufra N+1 al mostrar children_count (#Sentry 150552493)."""
+
+    def setUp(self):
+        from ilovevoley.rosters.models import Person
+        self.superuser = User.objects.create_superuser(
+            username='admin_qc',
+            email='admin_qc@example.com',
+            password='password123',
+        )
+        p1 = Person.objects.create(first_name='Hijo', last_name='Uno')
+        p2 = Person.objects.create(first_name='Hijo', last_name='Dos')
+
+        for i in range(5):
+            u = User.objects.create_user(
+                username=f'parent_{i}',
+                email=f'parent_{i}@example.com',
+                password='password123',
+            )
+            u.children.add(p1, p2)
+
+    def test_changelist_does_not_n_plus_one_on_children_count(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        self.client.force_login(self.superuser)
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get('/admin/users/user/')
+        self.assertEqual(response.status_code, 200)
+
+        # Con get_queryset anotado, no debe haber queries individuales por fila para contar hijos (contra videos_person)
+        individual_person_queries = [
+            q['sql'] for q in ctx.captured_queries
+            if 'videos_person' in q['sql'].lower()
+        ]
+        self.assertEqual(len(individual_person_queries), 0)
+
+        # Verificar que el número de queries es constante al añadir más usuarios
+        base_query_count = len(ctx.captured_queries)
+        from ilovevoley.rosters.models import Person
+        p = Person.objects.first()
+        for i in range(10, 20):
+            u = User.objects.create_user(
+                username=f'extra_parent_{i}',
+                email=f'extra_{i}@example.com',
+                password='password123',
+            )
+            u.children.add(p)
+
+        with CaptureQueriesContext(connection) as ctx2:
+            response2 = self.client.get('/admin/users/user/')
+        self.assertEqual(response2.status_code, 200)
+        self.assertEqual(len(ctx2.captured_queries), base_query_count)
+
