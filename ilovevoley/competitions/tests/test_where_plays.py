@@ -1,7 +1,9 @@
 from datetime import timedelta
 
 from django.core.cache import cache
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -224,8 +226,14 @@ class VenueSearchServiceTests(TestCase):
             match_date=timezone.now() + timedelta(days=5), venue_ref=extra,
             round_number=2, status='scheduled',
         )
-        with self.assertNumQueries(6):
-            search_venues(self.org, 'Ciutatprova')
+        with CaptureQueriesContext(connection) as ctx:
+            results = search_venues(self.org, 'Ciutatprova')
+        self.assertEqual(len(results), 2)
+        match_queries = [
+            q for q in ctx.captured_queries
+            if 'videos_match' in q['sql'] and '"venue_ref_id"' in q['sql']
+        ]
+        self.assertEqual(len(match_queries), 1)
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'ilovevoley.es'])

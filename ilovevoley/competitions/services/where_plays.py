@@ -194,7 +194,7 @@ def search_venues(
                 match_date__gte=now,
             )
             .select_related('home_team', 'away_team', 'venue_ref')
-            .order_by('match_date')
+            .order_by('match_date')[:max_venues * max_matches]
         )
         for match in upcoming:
             bucket = matches_by_venue.setdefault(match.venue_ref_id, [])
