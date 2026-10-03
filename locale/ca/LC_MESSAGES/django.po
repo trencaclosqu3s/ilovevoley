@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-03 23:50+0200\n"
+"POT-Creation-Date: 2026-10-04 00:19+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -18,64 +18,64 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #
-#: config/settings.py:554
+#: config/settings.py:555
 msgid "Panel de administración"
 msgstr "Panell d'administració"
 
-#: config/settings.py:562
+#: config/settings.py:563
 msgid "Ir al sitio web"
 msgstr "Anar al lloc web"
 
 #
-#: config/settings.py:567
+#: config/settings.py:568
 msgid "Galería de fotos"
 msgstr "Galeria de fotos"
 
 #
-#: config/settings.py:572 ilovevoley/users/tests/test_i18n.py:119
+#: config/settings.py:573 ilovevoley/users/tests/test_i18n.py:119
 msgid "Calendario de partidos"
 msgstr "Calendari de partits"
 
-#: config/settings.py:625
+#: config/settings.py:626
 msgid "Inicio"
 msgstr "Inici"
 
-#: config/settings.py:629
+#: config/settings.py:630
 msgid "Panel principal"
 msgstr "Tauler principal"
 
-#: config/settings.py:636 ilovevoley/content/admin/content.py:64
+#: config/settings.py:637 ilovevoley/content/admin/content.py:64
 #: ilovevoley/templates/includes/navbar.html:165
 #: ilovevoley/templates/includes/navbar.html:448
 msgid "Moderación"
 msgstr "Moderació"
 
 #
-#: config/settings.py:641
+#: config/settings.py:642
 msgid "Fotos pendientes"
 msgstr "Fotos pendents"
 
 #
-#: config/settings.py:648
+#: config/settings.py:649
 msgid "Usuarios pendientes"
 msgstr "Usuaris pendents"
 
 #
-#: config/settings.py:655
+#: config/settings.py:656
 msgid "Membresías pendientes"
 msgstr "Membresies pendents"
 
 #
-#: config/settings.py:664
+#: config/settings.py:665
 msgid "Contenido"
 msgstr "Contingut"
 
 #
-#: config/settings.py:668
+#: config/settings.py:669
 msgid "Todas las fotos"
 msgstr "Totes les fotos"
 
-#: config/settings.py:673
+#: config/settings.py:674
 #: ilovevoley/competitions/templates/competitions/league_detail.html:65
 #: ilovevoley/competitions/templates/competitions/league_detail.html:378
 #: ilovevoley/competitions/templates/competitions/league_list.html:271
@@ -87,7 +87,7 @@ msgstr "Totes les fotos"
 msgid "Videos"
 msgstr "Vídeos"
 
-#: config/settings.py:678 ilovevoley/competitions/models/competitions.py:506
+#: config/settings.py:679 ilovevoley/competitions/models/competitions.py:506
 #: ilovevoley/competitions/templates/competitions/league_detail.html:53
 #: ilovevoley/competitions/templates/competitions/league_detail.html:77
 #: ilovevoley/competitions/templates/competitions/league_list.html:152
@@ -95,16 +95,16 @@ msgid "Partidos"
 msgstr "Partits"
 
 #
-#: config/settings.py:685
+#: config/settings.py:686
 msgid "Club y plantilla"
 msgstr "Club i plantilla"
 
-#: config/settings.py:689 ilovevoley/templates/includes/navbar.html:141
+#: config/settings.py:690 ilovevoley/templates/includes/navbar.html:141
 #: ilovevoley/templates/includes/navbar.html:330
 msgid "Personas"
 msgstr "Persones"
 
-#: config/settings.py:694
+#: config/settings.py:695
 #: ilovevoley/competitions/templates/competitions/league_detail.html:58
 #: ilovevoley/competitions/templates/competitions/league_list.html:157
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:141
@@ -113,22 +113,22 @@ msgid "Equipos"
 msgstr "Equips"
 
 #
-#: config/settings.py:699 ilovevoley/competitions/models/competitions.py:672
+#: config/settings.py:700 ilovevoley/competitions/models/competitions.py:672
 msgid "Clasificaciones"
 msgstr "Classificacions"
 
-#: config/settings.py:704 ilovevoley/content/admin/content.py:102
+#: config/settings.py:705 ilovevoley/content/admin/content.py:102
 #: ilovevoley/content/forms.py:201 ilovevoley/core/models.py:174
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:57
 msgid "Categorías"
 msgstr "Categories"
 
 #
-#: config/settings.py:711
+#: config/settings.py:712
 msgid "Competiciones"
 msgstr "Competicions"
 
-#: config/settings.py:715 ilovevoley/competitions/models/competitions.py:182
+#: config/settings.py:716 ilovevoley/competitions/models/competitions.py:182
 #: ilovevoley/competitions/templates/competitions/league_list.html:4
 #: ilovevoley/competitions/templates/competitions/league_list.html:16
 #: ilovevoley/competitions/templates/competitions/match_detail.html:628
@@ -138,43 +138,43 @@ msgid "Ligas"
 msgstr "Lligues"
 
 #
-#: config/settings.py:720 ilovevoley/core/models.py:119
+#: config/settings.py:721 ilovevoley/core/models.py:119
 msgid "Temporadas"
 msgstr "Temporades"
 
-#: config/settings.py:725 ilovevoley/teams/models/teams.py:38
+#: config/settings.py:726 ilovevoley/teams/models/teams.py:38
 msgid "Clubes"
 msgstr "Clubs"
 
 #
-#: config/settings.py:732
+#: config/settings.py:733
 msgid "Usuarios"
 msgstr "Usuaris"
 
 #
-#: config/settings.py:736
+#: config/settings.py:737
 msgid "Todos los usuarios"
 msgstr "Tots els usuaris"
 
-#: config/settings.py:741 ilovevoley/users/models.py:145
+#: config/settings.py:742 ilovevoley/users/models.py:157
 msgid "Membresías"
 msgstr "Membresies"
 
-#: config/settings.py:748
+#: config/settings.py:749
 msgid "Sistema"
 msgstr "Sistema"
 
 #
-#: config/settings.py:752 ilovevoley/core/models.py:244
+#: config/settings.py:753 ilovevoley/core/models.py:244
 msgid "Organizaciones"
 msgstr "Organitzacions"
 
 #
-#: config/settings.py:758
+#: config/settings.py:759
 msgid "Tareas programadas"
 msgstr "Tasques programades"
 
-#: config/settings.py:764
+#: config/settings.py:765
 msgid "Endpoints de scraping"
 msgstr "Endpoints d'scraping"
 
@@ -4874,6 +4874,7 @@ msgstr "👨‍👩‍👧‍👦 Informació Familiar:"
 #: ilovevoley/templates/emails/new_membership_pending.html:22
 #: ilovevoley/templates/emails/new_user_pending.html:23
 #: ilovevoley/templates/emails/user_approved.html:41
+#: ilovevoley/templates/emails/user_inactivity_warning.html:54
 #: ilovevoley/templates/moderation_confirm.html:36
 #: ilovevoley/templates/moderation_result.html:33
 msgid "Email:"
@@ -6736,6 +6737,7 @@ msgstr "L'entrenador està donant indicacions a l'equip 📋"
 #: ilovevoley/templates/account/login.html:4
 #: ilovevoley/templates/account/login.html:12
 #: ilovevoley/templates/account/password_reset_from_key_done.html:48
+#: ilovevoley/templates/users/deactivate_account_invalid.html:23
 msgid "Iniciar Sesión"
 msgstr "Iniciar Sessió"
 
@@ -6977,8 +6979,8 @@ msgstr ""
 msgid "Crear Cuenta"
 msgstr "Crear compte"
 
-#: ilovevoley/templates/account/signup.html:26 ilovevoley/users/models.py:200
-#: ilovevoley/users/models.py:242
+#: ilovevoley/templates/account/signup.html:26 ilovevoley/users/models.py:212
+#: ilovevoley/users/models.py:254
 msgid "Usuario"
 msgstr "Usuari"
 
@@ -7871,6 +7873,7 @@ msgstr ""
 #: ilovevoley/templates/emails/image_approved.html:14
 #: ilovevoley/templates/emails/image_rejected.html:14
 #: ilovevoley/templates/emails/user_approved.html:14
+#: ilovevoley/templates/emails/user_inactivity_warning.html:33
 #: ilovevoley/templates/emails/user_rejected.html:9
 #, python-format
 msgid "Hola %(name)s,"
@@ -8145,6 +8148,7 @@ msgstr "Informació de l'usuari:"
 #
 #: ilovevoley/templates/emails/image_pending.html:49
 #: ilovevoley/templates/emails/user_approved.html:37
+#: ilovevoley/templates/emails/user_inactivity_warning.html:50
 #: ilovevoley/templates/emails/vision_api_error.html:14
 #: ilovevoley/templates/moderation_confirm.html:35
 #: ilovevoley/templates/moderation_result.html:32
@@ -8830,6 +8834,114 @@ msgstr ""
 "Esperem que gaudeixis explorant el nostre contingut i compartint la teva "
 "passió pel voleibol."
 
+#: ilovevoley/templates/emails/user_inactivity_warning.html:6
+msgid "Último aviso: Tu cuenta en %(site_name)s se desactivará pronto"
+msgstr "Darrer avís: El teu compte a {{ site_name }} es desactivarà aviat"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:8
+msgid "Aviso de inactividad de tu cuenta en %(site_name)s"
+msgstr "Avís d'inactivitat del teu compte a {{ site_name }}"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:14
+msgid "⚠️ Último aviso de desactivación por inactividad"
+msgstr "⚠️ Darrer avís de desactivació per inactivitat"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:16
+msgid "Aviso de inactividad de tu cuenta"
+msgstr "Avís d'inactivitat del teu compte"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:23
+msgid "⚠️ Tu cuenta se desactivará en %(days)s días"
+msgstr "⚠️ El teu compte es desactivarà en {{ days }} dies"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:24
+msgid ""
+"Han pasado casi 12 meses desde tu último acceso a <strong>%(site_name)s</"
+"strong>. Si no inicias sesión en los próximos %(days)s días, tu cuenta será "
+"desactivada automáticamente por inactividad."
+msgstr ""
+"Han passat gairebé 12 mesos des del teu darrer accés a "
+"<strong>{{ site_name }}</strong>. Si no inicies sessió en els propers "
+"{{ days }} dies, el teu compte serà desactivat automàticament per "
+"inactivitat."
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:28
+msgid "⏳ Tu cuenta se desactivará en %(days)s días"
+msgstr "⏳ El teu compte es desactivarà en {{ days }} dies"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:29
+msgid ""
+"Hemos detectado que hace 11 meses que no accedes a <strong>%(site_name)s</"
+"strong>. Si no inicias sesión en los próximos %(days)s días, tu cuenta será "
+"desactivada automáticamente para mantener la plataforma limpia y segura."
+msgstr ""
+"Hem detectat que fa 11 mesos que no accedeixes a <strong>{{ site_name }}</"
+"strong>. Si no inicies sessió en els propers {{ days }} dies, el teu compte "
+"serà desactivat automàticament per mantenir la plataforma neta i segura."
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:35
+msgid ""
+"Queremos informarte de que, como parte de nuestra política de mantenimiento "
+"y protección de datos, procedemos a desactivar las cuentas que llevan un año "
+"completo sin actividad."
+msgstr ""
+"Et volem informar que, com a part de la nostra política de manteniment i "
+"protecció de dades, procedim a desactivar els comptes que porten un any "
+"sencer sense activitat."
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:37
+msgid ""
+"¿Quieres seguir formando parte de nuestra comunidad? ¡Es muy fácil mantener "
+"tu cuenta!"
+msgstr ""
+"Vols continuar formant part de la nostra comunitat? És molt fàcil mantenir "
+"el teu compte!"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:38
+msgid ""
+"Basta con que hagas clic en el siguiente botón e inicies sesión con tu "
+"usuario y contraseña (o con Google si registraste tu cuenta con Gmail):"
+msgstr ""
+"Només cal que facis clic en el botó següent i iniciïs sessió amb el teu "
+"usuari i contrasenya (o amb Google si vas registrar el teu compte amb Gmail):"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:42
+msgid "🏐 Mantener mi cuenta activa"
+msgstr "🏐 Mantenir el meu compte actiu"
+
+#
+#: ilovevoley/templates/emails/user_inactivity_warning.html:47
+msgid "📋 Datos de tu cuenta"
+msgstr "📋 Informació del teu compte"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:58
+msgid "Último acceso registrado:"
+msgstr "Darrer accés registrat:"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:63
+msgid "Sin accesos previos (registrado el "
+msgstr "Sense accessos previs (registrat el "
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:68
+msgid "Fecha límite de acceso:"
+msgstr "Data límit d'accés:"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:76
+msgid "¿Ya no estás en el club o prefieres no continuar?"
+msgstr "Ja no ets al club o prefereixes no continuar?"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:77
+msgid ""
+"Si deseas dar de baja tu cuenta de inmediato y no recibir más recordatorios, "
+"puedes hacerlo aquí:"
+msgstr ""
+"Si vols donar de baixa el teu compte immediatament i no rebre més "
+"recordatoris, pots fer-ho aquí:"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html:80
+msgid "Dar de baja y desactivar mi cuenta ahora"
+msgstr "Donar de baixa i desactivar el meu compte ara"
+
 #: ilovevoley/templates/emails/user_rejected.html:4
 #, python-format
 msgid "Actualización de tu solicitud - %(site_name)s"
@@ -9093,7 +9205,7 @@ msgstr "La teva plataforma de voleibol"
 msgid "Selecciona tu club para continuar"
 msgstr "Selecciona el teu club per continuar"
 
-#: ilovevoley/templates/landing.html:55 ilovevoley/users/models.py:133
+#: ilovevoley/templates/landing.html:55 ilovevoley/users/models.py:145
 msgid "Miembro"
 msgstr "Membre"
 
@@ -9380,6 +9492,111 @@ msgstr "Completar registre"
 msgid "Estás usando tu cuenta de Google"
 msgstr "Estàs utilitzant el teu compte de Google"
 
+#: ilovevoley/templates/users/deactivate_account_confirm.html:4
+msgid "Confirmar desactivación de cuenta"
+msgstr "Confirmar desactivació del compte"
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html:12
+msgid "Desactivar cuenta"
+msgstr "Desactivar compte"
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html:15
+msgid ""
+"Hola <strong>%(username)s</strong>, hemos recibido tu solicitud para dar de "
+"baja tu cuenta."
+msgstr ""
+"Hola <strong>{{ username }}</strong>, hem rebut la teva sol·licitud per "
+"donar de baixa el teu compte."
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html:21
+msgid "⚠️ ¿Qué implica desactivar tu cuenta?"
+msgstr "⚠️ Què implica desactivar el teu compte?"
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html:23
+msgid "No recibirás más avisos de inactividad ni correos del sistema."
+msgstr "No rebràs més avisos d'inactivitat ni correus del sistema."
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html:24
+msgid "Tus credenciales de acceso quedarán inhabilitadas."
+msgstr "Les teves credencials d'accés quedaran inhabilitades."
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html:25
+msgid "Tus suscripciones a notificaciones push serán canceladas."
+msgstr "Les teves subscripcions a notificacions push seran cancel·lades."
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html:30
+msgid ""
+"¿Seguro que deseas continuar? Esta acción desactivará tu cuenta "
+"inmediatamente."
+msgstr ""
+"Segur que vols continuar? Aquesta acció desactivarà el teu compte "
+"immediatament."
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html:37
+msgid "Sí, desactivar mi cuenta"
+msgstr "Sí, desactivar el meu compte"
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html:40
+msgid "Cancelar y mantener mi cuenta activa"
+msgstr "Cancel·lar i mantenir el meu compte actiu"
+
+#: ilovevoley/templates/users/deactivate_account_invalid.html:4
+msgid "Enlace no válido"
+msgstr "Enllaç no vàlid"
+
+#: ilovevoley/templates/users/deactivate_account_invalid.html:12
+msgid "Enlace no válido o caducado"
+msgstr "Enllaç no vàlid o caducat"
+
+#: ilovevoley/templates/users/deactivate_account_invalid.html:17
+msgid "El enlace para desactivar la cuenta no es válido o ha expirado."
+msgstr "L'enllaç per desactivar el compte no és vàlid o ha caducat."
+
+#: ilovevoley/templates/users/deactivate_account_invalid.html:18
+msgid ""
+"Si necesitas ayuda para gestionar tu cuenta, por favor inicia sesión o "
+"contacta con los administradores."
+msgstr ""
+"Si necessites ajuda per gestionar el teu compte, per favor inicia sessió o "
+"contacta amb els administradors."
+
+#: ilovevoley/templates/users/deactivate_account_success.html:4
+msgid "Cuenta desactivada"
+msgstr "Compte desactivat"
+
+#: ilovevoley/templates/users/deactivate_account_success.html:13
+msgid "Cuenta ya desactivada"
+msgstr "Compte ja desactivat"
+
+#: ilovevoley/templates/users/deactivate_account_success.html:15
+msgid "Cuenta desactivada correctamente"
+msgstr "Compte desactivat correctament"
+
+#: ilovevoley/templates/users/deactivate_account_success.html:22
+msgid "La cuenta <strong>%(username)s</strong> ya se encontraba desactivada."
+msgstr "El compte <strong>{{ username }}</strong> ja es trobava desactivat."
+
+#: ilovevoley/templates/users/deactivate_account_success.html:24
+msgid "Tu cuenta <strong>%(username)s</strong> ha sido desactivada."
+msgstr "El teu compte <strong>{{ username }}</strong> ha estat desactivat."
+
+#: ilovevoley/templates/users/deactivate_account_success.html:26
+msgid "No volverás a recibir correos ni notificaciones de nuestra plataforma."
+msgstr "No tornaràs a rebre correus ni notificacions de la nostra plataforma."
+
+#: ilovevoley/templates/users/deactivate_account_success.html:27
+msgid ""
+"Si en el futuro deseas reactivarla o tienes alguna duda, puedes ponerte en "
+"contacto con los administradores del club."
+msgstr ""
+"Si en el futur vols reactivar-lo o tens algun dubte, pots posar-te en "
+"contacte amb els administradors del club."
+
+#
+#: ilovevoley/templates/users/deactivate_account_success.html:32
+msgid "Volver al inicio"
+msgstr "🏠 Tornar a l'Inici"
+
 #: ilovevoley/templates/users/pending_approval.html:4
 #: ilovevoley/templates/users/profile.html:74
 msgid "Pendiente de Aprobación"
@@ -9514,7 +9731,7 @@ msgstr "Compte aprovat"
 
 #: ilovevoley/templates/users/profile.html:81
 #: ilovevoley/templates/users/profile_edit.html:173
-#: ilovevoley/users/models.py:172
+#: ilovevoley/users/models.py:184
 msgid "Categorías de Interés"
 msgstr "Categories d'interès"
 
@@ -10035,88 +10252,100 @@ msgstr "Idioma preferit"
 msgid "Idioma en el que se muestra la interfaz. Vacío: el del navegador."
 msgstr "Idioma en què es mostra la interfície. Buit: el del navegador."
 
-#: ilovevoley/users/models.py:131
+#: ilovevoley/users/models.py:52
+msgid "Nivel de aviso de inactividad"
+msgstr "Nivell d'avís d'inactivitat"
+
+#: ilovevoley/users/models.py:53
+msgid "0: sin aviso, 1: primer aviso (30 días), 2: aviso final (7 días)"
+msgstr "0: sense avís, 1: primer avís (30 dies), 2: avís final (7 dies)"
+
+#: ilovevoley/users/models.py:58
+msgid "Fecha del último aviso de inactividad"
+msgstr "Data del darrer avís d'inactivitat"
+
+#: ilovevoley/users/models.py:143
 msgid "Admin"
 msgstr "Admin"
 
-#: ilovevoley/users/models.py:132
+#: ilovevoley/users/models.py:144
 msgid "Manager"
 msgstr "Manager"
 
-#: ilovevoley/users/models.py:144
+#: ilovevoley/users/models.py:156
 msgid "Membresía"
 msgstr "Membresia"
 
-#: ilovevoley/users/models.py:173
+#: ilovevoley/users/models.py:185
 msgid "Categorías de contenido que deseas ver en este club"
 msgstr "Categories de contingut que vols veure en aquest club"
 
 #
-#: ilovevoley/users/models.py:178
+#: ilovevoley/users/models.py:190
 msgid "Preferencia de categorías"
 msgstr "Preferència de categories"
 
 #
-#: ilovevoley/users/models.py:179
+#: ilovevoley/users/models.py:191
 msgid "Preferencias de categorías"
 msgstr "Preferències de categories"
 
 #
-#: ilovevoley/users/models.py:186
+#: ilovevoley/users/models.py:198
 msgid "Resultados de partidos"
 msgstr "Resultats de partits"
 
-#: ilovevoley/users/models.py:187
+#: ilovevoley/users/models.py:199
 msgid "Nuevos álbumes de fotos"
 msgstr "Nous àlbums de fotos"
 
 #
-#: ilovevoley/users/models.py:188
+#: ilovevoley/users/models.py:200
 msgid "Cambios de horario o pista"
 msgstr "Canvis d'horari o pista"
 
-#: ilovevoley/users/models.py:189
+#: ilovevoley/users/models.py:201
 msgid "Recordatorios previos al partido"
 msgstr "Recordatoris previs al partit"
 
 #
-#: ilovevoley/users/models.py:190
+#: ilovevoley/users/models.py:202
 msgid "Fotos y vídeos de partidos"
 msgstr "Fotos i vídeos de partits"
 
-#: ilovevoley/users/models.py:206 ilovevoley/users/models.py:248
-#: ilovevoley/users/models.py:295
+#: ilovevoley/users/models.py:218 ilovevoley/users/models.py:260
+#: ilovevoley/users/models.py:307
 msgid "Organización / Club"
 msgstr "Organització / Club"
 
 #
-#: ilovevoley/users/models.py:211 ilovevoley/users/models.py:301
+#: ilovevoley/users/models.py:223 ilovevoley/users/models.py:313
 msgid "Tipo de notificación"
 msgstr "Tipus de notificació"
 
 #
-#: ilovevoley/users/models.py:215
+#: ilovevoley/users/models.py:227
 msgid "Activado"
 msgstr "Activat"
 
-#: ilovevoley/users/models.py:216
+#: ilovevoley/users/models.py:228
 msgid "Indica si el usuario desea recibir este tipo de notificación."
 msgstr "Indica si l'usuari vol rebre aquest tipus de notificació."
 
 #
-#: ilovevoley/users/models.py:223
+#: ilovevoley/users/models.py:235
 msgid "Preferencia de notificación"
 msgstr "Preferència de notificació"
 
-#: ilovevoley/users/models.py:224
+#: ilovevoley/users/models.py:236
 msgid "Preferencias de notificaciones"
 msgstr "Preferències de notificacions"
 
-#: ilovevoley/users/models.py:252
+#: ilovevoley/users/models.py:264
 msgid "Push Service Endpoint"
 msgstr "Push Service Endpoint"
 
-#: ilovevoley/users/models.py:253
+#: ilovevoley/users/models.py:265
 msgid ""
 "URL de entrega proporcionada por el servicio Push del navegador (FCM, Apple "
 "APNs, etc.)"
@@ -10124,55 +10353,71 @@ msgstr ""
 "URL de lliurament proporcionada pel servei Push del navegador (FCM, Apple "
 "APNs, etc.)"
 
-#: ilovevoley/users/models.py:257
+#: ilovevoley/users/models.py:269
 msgid "Clave Pública P-256 (Dispositivo)"
 msgstr "Clau Pública P-256 (Dispositiu)"
 
-#: ilovevoley/users/models.py:261
+#: ilovevoley/users/models.py:273
 msgid "Token de Autenticación Criptográfica"
 msgstr "Token d'Autenticació Criptogràfica"
 
-#: ilovevoley/users/models.py:267
+#: ilovevoley/users/models.py:279
 msgid "User Agent"
 msgstr "User Agent"
 
 #
-#: ilovevoley/users/models.py:273
+#: ilovevoley/users/models.py:285
 msgid "Suscripción Web Push"
 msgstr "Subscripció Web Push"
 
-#: ilovevoley/users/models.py:274
+#: ilovevoley/users/models.py:286
 msgid "Suscripciones Web Push"
 msgstr "Subscripcions Web Push"
 
 #
-#: ilovevoley/users/models.py:307
+#: ilovevoley/users/models.py:319
 msgid "ID de partido"
 msgstr "ID de partit"
 
-#: ilovevoley/users/models.py:311
+#: ilovevoley/users/models.py:323
 msgid "Dispositivos candidatos"
 msgstr "Dispositius candidats"
 
-#: ilovevoley/users/models.py:315
+#: ilovevoley/users/models.py:327
 msgid "Enviados"
 msgstr "Enviats"
 
-#: ilovevoley/users/models.py:319
+#: ilovevoley/users/models.py:331
 msgid "Fallidos"
 msgstr "Fallits"
 
-#: ilovevoley/users/models.py:324
+#: ilovevoley/users/models.py:336
 msgid "Fecha"
 msgstr "Data"
 
-#: ilovevoley/users/models.py:329
+#: ilovevoley/users/models.py:341
 msgid "Auditoría de aviso push"
 msgstr "Auditoria d'avís push"
 
-#: ilovevoley/users/models.py:330
+#: ilovevoley/users/models.py:342
 msgid "Auditorías de avisos push"
 msgstr "Auditories d'avisos push"
+
+#: ilovevoley/users/tasks.py:131
+#, python-format
+msgid ""
+"Último aviso: Tu cuenta en %(site_name)s se desactivará en %(days)d días"
+msgstr ""
+"Darrer avís: El teu compte a %(site_name)s es desactivarà en %(days)d dies"
+
+#: ilovevoley/users/tasks.py:136
+#, python-format
+msgid ""
+"Aviso de inactividad: Tu cuenta en %(site_name)s se desactivará en %(days)d "
+"días"
+msgstr ""
+"Avís d'inactivitat: El teu compte a %(site_name)s es desactivarà en %(days)d "
+"dies"
 
 #: ilovevoley/users/views.py:49
 msgid ""

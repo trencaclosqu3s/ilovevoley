@@ -48,7 +48,12 @@ class NotificationPreferenceInline(TabularInline):
 def approve_users(modeladmin, request, queryset):
     """Acción para aprobar usuarios seleccionados"""
     from ilovevoley.users.models import Membership
-    count = queryset.update(is_approved=True, is_active=True)
+    count = queryset.update(
+        is_approved=True,
+        is_active=True,
+        inactivity_warning_level=0,
+        inactivity_warning_sent_at=None,
+    )
     Membership.objects.filter(user__in=queryset, is_approved=False).update(is_approved=True)
     modeladmin.message_user(request, f'{count} usuario(s) aprobado(s) correctamente.')
 
@@ -68,10 +73,11 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     change_password_form = AdminPasswordChangeForm
-    list_display = ['username', 'email', 'first_name', 'last_name', 'parent_info_short', 'children_count', 'approval_status', 'is_staff', 'date_joined']
-    list_filter = ['is_approved', 'is_staff', 'is_superuser', 'is_active', 'date_joined']
+    list_display = ['username', 'email', 'first_name', 'last_name', 'parent_info_short', 'children_count', 'approval_status', 'is_staff', 'last_login', 'date_joined']
+    list_filter = ['is_approved', 'inactivity_warning_level', 'is_staff', 'is_superuser', 'is_active', 'last_login', 'date_joined']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'parent_info']
     filter_horizontal = ['children']
+    readonly_fields = ('inactivity_warning_sent_at',)
     
     actions = [approve_users, reject_users, 'send_email_action']
     actions_detail = ['send_email_detail_action']
@@ -83,14 +89,16 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
             children_count_annotated=models.Count('children', distinct=True)
         )
 
-    # Añadir is_approved y parent_info a los fieldsets
+    # Añadir is_approved, inactividad y parent_info a los fieldsets
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Aprobación', {'fields': ('is_approved',)}),
+        ('Inactividad', {'fields': ('inactivity_warning_level', 'inactivity_warning_sent_at')}),
         ('Información Familiar', {'fields': ('parent_info', 'children')}),
         ('Información adicional', {'fields': ('avatar',)}),
     )
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
         ('Aprobación', {'fields': ('is_approved',)}),
+        ('Inactividad', {'fields': ('inactivity_warning_level', 'inactivity_warning_sent_at')}),
         ('Información Familiar', {'fields': ('parent_info', 'children')}),
         ('Información adicional', {'fields': ('avatar',)}),
     )

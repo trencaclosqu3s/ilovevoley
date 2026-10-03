@@ -46,6 +46,18 @@ class User(AbstractUser):
         help_text=_('Idioma en el que se muestra la interfaz. Vacío: el del navegador.'),
     )
 
+    # Control de avisos y ciclo de inactividad (#327)
+    inactivity_warning_level = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name=_('Nivel de aviso de inactividad'),
+        help_text=_('0: sin aviso, 1: primer aviso (30 días), 2: aviso final (7 días)'),
+    )
+    inactivity_warning_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Fecha del último aviso de inactividad'),
+    )
+
     def __str__(self):
         return self.username
 

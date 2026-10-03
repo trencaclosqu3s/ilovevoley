@@ -18,7 +18,7 @@ SECURE_CSP = {
     'connect-src': [CSP.SELF],
     'object-src': [CSP.NONE],
     'base-uri':   [CSP.NONE],
-    'form-action': [CSP.SELF],
+    'form-action': [CSP.SELF, 'https://accounts.google.com'],
     'frame-ancestors': [CSP.NONE],
 }
 SECURE_CSP_REPORT_ONLY = None
@@ -82,6 +82,9 @@ declaradas se exponen en `window`), por lo que `data-call` las encuentra.
    self-hosting para poder retirarlos.
 4. **Panel del admin de `django_celery_beat`** comparte la política relajada
    del admin por estar bajo la misma URL.
+5. **Login Social (`form-action`)**: `https://accounts.google.com` está
+   autorizado en `form-action` para permitir la redirección POST del flujo de
+   autenticación Google OAuth.
 
 ## Pendientes
 

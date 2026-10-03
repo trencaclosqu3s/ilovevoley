@@ -23,6 +23,7 @@ QUEUE_BY_TASK = {
     'notify_image_moderation_result': 'default',
     'send_admin_email_to_users': 'default',
     'send_404_immediate_alert': 'default',
+    'send_match_reminders_2h': 'default',
     # media: Vision, miniaturas y compresión de ZIP de álbumes
     'analyze_image_with_vision': 'media',
     'generate_image_thumbnails_task': 'media',
@@ -44,6 +45,8 @@ QUEUE_BY_TASK = {
     'enrich_upcoming_matches': 'scraping',
     'scrape_rfevb_competition': 'scraping',
     'scrape_rfevb_final_classification': 'scraping',
+    'scrape_balearic_callups': 'scraping',
+    'scrape_balearic_tracking': 'scraping',
 }
 
 

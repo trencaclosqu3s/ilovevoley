@@ -35,7 +35,9 @@ La app `rosters` separa la identidad física de las personas de los roles deport
 
 ### 1. `Person`
 Representa a una persona (jugador, entrenadora, delegado, fisioterapeuta) de forma persistente a lo largo de los años:
-- Nombre, apellidos, alias, fecha de nacimiento, foto de perfil.
+- **Campos**: Nombre, apellidos, alias, fecha de nacimiento, foto de perfil, y `organization` (club al que pertenece la ficha).
+- **Identidad Única por Club (`unique_person_identity`)**: Siguiendo la decisión de arquitectura #174, la unicidad evalúa `(organization, first_name, last_name, birth_date)`, no de forma global. Esto permite que una misma persona física pueda tener ficha deportiva en dos clubes diferentes (ej. entrenar en un club y jugar en otro). Las fichas legadas con `organization=NULL` comparten su propio grupo (`nulls_distinct=False`).
+- **Formularios**: Al instanciar formularios de personas se debe pasar siempre el tenant activo (`PersonForm(..., organization=request.tenant)`) para que la validación se realice contra el club correspondiente.
 
 ### 2. `PlayerRole`
 Representa la ficha deportiva como jugador de un equipo en una temporada concreta:
