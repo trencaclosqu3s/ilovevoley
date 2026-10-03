@@ -82,19 +82,26 @@ def _venue_match_payload(match, active_venues):
     }
 
 
-def search_team_locations(tenant, query, *, max_teams=MAX_TEAMS, max_matches=MAX_MATCHES_PER_TEAM):
+def search_team_locations(
+    tenant, query, *, max_teams=MAX_TEAMS, max_matches=MAX_MATCHES_PER_TEAM,
+    league_ids=None, active_venues=None,
+):
     """Devuelve los equipos que casan con ``query`` y sus próximos partidos.
 
     El ámbito son las ligas visibles de la organización (``League.for_tenant``)
     de la temporada actual; la coincidencia es por nombre de equipo o de club.
     La respuesta es una lista de dicts lista para serializar a JSON o pintar en
     plantilla; nunca expone equipos de otras organizaciones.
+
+    ``league_ids`` y ``active_venues`` permiten reutilizar los cálculos cuando
+    se encadenan varios buscadores (ver :func:`search_locations`).
     """
     query = (query or '').strip()
     if tenant is None or len(query) < MIN_QUERY_LENGTH:
         return []
 
-    league_ids = _tenant_league_ids(tenant)
+    if league_ids is None:
+        league_ids = _tenant_league_ids(tenant)
     if not league_ids:
         return []
 
@@ -111,7 +118,8 @@ def search_team_locations(tenant, query, *, max_teams=MAX_TEAMS, max_matches=MAX
     )
 
     now = timezone.now()
-    active_venues = list(Venue.objects.filter(is_active=True))
+    if active_venues is None:
+        active_venues = list(Venue.objects.filter(is_active=True))
     results = []
     for team in teams:
         upcoming = list(
@@ -142,7 +150,10 @@ def search_team_locations(tenant, query, *, max_teams=MAX_TEAMS, max_matches=MAX
     return results
 
 
-def search_venues(tenant, query, *, max_venues=MAX_VENUES, max_matches=MAX_MATCHES_PER_VENUE):
+def search_venues(
+    tenant, query, *, max_venues=MAX_VENUES, max_matches=MAX_MATCHES_PER_VENUE,
+    league_ids=None, active_venues=None,
+):
     """Devuelve los pabellones que casan con ``query`` por nombre, alias o municipio.
 
     El catálogo de ``Venue`` es global; la coincidencia se hace contra
@@ -154,7 +165,7 @@ def search_venues(tenant, query, *, max_venues=MAX_VENUES, max_matches=MAX_MATCH
     if len(query) < MIN_QUERY_LENGTH:
         return []
 
-    venues = (
+    venues = list(
         Venue.objects.filter(is_active=True)
         .filter(
             Q(name__icontains=query)
@@ -164,25 +175,38 @@ def search_venues(tenant, query, *, max_venues=MAX_VENUES, max_matches=MAX_MATCH
         )
         .order_by('city', 'name')[:max_venues]
     )
+    if not venues:
+        return []
 
-    league_ids = _tenant_league_ids(tenant) if tenant is not None else []
-    active_venues = list(Venue.objects.filter(is_active=True))
-    now = timezone.now()
+    if league_ids is None:
+        league_ids = _tenant_league_ids(tenant) if tenant is not None else []
+    if active_venues is None:
+        active_venues = list(Venue.objects.filter(is_active=True))
+
+    matches_by_venue = {}
+    if league_ids:
+        now = timezone.now()
+        venue_ids = [venue.id for venue in venues]
+        upcoming = (
+            Match.objects.filter(
+                venue_ref_id__in=venue_ids,
+                league_id__in=league_ids,
+                match_date__gte=now,
+            )
+            .select_related('home_team', 'away_team', 'venue_ref')
+            .order_by('match_date')
+        )
+        for match in upcoming:
+            bucket = matches_by_venue.setdefault(match.venue_ref_id, [])
+            if len(bucket) < max_matches:
+                bucket.append(match)
+
     results = []
     for venue in venues:
-        matches = []
-        if league_ids:
-            upcoming = list(
-                Match.objects.filter(
-                    venue_ref=venue,
-                    league_id__in=league_ids,
-                    match_date__gte=now,
-                )
-                .select_related('home_team', 'away_team')
-                .order_by('match_date')[:max_matches]
-            )
-            matches = [_venue_match_payload(match, active_venues) for match in upcoming]
-
+        matches = [
+            _venue_match_payload(match, active_venues)
+            for match in matches_by_venue.get(venue.id, [])
+        ]
         payload = _venue_payload(venue)
         payload.update({
             'type': 'venue',
@@ -195,4 +219,16 @@ def search_venues(tenant, query, *, max_venues=MAX_VENUES, max_matches=MAX_MATCH
 
 def search_locations(tenant, query):
     """Buscador unificado: equipos del tenant primero, pabellones después."""
-    return search_team_locations(tenant, query) + search_venues(tenant, query)
+    query = (query or '').strip()
+    if tenant is None or len(query) < MIN_QUERY_LENGTH:
+        return []
+    league_ids = _tenant_league_ids(tenant)
+    active_venues = list(Venue.objects.filter(is_active=True))
+    return (
+        search_team_locations(
+            tenant, query, league_ids=league_ids, active_venues=active_venues,
+        )
+        + search_venues(
+            tenant, query, league_ids=league_ids, active_venues=active_venues,
+        )
+    )

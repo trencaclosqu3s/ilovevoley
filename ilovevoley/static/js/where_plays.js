@@ -27,29 +27,18 @@
             'Cómo llegar</a>';
     }
 
-    function renderMatches(matches) {
+    function renderMatches(matches, showSide) {
         return matches.map(function (match) {
             const when = escapeHtml(match.date) + (match.has_time ? ' · ' + escapeHtml(match.time) : ' · hora por confirmar');
-            const side = (match.is_home === undefined) ? '' :
-                '<span class="text-xs text-gray-500 dark:text-gray-400">' + (match.is_home ? 'Local' : 'Visitante') + '</span>';
+            const side = (showSide && match.is_home !== undefined) ?
+                '<span class="text-xs text-gray-500 dark:text-gray-400">' + (match.is_home ? 'Local' : 'Visitante') + '</span>' : '';
             return '<li class="border-t border-gray-200 dark:border-gray-700 pt-3">' +
                 '<div class="flex items-center justify-between gap-2">' +
                     '<span class="text-sm font-semibold text-csj-purple dark:text-csj-yellow">' + when + '</span>' +
                     side +
                 '</div>' +
                 '<p class="text-gray-800 dark:text-gray-200">' + escapeHtml(match.home_name) + ' vs ' + escapeHtml(match.away_name) + '</p>' +
-                '<p class="text-sm text-gray-500 dark:text-gray-400">' + escapeHtml(match.location_text) + '</p>' +
-                venueLink(match.maps_url) +
-            '</li>';
-        }).join('');
-    }
-
-    function renderVenueMatches(matches) {
-        return matches.map(function (match) {
-            const when = escapeHtml(match.date) + (match.has_time ? ' · ' + escapeHtml(match.time) : ' · hora por confirmar');
-            return '<li class="border-t border-gray-200 dark:border-gray-700 pt-3">' +
-                '<span class="text-sm font-semibold text-csj-purple dark:text-csj-yellow">' + when + '</span>' +
-                '<p class="text-gray-800 dark:text-gray-200">' + escapeHtml(match.home_name) + ' vs ' + escapeHtml(match.away_name) + '</p>' +
+                (showSide ? '<p class="text-sm text-gray-500 dark:text-gray-400">' + escapeHtml(match.location_text) + '</p>' + venueLink(match.maps_url) : '') +
             '</li>';
         }).join('');
     }
@@ -67,7 +56,7 @@
         const address = venue.street || venue.address;
         let body = '';
         if (venue.matches && venue.matches.length) {
-            body = '<ul class="mt-3 space-y-3">' + renderVenueMatches(venue.matches) + '</ul>';
+            body = '<ul class="mt-3 space-y-3">' + renderMatches(venue.matches, false) + '</ul>';
         }
         return '<article class="bg-white dark:bg-gray-800 rounded-xl shadow border-l-4 border-csj-yellow p-4">' +
             '<div class="flex items-center justify-between gap-2">' +
@@ -85,7 +74,7 @@
         if (result.type === 'venue') return renderVenueCard(result);
         let body;
         if (result.matches && result.matches.length) {
-            body = '<ul class="mt-3 space-y-3">' + renderMatches(result.matches) + '</ul>';
+            body = '<ul class="mt-3 space-y-3">' + renderMatches(result.matches, true) + '</ul>';
         } else if (result.default_venue) {
             body = renderDefaultVenue(result.default_venue);
         } else {

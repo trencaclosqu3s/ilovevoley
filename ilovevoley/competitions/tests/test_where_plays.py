@@ -215,6 +215,18 @@ class VenueSearchServiceTests(TestCase):
         results = search_locations(self.org, 'Test Senior')
         self.assertTrue(all(r['type'] == 'team' for r in results))
 
+    def test_venue_matches_resolved_in_single_query(self):
+        """Los próximos partidos de todas las sedes se cargan en una sola query,
+        no una por sede (endpoint público en vivo)."""
+        extra = Venue.objects.create(name='Pav. Test Altre', city='Ciutatprova')
+        Match.objects.create(
+            league=self.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now() + timedelta(days=5), venue_ref=extra,
+            round_number=2, status='scheduled',
+        )
+        with self.assertNumQueries(6):
+            search_venues(self.org, 'Ciutatprova')
+
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'ilovevoley.es'])
 class WherePlaysViewTests(TestCase):
