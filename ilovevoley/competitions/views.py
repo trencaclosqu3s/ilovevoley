@@ -12,7 +12,10 @@ from django.core.paginator import Paginator
 from django.core.cache import cache
 from django.db import transaction
 from django.urls import reverse
-from django.db.models import Case, CharField, Count, Q, Value, When
+from django.db.models import (
+    Case, CharField, Count, Exists, IntegerField, OuterRef, Q, Subquery, Value, When,
+)
+from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -108,7 +111,11 @@ def build_calendar_matches_payload(matches, club_team_name):
 @tenant_access_required()
 def league_list(request):
     """Vista para mostrar todas las ligas disponibles"""
-    leagues = League.objects.for_tenant(request.tenant).prefetch_related('matches__videos')
+    leagues = (
+        League.objects.for_tenant(request.tenant)
+        .select_related('season')
+        .prefetch_related('categories')
+    )
     categories = Category.objects.filter(is_active=True).order_by('name')
 
     # Variable para controlar si mostrar todo el contenido
@@ -130,17 +137,46 @@ def league_list(request):
         # Excluir ligas de partidos amistosos
         leagues = leagues.exclude(competition_type='friendly')
 
+    now = timezone.now()
+    has_pending_subquery = Exists(
+        Match.objects.filter(
+            league=OuterRef('pk'),
+            status__in=['scheduled', 'in_progress'],
+            match_date__gte=now,
+        )
+    )
+
     # Filtrar ligas pasadas si no se quiere mostrar
     if not show_past:
-        # Solo mostrar ligas con partidos pendientes
-        now = timezone.now()
-        leagues = leagues.filter(
-            matches__status__in=['scheduled', 'in_progress'],
-            matches__match_date__gte=now
-        ).distinct()
+        leagues = leagues.filter(has_pending_subquery)
+
+    matches_count_subquery = Coalesce(
+        Subquery(
+            Match.objects.filter(league=OuterRef('pk'))
+            .values('league')
+            .annotate(c=Count('*'))
+            .values('c'),
+            output_field=IntegerField(),
+        ),
+        0,
+    )
+
+    standings_count_subquery = Coalesce(
+        Subquery(
+            Standing.objects.filter(league=OuterRef('pk'))
+            .values('league')
+            .annotate(c=Count('*'))
+            .values('c'),
+            output_field=IntegerField(),
+        ),
+        0,
+    )
 
     # Ordenar: ligas oficiales primero, luego amistosas, y por nombre dentro de cada tipo
     leagues = leagues.annotate(
+        has_pending_matches_annotated=has_pending_subquery,
+        matches_count=matches_count_subquery,
+        standings_count=standings_count_subquery,
         sort_priority=Case(
             When(competition_type='friendly', then=Value(2)),
             default=Value(1),
@@ -148,8 +184,34 @@ def league_list(request):
         )
     ).order_by('sort_priority', 'name')
 
+    leagues_list = list(leagues)
+    league_ids = [l.id for l in leagues_list]
+    if league_ids:
+        club_q = get_club_team_filter(request.tenant)
+        matches_qs = Match.objects.filter(
+            league_id__in=league_ids,
+            status='scheduled',
+        ).filter(club_q)
+        if not show_friendly:
+            matches_qs = matches_qs.filter(is_friendly=False)
+
+        upcoming_matches = (
+            matches_qs
+            .select_related('home_team', 'away_team')
+            .order_by('match_date')
+        )
+        next_official = {}
+        next_friendly = {}
+        for match in upcoming_matches:
+            target = next_friendly if match.is_friendly else next_official
+            target.setdefault(match.league_id, match)
+
+        for league in leagues_list:
+            league.next_official_match = next_official.get(league.id)
+            league.next_friendly_match = next_friendly.get(league.id)
+
     return render(request, 'competitions/league_list.html', {
-        'leagues': leagues,
+        'leagues': leagues_list,
         'categories': categories,
         'selected_category': category_filter,
         'show_all': show_all,
@@ -290,15 +352,16 @@ def _load_set_scores_for_card(match):
     scraping de resultados y la entrada manual). Solo descarga y parsea el HTML
     como fallback para actas antiguas sin ``acta_data`` guardado.
     """
-    if match.acta_data is not None or not match.acta_html:
+    acta_url = match.official_acta_url or match.acta_html
+    if match.acta_data is not None or not acta_url:
         return match_set_scores(match)
 
-    cache_key = _acta_lineup_cache_key(match.acta_html)
+    cache_key = _acta_lineup_cache_key(acta_url)
     try:
         lineup_data = cache.get(cache_key)
         if lineup_data is None:
             acta_content = safe_get(
-                match.acta_html,
+                acta_url,
                 allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
             )
             lineup_data = parse_acta_lineup(acta_content)
@@ -754,7 +817,8 @@ def ajax_acta_lineup(request, match_id):
     except Match.DoesNotExist:
         return JsonResponse({'success': False, 'error': _('Partido no encontrado')}, status=404)
 
-    if not match.acta_html:
+    acta_url = match.official_acta_url or match.acta_html
+    if not acta_url:
         return JsonResponse({'success': False, 'error': _('Este partido no tiene acta disponible')}, status=404)
 
     # El acta se persiste en el partido: una vez parseada no se vuelve a
@@ -762,12 +826,12 @@ def ajax_acta_lineup(request, match_id):
     lineup_data = match.acta_data
     if lineup_data is None:
         # Solo se cachea el parseo correcto; los errores de red se reintentan en la siguiente petición.
-        cache_key = _acta_lineup_cache_key(match.acta_html)
+        cache_key = _acta_lineup_cache_key(acta_url)
         lineup_data = cache.get(cache_key)
         if lineup_data is None:
             try:
                 acta_content = safe_get(
-                    match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
+                    acta_url, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
                 )
             except UnsafeURL as e:
                 logger.warning(f"URL de acta rechazada para el partido {match_id}: {e}")

@@ -2,6 +2,7 @@ from django.contrib import admin, messages
 from django.contrib.admin import helpers
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.conf import settings
+from django.db import models
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils.html import format_html, mark_safe
@@ -83,7 +84,11 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     actions_row = ['send_email_row_action']
     inlines = [MembershipInline, CategoryPreferenceInline, NotificationPreferenceInline]
 
-    
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            children_count_annotated=models.Count('children', distinct=True)
+        )
+
     # Añadir is_approved, inactividad y parent_info a los fieldsets
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Aprobación', {'fields': ('is_approved',)}),
@@ -126,7 +131,9 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     
     def children_count(self, obj):
         """Muestra el número de hijos que puede editar este usuario"""
-        count = obj.children.count()
+        count = getattr(obj, 'children_count_annotated', None)
+        if count is None:
+            count = obj.children.count()
         if count > 0:
             return format_html(
                 '<span style="color: #27ae60; font-weight: bold;">👨‍👩‍👧‍👦 {} hijo{}</span>',
@@ -134,8 +141,9 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
                 's' if count != 1 else ''
             )
         return mark_safe('<span style="color: gray;">—</span>')
-    
+
     children_count.short_description = 'Hijos'
+    children_count.admin_order_field = 'children_count_annotated'
 
     def send_email_action(self, request, queryset):
         """Acción masiva para enviar correo a los usuarios seleccionados"""

@@ -104,14 +104,15 @@ def get_match_set_labels(match):
     """
     if match.acta_data is not None:
         return _set_labels_from_acta(match.acta_data)
-    if not match.acta_html:
+    acta_url = match.official_acta_url or match.acta_html
+    if not acta_url:
         return {}
-    cache_key = f'match_set_labels:{match.acta_html}'
+    cache_key = f'match_set_labels:{acta_url}'
     labels = cache.get(cache_key)
     if labels is not None:
         return labels
     try:
-        content = safe_get(match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS)
+        content = safe_get(acta_url, allowed_hosts=settings.ACTA_ALLOWED_HOSTS)
         data = parse_acta_lineup(content)
         labels = _set_labels_from_acta(data)
     except Exception:

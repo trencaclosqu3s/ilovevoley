@@ -18,7 +18,12 @@ from ilovevoley.competitions.services.delta_detector import (
     notify_match_result_after_save,
 )
 from ..models import League, Match, ScrapingEndpoint, Standing, Team
-from .base import ScrapingError, is_penalty_result, validate_volleyball_score
+from .base import (
+    ScrapingError,
+    build_acta_url,
+    is_penalty_result,
+    validate_volleyball_score,
+)
 from .parsers import (
     CalendarParser,
     JSONUnifiedParser,
@@ -304,7 +309,12 @@ class FederationScraper:
                     if fed_id:
                         match.federation_id = fed_id
                     match.match_date = match_data['match_date']
-                    match.acta_html = match_data.get('acta_html', '')
+                    incoming_acta = build_acta_url(
+                        match_data.get('acta_html', ''),
+                        fed_id or match.federation_id,
+                    )
+                    if incoming_acta:
+                        match.acta_html = incoming_acta
                     if home_team and match.home_team_id != home_team.id:
                         match.home_team = home_team
                     if away_team and match.away_team_id != away_team.id:
@@ -344,7 +354,7 @@ class FederationScraper:
                         delegate=match_data.get('delegate', ''),
                         field_address=match_data.get('field_address', ''),
                         federation_id=fed_id or None,
-                        acta_html=match_data.get('acta_html', ''),
+                        acta_html=build_acta_url(match_data.get('acta_html', ''), fed_id),
                         round_number=match_data.get('round_number', 1)
                     )
                     matches_created += 1
@@ -753,6 +763,13 @@ class FederationScraper:
                     # set_scores se vuelca en _apply_set_scores, que no pisa lo existente.
                     if key == 'set_scores':
                         continue
+                    if key == 'acta_html':
+                        if not new_value:
+                            continue
+                        new_value = build_acta_url(
+                            new_value,
+                            match_data.get('federation_id') or existing_match.federation_id,
+                        )
                     # Saltar campos que no existen en el modelo
                     if not hasattr(existing_match, key):
                         continue
@@ -814,6 +831,11 @@ class FederationScraper:
                 for key, value in match_data.items():
                     if hasattr(Match, key):
                         valid_match_data[key] = value
+                if valid_match_data.get('acta_html'):
+                    valid_match_data['acta_html'] = build_acta_url(
+                        valid_match_data['acta_html'],
+                        valid_match_data.get('federation_id'),
+                    )
                 
                 match = Match.objects.create(
                     league=self.league,
@@ -1312,17 +1334,11 @@ class FederationScraper:
             updated = True
         
         # Actualizar acta si está disponible
-        acta_html = (partido_data.get('acta_html') or '').strip()
-        if acta_html and not match.acta_html:
-            # Construir URL completa del acta
-            partido_id = partido_data.get('ID')
-            if partido_id:
-                acta_url = f"https://voleibolib.federatio.com/actas/{partido_id}/{acta_html}"
-                match.acta_html = acta_url
-                updated = True
-                logger.debug(f"URL del acta construida: {acta_url}")
-            else:
-                logger.warning(f"No se pudo construir URL del acta: falta ID del partido")
+        acta_url = build_acta_url(partido_data.get('acta_html'), partido_data.get('ID'))
+        if acta_url and (not match.acta_html or not match.acta_html.startswith(('http://', 'https://'))):
+            match.acta_html = acta_url
+            updated = True
+            logger.debug(f"URL del acta construida: {acta_url}")
         
         if updated:
             match.save()
@@ -1332,10 +1348,7 @@ class FederationScraper:
     
     def _build_acta_url(self, partido_data: Dict) -> str:
         """Construye la URL completa del acta usando el ID del partido"""
-        acta_html = (partido_data.get('acta_html') or '').strip()
-        if acta_html and partido_data.get('ID'):
-            return f"https://voleibolib.federatio.com/actas/{partido_data.get('ID')}/{acta_html}"
-        return ''
+        return build_acta_url(partido_data.get('acta_html'), partido_data.get('ID'))
     
     def _create_match_from_json(self, partido_data: Dict, league: League) -> bool:
         """Crea un partido nuevo desde datos JSON si no existe"""

@@ -141,6 +141,27 @@ def is_penalty_result(set_scores) -> bool:
     return len(winners) == 1
 
 
+def build_acta_url(acta_html: str, federation_id: Any = None) -> str:
+    """Normaliza la URL del acta federativa.
+
+    Si acta_html ya es una URL absoluta (http/https), se devuelve limpia.
+    Si es un nombre de archivo relativo (p. ej. 'acta_10932.html') y se dispone
+    de federation_id, se compone la URL canónica de la federación balear.
+    En cualquier otro caso, devuelve la cadena original limpia.
+    """
+    if not acta_html:
+        return ''
+    cleaned = str(acta_html).strip()
+    if not cleaned:
+        return ''
+    if cleaned.startswith(('http://', 'https://')):
+        return cleaned
+    fed_id = str(federation_id or '').strip()
+    if fed_id:
+        return f"https://voleibolib.federatio.com/actas/{fed_id}/{cleaned}"
+    return cleaned
+
+
 class ScrapingError(Exception):
     """Exception específica para errores de scraping"""
     pass
@@ -184,6 +205,7 @@ __all__ = [
     'league_max_sets',
     'parse_set_scores_string',
     'is_penalty_result',
+    'build_acta_url',
     'ScrapingError',
     'BaseParser',
 ]

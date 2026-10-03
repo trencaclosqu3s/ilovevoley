@@ -62,14 +62,15 @@ class Command(BaseCommand):
         ok = 0
         failed = 0
         for match in matches:
+            acta_url = match.official_acta_url or match.acta_html
             try:
                 content = safe_get(
-                    match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
+                    acta_url, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
                 )
                 lineup_data = parse_acta_lineup(content)
                 store_match_lineups(match, lineup_data)
                 ok += 1
-                self.stdout.write(f'OK {match.id}: {match.acta_html}')
+                self.stdout.write(f'OK {match.id}: {acta_url}')
             except UnsafeURL as e:
                 failed += 1
                 self.stderr.write(f'DESCARTADO {match.id}: {e}')
