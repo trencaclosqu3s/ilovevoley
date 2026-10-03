@@ -1,16 +1,16 @@
 {% extends 'base.html' %}
 {% load static i18n %}
 
-{% block title %}{% trans "¿Dónde juega?" %} - {% if tenant %}{{ tenant.name }}{% else %}I Love Voley{% endif %}{% endblock %}
+{% block title %}{% trans "Sedes y pabellones" %} - {% if tenant %}{{ tenant.name }}{% else %}I Love Voley{% endif %}{% endblock %}
 
 {% block sidebar %}{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto">
     <header class="mb-6">
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200">{% trans "¿Dónde juega el rival?" %}</h1>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200">{% trans "Sedes y pabellones" %}</h1>
         <p class="text-gray-500 dark:text-gray-400 mt-2">
-            {% blocktrans trimmed %}Busca por equipo o club y consulta sus próximos partidos, el pabellón y cómo llegar.
+            {% blocktrans trimmed %}Busca por equipo, club, pabellón o municipio y consulta sus próximos partidos, la sede y cómo llegar.
             Datos de la temporada en curso.{% endblocktrans %}
         </p>
     </header>
@@ -19,8 +19,8 @@
           data-where-plays data-search-url="{% url 'where_plays_search' %}" data-min-length="{{ min_query_length }}">
         <div class="flex flex-col sm:flex-row gap-2">
             <input id="where-plays-q" type="search" name="q" value="{{ query }}"
-                   placeholder="{% blocktrans with min=min_query_length %}Equipo o club (mín. {{ min }} letras){% endblocktrans %}"
-                   aria-label="{% trans "Equipo o club" %}" autocomplete="off"
+                   placeholder="{% blocktrans with min=min_query_length %}Equipo, club, pabellón o municipio (mín. {{ min }} letras){% endblocktrans %}"
+                   aria-label="{% trans "Equipo, club, pabellón o municipio" %}" autocomplete="off"
                    class="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-4 py-3">
             <button type="submit"
                     class="bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold px-6 py-3 rounded-lg">
@@ -34,6 +34,37 @@
 
     <div id="where-plays-results" class="space-y-4">
         {% for result in results %}
+        {% if result.type == 'venue' %}
+        <article class="bg-white dark:bg-gray-800 rounded-xl shadow border-l-4 border-csj-yellow dark:border-csj-yellow p-4">
+            <div class="flex items-center justify-between gap-2">
+                <h2 class="text-lg font-bold text-gray-800 dark:text-gray-200">{{ result.name }}</h2>
+                <span class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{% trans "Sede" %}</span>
+            </div>
+            {% if result.city %}
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ result.city }}</p>
+            {% endif %}
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ result.street|default:result.address }}</p>
+            {% if result.maps_url %}
+            <a href="{{ result.maps_url }}" target="_blank" rel="noopener"
+               class="inline-flex items-center text-sm font-semibold text-csj-purple dark:text-csj-yellow hover:underline mt-1">
+                {% trans "Cómo llegar" %}
+            </a>
+            {% endif %}
+
+            {% if result.matches %}
+            <ul class="mt-3 space-y-3">
+                {% for match in result.matches %}
+                <li class="border-t border-gray-200 dark:border-gray-700 pt-3">
+                    <span class="text-sm font-semibold text-csj-purple dark:text-csj-yellow">
+                        {{ match.date }}{% if match.has_time %} · {{ match.time }}{% else %} · {% trans "hora por confirmar" %}{% endif %}
+                    </span>
+                    <p class="text-gray-800 dark:text-gray-200">{{ match.home_name }} vs {{ match.away_name }}</p>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </article>
+        {% else %}
         <article class="bg-white dark:bg-gray-800 rounded-xl shadow border-l-4 border-csj-purple dark:border-csj-purple-dark p-4">
             <div class="flex items-center justify-between gap-2">
                 <h2 class="text-lg font-bold text-gray-800 dark:text-gray-200">{{ result.team_name }}</h2>
@@ -82,11 +113,12 @@
             <p class="text-sm text-gray-500 dark:text-gray-400 mt-3">{% trans "Sin próximos partidos ni sede registrada." %}</p>
             {% endif %}
         </article>
+        {% endif %}
         {% empty %}
             {% if query and query|length >= min_query_length %}
-            <p class="text-center text-gray-500 dark:text-gray-400 py-6">{% blocktrans with search=query %}No se han encontrado equipos para «{{ search }}».{% endblocktrans %}</p>
+            <p class="text-center text-gray-500 dark:text-gray-400 py-6">{% blocktrans with search=query %}No se han encontrado resultados para «{{ search }}».{% endblocktrans %}</p>
             {% elif not query %}
-            <p class="text-center text-gray-500 dark:text-gray-400 py-6">{% trans "Escribe el nombre de un equipo o club para ver dónde juega." %}</p>
+            <p class="text-center text-gray-500 dark:text-gray-400 py-6">{% trans "Escribe el nombre de un equipo, club, pabellón o municipio." %}</p>
             {% endif %}
         {% endfor %}
     </div>

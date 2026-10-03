@@ -1,9 +1,14 @@
-"""Búsqueda pública de sedes por equipo o club.
+"""Búsqueda pública de sedes por equipo, club, pabellón o municipio.
 
-Resuelve, para los equipos que participan en las ligas de la organización actual,
-sus próximos partidos y la ubicación de cada uno reutilizando
-:func:`get_match_location_info` (la misma resolución que el feed iCal). Si un
-equipo no tiene partidos próximos se ofrece su sede habitual (``default_venue``).
+Devuelve dos tipos de coincidencias:
+
+* **equipos** que participan en las ligas de la organización actual, con sus
+  próximos partidos y la ubicación de cada uno (misma resolución que el feed
+  iCal vía :func:`get_match_location_info`). Si un equipo no tiene partidos
+  próximos se ofrece su sede habitual (``default_venue``).
+* **pabellones** (``Venue``) encontrados directamente por nombre, nombre corto,
+  alias o municipio, con su dirección, enlace a Maps y los próximos partidos que
+  se disputan allí dentro de las ligas del tenant.
 """
 
 from django.db.models import Q
@@ -17,6 +22,17 @@ from ilovevoley.teams.models import Team
 MIN_QUERY_LENGTH = 3
 MAX_TEAMS = 20
 MAX_MATCHES_PER_TEAM = 5
+MAX_VENUES = 20
+MAX_MATCHES_PER_VENUE = 5
+
+
+def _tenant_league_ids(tenant):
+    """IDs de las ligas visibles del tenant en la temporada actual."""
+    leagues = League.objects.for_tenant(tenant)
+    season = Season.objects.current()
+    if season is not None:
+        leagues = leagues.filter(season=season)
+    return list(leagues.values_list('pk', flat=True))
 
 
 def _venue_payload(venue):
@@ -24,6 +40,9 @@ def _venue_payload(venue):
         return None
     return {
         'name': venue.name,
+        'short_name': venue.short_name,
+        'city': venue.city,
+        'street': venue.address,
         'address': venue.full_address,
         'maps_url': venue.maps_url,
     }
@@ -46,6 +65,23 @@ def _match_payload(match, team, active_venues):
     }
 
 
+def _venue_match_payload(match, active_venues):
+    """Partido ofrecido dentro de una tarjeta de sede (sin lado local/visitante)."""
+    info = get_match_location_info(match, active_venues=active_venues)
+    local_dt = timezone.localtime(match.match_date)
+    has_time = not (local_dt.hour == 0 and local_dt.minute == 0)
+    return {
+        'id': match.id,
+        'date': local_dt.strftime('%d/%m/%Y'),
+        'time': local_dt.strftime('%H:%M') if has_time else '',
+        'has_time': has_time,
+        'home_name': match.home_team_display,
+        'away_name': match.away_team_display,
+        'location_text': info['location_text'],
+        'maps_url': info['maps_url'],
+    }
+
+
 def search_team_locations(tenant, query, *, max_teams=MAX_TEAMS, max_matches=MAX_MATCHES_PER_TEAM):
     """Devuelve los equipos que casan con ``query`` y sus próximos partidos.
 
@@ -58,11 +94,7 @@ def search_team_locations(tenant, query, *, max_teams=MAX_TEAMS, max_matches=MAX
     if tenant is None or len(query) < MIN_QUERY_LENGTH:
         return []
 
-    leagues = League.objects.for_tenant(tenant)
-    season = Season.objects.current()
-    if season is not None:
-        leagues = leagues.filter(season=season)
-    league_ids = list(leagues.values_list('pk', flat=True))
+    league_ids = _tenant_league_ids(tenant)
     if not league_ids:
         return []
 
@@ -99,6 +131,7 @@ def search_team_locations(tenant, query, *, max_teams=MAX_TEAMS, max_matches=MAX
         if not matches and team.club_id:
             default_venue = _venue_payload(team.club.default_venue)
         results.append({
+            'type': 'team',
             'team_id': team.id,
             'team_name': team.display_name_with_variant,
             'category': team.category.name if team.category_id else None,
@@ -107,3 +140,59 @@ def search_team_locations(tenant, query, *, max_teams=MAX_TEAMS, max_matches=MAX
             'default_venue': default_venue,
         })
     return results
+
+
+def search_venues(tenant, query, *, max_venues=MAX_VENUES, max_matches=MAX_MATCHES_PER_VENUE):
+    """Devuelve los pabellones que casan con ``query`` por nombre, alias o municipio.
+
+    El catálogo de ``Venue`` es global; la coincidencia se hace contra
+    ``name``, ``short_name``, ``city`` y ``aliases``. Los partidos próximos que
+    se muestran en cada tarjeta sí se acotan a las ligas del tenant, así que una
+    sede puede aparecer aunque no tenga partidos en la organización activa.
+    """
+    query = (query or '').strip()
+    if len(query) < MIN_QUERY_LENGTH:
+        return []
+
+    venues = (
+        Venue.objects.filter(is_active=True)
+        .filter(
+            Q(name__icontains=query)
+            | Q(short_name__icontains=query)
+            | Q(city__icontains=query)
+            | Q(aliases__icontains=query),
+        )
+        .order_by('city', 'name')[:max_venues]
+    )
+
+    league_ids = _tenant_league_ids(tenant) if tenant is not None else []
+    active_venues = list(Venue.objects.filter(is_active=True))
+    now = timezone.now()
+    results = []
+    for venue in venues:
+        matches = []
+        if league_ids:
+            upcoming = list(
+                Match.objects.filter(
+                    venue_ref=venue,
+                    league_id__in=league_ids,
+                    match_date__gte=now,
+                )
+                .select_related('home_team', 'away_team')
+                .order_by('match_date')[:max_matches]
+            )
+            matches = [_venue_match_payload(match, active_venues) for match in upcoming]
+
+        payload = _venue_payload(venue)
+        payload.update({
+            'type': 'venue',
+            'venue_id': venue.id,
+            'matches': matches,
+        })
+        results.append(payload)
+    return results
+
+
+def search_locations(tenant, query):
+    """Buscador unificado: equipos del tenant primero, pabellones después."""
+    return search_team_locations(tenant, query) + search_venues(tenant, query)
