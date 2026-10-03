@@ -98,7 +98,11 @@ class InactivityTaskTests(TestCase):
         self.staff_user.last_login = self.now - timedelta(days=400)
         self.staff_user.save()
 
-    @override_settings(NOTIFICATION_EMAIL_ENABLED=True, EMAIL_HOST_USER='test@example.com')
+    @override_settings(
+        NOTIFICATION_EMAIL_ENABLED=True,
+        EMAIL_HOST_USER='test@example.com',
+        EMAIL_NOTIFICATIONS={'user_inactivity_warning': True},
+    )
     def test_process_inactive_users_flow(self):
         """Verifica los 3 escalones: aviso 1, aviso urgente 2 y desactivación al vencer plazos."""
         mail.outbox = []
@@ -143,6 +147,16 @@ class InactivityTaskTests(TestCase):
         self.assertNotIn('active@example.com', recipient_emails)
         self.assertNotIn('super@example.com', recipient_emails)
         self.assertNotIn('staff@example.com', recipient_emails)
+
+    def test_notifications_disabled_by_default_sends_no_emails(self):
+        """Verifica que por defecto (con el aviso desactivado) no se envían correos ni avanzan niveles."""
+        mail.outbox = []
+        result = process_inactive_users_task()
+        self.assertEqual(result['first_warnings_sent'], 0)
+        self.assertEqual(result['final_warnings_sent'], 0)
+        self.assertEqual(len(mail.outbox), 0)
+        self.user_warn1.refresh_from_db()
+        self.assertEqual(self.user_warn1.inactivity_warning_level, 0)
 
     def test_login_resets_inactivity_warning(self):
         """Verifica que cuando un usuario con aviso pendiente inicia sesión, se resetea su contador."""

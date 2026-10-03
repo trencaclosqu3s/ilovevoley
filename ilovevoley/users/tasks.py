@@ -211,22 +211,22 @@ def process_inactive_users_task(first_warning_days=335, final_warning_days=358, 
                 min_interval = (user.inactivity_warning_sent_at or effective) + timedelta(days=15)
                 if now >= min_interval:
                     days_remaining = max(1, (deadline - now).days)
-                    _send_inactivity_warning_email(user, warning_level=2, days_remaining=days_remaining, deadline_date=deadline)
-                    user.inactivity_warning_level = 2
-                    user.inactivity_warning_sent_at = now
-                    user.save(update_fields=['inactivity_warning_level', 'inactivity_warning_sent_at'])
-                    final_warnings_sent += 1
-                    continue
+                    if _send_inactivity_warning_email(user, warning_level=2, days_remaining=days_remaining, deadline_date=deadline):
+                        user.inactivity_warning_level = 2
+                        user.inactivity_warning_sent_at = now
+                        user.save(update_fields=['inactivity_warning_level', 'inactivity_warning_sent_at'])
+                        final_warnings_sent += 1
+                        continue
 
         # 3. Primer aviso (inactividad >= 335 días y aún sin avisos)
         if effective <= cutoff_first:
             if user.inactivity_warning_level == 0:
                 days_remaining = max(1, (deadline - now).days)
-                _send_inactivity_warning_email(user, warning_level=1, days_remaining=days_remaining, deadline_date=deadline)
-                user.inactivity_warning_level = 1
-                user.inactivity_warning_sent_at = now
-                user.save(update_fields=['inactivity_warning_level', 'inactivity_warning_sent_at'])
-                first_warnings_sent += 1
+                if _send_inactivity_warning_email(user, warning_level=1, days_remaining=days_remaining, deadline_date=deadline):
+                    user.inactivity_warning_level = 1
+                    user.inactivity_warning_sent_at = now
+                    user.save(update_fields=['inactivity_warning_level', 'inactivity_warning_sent_at'])
+                    first_warnings_sent += 1
 
     return {
         'first_warnings_sent': first_warnings_sent,

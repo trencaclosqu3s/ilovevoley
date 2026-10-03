@@ -429,7 +429,7 @@ EMAIL_NOTIFICATIONS = {
     'image_pending': env_config('EMAIL_NOTIFY_IMAGE_PENDING', default=True, cast=bool),
     'image_moderated': env_config('EMAIL_NOTIFY_IMAGE_MODERATED', default=True, cast=bool),
     'error_404_daily': env_config('EMAIL_NOTIFY_404_DAILY', default=False, cast=bool),
-    'user_inactivity_warning': env_config('EMAIL_NOTIFY_USER_INACTIVITY', default=True, cast=bool),
+    'user_inactivity_warning': env_config('EMAIL_NOTIFY_USER_INACTIVITY', default=False, cast=bool),
 }
 
 # Avisos de cambios federativos de partidos (competitions/services/notifications.py)
