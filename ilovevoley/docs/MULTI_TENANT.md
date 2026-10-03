@@ -60,3 +60,13 @@ Cada organización puede seleccionar en el admin su página de inicio (`default_
 - **Competiciones y Partidos** (`competitions`): Redirige a `/competitions/ligas/` (`competitions:league_list`).
 
 El enlace del logotipo y el nombre en el navbar apuntan automáticamente a la URL configurada mediante la propiedad `organization.home_url_name`.
+
+## 📱 Multi-Tenancy y Progressive Web App (PWA)
+
+La arquitectura de la aplicación móvil instalable (PWA) está adaptada a la naturaleza multi-tenant del proyecto:
+
+1. **App Única Comunitaria**: El usuario instala una única aplicación ("I Love Voley"). Al acceder al subdominio de un club, la PWA adopta su `theme_color`, logotipo e identidad visual.
+2. **Sesión Compartida**: En producción, las cookies de sesión y CSRF se configuran a nivel de dominio comodín (`.ilovevoley.es`), permitiendo que el usuario mantenga su autenticación al navegar entre clubes de los que sea miembro.
+3. **Conmutación In-App y Scope Extensions**: Para evitar que el navegador expulse al usuario de la ventana de la PWA al cambiar de subdominio, el sistema publica el endpoint estandarizado `/.well-known/web-app-origin-association` con todos los tenants activos. El conmutador de clubes de la interfaz permite alternar de club sin abrir pestañas externas.
+4. **Ámbito de Personas y Plantillas**: Siguiendo la decisión de arquitectura #174, el modelo `Person` incluye `organization` en su constraint de identidad (`unique_person_identity`), permitiendo que la misma persona física (jugador/entrenador) mantenga fichas deportivas independientes en dos clubes distintos.
+

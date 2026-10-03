@@ -126,6 +126,40 @@ Ejecuta scraping de clubes desde voleibolib.net y asocia equipos automáticament
 - `match_teams`: Si es true, ejecuta matching automático de equipos con clubes (por defecto: true)
 - `delay`: Delay entre requests en segundos (por defecto: 1.0)
 
+### 4. scrape_balearic_callups
+
+Scraping de convocatorias oficiales de selecciones baleares.
+
+**Nombre de tarea**: `scrape_balearic_callups`
+
+### 5. cleanup_expired_web_push_audits
+
+Purga registros de auditoría de avisos push (`WebPushAudit`) con más de N días de antigüedad (por defecto 90 días).
+
+**Nombre de tarea**: `cleanup_expired_web_push_audits`
+
+**Parámetros opcionales (kwargs)**:
+```json
+{
+    "days": 90
+}
+```
+
+### 6. cleanup_expired_album_zips
+
+Elimina del almacenamiento temporal los archivos ZIP de descarga de álbumes generados cuya fecha de expiración haya vencido.
+
+**Nombre de tarea**: `cleanup_expired_album_zips`
+
+### 7. send_match_reminders_2h
+
+Envía recordatorios de partidos que se juegan dentro de las próximas 2 horas a los usuarios correspondientes.
+
+**Nombre de tarea**: `send_match_reminders_2h`
+
+> [!IMPORTANT]
+> **Nombre explícito de tareas**: Todas las tareas Celery del proyecto llevan `name=` explícito obligatorio (ej. `@shared_task(name='...')`). Las filas de `PeriodicTask` en base de datos dependen estrictamente de ese nombre y no de la ruta del módulo.
+
 ## Configurar tareas desde el admin
 
 ### Opción 1: Usar Intervals (cada X tiempo)

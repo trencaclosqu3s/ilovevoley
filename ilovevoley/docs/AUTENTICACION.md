@@ -53,7 +53,7 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 # Obtener email de Google
 SOCIALACCOUNT_QUERY_EMAIL = True
 SOCIALACCOUNT_EMAIL_REQUIRED = True
-SOCIALACCOUNT_STORE_TOKENS = True
+SOCIALACCOUNT_STORE_TOKENS = False  # Solo identificación: no se almacenan tokens de acceso/refresco en base de datos
 ```
 
 ### Adapter Personalizado
@@ -71,7 +71,9 @@ El archivo `ilovevoley/users/adapters.py` contiene:
 
 ---
 
-## Páginas de Autenticación
+## Páginas de Autenticación y Rate Limiting
+
+Las rutas críticas de autenticación (`/accounts/login/`, `/accounts/signup/`, `/accounts/password/reset/`) están protegidas contra ataques de fuerza bruta mediante vistas personalizadas con limitación de tasa (`RatelimitedLoginView`, `RatelimitedSignupView`, `RatelimitedPasswordResetView`) que tienen prioridad sobre las rutas estándar de allauth.
 
 ### Templates Disponibles
 
@@ -218,5 +220,6 @@ Asegurar que este dominio coincida con el dominio de producción.
 - [Django Allauth Documentation](https://django-allauth.readthedocs.io/)
 - [Google OAuth 2.0 Setup](https://developers.google.com/identity/protocols/oauth2)
 - [Redirect URI Mismatch Error](https://developers.google.com/identity/protocols/oauth2/web-server#authorization-errors-redirect-uri-mismatch)
+- [Evaluación de Proveedores de Login Social (ADR 2026-10-02)](../../docs/architecture/2026-10-02-proveedores-login-social.md): Justificación técnica de exclusividad de Google frente a Apple, Facebook, Discord, etc.
 
 
