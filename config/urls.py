@@ -73,7 +73,7 @@ urlpatterns = [
     path('competitions/', include('ilovevoley.competitions.urls', namespace='competitions')),
     path('p/', include('ilovevoley.competitions.public_urls', namespace='public')),
     path('core/', include('ilovevoley.core.urls', namespace='core')),
-    # Página pública "¿Dónde juega el rival?" (sin login, acotada al tenant)
+    # Página pública "Sedes y pabellones" (sin login, acotada al tenant)
     path('donde-juega/', where_plays, name='where_plays'),
     path('donde-juega/buscar/', where_plays_search, name='where_plays_search'),
     path('', include('ilovevoley.users.urls')),

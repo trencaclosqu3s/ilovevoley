@@ -8,14 +8,16 @@ voleibol, multi-tenant por organización.
 El paquete raíz es `ilovevoley`. La lógica se divide en apps de dominio:
 
 - **`core`**: Multi-tenant (`Organization`, con subdominios via `TenantMiddleware`,
-  `club` federativo vinculado y `default_home` configurable), modelo centralizado
-  de temporadas (`Season` con temporada activa única `is_current`, helpers de
-  normalización `YYYY-YY` y corte el 1 de septiembre), `Category`, auditoría y
-  panel de moderación descentralizada (`/core/moderacion/`).
+  `club` federativo vinculado y `default_home` configurable), infraestructura PWA
+  comunitaria (manifest dinámico, service worker, fallback offline y scope extensions
+  en `.well-known/web-app-origin-association`), modelo centralizado de temporadas
+  (`Season` con temporada activa única `is_current`, helpers de normalización
+  `YYYY-YY` y corte el 1 de septiembre), `Category`, auditoría y panel de
+  moderación descentralizada (`/core/moderacion/`).
 - **`competitions`**: Ligas (`League`, con FK a `Season` y M2M `categories`),
-  partidos (`Match`), clasificaciones (`Standing`), endpoints de scraping
-  (`ScrapingEndpoint`), parsers federativos (voleibolib / RFEVB) y suscripción
-  ICS a calendario.
+  partidos (`Match`), sedes deportivas (`Venue`), clasificaciones (`Standing`),
+  endpoints de scraping (`ScrapingEndpoint`), parsers federativos (voleibolib /
+  RFEVB) y suscripción ICS a calendario.
 - **`teams`**: Clubes oficiales (`Club`), equipos (`Team`) y variantes de equipo
   (`parent_team`, `variant_type` para equipos filiales/colores).
 - **`rosters`**: Plantillas históricas (`Person`, `PlayerRole`, `StaffRole`)
@@ -25,9 +27,10 @@ El paquete raíz es `ilovevoley`. La lógica se divide en apps de dominio:
   álbumes grupales (`album_group_id`), etiquetado automático y moderación con
   Google Vision API, vinculados a `Season` y filtrados por temporada activa.
 - **`users`**: Modelo `User` personalizado, membresías por club (`Membership` con
-  roles `admin`, `manager`, `member`), autenticación Google OAuth (solo para
-  identificar al usuario, sin tokens: `SOCIALACCOUNT_STORE_TOKENS = False`) y
-  suscripción de partidos por feed iCal (`calendar_token`), no por la API de
+  roles `admin`, `manager`, `member`), notificaciones Web Push (VAPID RFC 8292)
+  con filtros de categorías y auditoría (`WebPushAudit`), autenticación Google OAuth
+  (solo para identificar al usuario, sin tokens: `SOCIALACCOUNT_STORE_TOKENS = False`)
+  y suscripción de partidos por feed iCal (`calendar_token`), no por la API de
   Google Calendar.
 - **`videos`**: Paquete legado que se mantiene **exclusivamente** como capa de
   compatibilidad para URLs antiguas y las tareas periódicas Celery. Nuevos modelos

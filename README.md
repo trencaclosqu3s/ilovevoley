@@ -5,23 +5,29 @@ Plataforma web Django para la gestión integral de vídeos, imágenes, competici
 ## Características Principales
 
 - **Arquitectura Multi-Tenant**: Soporte para múltiples clubes y organizaciones con subdominios dedicados, colores corporativos, logotipo propio, homepage configurable (`default_home`) y vinculación directa a su club federativo (`Organization.club`).
+- **Progressive Web App (PWA)**: Aplicación instalable en móvil y escritorio, soporte de temas según la identidad del club activo, precaching con Service Worker, página de fallback offline (`/offline/`) y conmutador in-app entre clubes federados sin abandonar la ventana de la aplicación (`.well-known/web-app-origin-association`).
+- **Notificaciones Web Push**: Sistema de avisos web push mediante estándar VAPID (RFC 8292), con filtro de categorías de interés por usuario, entrega asíncrona vía Celery para resultados de partidos y nuevos álbumes/fotos (con debounce agrupador), registro de auditoría (`WebPushAudit`) y purga periódica.
+- **Internacionalización (i18n)**: Soporte bilingüe en castellano (`es`) y catalán (`ca`) sin prefijos en la URL (`/i18n/setlang/`), persistencia de preferencia en perfil de usuario (`preferred_language`) y composición de notificaciones (emails y push) en el idioma de cada destinatario.
 - **Gestión de Temporadas (`Season`)**: Modelo centralizado de temporadas (`2025-26`), temporada activa única (`is_current`), cálculo de inicio el 1 de septiembre y filtrado global uniforme en vídeos, galerías, ligas y plantillas.
-- **Plantillas Deportivas (`Rosters`)**: Gestión histórica de personas, jugadores (`PlayerRole`) y cuerpo técnico (`StaffRole`) por temporada, con validación de dorsales únicos y soporte multi-rol para staff.
+- **Plantillas Deportivas (`Rosters`)**: Gestión histórica de personas, jugadores (`PlayerRole`) y cuerpo técnico (`StaffRole`) por temporada, con validación de dorsales únicos, soporte multi-rol para staff y ámbito de persona por organización.
 - **Gestión de Vídeos**: Subida y organización de vídeos de YouTube, transmisiones en directo, categorización y vinculación inteligente a partidos.
-- **Gestión de Imágenes**: Sistema con 6 tipos de imagen, álbumes grupales, subida drag & drop, soporte para formato HEIC (conversión automática), etiquetado manual y automático con Google Vision API.
-- **Competiciones y Scraping Federativo**: Importación automatizada de ligas, equipos, calendarios, actas y clasificaciones (voleibolib / RFEVB) con validación estricta de marcadores de voleibol según el formato de competición.
+- **Gestión de Imágenes**: Sistema con 6 tipos de imagen, álbumes grupales, subida drag & drop, soporte para formato HEIC (conversión automática), descarga de álbumes en ZIP, etiquetado manual y automático con Google Vision API.
+- **Competiciones y Scraping Federativo**: Importación automatizada de ligas, equipos, sedes de juego (`Venue`), calendarios, actas y clasificaciones (voleibolib / RFEVB) con validación estricta de marcadores de voleibol según el formato de competición.
+- **Localización de Sedes ("¿Dónde juega el rival?")**: Módulo público (`/donde-juega/`) para consultar y buscar pabellones de juego con coordenadas GPS y enlace directo a navegación en mapas.
 - **Integración con Calendarios**: Feed ICS por usuario para que el calendario de partidos se suscriba en Google Calendar, Outlook o el móvil.
-- **Sistema de Usuarios y Moderación**: Autenticación Google OAuth, membresías por club (`Membership`) y moderación descentralizada que permite a los managers de cada club aprobar a sus propios miembros desde `/core/moderacion/`.
-- **Comentarios y Comunidad**: Interacción moderada entre usuarios aprobados.
+- **Sistema de Usuarios y Moderación**: Autenticación Google OAuth, membresías por club (`Membership`) con roles diferenciados (`admin`, `manager`, `member`) y moderación descentralizada que permite a los managers de cada club aprobar a sus propios miembros desde `/core/moderacion/`.
+- **Tema y Modo Oscuro**: Soporte nativo para modo claro y modo oscuro, respetando las preferencias del sistema.
 
 ## Tecnologías Utilizadas
 
 - **Backend**: Python 3.13 con **Django 6.0.8** y **PostgreSQL**
 - **Panel Admin**: **django-unfold**
+- **PWA & Web Push**: Service Workers, Web App Manifest dinámico, `pywebpush` (VAPID RFC 8292)
+- **Internacionalización**: Django gettext (`es` y `ca`)
 - **Autenticación**: django-allauth con Google OAuth
 - **IA y Visión**: Google Cloud Vision API
 - **Procesamiento de Imágenes**: Pillow y pillow-heif (soporte HEIC)
-- **Tareas Asíncronas**: Celery con Redis y django-celery-beat (16 tareas programadas)
+- **Tareas Asíncronas**: Celery con Redis y django-celery-beat
 - **Suscripciones de Calendario**: django-ical (feed ICS por usuario)
 - **Scraping**: BeautifulSoup4 y requests
 - **Monitorización**: Sentry SDK
@@ -54,7 +60,13 @@ Plataforma web Django para la gestión integral de vídeos, imágenes, competici
    docker compose -f docker-compose.dev.yml run --rm web python manage.py createsuperuser
    ```
 
-5. **Acceso**:
+5. **Generar claves VAPID para Web Push (opcional en desarrollo)**:
+   ```bash
+   docker compose -f docker-compose.dev.yml run --rm web python manage.py generate_vapid_keys
+   ```
+   Copia las claves generadas a las variables `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY` en tu `.env`.
+
+6. **Acceso**:
    - Web: `http://localhost:8000`
    - Admin: `http://localhost:8000/admin/`
 
@@ -128,25 +140,37 @@ docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_al
 ## URLs Principales
 
 - `/` - Landing page y resolución contextual de tenant
+- `/manifest.webmanifest` - Manifiesto PWA dinámico según tenant
+- `/sw.js` - Service Worker de la PWA
+- `/offline/` - Pantalla de fallback offline
+- `/i18n/setlang/` - Selector dinámico de idioma (`es` / `ca`)
+- `/donde-juega/` - Localizador de pistas y sedes federativas ("¿Dónde juega el rival?")
 - `/videos/` o `/content/` - Lista de vídeos por categoría y temporada
-- `/content/imagenes/` - Galería de imágenes y álbumes
+- `/content/imagenes/` - Galería de imágenes y álbumes grupales
 - `/content/imagenes/subir/` - Subida de imágenes con drag & drop
 - `/competitions/ligas/` - Ligas y clasificaciones
 - `/competitions/calendario/` - Calendario interactivo de partidos
 - `/rosters/plantillas/` - Resumen y detalle de plantillas por equipo y temporada
 - `/teams/equipos/` - Lista de equipos del club
-- `/core/moderacion/` - Panel de moderación de usuarios y membresías
+- `/core/moderacion/` - Panel de moderación descentralizada de usuarios y membresías
+- `/users/api/webpush/` - Endpoints REST de suscripción y prueba de notificaciones Web Push
 - `/admin/` - Panel de administración general
 
 ## Documentación Técnica Adicional
 
 Para más detalles, consulta la documentación especializada en [`ilovevoley/docs/`](ilovevoley/docs/):
 
-- **[Sistema Multi-Tenant](ilovevoley/docs/MULTI_TENANT.md)**: Configuración de organizaciones, subdominios, branding y homepage
-- **[Temporadas y Plantillas](ilovevoley/docs/TEMPORADAS_Y_PLANTILLAS.md)**: Modelo unificado Season, roles de jugadores y staff técnico
-- **[Sistema de Scraping](ilovevoley/docs/SCRAPING.md)**: Configuración de parsers federativos y endpoints
-- **[Sistema de Imágenes](ilovevoley/docs/IMAGENES.md)**: Subida, tipos de imagen, moderación y auto-etiquetado con Google Vision
-- **[Tareas Periódicas Celery](ilovevoley/docs/TAREAS_PERIODICAS.md)**: Programación de tareas con Celery Beat
-- **[Sistema de Autenticación](ilovevoley/docs/AUTENTICACION.md)**: Google OAuth, flujo de aprobación y membresías
+- **[Progressive Web App (PWA)](ilovevoley/docs/PWA.md)**: Instalación, Service Worker, caché, soporte offline y origin association multi-tenant
+- **[Notificaciones Web Push](ilovevoley/docs/NOTIFICACIONES_PUSH.md)**: Arquitectura VAPID RFC 8292, suscripción, tareas Celery, debounce y auditoría
+- **[Sistema Multi-Tenant](ilovevoley/docs/MULTI_TENANT.md)**: Configuración de organizaciones, subdominios, branding, homepage y cookies
+- **[Temporadas y Plantillas](ilovevoley/docs/TEMPORADAS_Y_PLANTILLAS.md)**: Modelo unificado Season, identidad de personas y roles deportivos
+- **[Sistema de Scraping](ilovevoley/docs/SCRAPING.md)**: Configuración de parsers federativos, sedes (`Venue`) y endpoints
+- **[Sistema de Imágenes](ilovevoley/docs/IMAGENES.md)**: Subida, tipos de imagen, moderación, auto-etiquetado con Google Vision y ZIPs
+- **[Tareas Periódicas Celery](ilovevoley/docs/TAREAS_PERIODICAS.md)**: Programación de tareas con Celery Beat (scraping, push, limpiezas)
+- **[Sistema de Autenticación](ilovevoley/docs/AUTENTICACION.md)**: Google OAuth, rate-limiting, flujo de aprobación y membresías
 - **[Notificaciones por Email](ilovevoley/docs/NOTIFICACIONES_EMAIL.md)**: Sistema de notificaciones transaccionales y moderación vía token
+- **[Guía de Despliegue y CI/CD](ilovevoley/docs/DESPLIEGUE.md)**: Pipeline GitHub Actions, `deploy.sh`, gestión de estáticos y rollback
+- **[Content Security Policy (CSP)](ilovevoley/docs/CSP.md)**: Cabeceras de seguridad, nonces y delegación de eventos
+- **[ADR: Empaquetado Móvil PWA/TWA/Capacitor](docs/architecture/2026-09-30-mobile-packaging-pwa-capacitor-twa.md)**: Registro de decisión técnica de la estrategia móvil
+- **[Evaluación de Login Social](docs/architecture/2026-10-02-proveedores-login-social.md)**: Análisis comparativo de proveedores OAuth2
 - **[Guía para Agentes y LLMs](AGENTS.md)**: Reglas de negocio, arquitectura y restricciones canónicas para asistentes IA

@@ -1,0 +1,45 @@
+{% extends "base_auth.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Confirmar desactivación de cuenta" %} - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-lg">
+    <div class="bg-white rounded-lg shadow-lg p-6 sm:p-8 border-t-4 border-red-500">
+        <div class="text-center mb-6">
+            <div class="text-6xl mb-4">🚪</div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">
+                {% trans "Desactivar cuenta" %}
+            </h1>
+            <p class="text-sm text-gray-600">
+                {% blocktrans with username=target_user.username %}Hola <strong>{{ username }}</strong>, hemos recibido tu solicitud para dar de baja tu cuenta.{% endblocktrans %}
+            </p>
+        </div>
+
+        <div class="space-y-4 mb-6">
+            <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded text-sm text-amber-800">
+                <h3 class="font-semibold mb-1">{% trans "⚠️ ¿Qué implica desactivar tu cuenta?" %}</h3>
+                <ul class="list-disc list-inside space-y-1 text-xs">
+                    <li>{% trans "No recibirás más avisos de inactividad ni correos del sistema." %}</li>
+                    <li>{% trans "Tus credenciales de acceso quedarán inhabilitadas." %}</li>
+                    <li>{% trans "Tus suscripciones a notificaciones push serán canceladas." %}</li>
+                </ul>
+            </div>
+            
+            <p class="text-sm text-gray-600 text-center">
+                {% trans "¿Seguro que deseas continuar? Esta acción desactivará tu cuenta inmediatamente." %}
+            </p>
+        </div>
+
+        <form method="post" class="space-y-3">
+            {% csrf_token %}
+            <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition touch-manipulation">
+                {% trans "Sí, desactivar mi cuenta" %}
+            </button>
+            <a href="{% url 'account_login' %}" class="block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg font-medium transition touch-manipulation">
+                {% trans "Cancelar y mantener mi cuenta activa" %}
+            </a>
+        </form>
+    </div>
+</div>
+{% endblock %}

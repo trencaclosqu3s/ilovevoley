@@ -1,12 +1,18 @@
 from datetime import timedelta
 
 from django.core.cache import cache
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match, Venue
-from ilovevoley.competitions.services.where_plays import search_team_locations
+from ilovevoley.competitions.services.where_plays import (
+    search_locations,
+    search_team_locations,
+    search_venues,
+)
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.teams.models import Club, Team
 
@@ -134,6 +140,121 @@ class WherePlaysServiceTests(TestCase):
         self.assertIsNone(payload['maps_url'])
 
 
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es'])
+class VenueSearchServiceTests(TestCase):
+    """Búsqueda directa de pabellones por nombre, alias o municipio."""
+
+    def setUp(self):
+        cache.clear()
+        self.season = Season.objects.resolve('2026-2027')
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
+        self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-A')
+        self.org.club = self.club
+        self.org.save(update_fields=['club'])
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(
+            name='Test Senior', category=self.category, club=self.club,
+            federation_id='TEAM-A1', is_active=True,
+        )
+        self.rival = Team.objects.create(
+            name='Mayurqa Senior', category=self.category, club=None,
+            federation_id='TEAM-B1', is_active=True,
+        )
+        self.venue = Venue.objects.create(
+            name='Pav. Test Ciutatprova', short_name='Test Ciutatprova',
+            address='Carrer de la Prova, 1', city='Ciutatprova',
+            aliases='Pavelló Test Alias, Pista Test',
+            google_maps_url='https://maps.app.goo.gl/ciutatprova',
+        )
+        self.league = League.objects.create(
+            name='Liga Propia', federation_id='LEAGUE-A', season=self.season,
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+        self.league.categories.add(self.category)
+        self.match = Match.objects.create(
+            league=self.league, home_team=self.rival, away_team=self.team,
+            match_date=timezone.now() + timedelta(days=3), venue_ref=self.venue,
+            round_number=1, status='scheduled',
+        )
+
+    def test_finds_venue_by_name(self):
+        results = search_venues(self.org, 'Pav. Test Ciutatprova')
+        self.assertEqual(len(results), 1)
+        venue = results[0]
+        self.assertEqual(venue['type'], 'venue')
+        self.assertEqual(venue['name'], 'Pav. Test Ciutatprova')
+        self.assertEqual(venue['city'], 'Ciutatprova')
+        self.assertEqual(venue['maps_url'], 'https://maps.app.goo.gl/ciutatprova')
+        self.assertEqual([m['id'] for m in venue['matches']], [self.match.id])
+
+    def test_finds_venue_by_city(self):
+        results = search_venues(self.org, 'Ciutatprova')
+        self.assertEqual([v['name'] for v in results], ['Pav. Test Ciutatprova'])
+
+    def test_finds_venue_by_alias(self):
+        results = search_venues(self.org, 'Pavelló Test Alias')
+        self.assertEqual([v['name'] for v in results], ['Pav. Test Ciutatprova'])
+
+    def test_venue_matches_are_scoped_to_tenant_leagues(self):
+        other_league = League.objects.create(
+            name='Liga Ajena', federation_id='LEAGUE-B', season=self.season,
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+        foreign = Team.objects.create(
+            name='Extranjero Senior', category=self.category, club=None,
+            federation_id='TEAM-C1', is_active=True,
+        )
+        Match.objects.create(
+            league=other_league, home_team=self.rival, away_team=foreign,
+            match_date=timezone.now() + timedelta(days=4), venue_ref=self.venue,
+            round_number=1, status='scheduled',
+        )
+        results = search_venues(self.org, 'Ciutatprova')
+        self.assertEqual([m['id'] for m in results[0]['matches']], [self.match.id])
+
+    def test_search_locations_combines_teams_and_venues(self):
+        self.assertTrue(all(r['type'] == 'venue' for r in search_locations(self.org, 'Ciutatprova')))
+        results = search_locations(self.org, 'Test Senior')
+        self.assertTrue(all(r['type'] == 'team' for r in results))
+
+    def test_venue_matches_resolved_in_single_query(self):
+        """Los próximos partidos de todas las sedes se cargan en una sola query,
+        no una por sede (endpoint público en vivo)."""
+        extra = Venue.objects.create(name='Pav. Test Altre', city='Ciutatprova')
+        Match.objects.create(
+            league=self.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now() + timedelta(days=5), venue_ref=extra,
+            round_number=2, status='scheduled',
+        )
+        with CaptureQueriesContext(connection) as ctx:
+            results = search_venues(self.org, 'Ciutatprova')
+        self.assertEqual(len(results), 2)
+        match_queries = [
+            q for q in ctx.captured_queries
+            if 'videos_match' in q['sql'] and '"venue_ref_id"' in q['sql']
+        ]
+        self.assertEqual(len(match_queries), 1)
+
+    def test_noisy_venue_does_not_starve_other_venues(self):
+        """Una sede con muchos partidos tempranos no debe consumir el cupo de las
+        demás: el límite es por sede (ROW_NUMBER particionado), no global."""
+        extra = Venue.objects.create(name='Pav. Test Altre', city='Ciutatprova')
+        for days in range(2, 7):
+            Match.objects.create(
+                league=self.league, home_team=self.team, away_team=self.rival,
+                match_date=timezone.now() + timedelta(days=days),
+                venue_ref=self.venue, round_number=days, status='scheduled',
+            )
+        Match.objects.create(
+            league=self.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now() + timedelta(days=30),
+            venue_ref=extra, round_number=20, status='scheduled',
+        )
+        results = {r['name']: r for r in search_venues(self.org, 'Ciutatprova')}
+        self.assertEqual(len(results['Pav. Test Ciutatprova']['matches']), 5)
+        self.assertEqual(len(results['Pav. Test Altre']['matches']), 1)
+
+
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'ilovevoley.es'])
 class WherePlaysViewTests(TestCase):
     """La página es pública (sin login) y se acota al tenant del subdominio."""
@@ -154,7 +275,7 @@ class WherePlaysViewTests(TestCase):
             name='Mayurqa Senior', category=self.category, club=None,
             federation_id='TEAM-B1', is_active=True,
         )
-        self.venue = Venue.objects.create(name='Pav. Son Angelats', address='Carrer 1', city='Sóller')
+        self.venue = Venue.objects.create(name='Pav. Test Ciutatprova', address='Carrer 1', city='Ciutatprova')
         self.league = League.objects.create(
             name='Liga Propia', federation_id='LEAGUE-A', season=self.season,
             is_active=True, visibility_type='main', is_our_team_related=True,
@@ -184,6 +305,27 @@ class WherePlaysViewTests(TestCase):
         payload = response.json()
         self.assertEqual(payload['results'][0]['team_name'], 'Mayurqa Senior')
         self.assertTrue(payload['results'][0]['matches'][0]['maps_url'])
+
+    def test_search_endpoint_returns_venue(self):
+        response = self.client.get(
+            reverse('where_plays_search') + '?q=Ciutatprova',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['results'][0]['type'], 'venue')
+        self.assertEqual(payload['results'][0]['name'], 'Pav. Test Ciutatprova')
+        self.assertEqual(len(payload['results'][0]['matches']), 1)
+
+    def test_page_renders_venue_card(self):
+        response = self.client.get(
+            reverse('where_plays') + '?q=Ciutatprova',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Pav. Test Ciutatprova')
+        self.assertContains(response, 'Ciutatprova')
+        self.assertContains(response, 'Cómo llegar')
 
     def test_search_endpoint_ignores_short_query(self):
         response = self.client.get(
