@@ -117,7 +117,7 @@ def _send_inactivity_warning_email(user, warning_level, days_remaining, deadline
     from ilovevoley.core.email_utils import send_notification_email
     from .tokens import generate_deactivation_token
 
-    if not settings.EMAIL_NOTIFICATIONS.get('user_inactivity_warning', True):
+    if not settings.EMAIL_NOTIFICATIONS.get('user_inactivity_warning', False):
         return False
 
     tenant = _get_user_primary_tenant(user)
@@ -182,6 +182,7 @@ def process_inactive_users_task(first_warning_days=335, final_warning_days=358, 
         .exclude(email='')
         .exclude(email__isnull=True)
         .annotate(effective_activity=Coalesce('last_login', 'date_joined'))
+        .filter(effective_activity__lte=cutoff_first)
     )
 
     first_warnings_sent = 0
@@ -190,27 +191,29 @@ def process_inactive_users_task(first_warning_days=335, final_warning_days=358, 
 
     for user in candidates.iterator():
         effective = user.effective_activity
-        # Si la cuenta ya llevaba mucho tiempo inactiva antes de activar el sistema, garantizar 30 días
-        natural_deadline = effective + timedelta(days=deactivation_days)
-        deadline = natural_deadline if natural_deadline > now else now + timedelta(days=30)
 
-        # 1. Desactivación (inactividad >= 365 días y ha recibido al menos un aviso previo)
+        # 1. Desactivación (inactividad >= 365 días y plazos de gracia del aviso cumplidos)
         if effective <= cutoff_deact:
-            if user.inactivity_warning_level >= 1 and user.inactivity_warning_sent_at:
-                min_grace = user.inactivity_warning_sent_at + timedelta(days=7)
-                if now >= min_grace:
-                    user.is_active = False
-                    user.save(update_fields=['is_active'])
-                    user.web_push_subscriptions.all().delete()
-                    deactivated_count += 1
-                    continue
+            can_deactivate = False
+            if user.inactivity_warning_level == 2 and user.inactivity_warning_sent_at:
+                can_deactivate = now >= user.inactivity_warning_sent_at + timedelta(days=7)
+            elif user.inactivity_warning_level == 1 and user.inactivity_warning_sent_at:
+                can_deactivate = now >= user.inactivity_warning_sent_at + timedelta(days=30)
+
+            if can_deactivate:
+                user.is_active = False
+                user.save(update_fields=['is_active'])
+                user.web_push_subscriptions.all().delete()
+                deactivated_count += 1
+                continue
 
         # 2. Segundo aviso urgente (inactividad >= 358 días, nivel 1 previo y al menos 15 días entre avisos)
         if effective <= cutoff_final:
             if user.inactivity_warning_level == 1:
                 min_interval = (user.inactivity_warning_sent_at or effective) + timedelta(days=15)
                 if now >= min_interval:
-                    days_remaining = max(1, (deadline - now).days)
+                    days_remaining = 7
+                    deadline = now + timedelta(days=days_remaining)
                     if _send_inactivity_warning_email(user, warning_level=2, days_remaining=days_remaining, deadline_date=deadline):
                         user.inactivity_warning_level = 2
                         user.inactivity_warning_sent_at = now
@@ -221,7 +224,8 @@ def process_inactive_users_task(first_warning_days=335, final_warning_days=358, 
         # 3. Primer aviso (inactividad >= 335 días y aún sin avisos)
         if effective <= cutoff_first:
             if user.inactivity_warning_level == 0:
-                days_remaining = max(1, (deadline - now).days)
+                days_remaining = 30
+                deadline = now + timedelta(days=days_remaining)
                 if _send_inactivity_warning_email(user, warning_level=1, days_remaining=days_remaining, deadline_date=deadline):
                     user.inactivity_warning_level = 1
                     user.inactivity_warning_sent_at = now

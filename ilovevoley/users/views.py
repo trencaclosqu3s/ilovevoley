@@ -404,16 +404,10 @@ def deactivate_account_view(request, token):
     POST realiza la desactivación definitiva.
     """
     from .tokens import verify_deactivation_token
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
 
-    user_id = verify_deactivation_token(token)
-    if not user_id:
-        return render(request, 'users/deactivate_account_invalid.html', status=400)
-
-    target_user = User.objects.filter(pk=user_id).first()
+    target_user = verify_deactivation_token(token)
     if not target_user:
-        return render(request, 'users/deactivate_account_invalid.html', status=404)
+        return render(request, 'users/deactivate_account_invalid.html', status=400)
 
     if not target_user.is_active:
         return render(request, 'users/deactivate_account_success.html', {

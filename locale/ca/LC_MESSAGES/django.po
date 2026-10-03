@@ -10272,16 +10272,16 @@ msgid "Aviso de inactividad de tu cuenta"
 msgstr "Avís d'inactivitat del teu compte"
 
 #: ilovevoley/templates/emails/user_inactivity_warning.html
-msgid "⚠️ Tu cuenta se desactivará en 7 días"
-msgstr "⚠️ El teu compte es desactivarà en 7 dies"
+msgid "⚠️ Tu cuenta se desactivará en {{ days }} días"
+msgstr "⚠️ El teu compte es desactivarà en {{ days }} dies"
 
 #: ilovevoley/templates/emails/user_inactivity_warning.html
 msgid "Han pasado casi 12 meses desde tu último acceso a <strong>{{ site_name }}</strong>. Si no inicias sesión en los próximos {{ days }} días, tu cuenta será desactivada automáticamente por inactividad."
 msgstr "Han passat gairebé 12 mesos des del teu darrer accés a <strong>{{ site_name }}</strong>. Si no inicies sessió en els propers {{ days }} dies, el teu compte serà desactivat automàticament per inactivitat."
 
 #: ilovevoley/templates/emails/user_inactivity_warning.html
-msgid "⏳ Tu cuenta se desactivará en 30 días"
-msgstr "⏳ El teu compte es desactivarà en 30 dies"
+msgid "⏳ Tu cuenta se desactivará en {{ days }} días"
+msgstr "⏳ El teu compte es desactivarà en {{ days }} dies"
 
 #: ilovevoley/templates/emails/user_inactivity_warning.html
 msgid "Hemos detectado que hace 11 meses que no accedes a <strong>{{ site_name }}</strong>. Si no inicias sesión en los próximos {{ days }} días, tu cuenta será desactivada automáticamente para mantener la plataforma limpia y segura."

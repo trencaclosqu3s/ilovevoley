@@ -20,12 +20,12 @@
 {% block content %}
     {% if warning_level == 2 %}
     <div class="alert error">
-        <h2 style="margin-top: 0;">{% trans "⚠️ Tu cuenta se desactivará en 7 días" %}</h2>
+        <h2 style="margin-top: 0;">{% blocktrans with days=days_remaining %}⚠️ Tu cuenta se desactivará en {{ days }} días{% endblocktrans %}</h2>
         <p>{% blocktrans with days=days_remaining %}Han pasado casi 12 meses desde tu último acceso a <strong>{{ site_name }}</strong>. Si no inicias sesión en los próximos {{ days }} días, tu cuenta será desactivada automáticamente por inactividad.{% endblocktrans %}</p>
     </div>
     {% else %}
     <div class="alert warning">
-        <h2 style="margin-top: 0;">{% trans "⏳ Tu cuenta se desactivará en 30 días" %}</h2>
+        <h2 style="margin-top: 0;">{% blocktrans with days=days_remaining %}⏳ Tu cuenta se desactivará en {{ days }} días{% endblocktrans %}</h2>
         <p>{% blocktrans with days=days_remaining %}Hemos detectado que hace 11 meses que no accedes a <strong>{{ site_name }}</strong>. Si no inicias sesión en los próximos {{ days }} días, tu cuenta será desactivada automáticamente para mantener la plataforma limpia y segura.{% endblocktrans %}</p>
     </div>
     {% endif %}

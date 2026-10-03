@@ -158,6 +158,43 @@ class InactivityTaskTests(TestCase):
         self.user_warn1.refresh_from_db()
         self.assertEqual(self.user_warn1.inactivity_warning_level, 0)
 
+    @override_settings(
+        NOTIFICATION_EMAIL_ENABLED=True,
+        EMAIL_HOST_USER='test@example.com',
+        EMAIL_NOTIFICATIONS={'user_inactivity_warning': True},
+    )
+    def test_legacy_inactive_user_grace_period(self):
+        """Una cuenta con >400 días recibe aviso 1 (30 días), no se desactiva a los 7 días y solo se desactiva tras cumplir los 30 días."""
+        legacy_user = User.objects.create_user(
+            username='legacy_user',
+            email='legacy@example.com',
+            password='password123',
+            is_approved=True,
+            is_active=True,
+        )
+        legacy_user.last_login = self.now - timedelta(days=400)
+        legacy_user.save()
+
+        # Pasada 1: recibe primer aviso (30 días de plazo)
+        process_inactive_users_task()
+        legacy_user.refresh_from_db()
+        self.assertEqual(legacy_user.inactivity_warning_level, 1)
+        self.assertTrue(legacy_user.is_active)
+
+        # 7 días después: NO debe desactivarse porque se le prometieron 30 días
+        legacy_user.inactivity_warning_sent_at = self.now - timedelta(days=7)
+        legacy_user.save()
+        process_inactive_users_task()
+        legacy_user.refresh_from_db()
+        self.assertTrue(legacy_user.is_active)
+
+        # 31 días después: se desactiva al vencer los 30 días de aviso 1
+        legacy_user.inactivity_warning_sent_at = self.now - timedelta(days=31)
+        legacy_user.save()
+        process_inactive_users_task()
+        legacy_user.refresh_from_db()
+        self.assertFalse(legacy_user.is_active)
+
     def test_login_resets_inactivity_warning(self):
         """Verifica que cuando un usuario con aviso pendiente inicia sesión, se resetea su contador."""
         user = User.objects.create_user(
@@ -187,14 +224,22 @@ class DeactivateAccountViewTests(TestCase):
             password='password123',
             is_approved=True,
             is_active=True,
+            inactivity_warning_level=1,
+            inactivity_warning_sent_at=timezone.now(),
         )
         self.token = generate_deactivation_token(self.user)
 
     def test_verify_token_valid_and_invalid(self):
-        """El token generado debe resolver al user_id y fallar si está manipulado."""
-        self.assertEqual(verify_deactivation_token(self.token), self.user.id)
+        """El token generado debe resolver al user y fallar si está manipulado."""
+        self.assertEqual(verify_deactivation_token(self.token), self.user)
         self.assertIsNone(verify_deactivation_token('token_invalido'))
         self.assertIsNone(verify_deactivation_token(''))
+
+    def test_token_invalidated_when_user_logs_in(self):
+        """Si el usuario inicia sesión y se limpia su aviso, el token previo queda invalidado."""
+        self.assertIsNotNone(verify_deactivation_token(self.token))
+        user_logged_in.send(sender=User, request=None, user=self.user)
+        self.assertIsNone(verify_deactivation_token(self.token))
 
     def test_get_shows_confirmation_without_deactivating(self):
         """Un GET (como el de bots o antivirus de email) NO desactiva la cuenta."""
