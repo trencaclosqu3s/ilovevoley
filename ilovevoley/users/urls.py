@@ -11,4 +11,5 @@ urlpatterns = [
     path('api/webpush/vapid-key/', views.webpush_vapid_key, name='webpush_vapid_key'),
     path('api/webpush/subscribe/', views.webpush_subscribe, name='webpush_subscribe'),
     path('api/webpush/unsubscribe/', views.webpush_unsubscribe, name='webpush_unsubscribe'),
+    path('deactivate-account/<str:token>/', views.deactivate_account_view, name='deactivate_account'),
 ]

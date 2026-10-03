@@ -3,6 +3,7 @@ from django.dispatch import receiver
 from django.urls import reverse
 from allauth.account.signals import user_signed_up
 from django.contrib.auth import get_user_model
+from django.contrib.auth.signals import user_logged_in
 from django.conf import settings
 from ilovevoley.core.email_utils import enqueue_on_commit
 from ilovevoley.core.tasks import notify_membership_pending_task, notify_new_user_pending_task
@@ -68,3 +69,14 @@ def membership_pending_handler(sender, instance, created, **kwargs):
         return
 
     enqueue_on_commit(notify_membership_pending_task, instance.id)
+
+
+@receiver(user_logged_in)
+def reset_inactivity_warning_on_login(sender, request, user, **kwargs):
+    """Resetea los avisos de inactividad cuando el usuario inicia sesión (#327)."""
+    if getattr(user, 'inactivity_warning_level', 0) > 0 or getattr(user, 'inactivity_warning_sent_at', None) is not None:
+        User.objects.filter(pk=user.pk).update(
+            inactivity_warning_level=0,
+            inactivity_warning_sent_at=None,
+        )
+

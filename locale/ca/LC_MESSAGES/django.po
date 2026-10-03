@@ -10232,3 +10232,181 @@ msgid ""
 msgstr ""
 "Arguments amb nom en JSON vàlid, per exemple {\"delay\": 2.0}. Han de "
 "coincidir amb la signatura de la tasca."
+
+#: ilovevoley/users/models.py
+msgid "Nivel de aviso de inactividad"
+msgstr "Nivell d'avís d'inactivitat"
+
+#: ilovevoley/users/models.py
+msgid "0: sin aviso, 1: primer aviso (30 días), 2: aviso final (7 días)"
+msgstr "0: sense avís, 1: primer avís (30 dies), 2: avís final (7 dies)"
+
+#: ilovevoley/users/models.py
+msgid "Fecha del último aviso de inactividad"
+msgstr "Data del darrer avís d'inactivitat"
+
+#: ilovevoley/users/tasks.py
+#, python-format
+msgid "Último aviso: Tu cuenta en %(site_name)s se desactivará en %(days)d días"
+msgstr "Darrer avís: El teu compte a %(site_name)s es desactivarà en %(days)d dies"
+
+#: ilovevoley/users/tasks.py
+#, python-format
+msgid "Aviso de inactividad: Tu cuenta en %(site_name)s se desactivará en %(days)d días"
+msgstr "Avís d'inactivitat: El teu compte a %(site_name)s es desactivarà en %(days)d dies"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Último aviso: Tu cuenta en {{ site_name }} se desactivará pronto"
+msgstr "Darrer avís: El teu compte a {{ site_name }} es desactivarà aviat"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Aviso de inactividad de tu cuenta en {{ site_name }}"
+msgstr "Avís d'inactivitat del teu compte a {{ site_name }}"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "⚠️ Último aviso de desactivación por inactividad"
+msgstr "⚠️ Darrer avís de desactivació per inactivitat"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Aviso de inactividad de tu cuenta"
+msgstr "Avís d'inactivitat del teu compte"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "⚠️ Tu cuenta se desactivará en 7 días"
+msgstr "⚠️ El teu compte es desactivarà en 7 dies"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Han pasado casi 12 meses desde tu último acceso a <strong>{{ site_name }}</strong>. Si no inicias sesión en los próximos {{ days }} días, tu cuenta será desactivada automáticamente por inactividad."
+msgstr "Han passat gairebé 12 mesos des del teu darrer accés a <strong>{{ site_name }}</strong>. Si no inicies sessió en els propers {{ days }} dies, el teu compte serà desactivat automàticament per inactivitat."
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "⏳ Tu cuenta se desactivará en 30 días"
+msgstr "⏳ El teu compte es desactivarà en 30 dies"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Hemos detectado que hace 11 meses que no accedes a <strong>{{ site_name }}</strong>. Si no inicias sesión en los próximos {{ days }} días, tu cuenta será desactivada automáticamente para mantener la plataforma limpia y segura."
+msgstr "Hem detectat que fa 11 mesos que no accedeixes a <strong>{{ site_name }}</strong>. Si no inicies sessió en els propers {{ days }} dies, el teu compte serà desactivat automàticament per mantenir la plataforma neta i segura."
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Queremos informarte de que, como parte de nuestra política de mantenimiento y protección de datos, procedemos a desactivar las cuentas que llevan un año completo sin actividad."
+msgstr "Et volem informar que, com a part de la nostra política de manteniment i protecció de dades, procedim a desactivar els comptes que porten un any sencer sense activitat."
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "¿Quieres seguir formando parte de nuestra comunidad? ¡Es muy fácil mantener tu cuenta!"
+msgstr "Vols continuar formant part de la nostra comunitat? És molt fàcil mantenir el teu compte!"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Basta con que hagas clic en el siguiente botón e inicies sesión con tu usuario y contraseña (o con Google si registraste tu cuenta con Gmail):"
+msgstr "Només cal que facis clic en el botó següent i iniciïs sessió amb el teu usuari i contrasenya (o amb Google si vas registrar el teu compte amb Gmail):"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "🏐 Mantener mi cuenta activa"
+msgstr "🏐 Mantenir el meu compte actiu"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Último acceso registrado:"
+msgstr "Darrer accés registrat:"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Sin accesos previos (registrado el "
+msgstr "Sense accessos previs (registrat el "
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Fecha límite de acceso:"
+msgstr "Data límit d'accés:"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "¿Ya no estás en el club o prefieres no continuar?"
+msgstr "Ja no ets al club o prefereixes no continuar?"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Si deseas dar de baja tu cuenta de inmediato y no recibir más recordatorios, puedes hacerlo aquí:"
+msgstr "Si vols donar de baixa el teu compte immediatament i no rebre més recordatoris, pots fer-ho aquí:"
+
+#: ilovevoley/templates/emails/user_inactivity_warning.html
+msgid "Dar de baja y desactivar mi cuenta ahora"
+msgstr "Donar de baixa i desactivar el meu compte ara"
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html
+msgid "Confirmar desactivación de cuenta"
+msgstr "Confirmar desactivació del compte"
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html
+msgid "Desactivar cuenta"
+msgstr "Desactivar compte"
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html
+msgid "Hola <strong>{{ username }}</strong>, hemos recibido tu solicitud para dar de baja tu cuenta."
+msgstr "Hola <strong>{{ username }}</strong>, hem rebut la teva sol·licitud per donar de baixa el teu compte."
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html
+msgid "⚠️ ¿Qué implica desactivar tu cuenta?"
+msgstr "⚠️ Què implica desactivar el teu compte?"
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html
+msgid "No recibirás más avisos de inactividad ni correos del sistema."
+msgstr "No rebràs més avisos d'inactivitat ni correus del sistema."
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html
+msgid "Tus credenciales de acceso quedarán inhabilitadas."
+msgstr "Les teves credencials d'accés quedaran inhabilitades."
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html
+msgid "Tus suscripciones a notificaciones push serán canceladas."
+msgstr "Les teves subscripcions a notificacions push seran cancel·lades."
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html
+msgid "¿Seguro que deseas continuar? Esta acción desactivará tu cuenta inmediatamente."
+msgstr "Segur que vols continuar? Aquesta acció desactivarà el teu compte immediatament."
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html
+msgid "Sí, desactivar mi cuenta"
+msgstr "Sí, desactivar el meu compte"
+
+#: ilovevoley/templates/users/deactivate_account_confirm.html
+msgid "Cancelar y mantener mi cuenta activa"
+msgstr "Cancel·lar i mantenir el meu compte actiu"
+
+#: ilovevoley/templates/users/deactivate_account_success.html
+msgid "Cuenta desactivada"
+msgstr "Compte desactivat"
+
+#: ilovevoley/templates/users/deactivate_account_success.html
+msgid "Cuenta ya desactivada"
+msgstr "Compte ja desactivat"
+
+#: ilovevoley/templates/users/deactivate_account_success.html
+msgid "Cuenta desactivada correctamente"
+msgstr "Compte desactivat correctament"
+
+#: ilovevoley/templates/users/deactivate_account_success.html
+msgid "La cuenta <strong>{{ username }}</strong> ya se encontraba desactivada."
+msgstr "El compte <strong>{{ username }}</strong> ja es trobava desactivat."
+
+#: ilovevoley/templates/users/deactivate_account_success.html
+msgid "Tu cuenta <strong>{{ username }}</strong> ha sido desactivada."
+msgstr "El teu compte <strong>{{ username }}</strong> ha estat desactivat."
+
+#: ilovevoley/templates/users/deactivate_account_success.html
+msgid "No volverás a recibir correos ni notificaciones de nuestra plataforma."
+msgstr "No tornaràs a rebre correus ni notificacions de la nostra plataforma."
+
+#: ilovevoley/templates/users/deactivate_account_success.html
+msgid "Si en el futuro deseas reactivarla o tienes alguna duda, puedes ponerte en contacto con los administradores del club."
+msgstr "Si en el futur vols reactivar-lo o tens algun dubte, pots posar-te en contacte amb els administradors del club."
+
+#: ilovevoley/templates/users/deactivate_account_invalid.html
+msgid "Enlace no válido"
+msgstr "Enllaç no vàlid"
+
+#: ilovevoley/templates/users/deactivate_account_invalid.html
+msgid "Enlace no válido o caducado"
+msgstr "Enllaç no vàlid o caducat"
+
+#: ilovevoley/templates/users/deactivate_account_invalid.html
+msgid "El enlace para desactivar la cuenta no es válido o ha expirado."
+msgstr "L'enllaç per desactivar el compte no és vàlid o ha caducat."
+
+#: ilovevoley/templates/users/deactivate_account_invalid.html
+msgid "Si necesitas ayuda para gestionar tu cuenta, por favor inicia sesión o contacta con los administradores."
+msgstr "Si necessites ajuda per gestionar el teu compte, per favor inicia sessió o contacta amb els administradors."

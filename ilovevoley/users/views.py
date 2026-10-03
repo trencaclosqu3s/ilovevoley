@@ -394,3 +394,43 @@ def webpush_unsubscribe(request):
         qs.delete()
 
     return JsonResponse({'success': True})
+
+
+@ratelimit(key='ip', rate='10/m', block=True)
+def deactivate_account_view(request, token):
+    """Permite al usuario auto-desactivar su cuenta en 1 clic a través de un token firmado (#327).
+
+    Protegido contra escáneres de correo y bots: GET muestra la pantalla de confirmación,
+    POST realiza la desactivación definitiva.
+    """
+    from .tokens import verify_deactivation_token
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    user_id = verify_deactivation_token(token)
+    if not user_id:
+        return render(request, 'users/deactivate_account_invalid.html', status=400)
+
+    target_user = User.objects.filter(pk=user_id).first()
+    if not target_user:
+        return render(request, 'users/deactivate_account_invalid.html', status=404)
+
+    if not target_user.is_active:
+        return render(request, 'users/deactivate_account_success.html', {
+            'target_user': target_user,
+            'already_deactivated': True,
+        })
+
+    if request.method == 'POST':
+        target_user.is_active = False
+        target_user.save(update_fields=['is_active'])
+        target_user.web_push_subscriptions.all().delete()
+        return render(request, 'users/deactivate_account_success.html', {
+            'target_user': target_user,
+            'already_deactivated': False,
+        })
+
+    return render(request, 'users/deactivate_account_confirm.html', {
+        'target_user': target_user,
+        'token': token,
+    })

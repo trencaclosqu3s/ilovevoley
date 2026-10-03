@@ -1,0 +1,85 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% if warning_level == 2 %}
+        {% blocktrans %}Último aviso: Tu cuenta en {{ site_name }} se desactivará pronto{% endblocktrans %}
+    {% else %}
+        {% blocktrans %}Aviso de inactividad de tu cuenta en {{ site_name }}{% endblocktrans %}
+    {% endif %}
+{% endblock %}
+
+{% block header_subtitle %}
+    {% if warning_level == 2 %}
+        {% trans "⚠️ Último aviso de desactivación por inactividad" %}
+    {% else %}
+        {% trans "Aviso de inactividad de tu cuenta" %}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {% if warning_level == 2 %}
+    <div class="alert error">
+        <h2 style="margin-top: 0;">{% trans "⚠️ Tu cuenta se desactivará en 7 días" %}</h2>
+        <p>{% blocktrans with days=days_remaining %}Han pasado casi 12 meses desde tu último acceso a <strong>{{ site_name }}</strong>. Si no inicias sesión en los próximos {{ days }} días, tu cuenta será desactivada automáticamente por inactividad.{% endblocktrans %}</p>
+    </div>
+    {% else %}
+    <div class="alert warning">
+        <h2 style="margin-top: 0;">{% trans "⏳ Tu cuenta se desactivará en 30 días" %}</h2>
+        <p>{% blocktrans with days=days_remaining %}Hemos detectado que hace 11 meses que no accedes a <strong>{{ site_name }}</strong>. Si no inicias sesión en los próximos {{ days }} días, tu cuenta será desactivada automáticamente para mantener la plataforma limpia y segura.{% endblocktrans %}</p>
+    </div>
+    {% endif %}
+
+    <h3>{% blocktrans with name=user.get_full_name|default:user.username %}Hola {{ name }},{% endblocktrans %}</h3>
+    
+    <p>{% blocktrans %}Queremos informarte de que, como parte de nuestra política de mantenimiento y protección de datos, procedemos a desactivar las cuentas que llevan un año completo sin actividad.{% endblocktrans %}</p>
+
+    <p>{% trans "¿Quieres seguir formando parte de nuestra comunidad? ¡Es muy fácil mantener tu cuenta!" %}</p>
+    <p>{% trans "Basta con que hagas clic en el siguiente botón e inicies sesión con tu usuario y contraseña (o con Google si registraste tu cuenta con Gmail):" %}</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{ login_url }}" class="button" style="font-size: 16px; font-weight: bold; background-color: #27ae60;">
+            {% trans "🏐 Mantener mi cuenta activa" %}
+        </a>
+    </div>
+
+    <div class="alert">
+        <h4 style="margin-top: 0;">{% trans "📋 Datos de tu cuenta" %}</h4>
+        <table style="width: 100%; margin: 10px 0;">
+            <tr>
+                <td><strong>{% trans "Usuario:" %}</strong></td>
+                <td>{{ user.username }}</td>
+            </tr>
+            <tr>
+                <td><strong>{% trans "Email:" %}</strong></td>
+                <td>{{ user.email }}</td>
+            </tr>
+            <tr>
+                <td><strong>{% trans "Último acceso registrado:" %}</strong></td>
+                <td>
+                    {% if user.last_login %}
+                        {{ user.last_login|date:"d/m/Y" }}
+                    {% else %}
+                        {% trans "Sin accesos previos (registrado el " %}{{ user.date_joined|date:"d/m/Y" }})
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>{% trans "Fecha límite de acceso:" %}</strong></td>
+                <td><strong>{{ deadline_date|date:"d/m/Y" }}</strong></td>
+            </tr>
+        </table>
+    </div>
+
+    {% if deactivation_url %}
+    <div style="margin-top: 35px; padding-top: 20px; border-top: 1px dashed #ccc; text-align: center; font-size: 13px; color: #777;">
+        <p>{% trans "¿Ya no estás en el club o prefieres no continuar?" %}</p>
+        <p>{% trans "Si deseas dar de baja tu cuenta de inmediato y no recibir más recordatorios, puedes hacerlo aquí:" %}</p>
+        <p>
+            <a href="{{ deactivation_url }}" style="color: #e74c3c; text-decoration: underline;">
+                {% trans "Dar de baja y desactivar mi cuenta ahora" %}
+            </a>
+        </p>
+    </div>
+    {% endif %}
+{% endblock %}
