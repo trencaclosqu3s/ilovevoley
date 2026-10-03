@@ -32,6 +32,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'cleanup_expired_web_push_audits',
         'schedule': timedelta(days=1),
     },
+    # Ciclo de vida y aviso de cuentas inactivas (#327). Pasada diaria a las 03:30 peninsular.
+    'process-inactive-users': {
+        'task': 'process_inactive_users',
+        'schedule': crontab(minute=30, hour=3),
+    },
     # Recordatorio push 2 h antes del partido. Ventana de ±15 min por pasada, así
     # que una cadencia de 10 min no deja huecos.
     'send-match-reminders-2h': {

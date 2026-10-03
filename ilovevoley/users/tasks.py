@@ -1,6 +1,7 @@
 import logging
 from datetime import timedelta
 from celery import shared_task
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -101,3 +102,139 @@ def cleanup_expired_web_push_audits_task(days=90):
     cutoff = timezone.now() - timedelta(days=days)
     deleted, _ = WebPushAudit.objects.filter(created_at__lt=cutoff).delete()
     return {'deleted': deleted}
+
+
+def _get_user_primary_tenant(user):
+    """Obtiene la organización principal del usuario a través de sus membresías aprobadas."""
+    membership = user.memberships.filter(is_approved=True).select_related('organization').first()
+    return membership.organization if membership else None
+
+
+def _send_inactivity_warning_email(user, warning_level, days_remaining, deadline_date, site_name=None):
+    """Envía el email de aviso de inactividad en el idioma del usuario (#327)."""
+    from django.urls import reverse
+    from django.utils.translation import gettext as _
+    from ilovevoley.core.email_utils import send_notification_email
+    from .tokens import generate_deactivation_token
+
+    if not settings.EMAIL_NOTIFICATIONS.get('user_inactivity_warning', False):
+        return False
+
+    tenant = _get_user_primary_tenant(user)
+    login_url = build_absolute_url(reverse('account_login'), tenant=tenant)
+    token = generate_deactivation_token(user)
+    deactivation_url = build_absolute_url(reverse('deactivate_account', args=[token]), tenant=tenant)
+
+    resolved_site_name = site_name or (tenant.name if tenant else getattr(settings, 'SITE_NAME', 'I Love Voley'))
+
+    if warning_level == 2:
+        subject = lambda: _('Último aviso: Tu cuenta en %(site_name)s se desactivará en %(days)d días') % {
+            'site_name': resolved_site_name,
+            'days': days_remaining,
+        }
+    else:
+        subject = lambda: _('Aviso de inactividad: Tu cuenta en %(site_name)s se desactivará en %(days)d días') % {
+            'site_name': resolved_site_name,
+            'days': days_remaining,
+        }
+
+    return send_notification_email(
+        subject=subject,
+        template_name='emails/user_inactivity_warning.html',
+        context={
+            'user': user,
+            'warning_level': warning_level,
+            'days_remaining': days_remaining,
+            'deadline_date': deadline_date,
+            'login_url': login_url,
+            'deactivation_url': deactivation_url,
+            'site_name': resolved_site_name,
+        },
+        recipient_list=[user.email],
+    )
+
+
+@shared_task(name='process_inactive_users')
+def process_inactive_users_task(first_warning_days=335, final_warning_days=358, deactivation_days=365):
+    """Procesa el ciclo de vida y la retención de usuarios inactivos (#327).
+
+    - Primer aviso a los ``first_warning_days`` días (~11 meses / 30 días de margen).
+    - Segundo aviso urgente a los ``final_warning_days`` días (~11 meses y 23 días / 7 días de margen).
+    - Desactivación a los ``deactivation_days`` días (~12 meses / is_active=False).
+    """
+    from django.contrib.auth import get_user_model
+    from django.db.models.functions import Coalesce
+
+    User = get_user_model()
+    now = timezone.now()
+
+    cutoff_first = now - timedelta(days=first_warning_days)
+    cutoff_final = now - timedelta(days=final_warning_days)
+    cutoff_deact = now - timedelta(days=deactivation_days)
+
+    candidates = (
+        User.objects.filter(
+            is_active=True,
+            is_approved=True,
+            is_staff=False,
+            is_superuser=False,
+        )
+        .exclude(email='')
+        .exclude(email__isnull=True)
+        .annotate(effective_activity=Coalesce('last_login', 'date_joined'))
+        .filter(effective_activity__lte=cutoff_first)
+    )
+
+    first_warnings_sent = 0
+    final_warnings_sent = 0
+    deactivated_count = 0
+
+    for user in candidates.iterator():
+        effective = user.effective_activity
+
+        # 1. Desactivación (inactividad >= 365 días y plazos de gracia del aviso cumplidos)
+        if effective <= cutoff_deact:
+            can_deactivate = False
+            if user.inactivity_warning_level == 2 and user.inactivity_warning_sent_at:
+                can_deactivate = now >= user.inactivity_warning_sent_at + timedelta(days=7)
+            elif user.inactivity_warning_level == 1 and user.inactivity_warning_sent_at:
+                can_deactivate = now >= user.inactivity_warning_sent_at + timedelta(days=30)
+
+            if can_deactivate:
+                user.is_active = False
+                user.save(update_fields=['is_active'])
+                user.web_push_subscriptions.all().delete()
+                deactivated_count += 1
+                continue
+
+        # 2. Segundo aviso urgente (inactividad >= 358 días, nivel 1 previo y al menos 15 días entre avisos)
+        if effective <= cutoff_final:
+            if user.inactivity_warning_level == 1:
+                min_interval = (user.inactivity_warning_sent_at or effective) + timedelta(days=15)
+                if now >= min_interval:
+                    days_remaining = 7
+                    deadline = now + timedelta(days=days_remaining)
+                    if _send_inactivity_warning_email(user, warning_level=2, days_remaining=days_remaining, deadline_date=deadline):
+                        user.inactivity_warning_level = 2
+                        user.inactivity_warning_sent_at = now
+                        user.save(update_fields=['inactivity_warning_level', 'inactivity_warning_sent_at'])
+                        final_warnings_sent += 1
+                        continue
+
+        # 3. Primer aviso (inactividad >= 335 días y aún sin avisos)
+        if effective <= cutoff_first:
+            if user.inactivity_warning_level == 0:
+                days_remaining = 30
+                deadline = now + timedelta(days=days_remaining)
+                if _send_inactivity_warning_email(user, warning_level=1, days_remaining=days_remaining, deadline_date=deadline):
+                    user.inactivity_warning_level = 1
+                    user.inactivity_warning_sent_at = now
+                    user.save(update_fields=['inactivity_warning_level', 'inactivity_warning_sent_at'])
+                    first_warnings_sent += 1
+
+    return {
+        'first_warnings_sent': first_warnings_sent,
+        'final_warnings_sent': final_warnings_sent,
+        'deactivated_count': deactivated_count,
+    }
+
