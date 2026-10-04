@@ -139,7 +139,24 @@ def store_match_lineups(match, lineup_data):
     """
     Match.all_objects.select_for_update().filter(pk=match.pk).first()
     match.acta_data = lineup_data
-    match.save(update_fields=['acta_data', 'updated_at'])
+    update_fields = ['acta_data', 'updated_at']
+    if not match.set_scores:
+        from ilovevoley.competitions.services.sets import extract_set_scores
+        from ilovevoley.videos.scraping.base import is_penalty_result
+
+        scores = extract_set_scores(
+            lineup_data,
+            home_name=match.home_team_display,
+            away_name=match.away_team_display,
+        )
+        if scores:
+            match.set_scores = [list(score) for score in scores]
+            update_fields.append('set_scores')
+            if not match.result_penalized and is_penalty_result(match.set_scores):
+                match.result_penalized = True
+                update_fields.append('result_penalized')
+
+    match.save(update_fields=update_fields)
     MatchLineup.objects.filter(match=match).delete()
     MatchLineup.objects.bulk_create(build_match_lineups(match, lineup_data))
 

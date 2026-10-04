@@ -308,18 +308,25 @@ def league_detail(request, league_id):
 @tenant_access_required()
 def match_detail(request, match_id):
     """Vista detallada de un partido con sus videos e imágenes"""
-    match = get_tenant_object_or_404(
+    match = get_object_or_404(
         Match.objects.select_related('home_team', 'away_team', 'league'),
-        request.tenant, user=request.user, id=match_id,
+        id=match_id,
     )
 
-    # Obtener videos del partido filtrados por tenant
-    videos = match.videos.select_related('created_by', 'category').filter(organization=request.tenant)
+    is_own_match = Match.objects.filter(id=match.id).filter(
+        get_club_team_filter(request.tenant)
+    ).exists()
 
-    # Obtener imágenes aprobadas del partido filtradas por tenant
-    images = match.images.filter(status='approved', organization=request.tenant).select_related('uploaded_by').all()
-
-    can_manage = user_is_tenant_manager(request.user, request.tenant)
+    if is_own_match:
+        # Obtener videos del partido filtrados por tenant
+        videos = match.videos.select_related('created_by', 'category').filter(organization=request.tenant)
+        # Obtener imágenes aprobadas del partido filtradas por tenant
+        images = match.images.filter(status='approved', organization=request.tenant).select_related('uploaded_by').all()
+        can_manage = user_is_tenant_manager(request.user, request.tenant)
+    else:
+        videos = match.videos.none()
+        images = match.images.none()
+        can_manage = False
 
     # Enlaces de compartición (solo relevantes para managers)
     share_links = []
@@ -337,7 +344,9 @@ def match_detail(request, match_id):
         'videos': videos,
         'images': images,
         'today': timezone.now().date(),
+        'is_own_match': is_own_match,
         'can_manage_videos': can_manage,
+        'can_edit_result': can_manage,
         'share_links': share_links,
         'share_hours_choices': ALLOWED_HOURS,
         'share_default_hours': default_hours(),
@@ -893,7 +902,7 @@ def ajax_acta_lineup(request, match_id):
     enriquecidos con datos de Person/PlayerRole donde haya coincidencia de dorsal.
     """
     try:
-        match = Match.objects.for_tenant(request.tenant).select_related(
+        match = Match.objects.select_related(
             'home_team', 'away_team'
         ).get(id=match_id)
     except Match.DoesNotExist:
@@ -936,12 +945,18 @@ def ajax_acta_lineup(request, match_id):
         store_match_lineups(match, lineup_data)
 
     # Pre-fetch todos los PlayerRole activos de ambos equipos en una sola query
+    # acotando a personas de la organización actual para no exponer fotos ajenas
     roles_lookup = {}  # {(team_id, jersey_number): role}
     teams_to_query = [t for t in [match.home_team, match.away_team] if t]
     if teams_to_query:
         for role in (
             PlayerRole.objects
-            .filter(team__in=teams_to_query, is_active=True, jersey_number__isnull=False)
+            .filter(
+                team__in=teams_to_query,
+                is_active=True,
+                jersey_number__isnull=False,
+                person__organization=request.tenant,
+            )
             .select_related('person', 'team')
         ):
             roles_lookup[(role.team_id, role.jersey_number)] = role
@@ -1005,19 +1020,19 @@ def ajax_acta_lineup(request, match_id):
                 'points': team_data['points'],
             })
         enriched_sets.append({
-            'title': set_data['title'],
-            'time': set_data['time'],
+            'title': set_data.get('title', ''),
+            'time': set_data.get('time', ''),
             'teams': enriched_teams,
         })
 
     return JsonResponse({
         'success': True,
-        'home_team': lineup_data['home_team'],
-        'away_team': lineup_data['away_team'],
-        'home_captain': lineup_data['home_captain'],
-        'away_captain': lineup_data['away_captain'],
-        'home_convocados': _enrich_convocados(lineup_data['home_convocados'], match.home_team),
-        'away_convocados': _enrich_convocados(lineup_data['away_convocados'], match.away_team),
+        'home_team': lineup_data.get('home_team', ''),
+        'away_team': lineup_data.get('away_team', ''),
+        'home_captain': lineup_data.get('home_captain', ''),
+        'away_captain': lineup_data.get('away_captain', ''),
+        'home_convocados': _enrich_convocados(lineup_data.get('home_convocados', []), match.home_team),
+        'away_convocados': _enrich_convocados(lineup_data.get('away_convocados', []), match.away_team),
         'sets': enriched_sets,
     })
 
