@@ -182,20 +182,21 @@ class ProtectedPersonMediaTests(TestCase):
         response = self.client.get('/media/people/ana_1.jpg', HTTP_HOST='noclub.ilovevoley.es')
         self.assertEqual(response.status_code, 404)
 
-    def test_tenant_without_club_can_see_person_without_roles(self):
-        Person.objects.create(first_name='Sin', last_name='Rol', photo='people/sinrol_1.jpg')
+    def test_tenant_without_club_can_see_linked_person_without_roles(self):
+        sin_rol = Person.objects.create(first_name='Sin', last_name='Rol', photo='people/sinrol_1.jpg')
+        sin_rol.organizations.add(self.noclub_member.memberships.get().organization)
         self.client.force_login(self.noclub_member)
         response = self.client.get('/media/people/sinrol_1.jpg', HTTP_HOST='noclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
 
     def test_member_cannot_see_person_of_other_organization_without_roles(self):
         other_org = Organization.objects.create(slug='otra', name='Otra', is_active=True)
-        Person.objects.create(
+        eva = Person.objects.create(
             first_name='Eva',
             last_name='Ajena',
             photo='people/eva_ajena.jpg',
-            organization=other_org,
         )
+        eva.organizations.add(other_org)
         self.client.force_login(self.member)
         response = self.client.get('/media/people/eva_ajena.jpg', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 404)

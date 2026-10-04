@@ -26,17 +26,17 @@ class StaffRoleInline(TabularInline):
 @admin.register(Person)
 class PersonAdmin(ModelAdmin):
     """Admin para el modelo Person"""
-    list_display = ('__str__', 'organization', 'age_display', 'contact_info', 'parents_info', 'is_active', 'photo_preview', 'active_teams_count')
-    list_filter = ('organization', 'is_active', 'created_at', 'birth_date')
+    list_display = ('__str__', 'birth_year', 'age_display', 'contact_info', 'parents_info', 'is_active', 'photo_preview', 'active_teams_count')
+    list_filter = ('organizations', 'is_active', 'created_at', 'birth_date')
     search_fields = ('first_name', 'last_name', 'email', 'phone')
     readonly_fields = ('age_display', 'created_at', 'updated_at', 'photo_preview')
-    autocomplete_fields = ('organization', 'user')
+    autocomplete_fields = ('organizations', 'user')
     actions = ['activate_people', 'deactivate_people']
     inlines = [PlayerRoleInline, StaffRoleInline]
     
     fieldsets = (
         ('Información Personal', {
-            'fields': ('first_name', 'last_name', 'birth_date', 'age_display', 'organization')
+            'fields': ('first_name', 'last_name', 'birth_date', 'birth_year', 'age_display', 'organizations')
         }),
         ('Contacto', {
             'fields': ('email', 'phone'),

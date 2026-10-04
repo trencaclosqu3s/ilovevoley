@@ -60,11 +60,13 @@ class UserCanEditPersonTests(TestCase):
             user=self.member, organization=self.org_a, is_approved=True,
         )
         self.person_a = Person.objects.create(
-            first_name='Ana', last_name='Propia', organization=self.org_a,
+            first_name='Ana', last_name='Propia',
         )
+        self.person_a.organizations.add(self.org_a)
         self.person_b = Person.objects.create(
-            first_name='Bea', last_name='Ajena', organization=self.org_b,
+            first_name='Bea', last_name='Ajena',
         )
+        self.person_b.organizations.add(self.org_b)
 
     def test_staff_global_sin_membresia_no_edita_otra_organizacion(self):
         # Tiene is_staff y membresía en A, pero ninguna en B.

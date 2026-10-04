@@ -198,8 +198,10 @@ class TeamRosterSeasonFilterTests(TestCase):
         )
         self.current = Season.objects.create(name='2026-27', start_year=2026, end_year=2027, is_current=True)
         self.past = Season.objects.create(name='2025-26', start_year=2025, end_year=2026)
-        actual = Person.objects.create(first_name='Actual', last_name='Uno', organization=self.org)
-        pasado = Person.objects.create(first_name='Pasado', last_name='Dos', organization=self.org)
+        actual = Person.objects.create(first_name='Actual', last_name='Uno')
+        actual.organizations.add(self.org)
+        pasado = Person.objects.create(first_name='Pasado', last_name='Dos')
+        pasado.organizations.add(self.org)
         PlayerRole.objects.create(person=actual, team=self.team, season=self.current, jersey_number=1)
         PlayerRole.objects.create(person=pasado, team=self.team, season=self.past, jersey_number=2)
 
@@ -254,9 +256,12 @@ class TeamRosterStatsConsistencyTests(TestCase):
         self.season = Season.objects.create(
             name='2026-27', start_year=2026, end_year=2027, is_current=True
         )
-        setter = Person.objects.create(first_name='Ana', last_name='Coloca', organization=self.org)
-        libero = Person.objects.create(first_name='Bea', last_name='Libera', organization=self.org)
-        coach = Person.objects.create(first_name='Carla', last_name='Entrena', organization=self.org)
+        setter = Person.objects.create(first_name='Ana', last_name='Coloca')
+        setter.organizations.add(self.org)
+        libero = Person.objects.create(first_name='Bea', last_name='Libera')
+        libero.organizations.add(self.org)
+        coach = Person.objects.create(first_name='Carla', last_name='Entrena')
+        coach.organizations.add(self.org)
         PlayerRole.objects.create(
             person=setter, team=self.team, season=self.season,
             position='setter', jersey_number=1,

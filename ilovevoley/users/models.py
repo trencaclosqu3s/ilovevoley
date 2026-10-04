@@ -126,7 +126,6 @@ class User(AbstractUser):
             return True
 
         # Managers/admins del tenant pueden editar fichas que pertenezcan a su tenant
-        tenant = tenant or getattr(person, 'organization', None)
         if tenant:
             from ilovevoley.core.tenant_utils import person_belongs_to_tenant, user_is_tenant_manager
             if user_is_tenant_manager(self, tenant) and person_belongs_to_tenant(person, tenant):

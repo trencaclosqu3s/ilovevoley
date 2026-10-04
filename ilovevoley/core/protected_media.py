@@ -54,23 +54,8 @@ def _image_is_allowed(image, user, tenant):
 def _person_is_allowed(person, user, tenant):
     if user.is_superuser:
         return True
-    # organization es el campo canónico de tenant; si está fijado, manda.
-    if person.organization_id is not None:
-        return person.organization_id == tenant.pk
-    # Fichas heredadas sin organization: visibilidad por roles del club.
-    club_id = tenant.club_id
-    if club_id is None:
-        # Tenant sin club federado: solo se permiten fichas sin roles, que no
-        # revelan afiliación a ningún club concreto.
-        return not (person.player_roles.exists() or person.staff_roles.exists())
-    has_roles = person.player_roles.exists() or person.staff_roles.exists()
-    if not has_roles:
-        return True
-    return person.player_roles.filter(
-        team__club_id=club_id
-    ).exists() or person.staff_roles.filter(
-        team__club_id=club_id
-    ).exists()
+    # Ficha global: visible en el club vinculado o donde tenga roles.
+    return type(person).objects.for_tenant(tenant).filter(pk=person.pk).exists()
 
 
 def _authorize(path, user, tenant):

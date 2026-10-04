@@ -82,7 +82,7 @@ def _club_has_gender(org: Organization, gender: str) -> bool:
     from ilovevoley.teams.models import Team
     teams = Team.objects.filter(club=org.club) if hasattr(org, 'club') and org.club else Team.objects.none()
     if not teams.exists():
-        teams = Team.objects.filter(player_roles__person__organization=org)
+        teams = Team.objects.filter(player_roles__person__in=Person.objects.for_tenant(org))
 
     if not teams.exists():
         return False
@@ -303,14 +303,13 @@ def match_callup_player(
 
     for org in valid_matched_orgs:
         candidates = list(
-            Person.objects.filter(
-                organization=org,
+            Person.objects.for_tenant(org).filter(
                 player_roles__season=season,
                 player_roles__is_active=True,
             ).distinct()
         )
         if not candidates:
-            candidates = list(Person.objects.filter(organization=org))
+            candidates = list(Person.objects.for_tenant(org))
 
         for person in candidates:
             score, year_match, notes = evaluate_person(person)
@@ -366,8 +365,7 @@ def match_callup_player(
         if org in matched_orgs:
             continue
         candidates = list(
-            Person.objects.filter(
-                organization=org,
+            Person.objects.for_tenant(org).filter(
                 player_roles__season=season,
                 player_roles__is_active=True,
             ).distinct()
