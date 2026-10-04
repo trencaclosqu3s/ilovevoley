@@ -38,8 +38,9 @@ class MatchBranchEmailFilterTest(TestCase):
             match_date=timezone.now() + timedelta(days=2), venue='X',
         )
         person_a = Person.objects.create(
-            first_name='Pep', last_name='A', email='a@example.com', organization=cls.org_a,
+            first_name='Pep', last_name='A', email='a@example.com',
         )
+        person_a.organizations.add(cls.org_a)
         StaffRole.objects.create(
             person=person_a, team=cls.team_a, role='delegate', season=cls.season, is_active=True,
         )

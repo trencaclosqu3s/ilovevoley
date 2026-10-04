@@ -33,6 +33,13 @@
                 </div>
             {% endif %}
 
+            {% if existing_person %}
+                <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded">
+                    <p class="text-sm text-gray-700 dark:text-gray-300 mb-3">{% blocktrans with name=existing_person.full_name year=existing_person.birth_year %}{{ name }} ({{ year }}) ya está en la plataforma. Puedes añadirla a tu club en lugar de crearla de nuevo.{% endblocktrans %}</p>
+                    <button type="submit" form="adopt-form" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-medium transition text-sm">{% trans "Añadir a mi club" %}</button>
+                </div>
+            {% endif %}
+
             <!-- Photo -->
             {% if form.photo %}
             <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
@@ -122,6 +129,18 @@
             </div>
             {% endif %}
 
+            <!-- Año de nacimiento -->
+            <div>
+                <label for="{{ form.birth_year.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    {{ form.birth_year.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.birth_year }}
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{{ form.birth_year.help_text }}</p>
+                {% if form.birth_year.errors %}
+                    <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.birth_year.errors.0 }}</p>
+                {% endif %}
+            </div>
+
             <!-- Email -->
             {% if form.email %}
             <div>
@@ -180,6 +199,14 @@
                 </button>
             </div>
         </form>
+        {% if existing_person %}
+            <form id="adopt-form" method="post" action="{% url 'rosters:person_adopt' %}">
+                {% csrf_token %}
+                <input type="hidden" name="first_name" value="{{ existing_person.first_name }}">
+                <input type="hidden" name="last_name" value="{{ existing_person.last_name }}">
+                <input type="hidden" name="birth_year" value="{{ existing_person.birth_year }}">
+            </form>
+        {% endif %}
     </div>
 </div>
 

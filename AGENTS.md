@@ -95,14 +95,17 @@ Dentro de `<script>`, todo `{% trans %}` va con `as x` + `{{ x|escapejs }}`.
   partido como finalizado.
 - **Temporadas**: Utilizar siempre `Season.objects.current()` para la temporada
   activa y `resolve_season_filter(request)` para la convención de filtros de UI.
-- **Identidad de `Person`**: `unique_person_identity` es por organización
-  (`organization`, `first_name`, `last_name`, `birth_date`), no global: la misma
-  persona puede tener ficha en dos clubes. Decisión tomada en #174 (opción A).
-  Las fichas heredadas con `organization=NULL` comparten un mismo grupo
-  (`nulls_distinct=False`) y siguen deduplicadas entre sí. Al crear o editar
-  fichas desde un formulario hay que pasar el tenant (`PersonForm(...,
-  organization=request.tenant)`) para que la validación se haga contra el club
-  correcto.
+- **Identidad de `Person`**: `Person` es global (una persona es una persona en
+  todos los clubes); la identidad única es (`first_name`, `last_name`,
+  `birth_year`). `birth_year` es obligatorio en formularios (se deduce de
+  `birth_date` si hay fecha). Una ficha es visible en un tenant si el club está
+  en `Person.organizations` (alta o adopción) o si tiene roles en un equipo del
+  club (`Person.objects.for_tenant`). Los roles pertenecen al club de su equipo
+  (`PersonRoleTenantQuerySet`). Si el alta choca con una ficha de otro club, el
+  formulario ofrece "Añadir a mi club" (`person_adopt`, que exige nombre y año
+  exactos). Contacto y notas solo para quien pueda editar (`can_edit_person`).
+  La vista "Tú" (`rosters:my_profile`) agrega los roles del usuario en todos los
+  clubes. Sustituye la decisión A de #174 (#342).
 - **No resucitar la rama `origin/refactor_apps`**: está completamente descartada.
 
 ## Testing

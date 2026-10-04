@@ -29,42 +29,18 @@ def _create_image_with_gps(width=100, height=80, orientation=None, format='JPEG'
 
 
 class PersonIdentityConstraintTests(TestCase):
-    """La identidad (nombre + fecha de nacimiento) es única dentro de cada organización."""
+    """La identidad (nombre + año de nacimiento) es única en toda la plataforma."""
 
-    def setUp(self):
-        self.org_a = Organization.objects.create(slug='org-a', name='Org A')
-        self.org_b = Organization.objects.create(slug='org-b', name='Org B')
+    def test_birth_year_se_deduce_de_la_fecha(self):
+        person = Person.objects.create(
+            first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1),
+        )
+        self.assertEqual(person.birth_year, 2010)
 
-    def test_misma_persona_en_dos_organizaciones(self):
-        Person.objects.create(
-            first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1),
-            organization=self.org_a,
-        )
-        person_b = Person.objects.create(
-            first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1),
-            organization=self.org_b,
-        )
-        self.assertEqual(person_b.organization, self.org_b)
-
-    def test_duplicado_en_la_misma_organizacion_falla(self):
-        Person.objects.create(
-            first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1),
-            organization=self.org_a,
-        )
+    def test_misma_identidad_falla_aunque_cambie_la_fecha_dentro_del_año(self):
+        Person.objects.create(first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1))
         with self.assertRaises(IntegrityError):
-            Person.objects.create(
-                first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1),
-                organization=self.org_a,
-            )
-
-    def test_duplicado_entre_fichas_sin_organizacion_falla(self):
-        Person.objects.create(
-            first_name='Sin', last_name='Club', birth_date=date(2010, 5, 1),
-        )
-        with self.assertRaises(IntegrityError):
-            Person.objects.create(
-                first_name='Sin', last_name='Club', birth_date=date(2010, 5, 1),
-            )
+            Person.objects.create(first_name='Ana', last_name='Gomez', birth_year=2010)
 
 
 class PlayerRoleSeasonConstraintTests(TestCase):
@@ -74,7 +50,7 @@ class PlayerRoleSeasonConstraintTests(TestCase):
         self.org = Organization.objects.create(slug='club', name='Club')
         self.team = Team.objects.create(name='Infantil', federation_id='T-INF')
         self.person = Person.objects.create(
-            first_name='Mario', last_name='Perez', organization=self.org,
+            first_name='Mario', last_name='Perez',
         )
         self.past = Season.objects.resolve('2025-26')
         self.current = Season.objects.resolve('2026-27')
@@ -91,7 +67,7 @@ class PlayerRoleSeasonConstraintTests(TestCase):
 
     def test_dorsal_duplicado_en_la_misma_temporada_falla(self):
         other = Person.objects.create(
-            first_name='Luis', last_name='Gomez', organization=self.org,
+            first_name='Luis', last_name='Gomez',
         )
         PlayerRole.objects.create(person=self.person, team=self.team, season=self.past, jersey_number=7)
         with self.assertRaises(IntegrityError):
@@ -103,7 +79,7 @@ class StaffRoleSeasonConstraintTests(TestCase):
         self.org = Organization.objects.create(slug='club-s', name='Club S')
         self.team = Team.objects.create(name='Infantil', federation_id='T-INF-S')
         self.person = Person.objects.create(
-            first_name='Ana', last_name='Lopez', organization=self.org,
+            first_name='Ana', last_name='Lopez',
         )
         self.past = Season.objects.resolve('2025-26')
         self.current = Season.objects.resolve('2026-27')

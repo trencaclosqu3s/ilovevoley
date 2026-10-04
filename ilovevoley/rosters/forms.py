@@ -1,3 +1,5 @@
+from datetime import date
+
 from django import forms
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -13,7 +15,7 @@ class PersonForm(forms.ModelForm):
     
     class Meta:
         model = Person
-        fields = ['first_name', 'last_name', 'birth_date', 'photo', 'email', 'phone', 'notes']
+        fields = ['first_name', 'last_name', 'birth_date', 'birth_year', 'photo', 'email', 'phone', 'notes']
         widgets = {
             'first_name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
@@ -27,6 +29,10 @@ class PersonForm(forms.ModelForm):
                 'type': 'date',
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
             }, format='%Y-%m-%d'),
+            'birth_year': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
+                'placeholder': _('Ej: 2012'),
+            }),
             'photo': forms.FileInput(attrs={
                 'class': 'hidden',
                 'id': 'person-photo-input',
@@ -50,6 +56,7 @@ class PersonForm(forms.ModelForm):
             'first_name': _('Nombre'),
             'last_name': _('Apellidos'),
             'birth_date': _('Fecha de Nacimiento'),
+            'birth_year': _('Año de Nacimiento'),
             'photo': _('Foto'),
             'email': _('Email de Contacto'),
             'phone': _('Teléfono'),
@@ -57,32 +64,48 @@ class PersonForm(forms.ModelForm):
         }
         help_texts = {
             'birth_date': _('Fecha de nacimiento (opcional)'),
+            'birth_year': _('Obligatorio si no indicas la fecha de nacimiento completa'),
             'photo': _('Foto de perfil (opcional, formatos: JPG, PNG, WebP)'),
             'email': _('Email de contacto (opcional)'),
             'phone': _('Número de teléfono de contacto (opcional)'),
             'notes': _('Información adicional que consideres relevante (opcional)'),
         }
     
-    def __init__(self, *args, organization=None, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # La organización no se expone en el formulario, pero la identidad es
-        # por tenant: se fija en la instancia antes de validar para que el
-        # UniqueConstraint se compruebe contra el club correcto y no globalmente.
-        if organization is not None:
-            self.instance.organization = organization
         # Hacer campos opcionales
         self.fields['birth_date'].required = False
+        # El año se exige en clean(): lo deduce la fecha si se indica
+        self.fields['birth_year'].required = False
         self.fields['photo'].required = False
         self.fields['email'].required = False
         self.fields['phone'].required = False
         self.fields['notes'].required = False
 
-    def _get_validation_exclusions(self):
-        # `organization` no es un campo del formulario; sin esto quedaría
-        # excluido y el UniqueConstraint (que ahora lo incluye) no se validaría.
-        exclude = super()._get_validation_exclusions()
-        exclude.discard('organization')
-        return exclude
+    def clean(self):
+        cleaned = super().clean()
+        birth_date = cleaned.get('birth_date')
+        if birth_date:
+            cleaned['birth_year'] = birth_date.year
+        elif not cleaned.get('birth_year') and 'birth_year' not in self.errors:
+            self.add_error('birth_year', _('Indica el año de nacimiento o la fecha completa.'))
+        return cleaned
+
+    def clean_birth_year(self):
+        year = self.cleaned_data.get('birth_year')
+        if year is not None and not 1900 <= year <= date.today().year:
+            raise forms.ValidationError(_('Año de nacimiento no válido.'))
+        return year
+
+    def existing_person(self):
+        """Ficha global con la misma identidad (otra distinta de esta), si existe."""
+        data = self.cleaned_data
+        if not (data.get('first_name') and data.get('last_name') and data.get('birth_year')):
+            return None
+        return Person._base_manager.filter(
+            first_name=data['first_name'], last_name=data['last_name'],
+            birth_year=data['birth_year'],
+        ).exclude(pk=self.instance.pk).first()
 
     def clean_photo(self):
         photo = self.cleaned_data.get('photo')

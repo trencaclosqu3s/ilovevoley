@@ -16,8 +16,8 @@ def test_match_callup_player_lluc_variations():
         first_name='Lluc Aleix',
         last_name='Riera Martín',
         birth_date=date(2013, 3, 15),
-        organization=org
     )
+    person.organizations.add(org)
     PlayerRole.objects.create(person=person, team=team, season=season, is_active=True)
 
     # 1. Caso real foto: LLUC / RIERA MARTÍN / 2013 / CV SANT JOSEP
@@ -93,8 +93,8 @@ def test_match_callup_player_gender_conflict():
         first_name='Marc',
         last_name='Buades Sepulveda',
         birth_date=date(2012, 3, 15),
-        organization=org
     )
+    person.organizations.add(org)
     PlayerRole.objects.create(person=person, team=team, season=season, is_active=True)
 
     from ilovevoley.competitions.models import FederationCallUp
@@ -123,8 +123,8 @@ def test_match_callup_player_name_variants_and_single_surname():
         first_name='Javi',
         last_name='Roca',
         birth_date=date(2012, 5, 10),
-        organization=org,
     )
+    javi.organizations.add(org)
     PlayerRole.objects.create(person=javi, team=team, season=season, is_active=True)
 
     # Ficha dada de alta como "Joan Pérez"
@@ -132,8 +132,8 @@ def test_match_callup_player_name_variants_and_single_surname():
         first_name='Joan',
         last_name='Pérez',
         birth_date=date(2012, 1, 1),
-        organization=org,
     )
+    joan.organizations.add(org)
     PlayerRole.objects.create(person=joan, team=team, season=season, is_active=True)
 
     # 1. PDF con variante Javier y 2 apellidos: JAVIER ROCA PUJOL
@@ -172,8 +172,8 @@ def test_match_callup_player_club_match_no_roster_card():
         first_name='Marc',
         last_name='Buades Sepulveda',
         birth_date=date(2012, 3, 15),
-        organization=org,
     )
+    marc.organizations.add(org)
     PlayerRole.objects.create(person=marc, team=team, season=season, is_active=True)
 
     from ilovevoley.competitions.models import FederationCallUp

@@ -142,11 +142,13 @@ class CrossTenantAccessTests(TestCase):
         cls.image_b.save(update_fields=['album_group_id'])
 
         cls.person_a = Person.objects.create(
-            first_name='Ana', last_name='A', organization=cls.org_a,
+            first_name='Ana', last_name='A',
         )
+        cls.person_a.organizations.add(cls.org_a)
         cls.person_b = Person.objects.create(
-            first_name='Bea', last_name='B', organization=cls.org_b,
+            first_name='Bea', last_name='B',
         )
+        cls.person_b.organizations.add(cls.org_b)
         cls.player_role_a = PlayerRole.objects.create(
             person=cls.person_a, team=cls.team_a, season=season, jersey_number=1,
         )

@@ -93,11 +93,13 @@ class TenantQuerysetTests(TestCase):
         )
 
         cls.person_a = Person.objects.create(
-            first_name='Ana', last_name='A', organization=cls.org_a,
+            first_name='Ana', last_name='A',
         )
+        cls.person_a.organizations.add(cls.org_a)
         cls.person_b = Person.objects.create(
-            first_name='Bea', last_name='B', organization=cls.org_b,
+            first_name='Bea', last_name='B',
         )
+        cls.person_b.organizations.add(cls.org_b)
         cls.player_role_a = PlayerRole.objects.create(
             person=cls.person_a, team=cls.team_a, season=season, jersey_number=1,
         )
@@ -130,7 +132,7 @@ class TenantQuerysetTests(TestCase):
         self.assertNotIn(self.player_role_b, PlayerRole.objects.for_tenant(self.org_a))
 
     def test_person_without_organization_is_hidden(self):
-        orphan = Person.objects.create(first_name='Sin', last_name='Club', organization=None)
+        orphan = Person.objects.create(first_name='Sin', last_name='Club')
         self.assertNotIn(orphan, Person.objects.for_tenant(self.org_a))
 
     def test_standing_for_tenant_only_returns_own_club_standings(self):

@@ -17,7 +17,8 @@ def test_moderation_panel_shows_pending_callups_for_manager(client, settings):
     Membership.objects.create(user=manager, organization=org, role='manager', is_approved=True)
 
     season = Season.objects.create(name='2025-26', start_year=2025, end_year=2026, is_current=True)
-    person = Person.objects.create(first_name='Lluc', last_name='Riera', organization=org)
+    person = Person.objects.create(first_name='Lluc', last_name='Riera')
+    person.organizations.add(org)
     callup = FederationCallUp.objects.create(season=season, title='Convocatoria 1', source_url='1.pdf')
     player = CallUpPlayer.objects.create(
         callup=callup, organization=org, person=person, match_status='suspected',

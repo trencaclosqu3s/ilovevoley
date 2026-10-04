@@ -105,7 +105,8 @@ class MatchLineupBuildingTests(TestCase):
         self.assertFalse(rows[4].is_convocado)
 
     def test_person_se_resuelve_por_dorsal_y_temporada(self):
-        person = Person.objects.create(first_name='Ana', last_name='Ruiz', organization=self.org)
+        person = Person.objects.create(first_name='Ana', last_name='Ruiz')
+        person.organizations.add(self.org)
         PlayerRole.objects.create(
             person=person, team=self.team, season=self.season,
             jersey_number=7, is_active=True,
@@ -120,7 +121,8 @@ class MatchLineupBuildingTests(TestCase):
         self.assertEqual(rows[7].person_id, person.id)
 
     def test_person_se_resuelve_aunque_el_rol_este_inactivo(self):
-        person = Person.objects.create(first_name='Baja', last_name='Temporada', organization=self.org)
+        person = Person.objects.create(first_name='Baja', last_name='Temporada')
+        person.organizations.add(self.org)
         PlayerRole.objects.create(
             person=person, team=self.team, season=self.season,
             jersey_number=7, is_active=False,
@@ -137,8 +139,10 @@ class MatchLineupBuildingTests(TestCase):
     def test_rol_activo_gana_ante_dorsal_repetido(self):
         # El activo se crea primero (id menor) para que el test no pase por azar
         # de orden: la precedencia debe decidirla is_active, no el id.
-        activo = Person.objects.create(first_name='Activa', last_name='Dos', organization=self.org)
-        inactivo = Person.objects.create(first_name='Baja', last_name='Uno', organization=self.org)
+        activo = Person.objects.create(first_name='Activa', last_name='Dos')
+        activo.organizations.add(self.org)
+        inactivo = Person.objects.create(first_name='Baja', last_name='Uno')
+        inactivo.organizations.add(self.org)
         PlayerRole.objects.create(
             person=activo, team=self.team, season=self.season,
             jersey_number=7, is_active=True,
@@ -157,8 +161,10 @@ class MatchLineupBuildingTests(TestCase):
         self.assertEqual(rows[7].person_id, activo.id)
 
     def test_entre_dorsal_repetido_gana_el_rol_mas_reciente(self):
-        antiguo = Person.objects.create(first_name='Antigua', last_name='Dorsal', organization=self.org)
-        reciente = Person.objects.create(first_name='Reciente', last_name='Dorsal', organization=self.org)
+        antiguo = Person.objects.create(first_name='Antigua', last_name='Dorsal')
+        antiguo.organizations.add(self.org)
+        reciente = Person.objects.create(first_name='Reciente', last_name='Dorsal')
+        reciente.organizations.add(self.org)
         PlayerRole.objects.create(
             person=antiguo, team=self.team, season=self.season,
             jersey_number=7, is_active=False,
@@ -178,7 +184,8 @@ class MatchLineupBuildingTests(TestCase):
 
     def test_no_mezcla_dorsal_de_otra_temporada(self):
         otro = Season.objects.resolve('2024-25')
-        person = Person.objects.create(first_name='Vieja', last_name='Dorsal', organization=self.org)
+        person = Person.objects.create(first_name='Vieja', last_name='Dorsal')
+        person.organizations.add(self.org)
         PlayerRole.objects.create(
             person=person, team=self.team, season=otro,
             jersey_number=7, is_active=True,
@@ -223,7 +230,8 @@ class PlayerSeasonStatsTests(TestCase):
             name='Liga', federation_id='L-1', season=self.season,
             is_active=True, visibility_type='main', is_our_team_related=True,
         )
-        self.person = Person.objects.create(first_name='Ana', last_name='Ruiz', organization=self.org)
+        self.person = Person.objects.create(first_name='Ana', last_name='Ruiz')
+        self.person.organizations.add(self.org)
 
     def _match(self, season=None):
         liga = self.league

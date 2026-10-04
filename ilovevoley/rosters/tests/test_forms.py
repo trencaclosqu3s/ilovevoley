@@ -9,14 +9,11 @@ from ilovevoley.teams.models import Team
 
 
 class PersonFormIdentityValidationTests(TestCase):
-    """El alta valida la identidad contra el tenant, no globalmente."""
+    """La identidad (nombre + año de nacimiento) es global, no por club."""
 
     def setUp(self):
-        self.org_a = Organization.objects.create(slug='org-a', name='Org A')
-        self.org_b = Organization.objects.create(slug='org-b', name='Org B')
         self.person_a = Person.objects.create(
             first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1),
-            organization=self.org_a,
         )
         self.data = {
             'first_name': 'Ana',
@@ -24,19 +21,20 @@ class PersonFormIdentityValidationTests(TestCase):
             'birth_date': '2010-05-01',
         }
 
-    def test_misma_identidad_en_otra_organizacion_es_valida(self):
-        form = PersonForm(data=self.data, organization=self.org_b)
-        self.assertTrue(form.is_valid(), form.errors)
-
-    def test_duplicado_en_la_misma_organizacion_no_valida(self):
-        form = PersonForm(data=self.data, organization=self.org_a)
+    def test_misma_identidad_es_duplicado_y_expone_la_ficha_existente(self):
+        # La vista usa existing_person() para ofrecer "Añadir a mi club".
+        form = PersonForm(data=self.data)
         self.assertFalse(form.is_valid())
+        self.assertEqual(form.existing_person(), self.person_a)
 
     def test_edicion_sin_cambiar_identidad_es_valida(self):
-        form = PersonForm(
-            data=self.data, instance=self.person_a, organization=self.org_a,
-        )
+        form = PersonForm(data=self.data, instance=self.person_a)
         self.assertTrue(form.is_valid(), form.errors)
+
+    def test_sin_fecha_el_año_es_obligatorio(self):
+        data = {'first_name': 'Eva', 'last_name': 'Sola'}
+        self.assertIn('birth_year', PersonForm(data=data).errors)
+        self.assertTrue(PersonForm(data={**data, 'birth_year': '2012'}).is_valid())
 
 
 class RoleFormDuplicateValidationTests(TestCase):
@@ -47,9 +45,7 @@ class RoleFormDuplicateValidationTests(TestCase):
             slug='club', name='Club', club_team_names={'1': 'Club'},
         )
         self.team = Team.objects.create(name='Club Senior', federation_id='T-F')
-        self.person = Person.objects.create(
-            first_name='Ana', last_name='Gomez', organization=self.org,
-        )
+        self.person = Person.objects.create(first_name='Ana', last_name='Gomez')
         self.season = Season.objects.resolve('2025-26')
 
     def test_staff_role_duplicado_no_valida(self):

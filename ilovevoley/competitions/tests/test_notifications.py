@@ -42,8 +42,9 @@ class MatchChangeNotificationsTest(TestCase):
 
         # Delegado para Team A
         cls.person_delegate = Person.objects.create(
-            first_name='Pep', last_name='Delegat', email='delegat@santjosep.com', organization=cls.org_a
+            first_name='Pep', last_name='Delegat', email='delegat@santjosep.com'
         )
+        cls.person_delegate.organizations.add(cls.org_a)
         cls.staff_delegate = StaffRole.objects.create(
             person=cls.person_delegate, team=cls.team_a, role='delegate', season=cls.season, is_active=True
         )
@@ -51,8 +52,9 @@ class MatchChangeNotificationsTest(TestCase):
         # Entrenador para Team A (vinculado a User con email)
         cls.user_coach = User.objects.create_user(username='coach_user', email='coach@santjosep.com')
         cls.person_coach = Person.objects.create(
-            first_name='Toni', last_name='Coach', user=cls.user_coach, organization=cls.org_a
+            first_name='Toni', last_name='Coach', user=cls.user_coach
         )
+        cls.person_coach.organizations.add(cls.org_a)
         cls.staff_coach = StaffRole.objects.create(
             person=cls.person_coach, team=cls.team_a, role='head_coach', season=cls.season, is_active=True
         )
@@ -169,8 +171,9 @@ class MatchChangeNotificationsTest(TestCase):
         team_no_club = Team.objects.create(name='SELECCIÓN', federation_id='t-sel')
         person = Person.objects.create(
             first_name='Sele', last_name='Delegat',
-            email='delegat@seleccion.com', organization=self.org_a,
+            email='delegat@seleccion.com',
         )
+        person.organizations.add(self.org_a)
         StaffRole.objects.create(
             person=person, team=team_no_club, role='delegate',
             season=self.season, is_active=True,
