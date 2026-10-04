@@ -2,10 +2,12 @@ import tempfile
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from ilovevoley.content.models import Image
 from ilovevoley.core.models import Organization, Season
+from ilovevoley.core.protected_media import _person_is_allowed
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
 from ilovevoley.teams.models import Club, Team
 from ilovevoley.users.models import Membership
@@ -180,6 +182,12 @@ class ProtectedPersonMediaTests(TestCase):
         self.client.force_login(self.member)
         response = self.client.get('/media/people/luis_2.jpg', HTTP_HOST=HOST)
         self.assertEqual(response.status_code, 200)
+
+    def test_anonymous_user_does_not_match_person_without_linked_user(self):
+        # AnonymousUser.pk y Person.user_id son ambos None: el atajo de "propia
+        # ficha" no puede concederse por esa igualdad.
+        unlinked = Person.objects.create(first_name='Sin', last_name='Vinculo')
+        self.assertFalse(_person_is_allowed(unlinked, AnonymousUser(), self.org))
 
     def test_anonymous_person_photo_is_forbidden(self):
         response = self.client.get('/media/people/ana_1.jpg', HTTP_HOST='testclub.ilovevoley.es')
