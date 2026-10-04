@@ -58,7 +58,7 @@ function applyFilters(changedElement) {
         if (changedElement.checked) {
             filterValue = changedElement.value;
         } else {
-            filterValue = '';
+            filterValue = changedElement.dataset.uncheckedValue !== undefined ? changedElement.dataset.uncheckedValue : '';
         }
     } else {
         filterValue = changedElement.value;

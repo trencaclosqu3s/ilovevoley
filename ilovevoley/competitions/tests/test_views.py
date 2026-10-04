@@ -1333,6 +1333,79 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
 
+    def test_standings_view_all_leagues_toggle_includes_other_leagues(self):
+        Standing.objects.create(
+            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
+        )
+        Standing.objects.create(
+            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
+        )
+        self.client.force_login(self.member)
+        url = reverse('competitions:standings_view')
+        response = self.client.get(f'{url}?all_leagues=1', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Liga Propia', response.context['standings_by_league'])
+        self.assertIn('Liga Ajena', response.context['standings_by_league'])
+        self.assertTrue(response.context['show_all_leagues'])
+        self.assertEqual(response.cookies.get('standings_all_leagues').value, '1')
+
+    def test_standings_view_all_leagues_cookie_persistence(self):
+        Standing.objects.create(
+            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
+        )
+        Standing.objects.create(
+            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
+        )
+        self.client.force_login(self.member)
+        self.client.cookies['standings_all_leagues'] = '1'
+        url = reverse('competitions:standings_view')
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Liga Ajena', response.context['standings_by_league'])
+        self.assertTrue(response.context['show_all_leagues'])
+
+    def test_standings_view_all_leagues_toggle_off_sets_cookie_zero(self):
+        Standing.objects.create(
+            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
+        )
+        Standing.objects.create(
+            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
+        )
+        self.client.force_login(self.member)
+        self.client.cookies['standings_all_leagues'] = '1'
+        url = reverse('competitions:standings_view')
+        response = self.client.get(f'{url}?all_leagues=0', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
+        self.assertFalse(response.context['show_all_leagues'])
+        self.assertEqual(response.cookies.get('standings_all_leagues').value, '0')
+
+    def test_standings_view_all_leagues_defaults_to_current_season_leagues(self):
+        """Con all_leagues=1 y sin filtro de temporada ni show_archived, solo se muestran ligas de la temporada activa."""
+        past_season = Season.objects.create(name='2025-26', start_year=2025, end_year=2026, is_current=False)
+        past_league = League.objects.create(
+            name='Liga Ajena Pasada', federation_id='liga-ajena-pasada', season=past_season,
+            is_active=True, visibility_type='main', is_our_team_related=False,
+        )
+        Standing.objects.create(
+            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
+        )
+        Standing.objects.create(
+            league=past_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
+        )
+        self.client.force_login(self.member)
+        url = reverse('competitions:standings_view')
+        response = self.client.get(f'{url}?all_leagues=1', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Liga Ajena', response.context['standings_by_league'])
+        self.assertNotIn('Liga Ajena Pasada', response.context['standings_by_league'])
+
+        # Al filtrar explícitamente por la temporada pasada, sí se incluye
+        response_past = self.client.get(f'{url}?all_leagues=1&season_name=2025-26', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response_past.status_code, 200)
+        self.assertIn('Liga Ajena Pasada', response_past.context['standings_by_league'])
+        self.assertNotIn('Liga Ajena', response_past.context['standings_by_league'])
+
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'otherclub.ilovevoley.es', 'noclub.ilovevoley.es', 'localhost'])
 class MatchChangesReviewViewTest(TestCase):

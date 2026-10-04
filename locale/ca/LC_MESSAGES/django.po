@@ -10486,3 +10486,43 @@ msgstr ""
 #
 #~ msgid "Equipo o club"
 #~ msgstr "Equip o club"
+
+#: ilovevoley/competitions/templates/competitions/results.html
+msgid "Ir al calendario"
+msgstr "Anar al calendari"
+
+msgid "Periodo"
+msgstr "Període"
+
+msgid "Últimos registrados"
+msgstr "Darrers registrats"
+
+msgid "Último mes"
+msgstr "Darrer mes"
+
+msgid "Toda la temporada"
+msgstr "Tota la temporada"
+
+msgid "Todas"
+msgstr "Totes"
+
+msgid "Mis categorías"
+msgstr "Les meves categories"
+
+msgid "Buscar equipos"
+msgstr "Cerca equips"
+
+msgid "Escribe el nombre de un equipo…"
+msgstr "Escriu el nom d'un equip…"
+
+msgid "Mostrar todos los equipos"
+msgstr "Mostra tots els equips"
+
+msgid "Detalle"
+msgstr "Detall"
+
+msgid "No hay resultados con estos filtros."
+msgstr "No hi ha resultats amb aquests filtres."
+
+msgid "Quitar"
+msgstr "Treu"
