@@ -29,7 +29,7 @@
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.textContent = '×';
-        remove.setAttribute('aria-label', team.name);
+        remove.setAttribute('aria-label', form.dataset.removeLabel + ' ' + team.name);
         remove.addEventListener('click', function () { chip.remove(); });
         chip.append(hidden, remove);
         chips.appendChild(chip);
@@ -67,7 +67,10 @@
         timer = setTimeout(function () {
             fetch(searchUrl + '?q=' + encodeURIComponent(query), { headers: { 'Accept': 'application/json' } })
                 .then(function (response) { return response.ok ? response.json() : { teams: [] }; })
-                .then(function (data) { renderSuggestions(data.teams); })
+                .then(function (data) {
+                    // Descarta respuestas de un texto que ya no es el actual.
+                    if (input.value.trim() === query) renderSuggestions(data.teams);
+                })
                 .catch(clearSuggestions);
         }, DEBOUNCE_MS);
     });

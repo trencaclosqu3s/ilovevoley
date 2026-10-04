@@ -10523,3 +10523,6 @@ msgstr "Detall"
 
 msgid "No hay resultados con estos filtros."
 msgstr "No hi ha resultats amb aquests filtres."
+
+msgid "Quitar"
+msgstr "Treu"

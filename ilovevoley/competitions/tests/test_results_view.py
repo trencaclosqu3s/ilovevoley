@@ -109,3 +109,10 @@ class ResultsViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         names = {t['name'] for t in response.json()['teams']}
         self.assertEqual(names, {'Rival A', 'Rival B'})
+
+    def test_malformed_filters_do_not_break_the_page(self):
+        """Ids no numéricos (también dígitos unicode como «²») no deben dar 500."""
+        self._match(self.ours_senior, self.rival_a, self.league_senior)
+        for params in ({'category': 'abc'}, {'teams': ['abc', '²']}, {'category': '²'}):
+            with self.subTest(params=params):
+                self._get(**params)

@@ -17,7 +17,7 @@
             </a>
         </div>
 
-        <form method="get" data-results-filters data-search-url="{% url 'competitions:ajax_results_teams' %}" class="space-y-3">
+        <form method="get" data-results-filters data-search-url="{% url 'competitions:ajax_results_teams' %}" data-remove-label="{% trans 'Quitar' %}" class="space-y-3">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <label class="text-sm text-gray-700 dark:text-gray-300">
                     {% trans "Periodo" %}
@@ -57,7 +57,7 @@
                     <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-csj-purple text-white text-xs">
                         {{ team.name }}
                         <input type="hidden" name="teams" value="{{ team.pk }}">
-                        <button type="button" aria-label="{{ team.name }}">×</button>
+                        <button type="button" aria-label="{% trans 'Quitar' %} {{ team.name }}">×</button>
                     </span>
                     {% endfor %}
                 </div>

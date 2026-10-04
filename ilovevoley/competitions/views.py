@@ -598,8 +598,10 @@ def results_view(request):
     if period not in RESULTS_PERIODS:
         period = 'recent'
     show_all_teams = request.GET.get('all_teams', '0') == '1'
-    category_filter = request.GET.get('category')
-    team_ids = [int(t) for t in request.GET.getlist('teams') if t.isdigit()]
+    category_filter = request.GET.get('category', '')
+    if not (category_filter.isascii() and category_filter.isdigit()):
+        category_filter = ''
+    team_ids = [int(t) for t in request.GET.getlist('teams') if t.isascii() and t.isdigit()]
     season, selected_season = resolve_season_filter(request)
 
     matches = Match.objects.select_related(
@@ -638,7 +640,6 @@ def results_view(request):
         'page_obj': page_obj,
         'querystring': params.urlencode(),
         'period': period,
-        'periods': RESULTS_PERIODS,
         'seasons': Season.objects.order_by('-start_year'),
         'selected_season': selected_season,
         'categories': Category.objects.filter(is_active=True).order_by('name'),
