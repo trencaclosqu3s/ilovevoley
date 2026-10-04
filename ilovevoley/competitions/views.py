@@ -581,6 +581,86 @@ def calendar_view(request):
     })
 
 
+RESULTS_PERIODS = ('recent', 'month', 'season')
+RESULTS_RECENT_LIMIT = 20
+RESULTS_PAGE_SIZE = 50
+
+
+@tenant_access_required()
+def results_view(request):
+    """Listado de resultados ya jugados, complementario al calendario.
+
+    Por defecto: equipos del club y categorías preferidas del usuario. Elegir
+    equipos, ``all_teams`` o una categoría levanta esas restricciones para poder
+    consultar cualquier equipo de cualquier categoría.
+    """
+    period = request.GET.get('period')
+    if period not in RESULTS_PERIODS:
+        period = 'recent'
+    show_all_teams = request.GET.get('all_teams', '0') == '1'
+    category_filter = request.GET.get('category')
+    team_ids = [int(t) for t in request.GET.getlist('teams') if t.isdigit()]
+    season, selected_season = resolve_season_filter(request)
+
+    matches = Match.objects.select_related(
+        'home_team__club', 'away_team__club', 'league'
+    ).filter(status='finished', home_score__isnull=False, away_score__isnull=False)
+    if season:
+        matches = matches.filter(league__season=season)
+
+    if team_ids:
+        matches = matches.filter(Q(home_team_id__in=team_ids) | Q(away_team_id__in=team_ids))
+    elif not show_all_teams:
+        matches = matches.filter(get_club_team_filter(request.tenant))
+
+    if category_filter:
+        matches = matches.filter(league__categories__id=category_filter).distinct()
+    elif not (team_ids or show_all_teams) and request.user.has_preferred_categories(request.tenant):
+        matches = matches.filter(
+            league__categories__in=request.user.preferred_categories_for(request.tenant)
+        ).distinct()
+
+    matches = matches.order_by('-match_date')
+    if period == 'month':
+        matches = matches.filter(match_date__gte=timezone.now() - timedelta(days=30))
+    elif period == 'recent':
+        matches = matches[:RESULTS_RECENT_LIMIT]
+
+    page_obj = Paginator(matches, RESULTS_PAGE_SIZE).get_page(request.GET.get('page'))
+    for match in page_obj:
+        match.set_scores = match_set_scores(match)
+
+    params = request.GET.copy()
+    params.pop('page', None)
+
+    return render(request, 'competitions/results.html', {
+        'matches': page_obj,
+        'page_obj': page_obj,
+        'querystring': params.urlencode(),
+        'period': period,
+        'periods': RESULTS_PERIODS,
+        'seasons': Season.objects.order_by('-start_year'),
+        'selected_season': selected_season,
+        'categories': Category.objects.filter(is_active=True).order_by('name'),
+        'selected_category': category_filter,
+        'show_all_teams': show_all_teams,
+        'selected_teams': Team.objects.filter(pk__in=team_ids).order_by('name'),
+    })
+
+
+@tenant_access_required(api=True)
+def ajax_results_teams(request):
+    """Autocompletado del filtro de resultados: equipos de cualquier club."""
+    query = request.GET.get('q', '').strip()
+    if len(query) < 2:
+        return JsonResponse({'teams': []})
+    teams = Team.objects.filter(name__icontains=query).select_related('category').order_by('name')[:10]
+    return JsonResponse({'teams': [
+        {'id': t.id, 'name': t.name, 'category': t.category.name if t.category else None}
+        for t in teams
+    ]})
+
+
 @tenant_access_required(manager=True)
 def friendly_match_create(request):
     """Vista para crear un partido amistoso"""

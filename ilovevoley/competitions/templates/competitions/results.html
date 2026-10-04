@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Resultados" %} - I Love Voley{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/results.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h1 class="text-xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">✅ {% trans "Resultados" %}</h1>
+            <a href="{% url 'competitions:calendar_view' %}" class="text-sm font-semibold text-csj-purple dark:text-csj-yellow hover:underline">
+                📅 {% trans "Ir al calendario" %}
+            </a>
+        </div>
+
+        <form method="get" data-results-filters data-search-url="{% url 'competitions:ajax_results_teams' %}" class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label class="text-sm text-gray-700 dark:text-gray-300">
+                    {% trans "Periodo" %}
+                    <select name="period" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100">
+                        <option value="recent" {% if period == 'recent' %}selected{% endif %}>{% trans "Últimos registrados" %}</option>
+                        <option value="month" {% if period == 'month' %}selected{% endif %}>{% trans "Último mes" %}</option>
+                        <option value="season" {% if period == 'season' %}selected{% endif %}>{% trans "Toda la temporada" %}</option>
+                    </select>
+                </label>
+                <label class="text-sm text-gray-700 dark:text-gray-300">
+                    {% trans "Temporada" %}
+                    <select name="season" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100">
+                        <option value="" {% if not selected_season %}selected{% endif %}>{% trans "Todas" %}</option>
+                        {% for s in seasons %}
+                        <option value="{{ s.pk }}" {% if selected_season == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="text-sm text-gray-700 dark:text-gray-300">
+                    {% trans "Categoría" %}
+                    <select name="category" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100">
+                        <option value="">{% trans "Mis categorías" %}</option>
+                        {% for c in categories %}
+                        <option value="{{ c.pk }}" {% if selected_category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
+
+            <div class="relative">
+                <label for="results-team-search" class="text-sm text-gray-700 dark:text-gray-300">{% trans "Buscar equipos" %}</label>
+                <input id="results-team-search" type="text" autocomplete="off" placeholder="{% trans 'Escribe el nombre de un equipo…' %}"
+                       class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100">
+                <div id="results-team-suggestions" class="hidden absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg"></div>
+                <div id="results-team-chips" class="flex flex-wrap gap-2 mt-2">
+                    {% for team in selected_teams %}
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-csj-purple text-white text-xs">
+                        {{ team.name }}
+                        <input type="hidden" name="teams" value="{{ team.pk }}">
+                        <button type="button" aria-label="{{ team.name }}">×</button>
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input type="checkbox" name="all_teams" value="1" {% if show_all_teams %}checked{% endif %}>
+                    {% trans "Mostrar todos los equipos" %}
+                </label>
+                <button type="submit" class="px-4 py-2 bg-csj-purple dark:bg-csj-purple-dark text-white rounded-lg text-sm font-medium hover:opacity-90 transition">
+                    {% trans "Filtrar" %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg divide-y divide-gray-200 dark:divide-gray-700">
+        {% for match in matches %}
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 sm:gap-x-3 sm:grid sm:grid-cols-[6rem_minmax(0,1fr)_3.5rem_15rem_auto]">
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ match.match_date|date:"d/m/Y" }}</span>
+            <span class="flex-1 min-w-[12rem] sm:min-w-0 text-gray-800 dark:text-gray-100">
+                {{ match.home_team_display }} <span class="text-gray-400">vs</span> {{ match.away_team_display }}
+                {% if match.league %}<span class="block text-xs text-gray-500 dark:text-gray-400">{{ match.league.name }}</span>{% endif %}
+            </span>
+            <span class="font-bold text-center whitespace-nowrap text-csj-purple dark:text-csj-yellow">{{ match.result_display }}</span>
+            <span class="flex flex-wrap gap-x-2 text-xs text-gray-500 dark:text-gray-400">
+                {% for home, away in match.set_scores %}<span class="whitespace-nowrap">{{ home }}-{{ away }}</span>{% endfor %}
+            </span>
+            <a href="{% url 'competitions:match_detail' match.id %}" class="ml-auto sm:ml-0 px-3 py-1 text-sm font-medium rounded-lg border border-csj-purple text-csj-purple dark:border-csj-yellow dark:text-csj-yellow hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                {% trans "Detalle" %}
+            </a>
+        </div>
+        {% empty %}
+        <p class="p-6 text-center text-gray-500 dark:text-gray-400">{% trans "No hay resultados con estos filtros." %}</p>
+        {% endfor %}
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="flex justify-center gap-4 text-sm">
+        {% if page_obj.has_previous %}<a class="text-csj-purple dark:text-csj-yellow hover:underline" href="?{{ querystring }}&page={{ page_obj.previous_page_number }}">← {% trans "Anterior" %}</a>{% endif %}
+        <span class="text-gray-500 dark:text-gray-400">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a class="text-csj-purple dark:text-csj-yellow hover:underline" href="?{{ querystring }}&page={{ page_obj.next_page_number }}">{% trans "Siguiente" %} →</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
