@@ -13,6 +13,7 @@ urlpatterns = [
     path('partidos/<int:match_id>/compartir/<int:link_id>/revocar/', views.match_share_revoke, name='match_share_revoke'),
     path('partidos/<int:match_id>/tarjeta/', views.match_result_card, name='match_result_card'),
     path('calendario/', views.calendar_view, name='calendar_view'),
+    path('resultados/', views.results_view, name='results_view'),
     path('clasificacion/', views.standings_view, name='standings_view'),
     path('calendario/amistoso/nuevo/', views.friendly_match_create, name='friendly_match_create'),
     path('cambios-jornada/', views.match_changes_review, name='match_changes_review'),
@@ -23,6 +24,7 @@ urlpatterns = [
     # URLs AJAX
     path('ajax/matches-by-category/', views.ajax_matches_by_category, name='ajax_matches_by_category'),
     path('ajax/teams-by-league-category/', views.ajax_teams_by_league_category, name='ajax_teams_by_league_category'),
+    path('ajax/results/teams/', views.ajax_results_teams, name='ajax_results_teams'),
     path('ajax/search-teams/', views.ajax_search_teams, name='ajax_search_teams'),
     path('ajax/partidos/<int:match_id>/resultado/', views.ajax_add_match_result, name='ajax_add_match_result'),
     path('ajax/partidos/<int:match_id>/parciales/', views.ajax_edit_match_result, name='ajax_edit_match_result'),
