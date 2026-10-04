@@ -38,6 +38,7 @@ _FORMAT_METRICS = {
         frame_inner=5,
         blob_top=(420, -120, -120),
         blob_bottom=(360, 100, 100),
+        photo_letterbox=False,
     ),
     'story': dict(
         crest_size=240,
@@ -50,6 +51,7 @@ _FORMAT_METRICS = {
         frame_inner=6,
         blob_top=(640, -160, -180),
         blob_bottom=(520, 140, 140),
+        photo_letterbox=True,
     ),
 }
 
@@ -179,6 +181,13 @@ def _cover_crop(image: Image.Image, width: int, height: int) -> Image.Image:
     return resized.crop((left, top, left + width, top + height))
 
 
+def _contain_fit(image: Image.Image, width: int, height: int) -> Image.Image:
+    """Escala `image` para caber entera en width×height, como CSS object-fit: contain."""
+    ratio = min(width / image.width, height / image.height)
+    new_size = (max(1, round(image.width * ratio)), max(1, round(image.height * ratio)))
+    return image.resize(new_size, Image.Resampling.LANCZOS)
+
+
 def _vertical_alpha_gradient(width: int, height: int, top_alpha: int, bottom_alpha: int):
     seed = Image.new('L', (1, 2))
     seed.putpixel((0, 0), top_alpha)
@@ -224,11 +233,30 @@ def _draw_background_blobs(image: Image.Image, width: int, height: int, metrics:
 
 
 def _photo_background(
-    photo: bytes, width: int, height: int, primary, scrim_top: int, scrim_bottom: int
+    photo: bytes,
+    width: int,
+    height: int,
+    primary,
+    secondary,
+    metrics: dict,
+    *,
+    letterbox: bool = False,
 ) -> Image.Image:
     with Image.open(BytesIO(photo)) as raw:
-        image = _cover_crop(raw.convert('RGB'), width, height)
+        source = raw.convert('RGB')
 
+    # En vertical (Story) una foto más ancha que el lienzo se encuadra entera
+    # (contain) y los márgenes superior/inferior se rellenan con el degradado
+    # del tenant, en vez de recortar los laterales (issue #347).
+    if letterbox and source.width / source.height > width / height:
+        image = _gradient_background(width, height, primary, secondary, metrics)
+        fitted = _contain_fit(source, width, height)
+        image.paste(fitted, ((width - fitted.width) // 2, (height - fitted.height) // 2))
+    else:
+        image = _cover_crop(source, width, height)
+
+    scrim_top = metrics['scrim_top']
+    scrim_bottom = metrics['scrim_bottom']
     top_mask = _vertical_alpha_gradient(width, scrim_top, 190, 0)
     image.paste(Image.new('RGB', (width, scrim_top), primary), (0, 0), top_mask)
 
@@ -325,7 +353,8 @@ def render_result_card(
     if card_style == 'marco':
         try:
             image = _photo_background(
-                photo, width, height, primary, metrics['scrim_top'], metrics['scrim_bottom']
+                photo, width, height, primary, secondary, metrics,
+                letterbox=metrics['photo_letterbox'],
             )
         except (OSError, ValueError) as exc:
             logger.warning('Foto de marco no válida, usando degradado: %s', exc)

@@ -46,6 +46,43 @@ def _fake_photo_bytes() -> bytes:
     return buffer.getvalue()
 
 
+def _edge_photo(width, height, left, right, middle=(20, 20, 20)) -> bytes:
+    """Foto con bandas de color en los extremos, para detectar recortes laterales."""
+    image = Image.new('RGB', (width, height), middle)
+    draw = ImageDraw.Draw(image)
+    band = max(1, width // 8)
+    draw.rectangle([0, 0, band, height], fill=left)
+    draw.rectangle([width - band, 0, width, height], fill=right)
+    buffer = BytesIO()
+    image.save(buffer, format='PNG')
+    return buffer.getvalue()
+
+
+def _is_red(pixel) -> bool:
+    r, g, b = pixel[:3]
+    return r > 200 and g < 60 and b < 60
+
+
+def _is_blue(pixel) -> bool:
+    r, g, b = pixel[:3]
+    return b > 200 and r < 60 and g < 60
+
+
+def _is_green(pixel) -> bool:
+    r, g, b = pixel[:3]
+    return g > 200 and r < 60 and b < 60
+
+
+def _is_magenta(pixel) -> bool:
+    r, g, b = pixel[:3]
+    return r > 200 and b > 200 and g < 60
+
+
+def _is_dark(pixel) -> bool:
+    r, g, b = pixel[:3]
+    return r < 90 and g < 90 and b < 90
+
+
 def _capture_drawn_text():
     """Espía las llamadas a draw.text() conservando el dibujado real."""
     calls = []
@@ -187,6 +224,60 @@ class RenderResultCardTests(SimpleTestCase):
             logo_fetcher=lambda url: None,
         )
         self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
+
+    def test_story_marco_panoramic_photo_is_not_side_cropped(self):
+        """En Story la foto panorámica se encuadra entera, sin perder los laterales (#347)."""
+        photo = _edge_photo(1600, 600, (255, 0, 0), (0, 0, 255))
+
+        png = result_card.render_result_card(
+            match=_fake_match(),
+            organization=_fake_org(),
+            card_format='story',
+            card_style='marco',
+            photo=photo,
+            sets=[],
+            logo_fetcher=lambda url: None,
+        )
+        img = Image.open(BytesIO(png))
+
+        self.assertTrue(_is_red(img.getpixel((30, 959))), img.getpixel((30, 959)))
+        self.assertTrue(_is_blue(img.getpixel((1049, 959))), img.getpixel((1049, 959)))
+
+    def test_story_marco_vertical_photo_still_fills_width(self):
+        """Una foto vertical sigue cubriendo el ancho completo, sin barras laterales (#347)."""
+        photo = _edge_photo(600, 1600, (0, 255, 0), (255, 0, 255))
+
+        png = result_card.render_result_card(
+            match=_fake_match(),
+            organization=_fake_org(),
+            card_format='story',
+            card_style='marco',
+            photo=photo,
+            sets=[],
+            logo_fetcher=lambda url: None,
+        )
+        img = Image.open(BytesIO(png))
+
+        self.assertTrue(_is_green(img.getpixel((30, 959))), img.getpixel((30, 959)))
+        self.assertTrue(_is_magenta(img.getpixel((1049, 959))), img.getpixel((1049, 959)))
+
+    def test_square_marco_panoramic_photo_keeps_cover_crop(self):
+        """El formato 1:1 no cambia: la foto panorámica sigue recortada tipo cover (#347)."""
+        photo = _edge_photo(1600, 600, (255, 0, 0), (0, 0, 255))
+
+        png = result_card.render_result_card(
+            match=_fake_match(),
+            organization=_fake_org(),
+            card_format='square',
+            card_style='marco',
+            photo=photo,
+            sets=[],
+            logo_fetcher=lambda url: None,
+        )
+        img = Image.open(BytesIO(png))
+
+        self.assertTrue(_is_dark(img.getpixel((30, 300))), img.getpixel((30, 300)))
+        self.assertTrue(_is_dark(img.getpixel((1049, 300))), img.getpixel((1049, 300)))
 
     def test_logo_fetcher_failure_still_returns_png(self):
         match = _fake_match()
