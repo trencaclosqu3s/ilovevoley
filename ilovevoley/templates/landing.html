@@ -39,7 +39,7 @@
          class="group relative block bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border-t-4 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 tenant-accent-{{ org.id }} tenant-border ring-1 ring-black/5 dark:ring-white/10">
 
         {% if org.logo %}
-          <img src="{{ org.logo.url }}" alt="{{ org.name }}" class="h-12 w-auto mb-4">
+          <img src="{{ org.logo.url }}" alt="{{ org.name }}" class="h-12 w-auto mb-4 dark:bg-white/90 dark:rounded-md dark:p-1">
         {% else %}
           <div class="h-12 w-12 rounded-xl mb-4 flex items-center justify-center text-white font-bold text-xl tenant-accent-{{ org.id }} tenant-bg">
             {{ org.name|first }}
@@ -78,7 +78,7 @@
          class="group relative block bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border-t-4 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 tenant-accent-{{ org.id }} tenant-border">
 
         {% if org.logo %}
-          <img src="{{ org.logo.url }}" alt="{{ org.name }}" class="h-12 w-auto mb-4">
+          <img src="{{ org.logo.url }}" alt="{{ org.name }}" class="h-12 w-auto mb-4 dark:bg-white/90 dark:rounded-md dark:p-1">
         {% else %}
           <div class="h-12 w-12 rounded-xl mb-4 flex items-center justify-center text-white font-bold text-xl tenant-accent-{{ org.id }} tenant-bg">
             {{ org.name|first }}
@@ -108,7 +108,7 @@
        class="group relative block bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border-t-4 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 tenant-accent-{{ org.id }} tenant-border">
 
       {% if org.logo %}
-        <img src="{{ org.logo.url }}" alt="{{ org.name }}" class="h-12 w-auto mb-4">
+        <img src="{{ org.logo.url }}" alt="{{ org.name }}" class="h-12 w-auto mb-4 dark:bg-white/90 dark:rounded-md dark:p-1">
       {% else %}
         <div class="h-12 w-12 rounded-xl mb-4 flex items-center justify-center text-white font-bold text-xl tenant-accent-{{ org.id }} tenant-bg">
           {{ org.name|first }}
