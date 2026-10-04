@@ -64,12 +64,6 @@ function applyFilters(changedElement) {
         filterValue = changedElement.value;
     }
     
-    // Si el elemento define una cookie de persistencia, sincronizarla en el navegador
-    if (changedElement.dataset.cookie) {
-        const cookieVal = (changedElement.type === 'checkbox') ? (changedElement.checked ? '1' : '0') : (filterValue || '');
-        document.cookie = `${changedElement.dataset.cookie}=${cookieVal}; path=/; max-age=31536000; SameSite=Lax`;
-    }
-    
     if (filterValue === '' || filterValue === null) {
         // Si el valor está vacío, eliminar el parámetro
         url.searchParams.delete(filterName);
