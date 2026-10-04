@@ -1333,6 +1333,53 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
 
+    def test_standings_view_all_leagues_toggle_includes_other_leagues(self):
+        Standing.objects.create(
+            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
+        )
+        Standing.objects.create(
+            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
+        )
+        self.client.force_login(self.member)
+        url = reverse('competitions:standings_view')
+        response = self.client.get(f'{url}?all_leagues=1', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Liga Propia', response.context['standings_by_league'])
+        self.assertIn('Liga Ajena', response.context['standings_by_league'])
+        self.assertTrue(response.context['show_all_leagues'])
+        self.assertEqual(response.cookies.get('standings_all_leagues').value, '1')
+
+    def test_standings_view_all_leagues_cookie_persistence(self):
+        Standing.objects.create(
+            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
+        )
+        Standing.objects.create(
+            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
+        )
+        self.client.force_login(self.member)
+        self.client.cookies['standings_all_leagues'] = '1'
+        url = reverse('competitions:standings_view')
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Liga Ajena', response.context['standings_by_league'])
+        self.assertTrue(response.context['show_all_leagues'])
+
+    def test_standings_view_all_leagues_toggle_off_sets_cookie_zero(self):
+        Standing.objects.create(
+            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
+        )
+        Standing.objects.create(
+            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
+        )
+        self.client.force_login(self.member)
+        self.client.cookies['standings_all_leagues'] = '1'
+        url = reverse('competitions:standings_view')
+        response = self.client.get(f'{url}?all_leagues=0', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
+        self.assertFalse(response.context['show_all_leagues'])
+        self.assertEqual(response.cookies.get('standings_all_leagues').value, '0')
+
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'otherclub.ilovevoley.es', 'noclub.ilovevoley.es', 'localhost'])
 class MatchChangesReviewViewTest(TestCase):

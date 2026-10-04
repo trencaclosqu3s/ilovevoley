@@ -58,10 +58,16 @@ function applyFilters(changedElement) {
         if (changedElement.checked) {
             filterValue = changedElement.value;
         } else {
-            filterValue = '';
+            filterValue = changedElement.dataset.uncheckedValue !== undefined ? changedElement.dataset.uncheckedValue : '';
         }
     } else {
         filterValue = changedElement.value;
+    }
+    
+    // Si el elemento define una cookie de persistencia, sincronizarla en el navegador
+    if (changedElement.dataset.cookie) {
+        const cookieVal = (changedElement.type === 'checkbox') ? (changedElement.checked ? '1' : '0') : (filterValue || '');
+        document.cookie = `${changedElement.dataset.cookie}=${cookieVal}; path=/; max-age=31536000; SameSite=Lax`;
     }
     
     if (filterValue === '' || filterValue === null) {

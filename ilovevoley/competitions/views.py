@@ -949,10 +949,23 @@ def standings_view(request):
     show_all = request.GET.get('show_all', '0') == '1'
     show_archived = request.GET.get('show_archived', '0') == '1'
 
-    # Obtener temporadas disponibles acotadas al tenant
-    tenant_leagues_all = League.objects.for_tenant(request.tenant, visible_only=False)
+    # Toggle de ver todas las ligas (persiste en cookie 'standings_all_leagues')
+    all_leagues_param = request.GET.get('all_leagues')
+    if all_leagues_param is not None:
+        show_all_leagues = (all_leagues_param == '1')
+        cookie_to_set = '1' if show_all_leagues else '0'
+    else:
+        show_all_leagues = (request.COOKIES.get('standings_all_leagues') == '1')
+        cookie_to_set = None
+
+    # Obtener temporadas disponibles
+    if show_all_leagues:
+        base_leagues_for_seasons = League.objects.all()
+    else:
+        base_leagues_for_seasons = League.objects.for_tenant(request.tenant, visible_only=False)
+
     seasons = (
-        tenant_leagues_all.filter(season__isnull=False)
+        base_leagues_for_seasons.filter(season__isnull=False)
         .values_list('season__name', flat=True)
         .distinct()
         .order_by('-season__name')
@@ -966,25 +979,44 @@ def standings_view(request):
         if legacy and not legacy.isdigit():
             season_filter = legacy
 
-    if show_archived or season_filter:
-        # Mostrar ligas archivadas, de referencia, etc. O si se filtra por temporada específica
-        # Ordenamos por fecha de creación descendente para ver las más recientes primero
-        leagues = tenant_leagues_all.order_by('-created_at', 'name')
-        standings = (
-            Standing.objects.for_tenant(request.tenant, visible_only=False)
-            .select_related('team', 'league')
-            .prefetch_related('league__categories')
-            .order_by('-league__created_at', 'league__name', 'position')
-        )
+    if show_all_leagues:
+        if show_archived or season_filter:
+            leagues = League.objects.all().order_by('-created_at', 'name')
+            standings = (
+                Standing.objects.all()
+                .select_related('team', 'league')
+                .prefetch_related('league__categories')
+                .order_by('-league__created_at', 'league__name', 'position')
+            )
+        else:
+            leagues = League.objects.filter(is_active=True, visibility_type='main').order_by('name')
+            standings = (
+                Standing.objects.filter(league__is_active=True, league__visibility_type='main')
+                .select_related('team', 'league')
+                .prefetch_related('league__categories')
+                .order_by('league__name', 'position')
+            )
     else:
-        # Consulta base de clasificaciones - Solo ligas activas y visibles en app del tenant
-        leagues = League.objects.for_tenant(request.tenant).order_by('name')
-        standings = (
-            Standing.objects.for_tenant(request.tenant, visible_only=True)
-            .select_related('team', 'league')
-            .prefetch_related('league__categories')
-            .order_by('league__name', 'position')
-        )
+        tenant_leagues_all = League.objects.for_tenant(request.tenant, visible_only=False)
+        if show_archived or season_filter:
+            # Mostrar ligas archivadas, de referencia, etc. O si se filtra por temporada específica
+            # Ordenamos por fecha de creación descendente para ver las más recientes primero
+            leagues = tenant_leagues_all.order_by('-created_at', 'name')
+            standings = (
+                Standing.objects.for_tenant(request.tenant, visible_only=False)
+                .select_related('team', 'league')
+                .prefetch_related('league__categories')
+                .order_by('-league__created_at', 'league__name', 'position')
+            )
+        else:
+            # Consulta base de clasificaciones - Solo ligas activas y visibles en app del tenant
+            leagues = League.objects.for_tenant(request.tenant).order_by('name')
+            standings = (
+                Standing.objects.for_tenant(request.tenant, visible_only=True)
+                .select_related('team', 'league')
+                .prefetch_related('league__categories')
+                .order_by('league__name', 'position')
+            )
 
     # Aplicar filtro de temporada
     if season_filter:
@@ -1021,7 +1053,7 @@ def standings_view(request):
     categories = Category.objects.filter(is_active=True).order_by('name')
     club_team_name = get_primary_club_team_name(request.tenant)
 
-    return render(request, 'competitions/standings.html', {
+    response = render(request, 'competitions/standings.html', {
         'standings_by_league': standings_by_league,
         'leagues': leagues,
         'categories': categories,
@@ -1031,9 +1063,18 @@ def standings_view(request):
         'selected_season': season_filter,
         'show_all': show_all,
         'show_archived': show_archived,
+        'show_all_leagues': show_all_leagues,
         'has_preferences': request.user.has_preferred_categories(request.tenant),
         'club_team_name': club_team_name,
     })
+    if cookie_to_set is not None:
+        response.set_cookie(
+            'standings_all_leagues',
+            cookie_to_set,
+            max_age=365 * 24 * 3600,
+            samesite='Lax',
+        )
+    return response
 
 
 @tenant_access_required()
