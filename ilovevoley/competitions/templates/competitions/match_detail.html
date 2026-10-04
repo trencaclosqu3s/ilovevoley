@@ -106,7 +106,7 @@
                             {% endfor %}
                         </div>
                     {% endif %}
-                    {% if is_tenant_manager and not match.acta_html %}
+                    {% if can_edit_result and not match.acta_html %}
                         <button type="button" data-call="openEditSetsModal"
                                 data-call-args='[{{ match.id }}, "{{ match.home_team_display|escapejs }}", "{{ match.away_team_display|escapejs }}"]'
                                 class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
@@ -193,7 +193,7 @@
                             </div>
                         </div>
                     {% endif %}
-                {% elif is_tenant_manager %}
+                {% elif can_edit_result %}
                     {% if match.match_date.date <= today %}
                         <button data-call="openResultModal" data-call-args='[{{ match.id }}, "{{ match.home_team_display|escapejs }}", "{{ match.away_team_display|escapejs }}"]' 
                                 class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white transition shadow-md">
@@ -398,6 +398,7 @@
     </div>
     {% endif %}
 
+    {% if is_own_match %}
     <!-- Videos del partido -->
     {% if videos %}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
@@ -554,6 +555,7 @@
             </div>
         {% endif %}
     </div>
+    {% endif %}
 
     {% if can_manage_videos %}
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">

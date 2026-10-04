@@ -34,6 +34,7 @@ class CrossTenantAccessTests(TestCase):
     """Un tenant nunca ve ni muta recursos de otro; los listados no filtran datos."""
 
     HOST_A = 'tenant-a.ilovevoley.es'
+    HOST_B = 'tenant-b.ilovevoley.es'
 
     @classmethod
     def setUpTestData(cls):
@@ -166,8 +167,6 @@ class CrossTenantAccessTests(TestCase):
             ('match_images', self.member_a, reverse('content:match_images', args=[self.match_b.id])),
             ('album_group_images', self.member_a, reverse('content:album_group_images', args=[self.album_b])),
             ('league_detail', self.member_a, reverse('competitions:league_detail', args=[self.league_b.id])),
-            ('match_detail', self.member_a, reverse('competitions:match_detail', args=[self.match_b.id])),
-            ('ajax_acta_lineup', self.member_a, reverse('competitions:ajax_acta_lineup', args=[self.match_b.id])),
             ('image_moderate_action', self.staff_a, reverse('content:image_moderate_action', args=[self.pending_image_b.id])),
             ('team_roster', self.member_a, reverse('teams:team_roster', args=[self.team_b.id])),
             ('person_detail', self.member_a, reverse('rosters:person_detail', args=[self.person_b.id])),
@@ -296,6 +295,60 @@ class CrossTenantAccessTests(TestCase):
         response = self.client.get(reverse('core:moderation_counts_api'), HTTP_HOST=self.HOST_A)
         self.assertTrue(response.json()['success'])
         self.assertEqual(response.json()['pending_users'], 1)
+
+    def test_cross_tenant_match_detail_allows_public_info_but_hides_media(self):
+        """El detalle de partido es público (información federativa), pero oculta fotos y vídeos a miembros de otros clubes."""
+        self.client.force_login(self.member_a)
+        response = self.client.get(
+            reverse('competitions:match_detail', args=[self.match_b.id]),
+            HTTP_HOST=self.HOST_A,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['is_own_match'])
+        self.assertEqual(list(response.context['videos']), [])
+        self.assertEqual(list(response.context['images']), [])
+        self.assertFalse(response.context['can_manage_videos'])
+        self.assertFalse(response.context['can_edit_result'])
+
+    def test_cross_tenant_ajax_acta_lineup_accessible_with_person_isolation(self):
+        """El acta es pública pero aísla las personas/fichas internas del otro club."""
+        self.match_b.acta_html = 'https://voleibolib.federatio.com/acta/123'
+        self.match_b.acta_data = {
+            'home_team': self.team_b.name,
+            'away_team': self.neutral_team.name,
+            'home_captain': '1',
+            'away_captain': '',
+            'home_convocados': ['1 Bea B'],
+            'away_convocados': [],
+            'sets': [],
+        }
+        self.match_b.save(update_fields=['acta_html', 'acta_data'])
+
+        # Usuario de org_a consulta acta de partido de org_b: acceso 200, pero sin ficha de Person de org_b
+        self.client.force_login(self.member_a)
+        response = self.client.get(
+            reverse('competitions:ajax_acta_lineup', args=[self.match_b.id]),
+            HTTP_HOST=self.HOST_A,
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        home_players = data['home_convocados']
+        self.assertEqual(len(home_players), 1)
+        self.assertEqual(home_players[0]['number'], 1)
+        self.assertIsNone(home_players[0]['person'])
+
+        # Usuario de org_b consulta su propia acta: sí ve la ficha Person enriquecida
+        self.client.force_login(self.user_b)
+        response_b = self.client.get(
+            reverse('competitions:ajax_acta_lineup', args=[self.match_b.id]),
+            HTTP_HOST=self.HOST_B,
+        )
+        self.assertEqual(response_b.status_code, 200)
+        data_b = response_b.json()
+        self.assertTrue(data_b['success'])
+        self.assertIsNotNone(data_b['home_convocados'][0]['person'])
+        self.assertEqual(data_b['home_convocados'][0]['person']['id'], self.person_b.id)
 
     def test_own_resources_are_accessible(self):
         self.client.force_login(self.member_a)
