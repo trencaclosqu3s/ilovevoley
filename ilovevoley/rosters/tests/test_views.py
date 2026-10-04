@@ -559,6 +559,20 @@ class RostersTenantIsolationTests(TestCase):
         self.assertIn(ana, Person.objects.for_tenant(self.org_b))
         self.assertIn(ana, Person.objects.for_tenant(self.org_a))
 
+    def test_person_adopt_sin_año_valido_devuelve_404(self):
+        # Una ficha sin año no se adopta con solo nombre y apellidos (IS NULL),
+        # y un año no numérico no debe dar 500.
+        Person.objects.create(first_name='Sin', last_name='Año')
+        self.client.force_login(self.manager)
+        for year in ('', 'abc', '²'):
+            with self.subTest(year=year):
+                response = self.client.post(
+                    reverse('rosters:person_adopt'),
+                    {'first_name': 'Sin', 'last_name': 'Año', 'birth_year': year},
+                    HTTP_HOST='club-a.ilovevoley.es',
+                )
+                self.assertEqual(response.status_code, 404)
+
     def test_person_adopt_exige_identidad_completa(self):
         # No se adopta por id: sin nombre y año exactos, 404.
         self.client.force_login(self.manager)

@@ -54,6 +54,9 @@ def _image_is_allowed(image, user, tenant):
 def _person_is_allowed(person, user, tenant):
     if user.is_superuser:
         return True
+    # La propia ficha del usuario (vista "Tú") se ve desde cualquier club.
+    if person.user_id == user.pk:
+        return True
     # Ficha global: visible en el club vinculado o donde tenga roles.
     return type(person).objects.for_tenant(tenant).filter(pk=person.pk).exists()
 

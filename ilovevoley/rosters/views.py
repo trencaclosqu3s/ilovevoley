@@ -292,10 +292,13 @@ def person_adopt(request):
     Exigir la identidad completa evita adoptar fichas por id: el gestor solo
     puede vincular una persona cuyos datos ya conoce.
     """
+    year = request.POST.get('birth_year', '')
+    if not (year.isascii() and year.isdigit()):
+        raise Http404
     person = Person._base_manager.filter(
         first_name=request.POST.get('first_name', ''),
         last_name=request.POST.get('last_name', ''),
-        birth_year=request.POST.get('birth_year') or None,
+        birth_year=int(year),
     ).first()
     if person is None:
         raise Http404

@@ -173,6 +173,14 @@ class ProtectedPersonMediaTests(TestCase):
         response = self.client.get('/media/people/luis_2.jpg', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 404)
 
+    def test_user_sees_own_linked_person_photo_from_another_club(self):
+        # Vista "Tú" (#340): la ficha propia es de otro club y su foto no da 404.
+        self.foreign_person.user = self.member
+        self.foreign_person.save()
+        self.client.force_login(self.member)
+        response = self.client.get('/media/people/luis_2.jpg', HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 200)
+
     def test_anonymous_person_photo_is_forbidden(self):
         response = self.client.get('/media/people/ana_1.jpg', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 403)
