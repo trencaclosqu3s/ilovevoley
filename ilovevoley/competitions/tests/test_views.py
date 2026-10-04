@@ -394,7 +394,8 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 200)
         standings_by_league = response.context['standings_by_league']
         self.assertIn('Superliga 2', standings_by_league)
-        self.assertIn('Liga Temporada Anterior', standings_by_league)
+        # Ignorado el id, rige el valor por defecto: solo la temporada activa.
+        self.assertNotIn('Liga Temporada Anterior', standings_by_league)
 
     def test_competitions_calendar_feed_requires_valid_token_and_lists_matches(self):
         CategoryPreference.objects.create(
@@ -1260,149 +1261,66 @@ class CompetitionsTenantIsolationTests(TestCase):
         allowed = self.client.get(url, {'q': 'Test'}, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(allowed.status_code, 200)
 
-    def test_standings_view_excludes_other_tenant_leagues_and_standings(self):
-        Standing.objects.create(
-            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
+    def _standing(self, league, team):
+        return Standing.objects.create(
+            league=league, team=team, position=1, played=1, won=1, total_points=3,
         )
-        Standing.objects.create(
-            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
-        )
-        CategoryPreference.objects.create(
-            user=self.member, organization=self.org
-        ).categories.add(self.category)
+
+    def test_standings_view_groups_leagues_by_category_tab(self):
+        """Cada categoría es una pestaña con todos sus grupos, también los de otros clubes."""
+        cadete = Category.objects.create(name='Cadete', is_active=True)
+        self.other_league.categories.set([cadete])
+        self._standing(self.league, self.team)
+        self._standing(self.other_league, self.other_team)
         self.client.force_login(self.member)
         response = self.client.get(
-            reverse('competitions:standings_view'),
-            HTTP_HOST='testclub.ilovevoley.es',
+            reverse('competitions:standings_view'), HTTP_HOST='testclub.ilovevoley.es',
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Liga Propia')
-        self.assertNotContains(response, 'Liga Ajena')
-        self.assertIn('Liga Propia', response.context['standings_by_league'])
-        self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
+        tabs = {t['slug']: [name for name, _ in t['leagues']] for t in response.context['category_tabs']}
+        self.assertEqual(tabs, {'senior': ['Liga Propia'], 'cadete': ['Liga Ajena']})
 
-    def test_standings_preferences_are_scoped_to_active_tenant(self):
-        """Las categorías preferidas de un club no se filtran en otro club."""
-        from ilovevoley.users.models import Membership
+    def test_standings_view_default_tab_prefers_user_preference_then_club_category(self):
+        cadete = Category.objects.create(name='Cadete', is_active=True)
+        self.other_league.categories.set([cadete])
+        self._standing(self.league, self.team)
+        self._standing(self.other_league, self.other_team)
+        self.client.force_login(self.member)
+        url = reverse('competitions:standings_view')
 
-        Membership.objects.create(
-            user=self.member, organization=self.other_org, is_approved=True, role='member',
-        )
+        # Sin preferencias: la categoría donde compite el club (Senior, aunque Cadete va antes)
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.context['active_slug'], 'senior')
+
+        # Las preferencias del usuario en este club mandan sobre la categoría del club
         CategoryPreference.objects.create(
             user=self.member, organization=self.org
-        ).categories.add(self.category)
-        self.client.force_login(self.member)
-        url = reverse('competitions:standings_view')
-
-        own = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertTrue(own.context['has_preferences'])
-
-        other = self.client.get(url, HTTP_HOST='rivalclub.ilovevoley.es')
-        self.assertFalse(other.context['has_preferences'])
-
-    def test_standings_view_show_archived_and_season_filter_exclude_other_tenant(self):
-        Standing.objects.create(
-            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
-        )
-        Standing.objects.create(
-            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
-        )
-        self.client.force_login(self.member)
-        url = reverse('competitions:standings_view')
-
-        for params in ('?show_archived=1', '?season_name=2026-27', '?show_archived=1&season_name=2026-27'):
-            with self.subTest(params=params):
-                response = self.client.get(f'{url}{params}', HTTP_HOST='testclub.ilovevoley.es')
-                self.assertEqual(response.status_code, 200)
-                self.assertContains(response, 'Liga Propia')
-                self.assertNotContains(response, 'Liga Ajena')
-                self.assertIn('Liga Propia', response.context['standings_by_league'])
-                self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
-
-    def test_standings_view_does_not_leak_when_rival_team_shares_substring_in_name(self):
-        # Equipo con club rival pero cuyo nombre contiene el prefijo del tenant
-        rival_with_similar_name = Team.objects.create(
-            name='Test Club Impostor', category=self.category, club=self.other_club,
-            federation_id='TEAM-IMPOSTOR', is_active=True,
-        )
-        Standing.objects.create(
-            league=self.other_league, team=rival_with_similar_name, position=1, played=1, won=1, total_points=3,
-        )
-        self.client.force_login(self.member)
-        response = self.client.get(reverse('competitions:standings_view'), HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
-
-    def test_standings_view_all_leagues_toggle_includes_other_leagues(self):
-        Standing.objects.create(
-            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
-        )
-        Standing.objects.create(
-            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
-        )
-        self.client.force_login(self.member)
-        url = reverse('competitions:standings_view')
-        response = self.client.get(f'{url}?all_leagues=1', HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Liga Propia', response.context['standings_by_league'])
-        self.assertIn('Liga Ajena', response.context['standings_by_league'])
-        self.assertTrue(response.context['show_all_leagues'])
-        self.assertEqual(response.cookies.get('standings_all_leagues').value, '1')
-
-    def test_standings_view_all_leagues_cookie_persistence(self):
-        Standing.objects.create(
-            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
-        )
-        Standing.objects.create(
-            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
-        )
-        self.client.force_login(self.member)
-        self.client.cookies['standings_all_leagues'] = '1'
-        url = reverse('competitions:standings_view')
+        ).categories.add(cadete)
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Liga Ajena', response.context['standings_by_league'])
-        self.assertTrue(response.context['show_all_leagues'])
+        self.assertEqual(response.context['active_slug'], 'cadete')
 
-    def test_standings_view_all_leagues_toggle_off_sets_cookie_zero(self):
-        Standing.objects.create(
-            league=self.league, team=self.team, position=1, played=1, won=1, total_points=3,
-        )
-        Standing.objects.create(
-            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
-        )
-        self.client.force_login(self.member)
-        self.client.cookies['standings_all_leagues'] = '1'
-        url = reverse('competitions:standings_view')
-        response = self.client.get(f'{url}?all_leagues=0', HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn('Liga Ajena', response.context['standings_by_league'])
-        self.assertFalse(response.context['show_all_leagues'])
-        self.assertEqual(response.cookies.get('standings_all_leagues').value, '0')
+        # ?category= explícito manda sobre todo; un slug inexistente se ignora
+        response = self.client.get(f'{url}?category=senior', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.context['active_slug'], 'senior')
+        response = self.client.get(f'{url}?category=nope', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.context['active_slug'], 'cadete')
 
-    def test_standings_view_all_leagues_defaults_to_current_season_leagues(self):
-        """Con all_leagues=1 y sin filtro de temporada ni show_archived, solo se muestran ligas de la temporada activa."""
+    def test_standings_view_defaults_to_current_season_leagues(self):
+        """Sin filtro de temporada ni show_archived, solo se muestran ligas de la temporada activa."""
         past_season = Season.objects.create(name='2025-26', start_year=2025, end_year=2026, is_current=False)
         past_league = League.objects.create(
             name='Liga Ajena Pasada', federation_id='liga-ajena-pasada', season=past_season,
             is_active=True, visibility_type='main', is_our_team_related=False,
         )
-        Standing.objects.create(
-            league=self.other_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
-        )
-        Standing.objects.create(
-            league=past_league, team=self.other_team, position=1, played=1, won=1, total_points=3,
-        )
+        self._standing(self.other_league, self.other_team)
+        self._standing(past_league, self.other_team)
         self.client.force_login(self.member)
         url = reverse('competitions:standings_view')
-        response = self.client.get(f'{url}?all_leagues=1', HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertIn('Liga Ajena', response.context['standings_by_league'])
         self.assertNotIn('Liga Ajena Pasada', response.context['standings_by_league'])
 
         # Al filtrar explícitamente por la temporada pasada, sí se incluye
-        response_past = self.client.get(f'{url}?all_leagues=1&season_name=2025-26', HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response_past.status_code, 200)
+        response_past = self.client.get(f'{url}?season_name=2025-26', HTTP_HOST='testclub.ilovevoley.es')
         self.assertIn('Liga Ajena Pasada', response_past.context['standings_by_league'])
         self.assertNotIn('Liga Ajena', response_past.context['standings_by_league'])
 

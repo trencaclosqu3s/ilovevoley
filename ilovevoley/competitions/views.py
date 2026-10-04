@@ -19,6 +19,7 @@ from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.text import slugify
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
@@ -1023,44 +1024,27 @@ def ajax_acta_lineup(request, match_id):
 
 @tenant_access_required()
 def standings_view(request):
-    """Vista de clasificación de las ligas"""
-    # Obtener filtros
+    """Clasificación de las ligas principales, organizada en pestañas por categoría."""
     league_filter = request.GET.get('league')
-    category_filter = request.GET.get('category')
-    show_all = request.GET.get('show_all', '0') == '1'
     show_archived = request.GET.get('show_archived', '0') == '1'
 
-    # Toggle de ver todas las ligas (persiste en cookie 'standings_all_leagues')
-    all_leagues_param = request.GET.get('all_leagues')
-    if all_leagues_param is not None:
-        show_all_leagues = (all_leagues_param == '1')
-        cookie_to_set = '1' if show_all_leagues else '0'
-    else:
-        show_all_leagues = (request.COOKIES.get('standings_all_leagues') == '1')
-        cookie_to_set = None
-
-    # Base querysets según el toggle
-    if show_all_leagues:
-        base_leagues_all = League.objects.all()
-        base_leagues_visible = League.objects.filter(is_active=True, visibility_type='main')
-        base_standings_all = Standing.objects.all()
-        base_standings_visible = Standing.objects.filter(
-            league__is_active=True,
-            league__visibility_type='main',
+    # Las pestañas comparan grupos de una misma categoría, también de otros clubes,
+    # así que el alcance es global (ligas activas y principales), no por tenant.
+    base_leagues_all = League.objects.all()
+    base_leagues_visible = League.objects.filter(is_active=True, visibility_type='main')
+    base_standings_all = Standing.objects.all()
+    base_standings_visible = Standing.objects.filter(
+        league__is_active=True,
+        league__visibility_type='main',
+    )
+    current_season = Season.objects.current()
+    if current_season:
+        base_leagues_visible = base_leagues_visible.filter(
+            Q(season=current_season) | Q(season__isnull=True)
         )
-        current_season = Season.objects.current()
-        if current_season:
-            base_leagues_visible = base_leagues_visible.filter(
-                Q(season=current_season) | Q(season__isnull=True)
-            )
-            base_standings_visible = base_standings_visible.filter(
-                Q(league__season=current_season) | Q(league__season__isnull=True)
-            )
-    else:
-        base_leagues_all = League.objects.for_tenant(request.tenant, visible_only=False)
-        base_leagues_visible = League.objects.for_tenant(request.tenant, visible_only=True)
-        base_standings_all = Standing.objects.for_tenant(request.tenant, visible_only=False)
-        base_standings_visible = Standing.objects.for_tenant(request.tenant, visible_only=True)
+        base_standings_visible = base_standings_visible.filter(
+            Q(league__season=current_season) | Q(league__season__isnull=True)
+        )
 
     seasons = (
         base_leagues_all.filter(season__isnull=False)
@@ -1097,31 +1081,17 @@ def standings_view(request):
             .order_by('league__name', 'position')
         )
 
-    # Aplicar filtro de temporada
     if season_filter:
         standings = standings.filter(league__season__name=season_filter)
-        # También filtrar las ligas del dropdown por temporada
         leagues = leagues.filter(season__name=season_filter)
 
-    # Aplicar filtro de liga
     if league_filter:
         standings = standings.filter(league_id=league_filter)
 
-    # Aplicar filtro de categoría
-    if category_filter:
-        standings = standings.filter(league__categories__id=category_filter)
-    # Si no hay filtro de categoría, aplicar preferencias del usuario
-    elif not show_all and request.user.has_preferred_categories(request.tenant):
-        user_categories = request.user.preferred_categories_for(request.tenant)
-        standings = standings.filter(league__categories__in=user_categories)
-
-    # Agrupar por liga
+    # Agrupar por liga y, después, por categoría (una liga aparece en cada una de las suyas)
     standings_by_league = {}
     for standing in standings:
-        league_name = standing.league.name
-        if standing.league.display_name:
-            league_name = standing.league.display_name
-
+        league_name = standing.league.display_name or standing.league.name
         if league_name not in standings_by_league:
             standings_by_league[league_name] = {
                 'league': standing.league,
@@ -1129,32 +1099,46 @@ def standings_view(request):
             }
         standings_by_league[league_name]['standings'].append(standing)
 
-    categories = Category.objects.filter(is_active=True).order_by('name')
-    club_team_name = get_primary_club_team_name(request.tenant)
+    tabs = {}
+    for league_name, league_data in standings_by_league.items():
+        league_categories = list(league_data['league'].categories.all())
+        for category in league_categories or [None]:
+            name = category.name if category else _('Otras')
+            tab = tabs.setdefault(name, {
+                'name': name,
+                'slug': slugify(name) or 'otras',
+                'category_id': category.id if category else None,
+                'leagues': [],
+            })
+            tab['leagues'].append((league_name, league_data))
+    category_tabs = sorted(tabs.values(), key=lambda t: (t['category_id'] is None, t['name']))
 
-    response = render(request, 'competitions/standings.html', {
+    # Pestaña inicial: la pedida por URL; si no, preferencias del usuario; si no,
+    # primera categoría donde compite el club. El JS la sustituye por hash/localStorage.
+    slugs = {t['slug'] for t in category_tabs}
+    active_slug = request.GET.get('category')
+    if active_slug not in slugs:
+        preferred_ids = set(request.user.preferred_categories_for(request.tenant).values_list('id', flat=True))
+        club_ids = set(
+            League.objects.for_tenant(request.tenant, visible_only=True)
+            .values_list('categories__id', flat=True)
+        )
+        active_slug = next(
+            (t['slug'] for ids in (preferred_ids, club_ids) for t in category_tabs if t['category_id'] in ids),
+            category_tabs[0]['slug'] if category_tabs else '',
+        )
+
+    return render(request, 'competitions/standings.html', {
         'standings_by_league': standings_by_league,
+        'category_tabs': category_tabs,
+        'active_slug': active_slug,
         'leagues': leagues,
-        'categories': categories,
         'seasons': seasons,
         'selected_league': league_filter,
-        'selected_category': category_filter,
         'selected_season': season_filter,
-        'show_all': show_all,
         'show_archived': show_archived,
-        'show_all_leagues': show_all_leagues,
-        'has_preferences': request.user.has_preferred_categories(request.tenant),
-        'club_team_name': club_team_name,
+        'club_team_name': get_primary_club_team_name(request.tenant),
     })
-    if cookie_to_set is not None:
-        response.set_cookie(
-            'standings_all_leagues',
-            cookie_to_set,
-            max_age=365 * 24 * 3600,
-            samesite='Lax',
-            secure=getattr(settings, 'SESSION_COOKIE_SECURE', not settings.DEBUG),
-        )
-    return response
 
 
 @tenant_access_required()

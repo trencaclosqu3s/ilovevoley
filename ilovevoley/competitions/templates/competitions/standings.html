@@ -35,21 +35,7 @@
     <!-- Filtros con aplicación automática -->
     <div id="filtersSection" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 hidden lg:block">
         <div class="space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <!-- Filtro de Categoría -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Categoría" %}</label>
-                    <select name="category"
-                        class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent text-sm sm:text-base">
-                        <option value="">{% trans "Todas las categorías" %}</option>
-                        {% for category in categories %}
-                        <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
-                            {{ category.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <!-- Filtro de Liga -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Liga" %}</label>
@@ -78,15 +64,6 @@
                     </select>
                 </div>
 
-                <!-- Toggle todas las ligas -->
-                <div class="flex items-end">
-                    <label class="flex items-center cursor-pointer touch-manipulation px-3 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition w-full h-[42px]">
-                        <input type="checkbox" name="all_leagues" value="1" data-unchecked-value="0"
-                               {% if show_all_leagues %}checked{% endif %}
-                               class="auto-filter w-5 h-5 text-csj-purple dark:text-csj-yellow border-gray-300 dark:border-gray-600 rounded focus:ring-csj-purple">
-                        <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Todas las ligas" %}</span>
-                    </label>
-                </div>
             </div>
 
             <!-- Filtro de ligas archivadas/referencia -->
@@ -98,43 +75,23 @@
                 </label>
             </div>
 
-            <!-- Banner de preferencias -->
-            {% if has_preferences and not show_all and not selected_category %}
-            <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center justify-between">
-                <div class="flex items-center text-sm text-blue-800 dark:text-blue-200">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <span>{% trans "Mostrando solo tus categorías preferidas" %}</span>
-                </div>
-                <a href="?show_all=1" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800">
-                    {% trans "Ver todas" %}
-                </a>
-            </div>
-            {% elif show_all %}
-            <div class="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex items-center justify-between">
-                <div class="flex items-center text-sm text-gray-700 dark:text-gray-300">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
-                        </path>
-                    </svg>
-                    <span>{% trans "Mostrando todas las categorías" %}</span>
-                </div>
-                <a href="?" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800">
-                    {% trans "Filtrar por preferencias" %}
-                </a>
-            </div>
-            {% endif %}
         </div>
     </div>
 
     <!-- Clasificaciones por liga -->
-    {% if standings_by_league %}
-    {% for league_name, league_data in standings_by_league.items %}
+    {% if category_tabs %}
+    <nav class="flex gap-2 overflow-x-auto whitespace-nowrap pb-1 -mx-1 px-1" role="tablist" aria-label="{% trans 'Categorías' %}">
+        {% for tab in category_tabs %}
+        <a href="?category={{ tab.slug }}" id="tab-{{ tab.slug }}" role="tab" data-category-tab="{{ tab.slug }}"
+           aria-selected="{% if tab.slug == active_slug %}true{% else %}false{% endif %}"
+           class="category-tab flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold touch-manipulation transition bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow hover:bg-gray-50 dark:hover:bg-gray-700 aria-selected:bg-csj-purple aria-selected:text-white">
+            {{ tab.name }}
+        </a>
+        {% endfor %}
+    </nav>
+    {% for tab in category_tabs %}
+    <div data-category-panel="{{ tab.slug }}" role="tabpanel" class="space-y-6{% if tab.slug != active_slug %} hidden{% endif %}">
+    {% for league_name, league_data in tab.leagues %}
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
         <!-- Header de la liga -->
         <div class="bg-gray-50 dark:bg-gray-700/50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
@@ -337,6 +294,8 @@
         {% endif %}
     </div>
     {% endfor %}
+    </div>
+    {% endfor %}
     {% else %}
     <!-- Estado vacío -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-12 text-center">
@@ -390,9 +349,9 @@
         let activeCount = 0;
 
         // Contar filtros activos (excluir parámetros de navegación y valores por defecto)
-        const navigationParams = ['page', 'show_all'];
+        const navigationParams = ['page', 'category'];
         for (const [key, value] of urlParams.entries()) {
-            if (!navigationParams.includes(key) && value !== '' && !(key === 'all_leagues' && value === '0')) {
+            if (!navigationParams.includes(key) && value !== '') {
                 activeCount++;
             }
         }
@@ -408,8 +367,37 @@
         }
     }
 
+    // Pestañas de categoría: prioridad ?category= > #hash > última visitada > la del servidor
+    function initCategoryTabs() {
+        const tabs = document.querySelectorAll('[data-category-tab]');
+        if (!tabs.length) return;
+        const slugs = Array.from(tabs, t => t.dataset.categoryTab);
+        const storeKey = 'standings_category';
+        let stored = null;
+        try { stored = localStorage.getItem(storeKey); } catch (e) { /* storage no disponible */ }
+        const fromUrl = new URLSearchParams(window.location.search).get('category');
+        const fromHash = window.location.hash.slice(1);
+        const initial = [fromUrl, fromHash, stored].find(s => slugs.includes(s));
+
+        function show(slug, persist) {
+            tabs.forEach(t => t.setAttribute('aria-selected', t.dataset.categoryTab === slug));
+            document.querySelectorAll('[data-category-panel]').forEach(p =>
+                p.classList.toggle('hidden', p.dataset.categoryPanel !== slug));
+            if (persist) {
+                try { localStorage.setItem(storeKey, slug); } catch (e) { /* storage no disponible */ }
+                history.replaceState(null, '', '#' + slug);
+            }
+        }
+        tabs.forEach(t => t.addEventListener('click', e => {
+            e.preventDefault();
+            show(t.dataset.categoryTab, true);
+        }));
+        if (initial) show(initial, false);
+    }
+
     // Inicializar al cargar la página
     document.addEventListener('DOMContentLoaded', function () {
+        initCategoryTabs();
         updateActiveFiltersCount();
     });
 </script>
