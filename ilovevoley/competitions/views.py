@@ -955,7 +955,7 @@ def ajax_acta_lineup(request, match_id):
                 team__in=teams_to_query,
                 is_active=True,
                 jersey_number__isnull=False,
-                person__organization=request.tenant,
+                person__organizations=request.tenant,
             )
             .select_related('person', 'team')
         ):
