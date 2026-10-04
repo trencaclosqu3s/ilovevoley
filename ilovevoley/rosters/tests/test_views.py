@@ -427,6 +427,30 @@ class RostersTenantIsolationTests(TestCase):
         self.assertContains(response, 'Club A Senior')
         self.assertNotContains(response, 'Club B Junior')
 
+    def test_my_profile_agrega_roles_de_todos_los_clubes_por_temporada(self):
+        # #340: la ficha vinculada es de otro club (B) y el usuario entra por A.
+        self.person_b.user = self.member
+        self.person_b.save()
+        PlayerRole.objects.create(
+            person=self.person_b, team=self.team_b,
+            season=Season.objects.resolve('2025-26'), position='setter',
+        )
+        PlayerRole.objects.create(
+            person=self.person_b, team=self.team_a,
+            season=Season.objects.resolve('2026-27'), position='opposite',
+        )
+        self.client.force_login(self.member)
+        response = self.client.get(
+            reverse('rosters:my_profile'), HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Club B Junior')
+        self.assertContains(response, 'Club A Senior')
+        self.assertEqual(
+            [e['season'].name for e in response.context['seasons']],
+            ['2026-27', '2025-26'],
+        )
+
     def test_basic_member_cannot_access_person_create(self):
         self.client.force_login(self.member)
         url = reverse('rosters:person_create')

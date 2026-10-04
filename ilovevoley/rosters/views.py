@@ -3,7 +3,7 @@ import logging
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Prefetch, Q
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
@@ -151,6 +151,31 @@ def person_list(request):
     }
     
     return render(request, 'rosters/person_list.html', context)
+
+
+@tenant_access_required()
+def my_profile(request):
+    """Trayectoria del propio usuario: sus roles en todos los clubes, por temporada.
+
+    No filtra por tenant: la ficha vinculada puede pertenecer a otro club y
+    el usuario solo ve sus propios datos (nunca recibe un id por URL).
+    """
+    person = Person.objects.filter(user=request.user).first()
+    if person is None:
+        raise Http404
+
+    by_season = {}
+    for kind, model in (('player_roles', PlayerRole), ('staff_roles', StaffRole)):
+        roles = model.objects.filter(person=person).select_related('team__category', 'team__club', 'season')
+        for role in roles.order_by('team__name'):
+            by_season.setdefault(role.season, {'season': role.season, 'player_roles': [], 'staff_roles': []})[kind].append(role)
+    seasons = sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True)
+
+    return render(request, 'rosters/my_profile.html', {
+        'person': person,
+        'seasons': seasons,
+        'in_current_tenant': person.organization_id == request.tenant.id,
+    })
 
 
 @tenant_access_required()
