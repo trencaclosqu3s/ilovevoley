@@ -470,6 +470,24 @@ class RostersTenantIsolationTests(TestCase):
         response = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
         self.assertContains(response, 'bea@example.com')
 
+    def test_manager_crea_rol_de_jugador_en_la_temporada_elegida(self):
+        # #344: el formulario no pintaba `season` (obligatorio) y el alta
+        # fallaba en silencio. Debe poder prepararse la temporada siguiente.
+        season = Season.objects.resolve('2026-27')
+        self.client.force_login(self.manager)
+        url = reverse('rosters:player_role_create', args=[self.person_a.id])
+        response = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
+        self.assertContains(response, 'name="season"')
+
+        response = self.client.post(
+            url, {'team': self.team_a.id, 'season': season.id, 'jersey_number': 9},
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            PlayerRole.objects.filter(person=self.person_a, team=self.team_a, season=season).exists(),
+        )
+
     def test_basic_member_cannot_access_person_create(self):
         self.client.force_login(self.member)
         url = reverse('rosters:person_create')
