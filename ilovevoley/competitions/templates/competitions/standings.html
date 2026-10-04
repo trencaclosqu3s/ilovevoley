@@ -35,7 +35,7 @@
     <!-- Filtros con aplicación automática -->
     <div id="filtersSection" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 hidden lg:block">
         <div class="space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <!-- Filtro de Categoría -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Categoría" %}</label>
@@ -77,12 +77,22 @@
                         {% endfor %}
                     </select>
                 </div>
+
+                <!-- Toggle todas las ligas -->
+                <div class="flex items-end">
+                    <label class="flex items-center cursor-pointer touch-manipulation px-3 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition w-full h-[42px]">
+                        <input type="checkbox" name="all_leagues" value="1" data-unchecked-value="0"
+                               {% if show_all_leagues %}checked{% endif %}
+                               class="auto-filter w-5 h-5 text-csj-purple dark:text-csj-yellow border-gray-300 dark:border-gray-600 rounded focus:ring-csj-purple">
+                        <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Todas las ligas" %}</span>
+                    </label>
+                </div>
             </div>
 
             <!-- Filtro de ligas archivadas/referencia -->
             <div class="flex items-center mt-4">
-                <input type="checkbox" name="show_archived" id="show_archived" value="1" {% if show_archived %}checked{% endif %} data-submit-on-change
-                    class="h-4 w-4 text-csj-purple dark:text-csj-yellow focus:ring-csj-purple border-gray-300 dark:border-gray-600 rounded">
+                <input type="checkbox" name="show_archived" id="show_archived" value="1" {% if show_archived %}checked{% endif %}
+                    class="auto-filter h-4 w-4 text-csj-purple dark:text-csj-yellow focus:ring-csj-purple border-gray-300 dark:border-gray-600 rounded">
                 <label for="show_archived" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                     {% trans "Mostrar ligas archivadas, de referencia o históricas" %}
                 </label>
@@ -379,10 +389,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         let activeCount = 0;
 
-        // Contar filtros activos (excluir parámetros de navegación)
+        // Contar filtros activos (excluir parámetros de navegación y valores por defecto)
         const navigationParams = ['page', 'show_all'];
         for (const [key, value] of urlParams.entries()) {
-            if (!navigationParams.includes(key) && value !== '') {
+            if (!navigationParams.includes(key) && value !== '' && !(key === 'all_leagues' && value === '0')) {
                 activeCount++;
             }
         }

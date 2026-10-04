@@ -1030,10 +1030,40 @@ def standings_view(request):
     show_all = request.GET.get('show_all', '0') == '1'
     show_archived = request.GET.get('show_archived', '0') == '1'
 
-    # Obtener temporadas disponibles acotadas al tenant
-    tenant_leagues_all = League.objects.for_tenant(request.tenant, visible_only=False)
+    # Toggle de ver todas las ligas (persiste en cookie 'standings_all_leagues')
+    all_leagues_param = request.GET.get('all_leagues')
+    if all_leagues_param is not None:
+        show_all_leagues = (all_leagues_param == '1')
+        cookie_to_set = '1' if show_all_leagues else '0'
+    else:
+        show_all_leagues = (request.COOKIES.get('standings_all_leagues') == '1')
+        cookie_to_set = None
+
+    # Base querysets según el toggle
+    if show_all_leagues:
+        base_leagues_all = League.objects.all()
+        base_leagues_visible = League.objects.filter(is_active=True, visibility_type='main')
+        base_standings_all = Standing.objects.all()
+        base_standings_visible = Standing.objects.filter(
+            league__is_active=True,
+            league__visibility_type='main',
+        )
+        current_season = Season.objects.current()
+        if current_season:
+            base_leagues_visible = base_leagues_visible.filter(
+                Q(season=current_season) | Q(season__isnull=True)
+            )
+            base_standings_visible = base_standings_visible.filter(
+                Q(league__season=current_season) | Q(league__season__isnull=True)
+            )
+    else:
+        base_leagues_all = League.objects.for_tenant(request.tenant, visible_only=False)
+        base_leagues_visible = League.objects.for_tenant(request.tenant, visible_only=True)
+        base_standings_all = Standing.objects.for_tenant(request.tenant, visible_only=False)
+        base_standings_visible = Standing.objects.for_tenant(request.tenant, visible_only=True)
+
     seasons = (
-        tenant_leagues_all.filter(season__isnull=False)
+        base_leagues_all.filter(season__isnull=False)
         .values_list('season__name', flat=True)
         .distinct()
         .order_by('-season__name')
@@ -1050,18 +1080,18 @@ def standings_view(request):
     if show_archived or season_filter:
         # Mostrar ligas archivadas, de referencia, etc. O si se filtra por temporada específica
         # Ordenamos por fecha de creación descendente para ver las más recientes primero
-        leagues = tenant_leagues_all.order_by('-created_at', 'name')
+        leagues = base_leagues_all.order_by('-created_at', 'name')
         standings = (
-            Standing.objects.for_tenant(request.tenant, visible_only=False)
+            base_standings_all
             .select_related('team', 'league')
             .prefetch_related('league__categories')
             .order_by('-league__created_at', 'league__name', 'position')
         )
     else:
-        # Consulta base de clasificaciones - Solo ligas activas y visibles en app del tenant
-        leagues = League.objects.for_tenant(request.tenant).order_by('name')
+        # Consulta base de clasificaciones - Solo ligas activas y visibles
+        leagues = base_leagues_visible.order_by('name')
         standings = (
-            Standing.objects.for_tenant(request.tenant, visible_only=True)
+            base_standings_visible
             .select_related('team', 'league')
             .prefetch_related('league__categories')
             .order_by('league__name', 'position')
@@ -1102,7 +1132,7 @@ def standings_view(request):
     categories = Category.objects.filter(is_active=True).order_by('name')
     club_team_name = get_primary_club_team_name(request.tenant)
 
-    return render(request, 'competitions/standings.html', {
+    response = render(request, 'competitions/standings.html', {
         'standings_by_league': standings_by_league,
         'leagues': leagues,
         'categories': categories,
@@ -1112,9 +1142,19 @@ def standings_view(request):
         'selected_season': season_filter,
         'show_all': show_all,
         'show_archived': show_archived,
+        'show_all_leagues': show_all_leagues,
         'has_preferences': request.user.has_preferred_categories(request.tenant),
         'club_team_name': club_team_name,
     })
+    if cookie_to_set is not None:
+        response.set_cookie(
+            'standings_all_leagues',
+            cookie_to_set,
+            max_age=365 * 24 * 3600,
+            samesite='Lax',
+            secure=getattr(settings, 'SESSION_COOKIE_SECURE', not settings.DEBUG),
+        )
+    return response
 
 
 @tenant_access_required()
