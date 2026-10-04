@@ -233,27 +233,20 @@ def _draw_background_blobs(image: Image.Image, width: int, height: int, metrics:
 
 
 def _photo_background(
-    photo: bytes,
-    width: int,
-    height: int,
-    primary,
-    secondary,
-    metrics: dict,
-    *,
-    letterbox: bool = False,
+    photo: bytes, width: int, height: int, primary, secondary, metrics: dict
 ) -> Image.Image:
     with Image.open(BytesIO(photo)) as raw:
         source = raw.convert('RGB')
 
-    # En vertical (Story) una foto más ancha que el lienzo se encuadra entera
-    # (contain) y los márgenes superior/inferior se rellenan con el degradado
-    # del tenant, en vez de recortar los laterales (issue #347).
-    if letterbox and source.width / source.height > width / height:
-        image = _gradient_background(width, height, primary, secondary, metrics)
-        fitted = _contain_fit(source, width, height)
-        image.paste(fitted, ((width - fitted.width) // 2, (height - fitted.height) // 2))
-    else:
-        image = _cover_crop(source, width, height)
+        # En vertical (Story) una foto más ancha que el lienzo se encuadra entera
+        # (contain) y los márgenes superior/inferior se rellenan con el degradado
+        # del tenant, en vez de recortar los laterales (issue #347).
+        if metrics['photo_letterbox'] and source.width / source.height > width / height:
+            image = _gradient_background(width, height, primary, secondary, metrics)
+            fitted = _contain_fit(source, width, height)
+            image.paste(fitted, ((width - fitted.width) // 2, (height - fitted.height) // 2))
+        else:
+            image = _cover_crop(source, width, height)
 
     scrim_top = metrics['scrim_top']
     scrim_bottom = metrics['scrim_bottom']
@@ -353,8 +346,7 @@ def render_result_card(
     if card_style == 'marco':
         try:
             image = _photo_background(
-                photo, width, height, primary, secondary, metrics,
-                letterbox=metrics['photo_letterbox'],
+                photo, width, height, primary, secondary, metrics
             )
         except (OSError, ValueError) as exc:
             logger.warning('Foto de marco no válida, usando degradado: %s', exc)
