@@ -82,7 +82,7 @@
     {% if category_tabs %}
     <nav class="flex gap-2 overflow-x-auto whitespace-nowrap pb-1 -mx-1 px-1" role="tablist" aria-label="{% trans 'Categorías' %}">
         {% for tab in category_tabs %}
-        <a href="?category={{ tab.slug }}" id="tab-{{ tab.slug }}" role="tab" data-category-tab="{{ tab.slug }}"
+        <a href="?category={{ tab.slug }}" id="tab-{{ tab.slug }}" role="tab" aria-controls="panel-{{ tab.slug }}" data-category-tab="{{ tab.slug }}"
            aria-selected="{% if tab.slug == active_slug %}true{% else %}false{% endif %}"
            class="category-tab flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold touch-manipulation transition bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow hover:bg-gray-50 dark:hover:bg-gray-700 aria-selected:bg-csj-purple aria-selected:text-white">
             {{ tab.name }}
@@ -90,7 +90,7 @@
         {% endfor %}
     </nav>
     {% for tab in category_tabs %}
-    <div data-category-panel="{{ tab.slug }}" role="tabpanel" class="space-y-6{% if tab.slug != active_slug %} hidden{% endif %}">
+    <div id="panel-{{ tab.slug }}" aria-labelledby="tab-{{ tab.slug }}" data-category-panel="{{ tab.slug }}" role="tabpanel" class="space-y-6{% if tab.slug != active_slug %} hidden{% endif %}">
     {% for league_name, league_data in tab.leagues %}
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
         <!-- Header de la liga -->
@@ -385,7 +385,11 @@
                 p.classList.toggle('hidden', p.dataset.categoryPanel !== slug));
             if (persist) {
                 try { localStorage.setItem(storeKey, slug); } catch (e) { /* storage no disponible */ }
-                history.replaceState(null, '', '#' + slug);
+                // ?category= manda sobre el hash y localStorage: se actualiza para que al recargar no vuelva atrás
+                const url = new URL(window.location.href);
+                url.searchParams.set('category', slug);
+                url.hash = '';
+                history.replaceState(null, '', url);
             }
         }
         tabs.forEach(t => t.addEventListener('click', e => {

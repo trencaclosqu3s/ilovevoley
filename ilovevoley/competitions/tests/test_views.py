@@ -1279,6 +1279,18 @@ class CompetitionsTenantIsolationTests(TestCase):
         tabs = {t['slug']: [name for name, _ in t['leagues']] for t in response.context['category_tabs']}
         self.assertEqual(tabs, {'senior': ['Liga Propia'], 'cadete': ['Liga Ajena']})
 
+    def test_standings_view_uncategorized_tab_slug_is_language_independent(self):
+        """Las ligas sin categoría van a la pestaña 'otras' en cualquier idioma, para que los enlaces no se rompan."""
+        self.league.categories.clear()
+        self._standing(self.league, self.team)
+        self.client.force_login(self.member)
+        response = self.client.get(
+            reverse('competitions:standings_view'),
+            HTTP_HOST='testclub.ilovevoley.es', HTTP_ACCEPT_LANGUAGE='ca',
+        )
+        self.assertEqual(response.context['request'].LANGUAGE_CODE, 'ca')
+        self.assertEqual([t['slug'] for t in response.context['category_tabs']], ['otras'])
+
     def test_standings_view_default_tab_prefers_user_preference_then_club_category(self):
         cadete = Category.objects.create(name='Cadete', is_active=True)
         self.other_league.categories.set([cadete])

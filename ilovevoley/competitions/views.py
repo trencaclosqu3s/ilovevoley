@@ -1106,7 +1106,7 @@ def standings_view(request):
             name = category.name if category else _('Otras')
             tab = tabs.setdefault(name, {
                 'name': name,
-                'slug': slugify(name) or 'otras',
+                'slug': slugify(name) if category else 'otras',  # slug estable, no traducido
                 'category_id': category.id if category else None,
                 'leagues': [],
             })
