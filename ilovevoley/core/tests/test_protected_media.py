@@ -2,10 +2,12 @@ import tempfile
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from ilovevoley.content.models import Image
 from ilovevoley.core.models import Organization, Season
+from ilovevoley.core.protected_media import _person_is_allowed
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
 from ilovevoley.teams.models import Club, Team
 from ilovevoley.users.models import Membership
@@ -173,6 +175,20 @@ class ProtectedPersonMediaTests(TestCase):
         response = self.client.get('/media/people/luis_2.jpg', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 404)
 
+    def test_user_sees_own_linked_person_photo_from_another_club(self):
+        # Vista "Tú" (#340): la ficha propia es de otro club y su foto no da 404.
+        self.foreign_person.user = self.member
+        self.foreign_person.save()
+        self.client.force_login(self.member)
+        response = self.client.get('/media/people/luis_2.jpg', HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 200)
+
+    def test_anonymous_user_does_not_match_person_without_linked_user(self):
+        # AnonymousUser.pk y Person.user_id son ambos None: el atajo de "propia
+        # ficha" no puede concederse por esa igualdad.
+        unlinked = Person.objects.create(first_name='Sin', last_name='Vinculo')
+        self.assertFalse(_person_is_allowed(unlinked, AnonymousUser(), self.org))
+
     def test_anonymous_person_photo_is_forbidden(self):
         response = self.client.get('/media/people/ana_1.jpg', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 403)
@@ -182,20 +198,21 @@ class ProtectedPersonMediaTests(TestCase):
         response = self.client.get('/media/people/ana_1.jpg', HTTP_HOST='noclub.ilovevoley.es')
         self.assertEqual(response.status_code, 404)
 
-    def test_tenant_without_club_can_see_person_without_roles(self):
-        Person.objects.create(first_name='Sin', last_name='Rol', photo='people/sinrol_1.jpg')
+    def test_tenant_without_club_can_see_linked_person_without_roles(self):
+        sin_rol = Person.objects.create(first_name='Sin', last_name='Rol', photo='people/sinrol_1.jpg')
+        sin_rol.organizations.add(self.noclub_member.memberships.get().organization)
         self.client.force_login(self.noclub_member)
         response = self.client.get('/media/people/sinrol_1.jpg', HTTP_HOST='noclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
 
     def test_member_cannot_see_person_of_other_organization_without_roles(self):
         other_org = Organization.objects.create(slug='otra', name='Otra', is_active=True)
-        Person.objects.create(
+        eva = Person.objects.create(
             first_name='Eva',
             last_name='Ajena',
             photo='people/eva_ajena.jpg',
-            organization=other_org,
         )
+        eva.organizations.add(other_org)
         self.client.force_login(self.member)
         response = self.client.get('/media/people/eva_ajena.jpg', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 404)

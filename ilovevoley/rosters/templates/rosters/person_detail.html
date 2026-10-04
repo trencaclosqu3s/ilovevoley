@@ -74,8 +74,8 @@
                     {% endif %}
                 </div>
                 
-                <!-- Información de contacto -->
-                {% if person.email or person.phone %}
+                <!-- Información de contacto (solo quien puede editar la ficha) -->
+                {% if can_edit and person.email or can_edit and person.phone %}
                     <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2">
                         <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{% trans "Contacto" %}</h3>
                         {% if person.email %}
@@ -116,8 +116,8 @@
                     </div>
                 {% endif %}
                 
-                <!-- Notas -->
-                {% if person.notes %}
+                <!-- Notas (solo quien puede editar la ficha) -->
+                {% if can_edit and person.notes %}
                     <div class="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-csj-yellow p-4 rounded">
                         <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{% trans "Notas" %}</h3>
                         <p class="text-sm text-gray-600 dark:text-gray-400">{{ person.notes }}</p>

@@ -1,4 +1,5 @@
 import base64
+from datetime import date
 import shutil
 import tempfile
 from io import BytesIO
@@ -40,12 +41,11 @@ class RostersReExportCompatibilityTest(TestCase):
 
     def test_legacy_form_import_creates_a_person(self):
         form = vid_forms_rosters.PersonForm(
-            {'first_name': 'Legacy', 'last_name': 'Ficha'},
-            organization=self.org,
+            {'first_name': 'Legacy', 'last_name': 'Ficha', 'birth_year': '2012'},
         )
         self.assertTrue(form.is_valid())
         person = form.save()
-        self.assertEqual(person.organization, self.org)
+        self.assertEqual(person.birth_year, 2012)
 
     def test_legacy_views_resolve_to_the_canonical_roster_urls(self):
         routes = [
@@ -105,11 +105,8 @@ class RosterViewUrlTests(TestCase):
             federation_id='TEAM-TEST-1',
             is_active=True,
         )
-        self.person = Person.objects.create(
-            first_name='Laura',
-            last_name='García',
-            organization=self.org,
-        )
+        self.person = Person.objects.create(first_name='Laura', last_name='García')
+        self.person.organizations.add(self.org)
         self.player_role = PlayerRole.objects.create(
             person=self.person,
             team=self.team,
@@ -314,6 +311,7 @@ class PersonPhotoUploadSecurityTests(TestCase):
             {
                 'first_name': 'Ana',
                 'last_name': 'Pérez',
+                'birth_year': 2012,
                 'cropped_photo_data': photo_payload,
             },
             HTTP_HOST='testclub.ilovevoley.es',
@@ -364,12 +362,10 @@ class RostersTenantIsolationTests(TestCase):
         Membership.objects.create(
             user=self.manager, organization=self.org_a, is_approved=True, role='manager',
         )
-        self.person_a = Person.objects.create(
-            first_name='Ana', last_name='Propia', organization=self.org_a,
-        )
-        self.person_b = Person.objects.create(
-            first_name='Bea', last_name='Ajena', organization=self.org_b,
-        )
+        self.person_a = Person.objects.create(first_name='Ana', last_name='Propia')
+        self.person_a.organizations.add(self.org_a)
+        self.person_b = Person.objects.create(first_name='Bea', last_name='Ajena')
+        self.person_b.organizations.add(self.org_b)
         season = Season.objects.resolve('2025-26')
         self.team_a = Team.objects.create(
             name='Club A Senior', federation_id='TEAM-A1', is_active=True,
@@ -427,6 +423,71 @@ class RostersTenantIsolationTests(TestCase):
         self.assertContains(response, 'Club A Senior')
         self.assertNotContains(response, 'Club B Junior')
 
+    def test_my_profile_agrega_roles_de_todos_los_clubes_por_temporada(self):
+        # #340: la ficha vinculada es de otro club (B) y el usuario entra por A.
+        self.person_b.user = self.member
+        self.person_b.save()
+        PlayerRole.objects.create(
+            person=self.person_b, team=self.team_b,
+            season=Season.objects.resolve('2025-26'), position='setter',
+        )
+        PlayerRole.objects.create(
+            person=self.person_b, team=self.team_a,
+            season=Season.objects.resolve('2026-27'), position='opposite',
+        )
+        self.client.force_login(self.member)
+        response = self.client.get(
+            reverse('rosters:my_profile'), HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Club B Junior')
+        self.assertContains(response, 'Club A Senior')
+        self.assertEqual(
+            [e['season'].name for e in response.context['seasons']],
+            ['2026-27', '2025-26'],
+        )
+
+    def test_ficha_de_otro_club_es_visible_donde_tiene_rol_y_oculta_contacto(self):
+        # Marc: ficha vinculada al club B, con rol en un equipo del club A.
+        self.person_b.email = 'bea@example.com'
+        self.person_b.phone = '600000000'
+        self.person_b.notes = 'nota privada'
+        self.person_b.save()
+        PlayerRole.objects.create(
+            person=self.person_b, team=self.team_a,
+            season=Season.objects.resolve('2026-27'),
+        )
+        url = reverse('rosters:person_detail', args=[self.person_b.id])
+
+        self.client.force_login(self.member)
+        response = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'bea@example.com')
+        self.assertNotContains(response, '600000000')
+        self.assertNotContains(response, 'nota privada')
+
+        self.client.force_login(self.manager)
+        response = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
+        self.assertContains(response, 'bea@example.com')
+
+    def test_manager_crea_rol_de_jugador_en_la_temporada_elegida(self):
+        # #344: el formulario no pintaba `season` (obligatorio) y el alta
+        # fallaba en silencio. Debe poder prepararse la temporada siguiente.
+        season = Season.objects.resolve('2026-27')
+        self.client.force_login(self.manager)
+        url = reverse('rosters:player_role_create', args=[self.person_a.id])
+        response = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
+        self.assertContains(response, 'name="season"')
+
+        response = self.client.post(
+            url, {'team': self.team_a.id, 'season': season.id, 'jersey_number': 9},
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            PlayerRole.objects.filter(person=self.person_a, team=self.team_a, season=season).exists(),
+        )
+
     def test_basic_member_cannot_access_person_create(self):
         self.client.force_login(self.member)
         url = reverse('rosters:person_create')
@@ -462,50 +523,76 @@ class RostersTenantIsolationTests(TestCase):
                 )
                 self.assertEqual(response.status_code, 403)
 
-    def test_person_create_misma_identidad_en_dos_tenants(self):
+    def test_alta_duplicada_en_otro_club_se_adopta_en_vez_de_duplicar(self):
+        # Identidad global: el club B no crea una segunda Ana, la adopta.
         User = get_user_model()
         from ilovevoley.users.models import Membership
         manager_b = User.objects.create_user(username='manager-b', password='pass')
         Membership.objects.create(
             user=manager_b, organization=self.org_b, is_approved=True, role='manager',
         )
-        payload = {
-            'first_name': 'Ana', 'last_name': 'Gomez', 'birth_date': '2010-05-01',
-        }
-
-        self.client.force_login(self.manager)
-        response_a = self.client.post(
-            reverse('rosters:person_create'), payload,
-            HTTP_HOST='club-a.ilovevoley.es',
+        ana = Person.objects.create(
+            first_name='Ana', last_name='Gomez', birth_date=date(2010, 5, 1),
         )
-        self.assertEqual(response_a.status_code, 302)
+        ana.organizations.add(self.org_a)
+        payload = {'first_name': 'Ana', 'last_name': 'Gomez', 'birth_date': '2010-05-01'}
 
         self.client.force_login(manager_b)
-        response_b = self.client.post(
-            reverse('rosters:person_create'), payload,
+        response = self.client.post(
+            reverse('rosters:person_create'), payload, HTTP_HOST='club-b.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['existing_person'], ana)
+        self.assertEqual(Person.objects.filter(first_name='Ana', last_name='Gomez').count(), 1)
+        # Aún no es visible en B
+        self.assertNotIn(ana, Person.objects.for_tenant(self.org_b))
+
+        response = self.client.post(
+            reverse('rosters:person_adopt'),
+            {'first_name': 'Ana', 'last_name': 'Gomez', 'birth_year': 2010},
             HTTP_HOST='club-b.ilovevoley.es',
         )
-        self.assertEqual(response_b.status_code, 302)
-
-        identities = Person.objects.filter(
-            first_name='Ana', last_name='Gomez', birth_date='2010-05-01',
+        self.assertRedirects(
+            response, reverse('rosters:person_detail', args=[ana.id]),
+            fetch_redirect_response=False,
         )
-        self.assertEqual(identities.count(), 2)
-        self.assertEqual(
-            set(identities.values_list('organization_id', flat=True)),
-            {self.org_a.id, self.org_b.id},
-        )
+        self.assertIn(ana, Person.objects.for_tenant(self.org_b))
+        self.assertIn(ana, Person.objects.for_tenant(self.org_a))
 
-    def test_person_create_ignora_organizacion_enviada_por_cliente(self):
+    def test_person_adopt_sin_año_valido_devuelve_404(self):
+        # Una ficha sin año no se adopta con solo nombre y apellidos (IS NULL),
+        # y un año no numérico no debe dar 500.
+        Person.objects.create(first_name='Sin', last_name='Año')
+        self.client.force_login(self.manager)
+        for year in ('', 'abc', '²'):
+            with self.subTest(year=year):
+                response = self.client.post(
+                    reverse('rosters:person_adopt'),
+                    {'first_name': 'Sin', 'last_name': 'Año', 'birth_year': year},
+                    HTTP_HOST='club-a.ilovevoley.es',
+                )
+                self.assertEqual(response.status_code, 404)
+
+    def test_person_adopt_exige_identidad_completa(self):
+        # No se adopta por id: sin nombre y año exactos, 404.
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('rosters:person_adopt'),
+            {'first_name': 'Bea', 'last_name': 'Ajena', 'birth_year': 1999},
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_person_create_ignora_organizaciones_enviadas_por_cliente(self):
         self.client.force_login(self.manager)
         response = self.client.post(
             reverse('rosters:person_create'),
-            {'first_name': 'Nueva', 'last_name': 'Ficha', 'organization': self.org_b.id},
+            {'first_name': 'Nueva', 'last_name': 'Ficha', 'birth_year': 2012, 'organizations': self.org_b.id},
             HTTP_HOST='club-a.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 302)
         created = Person.objects.get(first_name='Nueva', last_name='Ficha')
-        self.assertEqual(created.organization, self.org_a)
+        self.assertEqual(set(created.organizations.all()), {self.org_a})
 
     def test_person_list_add_button_visibility_for_tenant_manager(self):
         url = reverse('rosters:person_list')
@@ -523,16 +610,16 @@ class RostersTenantIsolationTests(TestCase):
         response_empty = self.client.get(f'{url}?search=inexistente', HTTP_HOST='club-a.ilovevoley.es')
         self.assertContains(response_empty, create_url)
 
-    def test_person_edit_ignora_organizacion_enviada_por_cliente(self):
+    def test_person_edit_ignora_organizaciones_enviadas_por_cliente(self):
         self.client.force_login(self.staff)
         response = self.client.post(
             reverse('rosters:person_edit', args=[self.person_a.id]),
-            {'first_name': 'Ana', 'last_name': 'Propia', 'organization': self.org_b.id},
+            {'first_name': 'Ana', 'last_name': 'Propia', 'birth_year': 2012, 'organizations': self.org_b.id},
             HTTP_HOST='club-a.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 302)
         self.person_a.refresh_from_db()
-        self.assertEqual(self.person_a.organization, self.org_a)
+        self.assertEqual(set(self.person_a.organizations.all()), {self.org_a})
 
     def test_staff_global_sin_membresia_no_accede_a_editar_en_otro_club(self):
         # El decorador de tenant corta al no tener membresía aprobada en B.
@@ -573,9 +660,8 @@ class PersonDetailStatsTests(TestCase):
             name='Liga', federation_id='L-1', season=self.season,
             is_active=True, visibility_type='main', is_our_team_related=True,
         )
-        self.person = Person.objects.create(
-            first_name='Laura', last_name='García', organization=self.org,
-        )
+        self.person = Person.objects.create(first_name='Laura', last_name='García')
+        self.person.organizations.add(self.org)
         PlayerRole.objects.create(
             person=self.person, team=self.team, season=self.season,
             jersey_number=7, is_active=True,

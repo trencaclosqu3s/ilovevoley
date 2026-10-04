@@ -281,7 +281,8 @@ def person_belongs_to_tenant(person, tenant):
     """Comprueba si una persona pertenece a un tenant o puede ser gestionada por él.
 
     Una persona pertenece al tenant si:
-    1. Su organization FK coincide con el tenant.
+    1. El tenant está vinculado a la ficha (``organizations``) o tiene roles
+       en equipos del club (``Person.objects.for_tenant``).
     2. Tiene roles (jugador o staff) en equipos pertenecientes al tenant.
     3. Su usuario vinculado tiene membresía aprobada en el tenant.
     4. Está vinculada como hijo/a de un usuario con membresía aprobada en el tenant.
@@ -292,8 +293,8 @@ def person_belongs_to_tenant(person, tenant):
     if not person or not tenant:
         return False
 
-    if getattr(person, 'organization_id', None) is not None:
-        return person.organization_id == tenant.id
+    if type(person).objects.for_tenant(tenant).filter(pk=person.pk).exists():
+        return True
 
     player_roles = list(person.player_roles.select_related('team').all())
     staff_roles = list(person.staff_roles.select_related('team').all())

@@ -1014,19 +1014,25 @@ class CompetitionsTenantIsolationTests(TestCase):
             acta_html='http://example.invalid/acta',
         )
 
-    def test_match_detail_blocks_foreign_match(self):
+    def test_match_detail_allows_foreign_match_without_media(self):
         self.client.force_login(self.manager)
         own = self.client.get(
             reverse('competitions:match_detail', args=[self.match.id]),
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(own.status_code, 200)
+        self.assertTrue(own.context['is_own_match'])
 
         foreign = self.client.get(
             reverse('competitions:match_detail', args=[self.other_match.id]),
             HTTP_HOST='testclub.ilovevoley.es',
         )
-        self.assertEqual(foreign.status_code, 404)
+        self.assertEqual(foreign.status_code, 200)
+        self.assertFalse(foreign.context['is_own_match'])
+        self.assertEqual(list(foreign.context['videos']), [])
+        self.assertEqual(list(foreign.context['images']), [])
+        self.assertFalse(foreign.context['can_manage_videos'])
+        self.assertFalse(foreign.context['can_edit_result'])
 
     def test_match_detail_loads_lightbox_script_once(self):
         """base.html ya carga lightbox.js; la ficha no debe duplicarlo (#209)."""
@@ -1243,13 +1249,31 @@ class CompetitionsTenantIsolationTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_acta_lineup_blocks_foreign_match(self):
+    def test_acta_lineup_allows_foreign_match_and_isolates_persons(self):
+        """Permite cargar el acta de un partido ajeno, la persiste y no resuelve personas de otros clubes."""
         self.client.force_login(self.manager)
-        response = self.client.get(
-            reverse('competitions:ajax_acta_lineup', args=[self.other_match.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 404)
+        sample_lineup = {
+            'home_team': 'Rival Senior',
+            'away_team': 'Other Senior',
+            'home_captain': '1',
+            'away_captain': '2',
+            'home_convocados': ['1 Foreign Player'],
+            'away_convocados': ['2 Other Player'],
+            'sets': [{'title': 'SET 1', 'time': '20m', 'teams': [{'name': 'Rival Senior', 'points': 25, 'lineup': []}]}],
+        }
+        with patch('ilovevoley.competitions.views.safe_get', return_value=b'<html></html>'), \
+             patch('ilovevoley.competitions.views.parse_acta_lineup', return_value=sample_lineup):
+            response = self.client.get(
+                reverse('competitions:ajax_acta_lineup', args=[self.other_match.id]),
+                HTTP_HOST='testclub.ilovevoley.es',
+            )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['home_convocados'][0]['name_acta'], 'Foreign Player')
+        self.assertIsNone(data['home_convocados'][0]['person'])
+        self.other_match.refresh_from_db()
+        self.assertIsNotNone(self.other_match.acta_data)
 
     def test_team_search_requires_tenant_manager(self):
         url = reverse('competitions:ajax_search_teams')

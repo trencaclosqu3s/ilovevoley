@@ -38,17 +38,40 @@ class TenantQuerySet(models.QuerySet):
 
 
 class OrganizationTenantQuerySet(TenantQuerySet):
-    """Modelos con FK directa ``organization`` (``Video``, ``Image``, ``Person``)."""
+    """Modelos con FK directa ``organization`` (``Video``, ``Image``)."""
 
     def tenant_filter(self, tenant):
         return models.Q(organization=tenant)
 
 
-class PersonRoleTenantQuerySet(TenantQuerySet):
-    """Roles de una persona: heredan el tenant de su ``Person``."""
+class PersonTenantQuerySet(TenantQuerySet):
+    """Fichas globales: visibles en el club vinculado o donde tengan roles."""
 
     def tenant_filter(self, tenant):
-        return models.Q(person__organization=tenant)
+        from ilovevoley.teams.models import Team
+
+        club_teams = Team.objects.for_tenant(tenant)
+        return (
+            models.Q(organizations=tenant)
+            | models.Q(player_roles__team__in=club_teams)
+            | models.Q(staff_roles__team__in=club_teams)
+        )
+
+    def for_tenant(self, tenant):
+        # Los joins de roles duplican filas: se acota por pk para devolver un
+        # queryset sin distinct() (sigue admitiendo order_by, update, etc.).
+        if tenant is None:
+            return self.none()
+        return self.filter(pk__in=self.model._base_manager.filter(self.tenant_filter(tenant)).values('pk'))
+
+
+class PersonRoleTenantQuerySet(TenantQuerySet):
+    """Roles de una persona: pertenecen al club del equipo, no al de la ficha."""
+
+    def tenant_filter(self, tenant):
+        from ilovevoley.teams.models import Team
+
+        return models.Q(team__in=Team.objects.for_tenant(tenant))
 
 
 class MatchTenantQuerySet(TenantQuerySet):

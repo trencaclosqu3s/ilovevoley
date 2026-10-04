@@ -4,7 +4,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from ilovevoley.core.tenancy import OrganizationTenantQuerySet, PersonRoleTenantQuerySet
+from ilovevoley.core.tenancy import PersonRoleTenantQuerySet, PersonTenantQuerySet
 
 
 def person_photo_upload_path(instance, filename):
@@ -34,6 +34,12 @@ class Person(models.Model):
         verbose_name=_('Fecha de Nacimiento'),
         help_text=_('Fecha de nacimiento (opcional)')
     )
+    birth_year = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_('Año de Nacimiento'),
+        help_text=_('Año de nacimiento; se rellena solo si hay fecha de nacimiento'),
+    )
     photo = models.ImageField(
         upload_to=person_photo_upload_path,
         null=True,
@@ -55,17 +61,14 @@ class Person(models.Model):
         help_text=_('Número de teléfono (opcional)')
     )
     
-    # Pertenencia a la organización (tenant). Determina la visibilidad y
-    # edición de la ficha. Queda nula en fichas heredadas que no se pudieron
-    # resolver de forma inequívoca (quedan ocultas en todos los tenants).
-    organization = models.ForeignKey(
+    # Clubes que ven la ficha sin necesidad de rol (alta o adopción). Además,
+    # una ficha es visible en el club donde tenga roles.
+    organizations = models.ManyToManyField(
         'core.Organization',
-        on_delete=models.PROTECT,
         related_name='people',
-        null=True,
         blank=True,
-        verbose_name=_('Organización'),
-        help_text=_('Club/organización al que pertenece la ficha')
+        verbose_name=_('Organizaciones'),
+        help_text=_('Clubes/organizaciones vinculados a la ficha'),
     )
 
     # Vinculación con usuario de la plataforma
@@ -94,7 +97,7 @@ class Person(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Creado'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Actualizado'))
 
-    objects = OrganizationTenantQuerySet.as_manager()
+    objects = PersonTenantQuerySet.as_manager()
 
     class Meta:
         db_table = 'videos_person'
@@ -106,17 +109,14 @@ class Person(models.Model):
             models.Index(fields=['is_active']),
             models.Index(fields=['created_at']),
         ]
-        # Evitar duplicados exactos dentro de cada organización. La identidad
-        # es por tenant, de modo que la misma persona pueda tener ficha en dos
-        # clubes. Las fichas heredadas sin organización (organization NULL)
-        # forman su propio grupo (nulls_distinct=False), conservando la
-        # deduplicación global entre ellas.
+        # Identidad global: una persona es una persona en todos los clubes.
+        # Con birth_year NULL (fichas sin año) no se aplica; se exigirá al
+        # pasar a NOT NULL cuando estén rellenadas.
         constraints = [
             models.UniqueConstraint(
-                fields=['organization', 'first_name', 'last_name', 'birth_date'],
+                fields=['first_name', 'last_name', 'birth_year'],
                 name='unique_person_identity',
-                condition=models.Q(birth_date__isnull=False),
-                nulls_distinct=False,
+                violation_error_message=_('Ya existe una ficha con ese nombre, apellidos y año de nacimiento.'),
             )
         ]
 
@@ -127,6 +127,8 @@ class Person(models.Model):
         # Sanear foto automáticamente a nivel de modelo ante cualquier nueva subida
         from ilovevoley.videos.utils import sanitize_model_image_field
         sanitize_model_image_field(self, 'photo', max_size=2048)
+        if self.birth_date:
+            self.birth_year = self.birth_date.year
         super().save(*args, **kwargs)
 
     @property

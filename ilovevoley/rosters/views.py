@@ -3,7 +3,7 @@ import logging
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Prefetch, Q
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
@@ -12,7 +12,7 @@ from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenancy import get_tenant_object_or_404
-from ilovevoley.core.tenant_utils import tenant_access_required
+from ilovevoley.core.tenant_utils import person_belongs_to_tenant, tenant_access_required
 from ilovevoley.competitions.models import MatchLineup
 from ilovevoley.competitions.services.lineups import get_player_season_stats
 from ilovevoley.teams.models import Team
@@ -154,10 +154,35 @@ def person_list(request):
 
 
 @tenant_access_required()
+def my_profile(request):
+    """Trayectoria del propio usuario: sus roles en todos los clubes, por temporada.
+
+    No filtra por tenant: la ficha vinculada puede pertenecer a otro club y
+    el usuario solo ve sus propios datos (nunca recibe un id por URL).
+    """
+    person = Person.objects.filter(user=request.user).first()
+    if person is None:
+        raise Http404
+
+    by_season = {}
+    for kind, model in (('player_roles', PlayerRole), ('staff_roles', StaffRole)):
+        roles = model.objects.filter(person=person).select_related('team__category', 'team__club', 'season')
+        for role in roles.order_by('team__name'):
+            by_season.setdefault(role.season, {'season': role.season, 'player_roles': [], 'staff_roles': []})[kind].append(role)
+    seasons = sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True)
+
+    return render(request, 'rosters/my_profile.html', {
+        'person': person,
+        'seasons': seasons,
+        'in_current_tenant': person_belongs_to_tenant(person, request.tenant),
+    })
+
+
+@tenant_access_required()
 def person_detail(request, person_id):
     """Vista de detalle de una persona"""
     person = get_tenant_object_or_404(
-        Person.objects.select_related('organization', 'user').prefetch_related(
+        Person.objects.select_related('user').prefetch_related(
             'player_roles__team__category',
             'staff_roles__team__category'
         ),
@@ -219,11 +244,10 @@ def _resolve_person_stat_season(request, seasons):
 def person_create(request):
     """Vista para crear una nueva persona"""
     if request.method == 'POST':
-        form = PersonForm(request.POST, request.FILES, organization=request.tenant)
+        form = PersonForm(request.POST, request.FILES)
         
         if form.is_valid():
             person = form.save(commit=False)
-            person.organization = request.tenant
             
             # Procesar imagen recortada si está presente
             cropped_photo_data = request.POST.get('cropped_photo_data')
@@ -244,6 +268,7 @@ def person_create(request):
                 person.user = request.user
             
             person.save()
+            person.organizations.add(request.tenant)
             messages.success(request, _('¡Persona creada exitosamente! Ahora puedes agregar roles de jugador o staff.'))
             return redirect('rosters:person_detail', person_id=person.id)
     else:
@@ -251,11 +276,35 @@ def person_create(request):
     
     context = {
         'form': form,
+        'existing_person': form.existing_person() if form.is_bound and hasattr(form, 'cleaned_data') else None,
         'title': _('Agregar Nueva Persona'),
         'submit_text': _('Crear Persona'),
     }
     
     return render(request, 'rosters/person_form.html', context)
+
+
+@tenant_access_required(manager=True)
+@require_POST
+def person_adopt(request):
+    """Vincula al club una ficha global existente, identificada por nombre y año.
+
+    Exigir la identidad completa evita adoptar fichas por id: el gestor solo
+    puede vincular una persona cuyos datos ya conoce.
+    """
+    year = request.POST.get('birth_year', '')
+    if not (year.isascii() and year.isdigit()):
+        raise Http404
+    person = Person._base_manager.filter(
+        first_name=request.POST.get('first_name', ''),
+        last_name=request.POST.get('last_name', ''),
+        birth_year=int(year),
+    ).first()
+    if person is None:
+        raise Http404
+    person.organizations.add(request.tenant)
+    messages.success(request, _('Persona añadida a tu club. Ahora puedes agregar roles de jugador o staff.'))
+    return redirect('rosters:person_detail', person_id=person.id)
 
 
 @tenant_access_required()
@@ -274,14 +323,10 @@ def person_edit(request, person_id):
     
     if request.method == 'POST':
         form = PersonForm(
-            request.POST, request.FILES, instance=person, organization=request.tenant,
+            request.POST, request.FILES, instance=person,
         )
         
         if form.is_valid():
-            # PersonForm no expone organization, pero se reafirma el tenant para
-            # que un POST manipulado no pueda reasignar la ficha de club.
-            person.organization = request.tenant
-
             # Procesar imagen recortada si está presente
             cropped_photo_data = request.POST.get('cropped_photo_data')
             if cropped_photo_data:
