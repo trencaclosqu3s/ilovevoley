@@ -288,6 +288,7 @@ class UserProfileFormFollowedTeamsTest(TestCase):
         form = UserProfileForm(instance=self.user, organization=self.org)
         self.assertEqual(list(form.initial[f'followed_teams_{self.org.id}']), [self.team])
 
+        self._save(categories=[self.cadete], teams=[self.team])
         pref = self._save(categories=[self.cadete])
         self.assertFalse(pref.teams.exists())
         self.assertEqual(list(pref.categories.all()), [self.cadete])
