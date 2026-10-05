@@ -18,18 +18,23 @@
 
     // Recuerda los filtros activos en la sesión y, si se entra a Resultados sin
     // parámetros (por ejemplo desde el menú), reaplica los últimos usados.
-    (function rememberFilters() {
+    function rememberFilters() {
         const active = currentFilterString();
         if (active) {
             try { sessionStorage.setItem(STORAGE_KEY, active); } catch (e) { /* almacenamiento no disponible */ }
-            return;
+            return false;
         }
         let saved = null;
         try { saved = sessionStorage.getItem(STORAGE_KEY); } catch (e) { saved = null; }
         if (saved) {
             window.location.replace(window.location.pathname + '?' + saved);
+            return true;
         }
-    })();
+        return false;
+    }
+
+    // Si vamos a redirigir, no tiene sentido enlazar listeners en esta página.
+    if (rememberFilters()) return;
 
     const input = document.getElementById('results-team-search');
     const suggestions = document.getElementById('results-team-suggestions');

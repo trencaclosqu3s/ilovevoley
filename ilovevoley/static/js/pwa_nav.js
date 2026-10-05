@@ -1,9 +1,13 @@
 /*
  * Retroceso in-app para la PWA instalada. En display-mode standalone el
  * navegador no pinta sus flechas y en iOS no existe gesto de swipe, así que
- * la navbar expone su propio botón "atrás". Se oculta en la portada del club
- * y cuando no hay historial interno (acceso directo desde un push, por
- * ejemplo) retrocede a la portada.
+ * la navbar expone su propio botón "atrás".
+ *
+ * `history.length` no sirve para saber si hay historial propio de la app: en
+ * standalone suele ser > 1 aunque se haya abierto directamente en esa URL. Se
+ * lleva un contador en sessionStorage que sube en cada navegación normal y baja
+ * al volver atrás, de modo que el botón solo retrocede si de verdad hay algo a
+ * lo que volver; si no, cae a la portada del club.
  */
 (function () {
     "use strict";
@@ -12,6 +16,48 @@
         || window.navigator.standalone === true;
     if (!standalone) {
         return;
+    }
+
+    var DEPTH_KEY = "ilovevoley.pwa.nav.depth";
+
+    function readDepth() {
+        try {
+            var raw = sessionStorage.getItem(DEPTH_KEY);
+            return raw === null ? null : Math.max(0, parseInt(raw, 10) || 0);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function storeDepth(depth) {
+        try { sessionStorage.setItem(DEPTH_KEY, String(depth)); } catch (e) { /* almacenamiento no disponible */ }
+    }
+
+    function navigationType() {
+        try {
+            var entries = performance.getEntriesByType("navigation");
+            if (entries && entries.length && entries[0].type) {
+                return entries[0].type;
+            }
+        } catch (e) { /* sin Navigation Timing */ }
+        return "navigate";
+    }
+
+    function trackDepth() {
+        var stored = readDepth();
+        var type = navigationType();
+        var depth;
+        if (stored === null) {
+            depth = 0;
+        } else if (type === "reload") {
+            depth = stored;
+        } else if (type === "back_forward") {
+            depth = Math.max(0, stored - 1);
+        } else {
+            depth = stored + 1;
+        }
+        storeDepth(depth);
+        return depth;
     }
 
     function normalizePath(value) {
@@ -27,6 +73,7 @@
             return;
         }
         var homeUrl = button.getAttribute("data-home-url") || "/";
+        var depth = trackDepth();
 
         function onHome() {
             return normalizePath(window.location.href) === normalizePath(homeUrl);
@@ -43,15 +90,15 @@
         }
 
         button.addEventListener("click", function () {
-            if (window.history.length > 1) {
+            if (depth > 0) {
                 window.history.back();
             } else {
                 window.location.href = homeUrl;
             }
         });
 
-        window.addEventListener("pageshow", sync);
         window.addEventListener("popstate", sync);
+        window.addEventListener("pageshow", sync);
         sync();
     }
 
