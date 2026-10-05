@@ -59,6 +59,21 @@ resuelve al mismo nombre, así que reutilizaría los contenedores `db` y `redis`
 de producción. Para una consulta puntual en producción se usa el compose por
 defecto: `docker compose run --rm web python manage.py <comando>`.
 
+**Tenants en local:** `TenantMiddleware` toma las dos últimas etiquetas del host como
+dominio raíz, así que `santjosep.localhost` **no** resuelve el tenant (host == raíz).
+Hace falta un host de tres etiquetas: `http://santjosep.lvh.me:8008` (`lvh.me`
+resuelve a 127.0.0.1; necesita internet). Arrancar el servicio `web` con
+`TENANT_BASE_DOMAIN=lvh.me:8008` y `ALLOWED_HOSTS=localhost,127.0.0.1,.lvh.me` (un
+`-f` de override fuera del repo basta). El dominio raíz sin subdominio
+(`localhost:8008`) muestra la landing y los accesos con los colores corporativos.
+
+**Docker en rutas con caracteres no ASCII** (p. ej. un worktree llamado
+`rediseño-front`): `docker compose build` falla con *"header key
+x-docker-expose-session-sharedkey contains value with non-printable ASCII"*.
+Usar una ruta ASCII o, si la imagen ya existe, `up -d --no-build web`. Además
+`entrypoint.sh` espera la BD en el host `db`: si se usa otra base, darle ese alias
+en la red de compose.
+
 **Despliegue:** usar `./deploy.sh`. El `entrypoint.sh` ya no ejecuta migraciones
 ni `collectstatic` (#118), así que un despliegue manual debe hacer, en este
 orden: `git pull`, `docker compose build`, `run --rm web python manage.py migrate`,

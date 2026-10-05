@@ -38,11 +38,22 @@ def notify_web_push_organization_task(
         Q(organization_id=organization_id)
         | Q(user__memberships__organization_id=organization_id, user__memberships__is_approved=True)
     ).distinct()
+    prefs = CategoryPreference.objects.filter(organization_id=organization_id)
+    by_category = Q()
     if category_ids:
-        prefs = CategoryPreference.objects.filter(organization_id=organization_id)
         interested = prefs.filter(categories__in=category_ids).values('user_id')
         with_prefs = prefs.filter(categories__isnull=False).values('user_id')
-        subs = subs.filter(Q(user_id__in=interested) | ~Q(user_id__in=with_prefs))
+        by_category = Q(user_id__in=interested) | ~Q(user_id__in=with_prefs)
+    if match_id:
+        # Aviso de partido: quien sigue equipos en el club solo lo recibe si juega uno de
+        # ellos (sus categorías no cuentan); el resto sigue con el filtro por categoría.
+        from ilovevoley.competitions.models import Match
+        team_ids = Match.all_objects.filter(pk=match_id).values_list('home_team_id', 'away_team_id').first() or ()
+        following = prefs.filter(teams__in=[t for t in team_ids if t]).values('user_id')
+        team_followers = prefs.filter(teams__isnull=False).values('user_id')
+        subs = subs.filter(Q(user_id__in=following) | (~Q(user_id__in=team_followers) & by_category))
+    elif category_ids:
+        subs = subs.filter(by_category)
 
     if notification_type:
         disabled_users = NotificationPreference.objects.filter(

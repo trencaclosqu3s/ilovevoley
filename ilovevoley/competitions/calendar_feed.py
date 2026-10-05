@@ -13,6 +13,7 @@ from ilovevoley.competitions.models import Match
 from ilovevoley.competitions.services.venue_service import get_match_location_info
 from ilovevoley.core.mixins import get_club_team_filter
 from ilovevoley.core.models import Category, Organization
+from ilovevoley.teams.models import Team
 from ilovevoley.users.models import User
 
 
@@ -91,35 +92,43 @@ class UserMatchesFeed(ICalFeed):
 
     def items(self, obj):
         """
-        Muestra los partidos que cumplen ambas condiciones:
-        1. La categoría de la liga está entre las categorías preferidas del usuario.
-        2. Uno de los equipos pertenece a una organización donde el usuario tiene membresía aprobada.
+        Partidos de los clubes donde el usuario tiene membresía aprobada:
+        - En los clubes donde sigue equipos concretos, los partidos de esos equipos.
+        - En el resto, los partidos del club cuya liga está entre sus categorías
+          preferidas (más los amistosos).
         """
         approved_orgs = Organization.objects.filter(
             memberships__user=obj,
             memberships__is_approved=True
         )
-        categories = self._preferred_categories(obj, approved_orgs)
-        if not categories.exists():
-            return Match.objects.none()
+        followed_org_ids = set(
+            obj.category_preferences.filter(
+                organization__in=approved_orgs, teams__isnull=False
+            ).values_list('organization_id', flat=True)
+        )
+        category_orgs = [org for org in approved_orgs if org.id not in followed_org_ids]
+        categories = self._preferred_categories(obj, category_orgs)
 
-        if not approved_orgs.exists():
+        match_filter = Q()
+        if followed_org_ids:
+            teams = Team.objects.filter(followers__user=obj, followers__organization_id__in=followed_org_ids)
+            match_filter |= Q(home_team__in=teams) | Q(away_team__in=teams)
+        if category_orgs and categories.exists():
+            # Combinar filtros de equipo de las organizaciones que filtran por categoría
+            team_filter = Q()
+            for org in category_orgs:
+                team_filter |= get_club_team_filter(org)
+            match_filter |= (Q(league__categories__in=categories) | Q(is_friendly=True)) & team_filter
+        if not match_filter:
             return Match.objects.none()
-
-        # Combinar filtros de equipo de todas las organizaciones del usuario
-        team_filter = Q()
-        for org in approved_orgs:
-            team_filter |= get_club_team_filter(org)
 
         start_date = timezone.now() - timedelta(days=30)
         end_date = timezone.now() + timedelta(days=365)
 
         return Match.objects.filter(
-            Q(league__categories__in=categories) | Q(is_friendly=True),
+            match_filter,
             match_date__gte=start_date,
             match_date__lte=end_date,
-        ).filter(
-            team_filter
         ).select_related(
             'home_team',
             'home_team__club',
