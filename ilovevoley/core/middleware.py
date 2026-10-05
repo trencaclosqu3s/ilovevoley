@@ -14,7 +14,7 @@ from django.core.cache import cache
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils import translation
-from .email_utils import get_admin_emails
+from .email_utils import get_technical_alert_emails
 from .tenant_utils import get_organization_by_slug
 
 
@@ -279,7 +279,7 @@ def send_404_daily_report():
     if not settings.EMAIL_NOTIFICATIONS.get('error_404_daily', False):
         return False
     
-    admin_emails = get_admin_emails()
+    admin_emails = get_technical_alert_emails()
     if not settings.NOTIFICATION_EMAIL_ENABLED or not admin_emails:
         return False
     
@@ -346,7 +346,7 @@ def send_404_immediate_alert(request, threshold=10):
         return False
     
     try:
-        admin_emails = get_admin_emails()
+        admin_emails = get_technical_alert_emails()
         if not admin_emails:
             return False
             

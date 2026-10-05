@@ -14,6 +14,16 @@ class PWATemplatesTest(TestCase):
         self.assertIn('rel="manifest"', content)
         self.assertIn("navigator.serviceWorker.register('/sw.js')", content)
 
+    def test_base_template_wires_standalone_back_button(self):
+        # El retroceso in-app solo funciona si el id del template coincide con
+        # el que busca pwa_nav.js; un rename lo dejaría muerto en silencio.
+        response = self.client.get('/', HTTP_HOST='ilovevoley.es')
+        content = response.content.decode('utf-8')
+
+        self.assertIn('id="pwa-back-button"', content)
+        self.assertIn('data-home-url=', content)
+        self.assertIn('js/pwa_nav.js', content)
+
     def test_base_auth_template_contains_pwa_metas(self):
         response = self.client.get('/accounts/login/', HTTP_HOST='ilovevoley.es')
         self.assertEqual(response.status_code, 200)

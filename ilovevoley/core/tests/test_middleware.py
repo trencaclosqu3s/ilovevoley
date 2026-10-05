@@ -266,6 +266,42 @@ class Error404TrackingMiddlewareTest(TestCase):
 
     @override_settings(
         NOTIFICATION_EMAIL_ENABLED=True,
+        EMAIL_NOTIFICATIONS={'error_404_daily': True},
+        DEFAULT_FROM_EMAIL='test@ilovevoley.es',
+        TECHNICAL_ALERT_EMAILS=['tech@ilovevoley.es'],
+    )
+    def test_404_report_ignores_superusers_when_technical_list_is_set(self):
+        """Regla de negocio: los 404 van a la lista técnica, no a todo superuser.
+
+        Un superuser puede existir solo para gestionar contenido; los avisos de
+        infraestructura no le corresponden.
+        """
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        User.objects.create_superuser('content_admin_404', 'content_admin_404@example.com', 'pass1234')
+
+        yesterday = timezone.localtime(timezone.now()) - timedelta(days=1)
+        cache.set(day_cache_key('404_errors', yesterday), [
+            {
+                'url': '/not-found/',
+                'method': 'GET',
+                'ip': '127.0.0.1',
+                'user_agent': 'TestAgent',
+                'referer': '',
+                'timestamp': yesterday.isoformat(),
+                'user': 'Anonymous',
+            }
+        ])
+
+        with patch('ilovevoley.core.middleware.send_mail') as mock_send_mail:
+            self.assertTrue(send_404_daily_report())
+
+        recipients = mock_send_mail.call_args[1]['recipient_list']
+        self.assertEqual(recipients, ['tech@ilovevoley.es'])
+        self.assertNotIn('content_admin_404@example.com', recipients)
+
+    @override_settings(
+        NOTIFICATION_EMAIL_ENABLED=True,
         DEFAULT_FROM_EMAIL='test@ilovevoley.es',
     )
     def test_send_404_immediate_alert_threshold(self):

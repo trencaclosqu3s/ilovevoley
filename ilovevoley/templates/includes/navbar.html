@@ -4,6 +4,15 @@
         <div class="flex justify-between h-16">
             <!-- Logo y título (responsive) -->
             <div class="flex items-center space-x-2 sm:space-x-3">
+                <!-- Retroceso in-app: solo visible en la PWA instalada (display-mode standalone) -->
+                <button type="button" id="pwa-back-button"
+                        data-home-url="{% if tenant %}{% url tenant.home_url_name %}{% else %}/{% endif %}"
+                        class="hidden items-center justify-center p-2 -ml-2 rounded-lg text-csj-purple dark:text-csj-yellow hover:bg-gray-100 dark:hover:bg-gray-700 transition touch-manipulation"
+                        aria-label="{% trans 'Atrás' %}" title="{% trans 'Atrás' %}">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
                 {% if tenant %}
                     {% url tenant.home_url_name as home_url %}
                     {% if tenant.logo %}

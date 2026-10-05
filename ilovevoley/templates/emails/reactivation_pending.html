@@ -1,0 +1,53 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans %}Solicitud de reactivación - {{ site_name }}{% endblocktrans %}{% endblock %}
+
+{% block header_subtitle %}{% trans "Cuenta desactivada que pide volver" %}{% endblock %}
+
+{% block content %}
+    {% trans "No proporcionado" as not_provided %}
+    <div class="alert warning">
+        <h2 style="margin-top: 0;">{% trans "🔄 Solicitud de reactivación" %}</h2>
+        <p>{% blocktrans %}Un usuario con la cuenta desactivada por inactividad ha pedido volver a usarla.{% endblocktrans %}</p>
+    </div>
+
+    <h3>{% trans "Detalles del usuario:" %}</h3>
+    <table class="data-table">
+        <tr>
+            <th>{% trans "Nombre de usuario:" %}</th>
+            <td><strong>{{ user.username }}</strong></td>
+        </tr>
+        <tr>
+            <th>{% trans "Email:" %}</th>
+            <td>{{ user.email|default:not_provided }}</td>
+        </tr>
+        <tr>
+            <th>{% trans "Nombre completo:" %}</th>
+            <td>{{ user.get_full_name|default:not_provided }}</td>
+        </tr>
+        {% if tenant %}
+        <tr>
+            <th>{% trans "Club:" %}</th>
+            <td><strong>{{ tenant.name }}</strong></td>
+        </tr>
+        {% endif %}
+        <tr>
+            <th>{% trans "Fecha de la solicitud:" %}</th>
+            <td>{{ requested_at|date:"d/m/Y H:i" }}</td>
+        </tr>
+        <tr>
+            <th>{% trans "Estado actual:" %}</th>
+            <td><span style="color: #e67e22;">{% trans "💤 Desactivada" %}</span></td>
+        </tr>
+    </table>
+
+    <h3>{% trans "Acción requerida:" %}</h3>
+    <p>{% trans "Revisa la solicitud desde el panel de moderación y decide si reactivas la cuenta o la descartas." %}</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{ moderation_url }}" class="button" style="background-color: #27ae60; text-decoration: none; color: white; padding: 12px 30px; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+            {% trans "🔔 Revisar en el panel de moderación" %}
+        </a>
+    </div>
+{% endblock %}

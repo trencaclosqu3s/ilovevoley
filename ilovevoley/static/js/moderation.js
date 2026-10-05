@@ -14,6 +14,8 @@ class ModerationSystem {
             counts: '/core/api/moderation/counts/',
             approveUser: '/core/api/users/{id}/approve/',
             rejectUser: '/core/api/users/{id}/reject/',
+            reactivateUser: '/core/api/users/{id}/reactivate/',
+            dismissReactivation: '/core/api/users/{id}/dismiss-reactivation/',
             moderateImage: '/content/api/images/{id}/moderate/'
         };
     }
@@ -227,6 +229,75 @@ class ModerationSystem {
         }
     }
     
+    async _resolveReactivation(userId, buttonElement, opts) {
+        if (!confirm(opts.confirmText)) {
+            return;
+        }
+
+        const card = buttonElement.closest('.reactivation-card');
+        const allButtons = card?.querySelectorAll('button') || [buttonElement];
+        const originalTexts = new Map();
+        allButtons.forEach(btn => {
+            originalTexts.set(btn, btn.textContent);
+            btn.disabled = true;
+        });
+        buttonElement.textContent = opts.pendingText;
+
+        try {
+            const formData = new FormData();
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+            if (csrfToken) {
+                formData.append('csrfmiddlewaretoken', csrfToken);
+            }
+
+            const url = opts.url.replace('{id}', userId);
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || opts.errorText);
+            }
+
+            this.showToast('success', data.message);
+            if (card) {
+                card.style.opacity = '0.5';
+                card.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    card.remove();
+                    this.updateModerationCounts();
+                }, 500);
+            }
+        } catch (error) {
+            console.error(opts.errorText, error);
+            this.showToast('error', error.message || 'Error de conexión');
+            allButtons.forEach(btn => {
+                btn.disabled = false;
+                btn.textContent = originalTexts.get(btn);
+            });
+        }
+    }
+
+    async reactivateUser(userId, buttonElement) {
+        return this._resolveReactivation(userId, buttonElement, {
+            url: this.apiUrls.reactivateUser,
+            confirmText: '¿Reactivar esta cuenta y devolverle el acceso?',
+            pendingText: 'Reactivando...',
+            errorText: 'Error al reactivar usuario',
+        });
+    }
+
+    async dismissReactivation(userId, buttonElement) {
+        return this._resolveReactivation(userId, buttonElement, {
+            url: this.apiUrls.dismissReactivation,
+            confirmText: '¿Descartar esta solicitud? La cuenta seguirá desactivada.',
+            pendingText: 'Descartando...',
+            errorText: 'Error al descartar la solicitud',
+        });
+    }
+
     async moderateImage(imageId, action, buttonElement) {
         const actionText = action === 'approve' ? 'aprobar' : 'rechazar';
         if (!confirm(`¿Estás segura de que quieres ${actionText} esta imagen?`)) {
@@ -367,6 +438,22 @@ function rejectUser(userId, buttonElement) {
     }
 }
 
+function reactivateUser(userId, buttonElement) {
+    if (globalModerationSystem) {
+        globalModerationSystem.reactivateUser(userId, buttonElement);
+    } else {
+        console.error('Sistema de moderación no inicializado');
+    }
+}
+
+function dismissReactivation(userId, buttonElement) {
+    if (globalModerationSystem) {
+        globalModerationSystem.dismissReactivation(userId, buttonElement);
+    } else {
+        console.error('Sistema de moderación no inicializado');
+    }
+}
+
 function moderateImage(imageId, action, buttonElement) {
     if (globalModerationSystem) {
         globalModerationSystem.moderateImage(imageId, action, buttonElement);
@@ -378,7 +465,7 @@ function moderateImage(imageId, action, buttonElement) {
 // Inicialización automática cuando se carga el DOM
 document.addEventListener('DOMContentLoaded', function() {
     // Solo inicializar si hay elementos de moderación en la página
-    const moderationElements = document.querySelector('#moderation-counter, #moderation-counter-mobile, .user-card, .image-card');
+    const moderationElements = document.querySelector('#moderation-counter, #moderation-counter-mobile, .user-card, .image-card, .reactivation-card');
     if (moderationElements) {
         initModerationSystem();
     }
@@ -392,6 +479,8 @@ if (typeof module !== 'undefined' && module.exports) {
         updateModerationCounts, 
         approveUser,
         rejectUser, 
+        reactivateUser,
+        dismissReactivation,
         moderateImage 
     };
 }

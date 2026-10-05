@@ -12,4 +12,5 @@ urlpatterns = [
     path('api/webpush/subscribe/', views.webpush_subscribe, name='webpush_subscribe'),
     path('api/webpush/unsubscribe/', views.webpush_unsubscribe, name='webpush_unsubscribe'),
     path('deactivate-account/<str:token>/', views.deactivate_account_view, name='deactivate_account'),
+    path('reactivar/', views.request_reactivation, name='request_reactivation'),
 ]

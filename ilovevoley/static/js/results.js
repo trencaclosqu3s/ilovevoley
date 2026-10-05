@@ -4,6 +4,38 @@
     const form = document.querySelector('[data-results-filters]');
     if (!form) return;
 
+    const FILTER_PARAMS = ['period', 'season', 'category', 'teams', 'all_teams'];
+    const STORAGE_KEY = 'ilovevoley.results.filters';
+
+    function currentFilterString() {
+        const params = new URLSearchParams(window.location.search);
+        const selected = new URLSearchParams();
+        FILTER_PARAMS.forEach(function (key) {
+            params.getAll(key).forEach(function (value) { selected.append(key, value); });
+        });
+        return selected.toString();
+    }
+
+    // Recuerda los filtros activos en la sesión y, si se entra a Resultados sin
+    // parámetros (por ejemplo desde el menú), reaplica los últimos usados.
+    function rememberFilters() {
+        const active = currentFilterString();
+        if (active) {
+            try { sessionStorage.setItem(STORAGE_KEY, active); } catch (e) { /* almacenamiento no disponible */ }
+            return false;
+        }
+        let saved = null;
+        try { saved = sessionStorage.getItem(STORAGE_KEY); } catch (e) { saved = null; }
+        if (saved) {
+            window.location.replace(window.location.pathname + '?' + saved);
+            return true;
+        }
+        return false;
+    }
+
+    // Si vamos a redirigir, no tiene sentido enlazar listeners en esta página.
+    if (rememberFilters()) return;
+
     const input = document.getElementById('results-team-search');
     const suggestions = document.getElementById('results-team-suggestions');
     const chips = document.getElementById('results-team-chips');

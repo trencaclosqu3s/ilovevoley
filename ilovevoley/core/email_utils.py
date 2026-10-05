@@ -44,6 +44,25 @@ def get_admin_emails():
     return admin_emails
 
 
+def get_technical_alert_emails():
+    """
+    Destinatarios de avisos técnicos (p. ej. alertas de errores 404).
+
+    No usa los superusers directamente: un superuser puede serlo solo para
+    gestionar contenido y no entender (ni querer) los avisos de infraestructura.
+    Prioridad: TECHNICAL_ALERT_EMAILS > ADMIN_EMAIL_LIST > superusers.
+    """
+    technical = getattr(settings, 'TECHNICAL_ALERT_EMAILS', None)
+    if technical:
+        return list(technical)
+
+    admin_list = getattr(settings, 'ADMIN_EMAIL_LIST', None)
+    if admin_list:
+        return list(admin_list)
+
+    return get_admin_emails()
+
+
 def get_moderation_recipients(tenant=None):
     """
     Destinatarios de los avisos de moderación: superusers y, cuando hay tenant,
