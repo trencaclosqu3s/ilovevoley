@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 from django.utils import timezone
 
-from ilovevoley.videos.scraping import RFEVBPhaseParser, RFEVBTeamsParser
+from ilovevoley.videos.scraping import RFEVBPhaseParser, RFEVBTeamsParser, StandingsParser
 
 
 # ---------------------------------------------------------------------------
@@ -200,6 +200,31 @@ class RFEVBPhaseParserTests(TestCase):
         self.assertEqual(first['sets_against'], 1)
         self.assertEqual(first['points_for'], 75)
         self.assertEqual(first['points_against'], 65)
+
+
+class StandingsParserTests(TestCase):
+    """voleibolib no fija el orden de columnas: la liga 7990 publica `PG PP NP`."""
+
+    HTML = """<table class="clasificacion">
+<tr><th></th><th>Equipo</th><th>PJ</th><th>PG</th><th>PP</th><th>NP</th><th>JF</th><th>JC</th>
+<th>TF</th><th>TC</th><th>PT</th><th>G3</th><th>G2</th><th>P1</th><th>P0</th></tr>
+<tr><td>3.</td><td>CAIXA COLONYA CV MANACOR</td><td>11</td><td>6</td><td>4</td><td>1</td><td>19</td>
+<td>15</td><td>703</td><td>632</td><td>17</td><td>5</td><td>1</td><td>0</td><td>4</td></tr>
+</table>"""
+
+    def test_maps_columns_by_header_name(self):
+        row = StandingsParser(MagicMock()).parse_content(self.HTML)['standings'][0]
+        self.assertEqual(row['position'], 3)
+        self.assertEqual(row['played'], 11)
+        self.assertEqual(row['won'], 6)
+        self.assertEqual(row['lost'], 4)  # no la columna NP
+        self.assertEqual(row['total_points'], 17)
+        # G3 agrupa 3-0 y 3-1; P0 agrupa 0-3 y 1-3
+        self.assertEqual(row['wins_3_0'], 5)
+        self.assertEqual(row['wins_3_2'], 1)
+        self.assertEqual(row['losses_2_3'], 0)
+        self.assertEqual(row['losses_0_3'], 4)
+        self.assertNotIn('wins_3_1', row)
 
 
 # ---------------------------------------------------------------------------
