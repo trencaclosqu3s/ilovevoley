@@ -23,7 +23,18 @@ logger = logging.getLogger(__name__)
 
 class StandingsParser(BaseParser):
     """Parser para tablas de clasificación"""
-    
+
+    # Por nombre de cabecera: el orden varía entre ligas (`PG NP PP` / `PG PP NP`).
+    # G3 agrupa 3-0 y 3-1 y P0 agrupa 0-3 y 1-3 (PT = 3·G3 + 2·G2 + P1), así que
+    # van a wins_3_0 / losses_0_3; update_standings rehace el desglose desde los
+    # partidos cuando los hay. NP (no presentados) no se guarda: el modelo no lo tiene.
+    COLUMNS = {
+        'PJ': 'played', 'PG': 'won', 'PP': 'lost',
+        'JF': 'sets_for', 'JC': 'sets_against',
+        'TF': 'points_for', 'TC': 'points_against', 'PT': 'total_points',
+        'G3': 'wins_3_0', 'G2': 'wins_3_2', 'P1': 'losses_2_3', 'P0': 'losses_0_3',
+    }
+
     def parse_content(self, content: str) -> Dict[str, Any]:
         """Parsea una tabla HTML de clasificación"""
         soup = BeautifulSoup(content, 'html.parser')
@@ -36,62 +47,35 @@ class StandingsParser(BaseParser):
         
         teams = []
         standings = []
-        
-        rows = table.find_all('tr')[1:]  # Saltar header
-        
-        for row in rows:
+
+        rows = table.find_all('tr')
+        if not rows:
+            return {'teams': teams, 'standings': standings}
+        headers = [th.get_text(strip=True) for th in rows[0].find_all(['th', 'td'])]
+
+        for row in rows[1:]:
             cells = row.find_all('td')
-            if len(cells) < 10:
+            if len(cells) < 2:
                 continue
-                
+
             try:
-                # Extraer datos básicos
                 position = int(cells[0].get_text(strip=True).replace('.', ''))
                 team_name = cells[1].get_text(strip=True)
-                
-                # Extraer estadísticas (adaptando a la estructura real)
-                played = int(cells[2].get_text(strip=True) or 0)
-                won = int(cells[3].get_text(strip=True) or 0)
-                drawn = int(cells[4].get_text(strip=True) or 0)  # NP (null points?)
-                lost = int(cells[5].get_text(strip=True) or 0)
-                sets_for = int(cells[6].get_text(strip=True) or 0)
-                sets_against = int(cells[7].get_text(strip=True) or 0)
-                points_for = int(cells[8].get_text(strip=True) or 0)
-                points_against = int(cells[9].get_text(strip=True) or 0)
-                total_points = int(cells[10].get_text(strip=True) or 0)
-                
-                # Columnas adicionales si existen
-                wins_3_0 = int(cells[11].get_text(strip=True) or 0) if len(cells) > 11 else 0
-                wins_3_1 = int(cells[12].get_text(strip=True) or 0) if len(cells) > 12 else 0
-                losses_2_3 = int(cells[13].get_text(strip=True) or 0) if len(cells) > 13 else 0
-                losses_0_3 = int(cells[14].get_text(strip=True) or 0) if len(cells) > 14 else 0
-                
-                teams.append({
-                    'name': team_name,
-                    'federation_id': f"{self.league.federation_id}_{team_name.replace(' ', '_').lower()}"
-                })
-                
-                standings.append({
-                    'team_name': team_name,
-                    'position': position,
-                    'played': played,
-                    'won': won,
-                    'lost': lost,
-                    'sets_for': sets_for,
-                    'sets_against': sets_against,
-                    'points_for': points_for,
-                    'points_against': points_against,
-                    'total_points': total_points,
-                    'wins_3_0': wins_3_0,
-                    'wins_3_1': wins_3_1,
-                    'losses_2_3': losses_2_3,
-                    'losses_0_3': losses_0_3,
-                })
-                
-            except (ValueError, IndexError) as e:
+                stats = {
+                    self.COLUMNS[header]: int(cell.get_text(strip=True) or 0)
+                    for header, cell in zip(headers, cells)
+                    if header in self.COLUMNS
+                }
+            except ValueError as e:
                 logger.warning(f"Error parsing row: {e}")
                 continue
-        
+
+            teams.append({
+                'name': team_name,
+                'federation_id': f"{self.league.federation_id}_{team_name.replace(' ', '_').lower()}"
+            })
+            standings.append({'team_name': team_name, 'position': position, **stats})
+
         return {'teams': teams, 'standings': standings}
 
 
