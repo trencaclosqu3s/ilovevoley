@@ -5,41 +5,41 @@
 
 {% block content %}
 <div class="max-w-3xl mx-auto">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 border-t-4 border-csj-purple dark:border-csj-purple-dark flex items-center gap-4">
+    <div class="bg-surface rounded-3xl border border-line p-6 mb-6 flex items-center gap-4">
         {% if person.photo %}
             <img src="{{ person.photo.url }}" alt="{{ person.full_name }}" class="w-16 h-16 rounded-full object-cover">
         {% endif %}
         <div class="flex-1">
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">{{ person.full_name }}</h1>
+            <h1 class="text-2xl font-bold text-ink">{{ person.full_name }}</h1>
         </div>
         {% if in_current_tenant %}
-            <a href="{% url 'rosters:person_detail' person.id %}" class="text-sm font-semibold text-csj-purple dark:text-csj-yellow hover:underline">{% trans "Ver ficha completa" %}</a>
+            <a href="{% url 'rosters:person_detail' person.id %}" class="text-sm font-semibold text-brand-text hover:underline">{% trans "Ver ficha completa" %}</a>
         {% endif %}
     </div>
 
     {% for entry in seasons %}
-        <section class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 mb-4">
-            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">{% blocktrans with season=entry.season %}Temporada {{ season }}{% endblocktrans %}</h2>
+        <section class="bg-surface rounded-[20px] border border-line p-5 mb-4">
+            <h2 class="text-lg font-bold text-ink mb-3">{% blocktrans with season=entry.season %}Temporada {{ season }}{% endblocktrans %}</h2>
             <ul class="space-y-2">
                 {% for role in entry.player_roles %}
-                    <li class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 {% if not role.is_active %}opacity-60{% endif %}">
-                        <span class="font-semibold text-gray-800 dark:text-gray-100">{{ role.team.name }}</span>
-                        {% if role.jersey_number %}<span class="ml-2 text-sm font-bold text-csj-purple dark:text-csj-yellow">#{{ role.jersey_number }}</span>{% endif %}
-                        {% if role.position %}<span class="ml-2 text-xs text-gray-600 dark:text-gray-300">{{ role.display_position }}</span>{% endif %}
-                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ role.team.club|default_if_none:"" }}{% if role.team.category %} · {{ role.team.category.name }}{% endif %}</p>
+                    <li class="bg-tint rounded-lg p-3 {% if not role.is_active %}opacity-60{% endif %}">
+                        <span class="font-semibold text-ink">{{ role.team.name }}</span>
+                        {% if role.jersey_number %}<span class="ml-2 text-sm font-bold text-brand-text">#{{ role.jersey_number }}</span>{% endif %}
+                        {% if role.position %}<span class="ml-2 text-xs text-muted">{{ role.display_position }}</span>{% endif %}
+                        <p class="text-sm text-muted">{{ role.team.club|default_if_none:"" }}{% if role.team.category %} · {{ role.team.category.name }}{% endif %}</p>
                     </li>
                 {% endfor %}
                 {% for role in entry.staff_roles %}
-                    <li class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 {% if not role.is_active %}opacity-60{% endif %}">
-                        <span class="font-semibold text-gray-800 dark:text-gray-100">{{ role.team.name }}</span>
-                        <span class="ml-2 text-xs text-gray-600 dark:text-gray-300">{{ role.get_role_display }}</span>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ role.team.club|default_if_none:"" }}{% if role.team.category %} · {{ role.team.category.name }}{% endif %}</p>
+                    <li class="bg-tint rounded-lg p-3 {% if not role.is_active %}opacity-60{% endif %}">
+                        <span class="font-semibold text-ink">{{ role.team.name }}</span>
+                        <span class="ml-2 text-xs text-muted">{{ role.get_role_display }}</span>
+                        <p class="text-sm text-muted">{{ role.team.club|default_if_none:"" }}{% if role.team.category %} · {{ role.team.category.name }}{% endif %}</p>
                     </li>
                 {% endfor %}
             </ul>
         </section>
     {% empty %}
-        <p class="text-center text-gray-500 dark:text-gray-400 py-8 italic">{% trans "Todavía no tienes roles registrados" %}</p>
+        <p class="text-center text-muted py-8 italic">{% trans "Todavía no tienes roles registrados" %}</p>
     {% endfor %}
 </div>
 {% endblock %}

@@ -5,13 +5,13 @@
 
 {% block content %}
 <div class="w-full max-w-lg">
-    <div class="bg-white rounded-lg shadow-lg p-6 sm:p-8 border-t-4 border-red-500">
+    <div class="bg-surface rounded-lg shadow-lg p-6 sm:p-8 border-t-4 border-red-500">
         <div class="text-center mb-6">
             <div class="text-6xl mb-4">🚪</div>
-            <h1 class="text-2xl font-bold text-gray-800 mb-2">
+            <h1 class="text-2xl font-bold text-ink mb-2">
                 {% trans "Desactivar cuenta" %}
             </h1>
-            <p class="text-sm text-gray-600">
+            <p class="text-sm text-muted">
                 {% blocktrans with username=target_user.username %}Hola <strong>{{ username }}</strong>, hemos recibido tu solicitud para dar de baja tu cuenta.{% endblocktrans %}
             </p>
         </div>
@@ -26,7 +26,7 @@
                 </ul>
             </div>
             
-            <p class="text-sm text-gray-600 text-center">
+            <p class="text-sm text-muted text-center">
                 {% trans "¿Seguro que deseas continuar? Esta acción desactivará tu cuenta inmediatamente." %}
             </p>
         </div>
@@ -36,7 +36,7 @@
             <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition touch-manipulation">
                 {% trans "Sí, desactivar mi cuenta" %}
             </button>
-            <a href="{% url 'account_login' %}" class="block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg font-medium transition touch-manipulation">
+            <a href="{% url 'account_login' %}" class="block w-full text-center bg-tint hover:opacity-80 text-muted px-4 py-3 rounded-lg font-medium transition touch-manipulation">
                 {% trans "Cancelar y mantener mi cuenta activa" %}
             </a>
         </form>

@@ -26,9 +26,9 @@
                 <p class="text-lg">{{ message }}</p>
                 
                 {% if user %}
-                    <div class="mt-4 p-4 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-800">
-                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">{% trans "Detalles del Usuario:" %}</h3>
-                        <ul class="text-gray-700 dark:text-gray-300">
+                    <div class="mt-4 p-4 bg-surface rounded border border-green-200 dark:border-green-800">
+                        <h3 class="font-semibold text-ink mb-2">{% trans "Detalles del Usuario:" %}</h3>
+                        <ul class="text-ink">
                             <li><strong>{% trans "Usuario:" %}</strong> {{ user.username }}</li>
                             <li><strong>{% trans "Email:" %}</strong> {{ user.email|default:not_provided }}</li>
                             <li><strong>{% trans "Nombre:" %}</strong> {{ user.get_full_name|default:not_provided }}</li>
@@ -37,18 +37,18 @@
                 {% endif %}
                 
                 {% if image %}
-                    <div class="mt-4 p-4 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-800">
-                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">{% trans "Detalles de la Imagen:" %}</h3>
-                        <ul class="text-gray-700 dark:text-gray-300 mb-3">
+                    <div class="mt-4 p-4 bg-surface rounded border border-green-200 dark:border-green-800">
+                        <h3 class="font-semibold text-ink mb-2">{% trans "Detalles de la Imagen:" %}</h3>
+                        <ul class="text-ink mb-3">
                             <li><strong>{% trans "Título:" %}</strong> {{ image.title }}</li>
                             <li><strong>{% trans "Subida por:" %}</strong> {{ image.uploaded_by.username }}</li>
                             <li><strong>{% trans "Tipo:" %}</strong> {{ image.get_image_type_display }}</li>
                         </ul>
                         {% if image_data_uri %}
                             <img src="{{ image_data_uri }}" alt="{{ image.title }}" 
-                                 class="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 shadow-sm">
+                                 class="max-w-full h-auto rounded border border-line shadow-sm">
                         {% elif image.image %}
-                            {% include 'content/_thumbnail.html' with image=image css_class="max-w-full h-auto rounded border border-gray-300 dark:border-gray-600 shadow-sm" sizes="(min-width: 768px) 720px, 100vw" loading="eager" %}
+                            {% include 'content/_thumbnail.html' with image=image css_class="max-w-full h-auto rounded border border-line shadow-sm" sizes="(min-width: 768px) 720px, 100vw" loading="eager" %}
                         {% endif %}
                     </div>
                 {% endif %}
@@ -74,7 +74,7 @@
             </a>
             
             {% if user.is_superuser %}
-                <a href="/admin/" class="inline-block bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition duration-300 shadow ml-4">
+                <a href="/admin/" class="inline-block bg-tint text-ink text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition duration-300 shadow ml-4">
                     {% trans "🔧 Ir al Admin" %}
                 </a>
             {% endif %}

@@ -1,27 +1,27 @@
 {% load i18n %}{% if user.is_authenticated and not preferred_categories %}
-<div id="category-preferences-banner" class="bg-gradient-to-r from-purple-100 to-yellow-100 dark:from-purple-900/30 dark:to-yellow-900/30 border-l-4 border-csj-purple dark:border-csj-purple-dark rounded-lg p-4 mb-6 shadow-md">
+<div id="category-preferences-banner" class="bg-gradient-to-r from-purple-100 to-yellow-100 dark:from-purple-900/30 dark:to-yellow-900/30 border-l-4 border-csj-purple dark:border-csj-purple-dark rounded-lg p-4 mb-6">
     <div class="flex items-start">
         <div class="flex-shrink-0">
-            <svg class="h-6 w-6 text-csj-purple dark:text-csj-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="h-6 w-6 text-brand-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
         </div>
         <div class="ml-3 flex-1">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+            <h3 class="text-sm font-semibold text-ink mb-1">
                 {% trans "📌 Personaliza tu experiencia" %}
             </h3>
-            <p class="text-sm text-gray-700 dark:text-gray-300 mb-3">
+            <p class="text-sm text-ink mb-3">
                 {% trans "No has seleccionado tus categorías de interés. Configura tus preferencias para ver solo el contenido que te interesa (infantil, cadete, juvenil, etc.)." %}
             </p>
             <div class="flex flex-wrap gap-2">
-                <a href="{% url 'profile_edit' %}" class="inline-flex items-center px-4 py-2 bg-csj-purple hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition">
+                <a href="{% url 'profile_edit' %}" class="inline-flex items-center px-4 py-2 bg-csj-purple-dark hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
                     {% trans "Configurar Ahora" %}
                 </a>
-                <button data-action="dismiss-closest" data-dismiss-selector="#category-preferences-banner" class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition">
+                <button data-action="dismiss-closest" data-dismiss-selector="#category-preferences-banner" class="inline-flex items-center px-4 py-2 bg-surface hover:bg-tint text-ink text-sm font-medium rounded-lg border border-line transition">
                     {% trans "Ahora no" %}
                 </button>
             </div>

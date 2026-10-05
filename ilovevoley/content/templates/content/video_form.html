@@ -5,15 +5,15 @@
 
 {% block content %}
 <div class="max-w-2xl mx-auto">
-    <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">{% trans "Añadir Nuevo Vídeo" %}</h2>
+    <h2 class="text-2xl sm:text-3xl font-bold text-ink mb-6">{% trans "Añadir Nuevo Vídeo" %}</h2>
     
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+    <div class="bg-surface rounded-[20px] border border-line p-4 sm:p-6">
         <form method="post" class="space-y-6">
             {% csrf_token %}
             
             {% for field in form %}
                 <div>
-                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-ink mb-2">
                         {{ field.label }}
                     </label>
                     {{ field }}
@@ -21,16 +21,16 @@
                         <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>
                     {% endif %}
                     {% if field.help_text %}
-                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{{ field.help_text }}</p>
+                        <p class="mt-2 text-sm text-muted">{{ field.help_text }}</p>
                     {% endif %}
                 </div>
             {% endfor %}
             
             <div class="flex flex-col sm:flex-row gap-4 pt-4">
-                <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
+                <button type="submit" class="bg-csj-purple-dark hover:bg-csj-purple-dark text-white px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
                     {% trans "Guardar Vídeo" %}
                 </button>
-                <a href="{% url 'content:video_list' %}" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
+                <a href="{% url 'content:video_list' %}" class="bg-tint hover:opacity-80 text-ink px-6 py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation text-center">
                     {% trans "Cancelar" %}
                 </a>
             </div>

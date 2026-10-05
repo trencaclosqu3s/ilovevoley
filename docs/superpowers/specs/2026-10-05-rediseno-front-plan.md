@@ -166,7 +166,11 @@ Los colores semánticos (verde/rojo/amarillo de éxito, error, aviso) se dejan c
   La BD `videosvoley-db-1` (espejo de producción) tiene el esquema antiguo (`videos_league`, `videos_match`): usarla exigiría `migrate`
   sobre ella; no se ha tocado. Quedan emojis en títulos (📅 🏆 📋 …) a decidir en la fase 6.
 - [ ] Fase 5 (pendiente de confirmar barra inferior)
-- [ ] Fase 6
+- [x] Fase 6 (migración de clases): rosters, teams, users/profile, core (about, moderación, season_wizard), landing, socialaccount,
+  banners de preferencias, video_form/detail/bulk. **NO tocados a propósito:** `403/404/429/500/400/offline.html` y `base_auth.html`
+  (plantillas autónomas, no extienden `base.html` y no tienen los tokens: migrarlas exigiría copiar el bloque `:root`), `emails/`, admin.
+  Compilan todas; revisado visualmente solo Mi Perfil (Balears). Quedan `border-t-4` con color semántico (estadísticas de equipo, estados) y
+  el borde de color por tenant en `landing.html` (identidad de club, se mantiene). Emojis en títulos (📅 🏆 📋 …) sin sustituir.
 
 Otro agente: leer este fichero, `ilovevoley/templates/base.html` y `tailwind.config.js`, marcar aquí
 cada fase al terminarla, y no hacer commit sin pedirlo (`@time` e issue `#NNN` antes de cada commit).

@@ -2,13 +2,13 @@
 {% get_current_language as CURRENT_LANGUAGE %}
 {% get_available_languages as LANGUAGES %}
 <form action="{% url 'set_language' %}" method="post"
-      class="inline-flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-xs font-semibold"
+      class="inline-flex items-center rounded-lg border border-line overflow-hidden text-xs font-semibold"
       title="{% trans 'Idioma' %}">
     {% csrf_token %}
     <input type="hidden" name="next" value="{{ request.get_full_path }}">
     {% for code, name in LANGUAGES %}
         <button type="submit" name="language" value="{{ code }}"
-                class="min-w-[2.5rem] px-2.5 py-1.5 text-center transition{% if code == CURRENT_LANGUAGE %} bg-csj-purple text-white dark:bg-csj-purple-dark{% else %} text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}"
+                class="min-w-[2.5rem] px-2.5 py-1.5 text-center transition{% if code == CURRENT_LANGUAGE %} bg-csj-purple-dark text-white dark:bg-csj-purple-dark{% else %} text-muted hover:bg-tint{% endif %}"
                 title="{{ name }}" aria-label="{{ name }}"
                 {% if code == CURRENT_LANGUAGE %}aria-current="true"{% endif %}>{{ code|upper }}</button>
     {% endfor %}

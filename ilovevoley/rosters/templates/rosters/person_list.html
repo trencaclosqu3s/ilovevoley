@@ -169,11 +169,11 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="mb-6">
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">{% trans "👥 Personas del Club" %}</h1>
-                <p class="text-gray-600 dark:text-gray-400 mt-1">{% trans "Jugadores, entrenadores y staff" %}{% if tenant %} {% blocktrans with tenant_name=tenant.name %}de {{ tenant_name }}{% endblocktrans %}{% endif %}</p>
+                <h1 class="text-2xl sm:text-3xl font-bold text-ink">{% trans "👥 Personas del Club" %}</h1>
+                <p class="text-muted mt-1">{% trans "Jugadores, entrenadores y staff" %}{% if tenant %} {% blocktrans with tenant_name=tenant.name %}de {{ tenant_name }}{% endblocktrans %}{% endif %}</p>
             </div>
             {% if is_tenant_manager %}
-            <a href="{% url 'rosters:person_create' %}" class="bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center justify-center touch-manipulation">
+            <a href="{% url 'rosters:person_create' %}" class="bg-csj-purple-dark dark:bg-csj-purple-dark hover:opacity-90 dark:hover:opacity-90 text-white px-6 py-3 rounded-full font-semibold transition inline-flex items-center justify-center touch-manipulation">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
     <!-- Filtros -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
+    <div class="bg-surface rounded-[20px] border border-line p-4 mb-6">
         <form method="get" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <!-- Búsqueda -->
             <div>
@@ -192,12 +192,12 @@ document.addEventListener('DOMContentLoaded', function() {
                        name="search" 
                        value="{{ search }}"
                        placeholder="{% trans 'Buscar por nombre o email...' %}"
-                       class="auto-filter w-full px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white">
+                       class="auto-filter w-full px-4 py-2 border-2 border-line rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:text-white">
             </div>
             
             <!-- Tipo de rol -->
             <div>
-                <select name="role_type" class="auto-filter w-full px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white">
+                <select name="role_type" class="auto-filter w-full px-4 py-2 border-2 border-line rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:text-white">
                     <option value="">{% trans "Todos los roles" %}</option>
                     <option value="player" {% if role_type == 'player' %}selected{% endif %}>{% trans "Solo Jugadores" %}</option>
                     <option value="staff" {% if role_type == 'staff' %}selected{% endif %}>{% trans "Solo Staff" %}</option>
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             <!-- Botón limpiar -->
             <div class="flex gap-2">
-                <a href="{% url 'rosters:person_list' %}" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition">
+                <a href="{% url 'rosters:person_list' %}" class="bg-tint hover:opacity-80 text-ink px-4 py-2 rounded-full font-medium transition">
                     {% trans "Limpiar filtros" %}
                 </a>
             </div>
@@ -217,10 +217,10 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if page_obj %}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
             {% for person in page_obj %}
-                <a href="{% url 'rosters:person_detail' person.id %}" class="person-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 block flex flex-col h-80 relative">
+                <a href="{% url 'rosters:person_detail' person.id %}" class="person-card bg-surface rounded-[20px] border border-line transition-shadow p-6 block flex flex-col h-80 relative">
                     <!-- Marca visual "Tú" en la card del usuario conectado -->
                     {% if person.user == request.user %}
-                        <div class="absolute top-2 right-2 bg-csj-purple dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg z-20">
+                        <div class="absolute top-2 right-2 bg-csj-purple-dark dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg z-20">
                             {% trans "⭐ Tú" %}
                         </div>
                     {% endif %}
@@ -231,20 +231,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="flex justify-center mb-4">
                             {% if person.photo %}
                                 <img src="{{ person.photo.url }}" alt="{{ person.full_name }}" 
-                                     class="w-24 h-24 object-cover rounded-full border-4 border-csj-purple dark:border-csj-yellow">
+                                     class="w-24 h-24 object-cover rounded-full border-4 border-csj-purple">
                             {% else %}
-                                <div class="w-24 h-24 bg-gradient-to-br from-csj-purple to-csj-purple-dark rounded-full flex items-center justify-center text-white text-3xl font-bold">
+                                <div class="w-24 h-24 bg-csj-purple-dark rounded-full flex items-center justify-center text-white text-3xl font-bold">
                                     {{ person.first_name|first }}{{ person.last_name|first }}
                                 </div>
                             {% endif %}
                         </div>
                         
                         <!-- Nombre -->
-                        <h3 class="text-center text-lg font-bold text-gray-800 dark:text-gray-100 mb-2 line-clamp-2">{{ person.full_name }}</h3>
+                        <h3 class="text-center text-lg font-bold text-ink mb-2 line-clamp-2">{{ person.full_name }}</h3>
                         
                         <!-- Edad -->
                         {% if person.age %}
-                            <p class="text-center text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            <p class="text-center text-sm text-muted mb-2">
                                 {% blocktrans with age=person.age %}{{ age }} años{% endblocktrans %}
                             </p>
                         {% endif %}
@@ -278,42 +278,42 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="space-y-2">
                             {% if person.active_player_roles %}
                                 <div class="flex items-center justify-center" data-tooltip>
-                                    <span class="bg-csj-purple dark:bg-csj-purple-dark text-white px-3 py-1 rounded text-xs font-medium">
+                                    <span class="bg-csj-purple-dark dark:bg-csj-purple-dark text-white px-3 py-1 rounded text-xs font-medium">
                                         {% trans "🏐 Jugador" %}
                                     </span>
                                     <!-- Tooltip -->
-                                    <div class="tooltip absolute bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg py-2 px-3 opacity-0 transition-opacity duration-200 pointer-events-none hidden">
+                                    <div class="tooltip absolute bg-gray-900 text-white text-xs rounded-lg py-2 px-3 opacity-0 transition-opacity duration-200 pointer-events-none hidden">
                                         <div class="text-center">
                                             <div class="font-medium mb-1">{% trans "Equipos:" %}</div>
                                             {% for role in person.active_player_roles %}
                                                 <div class="text-gray-300">{{ role.team.name }}</div>
                                             {% endfor %}
                                         </div>
-                                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
+                                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
                                     </div>
                                 </div>
                             {% endif %}
                             
                             {% if person.active_staff_roles %}
                                 <div class="flex items-center justify-center" data-tooltip>
-                                    <span class="bg-csj-yellow text-gray-800 dark:text-gray-900 px-3 py-1 rounded text-xs font-medium">
+                                    <span class="bg-csj-purple-dark text-white px-3 py-1 rounded text-xs font-medium">
                                         {% trans "🎯 Staff" %}
                                     </span>
                                     <!-- Tooltip -->
-                                    <div class="tooltip absolute bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg py-2 px-3 opacity-0 transition-opacity duration-200 pointer-events-none hidden">
+                                    <div class="tooltip absolute bg-gray-900 text-white text-xs rounded-lg py-2 px-3 opacity-0 transition-opacity duration-200 pointer-events-none hidden">
                                         <div class="text-center">
                                             <div class="font-medium mb-1">{% trans "Equipos:" %}</div>
                                             {% for role in person.active_staff_roles %}
                                                 <div class="text-gray-300">{{ role.team.name }}</div>
                                             {% endfor %}
                                         </div>
-                                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
+                                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
                                     </div>
                                 </div>
                             {% endif %}
                             
                             {% if not person.active_player_roles and not person.active_staff_roles %}
-                                <p class="text-center text-xs text-gray-500 dark:text-gray-400 italic">{% trans "Sin roles activos" %}</p>
+                                <p class="text-center text-xs text-muted italic">{% trans "Sin roles activos" %}</p>
                             {% endif %}
                         </div>
                     </div>
@@ -326,46 +326,46 @@ document.addEventListener('DOMContentLoaded', function() {
             <!-- Móvil (< sm) -->
             <div class="flex justify-between items-center sm:hidden mt-8 px-2">
                 {% if page_obj.has_previous %}
-                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Anterior" %}</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-line bg-surface text-ink rounded-xl text-sm text-ink hover:bg-tint transition">{% trans "Anterior" %}</a>
                 {% else %}
-                    <span class="px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm text-gray-300 dark:text-gray-600 rounded-lg">{% trans "Anterior" %}</span>
+                    <span class="px-4 py-2 border border-line text-sm text-gray-300 rounded-lg">{% trans "Anterior" %}</span>
                 {% endif %}
-                <span class="text-xs text-gray-600 dark:text-gray-400">
+                <span class="text-xs text-muted">
                     {% blocktrans with number=page_obj.number total=page_obj.paginator.num_pages %}Pág. {{ number }}/{{ total }}{% endblocktrans %}
                 </span>
                 {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Siguiente" %}</a>
+                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-line bg-surface text-ink rounded-xl text-sm text-ink hover:bg-tint transition">{% trans "Siguiente" %}</a>
                 {% else %}
-                    <span class="px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm text-gray-300 dark:text-gray-600 rounded-lg">{% trans "Siguiente" %}</span>
+                    <span class="px-4 py-2 border border-line text-sm text-gray-300 rounded-lg">{% trans "Siguiente" %}</span>
                 {% endif %}
             </div>
 
             <!-- Escritorio (sm+) -->
             <div class="hidden sm:flex justify-center items-center space-x-2 mt-8">
                 {% if page_obj.has_previous %}
-                    <a href="?page=1{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Primera" %}</a>
-                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Anterior" %}</a>
+                    <a href="?page=1{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-line bg-surface text-ink rounded-xl text-ink hover:bg-tint transition">{% trans "Primera" %}</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-line bg-surface text-ink rounded-xl text-ink hover:bg-tint transition">{% trans "Anterior" %}</a>
                 {% endif %}
 
-                <span class="px-4 py-2 text-gray-700 dark:text-gray-300">
+                <span class="px-4 py-2 text-ink">
                     {% blocktrans with number=page_obj.number total=page_obj.paginator.num_pages %}Página {{ number }} de {{ total }}{% endblocktrans %}
                 </span>
 
                 {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Siguiente" %}</a>
-                    <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">{% trans "Última" %}</a>
+                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-line bg-surface text-ink rounded-xl text-ink hover:bg-tint transition">{% trans "Siguiente" %}</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if role_type %}&role_type={{ role_type }}{% endif %}" class="px-4 py-2 border border-line bg-surface text-ink rounded-xl text-ink hover:bg-tint transition">{% trans "Última" %}</a>
                 {% endif %}
             </div>
         {% endif %}
     {% else %}
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
-            <svg class="w-24 h-24 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+        <div class="bg-surface rounded-[20px] border border-line p-12 text-center">
+            <svg class="w-24 h-24 text-muted mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path>
             </svg>
-            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">{% trans "No se encontraron personas" %}</h3>
-            <p class="text-gray-600 dark:text-gray-400 mb-4">{% if search or role_type %}{% trans "Intenta ajustar los filtros" %}{% else %}{% trans "Aún no hay personas registradas" %}{% endif %}</p>
+            <h3 class="text-xl font-semibold text-ink mb-2">{% trans "No se encontraron personas" %}</h3>
+            <p class="text-muted mb-4">{% if search or role_type %}{% trans "Intenta ajustar los filtros" %}{% else %}{% trans "Aún no hay personas registradas" %}{% endif %}</p>
             {% if is_tenant_manager %}
-            <a href="{% url 'rosters:person_create' %}" class="inline-flex items-center bg-csj-purple dark:bg-csj-purple-dark hover:bg-csj-purple-dark dark:hover:bg-csj-purple text-white px-6 py-3 rounded-lg font-semibold transition">
+            <a href="{% url 'rosters:person_create' %}" class="inline-flex items-center bg-csj-purple-dark dark:bg-csj-purple-dark hover:opacity-90 dark:hover:opacity-90 text-white px-6 py-3 rounded-full font-semibold transition">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
