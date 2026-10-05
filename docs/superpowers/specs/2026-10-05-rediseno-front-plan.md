@@ -124,7 +124,7 @@ bg-gradient-to-br|csj-yellow|🏐` y migrar o justificar los que queden.
 | `bg-csj-purple hover:bg-csj-purple-dark dark:bg-csj-purple-dark ...` + `text-white` (botón) | `bg-csj-purple-dark hover:opacity-90 text-white rounded-full` |
 | `bg-csj-purple/10 text-csj-purple dark:bg-csj-yellow/10 ...` (chip) | `bg-tint text-brand-text` |
 | `text-purple-200` / `hover:text-csj-yellow` (sobre fondo de marca) | `text-white/80` / `hover:text-white` |
-| 🏐 | `{% include 'includes/ball_icon.html' with class='...' %}` |
+| 🏐 | `{% include '{% icon 'ball' %}' with class='...' %}` |
 
 Los colores semánticos (verde/rojo/amarillo de éxito, error, aviso) se dejan como están.
 
@@ -146,7 +146,7 @@ Los colores semánticos (verde/rojo/amarillo de éxito, error, aviso) se dejan c
   `app.css` regenerado; focus de inputs y toast info ya usan `--brand`. Pendiente: revisión visual en navegador.
 - [x] Fase 1 (verificada en navegador: escritorio/móvil, claro/oscuro, Sant Josep y Balears, con sesión): `base.html` (fondo `bg-page`, aside plano, footer `bg-csj-purple-dark` con
   esquinas 32 px, flash sin `border-l-4`), `includes/navbar.html` (sticky translúcida, disparadores en píldora, balón SVG vía
-  `includes/ball_icon.html`), `input.css` (`h1-h3` en `font-display`). Los dropdowns de la navbar siguen igual de estructura.
+  `{% icon 'ball' %}`), `input.css` (`h1-h3` en `font-display`). Los dropdowns de la navbar siguen igual de estructura.
   Verificado en navegador (escritorio, claro y oscuro) en `/core/quienes-somos/` con Sant Josep y Balears. Falta móvil, footer
   (no visto), páginas autenticadas (dropdowns) y `cookies_banner.html` (aún con borde superior antiguo).
   **Datos de prueba locales** (BD de desarrollo, no del repo): usuario `dev_preview` (sin contraseña, admin aprobado en santjosep y
@@ -191,7 +191,7 @@ cada fase al terminarla, y no hacer commit sin pedirlo (`@time` e issue `#NNN` a
 
 ## Iconos (emojis → SVG)
 
-`{% icon 'nombre' 'clases' %}` (builtin de plantillas, `core/templatetags/icons.py`; catálogo `ICONS`, y `EMOJI_TO_ICON` para migrar más).
+`{% icon 'nombre' 'clases' %}` (builtin de plantillas, `core/templatetags/icons.py`; catálogo `ICONS`; tabla emoji→icono más abajo, para migrar más).
 Tamaño `1.1em` (clase `.icon` en `input.css`), color `currentColor`. Hay un test que comprueba que todos los nombres usados en plantillas existen.
 - Migrado: textos de plantillas HTML fuera de `{% blocktrans %}`. Los `{% trans "📊 Texto" %}` pasaron a `{% icon %} {% trans "Texto" %}` y el
   `locale/ca/django.po` se actualizó (msgid sin emoji; duplicados descartados; `compilemessages` OK).
@@ -206,3 +206,9 @@ Se eliminó el arte ASCII y los emojis grandes: un icono SVG en un cuadrado tint
 `logo.svg` en "Una producción de". `static/errors/429.html` y `503.html` (nginx, sin Django ni nonce) se reescribieron como HTML plano con
 los tokens en `static/errors/errors.css`. El SW sube a `ilovevoley-pwa-v2` y precachea `logo.svg` y las dos fuentes latinas para que `/offline/`
 se vea igual sin red. Cadenas traducibles: los msgid pierden el emoji y `locale/ca` se actualizó (hay un `test_pwa_sw` que fija el nombre de la caché).
+
+### Equivalencias emoji → icono (para migrar lo que falta)
+🏐 ball · 📋 clipboard · 📅 calendar · 🏆 trophy · 🔗 link · 🎬 film · 📹 video · 📊 chart · 👥/🤝 users · 👤 user · 📝 pencil · 🎉 sparkles ·
+📸 camera · ⭐ star · ➕ plus · 🔍 search · 📍/📌 map-pin · ⚙️ cog · 🎯 target · 🥇🥈🥉 medal (con `text-yellow-500`, `text-gray-400`, `text-amber-700`) ·
+💡 bulb · 🏢/🏥 building · 👁️ eye · 📄 document · 💬/💭 chat · 🔔 bell · 📱 phone · 🚪 logout · 💤 moon · 🕒 clock · ✓ check · ✅ check-circle ·
+❌ x-circle · ✕ x · ⚠️/🚨 warning · ℹ️ info · 🔞/🚫/🛑 ban · 🏷️ tag · 🔄 refresh · 🏠 home · 🔑 key.

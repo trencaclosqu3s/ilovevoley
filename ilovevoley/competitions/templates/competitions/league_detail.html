@@ -340,7 +340,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm font-medium text-ink{% if 'SANT JOSEP' in standing.team.name %} font-bold{% endif %}">
                                         {{ standing.team.name }}
-                                        {% if 'SANT JOSEP' in standing.team.name %}{% include 'includes/ball_icon.html' with class='w-4 h-4 inline align-text-bottom' %}{% endif %}
+                                        {% if 'SANT JOSEP' in standing.team.name %}{% icon 'ball' 'w-4 h-4 inline align-text-bottom' %}{% endif %}
                                     </div>
                                 </td>
                                 <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-ink">{{ standing.played }}</td>

@@ -240,7 +240,7 @@
                                     data-call="openLightbox"
                                     data-call-prevent
                                     data-call-args='["{{ img.image.url|escapejs }}", "{{ img.title|escapejs }}", {{ img.id }}, "{{ img.description|escapejs }}", "{{ img.uploaded_by.username|escapejs }}", "{{ img.upload_date|date:'d/m/Y' }}"]'
-                                    class="block aspect-square overflow-hidden rounded-xl hover:ring-2 hover:ring-csj-purple transition-all duration-200 group">
+                                    class="block aspect-square overflow-hidden rounded-xl hover:ring-2 hover:ring-accent transition-all duration-200 group">
                                     {% include 'content/_thumbnail.html' with image=img css_class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, 33vw" %}
                                 </a>
                                 {% empty %}

@@ -20,7 +20,7 @@
                             <img src="{{ tenant.logo.url }}" alt="{{ tenant.name }}" class="h-8 w-auto dark:bg-white/90 dark:rounded-md dark:p-1">
                         </a>
                     {% else %}
-                        <a href="{{ home_url }}" class="w-10 h-10 rounded-xl bg-csj-purple-dark text-white grid place-items-center" aria-label="{{ tenant.name }}">{% include 'includes/ball_icon.html' with class='w-6 h-6' %}</a>
+                        <a href="{{ home_url }}" class="w-10 h-10 rounded-xl bg-csj-purple-dark text-white grid place-items-center" aria-label="{{ tenant.name }}">{% icon 'ball' 'w-6 h-6' %}</a>
                     {% endif %}
                     <div>
                         <a href="{{ home_url }}" class="font-display text-lg sm:text-xl font-bold tracking-tight text-brand-text whitespace-nowrap">

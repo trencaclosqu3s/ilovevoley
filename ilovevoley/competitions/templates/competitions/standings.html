@@ -200,7 +200,7 @@
                                                 {% if club_team_name in standing.team.name %}font-bold{% endif %} truncate max-w-[120px] sm:max-w-none">
                                     <span class="block sm:inline" title="{{ standing.team.name }}">{{ standing.team.name }}</span>
                                     {% if club_team_name in standing.team.name %}
-                                    <span class="ml-1 sm:ml-2 text-brand-text">{% include 'includes/ball_icon.html' with class='w-4 h-4 inline align-text-bottom' %}</span>
+                                    <span class="ml-1 sm:ml-2 text-brand-text">{% icon 'ball' 'w-4 h-4 inline align-text-bottom' %}</span>
                                     {% endif %}
                                 </div>
                             </div>

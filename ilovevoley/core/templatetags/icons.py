@@ -57,15 +57,6 @@ ICONS = {
     'heart': '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',
 }
 
-# Emoji -> nombre de icono, para quien migre plantillas nuevas.
-EMOJI_TO_ICON = {
-    '🏐': 'ball', '📋': 'clipboard', '📅': 'calendar', '🏆': 'trophy', '🔗': 'link', '🎬': 'film', '📹': 'video', '📊': 'chart',
-    '👥': 'users', '👤': 'user', '📝': 'pencil', '🎉': 'sparkles', '📸': 'camera', '⭐': 'star', '➕': 'plus', '🔍': 'search',
-    '📍': 'map-pin', '⚙️': 'cog', '🎯': 'target', '🥇': 'medal', '🥈': 'medal', '🥉': 'medal', '💡': 'bulb', '🏢': 'building',
-    '👁️': 'eye', '📄': 'document', '💬': 'chat', '💭': 'chat', '🔔': 'bell', '📱': 'phone', '🚪': 'logout', '💤': 'moon',
-    '📌': 'map-pin', '🕒': 'clock', '🤝': 'users', '✓': 'check', '✅': 'check-circle', '❌': 'x-circle', '✕': 'x', '⚠️': 'warning',
-    '⚠': 'warning', 'ℹ️': 'info', 'ℹ': 'info', '🚨': 'warning', '🔞': 'ban', '🏷️': 'tag', '🔄': 'refresh', '🏥': 'building', '🏠': 'home', '🔑': 'key', '🚫': 'ban', '🛑': 'ban',
-}
 
 
 @register.simple_tag
