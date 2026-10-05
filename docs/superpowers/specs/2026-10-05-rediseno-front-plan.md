@@ -175,7 +175,11 @@ Los colores semánticos (verde/rojo/amarillo de éxito, error, aviso) se dejan c
   (oscuro); NO revisadas con datos: `league_detail`, `match_detail`, `standings` con equipos, `league_list`, `calendar` con partidos.
   La BD `videosvoley-db-1` (espejo de producción) tiene el esquema antiguo (`videos_league`, `videos_match`): usarla exigiría `migrate`
   sobre ella; no se ha tocado. Quedan emojis en títulos (📅 🏆 📋 …) a decidir en la fase 6.
-- [ ] Fase 5 (pendiente de confirmar barra inferior)
+- [x] Fase 5: `includes/bottom_nav.html` (Vídeos, Fotos, Liga, Plantilla, Tú) incluida en `base.html`, solo `md:hidden` y para usuarios
+  autenticados; activo por `request.resolver_match` (namespace + url_name); `body` con `pb-24` para no tapar el footer. Los enlaces son
+  navegaciones normales, así que el contador de `pwa_nav.js` sigue valiendo sin cambios. Verificado en navegador a 390 px (Sóller): activo,
+  navegación y footer visible. NO probado en modo standalone real (PWA instalada) ni en iOS. Sin `viewport-fit=cover`, así que no se usa
+  `env(safe-area-inset-bottom)`; si se activa, subir el `bottom-3` de la barra. El menú hamburguesa de la navbar se mantiene para el resto.
 - [x] Fase 6 (migración de clases): rosters, teams, users/profile, core (about, moderación, season_wizard), landing, socialaccount,
   banners de preferencias, video_form/detail/bulk. **NO tocados a propósito:** `403/404/429/500/400/offline.html` y `base_auth.html`
   (plantillas autónomas, no extienden `base.html` y no tienen los tokens: migrarlas exigiría copiar el bloque `:root`), `emails/`, admin.

@@ -191,7 +191,7 @@
 </head>
 
 <body
-    class="bg-page text-ink font-sans min-h-screen flex flex-col">
+    class="bg-page text-ink font-sans min-h-screen flex flex-col {% if user.is_authenticated %}pb-24 md:pb-0{% endif %}">
     {% include 'includes/navbar.html' %}
 
     <div class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
@@ -269,6 +269,8 @@
             {% endblock sidebar %}
         </div>
     </div>
+
+    {% include 'includes/bottom_nav.html' %}
 
     <!-- Banner de Cookies -->
     {% include 'cookies_banner.html' %}
