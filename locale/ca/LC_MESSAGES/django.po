@@ -3899,8 +3899,8 @@ msgstr "Desar vídeos"
 
 #
 #: ilovevoley/content/templates/content/video_bulk_form.html:93
-msgid "💡 Recuerda: usa vídeos \"No listados\""
-msgstr "💡 Recorda: usa vídeos \"No llistats\""
+msgid "Recuerda: usa vídeos \"No listados\""
+msgstr "Recorda: usa vídeos \"No llistats\""
 
 #: ilovevoley/content/templates/content/video_bulk_form.html:94
 msgid ""
@@ -3969,13 +3969,13 @@ msgstr "Desar vídeo"
 
 #
 #: ilovevoley/content/templates/content/video_form.html:41
-msgid "💡 Cómo configurar tu vídeo de YouTube:"
-msgstr "💡 Com configurar el teu vídeo de YouTube:"
+msgid "Cómo configurar tu vídeo de YouTube:"
+msgstr "Com configurar el teu vídeo de YouTube:"
 
 #
 #: ilovevoley/content/templates/content/video_form.html:43
-msgid "⚠️ IMPORTANTE: Usa vídeos \"No listados\", NO \"Privados\""
-msgstr "⚠️ IMPORTANT: Utilitza vídeos \"No llistats\", NO \"Privats\""
+msgid "IMPORTANTE: Usa vídeos \"No listados\", NO \"Privados\""
+msgstr "IMPORTANT: Utilitza vídeos \"No llistats\", NO \"Privats\""
 
 #
 #: ilovevoley/content/templates/content/video_form.html:46
@@ -4941,11 +4941,6 @@ msgid "Piden volver"
 msgstr "Demanen tornar"
 
 #
-#: ilovevoley/core/templates/core/moderation_panel.html:83
-msgid "👥 Usuarios Pendientes"
-msgstr "👥 Usuaris Pendants"
-
-#
 #: ilovevoley/core/templates/core/moderation_panel.html:112
 msgid "👨‍👩‍👧‍👦 Información Familiar:"
 msgstr "👨‍👩‍👧‍👦 Informació Familiar:"
@@ -4995,21 +4990,9 @@ msgstr "Tipus:"
 msgid "Registro tradicional"
 msgstr "Registre tradicional"
 
-#
-#: ilovevoley/core/templates/core/moderation_panel.html:145
-#: ilovevoley/core/templates/core/moderation_panel.html:431
-msgid "✅ Aprobar"
-msgstr "✅ Aprovar"
-
-#
-#: ilovevoley/core/templates/core/moderation_panel.html:150
-#: ilovevoley/core/templates/core/moderation_panel.html:436
-msgid "❌ Rechazar"
-msgstr "❌ Rebutjar"
-
 #: ilovevoley/core/templates/core/moderation_panel.html:164
-msgid "🔄 Cuentas que piden reactivación"
-msgstr "🔄 Comptes que demanen reactivació"
+msgid "Cuentas que piden reactivación"
+msgstr "Comptes que demanen reactivació"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:194
 msgid "Último acceso:"
@@ -5025,17 +5008,17 @@ msgid "Solicitado:"
 msgstr "Sol·licitat:"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:207
-msgid "✅ Reactivar"
-msgstr "✅ Reactivar"
+msgid "Reactivar"
+msgstr "Reactivar"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:212
 #: ilovevoley/core/templates/core/moderation_panel.html:292
-msgid "❌ Descartar"
-msgstr "❌ Descartar"
+msgid "Descartar"
+msgstr "Descartar"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:226
-msgid "🏐 Convocatorias federativas por confirmar"
-msgstr "🏐 Convocatòries federatives per confirmar"
+msgid "Convocatorias federativas por confirmar"
+msgstr "Convocatòries federatives per confirmar"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:236
 #, python-format
@@ -5053,8 +5036,8 @@ msgid "Año nacimiento: %(year)s"
 msgstr "Any naixement: %(year)s"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:246
-msgid "📄 Ver PDF"
-msgstr "📄 Veure PDF"
+msgid "Ver PDF"
+msgstr "Veure PDF"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:252
 msgid "Circular:"
@@ -5099,52 +5082,32 @@ msgstr ""
 
 #
 #: ilovevoley/core/templates/core/moderation_panel.html:287
-msgid "✅ Confirmar convocatoria"
-msgstr "✅ Confirmar convocatòria"
-
-#
-#: ilovevoley/core/templates/core/moderation_panel.html:305
-msgid "📸 Imágenes Pendientes"
-msgstr "📸 Imatges Pendants"
+msgid "Confirmar convocatoria"
+msgstr "Confirmar convocatòria"
 
 #
 #: ilovevoley/core/templates/core/moderation_panel.html:316
-msgid "🔍 Click para ampliar"
-msgstr "🔍 Clica per ampliar"
-
-#
-#: ilovevoley/core/templates/core/moderation_panel.html:324
-msgid "👤 Subida por:"
-msgstr "👤 Pujada per:"
+msgid "Click para ampliar"
+msgstr "Clica per ampliar"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:340
 msgid "Subida:"
 msgstr "Pujada:"
 
 #
-#: ilovevoley/core/templates/core/moderation_panel.html:349
-msgid "🏐 Partido:"
-msgstr "🏐 Partit:"
-
-#
-#: ilovevoley/core/templates/core/moderation_panel.html:358
-msgid "📋 Estado:"
-msgstr "📋 Estat:"
-
-#
 #: ilovevoley/core/templates/core/moderation_panel.html:362
-msgid "⚠️ Moderación automática"
-msgstr "⚠️ Moderació automàtica"
+msgid "Moderación automática"
+msgstr "Moderació automàtica"
 
 #
 #: ilovevoley/core/templates/core/moderation_panel.html:368
-msgid "🚨 Posible contenido violento"
-msgstr "🚨 Possible contingut violent"
+msgid "Posible contenido violento"
+msgstr "Possible contingut violent"
 
 #
 #: ilovevoley/core/templates/core/moderation_panel.html:370
-msgid "🔞 Contenido sugerente detectado"
-msgstr "🔞 Contingut suggerent detectat"
+msgid "Contenido sugerente detectado"
+msgstr "Contingut suggerent detectat"
 
 #
 #: ilovevoley/core/templates/core/moderation_panel.html:372
@@ -5153,8 +5116,8 @@ msgstr "🎭 Possible contingut fals/spam"
 
 #
 #: ilovevoley/core/templates/core/moderation_panel.html:374
-msgid "🏥 Contenido médico detectado"
-msgstr "🏥 Contingut mèdic detectat"
+msgid "Contenido médico detectado"
+msgstr "Contingut mèdic detectat"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:376
 #, python-format
@@ -5167,8 +5130,8 @@ msgstr "Contingut marcat per a revisió manual"
 
 #
 #: ilovevoley/core/templates/core/moderation_panel.html:387
-msgid "💭 Revisión manual"
-msgstr "💭 Revisió manual"
+msgid "Revisión manual"
+msgstr "Revisió manual"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:388
 msgid "Requiere aprobación manual"
@@ -5176,22 +5139,12 @@ msgstr "Requereix aprovació manual"
 
 #
 #: ilovevoley/core/templates/core/moderation_panel.html:395
-msgid "📝 Texto detectado:"
-msgstr "📝 Text detectat:"
-
-#
-#: ilovevoley/core/templates/core/moderation_panel.html:403
-msgid "📝 Revisión manual"
-msgstr "📝 Revisió manual"
+msgid "Texto detectado:"
+msgstr "Text detectat:"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:404
 msgid "Sin análisis automático"
 msgstr "Sense anàlisi automàtica"
-
-#
-#: ilovevoley/core/templates/core/moderation_panel.html:412
-msgid "🏷️ Etiquetas:"
-msgstr "🏷️ Etiquetes:"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:415
 #, python-format
@@ -5217,8 +5170,8 @@ msgstr "No hi ha sol·licituds de pertinença pendents."
 
 #
 #: ilovevoley/core/templates/core/moderation_panel.html:453
-msgid "🏐 Volver a Videos"
-msgstr "🏐 Tornar a Vídeos"
+msgid "Volver a Videos"
+msgstr "Tornar a Vídeos"
 
 #: ilovevoley/core/templates/core/moderation_panel.html:567
 msgid "¿Confirmar esta convocatoria? Se notificará a los socios del club."
@@ -5826,8 +5779,8 @@ msgid "👨‍👩‍👧‍👦 Padres que pueden editar esta ficha"
 msgstr "👨‍👩‍👧‍👦 Pares que poden editar aquesta fitxa"
 
 #: ilovevoley/rosters/templates/rosters/person_detail.html:135
-msgid "📊 Estadísticas"
-msgstr "📊 Estadístiques"
+msgid "Estadísticas"
+msgstr "Estadístiques"
 
 #: ilovevoley/rosters/templates/rosters/person_detail.html:136
 msgid "Histórico a partir de las actas federativas"
@@ -5845,11 +5798,6 @@ msgstr "Titularitats"
 #: ilovevoley/rosters/templates/rosters/person_detail.html:167
 msgid "Sets disputados"
 msgstr "Sets disputats"
-
-#
-#: ilovevoley/rosters/templates/rosters/person_detail.html:181
-msgid "🏐 Roles de Jugador"
-msgstr "🏐 Rols de Jugador"
 
 #: ilovevoley/rosters/templates/rosters/person_detail.html:182
 msgid "Equipos donde juega"
@@ -5869,11 +5817,6 @@ msgstr "Inactiu"
 #: ilovevoley/rosters/templates/rosters/person_detail.html:244
 msgid "No tiene roles de jugador registrados"
 msgstr "No té rols de jugador registrats"
-
-#
-#: ilovevoley/rosters/templates/rosters/person_detail.html:252
-msgid "🎯 Roles de Staff"
-msgstr "🎯 Rols de Staff"
 
 #: ilovevoley/rosters/templates/rosters/person_detail.html:253
 msgid "Equipos donde forma parte del cuerpo técnico"
@@ -5952,11 +5895,6 @@ msgid "Personas del Club"
 msgstr "Persones del club"
 
 #
-#: ilovevoley/rosters/templates/rosters/person_list.html:172
-msgid "👥 Personas del Club"
-msgstr "👥 Persones del Club"
-
-#
 #: ilovevoley/rosters/templates/rosters/person_list.html:173
 msgid "Jugadores, entrenadores y staff"
 msgstr "Jugadors, entrenadors i staff"
@@ -5987,30 +5925,15 @@ msgstr "Només jugadors"
 msgid "Solo Staff"
 msgstr "Només staff"
 
-#: ilovevoley/rosters/templates/rosters/person_list.html:224
-#: ilovevoley/teams/templates/teams/team_roster.html:135
-#: ilovevoley/teams/templates/teams/team_roster.html:212
-#: ilovevoley/teams/templates/teams/team_roster.html:261
-#: ilovevoley/teams/templates/teams/team_roster.html:346
-#: ilovevoley/teams/templates/teams/team_roster.html:425
-#: ilovevoley/teams/templates/teams/team_roster.html:488
-msgid "⭐ Tú"
-msgstr "⭐ Tu"
-
 #
 #: ilovevoley/rosters/templates/rosters/person_list.html:282
-msgid "🏐 Jugador"
-msgstr "🏐 Jugador"
+msgid "Jugador"
+msgstr "Jugador"
 
 #: ilovevoley/rosters/templates/rosters/person_list.html:287
 #: ilovevoley/rosters/templates/rosters/person_list.html:305
 msgid "Equipos:"
 msgstr "Equips:"
-
-#
-#: ilovevoley/rosters/templates/rosters/person_list.html:300
-msgid "🎯 Staff"
-msgstr "🎯 Staff"
 
 #: ilovevoley/rosters/templates/rosters/person_list.html:316
 msgid "Sin roles activos"
@@ -6069,24 +5992,14 @@ msgstr "Assigna un rol a %(name)s en un equip"
 msgid "Vista General de Plantillas"
 msgstr "Vista general de plantilles"
 
-#
-#: ilovevoley/rosters/templates/rosters/roster_overview.html:16
-msgid "📋 Vista General de Plantillas"
-msgstr "📋 Vista General de Plantilles"
-
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:17
 msgid "Resumen completo de todos los equipos del club"
 msgstr "Resum complet de tots els equips del club"
 
 #
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:22
-msgid "👥 Ver Equipos"
-msgstr "👥 Veure Equips"
-
-#: ilovevoley/rosters/templates/rosters/roster_overview.html:26
-#: ilovevoley/teams/templates/teams/team_list.html:21
-msgid "⚙️ Admin"
-msgstr "⚙️ Admin"
+msgid "Ver Equipos"
+msgstr "Veure Equips"
 
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:39
 msgid "Equipos Activos"
@@ -6114,8 +6027,8 @@ msgstr "Filtrar per Temporada"
 
 #
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:133
-msgid "📊 Resumen por Categorías"
-msgstr "📊 Resum per Categories"
+msgid "Resumen por Categorías"
+msgstr "Resum per Categories"
 
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:145
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:203
@@ -6133,8 +6046,8 @@ msgstr "Staff"
 
 #
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:161
-msgid "🏐 Equipos Detallados"
-msgstr "🏐 Equips Detallats"
+msgid "Equipos Detallados"
+msgstr "Equips Detallats"
 
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:170
 #: ilovevoley/teams/admin/teams.py:31 ilovevoley/teams/admin/teams.py:55
@@ -6146,8 +6059,8 @@ msgstr "Logo"
 
 #
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:215
-msgid "👁️ Ver Plantilla Completa"
-msgstr "👁️ Veure Plantilla Completa"
+msgid "Ver Plantilla Completa"
+msgstr "Veure Plantilla Completa"
 
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:224
 msgid "Sin miembros registrados"
@@ -6177,8 +6090,8 @@ msgstr "Veure tots els equips"
 #
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:257
 #: ilovevoley/teams/templates/teams/team_list.html:197
-msgid "➕ Agregar Equipo"
-msgstr "➕ Afegir Equip"
+msgid "Agregar Equipo"
+msgstr "Afegir Equip"
 
 #
 #: ilovevoley/rosters/views.py:81
@@ -6473,28 +6386,18 @@ msgstr "Data estimada de finalització si és variant temporal"
 msgid "Equipos del Club"
 msgstr "Equips del club"
 
-#
-#: ilovevoley/teams/templates/teams/team_list.html:11
-msgid "🏐 Equipos del Club"
-msgstr "🏐 Equips del Club"
-
 #: ilovevoley/teams/templates/teams/team_list.html:12
 msgid "Gestión de plantillas y equipos"
 msgstr "Gestió de plantilles i equips"
 
 #
 #: ilovevoley/teams/templates/teams/team_list.html:17
-msgid "📋 Vista General"
-msgstr "📋 Vista General"
+msgid "Vista General"
+msgstr "Vista General"
 
 #: ilovevoley/teams/templates/teams/team_list.html:60
 msgid "Mostrar todas las categorías"
 msgstr "Mostrar totes les categories"
-
-#
-#: ilovevoley/teams/templates/teams/team_list.html:67
-msgid "🔍 Filtrar"
-msgstr "🔍 Filtrar"
 
 #: ilovevoley/teams/templates/teams/team_list.html:82
 msgid "Mostrando solo equipos de tus categorías preferidas"
@@ -6502,8 +6405,8 @@ msgstr "Mostrant només equips de les teves categories preferides"
 
 #
 #: ilovevoley/teams/templates/teams/team_list.html:156
-msgid "👥 Ver Plantilla"
-msgstr "👥 Veure Plantilla"
+msgid "Ver Plantilla"
+msgstr "Veure Plantilla"
 
 #: ilovevoley/teams/templates/teams/team_list.html:165
 msgid "Plantilla vacía"
@@ -6516,11 +6419,6 @@ msgstr "Plantilles"
 #: ilovevoley/teams/templates/teams/team_roster.html:14
 msgid "Volver a equipos"
 msgstr "Tornar a equips"
-
-#
-#: ilovevoley/teams/templates/teams/team_roster.html:48
-msgid "⚙️ Editar"
-msgstr "⚙️ Editar"
 
 #: ilovevoley/teams/templates/teams/team_roster.html:59
 msgid "Jugadores Activos"
@@ -6548,11 +6446,6 @@ msgstr "Targetes"
 msgid "Vista de lista"
 msgstr "Vista de llista"
 
-#
-#: ilovevoley/teams/templates/teams/team_roster.html:111
-msgid "👥 Jugadores"
-msgstr "👥 Jugadors"
-
 #: ilovevoley/teams/templates/teams/team_roster.html:112
 msgid "Plantilla actual del equipo"
 msgstr "Plantilla actual de l'equip"
@@ -6575,13 +6468,13 @@ msgstr "No hi ha jugadors registrats"
 
 #
 #: ilovevoley/teams/templates/teams/team_roster.html:312
-msgid "➕ Agregar Jugador"
-msgstr "➕ Afegir Jugador"
+msgid "Agregar Jugador"
+msgstr "Afegir Jugador"
 
 #
 #: ilovevoley/teams/templates/teams/team_roster.html:322
-msgid "🎯 Cuerpo Técnico"
-msgstr "🎯 Cos Tècnic"
+msgid "Cuerpo Técnico"
+msgstr "Cos Tècnic"
 
 #: ilovevoley/teams/templates/teams/team_roster.html:323
 msgid "Staff y equipo técnico"
@@ -6597,8 +6490,8 @@ msgstr "No hi ha membres del staff registrats"
 
 #
 #: ilovevoley/teams/templates/teams/team_roster.html:535
-msgid "➕ Agregar Staff"
-msgstr "➕ Afegir Staff"
+msgid "Agregar Staff"
+msgstr "Afegir Staff"
 
 #: ilovevoley/teams/templates/teams/team_roster.html:551
 msgid "Distribución por Posiciones"
@@ -6622,8 +6515,8 @@ msgid "¡Doble toque!"
 msgstr "Doble toc!"
 
 #: ilovevoley/templates/400.html:70
-msgid "La solicitud que enviaste no es válida 🤔"
-msgstr "La sol·licitud que has enviat no és vàlida 🤔"
+msgid "La solicitud que enviaste no es válida"
+msgstr "La sol·licitud que has enviat no és vàlida"
 
 #: ilovevoley/templates/400.html:76
 msgid ""
@@ -6658,8 +6551,8 @@ msgstr "Si el problema persisteix, contacta amb l'administrador"
 #: ilovevoley/templates/400.html:107 ilovevoley/templates/403.html:100
 #: ilovevoley/templates/404.html:101 ilovevoley/templates/429.html:102
 #: ilovevoley/templates/500.html:108
-msgid "🏠 Volver a Inicio"
-msgstr "🏠 Tornar a l'Inici"
+msgid "Volver a Inicio"
+msgstr "Tornar a l'Inici"
 
 #
 #: ilovevoley/templates/400.html:111
@@ -6673,10 +6566,10 @@ msgstr "Regla bàsica:"
 #: ilovevoley/templates/400.html:119
 msgid ""
 "En voleibol, cada jugador solo puede tocar el balón una vez (excepto en el "
-"bloqueo) 📖"
+"bloqueo)"
 msgstr ""
 "En voleibol, cada jugador només pot tocar la pilota una vegada (excepte en "
-"el bloqueig) 📖"
+"el bloqueig)"
 
 #
 #: ilovevoley/templates/400.html:127 ilovevoley/templates/403.html:122
@@ -6699,8 +6592,8 @@ msgid "¡Bloqueo triple!"
 msgstr "Bloqueig triple!"
 
 #: ilovevoley/templates/403.html:67
-msgid "Tu remate ha sido bloqueado en la red 🚫"
-msgstr "El teu remat ha estat bloquejat a la xarxa 🚫"
+msgid "Tu remate ha sido bloqueado en la red"
+msgstr "El teu remat ha estat bloquejat a la xarxa"
 
 #: ilovevoley/templates/403.html:73
 msgid ""
@@ -6727,18 +6620,13 @@ msgstr ""
 msgid "Si crees que deberías tener acceso, contacta con el administrador"
 msgstr "Si creus que hauries de tenir accés, contacta amb l'administrador"
 
-#
-#: ilovevoley/templates/403.html:105
-msgid "🔑 Iniciar Sesión"
-msgstr "🔑 Iniciar Sessió"
-
 #: ilovevoley/templates/403.html:113
 msgid "Consejo táctico:"
 msgstr "Consell tàctic:"
 
 #: ilovevoley/templates/403.html:114
-msgid "A veces es mejor hacer una finta que intentar pasar por la fuerza 😉"
-msgstr "A vegades és millor fer una finta que intentar passar per força 😉"
+msgid "A veces es mejor hacer una finta que intentar pasar por la fuerza"
+msgstr "A vegades és millor fer una finta que intentar passar per força"
 
 #
 #: ilovevoley/templates/404.html:7
@@ -6750,8 +6638,8 @@ msgid "¡Has fallado el saque!"
 msgstr "Has fallat el servei!"
 
 #: ilovevoley/templates/404.html:68
-msgid "La página que buscas se ha ido fuera de la cancha 🏐"
-msgstr "La pàgina que busques ha anat fora de la pista 🏐"
+msgid "La página que buscas se ha ido fuera de la cancha"
+msgstr "La pàgina que busques ha anat fora de la pista"
 
 #: ilovevoley/templates/404.html:74
 msgid ""
@@ -6786,8 +6674,8 @@ msgid "Tip del entrenador:"
 msgstr "Consell de l'entrenador:"
 
 #: ilovevoley/templates/404.html:113
-msgid "Recuerda siempre calentar antes de navegar 😉"
-msgstr "Recorda sempre escalfar abans de navegar 😉"
+msgid "Recuerda siempre calentar antes de navegar"
+msgstr "Recorda sempre escalfar abans de navegar"
 
 #: ilovevoley/templates/429.html:7
 msgid "429 - Tiempo de descanso"
@@ -6802,8 +6690,8 @@ msgid "¡Tiempo de descanso!"
 msgstr "Temps de descans!"
 
 #: ilovevoley/templates/429.html:65
-msgid "Has enviado demasiadas peticiones en muy poco tiempo 🛑"
-msgstr "Has enviat massa peticions en molt poc temps 🛑"
+msgid "Has enviado demasiadas peticiones en muy poco tiempo"
+msgstr "Has enviat massa peticions en molt poc temps"
 
 #: ilovevoley/templates/429.html:71
 msgid ""
@@ -6841,16 +6729,16 @@ msgstr ""
 
 #
 #: ilovevoley/templates/429.html:106 ilovevoley/templates/500.html:112
-msgid "🔄 Reintentar"
-msgstr "🔄 Torna-ho a provar"
+msgid "Reintentar"
+msgstr "Torna-ho a provar"
 
 #: ilovevoley/templates/429.html:114
 msgid ""
 "En voleibol, los tiempos muertos permiten reorganizar la estrategia y "
-"recuperar el aliento 🏐"
+"recuperar el aliento"
 msgstr ""
 "En voleibol, els temps morts permeten reorganitzar l'estratègia i recuperar "
-"l'alè 🏐"
+"l'alè"
 
 #
 #: ilovevoley/templates/500.html:7
@@ -6870,8 +6758,8 @@ msgid "¡El árbitro pita falta!"
 msgstr "L'àrbitre xiula falta!"
 
 #: ilovevoley/templates/500.html:71
-msgid "Hemos tocado la red en el servidor 🤦‍♂️"
-msgstr "Hem tocat la xarxa al servidor 🤦‍♂️"
+msgid "Hemos tocado la red en el servidor"
+msgstr "Hem tocat la xarxa al servidor"
 
 #: ilovevoley/templates/500.html:77
 msgid "¡Rotación incorrecta! Algo salió mal en nuestro lado de la cancha..."
@@ -6904,8 +6792,8 @@ msgid "Tiempo muerto técnico:"
 msgstr "Temps mort tècnic:"
 
 #: ilovevoley/templates/500.html:120
-msgid "El entrenador está dando indicaciones al equipo 📋"
-msgstr "L'entrenador està donant indicacions a l'equip 📋"
+msgid "El entrenador está dando indicaciones al equipo"
+msgstr "L'entrenador està donant indicacions a l'equip"
 
 #: ilovevoley/templates/account/login.html:4
 #: ilovevoley/templates/account/login.html:12
@@ -7185,10 +7073,10 @@ msgstr "Indica de quin infant ets pare/familiar per verificar el teu accés"
 #: ilovevoley/templates/account/signup.html:88
 #: ilovevoley/templates/socialaccount/signup.html:52
 msgid ""
-"ℹ️ Tu cuenta debe ser aprobada por un administrador antes de poder acceder al "
+"Tu cuenta debe ser aprobada por un administrador antes de poder acceder al "
 "contenido."
 msgstr ""
-"ℹ️ El teu compte ha de ser aprovat per un administrador abans de poder "
+"El teu compte ha de ser aprovat per un administrador abans de poder "
 "accedir al contingut."
 
 #: ilovevoley/templates/account/signup.html:115
@@ -7451,8 +7339,8 @@ msgstr ""
 
 #
 #: ilovevoley/templates/category_preferences_banner.html:11
-msgid "📌 Personaliza tu experiencia"
-msgstr "📌 Personalitza la teva experiència"
+msgid "Personaliza tu experiencia"
+msgstr "Personalitza la teva experiència"
 
 #: ilovevoley/templates/category_preferences_banner.html:14
 msgid ""
@@ -9582,8 +9470,8 @@ msgstr "🔧 Anar a l'Admin"
 
 #
 #: ilovevoley/templates/moderation_result.html:84
-msgid "ℹ️ Información"
-msgstr "ℹ️ Informació"
+msgid "Información"
+msgstr "Informació"
 
 #: ilovevoley/templates/moderation_result.html:86
 msgid ""
@@ -9627,12 +9515,8 @@ msgid "Balón fuera de cobertura"
 msgstr "Pilota fora de cobertura"
 
 #: ilovevoley/templates/offline.html:73
-msgid ""
-"Parece que estás en el vestuario subterráneo del pabellón y la señal no pasa "
-"la red 🏐"
-msgstr ""
-"Sembla que ets al vestidor subterrani del pavelló i el senyal no passa la "
-"xarxa 🏐"
+msgid "Parece que estás en el vestuario subterráneo del pabellón y la señal no pasa la red"
+msgstr "Sembla que ets al vestidor subterrani del pavelló i el senyal no passa la xarxa"
 
 #: ilovevoley/templates/offline.html:79
 msgid ""
@@ -9665,20 +9549,16 @@ msgstr ""
 
 #
 #: ilovevoley/templates/offline.html:110
-msgid "🔄 Reintentar saque"
-msgstr "🔄 Tornar a intentar el servei"
+msgid "Reintentar saque"
+msgstr "Tornar a intentar el servei"
 
 #: ilovevoley/templates/offline.html:117
 msgid "Pizarra táctica:"
 msgstr "Pissarra tàctica:"
 
 #: ilovevoley/templates/offline.html:118
-msgid ""
-"En voleibol y en la web, la mejor jugada siempre necesita una buena conexión "
-"😉"
-msgstr ""
-"En voleibol i a la web, la millor jugada sempre necessita una bona connexió "
-"😉"
+msgid "En voleibol y en la web, la mejor jugada siempre necesita una buena conexión"
+msgstr "En voleibol i a la web, la millor jugada sempre necessita una bona connexió"
 
 #: ilovevoley/templates/preference_filter_info.html:9
 msgid "Mostrando contenido de tus categorías preferidas."
@@ -9750,8 +9630,8 @@ msgstr ""
 "donar de baixa el teu compte."
 
 #: ilovevoley/templates/users/deactivate_account_confirm.html:21
-msgid "⚠️ ¿Qué implica desactivar tu cuenta?"
-msgstr "⚠️ Què implica desactivar el teu compte?"
+msgid "¿Qué implica desactivar tu cuenta?"
+msgstr "Què implica desactivar el teu compte?"
 
 #: ilovevoley/templates/users/deactivate_account_confirm.html:23
 msgid "No recibirás más avisos de inactividad ni correos del sistema."
@@ -9859,8 +9739,8 @@ msgstr "Compte pendent d'aprovació"
 
 #
 #: ilovevoley/templates/users/pending_approval.html:19
-msgid "⚠️ Información Requerida"
-msgstr "⚠️ Informació Requerida"
+msgid "Información Requerida"
+msgstr "Informació Requerida"
 
 #: ilovevoley/templates/users/pending_approval.html:21
 msgid ""
@@ -10077,11 +9957,11 @@ msgstr ""
 
 #: ilovevoley/templates/users/profile.html:233
 msgid ""
-"ℹ️ En iPhone/iPad, para recibir notificaciones añade primero la aplicación a "
+"En iPhone/iPad, para recibir notificaciones añade primero la aplicación a "
 "la pantalla de inicio (Compartir > Añadir a pantalla de inicio) y ábrela "
 "desde allí."
 msgstr ""
-"ℹ️ A l'iPhone/iPad, per rebre notificacions afegeix primer l'aplicació a la "
+"A l'iPhone/iPad, per rebre notificacions afegeix primer l'aplicació a la "
 "pantalla d'inici (Compartir > Afegir a la pantalla d'inici) i obre-la des "
 "d'allà."
 
@@ -10111,8 +9991,8 @@ msgstr "Editar perfil"
 
 #
 #: ilovevoley/templates/users/profile.html:289
-msgid "📅 Cómo suscribirte al calendario"
-msgstr "📅 Com subscriure't al calendari"
+msgid "Cómo suscribirte al calendario"
+msgstr "Com subscriure't al calendari"
 
 #
 #: ilovevoley/templates/users/profile.html:309
@@ -10208,8 +10088,8 @@ msgstr "A punt! Els esdeveniments s'actualitzaran automàticament 🎉"
 
 #
 #: ilovevoley/templates/users/profile.html:364
-msgid "⚠️ Notas importantes:"
-msgstr "⚠️ Notes importants:"
+msgid "Notas importantes:"
+msgstr "Notes importants:"
 
 #
 #: ilovevoley/templates/users/profile.html:366
@@ -10253,8 +10133,8 @@ msgstr "Com deixar de rebre partits?"
 
 #
 #: ilovevoley/templates/users/profile.html:385
-msgid "✅ Forma más fácil (Recomendada):"
-msgstr "✅ Forma més fàcil (Recomanada):"
+msgid "Forma más fácil (Recomendada):"
+msgstr "Forma més fàcil (Recomanada):"
 
 #
 #: ilovevoley/templates/users/profile.html:386
@@ -10269,8 +10149,8 @@ msgstr ""
 
 #
 #: ilovevoley/templates/users/profile.html:390
-msgid "📱 Alternativa: Borrar desde tu app de calendario"
-msgstr "📱 Alternativa: Eliminar des de la teva app de calendari"
+msgid "Alternativa: Borrar desde tu app de calendario"
+msgstr "Alternativa: Eliminar des de la teva app de calendari"
 
 #: ilovevoley/templates/users/profile.html:392
 msgid ""
@@ -10426,8 +10306,8 @@ msgid ""
 msgstr "El teu compte es va desactivar per no iniciar sessió durant un temps prolongat. Si vols tornar a fer-lo servir, pots demanar que un administrador el revisi i el reactivi."
 
 #: ilovevoley/templates/users/reactivation_request.html:25
-msgid "✅ Solicitud ya registrada"
-msgstr "✅ Sol·licitud ja registrada"
+msgid "Solicitud ya registrada"
+msgstr "Sol·licitud ja registrada"
 
 #: ilovevoley/templates/users/reactivation_request.html:26
 msgid ""

@@ -6,7 +6,7 @@
         id="album-zip-btn"
         data-zip-url="{{ download_zip_url }}"
         data-status-url-template="{% url 'content:album_zip_status' '00000000-0000-0000-0000-000000000000' %}"
-        class="inline-flex items-center px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 text-sm disabled:opacity-60 disabled:cursor-wait">
+        class="inline-flex items-center px-3 py-2 bg-tint text-ink border border-line bg-surface text-ink rounded-xl hover:opacity-80 transition-colors duration-200 text-sm disabled:opacity-60 disabled:cursor-wait">
     <i class="fas fa-file-archive mr-2" aria-hidden="true"></i>
     <span id="album-zip-btn-label">{% trans "Descargar álbum en ZIP" %}</span>
 </button>

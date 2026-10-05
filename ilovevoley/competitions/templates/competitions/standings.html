@@ -10,16 +10,16 @@
 {% block content %}
 <div class="space-y-6">
     <!-- Header -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark">
+    <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div class="flex-1 min-w-0">
-                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-2">🏆 {% trans "Clasificación" %}</h1>
-                <p class="text-sm sm:text-base text-gray-600 dark:text-gray-300">{% trans "Posiciones actuales de las ligas" %}</p>
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink mb-2">{% icon 'trophy' %} {% trans "Clasificación" %}</h1>
+                <p class="text-sm sm:text-base text-muted">{% trans "Posiciones actuales de las ligas" %}</p>
             </div>
 
             <!-- Botón de filtros (solo móvil) -->
             <button data-call="toggleFilters"
-                class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark transition touch-manipulation">
+                class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple-dark text-white rounded-full text-sm font-medium hover:opacity-90 transition touch-manipulation">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z">
@@ -27,20 +27,20 @@
                 </svg>
                 {% trans "Filtros" %}
                 <span id="activeFiltersCount"
-                    class="ml-1 hidden px-1.5 py-0.5 bg-white text-csj-purple rounded-full text-xs font-bold"></span>
+                    class="ml-1 hidden px-1.5 py-0.5 bg-surface text-csj-purple rounded-full text-xs font-bold"></span>
             </button>
         </div>
     </div>
 
     <!-- Filtros con aplicación automática -->
-    <div id="filtersSection" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 hidden lg:block">
+    <div id="filtersSection" class="bg-surface rounded-3xl border border-line p-4 sm:p-6 hidden lg:block">
         <div class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <!-- Filtro de Liga -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Liga" %}</label>
+                    <label class="block text-sm font-medium text-ink mb-1">{% trans "Liga" %}</label>
                     <select name="league"
-                        class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent text-sm sm:text-base">
+                        class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent text-sm sm:text-base">
                         <option value="">{% trans "Todas las ligas" %}</option>
                         {% for league in leagues %}
                         <option value="{{ league.id }}" {% if selected_league == league.id|stringformat:"s" %}selected{% endif %}>
@@ -52,9 +52,9 @@
 
                 <!-- Filtro de Temporada -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Temporada" %}</label>
+                    <label class="block text-sm font-medium text-ink mb-1">{% trans "Temporada" %}</label>
                     <select name="season_name"
-                        class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent text-sm sm:text-base">
+                        class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent text-sm sm:text-base">
                         <option value="">{% trans "Todas las temporadas" %}</option>
                         {% for season in seasons %}
                         <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>
@@ -69,8 +69,8 @@
             <!-- Filtro de ligas archivadas/referencia -->
             <div class="flex items-center mt-4">
                 <input type="checkbox" name="show_archived" id="show_archived" value="1" {% if show_archived %}checked{% endif %}
-                    class="auto-filter h-4 w-4 text-csj-purple dark:text-csj-yellow focus:ring-csj-purple border-gray-300 dark:border-gray-600 rounded">
-                <label for="show_archived" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                    class="auto-filter h-4 w-4 text-brand-text focus:ring-accent border-line rounded">
+                <label for="show_archived" class="ml-2 block text-sm text-ink">
                     {% trans "Mostrar ligas archivadas, de referencia o históricas" %}
                 </label>
             </div>
@@ -84,7 +84,7 @@
         {% for tab in category_tabs %}
         <a href="?category={{ tab.slug }}" id="tab-{{ tab.slug }}" role="tab" aria-controls="panel-{{ tab.slug }}" data-category-tab="{{ tab.slug }}"
            aria-selected="{% if tab.slug == active_slug %}true{% else %}false{% endif %}"
-           class="category-tab flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold touch-manipulation transition bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow hover:bg-gray-50 dark:hover:bg-gray-700 aria-selected:bg-csj-purple aria-selected:text-white">
+           class="category-tab flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold touch-manipulation transition bg-surface text-ink hover:bg-tint aria-selected:bg-csj-purple-dark aria-selected:text-white">
             {{ tab.name }}
         </a>
         {% endfor %}
@@ -92,12 +92,12 @@
     {% for tab in category_tabs %}
     <div id="panel-{{ tab.slug }}" aria-labelledby="tab-{{ tab.slug }}" data-category-panel="{{ tab.slug }}" role="tabpanel" class="space-y-6{% if tab.slug != active_slug %} hidden{% endif %}">
     {% for league_name, league_data in tab.leagues %}
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+    <div class="bg-surface rounded-[20px] border border-line overflow-hidden">
         <!-- Header de la liga -->
-        <div class="bg-gray-50 dark:bg-gray-700/50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="bg-tint px-4 sm:px-6 py-3 sm:py-4 border-b border-line">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div>
-                    <h2 class="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200">{{ league_name }}</h2>
+                    <h2 class="text-lg sm:text-xl font-bold text-ink">{{ league_name }}</h2>
                     <div class="flex flex-wrap gap-1 mt-1">
                         {% for category in league_data.league.categories.all %}
                         <span
@@ -107,7 +107,7 @@
                         {% endfor %}
                     </div>
                 </div>
-                <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                <div class="text-xs sm:text-sm text-muted">
                     {% blocktrans with season=league_data.league.season %}Temporada {{ season }}{% endblocktrans %}
                 </div>
             </div>
@@ -115,74 +115,73 @@
 
         <!-- Tabla de clasificación -->
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-700/50">
+            <table class="min-w-full divide-y divide-line">
+                <thead class="bg-tint">
                     <tr>
                         <th scope="col"
-                            class="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            class="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
                             {% trans "Pos" %}
                         </th>
                         <th scope="col"
-                            class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
                             {% trans "Equipo" %}
                         </th>
                         <th scope="col"
-                            class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">
                             {% trans "PJ" %}
                         </th>
                         <th scope="col"
-                            class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">
                             {% trans "G" %}
                         </th>
                         <th scope="col"
-                            class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">
                             {% trans "P" %}
                         </th>
                         <th scope="col"
-                            class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                            class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-muted uppercase tracking-wider hidden md:table-cell">
                             {% trans "Sets" %}
                         </th>
                         <th scope="col"
-                            class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
+                            class="px-1 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-muted uppercase tracking-wider hidden lg:table-cell">
                             {% trans "Puntos" %}
                         </th>
                         <th scope="col"
-                            class="px-2 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            class="px-2 sm:px-3 py-2 sm:py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">
                             {% trans "Pts" %}
                         </th>
                     </tr>
                 </thead>
-                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody class="bg-surface divide-y divide-line">
                     {% for standing in league_data.standings %}
-                    <tr class="
-                                    {% if club_team_name in standing.team.name %}
-                                        bg-csj-purple bg-opacity-10 dark:bg-opacity-20 border-l-4 border-csj-purple dark:border-csj-purple-dark
-                                    {% elif standing.position <= 3 %}
-                                        bg-green-50 dark:bg-green-900/30
-                                    {% elif standing.position <= 6 %}
-                                        bg-blue-50 dark:bg-blue-900/30
-                                    {% elif standing.position >= 10 %}
-                                        bg-red-50 dark:bg-red-900/30
-                                    {% else %}
-                                        hover:bg-gray-50 dark:hover:bg-gray-700
-                                    {% endif %}
-                                    transition">
+                    <tr class="{% if club_team_name in standing.team.name %}
+ bg-csj-purple bg-opacity-10 dark:bg-opacity-20 border-l-4 border-csj-purple dark:border-csj-purple-dark
+ {% elif standing.position <= 3 %}
+ bg-green-50 dark:bg-green-900/30
+ {% elif standing.position <= 6 %}
+ bg-blue-50 dark:bg-blue-900/30
+ {% elif standing.position >= 10 %}
+ bg-red-50 dark:bg-red-900/30
+ {% else %}
+ hover:bg-tint
+ {% endif %}
+ transition">
 
                         <!-- Posición -->
                         <td class="px-2 sm:px-3 py-3 sm:py-4 whitespace-nowrap">
                             <div class="flex items-center">
                                 <span class="text-xs sm:text-sm font-bold 
                                                 {% if standing.position == 1 %}text-yellow-600 dark:text-yellow-400
-                                                {% elif standing.position == 2 %}text-gray-500 dark:text-gray-400
+                                                {% elif standing.position == 2 %}text-muted
                                                 {% elif standing.position == 3 %}text-yellow-800 dark:text-yellow-200
-                                                {% else %}text-gray-900 dark:text-gray-100
+                                                {% else %}text-ink
                                                 {% endif %}">
                                     {{ standing.position }}
                                 </span>
                                 {% if standing.position <= 3 %} <span class="ml-1 text-xs sm:text-sm">
-                                    {% if standing.position == 1 %}🥇
-                                    {% elif standing.position == 2 %}🥈
-                                    {% elif standing.position == 3 %}🥉
+                                    {% if standing.position == 1 %}{% icon 'medal' 'text-yellow-500' %}
+                                    {% elif standing.position == 2 %}{% icon 'medal' 'text-gray-400' %}
+                                    {% elif standing.position == 3 %}{% icon 'medal' 'text-amber-700' %}
                                     {% endif %}
                                     </span>
                                     {% endif %}
@@ -197,11 +196,11 @@
                                     class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
                                     data-hide-on-error>
                                 {% endif %}
-                                <div class="text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100
+                                <div class="text-xs sm:text-sm font-medium text-ink
                                                 {% if club_team_name in standing.team.name %}font-bold{% endif %} truncate max-w-[120px] sm:max-w-none">
                                     <span class="block sm:inline" title="{{ standing.team.name }}">{{ standing.team.name }}</span>
                                     {% if club_team_name in standing.team.name %}
-                                    <span class="ml-1 sm:ml-2 text-csj-yellow">🏐</span>
+                                    <span class="ml-1 sm:ml-2 text-brand-text">{% icon 'ball' 'w-4 h-4 inline align-text-bottom' %}</span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -209,7 +208,7 @@
 
                         <!-- Partidos jugados -->
                         <td class="px-1 sm:px-3 py-3 sm:py-4 whitespace-nowrap text-center">
-                            <span class="text-xs sm:text-sm text-gray-900 dark:text-gray-100">{{ standing.played }}</span>
+                            <span class="text-xs sm:text-sm text-ink">{{ standing.played }}</span>
                         </td>
 
                         <!-- Ganados -->
@@ -224,9 +223,9 @@
 
                         <!-- Sets -->
                         <td class="px-1 sm:px-3 py-3 sm:py-4 whitespace-nowrap text-center hidden md:table-cell">
-                            <span class="text-xs sm:text-sm text-gray-900 dark:text-gray-100">
+                            <span class="text-xs sm:text-sm text-ink">
                                 {{ standing.sets_for }}-{{ standing.sets_against }}
-                                <span class="text-xs text-gray-500 dark:text-gray-400 block">
+                                <span class="text-xs text-muted block">
                                     ({% if standing.set_difference > 0 %}+{% endif %}{{ standing.set_difference }})
                                 </span>
                             </span>
@@ -234,9 +233,9 @@
 
                         <!-- Puntos totales del partido -->
                         <td class="px-1 sm:px-3 py-3 sm:py-4 whitespace-nowrap text-center hidden lg:table-cell">
-                            <span class="text-xs sm:text-sm text-gray-900 dark:text-gray-100">
+                            <span class="text-xs sm:text-sm text-ink">
                                 {{ standing.points_for }}-{{ standing.points_against }}
-                                <span class="text-xs text-gray-500 dark:text-gray-400 block">
+                                <span class="text-xs text-muted block">
                                     ({% if standing.point_difference > 0 %}+{% endif %}{{ standing.point_difference }})
                                 </span>
                             </span>
@@ -244,7 +243,7 @@
 
                         <!-- Puntos de clasificación -->
                         <td class="px-2 sm:px-3 py-3 sm:py-4 whitespace-nowrap text-center">
-                            <span class="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100">
+                            <span class="text-xs sm:text-sm font-bold text-ink">
                                 {{ standing.total_points }}
                             </span>
                         </td>
@@ -259,33 +258,33 @@
         {% for standing in league_data.standings %}
         {% if club_team_name in standing.team.name %}
         <div class="bg-csj-purple bg-opacity-10 dark:bg-opacity-20 p-4 border-t border-csj-purple dark:border-csj-purple-dark border-opacity-30">
-            <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                📊 {% blocktrans with team=standing.team.name %}Estadísticas detalladas de {{ team }}{% endblocktrans %}
+            <h4 class="text-sm font-semibold text-ink mb-2">
+                {% icon 'chart' %} {% blocktrans with team=standing.team.name %}Estadísticas detalladas de {{ team }}{% endblocktrans %}
             </h4>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-                <div class="bg-white dark:bg-gray-800 rounded p-2 text-center">
+                <div class="bg-surface rounded p-2 text-center">
                     <div class="font-medium text-green-600 dark:text-green-400">{{ standing.wins_3_0 }}</div>
-                    <div class="text-gray-600 dark:text-gray-300">3-0</div>
+                    <div class="text-muted">3-0</div>
                 </div>
-                <div class="bg-white dark:bg-gray-800 rounded p-2 text-center">
+                <div class="bg-surface rounded p-2 text-center">
                     <div class="font-medium text-green-500 dark:text-green-400">{{ standing.wins_3_1 }}</div>
-                    <div class="text-gray-600 dark:text-gray-300">3-1</div>
+                    <div class="text-muted">3-1</div>
                 </div>
-                <div class="bg-white dark:bg-gray-800 rounded p-2 text-center">
+                <div class="bg-surface rounded p-2 text-center">
                     <div class="font-medium text-green-400">{{ standing.wins_3_2 }}</div>
-                    <div class="text-gray-600 dark:text-gray-300">3-2</div>
+                    <div class="text-muted">3-2</div>
                 </div>
-                <div class="bg-white dark:bg-gray-800 rounded p-2 text-center">
+                <div class="bg-surface rounded p-2 text-center">
                     <div class="font-medium text-red-400">{{ standing.losses_2_3 }}</div>
-                    <div class="text-gray-600 dark:text-gray-300">2-3</div>
+                    <div class="text-muted">2-3</div>
                 </div>
-                <div class="bg-white dark:bg-gray-800 rounded p-2 text-center">
+                <div class="bg-surface rounded p-2 text-center">
                     <div class="font-medium text-red-500 dark:text-red-400">{{ standing.losses_1_3 }}</div>
-                    <div class="text-gray-600 dark:text-gray-300">1-3</div>
+                    <div class="text-muted">1-3</div>
                 </div>
-                <div class="bg-white dark:bg-gray-800 rounded p-2 text-center">
+                <div class="bg-surface rounded p-2 text-center">
                     <div class="font-medium text-red-600 dark:text-red-400">{{ standing.losses_0_3 }}</div>
-                    <div class="text-gray-600 dark:text-gray-300">0-3</div>
+                    <div class="text-muted">0-3</div>
                 </div>
             </div>
         </div>
@@ -298,34 +297,34 @@
     {% endfor %}
     {% else %}
     <!-- Estado vacío -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-12 text-center">
-        <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="bg-surface rounded-3xl border border-line p-12 text-center">
+        <svg class="mx-auto h-12 w-12 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
             </path>
         </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">{% trans "No hay clasificaciones disponibles" %}</h3>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <h3 class="mt-2 text-sm font-medium text-ink">{% trans "No hay clasificaciones disponibles" %}</h3>
+        <p class="mt-1 text-sm text-muted">
             {% trans "No se encontraron datos de clasificación para los filtros seleccionados." %}
         </p>
     </div>
     {% endif %}
 
     <!-- Enlaces rápidos -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">🔗 {% trans "Enlaces relacionados" %}</h3>
+    <div class="bg-surface rounded-3xl border border-line p-6">
+        <h3 class="text-lg font-semibold text-ink mb-4">{% icon 'link' %} {% trans "Enlaces relacionados" %}</h3>
         <div class="flex flex-wrap gap-3">
             <a href="{% url 'competitions:calendar_view' %}"
-                class="inline-flex items-center px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-semibold transition">
-                📅 {% trans "Ver calendario" %}
+                class="inline-flex items-center px-4 py-2 bg-csj-purple-dark hover:opacity-90 text-white rounded-full font-semibold transition">
+                {% icon 'calendar' %} {% trans "Ver calendario" %}
             </a>
             <a href="{% url 'competitions:league_list' %}"
-                class="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold transition">
-                📋 {% trans "Ver ligas" %}
+                class="inline-flex items-center px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-semibold transition">
+                {% icon 'clipboard' %} {% trans "Ver ligas" %}
             </a>
             <a href="{% url 'content:video_list' %}"
-                class="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold transition">
-                🎬 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Videos" %}
+                class="inline-flex items-center px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-semibold transition">
+                {% icon 'film' %} <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Videos" %}
             </a>
         </div>
     </div>

@@ -5,10 +5,10 @@
 
 {% block content %}
 <div class="w-full max-w-lg">
-    <div class="bg-white rounded-lg shadow-lg p-6 sm:p-8 border-t-4 border-gray-400">
+    <div class="bg-surface rounded-lg shadow-lg p-6 sm:p-8 border-t-4 border-line">
         <div class="text-center mb-6">
-            <div class="text-6xl mb-4">✅</div>
-            <h1 class="text-2xl font-bold text-gray-800 mb-2">
+            <div class="text-6xl mb-4">{% icon 'check-circle' %}</div>
+            <h1 class="text-2xl font-bold text-ink mb-2">
                 {% if already_deactivated %}
                     {% trans "Cuenta ya desactivada" %}
                 {% else %}
@@ -17,18 +17,18 @@
             </h1>
         </div>
 
-        <div class="space-y-4 mb-6 text-center text-sm text-gray-600">
+        <div class="space-y-4 mb-6 text-center text-sm text-muted">
             {% if already_deactivated %}
                 <p>{% blocktrans with username=target_user.username %}La cuenta <strong>{{ username }}</strong> ya se encontraba desactivada.{% endblocktrans %}</p>
             {% else %}
                 <p>{% blocktrans with username=target_user.username %}Tu cuenta <strong>{{ username }}</strong> ha sido desactivada.{% endblocktrans %}</p>
             {% endif %}
             <p>{% trans "No volverás a recibir correos ni notificaciones de nuestra plataforma." %}</p>
-            <p class="text-xs text-gray-500">{% trans "Si en el futuro deseas reactivarla o tienes alguna duda, puedes ponerte en contacto con los administradores del club." %}</p>
+            <p class="text-xs text-muted">{% trans "Si en el futuro deseas reactivarla o tienes alguna duda, puedes ponerte en contacto con los administradores del club." %}</p>
         </div>
 
         <div class="text-center">
-            <a href="/" class="inline-block bg-csj-purple hover:bg-csj-purple-dark text-white px-6 py-3 rounded-lg font-medium transition touch-manipulation">
+            <a href="/" class="inline-block bg-csj-purple-dark hover:bg-csj-purple-dark text-white px-6 py-3 rounded-lg font-medium transition touch-manipulation">
                 {% trans "Volver al inicio" %}
             </a>
         </div>

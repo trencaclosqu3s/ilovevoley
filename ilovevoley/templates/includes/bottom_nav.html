@@ -1,0 +1,36 @@
+{% load i18n %}{% if user.is_authenticated %}
+{% with ns=request.resolver_match.namespace name=request.resolver_match.url_name %}
+<nav aria-label="{% trans 'Navegación principal' %}"
+     class="md:hidden fixed inset-x-3 bottom-3 z-40 flex gap-1 p-1.5 rounded-[26px] bg-surface border border-line shadow-lg shadow-black/5">
+    <a href="{% url 'content:video_list' %}"
+       class="flex-1 min-h-[52px] rounded-[20px] flex flex-col items-center justify-center gap-0.5 text-[11px] touch-manipulation {% if ns == 'content' and 'video' in name %}bg-tint text-brand-text font-bold{% else %}text-muted font-medium{% endif %}"
+       {% if ns == 'content' and 'video' in name %}aria-current="page"{% endif %}>
+        <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9.5 5 2.5-5 2.5z"/></svg>
+        {% trans "Vídeos" %}
+    </a>
+    <a href="{% url 'content:image_gallery' %}"
+       class="flex-1 min-h-[52px] rounded-[20px] flex flex-col items-center justify-center gap-0.5 text-[11px] touch-manipulation {% if ns == 'content' and 'video' not in name %}bg-tint text-brand-text font-bold{% else %}text-muted font-medium{% endif %}"
+       {% if ns == 'content' and 'video' not in name %}aria-current="page"{% endif %}>
+        <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-8 9"/></svg>
+        {% trans "Fotos" %}
+    </a>
+    <a href="{% url 'competitions:calendar_view' %}"
+       class="flex-1 min-h-[52px] rounded-[20px] flex flex-col items-center justify-center gap-0.5 text-[11px] touch-manipulation {% if ns == 'competitions' %}bg-tint text-brand-text font-bold{% else %}text-muted font-medium{% endif %}"
+       {% if ns == 'competitions' %}aria-current="page"{% endif %}>
+        <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4v1a3 3 0 0 0 4 3M16 6h4v1a3 3 0 0 1-4 3M12 13v4M8 20h8"/></svg>
+        {% trans "Liga" %}
+    </a>
+    <a href="{% url 'rosters:roster_overview' %}"
+       class="flex-1 min-h-[52px] rounded-[20px] flex flex-col items-center justify-center gap-0.5 text-[11px] touch-manipulation {% if ns == 'rosters' and name != 'my_profile' or ns == 'teams' %}bg-tint text-brand-text font-bold{% else %}text-muted font-medium{% endif %}"
+       {% if ns == 'rosters' and name != 'my_profile' or ns == 'teams' %}aria-current="page"{% endif %}>
+        <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg>
+        {% trans "Plantilla" %}
+    </a>
+    <a href="{% url 'profile' %}"
+       class="flex-1 min-h-[52px] rounded-[20px] flex flex-col items-center justify-center gap-0.5 text-[11px] touch-manipulation {% if name == 'profile' or name == 'profile_edit' or name == 'my_profile' %}bg-tint text-brand-text font-bold{% else %}text-muted font-medium{% endif %}"
+       {% if name == 'profile' or name == 'profile_edit' or name == 'my_profile' %}aria-current="page"{% endif %}>
+        <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        {% trans "Tú" %}
+    </a>
+</nav>
+{% endwith %}{% endif %}

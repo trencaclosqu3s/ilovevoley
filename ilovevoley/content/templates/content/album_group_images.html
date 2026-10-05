@@ -5,15 +5,15 @@
 
 {% block content %}
 <div class="w-full max-w-full">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 lg:p-6 max-w-full relative z-20">
+    <div class="bg-surface rounded-[20px] border border-line p-3 sm:p-4 lg:p-6 max-w-full relative z-20">
     <!-- Cabecera del álbum -->
-    <div class="border-b border-gray-200 dark:border-gray-700 pb-3 sm:pb-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
+    <div class="border-b border-line pb-3 sm:pb-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
         <div class="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-between sm:items-start">
             <div class="flex-1 min-w-0 w-full sm:w-auto">
-                <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 break-words">
+                <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-ink mb-2 break-words">
                     <i class="fas fa-images mr-2"></i>{{ album.album_name }}
                 </h1>
-                <div class="flex flex-col space-y-1 sm:space-y-0 sm:flex-row sm:items-center text-gray-600 dark:text-gray-300 sm:space-x-3 lg:space-x-4">
+                <div class="flex flex-col space-y-1 sm:space-y-0 sm:flex-row sm:items-center text-muted sm:space-x-3 lg:space-x-4">
                     <div class="flex items-center min-w-0">
                         <i class="fas fa-calendar-alt mr-1 sm:mr-2 text-xs sm:text-sm flex-shrink-0"></i>
                         <span class="text-xs sm:text-sm lg:text-base truncate">{{ album.upload_date|date:"d/m/Y" }}</span>
@@ -33,7 +33,7 @@
                 {% if album.categories.exists %}
                     <div class="mt-2 flex flex-wrap gap-2">
                         {% for category in album.categories.all %}
-                            <span class="bg-csj-purple bg-opacity-10 dark:bg-csj-purple/20 text-csj-purple dark:text-csj-yellow px-2 py-1 rounded text-xs font-medium">
+                            <span class="bg-tint text-brand-text px-2 py-1 rounded text-xs font-medium">
                                 {{ category.name }}
                             </span>
                         {% endfor %}
@@ -44,11 +44,11 @@
             <div class="flex flex-col sm:items-end space-y-2 flex-shrink-0">
                 {% include 'content/_album_zip_button.html' with download_zip_url=download_zip_url total_images=total_images %}
                 <a href="{% url 'content:image_bulk_upload' %}?album_group_id={{ album.album_group_id }}"
-                   class="inline-flex items-center px-3 py-2 bg-csj-purple text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm">
+                   class="inline-flex items-center px-3 py-2 bg-csj-purple-dark text-white rounded-full hover:opacity-90 transition-colors duration-200 text-sm">
                     <i class="fas fa-plus mr-2"></i>{% trans "Agregar más fotos" %}
                 </a>
                 <a href="{% url 'content:image_gallery' %}"
-                   class="inline-flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 text-sm">
+                   class="inline-flex items-center px-3 py-2 bg-tint text-ink rounded-full hover:opacity-80 transition-colors duration-200 text-sm">
                     <i class="fas fa-arrow-left mr-2"></i>{% trans "Volver a la galería" %}
                 </a>
             </div>
@@ -59,16 +59,16 @@
     {% if page_obj %}
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {% for image in page_obj %}
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+                <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
                     <div class="aspect-square relative">
                         {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw" lightbox=True %}
                     </div>
                     <div class="p-2 sm:p-3">
-                        <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-1 truncate text-xs sm:text-sm">{{ image.title }}</h3>
+                        <h3 class="font-semibold text-ink mb-1 truncate text-xs sm:text-sm">{{ image.title }}</h3>
                         {% if image.description %}
-                            <p class="text-xs text-gray-600 dark:text-gray-300 truncate mb-1">{{ image.description }}</p>
+                            <p class="text-xs text-muted truncate mb-1">{{ image.description }}</p>
                         {% endif %}
-                        <div class="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                        <div class="flex justify-between items-center text-xs text-muted">
                             <span><i class="fas fa-user mr-1"></i>{{ image.uploaded_by.username }}</span>
                             <span>{{ image.upload_date|date:"d/m/Y" }}</span>
                         </div>
@@ -84,11 +84,11 @@
                     <!-- Botón anterior -->
                     {% if page_obj.has_previous %}
                         <a href="?page={{ page_obj.previous_page_number }}" 
-                           class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple dark:text-csj-yellow bg-white dark:bg-gray-800 border border-csj-purple dark:border-csj-purple-dark rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                           class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-brand-text bg-surface border border-line rounded-full hover:bg-tint transition-colors">
                             {% trans "← Anterior" %}
                         </a>
                     {% else %}
-                        <span class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md cursor-not-allowed">
+                        <span class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-muted bg-tint border border-line rounded-full cursor-not-allowed">
                             {% trans "← Anterior" %}
                         </span>
                     {% endif %}
@@ -97,13 +97,13 @@
                     {% for num in page_obj.paginator.page_range %}
                         {% if page_obj.number == num %}
                             <!-- Página actual -->
-                            <span class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-csj-purple border border-csj-purple rounded-md">
+                            <span class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-csj-purple-dark border border-csj-purple-dark rounded-full">
                                 {{ num }}
                             </span>
                         {% else %}
                             <!-- Páginas no activas -->
                             <a href="?page={{ num }}" 
-                               class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-csj-purple dark:text-csj-yellow bg-white dark:bg-gray-800 border border-csj-purple dark:border-csj-purple-dark rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                               class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-brand-text bg-surface border border-line rounded-full hover:bg-tint transition-colors">
                                 {{ num }}
                             </a>
                         {% endif %}
@@ -112,11 +112,11 @@
                     <!-- Botón siguiente -->
                     {% if page_obj.has_next %}
                         <a href="?page={{ page_obj.next_page_number }}" 
-                           class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple dark:text-csj-yellow bg-white dark:bg-gray-800 border border-csj-purple dark:border-csj-purple-dark rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                           class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-brand-text bg-surface border border-line rounded-full hover:bg-tint transition-colors">
                             {% trans "Siguiente →" %}
                         </a>
                     {% else %}
-                        <span class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md cursor-not-allowed">
+                        <span class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-muted bg-tint border border-line rounded-full cursor-not-allowed">
                             {% trans "Siguiente →" %}
                         </span>
                     {% endif %}
@@ -124,14 +124,14 @@
             </div>
             
             <!-- Info de paginación -->
-            <div class="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4 px-2">
+            <div class="text-center text-xs sm:text-sm text-muted mb-4 px-2">
                 {% blocktrans with number=page_obj.number total_pages=page_obj.paginator.num_pages total=page_obj.paginator.count %}Página {{ number }} de {{ total_pages }} ({{ total }} imágenes totales){% endblocktrans %}
             </div>
         {% endif %}
     {% else %}
         <div class="text-center py-8 sm:py-12 px-4">
-            <i class="fas fa-images text-gray-400 dark:text-gray-500 text-4xl sm:text-6xl mb-4"></i>
-            <h3 class="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{% trans "No hay imágenes en este álbum" %}</h3>
+            <i class="fas fa-images text-muted text-4xl sm:text-6xl mb-4"></i>
+            <h3 class="text-base sm:text-lg font-medium text-ink mb-2">{% trans "No hay imágenes en este álbum" %}</h3>
         </div>
     {% endif %}
     </div>

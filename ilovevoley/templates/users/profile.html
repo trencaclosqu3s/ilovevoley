@@ -8,57 +8,57 @@
 <div class="container mx-auto px-4 py-8 max-w-4xl">
     <!-- Header -->
     <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "Mi Perfil" %}</h1>
-        <p class="text-gray-600 dark:text-gray-300">{% trans "Gestiona tu información personal y preferencias" %}</p>
+        <h1 class="text-3xl font-bold text-ink mb-2">{% trans "Mi Perfil" %}</h1>
+        <p class="text-muted">{% trans "Gestiona tu información personal y preferencias" %}</p>
     </div>
 
     <!-- Información del Usuario -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-6">
-        <div class="bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to dark:brightness-75 dark:contrast-125 h-24"></div>
+    <div class="bg-surface rounded-[20px] border border-line overflow-hidden mb-6">
+        <div class="bg-csj-purple-dark dark:brightness-75 dark:contrast-125 h-24"></div>
         <div class="relative px-6 pb-6">
             <div class="flex items-center -mt-12 mb-6">
-                <div class="bg-white dark:bg-gray-800 rounded-full p-2 shadow-lg">
+                <div class="bg-surface rounded-full p-2 shadow-lg">
                     {% if user.avatar %}
                         <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="w-20 h-20 rounded-full object-cover">
                     {% else %}
-                        <div class="w-20 h-20 rounded-full bg-csj-purple flex items-center justify-center text-white text-3xl font-bold">
+                        <div class="w-20 h-20 rounded-full bg-csj-purple-dark flex items-center justify-center text-white text-3xl font-bold">
                             {{ user.username|first|upper }}
                         </div>
                     {% endif %}
                 </div>
                 <div class="ml-4 mt-12">
-                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200">{{ user.username }}</h2>
-                    <p class="text-gray-600 dark:text-gray-300">{{ user.email }}</p>
+                    <h2 class="text-2xl font-bold text-ink">{{ user.username }}</h2>
+                    <p class="text-muted">{{ user.email }}</p>
                 </div>
             </div>
 
             <!-- Información Básica -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Nombre" %}</label>
-                    <p class="text-gray-900 dark:text-gray-100">{{ user.first_name|default:no_especificado }}</p>
+                    <label class="block text-sm font-medium text-ink mb-1">{% trans "Nombre" %}</label>
+                    <p class="text-ink">{{ user.first_name|default:no_especificado }}</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Apellidos" %}</label>
-                    <p class="text-gray-900 dark:text-gray-100">{{ user.last_name|default:no_especificado }}</p>
+                    <label class="block text-sm font-medium text-ink mb-1">{% trans "Apellidos" %}</label>
+                    <p class="text-ink">{{ user.last_name|default:no_especificado }}</p>
                 </div>
             </div>
 
             <!-- Información Familiar -->
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Información Familiar" %}</label>
-                <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                <label class="block text-sm font-medium text-ink mb-1">{% trans "Información Familiar" %}</label>
+                <div class="bg-tint p-4 rounded-lg border border-line">
                     {% if user.parent_info %}
-                        <p class="text-gray-900 dark:text-gray-100">{{ user.parent_info }}</p>
+                        <p class="text-ink">{{ user.parent_info }}</p>
                     {% else %}
-                        <p class="text-gray-500 dark:text-gray-400 italic">{% trans "No especificado" %}</p>
+                        <p class="text-muted italic">{% trans "No especificado" %}</p>
                     {% endif %}
                 </div>
             </div>
 
             <!-- Estado de Aprobación -->
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{% trans "Estado de la Cuenta" %}</label>
+                <label class="block text-sm font-medium text-ink mb-2">{% trans "Estado de la Cuenta" %}</label>
                 {% if user.is_approved %}
                     <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200">
                         <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -78,25 +78,25 @@
 
             <!-- Categorías de Interés -->
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{% trans "Categorías de Interés" %}</label>
+                <label class="block text-sm font-medium text-ink mb-2">{% trans "Categorías de Interés" %}</label>
                 {% if organization_preferences %}
                     <div class="space-y-4">
                         {% for item in organization_preferences %}
-                            <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-                                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
-                                    <span>🏐</span>
+                            <div class="bg-tint p-4 rounded-lg border border-line">
+                                <h3 class="text-sm font-semibold text-ink mb-2 flex items-center gap-2">
+                                    <span>{% icon 'ball' %}</span>
                                     <span>{{ item.organization.name }}</span>
                                 </h3>
                                 {% if item.categories %}
                                     <div class="flex flex-wrap gap-2">
                                         {% for category in item.categories %}
-                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple text-white">
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple-dark text-white">
                                                 {{ category.name }}
                                             </span>
                                         {% endfor %}
                                     </div>
                                 {% else %}
-                                    <p class="text-gray-500 dark:text-gray-400 text-sm italic">{% trans "No has seleccionado categorías de interés en este club aún." %}</p>
+                                    <p class="text-muted text-sm italic">{% trans "No has seleccionado categorías de interés en este club aún." %}</p>
                                 {% endif %}
                             </div>
                         {% endfor %}
@@ -104,19 +104,19 @@
                 {% elif preferred_categories %}
                     <div class="flex flex-wrap gap-2">
                         {% for category in preferred_categories %}
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple text-white">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple-dark text-white">
                                 {{ category.name }}
                             </span>
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-gray-500 dark:text-gray-400 italic">{% trans "No has seleccionado categorías de interés aún. Edita tu perfil para seleccionarlas." %}</p>
+                    <p class="text-muted italic">{% trans "No has seleccionado categorías de interés aún. Edita tu perfil para seleccionarlas." %}</p>
                 {% endif %}
             </div>
 
             <!-- Suscripción a Calendario -->
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{% trans "Suscripción al Calendario de Partidos" %}</label>
+                <label class="block text-sm font-medium text-ink mb-2">{% trans "Suscripción al Calendario de Partidos" %}</label>
                 
                 {% if has_any_preferences or preferred_categories %}
                     <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
@@ -141,7 +141,7 @@
                                                 id="calendar-url" 
                                                 readonly 
                                                 value="{{ request.scheme }}://{{ request.get_host }}{% url 'competitions:calendar_feed' token='LOADING' %}"
-                                                class="flex-1 min-w-0 text-sm bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-800 rounded px-3 py-2 text-gray-700 dark:text-gray-200 font-mono"
+                                                class="flex-1 min-w-0 text-sm bg-surface border border-blue-300 dark:border-blue-800 rounded px-3 py-2 text-ink font-mono"
                                             >
                                             <button 
                                                 data-call="copyCalendarUrl" 
@@ -160,7 +160,7 @@
                                     <div class="flex flex-wrap gap-2">
                                         <button 
                                             data-call="showCalendarTutorial" 
-                                            class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-gray-600 text-blue-700 dark:text-blue-300 text-sm font-medium rounded transition"
+                                            class="inline-flex items-center px-4 py-2 bg-surface border border-blue-300 dark:border-blue-800 hover:bg-blue-50 text-blue-700 dark:text-blue-300 text-sm font-medium rounded transition"
                                         >
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -170,7 +170,7 @@
                                         
                                         <button 
                                             data-call="confirmRegenerateToken" 
-                                            class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-orange-300 dark:border-orange-800 hover:bg-orange-50 dark:hover:bg-gray-600 text-orange-700 dark:text-orange-300 text-sm font-medium rounded transition"
+                                            class="inline-flex items-center px-4 py-2 bg-surface border border-orange-300 dark:border-orange-800 hover:bg-orange-50 text-orange-700 dark:text-orange-300 text-sm font-medium rounded transition"
                                         >
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -213,41 +213,41 @@
 
             <!-- Notificaciones Push PWA -->
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{% trans "Notificaciones Push (PWA)" %}</label>
-                <div class="bg-purple-50 dark:bg-gray-800 border border-purple-200 dark:border-gray-700 rounded-lg p-4">
+                <label class="block text-sm font-medium text-ink mb-2">{% trans "Notificaciones Push (PWA)" %}</label>
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
                     <div class="flex items-start">
                         <div class="flex-shrink-0">
-                            <svg class="h-6 w-6 text-csj-purple dark:text-csj-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="h-6 w-6 text-brand-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
                         </div>
                         <div class="ml-3 flex-1">
                             <div class="flex items-center justify-between flex-wrap gap-2">
                                 <h3 class="text-sm font-medium text-purple-900 dark:text-purple-300">{% trans "Avisos en tiempo real en tu dispositivo" %}</h3>
-                                <span id="webpush-status-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">{% trans "Comprobando..." %}</span>
+                                <span id="webpush-status-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-tint text-ink">{% trans "Comprobando..." %}</span>
                             </div>
-                            <p class="mt-1 text-sm text-purple-700 dark:text-gray-300">
+                            <p class="mt-1 text-sm text-purple-700">
                                 {% trans "Recibe avisos inmediatos cuando finalicen partidos de tus equipos y cuando se publiquen nuevos álbumes de fotos o vídeos del club." %}
                             </p>
                             <div id="webpush-ios-hint" class="hidden mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded text-xs text-yellow-800 dark:text-yellow-200">
-                                {% trans "ℹ️ En iPhone/iPad, para recibir notificaciones añade primero la aplicación a la pantalla de inicio (Compartir > Añadir a pantalla de inicio) y ábrela desde allí." %}
+                                {% icon 'info' %} {% trans "En iPhone/iPad, para recibir notificaciones añade primero la aplicación a la pantalla de inicio (Compartir > Añadir a pantalla de inicio) y ábrela desde allí." %}
                             </div>
                             <div class="mt-4 flex gap-3">
-                                <button id="webpush-toggle-btn" data-call="toggleWebPush" class="px-4 py-2 bg-csj-purple hover:bg-purple-700 text-white text-sm font-medium rounded transition">
+                                <button id="webpush-toggle-btn" data-call="toggleWebPush" class="px-4 py-2 bg-csj-purple-dark hover:bg-purple-700 text-white text-sm font-medium rounded transition">
                                     {% trans "Activar notificaciones" %}
                                 </button>
                             </div>
                             {% if organization_preferences %}
-                                <div class="mt-4 border-t border-purple-200 dark:border-gray-700 pt-3">
+                                <div class="mt-4 border-t border-purple-200 pt-3">
                                     <h4 class="text-xs font-semibold text-purple-900 dark:text-purple-300 uppercase tracking-wider mb-2">{% trans "Avisos activos por club:" %}</h4>
                                     <div class="space-y-2">
                                         {% for item in organization_preferences %}
-                                            <div class="text-xs text-purple-800 dark:text-gray-300">
-                                                <span class="font-medium">🏐 {{ item.organization.name }}:</span>
+                                            <div class="text-xs text-purple-800">
+                                                <span class="font-medium">{% icon 'ball' %} {{ item.organization.name }}:</span>
                                                 {% if item.notification_types %}
-                                                    <span class="text-gray-600 dark:text-gray-400">{{ item.notification_types|join:", " }}</span>
+                                                    <span class="text-muted">{{ item.notification_types|join:", " }}</span>
                                                 {% else %}
-                                                    <span class="italic text-gray-500 dark:text-gray-400">{% trans "Ningún aviso activo" %}</span>
+                                                    <span class="italic text-muted">{% trans "Ningún aviso activo" %}</span>
                                                 {% endif %}
                                             </div>
                                         {% endfor %}
@@ -261,15 +261,15 @@
 
 
             <!-- Idioma -->
-            <div class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-1">{% trans "Idioma" %}</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">{% trans "Elige el idioma de la interfaz." %}</p>
+            <div class="mt-6 bg-surface rounded-[20px] border border-line p-4">
+                <h2 class="text-lg font-semibold text-ink mb-1">{% trans "Idioma" %}</h2>
+                <p class="text-sm text-muted mb-3">{% trans "Elige el idioma de la interfaz." %}</p>
                 {% include 'includes/language_selector.html' %}
             </div>
 
             <!-- Botón de Edición -->
             <div class="mt-6">
-                <a href="{% url 'profile_edit' %}" class="inline-flex items-center px-6 py-3 bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
+                <a href="{% url 'profile_edit' %}" class="inline-flex items-center px-6 py-3 bg-csj-purple-dark hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
@@ -281,14 +281,14 @@
 </div>
 
 <!-- Modal Tutorial Calendario -->
-<div id="calendar-tutorial-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
-    <div class="relative top-20 mx-auto p-5 border border-gray-200 dark:border-gray-700 w-11/12 max-w-3xl shadow-lg rounded-lg bg-white dark:bg-gray-800">
+<div id="calendar-tutorial-modal" class="fixed inset-0 bg-tint text-ink bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+    <div class="relative top-20 mx-auto p-5 border border-line w-11/12 max-w-3xl shadow-lg rounded-lg bg-surface">
         <!-- Header -->
-        <div class="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {% trans "📅 Cómo suscribirte al calendario" %}
+        <div class="flex items-center justify-between pb-4 border-b border-line">
+            <h3 class="text-2xl font-bold text-ink">
+                {% icon 'calendar' %} {% trans "Cómo suscribirte al calendario" %}
             </h3>
-            <button data-call="hideCalendarTutorial" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition">
+            <button data-call="hideCalendarTutorial" class="text-muted hover:text-ink transition">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -305,7 +305,7 @@
                     </svg>
                     Google Calendar
                 </h4>
-                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                <ol class="list-decimal list-inside space-y-2 text-sm text-ink">
                     <li>{% trans 'Copia la URL de suscripción (botón "Copiar" arriba)' %}</li>
                     <li>{% trans "Abre" %} <a href="https://calendar.google.com" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">Google Calendar</a></li>
                     <li>{% blocktrans %}En la barra lateral izquierda, busca "Otros calendarios" y haz clic en el <strong>+</strong>{% endblocktrans %}</li>
@@ -316,14 +316,14 @@
             </div>
             
             <!-- Apple Calendar -->
-            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                <h4 class="font-bold text-lg text-gray-900 dark:text-gray-100 mb-3 flex items-center">
+            <div class="bg-tint rounded-lg p-4">
+                <h4 class="font-bold text-lg text-ink mb-3 flex items-center">
                     <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                     </svg>
                     Apple Calendar (iPhone/Mac)
                 </h4>
-                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                <ol class="list-decimal list-inside space-y-2 text-sm text-ink">
                     <li>{% trans "Copia la URL de suscripción" %}</li>
                     <li>{% blocktrans %}<strong>En iPhone/iPad:</strong> Ve a Ajustes → Calendario → Cuentas → Añadir cuenta → Otra → Añadir calendario por suscripción{% endblocktrans %}</li>
                     <li>{% blocktrans %}<strong>En Mac:</strong> Abre Calendar → Archivo → Nueva suscripción a calendario{% endblocktrans %}</li>
@@ -341,7 +341,7 @@
                     </svg>
                     Outlook / Outlook.com
                 </h4>
-                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                <ol class="list-decimal list-inside space-y-2 text-sm text-ink">
                     <li>{% trans "Copia la URL de suscripción" %}</li>
                     <li>{% trans "Abre" %} <a href="https://outlook.live.com/calendar" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">Outlook Calendar</a></li>
                     <li>{% blocktrans %}Haz clic en <strong>"Agregar calendario"</strong> en la barra lateral{% endblocktrans %}</li>
@@ -361,7 +361,7 @@
                         </svg>
                     </div>
                     <div class="ml-3">
-                        <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">{% trans "⚠️ Notas importantes:" %}</h3>
+                        <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">{% icon 'warning' %} {% trans "Notas importantes:" %}</h3>
                         <ul class="mt-2 text-sm text-yellow-700 dark:text-yellow-300 list-disc list-inside space-y-1">
                             <li>{% blocktrans %}<strong>Privacidad:</strong> La URL es única y personal. No la compartas.{% endblocktrans %}</li>
                             <li>{% blocktrans %}<strong>Actualizaciones:</strong> Los calendarios se actualizan cada 12 horas aproximadamente (configurable en tu app de calendario).{% endblocktrans %}</li>
@@ -373,22 +373,22 @@
             </div>
             
             <!-- Cómo desuscribirse (opcional) -->
-            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                <h4 class="font-bold text-base text-gray-900 dark:text-gray-100 mb-3 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-tint rounded-lg p-4">
+                <h4 class="font-bold text-base text-ink mb-3 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                     {% trans "¿Cómo dejar de recibir partidos?" %}
                 </h4>
-                <div class="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+                <div class="space-y-3 text-sm text-ink">
                     <div class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded p-3">
-                        <p class="font-semibold text-green-800 dark:text-green-200 mb-1">{% trans "✅ Forma más fácil (Recomendada):" %}</p>
+                        <p class="font-semibold text-green-800 dark:text-green-200 mb-1">{% icon 'check-circle' %} {% trans "Forma más fácil (Recomendada):" %}</p>
                         <p class="text-green-700 dark:text-green-300">{% blocktrans %}Haz clic en <strong>"Regenerar URL"</strong> arriba y simplemente no vuelvas a suscribirte. La URL antigua dejará de funcionar automáticamente y tu calendario dejará de recibir actualizaciones.{% endblocktrans %}</p>
                     </div>
                     
-                    <div class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded p-3">
-                        <p class="font-semibold text-gray-800 dark:text-gray-200 mb-2">{% trans "📱 Alternativa: Borrar desde tu app de calendario" %}</p>
-                        <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600 dark:text-gray-300">
+                    <div class="bg-tint border border-line rounded p-3">
+                        <p class="font-semibold text-ink mb-2">{% icon 'phone' %} {% trans "Alternativa: Borrar desde tu app de calendario" %}</p>
+                        <ul class="list-disc list-inside space-y-1 ml-2 text-muted">
                             <li>{% blocktrans %}<strong>Google Calendar:</strong> Busca "I Love Voley - Partidos" en "Otros calendarios" → Opciones (⋮) → Darse de baja{% endblocktrans %}</li>
                             <li>{% blocktrans %}<strong>iPhone/iPad:</strong> Ajustes → Calendario → Cuentas → Busca el calendario → Eliminar cuenta{% endblocktrans %}</li>
                             <li>{% blocktrans %}<strong>Mac:</strong> Abre Calendar → Click derecho en el calendario → Cancelar suscripción{% endblocktrans %}</li>
@@ -401,7 +401,7 @@
         
         <!-- Footer -->
         <div class="mt-6 flex justify-end">
-            <button data-call="hideCalendarTutorial" class="px-6 py-2 bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
+            <button data-call="hideCalendarTutorial" class="px-6 py-2 bg-csj-purple-dark hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
                 {% trans "Entendido" %}
             </button>
         </div>

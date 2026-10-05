@@ -1,27 +1,27 @@
 {% load i18n %}<!-- Banner de Cookies -->
-<div id="cookie-banner" class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-lg border-t-4 border-csj-purple dark:border-csj-purple-dark z-50 transform translate-y-full transition-transform duration-300 ease-in-out hidden">
+<div id="cookie-banner" class="fixed bottom-0 left-0 right-0 bg-surface border-t border-line z-50 transform translate-y-full transition-transform duration-300 ease-in-out hidden">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="lg:flex lg:items-center lg:justify-between">
             <div class="lg:flex-1">
                 <div class="flex items-start space-x-3">
                     <div class="flex-shrink-0">
-                        <span class="text-2xl">🍪</span>
+                        <svg class="w-7 h-7 text-brand-text" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3a9 9 0 109 9 4 4 0 01-4-4 4 4 0 01-5-5zM9 11h.01M14 15h.01M8 15h.01"/></svg>
                     </div>
-                    <div class="text-sm text-gray-700 dark:text-gray-300">
+                    <div class="text-sm text-ink">
                         <p class="font-medium mb-1">{% trans "Esta web utiliza cookies" %}</p>
-                        <p class="text-gray-600 dark:text-gray-300">
+                        <p class="text-muted">
                             {% blocktrans trimmed %}Utilizamos cookies de sesión necesarias para el funcionamiento del sitio y cookies de Google OAuth para la autenticación. 
                             Al continuar navegando, aceptas su uso.
-                            <a href="#" id="cookie-info-link" class="text-csj-purple dark:text-csj-yellow hover:text-csj-purple-dark dark:hover:text-csj-yellow-dark underline font-medium">Más información</a>{% endblocktrans %}
+                            <a href="#" id="cookie-info-link" class="text-brand-text hover:opacity-80 underline font-medium">Más información</a>{% endblocktrans %}
                         </p>
                     </div>
                 </div>
             </div>
             <div class="mt-4 lg:mt-0 lg:ml-6 flex space-x-3">
-                <button id="cookie-accept" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-semibold transition text-sm touch-manipulation">
+                <button id="cookie-accept" class="bg-csj-purple-dark hover:opacity-90 text-white px-4 py-2 rounded-full font-semibold transition text-sm touch-manipulation">
                     {% trans "Aceptar" %}
                 </button>
-                <button id="cookie-reject" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg font-semibold transition text-sm touch-manipulation">
+                <button id="cookie-reject" class="bg-tint hover:opacity-80 text-ink px-4 py-2 rounded-full font-semibold transition text-sm touch-manipulation">
                     {% trans "Rechazar" %}
                 </button>
             </div>
@@ -32,15 +32,15 @@
 <!-- Modal de información de cookies -->
 <div id="cookie-info-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
     <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-96 overflow-y-auto">
+        <div class="bg-surface rounded-3xl max-w-2xl w-full max-h-96 overflow-y-auto">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{% trans "Información sobre cookies" %}</h3>
-                    <button id="close-cookie-modal" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-2xl font-bold">
+                    <h3 class="text-lg font-semibold text-ink">{% trans "Información sobre cookies" %}</h3>
+                    <button id="close-cookie-modal" class="text-muted hover:text-ink text-2xl font-bold">
                         ×
                     </button>
                 </div>
-                <div class="text-sm text-gray-700 dark:text-gray-300 space-y-3">
+                <div class="text-sm text-ink space-y-3">
                     <p><strong>{% trans "¿Qué son las cookies?" %}</strong></p>
                     <p>{% trans "Las cookies son pequeños archivos de texto que se almacenan en tu dispositivo cuando visitas un sitio web." %}</p>
                     
@@ -57,7 +57,7 @@
                     <p>{% trans "Puedes configurar tu navegador para rechazar cookies, aunque esto puede afectar el funcionamiento del sitio." %}</p>
                 </div>
                 <div class="mt-6 flex justify-end">
-                    <button id="close-cookie-modal-btn" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-semibold transition text-sm">
+                    <button id="close-cookie-modal-btn" class="bg-csj-purple-dark hover:opacity-90 text-white px-4 py-2 rounded-full font-semibold transition text-sm">
                         {% trans "Entendido" %}
                     </button>
                 </div>

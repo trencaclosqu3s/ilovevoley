@@ -1,40 +1,16 @@
 /* Estilos de las páginas de error estáticas servidas por nginx.
-   Extraídos del <style> inline original para cumplir la CSP sin nonce
-   (nginx no puede inyectarlo). Ver #244. */
+   Sin <style> inline para cumplir la CSP sin nonce (nginx no puede inyectarlo). Ver #244.
+   Definen los tokens de diseño en los colores corporativos: no hay tenant en estas páginas. */
 
-.ascii-art {
-    font-family: 'Courier New', monospace;
-    line-height: 1.2;
-    white-space: pre;
-    font-size: 0.65rem;
-}
-
-@media (min-width: 640px) {
-    .ascii-art {
-        font-size: 0.75rem;
-    }
-}
-
-@media (min-width: 768px) {
-    .ascii-art {
-        font-size: 0.85rem;
-    }
-}
-
-@keyframes swing-net {
-    0%, 100% { transform: rotate(-3deg); }
-    50% { transform: rotate(3deg); }
-}
-
-.net-swing {
-    animation: swing-net 2s ease-in-out infinite;
-}
-
-@keyframes pulse-clock {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
-
-.clock-pulse {
-    animation: pulse-clock 1.5s ease-in-out infinite;
+:root {
+    --brand: #01696f;
+    --brand-solid: color-mix(in oklab, var(--brand) 78%, black);
+    --accent: var(--brand-solid);
+    --bg: color-mix(in oklab, var(--brand) 5%, #fbfaf9);
+    --surface: #ffffff;
+    --line: color-mix(in oklab, var(--brand) 14%, #e7e5e4);
+    --tint: color-mix(in oklab, var(--brand) 14%, white);
+    --brand-text: var(--brand-solid);
+    --ink: #1c1917;
+    --muted: #57534e;
 }

@@ -8,8 +8,8 @@
 {% block content %}
 <div class="max-w-3xl mx-auto">
     <header class="mb-6">
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200">{% trans "Sedes y pabellones" %}</h1>
-        <p class="text-gray-500 dark:text-gray-400 mt-2">
+        <h1 class="text-2xl sm:text-3xl font-bold text-ink">{% trans "Sedes y pabellones" %}</h1>
+        <p class="text-muted mt-2">
             {% blocktrans trimmed %}Busca por equipo, club, pabellón o municipio y consulta sus próximos partidos, la sede y cómo llegar.
             Datos de la temporada en curso.{% endblocktrans %}
         </p>
@@ -21,13 +21,13 @@
             <input id="where-plays-q" type="search" name="q" value="{{ query }}"
                    placeholder="{% blocktrans with min=min_query_length %}Equipo, club, pabellón o municipio (mín. {{ min }} letras){% endblocktrans %}"
                    aria-label="{% trans "Equipo, club, pabellón o municipio" %}" autocomplete="off"
-                   class="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-4 py-3">
+                   class="flex-1 rounded-lg border border-line bg-surface text-ink px-4 py-3">
             <button type="submit"
-                    class="bg-csj-purple hover:bg-csj-purple-dark text-white font-semibold px-6 py-3 rounded-lg">
+                    class="bg-csj-purple-dark hover:bg-csj-purple-dark text-white font-semibold px-6 py-3 rounded-lg">
                 {% trans "Buscar" %}
             </button>
         </div>
-        <p id="where-plays-hint" class="hidden text-sm text-gray-500 dark:text-gray-400 mt-2">
+        <p id="where-plays-hint" class="hidden text-sm text-muted mt-2">
             {% blocktrans with min=min_query_length %}Escribe al menos {{ min }} letras para buscar.{% endblocktrans %}
         </p>
     </form>
@@ -35,18 +35,18 @@
     <div id="where-plays-results" class="space-y-4">
         {% for result in results %}
         {% if result.type == 'venue' %}
-        <article class="bg-white dark:bg-gray-800 rounded-xl shadow border-l-4 border-csj-yellow dark:border-csj-yellow p-4">
+        <article class="bg-surface rounded-xl border-l-4 border-csj-purple p-4">
             <div class="flex items-center justify-between gap-2">
-                <h2 class="text-lg font-bold text-gray-800 dark:text-gray-200">{{ result.name }}</h2>
-                <span class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{% trans "Sede" %}</span>
+                <h2 class="text-lg font-bold text-ink">{{ result.name }}</h2>
+                <span class="text-xs uppercase tracking-wide text-muted">{% trans "Sede" %}</span>
             </div>
             {% if result.city %}
-            <p class="text-sm text-gray-500 dark:text-gray-400">{{ result.city }}</p>
+            <p class="text-sm text-muted">{{ result.city }}</p>
             {% endif %}
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ result.street|default:result.address }}</p>
+            <p class="text-sm text-muted mt-1">{{ result.street|default:result.address }}</p>
             {% if result.maps_url %}
             <a href="{{ result.maps_url }}" target="_blank" rel="noopener"
-               class="inline-flex items-center text-sm font-semibold text-csj-purple dark:text-csj-yellow hover:underline mt-1">
+               class="inline-flex items-center text-sm font-semibold text-brand-text hover:underline mt-1">
                 {% trans "Cómo llegar" %}
             </a>
             {% endif %}
@@ -54,43 +54,43 @@
             {% if result.matches %}
             <ul class="mt-3 space-y-3">
                 {% for match in result.matches %}
-                <li class="border-t border-gray-200 dark:border-gray-700 pt-3">
-                    <span class="text-sm font-semibold text-csj-purple dark:text-csj-yellow">
+                <li class="border-t border-line pt-3">
+                    <span class="text-sm font-semibold text-brand-text">
                         {{ match.date }}{% if match.has_time %} · {{ match.time }}{% else %} · {% trans "hora por confirmar" %}{% endif %}
                     </span>
-                    <p class="text-gray-800 dark:text-gray-200">{{ match.home_name }} vs {{ match.away_name }}</p>
+                    <p class="text-ink">{{ match.home_name }} vs {{ match.away_name }}</p>
                 </li>
                 {% endfor %}
             </ul>
             {% endif %}
         </article>
         {% else %}
-        <article class="bg-white dark:bg-gray-800 rounded-xl shadow border-l-4 border-csj-purple dark:border-csj-purple-dark p-4">
+        <article class="bg-surface rounded-xl border-l-4 border-csj-purple dark:border-csj-purple-dark p-4">
             <div class="flex items-center justify-between gap-2">
-                <h2 class="text-lg font-bold text-gray-800 dark:text-gray-200">{{ result.team_name }}</h2>
+                <h2 class="text-lg font-bold text-ink">{{ result.team_name }}</h2>
                 {% if result.category %}
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ result.category }}</span>
+                <span class="text-xs text-muted">{{ result.category }}</span>
                 {% endif %}
             </div>
             {% if result.club_name %}
-            <p class="text-sm text-gray-500 dark:text-gray-400">{{ result.club_name }}</p>
+            <p class="text-sm text-muted">{{ result.club_name }}</p>
             {% endif %}
 
             {% if result.matches %}
             <ul class="mt-3 space-y-3">
                 {% for match in result.matches %}
-                <li class="border-t border-gray-200 dark:border-gray-700 pt-3">
+                <li class="border-t border-line pt-3">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="text-sm font-semibold text-csj-purple dark:text-csj-yellow">
+                        <span class="text-sm font-semibold text-brand-text">
                             {{ match.date }}{% if match.has_time %} · {{ match.time }}{% else %} · {% trans "hora por confirmar" %}{% endif %}
                         </span>
-                        <span class="text-xs text-gray-500 dark:text-gray-400">{% if match.is_home %}{% trans "Local" %}{% else %}{% trans "Visitante" %}{% endif %}</span>
+                        <span class="text-xs text-muted">{% if match.is_home %}{% trans "Local" %}{% else %}{% trans "Visitante" %}{% endif %}</span>
                     </div>
-                    <p class="text-gray-800 dark:text-gray-200">{{ match.home_name }} vs {{ match.away_name }}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ match.location_text }}</p>
+                    <p class="text-ink">{{ match.home_name }} vs {{ match.away_name }}</p>
+                    <p class="text-sm text-muted">{{ match.location_text }}</p>
                     {% if match.maps_url %}
                     <a href="{{ match.maps_url }}" target="_blank" rel="noopener"
-                       class="inline-flex items-center text-sm font-semibold text-csj-purple dark:text-csj-yellow hover:underline">
+                       class="inline-flex items-center text-sm font-semibold text-brand-text hover:underline">
                         {% trans "Cómo llegar" %}
                     </a>
                     {% endif %}
@@ -98,27 +98,27 @@
                 {% endfor %}
             </ul>
             {% elif result.default_venue %}
-            <div class="mt-3 border-t border-gray-200 dark:border-gray-700 pt-3">
-                <span class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{% trans "Sede habitual" %}</span>
-                <p class="text-gray-800 dark:text-gray-200 mt-1">{{ result.default_venue.name }}</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ result.default_venue.address }}</p>
+            <div class="mt-3 border-t border-line pt-3">
+                <span class="text-xs uppercase tracking-wide text-muted">{% trans "Sede habitual" %}</span>
+                <p class="text-ink mt-1">{{ result.default_venue.name }}</p>
+                <p class="text-sm text-muted">{{ result.default_venue.address }}</p>
                 {% if result.default_venue.maps_url %}
                 <a href="{{ result.default_venue.maps_url }}" target="_blank" rel="noopener"
-                   class="inline-flex items-center text-sm font-semibold text-csj-purple dark:text-csj-yellow hover:underline">
+                   class="inline-flex items-center text-sm font-semibold text-brand-text hover:underline">
                     {% trans "Cómo llegar" %}
                 </a>
                 {% endif %}
             </div>
             {% else %}
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-3">{% trans "Sin próximos partidos ni sede registrada." %}</p>
+            <p class="text-sm text-muted mt-3">{% trans "Sin próximos partidos ni sede registrada." %}</p>
             {% endif %}
         </article>
         {% endif %}
         {% empty %}
             {% if query and query|length >= min_query_length %}
-            <p class="text-center text-gray-500 dark:text-gray-400 py-6">{% blocktrans with search=query %}No se han encontrado resultados para «{{ search }}».{% endblocktrans %}</p>
+            <p class="text-center text-muted py-6">{% blocktrans with search=query %}No se han encontrado resultados para «{{ search }}».{% endblocktrans %}</p>
             {% elif not query %}
-            <p class="text-center text-gray-500 dark:text-gray-400 py-6">{% trans "Escribe el nombre de un equipo, club, pabellón o municipio." %}</p>
+            <p class="text-center text-muted py-6">{% trans "Escribe el nombre de un equipo, club, pabellón o municipio." %}</p>
             {% endif %}
         {% endfor %}
     </div>

@@ -4,9 +4,9 @@
 {% block title %}{% trans "Quiénes Somos" %} - I Love Voley{% endblock %}
 
 {% block content %}
-<div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+<div class="bg-surface rounded-[20px] border border-line overflow-hidden">
     <!-- Hero Section -->
-    <div class="bg-gradient-to-r from-csj-purple to-csj-purple-dark text-white px-6 py-12 sm:px-8 sm:py-16">
+    <div class="bg-csj-purple-dark text-white px-6 py-12 sm:px-8 sm:py-16">
         <div class="max-w-4xl mx-auto text-center">
             <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">{% trans "Quiénes Somos" %}</h1>
             <p class="text-lg sm:text-xl text-purple-100">
@@ -19,10 +19,10 @@
     <div class="max-w-4xl mx-auto px-6 py-8 sm:px-8 sm:py-12">
         <!-- Nuestra Historia -->
         <section class="mb-12">
-            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">
+            <h2 class="text-2xl sm:text-3xl font-bold text-ink mb-6">
                 {% trans "Nuestra Historia" %}
             </h2>
-            <div class="prose prose-lg max-w-none text-gray-700 dark:text-gray-300 space-y-4">
+            <div class="prose prose-lg max-w-none text-ink space-y-4">
                 <p class="text-lg leading-relaxed">
                     {% blocktrans trimmed %}
                     Esta plataforma nace del amor por el voleibol y del deseo de compartir momentos especiales con nuestras familias.
@@ -42,18 +42,18 @@
         </section>
 
         <!-- Divider -->
-        <div class="border-t-2 border-gray-200 dark:border-gray-700 my-10"></div>
+        <div class="border-t-2 border-line my-10"></div>
 
         <!-- Nuestro Propósito -->
         <section class="mb-12">
-            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">
+            <h2 class="text-2xl sm:text-3xl font-bold text-ink mb-6">
                 {% trans "Nuestro Propósito" %}
             </h2>
-            <div class="bg-csj-yellow bg-opacity-20 rounded-lg p-6 sm:p-8 border-l-4 border-csj-yellow">
-                <p class="text-lg text-gray-800 dark:text-gray-200 leading-relaxed mb-4">
+            <div class="bg-csj-purple bg-opacity-20 rounded-full p-6 sm:p-8 border-l-4 border-csj-purple">
+                <p class="text-lg text-ink leading-relaxed mb-4">
                     {% trans "Creamos esta web para:" %}
                 </p>
-                <ul class="space-y-3 text-gray-700 dark:text-gray-300 list-disc list-inside">
+                <ul class="space-y-3 text-ink list-disc list-inside">
                     <li>
                         {% blocktrans trimmed %}<strong>Compartir los partidos</strong> que retransmitimos, para que las familias puedan verlos cuando quieran.{% endblocktrans %}
                     </li>
@@ -68,38 +68,38 @@
         </section>
 
         <!-- Divider -->
-        <div class="border-t-2 border-gray-200 dark:border-gray-700 my-10"></div>
+        <div class="border-t-2 border-line my-10"></div>
 
         <!-- Valores y Compromiso -->
         <section class="mb-12">
-            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">
+            <h2 class="text-2xl sm:text-3xl font-bold text-ink mb-6">
                 {% trans "Nuestros Valores" %}
             </h2>
             <div class="grid sm:grid-cols-2 gap-6">
                 <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-6 border-2 border-purple-200 dark:border-purple-800">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "Protección de Menores" %}</h3>
-                    <p class="text-gray-700 dark:text-gray-300">
+                    <h3 class="text-xl font-bold text-ink mb-2">{% trans "Protección de Menores" %}</h3>
+                    <p class="text-ink">
                         {% trans "El acceso está restringido y controlado para garantizar un entorno seguro donde los menores estén protegidos." %}
                     </p>
                 </div>
 
                 <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-6 border-2 border-purple-200 dark:border-purple-800">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "Sin Ánimo de Lucro" %}</h3>
-                    <p class="text-gray-700 dark:text-gray-300">
+                    <h3 class="text-xl font-bold text-ink mb-2">{% trans "Sin Ánimo de Lucro" %}</h3>
+                    <p class="text-ink">
                         {% trans "Esta plataforma es completamente gratuita y sin interés económico. Es un proyecto familiar para la comunidad." %}
                     </p>
                 </div>
 
                 <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-6 border-2 border-purple-200 dark:border-purple-800">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "Espíritu Familiar" %}</h3>
-                    <p class="text-gray-700 dark:text-gray-300">
+                    <h3 class="text-xl font-bold text-ink mb-2">{% trans "Espíritu Familiar" %}</h3>
+                    <p class="text-ink">
                         {% trans "Creado por familias, para familias. Queremos que todos podamos revivir los mejores momentos de nuestros hijos." %}
                     </p>
                 </div>
 
                 <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-6 border-2 border-purple-200 dark:border-purple-800">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "Pasión por el Voleibol" %}</h3>
-                    <p class="text-gray-700 dark:text-gray-300">
+                    <h3 class="text-xl font-bold text-ink mb-2">{% trans "Pasión por el Voleibol" %}</h3>
+                    <p class="text-ink">
                         {% trans "Promovemos los valores del deporte y queremos que esta plataforma inspire a más jóvenes a practicarlo." %}
                     </p>
                 </div>
@@ -107,15 +107,15 @@
         </section>
 
         <!-- Divider -->
-        <div class="border-t-2 border-gray-200 dark:border-gray-700 my-10"></div>
+        <div class="border-t-2 border-line my-10"></div>
 
         <!-- Agradecimientos -->
         <section class="mb-8">
-            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6">
+            <h2 class="text-2xl sm:text-3xl font-bold text-ink mb-6">
                 {% trans "Agradecimientos" %}
             </h2>
             <div class="bg-gradient-to-r from-csj-yellow to-yellow-200 dark:from-yellow-900/40 dark:to-yellow-800/20 rounded-lg p-6 sm:p-8">
-                <p class="text-lg text-gray-800 dark:text-gray-200 leading-relaxed mb-4">
+                <p class="text-lg text-ink leading-relaxed mb-4">
                     {% blocktrans trimmed with club="Club Volei Sant Josep Obrer" brand="I Love Voley" %}
                     Queremos agradecer especialmente al <strong>{{ club }}</strong>, donde nació este proyecto,
                     por crear un ambiente donde nuestros hijos pueden crecer, aprender y disfrutar del voleibol.
@@ -123,7 +123,7 @@
                     y a las familias que os sumáis desde otros clubs y hacéis posible que {{ brand }} siga creciendo.
                     {% endblocktrans %}
                 </p>
-                <p class="text-lg text-gray-800 dark:text-gray-200 leading-relaxed">
+                <p class="text-lg text-ink leading-relaxed">
                     {% blocktrans trimmed %}
                     Esta plataforma es nuestra forma de devolver un poco de lo mucho que el voleibol nos ha dado.
                     <strong>¡Gracias a todos!</strong> 🏐
@@ -133,14 +133,14 @@
         </section>
 
         <!-- Call to Action -->
-        <div class="text-center mt-12 pt-8 border-t-2 border-gray-200 dark:border-gray-700">
-            <p class="text-gray-600 dark:text-gray-300 mb-6">{% trans "¿Tienes alguna sugerencia o quieres colaborar con la plataforma?" %}</p>
+        <div class="text-center mt-12 pt-8 border-t-2 border-line">
+            <p class="text-muted mb-6">{% trans "¿Tienes alguna sugerencia o quieres colaborar con la plataforma?" %}</p>
             {% if user.is_authenticated %}
-                <a href="{% url 'profile' %}" class="inline-block bg-csj-purple hover:bg-csj-purple-dark text-white px-8 py-3 rounded-lg font-semibold transition-colors shadow-md">
+                <a href="{% url 'profile' %}" class="inline-block bg-csj-purple-dark hover:bg-csj-purple-dark text-white px-8 py-3 rounded-lg font-semibold transition-colors">
                     {% trans "Ir a Mi Perfil" %}
                 </a>
             {% else %}
-                <a href="{% url 'account_login' %}" class="inline-block bg-csj-purple hover:bg-csj-purple-dark text-white px-8 py-3 rounded-lg font-semibold transition-colors shadow-md">
+                <a href="{% url 'account_login' %}" class="inline-block bg-csj-purple-dark hover:bg-csj-purple-dark text-white px-8 py-3 rounded-lg font-semibold transition-colors">
                     {% trans "Únete a la Comunidad" %}
                 </a>
             {% endif %}
