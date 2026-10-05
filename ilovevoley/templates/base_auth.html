@@ -33,6 +33,14 @@
         --brand-gradient-to-rgb: {{ tenant_gradient_to_rgb }};
         --brand-solid: color-mix(in oklab, var(--brand) 78%, black);
         --accent: var(--brand-dark);
+        /* Mismos tokens que base.html (esta plantilla no la extiende y solo existe en claro). */
+        --bg: color-mix(in oklab, var(--brand) 5%, #fbfaf9);
+        --surface: #ffffff;
+        --line: color-mix(in oklab, var(--brand) 14%, #e7e5e4);
+        --tint: color-mix(in oklab, var(--brand) 14%, white);
+        --brand-text: var(--brand-solid);
+        --ink: #1c1917;
+        --muted: #57534e;
       }
     </style>
     
