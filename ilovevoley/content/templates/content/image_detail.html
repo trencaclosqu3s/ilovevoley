@@ -7,7 +7,7 @@
 <div class="max-w-6xl mx-auto">
     <!-- Navegación -->
     <div class="mb-6">
-        <a href="{% url 'content:image_gallery' %}" class="text-csj-purple dark:text-csj-yellow hover:text-purple-700">
+        <a href="{% url 'content:image_gallery' %}" class="text-brand-text hover:text-purple-700">
             <i class="fas fa-arrow-left mr-2"></i>{% trans "Volver a la galería" %}
         </a>
     </div>
@@ -15,7 +15,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Imagen principal -->
         <div class="lg:col-span-2">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <div class="bg-surface rounded-[20px] border border-line overflow-hidden">
                 <div class="relative">
                     {% include 'content/_thumbnail.html' with image=image css_class="w-full h-auto" sizes="(min-width: 1024px) 66vw, 100vw" loading="eager" %}
                     
@@ -39,27 +39,27 @@
         <!-- Información lateral -->
         <div class="space-y-6">
             <!-- Información básica -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">{{ image.title }}</h1>
+            <div class="bg-surface rounded-[20px] border border-line p-6">
+                <h1 class="text-2xl font-bold text-ink mb-4">{{ image.title }}</h1>
                 
                 {% if image.description %}
                     <div class="mb-4">
-                        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{% trans "Descripción" %}</h3>
-                        <p class="text-gray-600 dark:text-gray-300">{{ image.description }}</p>
+                        <h3 class="text-sm font-medium text-ink mb-2">{% trans "Descripción" %}</h3>
+                        <p class="text-muted">{{ image.description }}</p>
                     </div>
                 {% endif %}
 
                 <div class="space-y-3">
                     {% if image.match %}
                         <div>
-                            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Partido" %}</h3>
+                            <h3 class="text-sm font-medium text-ink">{% trans "Partido" %}</h3>
                             <div class="flex items-center mt-1">
-                                <i class="fas fa-calendar-alt text-gray-400 dark:text-gray-500 mr-2"></i>
-                                <a href="{% url 'competitions:match_detail' image.match.id %}" class="text-csj-purple dark:text-csj-yellow hover:text-purple-700">
+                                <i class="fas fa-calendar-alt text-muted mr-2"></i>
+                                <a href="{% url 'competitions:match_detail' image.match.id %}" class="text-brand-text hover:text-purple-700">
                                     {{ image.match.home_team_display }} vs {{ image.match.away_team_display }}
                                 </a>
                             </div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            <p class="text-sm text-muted mt-1">
                                 {{ image.match.match_date|date:"d/m/Y H:i" }}
                                 {% if image.match.venue %} • {{ image.match.venue }}{% endif %}
                             </p>
@@ -68,41 +68,41 @@
 
                     {% if image.category %}
                         <div>
-                            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Categoría" %}</h3>
+                            <h3 class="text-sm font-medium text-ink">{% trans "Categoría" %}</h3>
                             <div class="flex items-center mt-1">
-                                <i class="fas fa-tag text-gray-400 dark:text-gray-500 mr-2"></i>
-                                <span class="text-gray-900 dark:text-gray-100">{{ image.category.name }}</span>
+                                <i class="fas fa-tag text-muted mr-2"></i>
+                                <span class="text-ink">{{ image.category.name }}</span>
                             </div>
                         </div>
                     {% endif %}
 
                     <div>
-                        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Temporada" %}</h3>
+                        <h3 class="text-sm font-medium text-ink">{% trans "Temporada" %}</h3>
                         <div class="flex items-center mt-1">
-                            <i class="fas fa-calendar text-gray-400 dark:text-gray-500 mr-2"></i>
-                            <span class="text-gray-900 dark:text-gray-100">{{ image.season|default:"—" }}</span>
+                            <i class="fas fa-calendar text-muted mr-2"></i>
+                            <span class="text-ink">{{ image.season|default:"—" }}</span>
                         </div>
                     </div>
 
                     <div>
-                        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Subida por" %}</h3>
+                        <h3 class="text-sm font-medium text-ink">{% trans "Subida por" %}</h3>
                         <div class="flex items-center mt-1">
-                            <i class="fas fa-user text-gray-400 dark:text-gray-500 mr-2"></i>
-                            <span class="text-gray-900 dark:text-gray-100">{{ image.uploaded_by.username }}</span>
+                            <i class="fas fa-user text-muted mr-2"></i>
+                            <span class="text-ink">{{ image.uploaded_by.username }}</span>
                         </div>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ image.upload_date|date:"d/m/Y H:i" }}</p>
+                        <p class="text-sm text-muted mt-1">{{ image.upload_date|date:"d/m/Y H:i" }}</p>
                     </div>
 
                     {% if is_tenant_manager and image.moderated_by %}
                         <div>
-                            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Moderada por" %}</h3>
+                            <h3 class="text-sm font-medium text-ink">{% trans "Moderada por" %}</h3>
                             <div class="flex items-center mt-1">
-                                <i class="fas fa-user-check text-gray-400 dark:text-gray-500 mr-2"></i>
-                                <span class="text-gray-900 dark:text-gray-100">{{ image.moderated_by.username }}</span>
+                                <i class="fas fa-user-check text-muted mr-2"></i>
+                                <span class="text-ink">{{ image.moderated_by.username }}</span>
                             </div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ image.moderation_date|date:"d/m/Y H:i" }}</p>
+                            <p class="text-sm text-muted mt-1">{{ image.moderation_date|date:"d/m/Y H:i" }}</p>
                             {% if image.moderation_notes %}
-                                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1 italic">{{ image.moderation_notes }}</p>
+                                <p class="text-sm text-muted mt-1 italic">{{ image.moderation_notes }}</p>
                             {% endif %}
                         </div>
                     {% endif %}
@@ -111,7 +111,7 @@
                 <!-- Acciones para admins y managers -->
                 {% if is_tenant_manager and image.status == 'pending' %}
                     <div class="border-t pt-4 mt-6">
-                        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{% trans "Acciones de moderación" %}</h3>
+                        <h3 class="text-sm font-medium text-ink mb-3">{% trans "Acciones de moderación" %}</h3>
                         <div class="flex space-x-2">
                             <a href="{% url 'content:image_moderate_action' image.id %}" 
                                 class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">
@@ -124,18 +124,18 @@
 
             <!-- Información técnica para admins -->
             {% if is_tenant_manager %}
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">{% trans "Información técnica" %}</h3>
+                <div class="bg-surface rounded-[20px] border border-line p-6">
+                    <h3 class="text-lg font-semibold text-ink mb-4">{% trans "Información técnica" %}</h3>
                     
                     <div class="space-y-2 text-sm">
                         <div class="flex justify-between">
-                            <span class="text-gray-600 dark:text-gray-300">ID:</span>
-                            <span class="text-gray-900 dark:text-gray-100">{{ image.id }}</span>
+                            <span class="text-muted">ID:</span>
+                            <span class="text-ink">{{ image.id }}</span>
                         </div>
                         
                         {% if image.vision_api_checked %}
                             <div class="flex justify-between">
-                                <span class="text-gray-600 dark:text-gray-300">Vision API:</span>
+                                <span class="text-muted">Vision API:</span>
                                 <span class="text-{{ image.vision_api_safe|yesno:'green,red' }}-600">
                                     {% if image.vision_api_safe %}{% trans "Segura" %}{% else %}{% trans "Insegura" %}{% endif %}
                                 </span>
@@ -143,8 +143,8 @@
                         {% endif %}
                         
                         <div class="flex justify-between items-center">
-                            <span class="text-gray-600 dark:text-gray-300">{% trans "Archivo:" %}</span>
-                            <a href="{{ image.image.url }}" target="_blank" class="text-csj-purple dark:text-csj-yellow hover:text-purple-700 inline-flex items-center text-sm font-medium gap-1">
+                            <span class="text-muted">{% trans "Archivo:" %}</span>
+                            <a href="{{ image.image.url }}" target="_blank" class="text-brand-text hover:text-purple-700 inline-flex items-center text-sm font-medium gap-1">
                                 <span>{% trans "Abrir original" %}</span>
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
@@ -160,16 +160,16 @@
     <!-- Imágenes relacionadas -->
     {% if related_images %}
         <div class="mt-12">
-            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">{% trans "Más imágenes de este partido" %}</h2>
+            <h2 class="text-xl font-bold text-ink mb-6">{% trans "Más imágenes de este partido" %}</h2>
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {% for related_image in related_images %}
                     <a href="{% url 'content:image_detail' related_image.id %}" 
-                       class="block bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
+                       class="block bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-csj-purple transition duration-200">
                         <div class="aspect-square">
                             {% include 'content/_thumbnail.html' with image=related_image css_class="w-full h-full object-cover" sizes="(min-width: 1024px) 16vw, (min-width: 768px) 33vw, 50vw" %}
                         </div>
                         <div class="p-2">
-                            <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{{ related_image.title }}</p>
+                            <p class="text-sm font-medium text-ink truncate">{{ related_image.title }}</p>
                         </div>
                     </a>
                 {% endfor %}
@@ -178,7 +178,7 @@
             {% if image.match %}
                 <div class="text-center mt-6">
                     <a href="{% url 'content:match_images' image.match.id %}" 
-                       class="text-csj-purple dark:text-csj-yellow hover:text-purple-700">
+                       class="text-brand-text hover:text-purple-700">
                         {% trans "Ver todas las imágenes de este partido" %} <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>

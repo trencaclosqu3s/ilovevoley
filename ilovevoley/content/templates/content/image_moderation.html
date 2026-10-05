@@ -6,11 +6,11 @@
 {% block content %}
 {% trans "Imagen" as fallback_title %}
 {% trans "Sin título" as untitled %}
-<div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark mb-6">
+<div class="bg-surface rounded-3xl border border-line p-4 sm:p-6 mb-6">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{% trans "Moderación de Imágenes" %}</h1>
-            <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+            <h1 class="text-2xl font-bold text-ink">{% trans "Moderación de Imágenes" %}</h1>
+            <p class="text-sm text-muted mt-1">
                 {% blocktrans count counter=pending_count %}{{ counter }} imagen pendiente de revisión{% plural %}{{ counter }} imágenes pendientes de revisión{% endblocktrans %}
             </p>
         </div>
@@ -22,16 +22,16 @@
     {% if page_obj %}
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {% for image in page_obj %}
-                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700 flex flex-col">
+                <div class="bg-tint rounded-lg p-3 border border-line flex flex-col">
                     {% include 'content/_thumbnail.html' with image=image alt=image.title|default:fallback_title css_class="w-full h-48 object-cover rounded-md mb-2" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" %}
-                    <p class="font-medium text-sm text-gray-800 dark:text-gray-200 truncate">{{ image.title|default:untitled }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{% blocktrans with uploader=image.uploaded_by.username %}Por {{ uploader }}{% endblocktrans %}</p>
+                    <p class="font-medium text-sm text-ink truncate">{{ image.title|default:untitled }}</p>
+                    <p class="text-xs text-muted">{% blocktrans with uploader=image.uploaded_by.username %}Por {{ uploader }}{% endblocktrans %}</p>
                 </div>
             {% endfor %}
         </div>
     {% else %}
         <div class="text-center py-12">
-            <p class="text-gray-500 dark:text-gray-400 text-base">{% trans "No hay imágenes pendientes de moderación." %}</p>
+            <p class="text-muted text-base">{% trans "No hay imágenes pendientes de moderación." %}</p>
         </div>
     {% endif %}
 </div>

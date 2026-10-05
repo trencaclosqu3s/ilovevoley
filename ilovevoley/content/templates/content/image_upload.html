@@ -5,10 +5,10 @@
 
 {% block content %}
 <div class="max-w-2xl mx-auto">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+    <div class="bg-surface rounded-[20px] border border-line p-6">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{% trans "Subir Nueva Imagen" %}</h1>
-            <p class="text-gray-600 dark:text-gray-300 mt-1">{% trans "Sube imágenes del club: partidos, celebraciones, entrenamientos y más" %}</p>
+            <h1 class="text-2xl font-bold text-ink">{% trans "Subir Nueva Imagen" %}</h1>
+            <p class="text-muted mt-1">{% trans "Sube imágenes del club: partidos, celebraciones, entrenamientos y más" %}</p>
         </div>
 
         <form method="post" enctype="multipart/form-data" id="image-upload-form">
@@ -16,20 +16,20 @@
             
             <!-- Zona de Drag & Drop -->
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label class="block text-sm font-medium text-ink mb-2">
                     {{ form.image.label }}
                 </label>
                 
-                <div id="drop-zone" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-csj-purple dark:hover:border-csj-yellow transition-colors duration-200 cursor-pointer">
+                <div id="drop-zone" class="border-2 border-dashed border-line rounded-3xl p-8 text-center hover:border-csj-purple transition-colors duration-200 cursor-pointer">
                     <div id="drop-zone-content">
-                        <i class="fas fa-cloud-upload-alt text-gray-400 dark:text-gray-500 text-4xl mb-4"></i>
-                        <p class="text-gray-600 dark:text-gray-300 mb-2">{% trans "Arrastra tu imagen aquí o haz clic para seleccionar" %}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{% trans "Formatos: JPG, PNG, WebP, HEIC • Máximo 10MB" %}</p>
+                        <i class="fas fa-cloud-upload-alt text-muted text-4xl mb-4"></i>
+                        <p class="text-muted mb-2">{% trans "Arrastra tu imagen aquí o haz clic para seleccionar" %}</p>
+                        <p class="text-sm text-muted">{% trans "Formatos: JPG, PNG, WebP, HEIC • Máximo 10MB" %}</p>
                     </div>
                     
                     <div id="image-preview" class="hidden">
                         <img id="preview-img" src="" alt="{% trans "Preview" %}" class="max-w-full h-48 object-contain mx-auto rounded">
-                        <p id="preview-filename" class="mt-2 text-sm text-gray-600 dark:text-gray-300"></p>
+                        <p id="preview-filename" class="mt-2 text-sm text-muted"></p>
                         <button type="button" data-call="clearPreview" class="mt-2 text-red-500 dark:text-red-400 hover:text-red-700 text-sm">
                             <i class="fas fa-times mr-1"></i>{% trans "Cambiar imagen" %}
                         </button>
@@ -49,7 +49,7 @@
 
             <!-- Título -->
             <div class="mb-6">
-                <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-ink mb-2">
                     {{ form.title.label }}
                 </label>
                 {{ form.title }}
@@ -64,7 +64,7 @@
 
             <!-- Tipo de Imagen -->
             <div class="mb-6">
-                <label for="{{ form.image_type.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label for="{{ form.image_type.id_for_label }}" class="block text-sm font-medium text-ink mb-2">
                     {{ form.image_type.label }}
                 </label>
                 {{ form.image_type }}
@@ -75,22 +75,22 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{% trans "Selecciona el tipo que mejor describe tu imagen" %}</p>
+                <p class="mt-1 text-sm text-muted">{% trans "Selecciona el tipo que mejor describe tu imagen" %}</p>
             </div>
 
             <!-- Categorías -->
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label class="block text-sm font-medium text-ink mb-2">
                     {{ form.categories.label }}
                 </label>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                <p class="text-xs text-muted mb-3">
                     {% blocktrans trimmed %}Si seleccionas un partido, las categorías se asignarán automáticamente. Si no, puedes seleccionar manualmente las categorías aquí.{% endblocktrans %}
                 </p>
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 bg-tint rounded-lg border border-line">
                     {% for checkbox in form.categories %}
-                        <label class="flex items-center space-x-2 cursor-pointer hover:bg-white dark:hover:bg-gray-700 p-2 rounded transition">
+                        <label class="flex items-center space-x-2 cursor-pointer hover:bg-tint p-2 rounded transition">
                             {{ checkbox.tag }}
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ checkbox.choice_label }}</span>
+                            <span class="text-sm text-ink">{{ checkbox.choice_label }}</span>
                         </label>
                     {% endfor %}
                 </div>
@@ -101,12 +101,12 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.categories.help_text }}</p>
+                <p class="mt-1 text-sm text-muted">{{ form.categories.help_text }}</p>
             </div>
 
             <!-- Etiquetas -->
             <div class="mb-6">
-                <label for="{{ form.tags.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label for="{{ form.tags.id_for_label }}" class="block text-sm font-medium text-ink mb-2">
                     {{ form.tags.label }}
                 </label>
                 {{ form.tags }}
@@ -117,12 +117,12 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{% trans "Palabras clave separadas por comas (ej: gol, victoria, senior)" %}</p>
+                <p class="mt-1 text-sm text-muted">{% trans "Palabras clave separadas por comas (ej: gol, victoria, senior)" %}</p>
             </div>
 
             <!-- Partido -->
             <div class="mb-6">
-                <label for="{{ form.match.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label for="{{ form.match.id_for_label }}" class="block text-sm font-medium text-ink mb-2">
                     {{ form.match.label }}
                 </label>
                 {{ form.match }}
@@ -137,15 +137,15 @@
                 <!-- Partidos recientes sugeridos -->
                 {% if recent_matches %}
                     <div class="mt-3">
-                        <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">{% trans "Partidos recientes:" %}</p>
+                        <p class="text-sm text-muted mb-2">{% trans "Partidos recientes:" %}</p>
                         <div class="space-y-1">
                             {% for match in recent_matches|slice:":5" %}
                                 <button type="button" 
                                         data-call="selectMatch" data-call-args='[{{ match.id }}, "{{ match.home_team_display|escapejs }} vs {{ match.away_team_display|escapejs }}"]'
-                                        class="block w-full text-left px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 rounded border">
+                                        class="block w-full text-left px-3 py-2 text-sm bg-tint hover:bg-tint rounded border">
                                     <strong>{{ match.home_team_display }} vs {{ match.away_team_display }}</strong>
                                     <br>
-                                    <span class="text-gray-600 dark:text-gray-300">{{ match.match_date|date:"d/m/Y" }} • {{ match.league.name }}</span>
+                                    <span class="text-muted">{{ match.match_date|date:"d/m/Y" }} • {{ match.league.name }}</span>
                                 </button>
                             {% endfor %}
                         </div>
@@ -155,7 +155,7 @@
 
             <!-- Temporada -->
             <div class="mb-6">
-                <label for="{{ form.season.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label for="{{ form.season.id_for_label }}" class="block text-sm font-medium text-ink mb-2">
                     {{ form.season.label }}
                 </label>
                 {{ form.season }}
@@ -166,12 +166,12 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Si se vincula un partido se toma su temporada; si no, la de la fecha de subida.</p>
+                <p class="mt-1 text-sm text-muted">Si se vincula un partido se toma su temporada; si no, la de la fecha de subida.</p>
             </div>
 
             <!-- Descripción -->
             <div class="mb-6">
-                <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-ink mb-2">
                     {{ form.description.label }}
                 </label>
                 {{ form.description }}
@@ -186,13 +186,13 @@
 
             <!-- Botones -->
             <div class="flex flex-col-reverse sm:flex-row sm:justify-between gap-3">
-                <a href="{% url 'content:image_gallery' %}" class="w-full sm:w-auto text-center inline-flex items-center justify-center bg-gray-500 text-white px-6 py-2.5 rounded-lg hover:bg-gray-600 transition-colors duration-200">
+                <a href="{% url 'content:image_gallery' %}" class="w-full sm:w-auto text-center inline-flex items-center justify-center bg-tint text-ink px-6 py-2.5 rounded-full hover:opacity-80 transition-colors duration-200">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
                     {% trans "Volver" %}
                 </a>
-                <button type="submit" class="w-full sm:w-auto text-center inline-flex items-center justify-center bg-csj-purple text-white px-6 py-2.5 rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium">
+                <button type="submit" class="w-full sm:w-auto text-center inline-flex items-center justify-center bg-csj-purple-dark text-white px-6 py-2.5 rounded-full hover:opacity-90 transition-colors duration-200 font-medium">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                     </svg>
@@ -217,17 +217,17 @@ dropZone.addEventListener('click', () => imageInput.click());
 
 dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
-    dropZone.classList.add('border-csj-purple', 'bg-purple-50', 'dark:bg-gray-700');
+    dropZone.classList.add('border-csj-purple', 'bg-tint');
 });
 
 dropZone.addEventListener('dragleave', (e) => {
     e.preventDefault();
-    dropZone.classList.remove('border-csj-purple', 'bg-purple-50', 'dark:bg-gray-700');
+    dropZone.classList.remove('border-csj-purple', 'bg-tint');
 });
 
 dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
-    dropZone.classList.remove('border-csj-purple', 'bg-purple-50', 'dark:bg-gray-700');
+    dropZone.classList.remove('border-csj-purple', 'bg-tint');
     
     const files = e.dataTransfer.files;
     if (files.length > 0) {
@@ -307,7 +307,7 @@ document.getElementById('id_match').addEventListener('change', function() {
 document.getElementById('id_image_type').addEventListener('change', function() {
     const matchSection = document.getElementById('id_match').closest('.mb-6');
     const matchLabel = matchSection.querySelector('label');
-    const helpText = matchSection.querySelector('.text-gray-600');
+    const helpText = matchSection.querySelector('.text-muted');
     
     if (this.value === 'match') {
         matchLabel.innerHTML = '{{ form.match.label }} <span class="text-red-500 dark:text-red-400">*</span>';

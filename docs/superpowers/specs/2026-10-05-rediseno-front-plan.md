@@ -151,7 +151,13 @@ Los colores semánticos (verde/rojo/amarillo de éxito, error, aviso) se dejan c
   `--surface/--line/--ink`; navbar sin desbordamiento a ~1150 px (textos "Cambiar de club"/usuario solo desde `xl`);
   aside `lg:w-80`. **Decisión:** NO se añadió el bloque "Próximo partido" ni chips de filtro del mockup: exigen cambios de
   vista/JS y el mockup suponía miniaturas que el modelo no tiene. Pendiente si se quiere.
-- [ ] Fase 3
+- [x] Fase 3: `image_gallery`, `album_group_images`, `image_detail`, `match_images`, `image_upload`, `image_bulk_upload`,
+  `image_moderate/_moderation` migradas. Lightbox (`static/js/lightbox.js`) se deja: es un overlay negro fijo sin color de tenant.
+  Verificado en navegador claro (Sant Josep y Balears); oscuro de la galería sin revisar. Pendiente menor: la rejilla individual
+  queda como tarjeta dentro de tarjeta (borde doble), valorar quitar el contenedor externo.
+  **Script de migración reutilizable** (fuera del repo, en el scratchpad de la sesión): dos pasos de `str.replace` ordenados
+  (patrones específicos de tarjeta/botón antes que los genéricos de `text-gray-*`). Ojo: al migrar, buscar `querySelector` que dependan
+  de clases cambiadas (p. ej. `.text-gray-600` en `image_upload.html`, ya actualizado a `.text-muted`).
 - [ ] Fase 4
 - [ ] Fase 5 (pendiente de confirmar barra inferior)
 - [ ] Fase 6

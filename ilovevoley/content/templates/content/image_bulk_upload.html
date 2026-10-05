@@ -5,13 +5,13 @@
 
 {% block content %}
 <div class="max-w-5xl mx-auto">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+    <div class="bg-surface rounded-[20px] border border-line p-6">
         <!-- Header -->
         <div class="mb-6">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{% trans "Subir Múltiples Imágenes" %}</h1>
-                    <p class="text-gray-600 dark:text-gray-300 mt-1">
+                    <h1 class="text-2xl font-bold text-ink">{% trans "Subir Múltiples Imágenes" %}</h1>
+                    <p class="text-muted mt-1">
                         {% if existing_album %}
                             {% blocktrans with album_name=existing_album.album_name %}Agregar imágenes al álbum "{{ album_name }}"{% endblocktrans %}
                         {% else %}
@@ -19,7 +19,7 @@
                         {% endif %}
                     </p>
                 </div>
-                <a href="{% url 'content:image_upload' %}" class="text-csj-purple dark:text-csj-yellow hover:text-csj-purple-dark dark:hover:text-csj-yellow-dark">
+                <a href="{% url 'content:image_upload' %}" class="text-brand-text hover:opacity-80">
                     <i class="fas fa-image mr-2"></i>{% trans "Subida Individual" %}
                 </a>
             </div>
@@ -47,16 +47,16 @@
             
             <!-- Zona de Drag & Drop para Múltiples Archivos -->
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label class="block text-sm font-medium text-ink mb-2">
                     {% trans "Imágenes" %} <span class="text-red-500 dark:text-red-400">*</span>
                 </label>
                 
-                <div id="drop-zone" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-csj-purple dark:hover:border-csj-yellow transition-colors duration-200 cursor-pointer">
+                <div id="drop-zone" class="border-2 border-dashed border-line rounded-3xl p-8 text-center hover:border-csj-purple transition-colors duration-200 cursor-pointer">
                     <div id="drop-zone-content">
-                        <i class="fas fa-cloud-upload-alt text-gray-400 dark:text-gray-500 text-4xl mb-4"></i>
-                        <p class="text-gray-600 dark:text-gray-300 mb-2">{% trans "Arrastra tus imágenes aquí o haz clic para seleccionar" %}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{% trans "Formatos: JPG, PNG, WebP, HEIC • Máximo 10MB por imagen" %}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{% trans "Puedes seleccionar hasta 20 imágenes a la vez" %}</p>
+                        <i class="fas fa-cloud-upload-alt text-muted text-4xl mb-4"></i>
+                        <p class="text-muted mb-2">{% trans "Arrastra tus imágenes aquí o haz clic para seleccionar" %}</p>
+                        <p class="text-sm text-muted">{% trans "Formatos: JPG, PNG, WebP, HEIC • Máximo 10MB por imagen" %}</p>
+                        <p class="text-sm text-muted mt-1">{% trans "Puedes seleccionar hasta 20 imágenes a la vez" %}</p>
                     </div>
                 </div>
                 
@@ -70,7 +70,7 @@
                 <!-- Preview de imágenes seleccionadas -->
                 <div id="images-preview" class="mt-4 hidden">
                     <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <h3 class="text-sm font-medium text-ink">
                             <span id="images-count">0</span> {% trans "imagen(es) seleccionada(s)" %}
                         </h3>
                         <button type="button" data-call="clearAllImages" class="text-red-500 dark:text-red-400 hover:text-red-700 text-sm">
@@ -80,7 +80,7 @@
                     <div id="images-grid" class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
                         <!-- Las previews se insertarán aquí dinámicamente -->
                     </div>
-                    <div id="processing-indicator" class="hidden mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <div id="processing-indicator" class="hidden mt-2 text-center text-sm text-muted">
                         <i class="fas fa-spinner fa-spin mr-2"></i>{% trans "Procesando imágenes..." %}
                     </div>
                 </div>
@@ -95,11 +95,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Tipo de Imagen -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label class="block text-sm font-medium text-ink mb-1">
                             {% trans "Tipo de Imagen" %} <span class="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <select name="image_type" id="id_image_type" required
-                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                                class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                             {% for value, label in image_types %}
                                 <option value="{{ value }}" {% if value == 'match' %}selected{% endif %}>{{ label }}</option>
                             {% endfor %}
@@ -108,11 +108,11 @@
 
                     <!-- Temporada -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label class="block text-sm font-medium text-ink mb-1">
                             Temporada
                         </label>
                         <select name="season"
-                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                                class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                             <option value="">{% trans "Inferir de la fecha de subida" %}</option>
                             {% for season in seasons %}
                                 <option value="{{ season.id }}" {% if current_season and season.id == current_season.id %}selected{% endif %}>{{ season.name }}</option>
@@ -122,11 +122,11 @@
 
                     <!-- Partido (opcional) -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label class="block text-sm font-medium text-ink mb-1">
                             {% trans "Partido (opcional)" %}
                         </label>
                         <select name="match" id="id_match"
-                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                                class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                             <option value="">{% trans "Seleccionar partido (opcional)" %}</option>
                             {% for match in recent_matches %}
                                 <option value="{{ match.id }}" {% if selected_match and selected_match.id == match.id %}selected{% endif %}>
@@ -134,18 +134,18 @@
                                 </option>
                             {% endfor %}
                         </select>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{% trans "Las categorías se asignarán automáticamente desde el partido" %}</p>
+                        <p class="text-xs text-muted mt-1">{% trans "Las categorías se asignarán automáticamente desde el partido" %}</p>
                     </div>
 
                     <!-- Set (opcional) -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label class="block text-sm font-medium text-ink mb-1">
                             {% trans "Set (opcional)" %}
                         </label>
                         <input type="number" name="set_number" min="1"
                                placeholder="{% trans "Ej: 1" %}"
-                               class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{% trans "Número de set al que pertenecen las fotos (si aplica)" %}</p>
+                               class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                        <p class="text-xs text-muted mt-1">{% trans "Número de set al que pertenecen las fotos (si aplica)" %}</p>
                     </div>
 
                     <!-- Campo oculto para álbum existente -->
@@ -159,13 +159,13 @@
                             <input type="checkbox" 
                                    name="create_album" 
                                    id="id_create_album"
-                                   class="w-4 h-4 text-csj-purple dark:text-csj-yellow border-gray-300 dark:border-gray-600 rounded focus:ring-csj-purple">
-                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                   class="w-4 h-4 text-brand-text border-line rounded focus:ring-csj-purple">
+                            <span class="text-sm font-medium text-ink">
                                 {% trans "Agrupar todas las imágenes en un álbum" %}
                             </span>
                         </label>
                         <div id="album-name-container" class="ml-6 hidden">
-                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label class="block text-xs font-medium text-ink mb-1">
                                 {% trans "Nombre del álbum" %} <span class="text-red-500 dark:text-red-400">*</span>
                             </label>
                             <input type="text" 
@@ -173,8 +173,8 @@
                                    id="id_album_name"
                                    placeholder="{% trans "Ej: Entrenamiento Senior, Celebración Final..." %}"
                                    maxlength="200"
-                                   class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                   class="w-full px-3 py-2 text-sm border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                            <p class="text-xs text-muted mt-1">
                                 {% trans "El nombre aparecerá en la galería de álbumes" %}
                             </p>
                         </div>
@@ -182,22 +182,22 @@
 
                     <!-- Etiquetas compartidas -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label class="block text-sm font-medium text-ink mb-1">
                             {% trans "Etiquetas (opcional)" %}
                         </label>
                         <input type="text" 
                                name="tags" 
                                placeholder="{% trans "victoria, gol, celebración (separadas por comas)" %}"
-                               class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                               class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                     </div>
                 </div>
                 
                 <!-- Categorías (opcional) -->
                 <div class="mt-4">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label class="block text-sm font-medium text-ink mb-2">
                         {% trans "Categorías (opcional)" %}
                     </label>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    <p class="text-xs text-muted mb-3">
                         {% blocktrans trimmed %}Si seleccionas un partido, las categorías se asignarán automáticamente. Si no, puedes seleccionar manualmente las categorías aquí.{% endblocktrans %}
                     </p>
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -206,8 +206,8 @@
                                 <input type="checkbox" 
                                        name="categories" 
                                        value="{{ category.id }}"
-                                       class="w-4 h-4 text-csj-purple dark:text-csj-yellow border-gray-300 dark:border-gray-600 rounded focus:ring-csj-purple">
-                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ category.name }}</span>
+                                       class="w-4 h-4 text-brand-text border-line rounded focus:ring-csj-purple">
+                                <span class="text-sm text-ink">{{ category.name }}</span>
                             </label>
                         {% endfor %}
                     </div>
@@ -216,11 +216,11 @@
 
             <!-- Datos Individuales (se mostrarán después de seleccionar imágenes) -->
             <div id="individual-data" class="hidden">
-                <div class="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6">
-                    <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                <div class="bg-tint border border-line rounded-lg p-4 mb-6">
+                    <h3 class="text-sm font-semibold text-ink mb-3">
                         <i class="fas fa-edit mr-2"></i>{% trans "Datos Individuales (opcional)" %}
                     </h3>
-                    <p class="text-xs text-gray-600 dark:text-gray-300 mb-4">
+                    <p class="text-xs text-muted mb-4">
                         {% blocktrans trimmed %}Puedes personalizar el título y descripción de cada imagen. Si no lo haces, se usará el nombre del archivo.{% endblocktrans %}
                     </p>
                     
@@ -232,7 +232,7 @@
 
             <!-- Botones -->
             <div class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t">
-                <a href="{% url 'content:image_gallery' %}" class="w-full sm:w-auto text-center inline-flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 py-2">
+                <a href="{% url 'content:image_gallery' %}" class="w-full sm:w-auto text-center inline-flex items-center justify-center text-brand-text hover:opacity-80 py-2">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -242,7 +242,7 @@
                 <button type="submit" 
                         id="submit-btn"
                         disabled
-                        class="w-full sm:w-auto text-center inline-flex items-center justify-center px-6 py-2.5 bg-csj-purple text-white rounded-lg hover:bg-csj-purple-dark transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed font-medium">
+                        class="w-full sm:w-auto text-center inline-flex items-center justify-center px-6 py-2.5 bg-csj-purple-dark text-white rounded-full hover:opacity-90 transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed font-medium">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                     </svg>
@@ -276,17 +276,17 @@ dropZone.addEventListener('click', () => imagesInput.click());
 
 dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
-    dropZone.classList.add('border-csj-purple', 'bg-purple-50', 'dark:bg-gray-700');
+    dropZone.classList.add('border-csj-purple', 'bg-tint');
 });
 
 dropZone.addEventListener('dragleave', (e) => {
     e.preventDefault();
-    dropZone.classList.remove('border-csj-purple', 'bg-purple-50', 'dark:bg-gray-700');
+    dropZone.classList.remove('border-csj-purple', 'bg-tint');
 });
 
 dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
-    dropZone.classList.remove('border-csj-purple', 'bg-purple-50', 'dark:bg-gray-700');
+    dropZone.classList.remove('border-csj-purple', 'bg-tint');
     
     const files = Array.from(e.dataTransfer.files);
     handleFiles(files);
@@ -420,11 +420,11 @@ async function displayPreviewsOptimized() {
     // Crear placeholders para las imágenes restantes
     if (selectedFiles.length > maxPreviews) {
         const remainingDiv = document.createElement('div');
-        remainingDiv.className = 'relative group flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg';
+        remainingDiv.className = 'relative group flex items-center justify-center bg-tint rounded-lg';
         remainingDiv.innerHTML = `
             <div class="text-center">
-                <i class="fas fa-images text-gray-400 dark:text-gray-500 text-2xl mb-2"></i>
-                <p class="text-xs text-gray-600 dark:text-gray-300">+${selectedFiles.length - maxPreviews} {% trans "más" as js_msg %}{{ js_msg|escapejs }}</p>
+                <i class="fas fa-images text-muted text-2xl mb-2"></i>
+                <p class="text-xs text-muted">+${selectedFiles.length - maxPreviews} {% trans "más" as js_msg %}{{ js_msg|escapejs }}</p>
             </div>
         `;
         imagesGrid.appendChild(remainingDiv);
@@ -439,10 +439,10 @@ async function displayPreviewsOptimized() {
         const previewDiv = document.createElement('div');
         previewDiv.className = 'relative group';
         previewDiv.innerHTML = `
-            <div class="aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                <i class="fas fa-spinner fa-spin text-gray-400 dark:text-gray-500"></i>
+            <div class="aspect-square rounded-lg overflow-hidden bg-tint flex items-center justify-center">
+                <i class="fas fa-spinner fa-spin text-muted"></i>
             </div>
-            <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 truncate" title="${file.name}">${file.name}</p>
+            <p class="text-xs text-muted mt-1 truncate" title="${file.name}">${file.name}</p>
         `;
         imagesGrid.appendChild(previewDiv);
         
@@ -453,7 +453,7 @@ async function displayPreviewsOptimized() {
                 
                 // Actualizar preview cuando esté listo
                 previewDiv.innerHTML = `
-                    <div class="aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
+                    <div class="aspect-square rounded-lg overflow-hidden bg-tint">
                         <img src="${dataUrl}" 
                              alt="${file.name}" 
                              class="w-full h-full object-cover"
@@ -466,12 +466,12 @@ async function displayPreviewsOptimized() {
                             <i class="fas fa-trash mr-1"></i>{% trans "Eliminar" as js_msg %}{{ js_msg|escapejs }}
                         </button>
                     </div>
-                    <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 truncate" title="${file.name}">${file.name}</p>
+                    <p class="text-xs text-muted mt-1 truncate" title="${file.name}">${file.name}</p>
                 `;
             } catch (error) {
                 console.error('Error procesando preview:', error);
                 previewDiv.innerHTML = `
-                    <div class="aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                    <div class="aspect-square rounded-lg overflow-hidden bg-tint flex items-center justify-center">
                         <i class="fas fa-exclamation-triangle text-red-400"></i>
                     </div>
                     <p class="text-xs text-red-600 dark:text-red-400 mt-1 truncate" title="${file.name}">{% trans "Error" as js_msg %}{{ js_msg|escapejs }}</p>
@@ -491,13 +491,13 @@ function createIndividualFieldsOptimized() {
     
     filesToShow.forEach((file, index) => {
         const fieldDiv = document.createElement('div');
-        fieldDiv.className = 'border border-gray-200 dark:border-gray-700 rounded-lg p-3';
+        fieldDiv.className = 'border border-line rounded-lg p-3';
         
         const defaultTitle = file.name.replace(/\.[^/.]+$/, '');
         
         fieldDiv.innerHTML = `
             <div class="flex items-start gap-3">
-                <div class="flex-shrink-0 w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded overflow-hidden">
+                <div class="flex-shrink-0 w-12 h-12 bg-tint rounded overflow-hidden">
                     <img src="${URL.createObjectURL(file)}" 
                          alt="${file.name}" 
                          class="w-full h-full object-cover"
@@ -505,23 +505,23 @@ function createIndividualFieldsOptimized() {
                 </div>
                 <div class="flex-1 grid grid-cols-1 gap-2">
                     <div>
-                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label class="block text-xs font-medium text-ink mb-1">
                             {% trans "Título" as js_msg %}{{ js_msg|escapejs }}
                         </label>
                         <input type="text" 
                                name="title_${index}" 
                                value="${defaultTitle}"
                                placeholder="{% trans "Título de la imagen" as js_msg %}{{ js_msg|escapejs }}"
-                               class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-csj-purple focus:border-transparent">
+                               class="w-full px-2 py-1 text-sm border border-line rounded focus:ring-1 focus:ring-csj-purple focus:border-transparent">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label class="block text-xs font-medium text-ink mb-1">
                             {% trans "Descripción (opcional)" as js_msg %}{{ js_msg|escapejs }}
                         </label>
                         <input type="text" 
                                name="description_${index}" 
                                placeholder="{% trans "Descripción breve" as js_msg %}{{ js_msg|escapejs }}"
-                               class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-csj-purple focus:border-transparent">
+                               class="w-full px-2 py-1 text-sm border border-line rounded focus:ring-1 focus:ring-csj-purple focus:border-transparent">
                     </div>
                 </div>
             </div>
@@ -533,7 +533,7 @@ function createIndividualFieldsOptimized() {
     // Si hay más archivos, mostrar mensaje
     if (selectedFiles.length > maxFields) {
         const infoDiv = document.createElement('div');
-        infoDiv.className = 'text-center text-sm text-gray-500 dark:text-gray-400 py-2';
+        infoDiv.className = 'text-center text-sm text-muted py-2';
         infoDiv.innerHTML = `
             <i class="fas fa-info-circle mr-1"></i>
             {% trans "Los títulos y descripciones de las" as js_msg %}{{ js_msg|escapejs }} ${selectedFiles.length - maxFields} {% trans "imágenes restantes se generarán automáticamente." as js_msg %}{{ js_msg|escapejs }}
