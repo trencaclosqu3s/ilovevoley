@@ -35,6 +35,23 @@
         --brand-gradient-from-rgb: {{ tenant_gradient_from_rgb }};
         --brand-gradient-to: {{ tenant_gradient_to }};
         --brand-gradient-to-rgb: {{ tenant_gradient_to_rgb }};
+        /* Tokens del rediseño: todo derivado del color del tenant, sin hex propios. */
+        --bg: color-mix(in oklab, var(--brand) 5%, #fbfaf9);
+        --surface: #ffffff;
+        --line: color-mix(in oklab, var(--brand) 14%, #e7e5e4);
+        --tint: color-mix(in oklab, var(--brand) 14%, white);
+        --brand-text: var(--brand-dark);
+        --ink: #1c1917;
+        --muted: #57534e;
+      }
+      .dark {
+        --bg: color-mix(in oklab, var(--brand) 7%, #0c0a09);
+        --surface: color-mix(in oklab, var(--brand) 6%, #1c1917);
+        --line: color-mix(in oklab, var(--brand) 20%, #292524);
+        --tint: color-mix(in oklab, var(--brand) 22%, #1c1917);
+        --brand-text: color-mix(in oklab, var(--brand) 65%, white);
+        --ink: #fafaf9;
+        --muted: #a8a29e;
       }
     </style>
 
@@ -74,8 +91,8 @@
         textarea:focus,
         select:focus {
             outline: none !important;
-            border-color: #9B7FBF !important;
-            box-shadow: 0 0 0 3px rgba(155, 127, 191, 0.1) !important;
+            border-color: var(--brand) !important;
+            box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 20%, transparent) !important;
         }
 
         .dark input[type="text"]:focus,
@@ -84,8 +101,8 @@
         .dark input[type="url"]:focus,
         .dark textarea:focus,
         .dark select:focus {
-            border-color: #F4D47C !important;
-            box-shadow: 0 0 0 3px rgba(244, 212, 124, 0.2) !important;
+            border-color: var(--brand-text) !important;
+            box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 30%, transparent) !important;
         }
 
         /* Mejor espaciado en móviles */
@@ -166,7 +183,7 @@
 </head>
 
 <body
-    class="bg-gradient-to-br from-purple-50 via-yellow-50 to-purple-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-screen flex flex-col">
+    class="bg-page text-ink font-sans min-h-screen flex flex-col">
     {% include 'includes/navbar.html' %}
 
     <div class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
@@ -178,7 +195,7 @@
                     {% if messages %}
                     {% for message in messages %}
                     <div
-                        class="mb-4 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-800 border-l-4 border-green-500{% elif message.tags == 'error' %}bg-red-100 text-red-800 border-l-4 border-red-500{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800 border-l-4 border-yellow-500{% else %}bg-csj-yellow bg-opacity-30 text-gray-800 border-l-4 border-csj-yellow{% endif %}">
+                        class="mb-4 p-4 rounded-2xl border {% if message.tags == 'success' %}bg-green-100 text-green-800 border-green-300{% elif message.tags == 'error' %}bg-red-100 text-red-800 border-red-300{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800 border-yellow-300{% else %}bg-tint text-ink border-line{% endif %}">
                         <strong>{% if message.tags == 'success' %}✓{% elif message.tags == 'error' %}✕{% elif
                             message.tags == 'warning' %}⚠{% else %}ℹ{% endif %}</strong>
                         {{ message }}
@@ -193,17 +210,17 @@
             <!-- Sidebar de Instagram (solo en desktop) -->
             {% block sidebar %}
             <aside class="hidden lg:block lg:w-96 lg:flex-shrink-0">
-                <div class="sticky top-4">
+                <div class="sticky top-24">
                     <div
-                        class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark">
+                        class="bg-surface rounded-3xl border border-line p-6">
                         <div class="flex items-center mb-4">
-                            <svg class="w-6 h-6 text-csj-purple dark:text-csj-yellow mr-2" fill="none"
+                            <svg class="w-6 h-6 text-brand-text mr-2" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
                                 </path>
                             </svg>
-                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">{% trans "Galería del Club" %}</h3>
+                            <h3 class="font-display text-xl font-bold tracking-tight text-ink">{% trans "Galería del Club" %}</h3>
                         </div>
 
                         <!-- Widget de Galería (Reemplaza a Instagram) -->
@@ -215,12 +232,12 @@
                                     data-call="openLightbox"
                                     data-call-prevent
                                     data-call-args='["{{ img.image.url|escapejs }}", "{{ img.title|escapejs }}", {{ img.id }}, "{{ img.description|escapejs }}", "{{ img.uploaded_by.username|escapejs }}", "{{ img.upload_date|date:'d/m/Y' }}"]'
-                                    class="block aspect-square overflow-hidden rounded-lg hover:ring-2 hover:ring-csj-purple transition-all duration-200 group">
+                                    class="block aspect-square overflow-hidden rounded-xl hover:ring-2 hover:ring-csj-purple transition-all duration-200 group">
                                     {% include 'content/_thumbnail.html' with image=img css_class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, 33vw" %}
                                 </a>
                                 {% empty %}
                                 <div class="col-span-3 text-center py-8">
-                                    <p class="text-sm text-gray-500 italic">{% trans "No hay fotos recientes" %}</p>
+                                    <p class="text-sm text-muted italic">{% trans "No hay fotos recientes" %}</p>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -228,7 +245,7 @@
                             {% if latest_images %}
                             <div class="mt-4 text-center">
                                 <a href="{% url 'content:image_gallery' %}"
-                                    class="inline-flex items-center text-csj-purple dark:text-csj-yellow text-sm font-semibold hover:underline">
+                                    class="inline-flex items-center text-brand-text text-sm font-semibold hover:underline">
                                     {% trans "Ver galería completa" %}
                                     <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -250,49 +267,49 @@
 
     <!-- Footer -->
     <footer
-        class="bg-gradient-to-r from-csj-purple via-csj-purple-dark to-csj-purple dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-white mt-12">
+        class="bg-csj-purple-dark text-white mt-12 rounded-t-[32px]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
                 <!-- Sección Izquierda: Sobre el Proyecto -->
                 <div class="text-center md:text-left">
-                    <h3 class="text-lg font-bold mb-3 flex items-center justify-center md:justify-start">
-                        <span class="text-2xl mr-2">🏐</span>
+                    <h3 class="font-display text-lg font-bold mb-3 flex items-center justify-center md:justify-start">
+                        {% include 'includes/ball_icon.html' with class='w-6 h-6 mr-2' %}
                         I Love Voley
                     </h3>
-                    <p class="text-purple-200 text-sm leading-relaxed">
+                    <p class="text-white/80 text-sm leading-relaxed">
                         {% trans "Plataforma comunitaria para compartir partidos, fotos y momentos especiales." %}
                     </p>
                 </div>
 
                 <!-- Sección Central: Enlaces -->
                 <div class="text-center">
-                    <h3 class="text-lg font-bold mb-3">{% trans "Enlaces" %}</h3>
+                    <h3 class="font-display text-lg font-bold mb-3">{% trans "Enlaces" %}</h3>
                     <nav class="space-y-2">
                         <a href="{% url 'core:about' %}"
-                            class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            class="block text-white/80 hover:text-white transition-colors text-sm">
                             {% trans "Quiénes Somos" %}
                         </a>
                         {% if tenant %}
                         <a href="{% url 'where_plays' %}"
-                            class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            class="block text-white/80 hover:text-white transition-colors text-sm">
                             {% trans "Sedes y pabellones" %}
                         </a>
                         {% endif %}
                         {% if user.is_authenticated %}
                         <a href="{% url 'content:video_list' %}"
-                            class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            class="block text-white/80 hover:text-white transition-colors text-sm">
                             {% trans "Videos" %}
                         </a>
                         <a href="{% url 'content:image_gallery' %}"
-                            class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            class="block text-white/80 hover:text-white transition-colors text-sm">
                             {% trans "Galería" %}
                         </a>
                         <a href="{% url 'competitions:calendar_view' %}"
-                            class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            class="block text-white/80 hover:text-white transition-colors text-sm">
                             {% trans "Calendario" %}
                         </a>
                         <a href="{% url 'competitions:results_view' %}"
-                            class="block text-purple-200 hover:text-csj-yellow transition-colors text-sm">
+                            class="block text-white/80 hover:text-white transition-colors text-sm">
                             {% trans "Resultados" %}
                         </a>
                         {% endif %}
@@ -302,10 +319,10 @@
                 <!-- Sección Derecha: Redes Sociales -->
                 <div class="text-center md:text-right">
                     {% if tenant.instagram_url %}
-                    <h3 class="text-lg font-bold mb-3">{% trans "Sigue al club" %}</h3>
+                    <h3 class="font-display text-lg font-bold mb-3">{% trans "Sigue al club" %}</h3>
                     <div class="flex justify-center md:justify-end space-x-4">
                         <a href="{{ tenant.instagram_url }}" target="_blank" rel="noopener"
-                            class="text-purple-200 hover:text-csj-yellow transition-colors" title="Instagram">
+                            class="text-white/80 hover:text-white transition-colors" title="Instagram">
                             <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                                 <path
                                     d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
@@ -313,7 +330,7 @@
                         </a>
                     </div>
                     {% if tenant.instagram_handle %}
-                    <p class="text-purple-200 text-sm mt-3">
+                    <p class="text-white/80 text-sm mt-3">
                         {{ tenant.instagram_handle }}
                     </p>
                     {% endif %}
@@ -322,17 +339,17 @@
             </div>
 
             <!-- Línea divisoria -->
-            <div class="border-t border-purple-400 pt-6">
+            <div class="border-t border-white/20 pt-6">
                 <div class="flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0">
                     <!-- Copyright -->
-                    <p class="text-purple-200 text-sm text-center sm:text-left">
+                    <p class="text-white/80 text-sm text-center sm:text-left">
                         {% now "Y" as current_year %}{% blocktrans with year=current_year %}© {{ year }} Desarrollado con 💜 por <a href="https://www.instagram.com/trencaclosques/"
                             target="_blank" rel="noopener"
-                            class="font-semibold text-csj-yellow hover:text-yellow-200 transition-colors">trencaclosques</a>{% endblocktrans %}
+                            class="font-semibold text-white underline underline-offset-2 hover:opacity-80 transition-colors">trencaclosques</a>{% endblocktrans %}
                     </p>
 
                     <!-- Mensaje adicional -->
-                    <p class="text-purple-200 text-xs text-center sm:text-right">
+                    <p class="text-white/80 text-xs text-center sm:text-right">
                         {% trans "Proyecto sin ánimo de lucro · Para la comunidad del voley balear" %}
                     </p>
                 </div>
@@ -362,7 +379,7 @@
                 },
                 {
                     type: 'info',
-                    background: '#9B7FBF', // csj-purple
+                    background: getComputedStyle(document.documentElement).getPropertyValue('--brand-dark').trim(),
                     icon: {
                         className: 'notyf__icon--info',
                         tagName: 'span',
