@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="mb-6">
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-                <h1 class="text-2xl sm:text-3xl font-bold text-ink">{% trans "👥 Personas del Club" %}</h1>
+                <h1 class="text-2xl sm:text-3xl font-bold text-ink">{% icon 'users' %} {% trans "Personas del Club" %}</h1>
                 <p class="text-muted mt-1">{% trans "Jugadores, entrenadores y staff" %}{% if tenant %} {% blocktrans with tenant_name=tenant.name %}de {{ tenant_name }}{% endblocktrans %}{% endif %}</p>
             </div>
             {% if is_tenant_manager %}
@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <!-- Marca visual "Tú" en la card del usuario conectado -->
                     {% if person.user == request.user %}
                         <div class="absolute top-2 right-2 bg-csj-purple-dark dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg z-20">
-                            {% trans "⭐ Tú" %}
+                            {% icon 'star' %} {% trans "Tú" %}
                         </div>
                     {% endif %}
                     
@@ -279,7 +279,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             {% if person.active_player_roles %}
                                 <div class="flex items-center justify-center" data-tooltip>
                                     <span class="bg-csj-purple-dark dark:bg-csj-purple-dark text-white px-3 py-1 rounded text-xs font-medium">
-                                        {% trans "🏐 Jugador" %}
+                                        {% icon 'ball' %} {% trans "Jugador" %}
                                     </span>
                                     <!-- Tooltip -->
                                     <div class="tooltip absolute bg-gray-900 text-white text-xs rounded-lg py-2 px-3 opacity-0 transition-opacity duration-200 pointer-events-none hidden">
@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             {% if person.active_staff_roles %}
                                 <div class="flex items-center justify-center" data-tooltip>
                                     <span class="bg-csj-purple-dark text-white px-3 py-1 rounded text-xs font-medium">
-                                        {% trans "🎯 Staff" %}
+                                        {% icon 'target' %} {% trans "Staff" %}
                                     </span>
                                     <!-- Tooltip -->
                                     <div class="tooltip absolute bg-gray-900 text-white text-xs rounded-lg py-2 px-3 opacity-0 transition-opacity duration-200 pointer-events-none hidden">

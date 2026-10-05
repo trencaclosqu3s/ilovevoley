@@ -10,7 +10,7 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-ink flex items-center gap-2">
-                    <span>📋</span> {% trans "Modificaciones Federativas" %}
+                    <span>{% icon 'clipboard' %}</span> {% trans "Modificaciones Federativas" %}
                 </h1>
                 <p class="text-sm text-muted mt-1">
                     {% trans "Control de variaciones horarias, pistas, aplazamientos y discrepancias detectadas por el scraper" %}
@@ -110,15 +110,15 @@
                             <div class="flex items-center gap-1.5 flex-wrap">
                                 {% if log.change_type == 'datetime' %}
                                 <span class="px-2 py-0.5 text-xs font-medium rounded bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">
-                                    🕒 {% trans "Fecha / Hora" %}
+                                    {% icon 'clock' %} {% trans "Fecha / Hora" %}
                                 </span>
                                 {% elif log.change_type == 'venue' %}
                                 <span class="px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
-                                    📍 {% trans "Sede / Pista" %}
+                                    {% icon 'map-pin' %} {% trans "Sede / Pista" %}
                                 </span>
                                 {% elif log.change_type == 'status' %}
                                 <span class="px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300">
-                                    ⚠️ {% trans "Estado" %}
+                                    {% icon 'warning' %} {% trans "Estado" %}
                                 </span>
                                 {% elif log.change_type == 'score' %}
                                 <span class="px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
@@ -156,7 +156,7 @@
                             <div>{% blocktrans with detected=log.detected_at|date:"d/m/Y H:i" %}Detectado: {{ detected }}{% endblocktrans %}</div>
                             {% if log.notified %}
                             <div class="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-                                <span>✓ {% trans "Alerta enviada" %}</span>
+                                <span>{% icon 'check' %} {% trans "Alerta enviada" %}</span>
                                 <span>({{ log.notified_at|date:"d/m H:i" }})</span>
                             </div>
                             {% endif %}
@@ -167,7 +167,7 @@
                             <div id="review-action-{{ log.id }}">
                                 {% if log.reviewed %}
                                 <span class="inline-flex items-center text-green-700 dark:text-green-400 font-medium bg-green-50 dark:bg-green-950/40 px-2 py-1 rounded">
-                                    ✓ {% blocktrans with reviewer=log.reviewed_by.get_full_name|default:log.reviewed_by.username|default:"Admin" %}Revisado por {{ reviewer }}{% endblocktrans %}
+                                    {% icon 'check' %} {% blocktrans with reviewer=log.reviewed_by.get_full_name|default:log.reviewed_by.username|default:"Admin" %}Revisado por {{ reviewer }}{% endblocktrans %}
                                 </span>
                                 {% else %}
                                 <button data-call="markAsReviewed" data-call-this
@@ -210,7 +210,7 @@
 
         {% else %}
         <div class="text-center py-12 text-muted">
-            <span class="text-4xl block mb-2">🎉</span>
+            <span class="text-4xl block mb-2">{% icon 'sparkles' %}</span>
             <p class="text-base font-medium">{% trans "No hay modificaciones federativas que coincidan con los filtros." %}</p>
         </div>
         {% endif %}

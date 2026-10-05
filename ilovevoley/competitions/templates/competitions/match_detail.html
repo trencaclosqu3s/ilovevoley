@@ -35,11 +35,11 @@
                 <div class="flex flex-wrap gap-2 sm:gap-3">
                     <a href="{% url 'competitions:calendar_view' %}"
                        class="inline-flex items-center px-3 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
-                        📅 {% trans "Calendario" %}
+                        {% icon 'calendar' %} {% trans "Calendario" %}
                     </a>
                     <a href="{% url 'competitions:league_detail' match.league.id %}" 
                        class="inline-flex items-center px-3 py-2 bg-csj-purple-dark hover:opacity-90 text-white rounded-full font-medium transition text-sm">
-                        📋 {% trans "Liga" %}
+                        {% icon 'clipboard' %} {% trans "Liga" %}
                     </a>
                 </div>
             </div>
@@ -96,7 +96,7 @@
                     </div>
                     {% if match.result_penalized %}
                         <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200">
-                            ⚠️ {% trans "Resuelto por penalización" %}
+                            {% icon 'warning' %} {% trans "Resuelto por penalización" %}
                         </div>
                     {% endif %}
                     {% if set_scores %}
@@ -416,7 +416,7 @@
         <div class="bg-surface rounded-[20px] border border-line overflow-hidden">
             <div class="bg-tint px-4 sm:px-6 py-3 sm:py-4 border-b border-line flex items-center justify-between">
                 <h2 class="text-lg sm:text-xl font-bold text-ink">
-                    📹 {% blocktrans count counter=videos.count %}Videos del partido ({{ counter }}){% plural %}Videos del partido ({{ counter }}){% endblocktrans %}
+                    {% icon 'video' %} {% blocktrans count counter=videos.count %}Videos del partido ({{ counter }}){% plural %}Videos del partido ({{ counter }}){% endblocktrans %}
                 </h2>
                 {% if can_manage_videos %}
                     <a href="{% url 'content:video_bulk_create' %}?match={{ match.id }}"
@@ -492,7 +492,7 @@
         <div class="bg-tint rounded-t-lg px-4 sm:px-6 py-3 sm:py-4 border-b border-line">
             <div class="flex justify-between items-center">
                 <h2 class="text-lg sm:text-xl font-bold text-ink">
-                    📸 {% trans "Galería del partido" %}
+                    {% icon 'camera' %} {% trans "Galería del partido" %}
                 </h2>
                 <a href="{% url 'content:match_images' match.id %}" 
                    class="text-brand-text hover:text-purple-700 text-sm font-medium">
@@ -526,7 +526,7 @@
             </div>
         {% else %}
             <div class="p-8 sm:p-12 text-center">
-                <div class="text-muted text-4xl mb-4">📸</div>
+                <div class="text-muted text-4xl mb-4">{% icon 'camera' %}</div>
                 <h3 class="text-lg font-medium text-ink mb-2">{% trans "No hay imágenes para este partido" %}</h3>
                 <p class="text-sm text-muted mb-4">
                     {% trans "Aún no se han subido imágenes para este enfrentamiento." %}
@@ -572,7 +572,7 @@
     {% if can_manage_videos %}
     <div class="bg-surface rounded-[20px] border border-line overflow-hidden">
         <div class="bg-tint px-4 sm:px-6 py-3 sm:py-4 border-b border-line">
-            <h2 class="text-lg sm:text-xl font-bold text-ink">🔗 {% trans "Compartir galería" %}</h2>
+            <h2 class="text-lg sm:text-xl font-bold text-ink">{% icon 'link' %} {% trans "Compartir galería" %}</h2>
         </div>
         <div class="p-4 sm:p-6 space-y-4">
             <form method="post" action="{% url 'competitions:match_share_create' match.id %}" class="flex flex-col sm:flex-row gap-3 sm:items-end">
@@ -623,27 +623,27 @@
 
     <!-- Navegación -->
     <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold text-ink mb-3 sm:mb-4">🔗 {% trans "Enlaces relacionados" %}</h3>
+        <h3 class="text-base sm:text-lg font-semibold text-ink mb-3 sm:mb-4">{% icon 'link' %} {% trans "Enlaces relacionados" %}</h3>
         <div class="flex flex-wrap gap-2 sm:gap-3">
             <a href="{% url 'content:video_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
-                🎬 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Videos" %}
+                {% icon 'film' %} <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Videos" %}
             </a>
             <a href="{% url 'competitions:calendar_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
-                📅 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Calendario" %}
+                {% icon 'calendar' %} <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Calendario" %}
             </a>
             <a href="{% url 'competitions:standings_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-purple-dark hover:opacity-90 text-white rounded-full font-medium transition text-sm">
-                🏆 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Clasificación" %}
+                {% icon 'trophy' %} <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Clasificación" %}
             </a>
             <a href="{% url 'competitions:league_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
-                📋 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Ligas" %}
+                {% icon 'clipboard' %} <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Ligas" %}
             </a>
             <a href="{% url 'content:image_gallery' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
-                📸 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Galería" %}
+                {% icon 'camera' %} <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Galería" %}
             </a>
         </div>
     </div>

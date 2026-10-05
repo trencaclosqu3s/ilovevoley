@@ -11,9 +11,9 @@
 <div class="space-y-6">
     <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-            <h1 class="text-xl sm:text-3xl font-bold text-ink">✅ {% trans "Resultados" %}</h1>
+            <h1 class="text-xl sm:text-3xl font-bold text-ink">{% icon 'check-circle' %} {% trans "Resultados" %}</h1>
             <a href="{% url 'competitions:calendar_view' %}" class="text-sm font-semibold text-brand-text hover:underline">
-                📅 {% trans "Ir al calendario" %}
+                {% icon 'calendar' %} {% trans "Ir al calendario" %}
             </a>
         </div>
 

@@ -42,6 +42,8 @@
 
 /* Logo de la marca teñido con el color del tenant: el SVG actúa de máscara (su forma), el color sale de --logo. */
 @layer components {
+  /* Iconos SVG ({% icon %}): escalan con el texto como lo hacía el emoji. */
+  .icon { display: inline-block; width: 1.1em; height: 1.1em; vertical-align: -0.18em; flex-shrink: 0; }
   .brand-logo {
     display: block;
     aspect-ratio: 360 / 76;

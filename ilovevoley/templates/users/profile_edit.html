@@ -177,7 +177,7 @@
                         {% for org, field in form.organization_category_fields %}
                             <div class="bg-tint p-4 rounded-lg border border-line">
                                 <h3 class="text-sm font-semibold text-ink mb-1 flex items-center gap-2">
-                                    <span>🏐</span>
+                                    <span>{% icon 'ball' %}</span>
                                     <span>{{ org.name }}</span>
                                 </h3>
                                 <p class="text-xs text-muted mb-3">{{ field.help_text }}</p>
@@ -212,7 +212,7 @@
                         {% for org, field in form.organization_notification_fields %}
                             <div class="bg-tint p-4 rounded-lg border border-line">
                                 <h3 class="text-sm font-semibold text-ink mb-1 flex items-center gap-2">
-                                    <span>🔔</span>
+                                    <span>{% icon 'bell' %}</span>
                                     <span>{{ org.name }}</span>
                                 </h3>
                                 <p class="text-xs text-muted mb-3">{{ field.help_text }}</p>

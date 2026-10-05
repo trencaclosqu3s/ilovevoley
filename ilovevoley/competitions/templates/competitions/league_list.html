@@ -13,7 +13,7 @@
     <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div class="flex-1 min-w-0">
-                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink mb-2">📋 {% trans "Ligas" %}</h1>
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink mb-2">{% icon 'clipboard' %} {% trans "Ligas" %}</h1>
                 <p class="text-sm sm:text-base text-muted">{% trans "Todas las competiciones disponibles" %}</p>
             </div>
             
@@ -112,7 +112,7 @@
                                     </h2>
                                     {% if league.is_past_league %}
                                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-tint text-ink text-white">
-                                            📅 {% trans "Finalizada" %}
+                                            {% icon 'calendar' %} {% trans "Finalizada" %}
                                         </span>
                                     {% endif %}
                                 </div>
@@ -130,13 +130,13 @@
                             <div class="ml-4">
                                 <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
                                     {% if league.competition_type == 'playoff' %}
-                                        <span class="text-2xl">🏆</span>
+                                        <span class="text-2xl text-white">{% icon 'trophy' %}</span>
                                     {% elif league.competition_type == 'cup' %}
-                                        <span class="text-2xl">🥇</span>
+                                        <span class="text-2xl text-white">{% icon 'medal' 'text-yellow-500' %}</span>
                                     {% elif league.competition_type == 'friendly' %}
-                                        <span class="text-2xl">🤝</span>
+                                        <span class="text-2xl text-white">{% icon 'users' %}</span>
                                     {% else %}
-                                        <span class="text-2xl">{% include 'includes/ball_icon.html' with class='w-4 h-4 inline align-text-bottom' %}</span>
+                                        <span class="text-2xl text-white">{% include 'includes/ball_icon.html' with class='w-4 h-4 inline align-text-bottom' %}</span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -190,7 +190,7 @@
                             {% if league.has_standings %}
                                 <a href="{% url 'competitions:standings_view' %}?league={{ league.id }}" 
                                    class="inline-flex items-center justify-center px-3 py-2 bg-csj-purple-dark hover:opacity-90 text-white text-sm font-medium rounded-full transition touch-manipulation">
-                                    🏆
+                                    {% icon 'trophy' %}
                                 </a>
                             {% endif %}
                         </div>
@@ -256,19 +256,19 @@
 
     <!-- Enlaces rápidos -->
     <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold text-ink mb-3 sm:mb-4">🔗 {% trans "Enlaces relacionados" %}</h3>
+        <h3 class="text-base sm:text-lg font-semibold text-ink mb-3 sm:mb-4">{% icon 'link' %} {% trans "Enlaces relacionados" %}</h3>
         <div class="flex flex-wrap gap-2 sm:gap-3">
             <a href="{% url 'competitions:calendar_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-purple-dark hover:opacity-90 text-white rounded-full font-medium transition text-sm">
-                📅 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Calendario" %}
+                {% icon 'calendar' %} <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Calendario" %}
             </a>
             <a href="{% url 'competitions:standings_view' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
-                🏆 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Clasificación" %}
+                {% icon 'trophy' %} <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Clasificación" %}
             </a>
             <a href="{% url 'content:video_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
-                🎬 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Videos" %}
+                {% icon 'film' %} <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Videos" %}
             </a>
         </div>
         </div>

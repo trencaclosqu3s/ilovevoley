@@ -204,8 +204,8 @@
                     {% for message in messages %}
                     <div
                         class="mb-4 p-4 rounded-2xl border {% if message.tags == 'success' %}bg-green-100 text-green-800 border-green-300{% elif message.tags == 'error' %}bg-red-100 text-red-800 border-red-300{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800 border-yellow-300{% else %}bg-tint text-ink border-line{% endif %}">
-                        <strong>{% if message.tags == 'success' %}✓{% elif message.tags == 'error' %}✕{% elif
-                            message.tags == 'warning' %}⚠{% else %}ℹ{% endif %}</strong>
+                        <strong>{% if message.tags == 'success' %}{% icon 'check' %}{% elif message.tags == 'error' %}{% icon 'x' %}{% elif
+                            message.tags == 'warning' %}{% icon 'warning' %}{% else %}{% icon 'info' %}{% endif %}</strong>
                         {{ message }}
                     </div>
                     {% endfor %}

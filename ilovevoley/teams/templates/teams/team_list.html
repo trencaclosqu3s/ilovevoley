@@ -8,17 +8,17 @@
 <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6 mb-6">
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div class="flex-1 min-w-0">
-            <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink">{% trans "🏐 Equipos del Club" %}</h2>
+            <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink">{% icon 'ball' %} {% trans "Equipos del Club" %}</h2>
             <p class="text-sm text-muted mt-1">{% trans "Gestión de plantillas y equipos" %}</p>
         </div>
         
         <div class="flex items-center gap-2">
             <a href="{% url 'rosters:roster_overview' %}" class="bg-csj-purple-dark hover:opacity-90 text-white px-4 py-2 rounded-full font-semibold transition text-sm whitespace-nowrap">
-                {% trans "📋 Vista General" %}
+                {% icon 'clipboard' %} {% trans "Vista General" %}
             </a>
             {% if user.is_staff %}
                 <a href="{% url 'admin:teams_team_changelist' %}" class="bg-tint hover:opacity-80 text-ink px-4 py-2 rounded-lg font-medium transition text-sm whitespace-nowrap">
-                    {% trans "⚙️ Admin" %}
+                    {% icon 'cog' %} {% trans "Admin" %}
                 </a>
             {% endif %}
         </div>
@@ -64,7 +64,7 @@
         <!-- Botones -->
         <div class="flex gap-2">
             <button type="submit" class="bg-csj-purple-dark hover:opacity-90 text-white px-4 py-2 rounded-full font-medium transition">
-                {% trans "🔍 Filtrar" %}
+                {% icon 'search' %} {% trans "Filtrar" %}
             </button>
             <a href="{% url 'teams:team_list' %}" class="bg-tint hover:opacity-80 text-ink px-4 py-2 rounded-lg font-medium transition">
                 {% trans "Limpiar filtros" %}
@@ -132,7 +132,7 @@
                     <!-- Información del club -->
                     {% if team.club %}
                         <div class="text-xs text-muted mb-3">
-                            🏢 {{ team.club.official_name }}
+                            {% icon 'building' %} {{ team.club.official_name }}
                         </div>
                     {% endif %}
                 </div>
@@ -153,7 +153,7 @@
                     <!-- Botón de acción -->
                     <a href="{% url 'teams:team_roster' team.id %}" 
                        class="block w-full bg-csj-purple-dark hover:bg-csj-purple-dark text-white text-center py-2 rounded-lg font-medium transition text-sm">
-                        {% trans "👥 Ver Plantilla" %}
+                        {% icon 'users' %} {% trans "Ver Plantilla" %}
                     </a>
                     
                     {% if team.active_players_count == 0 and team.active_staff_count == 0 %}
@@ -194,7 +194,7 @@
             {% endif %}
             {% if user.is_staff %}
                 <a href="{% url 'admin:teams_team_add' %}" class="bg-csj-purple-dark hover:opacity-90 text-white px-4 py-2 rounded-full font-medium transition">
-                    {% trans "➕ Agregar Equipo" %}
+                    {% icon 'plus' %} {% trans "Agregar Equipo" %}
                 </a>
             {% endif %}
         </div>

@@ -40,7 +40,7 @@
             <div id="video-rows" class="space-y-4">
                 {% for form in formset %}
                     <div class="video-row border border-line rounded-lg p-4 space-y-3 relative">
-                        <button type="button" class="remove-row absolute top-2 right-2 text-muted hover:text-red-500 dark:hover:text-red-400 transition text-lg leading-none" title="{% trans "Eliminar" %}">✕</button>
+                        <button type="button" class="remove-row absolute top-2 right-2 text-muted hover:text-red-500 dark:hover:text-red-400 transition text-lg leading-none" title="{% trans "Eliminar" %}">{% icon 'x' %}</button>
                         {{ form.DELETE.as_hidden }}
                         <div>
                             <label class="block text-sm font-medium text-ink mb-1">{{ form.title.label }}</label>
@@ -90,7 +90,7 @@
     </div>
 
     <div class="mt-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <h3 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">{% trans '💡 Recuerda: usa vídeos "No listados"' %}</h3>
+        <h3 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">{% icon 'bulb' %} {% trans 'Recuerda: usa vídeos "No listados"' %}</h3>
         <p class="text-sm text-blue-700 dark:text-blue-300">{% trans 'Los vídeos "Privados" no se pueden incrustar. Usa siempre "No listados" en YouTube.' %}</p>
     </div>
 </div>

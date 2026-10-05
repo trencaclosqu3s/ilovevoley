@@ -45,7 +45,7 @@
             <div class="flex items-center gap-2">
                 {% if user.is_staff %}
                     <a href="{% url 'admin:teams_team_change' team.id %}" class="bg-tint hover:opacity-80 text-ink px-4 py-2 rounded-full font-medium transition text-sm whitespace-nowrap">
-                        {% trans "⚙️ Editar" %}
+                        {% icon 'cog' %} {% trans "Editar" %}
                     </a>
                 {% endif %}
             </div>
@@ -108,7 +108,7 @@
     <!-- Sección de Jugadores -->
     <div class="bg-surface rounded-[20px] border border-line p-4 sm:p-6 mb-6">
         <div class="border-l-4 border-csj-purple pl-4 mb-6">
-            <h2 class="text-xl sm:text-2xl font-bold text-ink">{% trans "👥 Jugadores" %}</h2>
+            <h2 class="text-xl sm:text-2xl font-bold text-ink">{% icon 'users' %} {% trans "Jugadores" %}</h2>
             <p class="text-sm text-muted">{% trans "Plantilla actual del equipo" %}</p>
         </div>
 
@@ -132,7 +132,7 @@
                         <!-- Marca visual "Tú" en la card del usuario conectado -->
                         {% if player_role.person.user == request.user %}
                             <div class="absolute top-2 right-2 bg-csj-purple-dark dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg z-20">
-                                {% trans "⭐ Tú" %}
+                                {% icon 'star' %} {% trans "Tú" %}
                             </div>
                         {% endif %}
                         
@@ -209,7 +209,7 @@
                                         </div>
                                         {% if player_role.person.user == request.user %}
                                             <span class="bg-csj-purple-dark dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ml-2">
-                                                {% trans "⭐ Tú" %}
+                                                {% icon 'star' %} {% trans "Tú" %}
                                             </span>
                                         {% endif %}
                                     </div>
@@ -258,7 +258,7 @@
                                             {% endif %}
                                             {% if player_role.person.user == request.user %}
                                                 <span class="ml-2 bg-csj-purple-dark dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium">
-                                                    {% trans "⭐ Tú" %}
+                                                    {% icon 'star' %} {% trans "Tú" %}
                                                 </span>
                                             {% endif %}
                                         </div>
@@ -309,7 +309,7 @@
                 </h3>
                 {% if user.is_staff %}
                     <a href="{% url 'admin:rosters_playerrole_add' %}?team={{ team.id }}" class="bg-csj-purple-dark dark:bg-csj-purple-dark hover:opacity-90 dark:hover:opacity-90 text-white px-4 py-2 rounded-full font-medium transition inline-block">
-                        {% trans "➕ Agregar Jugador" %}
+                        {% icon 'plus' %} {% trans "Agregar Jugador" %}
                     </a>
                 {% endif %}
             </div>
@@ -319,7 +319,7 @@
     <!-- Sección de Staff -->
     <div class="bg-surface rounded-[20px] border border-line p-4 sm:p-6 mb-6">
         <div class="border-l-4 border-csj-purple pl-4 mb-6">
-            <h2 class="text-xl sm:text-2xl font-bold text-ink">{% trans "🎯 Cuerpo Técnico" %}</h2>
+            <h2 class="text-xl sm:text-2xl font-bold text-ink">{% icon 'target' %} {% trans "Cuerpo Técnico" %}</h2>
             <p class="text-sm text-muted">{% trans "Staff y equipo técnico" %}</p>
         </div>
 
@@ -343,7 +343,7 @@
                         <!-- Marca visual "Tú" en la card del usuario conectado -->
                         {% if staff_role.person.user == request.user %}
                             <div class="absolute top-2 right-2 bg-csj-purple-dark dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg z-20">
-                                {% trans "⭐ Tú" %}
+                                {% icon 'star' %} {% trans "Tú" %}
                             </div>
                         {% endif %}
                         
@@ -422,7 +422,7 @@
                                         </div>
                                         {% if staff_role.person.user == request.user %}
                                             <span class="bg-csj-purple-dark dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ml-2">
-                                                {% trans "⭐ Tú" %}
+                                                {% icon 'star' %} {% trans "Tú" %}
                                             </span>
                                         {% endif %}
                                     </div>
@@ -485,7 +485,7 @@
                                             {% endif %}
                                             {% if staff_role.person.user == request.user %}
                                                 <span class="ml-2 bg-csj-purple-dark dark:bg-csj-purple-dark text-white text-xs px-2 py-1 rounded-full font-medium">
-                                                    {% trans "⭐ Tú" %}
+                                                    {% icon 'star' %} {% trans "Tú" %}
                                                 </span>
                                             {% endif %}
                                         </div>
@@ -532,7 +532,7 @@
                 </h3>
                 {% if user.is_staff %}
                     <a href="{% url 'admin:rosters_staffrole_add' %}?team={{ team.id }}" class="bg-csj-purple-dark hover:opacity-90 text-white px-4 py-2 rounded-full font-medium transition inline-block">
-                        {% trans "➕ Agregar Staff" %}
+                        {% icon 'plus' %} {% trans "Agregar Staff" %}
                     </a>
                 {% endif %}
             </div>

@@ -188,3 +188,13 @@ Los colores semánticos (verde/rojo/amarillo de éxito, error, aviso) se dejan c
 
 Otro agente: leer este fichero, `ilovevoley/templates/base.html` y `tailwind.config.js`, marcar aquí
 cada fase al terminarla, y no hacer commit sin pedirlo (`@time` e issue `#NNN` antes de cada commit).
+
+## Iconos (emojis → SVG)
+
+`{% icon 'nombre' 'clases' %}` (builtin de plantillas, `core/templatetags/icons.py`; catálogo `ICONS`, y `EMOJI_TO_ICON` para migrar más).
+Tamaño `1.1em` (clase `.icon` en `input.css`), color `currentColor`. Hay un test que comprueba que todos los nombres usados en plantillas existen.
+- Migrado: textos de plantillas HTML fuera de `{% blocktrans %}`. Los `{% trans "📊 Texto" %}` pasaron a `{% icon %} {% trans "Texto" %}` y el
+  `locale/ca/django.po` se actualizó (msgid sin emoji; duplicados descartados; `compilemessages` OK).
+- **Sin migrar a propósito:** emojis dentro de `{% blocktrans %}` (cambiar el msgid rompe la traducción: 💜 en footers, 💡/⚠️ en `profile.html`, ✓ en
+  `moderation_result.html`), cadenas JS (`lightbox.js`, `base.html` notyf, `match_changes_review`, `friendly_match_form`), emojis de género 👨👩👧👦,
+  páginas autónomas (errores, offline, `static/errors`), emails y comandos de gestión.

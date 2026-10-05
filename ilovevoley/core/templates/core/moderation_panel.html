@@ -28,7 +28,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div class="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 border-l-4 border-blue-500">
             <div class="flex items-center">
-                <div class="text-3xl mr-4">👥</div>
+                <div class="text-3xl mr-4">{% icon 'users' %}</div>
                 <div>
                     <h3 class="text-lg font-semibold text-ink">{% trans "Usuarios Pendientes" %}</h3>
                     <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ pending_users_count }}</p>
@@ -40,7 +40,7 @@
         {% if can_moderate_images %}
         <div class="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-6 border-l-4 border-purple-500">
             <div class="flex items-center">
-                <div class="text-3xl mr-4">📸</div>
+                <div class="text-3xl mr-4">{% icon 'camera' %}</div>
                 <div>
                     <h3 class="text-lg font-semibold text-ink">{% trans "Imágenes Pendientes" %}</h3>
                     <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ pending_images_count }}</p>
@@ -52,7 +52,7 @@
 
         <div class="bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg p-6 border-l-4 border-amber-500">
             <div class="flex items-center">
-                <div class="text-3xl mr-4">🏐</div>
+                <div class="text-3xl mr-4">{% icon 'ball' %}</div>
                 <div>
                     <h3 class="text-lg font-semibold text-ink">{% trans "Convocatorias" %}</h3>
                     <p class="text-2xl font-bold text-amber-600">{{ pending_callups_count }}</p>
@@ -63,7 +63,7 @@
 
         <div class="bg-gradient-to-r from-teal-50 to-teal-100 rounded-lg p-6 border-l-4 border-teal-500">
             <div class="flex items-center">
-                <div class="text-3xl mr-4">🔄</div>
+                <div class="text-3xl mr-4">{% icon 'refresh' %}</div>
                 <div>
                     <h3 class="text-lg font-semibold text-ink">{% trans "Reactivaciones" %}</h3>
                     <p class="text-2xl font-bold text-teal-600 dark:text-teal-400">{{ pending_reactivations_count }}</p>
@@ -80,7 +80,7 @@
     {% if pending_users %}
     <div class="mb-12">
         <div class="flex items-center mb-6">
-            <h2 class="text-xl lg:text-2xl font-bold text-ink mr-3">{% trans "👥 Usuarios Pendientes" %}</h2>
+            <h2 class="text-xl lg:text-2xl font-bold text-ink mr-3">{% icon 'users' %} {% trans "Usuarios Pendientes" %}</h2>
             <span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_users_count }}</span>
         </div>
         
@@ -94,7 +94,7 @@
                             <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="w-12 h-12 rounded-full object-cover mr-4">
                         {% else %}
                             <div class="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center mr-4">
-                                <span class="text-xl">👤</span>
+                                <span class="text-xl">{% icon 'user' %}</span>
                             </div>
                         {% endif %}
                         <div class="flex-1">
@@ -142,12 +142,12 @@
                         <button 
                             data-call="approveUser" data-call-args='[{{ user.id }}]' data-call-this
                             class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
-                            {% trans "✅ Aprobar" %}
+                            {% icon 'check-circle' %} {% trans "Aprobar" %}
                         </button>
                         <button 
                             data-call="rejectUser" data-call-args='[{{ user.id }}]' data-call-this
                             class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
-                            {% trans "❌ Rechazar" %}
+                            {% icon 'x-circle' %} {% trans "Rechazar" %}
                         </button>
                     </div>
                 </div>
@@ -161,7 +161,7 @@
     {% if reactivation_users %}
     <div class="mb-12">
         <div class="flex items-center mb-6">
-            <h2 class="text-xl lg:text-2xl font-bold text-ink mr-3">{% trans "🔄 Cuentas que piden reactivación" %}</h2>
+            <h2 class="text-xl lg:text-2xl font-bold text-ink mr-3">{% icon 'refresh' %} {% trans "Cuentas que piden reactivación" %}</h2>
             <span class="bg-teal-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_reactivations_count }}</span>
         </div>
 
@@ -174,7 +174,7 @@
                             <img src="{{ ruser.avatar.url }}" alt="{{ ruser.username }}" class="w-12 h-12 rounded-full object-cover mr-4">
                         {% else %}
                             <div class="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center mr-4">
-                                <span class="text-xl">👤</span>
+                                <span class="text-xl">{% icon 'user' %}</span>
                             </div>
                         {% endif %}
                         <div class="flex-1">
@@ -204,12 +204,12 @@
                         <button
                             data-call="reactivateUser" data-call-args='[{{ ruser.id }}]' data-call-this
                             class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
-                            {% trans "✅ Reactivar" %}
+                            {% icon 'check-circle' %} {% trans "Reactivar" %}
                         </button>
                         <button
                             data-call="dismissReactivation" data-call-args='[{{ ruser.id }}]' data-call-this
                             class="flex-1 bg-tint hover:opacity-80 text-muted font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
-                            {% trans "❌ Descartar" %}
+                            {% icon 'x-circle' %} {% trans "Descartar" %}
                         </button>
                     </div>
                 </div>
@@ -223,7 +223,7 @@
     {% if pending_callups %}
     <div id="convocatorias" class="mb-12">
         <div class="flex items-center mb-6">
-            <h2 class="text-xl lg:text-2xl font-bold text-ink mr-3">{% trans "🏐 Convocatorias federativas por confirmar" %}</h2>
+            <h2 class="text-xl lg:text-2xl font-bold text-ink mr-3">{% icon 'ball' %} {% trans "Convocatorias federativas por confirmar" %}</h2>
             <span class="bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_callups_count }}</span>
         </div>
 
@@ -243,7 +243,7 @@
                     </div>
                     {% if player.callup.source_url %}
                     <a href="https://voleibolib.federatio.com/upload/descargas/{{ player.callup.source_url }}" target="_blank" rel="noopener noreferrer" class="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                        {% trans "📄 Ver PDF" %}
+                        {% icon 'document' %} {% trans "Ver PDF" %}
                     </a>
                     {% endif %}
                 </div>
@@ -284,12 +284,12 @@
                     <button
                         data-call="confirmCallup" data-call-args='[{{ player.id }}]' data-call-this
                         class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm touch-manipulation">
-                        {% trans "✅ Confirmar convocatoria" %}
+                        {% icon 'check-circle' %} {% trans "Confirmar convocatoria" %}
                     </button>
                     <button
                         data-call="rejectCallup" data-call-args='[{{ player.id }}]' data-call-this
                         class="flex-1 bg-tint hover:opacity-80 text-muted font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm touch-manipulation">
-                        {% trans "❌ Descartar" %}
+                        {% icon 'x-circle' %} {% trans "Descartar" %}
                     </button>
                 </div>
             </div>
@@ -302,7 +302,7 @@
     {% if can_moderate_images and pending_images %}
     <div class="mb-8">
         <div class="flex items-center mb-6">
-            <h2 class="text-xl lg:text-2xl font-bold text-ink mr-3">{% trans "📸 Imágenes Pendientes" %}</h2>
+            <h2 class="text-xl lg:text-2xl font-bold text-ink mr-3">{% icon 'camera' %} {% trans "Imágenes Pendientes" %}</h2>
             <span class="bg-purple-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_images_count }}</span>
         </div>
         
@@ -313,7 +313,7 @@
                 <div class="aspect-w-16 aspect-h-12 cursor-pointer" data-call="openModerationLightbox" data-call-args='[{{ image.id }}]'>
                     {% include 'content/_thumbnail.html' with image=image css_class="w-full h-48 object-cover rounded-t-lg hover:opacity-90 transition-opacity" sizes="(min-width: 1024px) 50vw, 100vw" %}
                     <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                        {% trans "🔍 Click para ampliar" %}
+                        {% icon 'search' %} {% trans "Click para ampliar" %}
                     </div>
                 </div>
                 
@@ -321,7 +321,7 @@
                     <!-- Título y usuario -->
                     <h3 class="text-lg font-semibold text-ink mb-2">{{ image.title }}</h3>
                     <div class="flex items-center mb-3">
-                        <span class="text-sm text-muted mr-2">{% trans "👤 Subida por:" %}</span>
+                        <span class="text-sm text-muted mr-2">{% icon 'user' %} {% trans "Subida por:" %}</span>
                         <span class="text-sm font-medium text-ink">{{ image.uploaded_by.username }}</span>
                     </div>
                     
@@ -346,7 +346,7 @@
                     {% if image.match %}
                     <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
                         <div class="text-sm">
-                            <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">{% trans "🏐 Partido:" %}</div>
+                            <div class="font-medium text-blue-800 dark:text-blue-200 mb-1">{% icon 'ball' %} {% trans "Partido:" %}</div>
                             <div class="text-blue-700 dark:text-blue-300">{{ image.match }}</div>
                             <div class="text-xs text-blue-600 dark:text-blue-400 mt-1">{{ image.match.match_date|date:"d/m/Y" }}</div>
                         </div>
@@ -355,23 +355,23 @@
                     
                     <!-- Razón de pendiente y análisis de Vision API -->
                     <div class="mb-4">
-                        <div class="text-sm font-medium text-ink mb-2">{% trans "📋 Estado:" %}</div>
+                        <div class="text-sm font-medium text-ink mb-2">{% icon 'clipboard' %} {% trans "Estado:" %}</div>
                         {% if image.vision_api_checked %}
                             {% if not image.vision_api_safe %}
                                 <div class="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-800">
-                                    <div class="text-red-800 dark:text-red-200 font-medium mb-2">{% trans "⚠️ Moderación automática" %}</div>
+                                    <div class="text-red-800 dark:text-red-200 font-medium mb-2">{% icon 'warning' %} {% trans "Moderación automática" %}</div>
                                     <div class="text-sm text-red-700 dark:text-red-300">
                                         {% if image.vision_api_details.reasons %}
                                             {% for reason in image.vision_api_details.reasons %}
                                                 <div class="mb-1">
                                                     {% if "violence" in reason %}
-                                                        {% trans "🚨 Posible contenido violento" %}
+                                                        {% icon 'warning' %} {% trans "Posible contenido violento" %}
                                                     {% elif "racy" in reason %}
-                                                        {% trans "🔞 Contenido sugerente detectado" %}
+                                                        {% icon 'ban' %} {% trans "Contenido sugerente detectado" %}
                                                     {% elif "spoof" in reason %}
                                                         {% trans "🎭 Posible contenido falso/spam" %}
                                                     {% elif "medical" in reason %}
-                                                        {% trans "🏥 Contenido médico detectado" %}
+                                                        {% icon 'building' %} {% trans "Contenido médico detectado" %}
                                                     {% else %}
                                                         {% blocktrans with reason=reason %}⚠️ {{ reason }}{% endblocktrans %}
                                                     {% endif %}
@@ -384,7 +384,7 @@
                                 </div>
                             {% else %}
                                 <div class="p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                                    <div class="text-yellow-800 dark:text-yellow-200 font-medium">{% trans "💭 Revisión manual" %}</div>
+                                    <div class="text-yellow-800 dark:text-yellow-200 font-medium">{% icon 'chat' %} {% trans "Revisión manual" %}</div>
                                     <div class="text-sm text-yellow-700 dark:text-yellow-300">{% trans "Requiere aprobación manual" %}</div>
                                 </div>
                             {% endif %}
@@ -392,7 +392,7 @@
                             <!-- Texto detectado si existe -->
                             {% if image.vision_api_details.detected_text %}
                             <div class="mt-3 p-3 bg-tint rounded-lg border border-line">
-                                <div class="text-sm font-medium text-ink mb-1">{% trans "📝 Texto detectado:" %}</div>
+                                <div class="text-sm font-medium text-ink mb-1">{% icon 'pencil' %} {% trans "Texto detectado:" %}</div>
                                 <div class="text-sm text-muted max-h-20 overflow-y-auto">
                                     {{ image.vision_api_details.detected_text|truncatewords:20 }}
                                 </div>
@@ -400,7 +400,7 @@
                             {% endif %}
                         {% else %}
                             <div class="p-3 bg-tint rounded-lg border border-line">
-                                <div class="text-ink font-medium">{% trans "📝 Revisión manual" %}</div>
+                                <div class="text-ink font-medium">{% icon 'pencil' %} {% trans "Revisión manual" %}</div>
                                 <div class="text-sm text-muted">{% trans "Sin análisis automático" %}</div>
                             </div>
                         {% endif %}
@@ -409,7 +409,7 @@
                     <!-- Etiquetas -->
                     {% if image.tags or image.auto_tags %}
                     <div class="mb-4">
-                        <div class="text-sm font-medium text-ink mb-2">{% trans "🏷️ Etiquetas:" %}</div>
+                        <div class="text-sm font-medium text-ink mb-2">{% icon 'tag' %} {% trans "Etiquetas:" %}</div>
                         <div class="flex flex-wrap gap-1">
                             {% if image.tags %}
                                 <span class="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full">{% blocktrans with tags=image.tags %}📝 {{ tags }}{% endblocktrans %}</span>
@@ -428,12 +428,12 @@
                         <button 
                             data-call="moderateImage" data-call-args='[{{ image.id }}, "approve"]' data-call-this
                             class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
-                            {% trans "✅ Aprobar" %}
+                            {% icon 'check-circle' %} {% trans "Aprobar" %}
                         </button>
                         <button 
                             data-call="moderateImage" data-call-args='[{{ image.id }}, "reject"]' data-call-this
                             class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
-                            {% trans "❌ Rechazar" %}
+                            {% icon 'x-circle' %} {% trans "Rechazar" %}
                         </button>
                     </div>
                 </div>
@@ -446,11 +446,11 @@
     <!-- Mensaje cuando no hay elementos pendientes -->
     {% if not pending_users and not pending_images and not reactivation_users %}
     <div class="bg-surface rounded-3xl border border-line p-12 text-center border-t-4 border-green-500">
-        <div class="text-6xl mb-4">🎉</div>
+        <div class="text-6xl mb-4">{% icon 'sparkles' %}</div>
         <h2 class="text-2xl font-bold text-ink mb-2">{% trans "¡Todo al día!" %}</h2>
         <p class="text-muted mb-6">{% if can_moderate_images %}{% trans "No hay usuarios ni imágenes pendientes de moderación." %}{% else %}{% trans "No hay solicitudes de membresía pendientes." %}{% endif %}</p>
         <a href="{% url 'content:video_list' %}" class="inline-block bg-csj-purple-dark hover:bg-csj-purple-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-            {% trans "🏐 Volver a Videos" %}
+            {% icon 'ball' %} {% trans "Volver a Videos" %}
         </a>
     </div>
     {% endif %}

@@ -84,7 +84,7 @@
                         {% for item in organization_preferences %}
                             <div class="bg-tint p-4 rounded-lg border border-line">
                                 <h3 class="text-sm font-semibold text-ink mb-2 flex items-center gap-2">
-                                    <span>🏐</span>
+                                    <span>{% icon 'ball' %}</span>
                                     <span>{{ item.organization.name }}</span>
                                 </h3>
                                 {% if item.categories %}
@@ -230,7 +230,7 @@
                                 {% trans "Recibe avisos inmediatos cuando finalicen partidos de tus equipos y cuando se publiquen nuevos álbumes de fotos o vídeos del club." %}
                             </p>
                             <div id="webpush-ios-hint" class="hidden mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded text-xs text-yellow-800 dark:text-yellow-200">
-                                {% trans "ℹ️ En iPhone/iPad, para recibir notificaciones añade primero la aplicación a la pantalla de inicio (Compartir > Añadir a pantalla de inicio) y ábrela desde allí." %}
+                                {% icon 'info' %} {% trans "En iPhone/iPad, para recibir notificaciones añade primero la aplicación a la pantalla de inicio (Compartir > Añadir a pantalla de inicio) y ábrela desde allí." %}
                             </div>
                             <div class="mt-4 flex gap-3">
                                 <button id="webpush-toggle-btn" data-call="toggleWebPush" class="px-4 py-2 bg-csj-purple-dark hover:bg-purple-700 text-white text-sm font-medium rounded transition">
@@ -243,7 +243,7 @@
                                     <div class="space-y-2">
                                         {% for item in organization_preferences %}
                                             <div class="text-xs text-purple-800">
-                                                <span class="font-medium">🏐 {{ item.organization.name }}:</span>
+                                                <span class="font-medium">{% icon 'ball' %} {{ item.organization.name }}:</span>
                                                 {% if item.notification_types %}
                                                     <span class="text-muted">{{ item.notification_types|join:", " }}</span>
                                                 {% else %}
@@ -286,7 +286,7 @@
         <!-- Header -->
         <div class="flex items-center justify-between pb-4 border-b border-line">
             <h3 class="text-2xl font-bold text-ink">
-                {% trans "📅 Cómo suscribirte al calendario" %}
+                {% icon 'calendar' %} {% trans "Cómo suscribirte al calendario" %}
             </h3>
             <button data-call="hideCalendarTutorial" class="text-muted hover:text-ink transition">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -361,7 +361,7 @@
                         </svg>
                     </div>
                     <div class="ml-3">
-                        <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">{% trans "⚠️ Notas importantes:" %}</h3>
+                        <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">{% icon 'warning' %} {% trans "Notas importantes:" %}</h3>
                         <ul class="mt-2 text-sm text-yellow-700 dark:text-yellow-300 list-disc list-inside space-y-1">
                             <li>{% blocktrans %}<strong>Privacidad:</strong> La URL es única y personal. No la compartas.{% endblocktrans %}</li>
                             <li>{% blocktrans %}<strong>Actualizaciones:</strong> Los calendarios se actualizan cada 12 horas aproximadamente (configurable en tu app de calendario).{% endblocktrans %}</li>
@@ -382,12 +382,12 @@
                 </h4>
                 <div class="space-y-3 text-sm text-ink">
                     <div class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded p-3">
-                        <p class="font-semibold text-green-800 dark:text-green-200 mb-1">{% trans "✅ Forma más fácil (Recomendada):" %}</p>
+                        <p class="font-semibold text-green-800 dark:text-green-200 mb-1">{% icon 'check-circle' %} {% trans "Forma más fácil (Recomendada):" %}</p>
                         <p class="text-green-700 dark:text-green-300">{% blocktrans %}Haz clic en <strong>"Regenerar URL"</strong> arriba y simplemente no vuelvas a suscribirte. La URL antigua dejará de funcionar automáticamente y tu calendario dejará de recibir actualizaciones.{% endblocktrans %}</p>
                     </div>
                     
                     <div class="bg-tint border border-line rounded p-3">
-                        <p class="font-semibold text-ink mb-2">{% trans "📱 Alternativa: Borrar desde tu app de calendario" %}</p>
+                        <p class="font-semibold text-ink mb-2">{% icon 'phone' %} {% trans "Alternativa: Borrar desde tu app de calendario" %}</p>
                         <ul class="list-disc list-inside space-y-1 ml-2 text-muted">
                             <li>{% blocktrans %}<strong>Google Calendar:</strong> Busca "I Love Voley - Partidos" en "Otros calendarios" → Opciones (⋮) → Darse de baja{% endblocktrans %}</li>
                             <li>{% blocktrans %}<strong>iPhone/iPad:</strong> Ajustes → Calendario → Cuentas → Busca el calendario → Eliminar cuenta{% endblocktrans %}</li>

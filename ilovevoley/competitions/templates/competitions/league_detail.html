@@ -33,7 +33,7 @@
                         <a href="?all_phases=1"
                            class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition
  {% if show_all_phases %}bg-white text-csj-purple{% else %}bg-white bg-opacity-20 text-white hover:bg-opacity-30{% endif %}">
-                            📊 {% trans "Todas las fases" %}
+                            {% icon 'chart' %} {% trans "Todas las fases" %}
                         </a>
                         {% for phase in all_phases %}
                         <a href="?phase={{ phase.id }}"
@@ -74,12 +74,12 @@
                 <div class="flex flex-wrap gap-2 sm:gap-3">
                     <a href="#partidos" data-call="showSection" data-call-args='["partidos"]' 
                        class="section-tab active inline-flex items-center px-3 py-2 bg-csj-purple-dark text-white text-sm font-medium rounded-full transition">
-                        📅 {% trans "Partidos" %}
+                        {% icon 'calendar' %} {% trans "Partidos" %}
                     </a>
                     {% if standings %}
                         <a href="#clasificacion" data-call="showSection" data-call-args='["clasificacion"]' 
                            class="section-tab inline-flex items-center px-3 py-2 bg-tint text-ink hover:opacity-80 text-sm font-medium rounded-full transition">
-                            🏆 {% trans "Clasificación" %}
+                            {% icon 'trophy' %} {% trans "Clasificación" %}
                         </a>
                     {% endif %}
                 </div>
@@ -218,7 +218,7 @@
                                 <!-- Indicador de videos -->
                                 {% if match.videos_count %}
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple bg-opacity-30 text-brand-text">
-                                        📹 {% blocktrans count counter=match.videos_count %}{{ counter }} video{% plural %}{{ counter }} videos{% endblocktrans %}
+                                        {% icon 'video' %} {% blocktrans count counter=match.videos_count %}{{ counter }} video{% plural %}{{ counter }} videos{% endblocktrans %}
                                     </span>
                                 {% endif %}
                                 
@@ -331,9 +331,9 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-ink">
                                     {{ standing.position }}
                                     {% if standing.position <= 3 %}
-                                        {% if standing.position == 1 %}🥇
-                                        {% elif standing.position == 2 %}🥈
-                                        {% elif standing.position == 3 %}🥉
+                                        {% if standing.position == 1 %}{% icon 'medal' 'text-yellow-500' %}
+                                        {% elif standing.position == 2 %}{% icon 'medal' 'text-gray-400' %}
+                                        {% elif standing.position == 3 %}{% icon 'medal' 'text-amber-700' %}
                                         {% endif %}
                                     {% endif %}
                                 </td>
@@ -363,7 +363,7 @@
 
     <!-- Enlaces rápidos -->
     <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold text-ink mb-3 sm:mb-4">🔗 {% trans "Enlaces relacionados" %}</h3>
+        <h3 class="text-base sm:text-lg font-semibold text-ink mb-3 sm:mb-4">{% icon 'link' %} {% trans "Enlaces relacionados" %}</h3>
         <div class="flex flex-wrap gap-2 sm:gap-3">
             <a href="{% url 'competitions:league_list' %}"
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
@@ -371,11 +371,11 @@
             </a>
             <a href="{% url 'competitions:calendar_view' %}"
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-purple-dark hover:opacity-90 text-white rounded-full font-medium transition text-sm">
-                📅 {% trans "Calendario" %}
+                {% icon 'calendar' %} {% trans "Calendario" %}
             </a>
             <a href="{% url 'content:video_list' %}" 
                class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
-                🎬 {% trans "Videos" %}
+                {% icon 'film' %} {% trans "Videos" %}
             </a>
         </div>
     </div>
