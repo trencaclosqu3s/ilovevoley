@@ -381,6 +381,23 @@ def _get_pending_membership(user_id, tenant):
     )
 
 
+def _reactivation_requests_qs(request):
+    """Solicitudes de reactivación visibles para quien modera (#327).
+
+    En un club se limita a las cuentas con membresía en ese tenant; sin tenant,
+    solo el superusuario ve el conjunto global. Un gestor de club nunca ve
+    solicitudes de usuarios de otros clubes.
+    """
+    User = get_user_model()
+    tenant = getattr(request, 'tenant', None)
+    qs = User.objects.filter(reactivation_requested_at__isnull=False)
+    if tenant:
+        qs = qs.filter(memberships__organization=tenant).distinct()
+    elif not request.user.is_superuser:
+        return User.objects.none()
+    return qs.order_by('reactivation_requested_at')
+
+
 def moderation_counts_api(request):
     """API para obtener contadores de elementos pendientes de moderación"""
     if not request.user.is_authenticated:
@@ -435,13 +452,15 @@ def moderation_counts_api(request):
         pending_callups_count = 0
 
     # Total de elementos pendientes
-    total_pending = pending_users_count + pending_images_count + pending_callups_count
+    pending_reactivations_count = _reactivation_requests_qs(request).count()
+    total_pending = pending_users_count + pending_images_count + pending_callups_count + pending_reactivations_count
 
     return JsonResponse({
         'success': True,
         'pending_users': pending_users_count,
         'pending_images': pending_images_count,
         'pending_callups': pending_callups_count,
+        'pending_reactivations': pending_reactivations_count,
         'total_pending': total_pending
     })
 
@@ -502,13 +521,16 @@ def moderation_panel(request):
     else:
         pending_callups = CallUpPlayer.objects.none()
 
+    reactivation_users = _reactivation_requests_qs(request)
     context = {
         'pending_users': pending_users,
         'pending_images': pending_images,
         'pending_callups': pending_callups,
+        'reactivation_users': reactivation_users,
         'pending_users_count': pending_users.count(),
         'pending_images_count': pending_images.count(),
         'pending_callups_count': pending_callups.count(),
+        'pending_reactivations_count': reactivation_users.count(),
         'can_moderate_images': can_mod_images,
     }
 
@@ -612,6 +634,74 @@ def reject_user_api(request, user_id):
             'success': False,
             'error': _('Error interno del servidor')
         }, status=500)
+
+
+def _get_reactivation_user(request, user_id):
+    """Cuenta con solicitud de reactivación que el moderador actual puede gestionar."""
+    User = get_user_model()
+    tenant = getattr(request, 'tenant', None)
+    qs = User.objects.filter(id=user_id, reactivation_requested_at__isnull=False)
+    if tenant:
+        qs = qs.filter(memberships__organization=tenant)
+    elif not request.user.is_superuser:
+        qs = qs.none()
+    return qs.distinct().get()
+
+
+@login_required
+@require_POST
+def reactivate_user_api(request, user_id):
+    """Reactiva una cuenta desactivada tras aprobar su solicitud de vuelta (#327)."""
+    if not _can_moderate_memberships(request):
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
+
+    User = get_user_model()
+    tenant = getattr(request, 'tenant', None)
+    try:
+        user = _get_reactivation_user(request, user_id)
+        approve_user_membership(user, tenant=tenant)
+        user.reactivation_requested_at = None
+        user.inactivity_warning_level = 0
+        user.inactivity_warning_sent_at = None
+        user.save(update_fields=[
+            'reactivation_requested_at',
+            'inactivity_warning_level',
+            'inactivity_warning_sent_at',
+        ])
+        return JsonResponse({
+            'success': True,
+            'message': _('Usuario %(username)s reactivado correctamente') % {'username': user.username},
+            'user_name': user.username,
+        })
+    except User.DoesNotExist:
+        return JsonResponse({'success': False, 'error': _('Solicitud no encontrada')}, status=404)
+    except Exception as e:
+        logger.error(f"Error reactivando usuario {user_id}: {str(e)}")
+        return JsonResponse({'success': False, 'error': _('Error interno del servidor')}, status=500)
+
+
+@login_required
+@require_POST
+def dismiss_reactivation_api(request, user_id):
+    """Descarta la solicitud de reactivación; la cuenta sigue desactivada (#327)."""
+    if not _can_moderate_memberships(request):
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
+
+    User = get_user_model()
+    try:
+        user = _get_reactivation_user(request, user_id)
+        user.reactivation_requested_at = None
+        user.save(update_fields=['reactivation_requested_at'])
+        return JsonResponse({
+            'success': True,
+            'message': _('Solicitud de %(username)s descartada') % {'username': user.username},
+            'user_name': user.username,
+        })
+    except User.DoesNotExist:
+        return JsonResponse({'success': False, 'error': _('Solicitud no encontrada')}, status=404)
+    except Exception as e:
+        logger.error(f"Error descartando reactivación de {user_id}: {str(e)}")
+        return JsonResponse({'success': False, 'error': _('Error interno del servidor')}, status=500)
 
 
 @login_required

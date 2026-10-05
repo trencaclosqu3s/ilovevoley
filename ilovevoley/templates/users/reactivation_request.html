@@ -1,0 +1,55 @@
+{% extends "base_auth.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Solicitar reactivación de cuenta" %} - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-lg">
+    <div class="bg-white rounded-lg shadow-lg p-6 sm:p-8 border-t-4 border-amber-500">
+        <div class="text-center mb-6">
+            <div class="text-6xl mb-4">💤</div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">
+                {% trans "Cuenta desactivada por inactividad" %}
+            </h1>
+        </div>
+
+        <div class="space-y-4 mb-6">
+            <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded text-sm text-amber-800">
+                <p>
+                    {% trans "Tu cuenta se desactivó por no iniciar sesión durante un tiempo prolongado. Si quieres volver a usarla, puedes pedir que un administrador la revise y la reactive." %}
+                </p>
+            </div>
+
+            {% if already_requested %}
+            <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded text-sm text-green-800">
+                <h3 class="font-semibold mb-1">{% trans "✅ Solicitud ya registrada" %}</h3>
+                <p>{% trans "Hemos recibido tu solicitud de reactivación. Un administrador la revisará y tendrás acceso de nuevo si la aprueba." %}</p>
+            </div>
+            {% else %}
+            <form method="post" action="{% url 'request_reactivation' %}" class="space-y-3">
+                {% csrf_token %}
+                <input type="hidden" name="login" value="{{ credential }}">
+                <button type="submit" class="w-full bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-3 rounded-lg font-semibold transition touch-manipulation">
+                    {% trans "Solicitar reactivación" %}
+                </button>
+            </form>
+            {% endif %}
+
+            <div class="bg-gray-50 p-4 rounded">
+                <h4 class="font-semibold text-gray-800 mb-2">{% trans "¿Qué pasa ahora?" %}</h4>
+                <ul class="text-gray-600 text-sm space-y-1">
+                    <li>{% trans "• Tu solicitud llegará a los administradores del club" %}</li>
+                    <li>{% trans "• Si la aprueban, podrás acceder de nuevo como antes" %}</li>
+                    <li>{% trans "• No recibirás acceso hasta que sea aprobada" %}</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <a href="{% url 'account_login' %}" class="text-sm text-csj-purple hover:underline">
+                {% trans "Volver al inicio de sesión" %}
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

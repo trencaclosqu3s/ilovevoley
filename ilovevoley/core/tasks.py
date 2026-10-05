@@ -194,6 +194,42 @@ def notify_membership_pending_task(membership_id):
     )
 
 
+@shared_task(name='notify_reactivation_pending')
+def notify_reactivation_pending_task(user_id, tenant_id=None):
+    """Avisa a los moderadores de que una cuenta desactivada pidió reactivarse (#327)."""
+    from django.urls import reverse
+
+    from ilovevoley.core.models import Organization
+    from ilovevoley.core.tenant_utils import build_tenant_url
+
+    if not settings.EMAIL_NOTIFICATIONS.get('new_user_pending', True):
+        return False
+
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return False
+
+    tenant = Organization.objects.filter(pk=tenant_id).first() if tenant_id is not None else None
+
+    moderation_path = reverse('core:moderation_panel')
+    moderation_url = f'{build_tenant_url(tenant.slug)}{moderation_path}' if tenant else moderation_path
+
+    context = {
+        'user': user,
+        'tenant': tenant,
+        'site_name': 'I Love Voley',
+        'moderation_url': moderation_url,
+        'requested_at': user.reactivation_requested_at,
+    }
+    return send_notification_email(
+        subject=lambda: _('Solicitud de reactivación: %(username)s') % {'username': user.username},
+        template_name='emails/reactivation_pending.html',
+        context=context,
+        recipient_list=get_moderation_recipients(tenant),
+    )
+
+
 @shared_task(name='send_admin_email_to_users')
 def send_admin_email_to_users_task(
     subject, message_body, recipient_ids, admin_user_id=None, send_copy=False

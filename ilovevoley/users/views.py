@@ -4,10 +4,12 @@ import logging
 from django.conf import settings
 from django.db.models import Q
 from django.shortcuts import render, redirect
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST
 from django.views.i18n import set_language
@@ -202,6 +204,23 @@ from ilovevoley.core.views import custom_429
 logger = logging.getLogger(__name__)
 
 
+def _find_inactive_approved_user(credential):
+    """Cuenta desactivada (no rechazada) que casa con la credencial de login.
+
+    Una cuenta desactivada por inactividad conserva ``is_approved=True``; una
+    rechazada en moderación lo mantiene en False. Solo las primeras entran en el
+    circuito de solicitud de reactivación.
+    """
+    if not credential:
+        return None
+    User = get_user_model()
+    return User.objects.filter(
+        Q(username__iexact=credential) | Q(email__iexact=credential),
+        is_active=False,
+        is_approved=True,
+    ).first()
+
+
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 @method_decorator(ratelimit(key=ratelimit_post_login_key, rate='5/m', method='POST', block=True), name='post')
 class RatelimitedLoginView(allauth_views.LoginView):
@@ -231,6 +250,16 @@ class RatelimitedLoginView(allauth_views.LoginView):
         return super().form_invalid(form)
 
     def form_valid(self, form):
+        # Las credenciales de una cuenta desactivada son correctas, así que no
+        # pasa por form_invalid: allauth deja el usuario en `form.user`. Si la
+        # cuenta está desactivada pero aprobada (inactividad), se le ofrece
+        # pedir la reactivación en lugar del aviso genérico de "cuenta inactiva".
+        user = getattr(form, 'user', None)
+        if user is not None and not user.is_active and user.is_approved:
+            return render(self.request, 'users/reactivation_request.html', {
+                'credential': self.request.POST.get('login', ''),
+                'already_requested': user.reactivation_requested_at is not None,
+            })
         credential = normalize_credential(self.request.POST.get('login'))
         if credential:
             reset_global_failures('login', credential)
@@ -394,6 +423,39 @@ def webpush_unsubscribe(request):
         qs.delete()
 
     return JsonResponse({'success': True})
+
+
+@ratelimit(key='ip', rate='5/m', method='POST', block=True)
+@ratelimit(key=ratelimit_post_login_key, rate='5/m', method='POST', block=True)
+def request_reactivation(request):
+    """Solicitud pública de reactivación de una cuenta desactivada por inactividad (#327).
+
+    La persona llega aquí al intentar entrar con una cuenta desactivada. Un POST
+    marca la solicitud (una sola vez por cuenta) y avisa a los moderadores; no
+    inicia sesión ni concede acceso. La respuesta es siempre la misma para no
+    revelar si la cuenta existe o si ya había pedido la reactivación.
+    """
+    from ilovevoley.core.email_utils import enqueue_on_commit
+    from ilovevoley.core.tasks import notify_reactivation_pending_task
+    from .tasks import _get_user_primary_tenant
+
+    if request.method == 'POST':
+        credential = normalize_credential(request.POST.get('login'))
+        user = _find_inactive_approved_user(credential)
+        if user is not None and user.reactivation_requested_at is None:
+            user.reactivation_requested_at = timezone.now()
+            user.save(update_fields=['reactivation_requested_at'])
+            tenant = getattr(request, 'tenant', None) or _get_user_primary_tenant(user)
+            enqueue_on_commit(
+                notify_reactivation_pending_task,
+                user.pk,
+                tenant.pk if tenant else None,
+            )
+        return render(request, 'users/reactivation_request_sent.html')
+
+    return render(request, 'users/reactivation_request.html', {
+        'credential': request.GET.get('login', ''),
+    })
 
 
 @ratelimit(key='ip', rate='10/m', block=True)

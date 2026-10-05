@@ -58,6 +58,16 @@ class User(AbstractUser):
         verbose_name=_('Fecha del último aviso de inactividad'),
     )
 
+    # Reentrada a moderación de una cuenta desactivada por inactividad (#327).
+    # Solo se rellena cuando la propia persona pide la reactivación; mientras
+    # esté a NULL no aparece en el panel y no se avisa a nadie.
+    reactivation_requested_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Solicitud de reactivación'),
+        help_text=_('Fecha en que una cuenta desactivada pidió volver a ser revisada.'),
+    )
+
     def __str__(self):
         return self.username
 
