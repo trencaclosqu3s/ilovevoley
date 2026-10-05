@@ -258,6 +258,7 @@ TEMPLATES = [
         'DIRS': [os.path.join(BASE_DIR, 'ilovevoley/templates')],  # <-- Añadir esta línea
         'APP_DIRS': True,
         'OPTIONS': {
+            'builtins': ['ilovevoley.core.templatetags.icons'],
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',

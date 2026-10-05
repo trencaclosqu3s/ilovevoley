@@ -31,6 +31,17 @@
         --brand-gradient-from-rgb: {{ tenant_gradient_from_rgb }};
         --brand-gradient-to: {{ tenant_gradient_to }};
         --brand-gradient-to-rgb: {{ tenant_gradient_to_rgb }};
+        --brand-solid: color-mix(in oklab, var(--brand) 78%, black);
+        --accent: var(--brand-dark);
+        /* Mismos tokens que base.html (esta plantilla no la extiende y solo existe en claro). */
+        --bg: color-mix(in oklab, var(--brand) 5%, #fbfaf9);
+        --surface: #ffffff;
+        --line: color-mix(in oklab, var(--brand) 14%, #e7e5e4);
+        --tint: color-mix(in oklab, var(--brand) 14%, white);
+        --brand-text: var(--brand-solid);
+        --logo: var(--brand);
+        --ink: #1c1917;
+        --muted: #57534e;
       }
     </style>
     
@@ -90,13 +101,10 @@
     
     <!-- Header minimalista -->
     <div class="absolute top-4 left-4 sm:top-6 sm:left-6 z-10">
-        <div class="flex items-center space-x-2">
-            <span class="text-2xl">🏐</span>
-            <div>
-                <h1 class="text-lg font-bold text-csj-purple">I Love Voley</h1>
-                <p class="text-xs text-gray-500 hidden sm:block">{% if tenant %}{{ tenant.name }}{% else %}I Love Voley{% endif %}</p>
-            </div>
-        </div>
+        <a href="{% if tenant %}{% url tenant.home_url_name %}{% else %}/{% endif %}" class="flex flex-col gap-1" aria-label="ilovevoley">
+            <span class="brand-logo h-10 sm:h-12" role="img" aria-label="ilovevoley"></span>
+            {% if tenant %}<span class="text-xs text-muted hidden sm:block">{{ tenant.name }}</span>{% endif %}
+        </a>
     </div>
 
     <!-- Contenido principal -->

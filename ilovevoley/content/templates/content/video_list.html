@@ -8,28 +8,28 @@
 {% endblock %}
 
 {% block content %}
-<div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark mb-6 relative z-30">
+<div class="bg-surface rounded-3xl border border-line p-4 sm:p-6 mb-6 relative z-30">
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div class="flex-1 min-w-0">
-            <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-200">{% trans "Partidos y Entrenamientos" %}</h2>
+            <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink">{% trans "Partidos y Entrenamientos" %}</h2>
         </div>
         
         <div class="flex items-center gap-2">
             <!-- Botón de filtros (solo móvil) -->
             <button data-call="toggleFilters" 
-                    class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark transition touch-manipulation">
+                    class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple-dark text-white rounded-full text-sm font-medium hover:opacity-90 transition touch-manipulation">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                 </svg>
                 {% trans "Filtros" %}
-                <span id="activeFiltersCount" class="ml-1 hidden px-1.5 py-0.5 bg-white text-csj-purple rounded-full text-xs font-bold"></span>
+                <span id="activeFiltersCount" class="ml-1 hidden px-1.5 py-0.5 bg-surface text-csj-purple rounded-full text-xs font-bold"></span>
             </button>
             
             {% if can_add %}
                 <div class="relative flex-shrink-0 z-40">
                     <button id="upload-menu-btn"
                         aria-label="{% trans "Añadir vídeo" %}"
-                        class="bg-csj-purple text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-csj-purple-dark transition text-sm flex items-center whitespace-nowrap font-semibold">
+                        class="bg-csj-purple-dark text-white px-3 sm:px-4 py-2 rounded-full hover:opacity-90 transition text-sm flex items-center whitespace-nowrap font-semibold">
                         <svg class="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                         </svg>
@@ -41,17 +41,17 @@
                     </button>
 
                     <div id="upload-menu"
-                        class="hidden absolute mt-2 w-56 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
+                        class="hidden absolute mt-2 w-56 rounded-2xl shadow-lg shadow-black/5 bg-surface border border-line z-50">
                         <div class="py-1">
                             <a href="{% url 'content:video_create' %}"
-                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap">
+                                class="block px-4 py-2 text-sm text-ink hover:bg-tint whitespace-nowrap">
                                 <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                 </svg>
                                 {% trans "Subir un vídeo" %}
                             </a>
                             <a href="{% url 'content:video_bulk_create' %}"
-                                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap">
+                                class="block px-4 py-2 text-sm text-ink hover:bg-tint whitespace-nowrap">
                                 <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
                                 </svg>
@@ -113,29 +113,29 @@
 </div>
 
 <!-- Filtros y búsqueda con aplicación automática -->
-<div id="filtersSection" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6 hidden lg:block">
+<div id="filtersSection" class="bg-surface rounded-2xl border border-line p-4 mb-6 hidden lg:block">
     <div class="space-y-4 sm:space-y-0 sm:flex sm:gap-4 sm:items-end">
         <!-- Búsqueda por texto -->
         <div class="flex-1">
-            <label for="search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Buscar" %}</label>
+            <label for="search" class="block text-sm font-medium text-ink mb-1">{% trans "Buscar" %}</label>
             <input 
                 type="text" 
                 id="search" 
                 name="search" 
                 value="{{ search_query }}"
                 placeholder="{% trans "Escribe para buscar..." %}"
-                class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent"
                 autocomplete="off"
             >
         </div>
         
         <!-- Filtro por categoría -->
         <div class="sm:w-48">
-            <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Categoría" %}</label>
+            <label for="category" class="block text-sm font-medium text-ink mb-1">{% trans "Categoría" %}</label>
             <select 
                 id="category" 
                 name="category"
-                class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent"
             >
                 <option value="">{% trans "Todas las categorías" %}</option>
                 {% for cat in categories %}
@@ -148,11 +148,11 @@
 
         <!-- Filtro por temporada -->
         <div class="sm:w-48">
-            <label for="season" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Temporada" %}</label>
+            <label for="season" class="block text-sm font-medium text-ink mb-1">{% trans "Temporada" %}</label>
             <select
                 id="season"
                 name="season"
-                class="auto-filter w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent"
             >
                 <option value="">{% trans "Todas las temporadas" %}</option>
                 {% for season in seasons %}
@@ -167,7 +167,7 @@
         <div class="flex gap-2">
             <a 
                 href="{% url 'content:video_list' %}"
-                class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition"
+                class="bg-tint hover:opacity-80 text-ink px-4 py-2 rounded-full font-medium transition"
             >
                 {% trans "Limpiar filtros" %}
             </a>
@@ -176,8 +176,8 @@
     
     <!-- Indicador de resultados -->
     {% if search_query or selected_category %}
-        <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-            <p class="text-sm text-gray-600 dark:text-gray-300">
+        <div class="mt-3 pt-3 border-t border-line">
+            <p class="text-sm text-muted">
                 {% if page_obj.paginator.count == 0 %}
                     {% trans "No se encontraron vídeos" %}
                 {% elif page_obj.paginator.count == 1 %}
@@ -199,27 +199,27 @@
     
     <!-- Banner de preferencias -->
     {% if has_preferences and not show_all and not selected_category %}
-        <div class="mt-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center justify-between">
-            <div class="flex items-center text-sm text-blue-800 dark:text-blue-200">
+        <div class="mt-4 bg-tint border border-line rounded-xl p-3 flex items-center justify-between">
+            <div class="flex items-center text-sm text-ink">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 <span>{% trans "Mostrando solo tus categorías preferidas" %}</span>
             </div>
-            <a href="?show_all=1" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200">
+            <a href="?show_all=1" class="text-sm font-medium text-brand-text hover:opacity-80">
                 {% trans "Ver todas" %}
             </a>
         </div>
     {% elif show_all %}
-        <div class="mt-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex items-center justify-between">
-            <div class="flex items-center text-sm text-gray-700 dark:text-gray-300">
+        <div class="mt-4 bg-tint border border-line rounded-xl p-3 flex items-center justify-between">
+            <div class="flex items-center text-sm text-ink">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                 </svg>
                 <span>{% trans "Mostrando todas las categorías" %}</span>
             </div>
-            <a href="?" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">
+            <a href="?" class="text-sm font-medium text-brand-text hover:opacity-80">
                 {% trans "Filtrar por preferencias" %}
             </a>
         </div>
@@ -229,7 +229,7 @@
 {% if page_obj %}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
         {% for video in page_obj %}
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            <div class="bg-surface rounded-[20px] border border-line overflow-hidden transition hover:-translate-y-0.5 hover:border-accent">
                 <div class="aspect-video">
                     <iframe 
                         class="w-full h-full"
@@ -240,20 +240,20 @@
                         referrerpolicy="strict-origin-when-cross-origin">
                     </iframe>
                 </div>
-                <div class="p-5 lg:p-6">
-                    <a href="{% url 'content:video_detail' video.id %}" class="block hover:bg-gray-50 dark:hover:bg-gray-700 transition -m-5 lg:-m-6 p-5 lg:p-6 rounded-lg touch-manipulation">
-                        <h3 class="font-bold text-xl lg:text-2xl text-gray-800 dark:text-gray-200 mb-3 hover:text-csj-purple dark:hover:text-csj-yellow transition leading-tight">{{ video.title }}</h3>
+                <div class="p-5">
+                    <a href="{% url 'content:video_detail' video.id %}" class="block hover:bg-tint transition -m-5 lg:-m-6 p-5 rounded-lg touch-manipulation">
+                        <h3 class="font-display font-bold text-xl text-ink mb-3 hover:text-brand-text transition leading-tight">{{ video.title }}</h3>
                         {% if video.description %}
-                            <p class="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">{{ video.description }}</p>
+                            <p class="text-muted mb-4 line-clamp-3">{{ video.description }}</p>
                         {% endif %}
                         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                             <div class="flex flex-col gap-1">
                                 {% if video.category %}
-                                    <span class="bg-csj-purple/10 dark:bg-csj-purple/20 text-csj-purple dark:text-csj-yellow text-xs px-2 py-1 rounded-full w-fit">{{ video.category.name }}</span>
+                                    <span class="bg-tint text-brand-text text-xs font-semibold px-2.5 py-1 rounded-full w-fit">{{ video.category.name }}</span>
                                 {% endif %}
-                                <p class="text-gray-400 dark:text-gray-500 text-sm">{{ video.created_at|date:"d/m/Y H:i" }}</p>
+                                <p class="text-muted text-sm">{{ video.created_at|date:"d/m/Y H:i" }}</p>
                             </div>
-                            <div class="flex items-center space-x-2 text-csj-purple dark:text-csj-yellow">
+                            <div class="flex items-center space-x-2 text-brand-text">
                                 <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                                 </svg>
@@ -272,26 +272,26 @@
             <nav class="flex flex-wrap items-center justify-center gap-2">
                 {% if page_obj.has_previous %}
                     <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if season_filtered %}season={{ selected_season }}&{% endif %}page=1" 
-                       class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow transition">
+                       class="px-3 py-2 text-sm text-muted hover:text-brand-text transition">
                         {% trans "« Primera" %}
                     </a>
                     <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if season_filtered %}season={{ selected_season }}&{% endif %}page={{ page_obj.previous_page_number }}" 
-                       class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow transition">
+                       class="px-3 py-2 text-sm text-muted hover:text-brand-text transition">
                         {% trans "‹ Anterior" %}
                     </a>
                 {% endif %}
                 
-                <span class="px-4 py-2 text-sm bg-csj-purple text-white rounded-lg">
+                <span class="px-4 py-2 text-sm bg-csj-purple-dark text-white rounded-full">
                     {% blocktrans with number=page_obj.number total_pages=page_obj.paginator.num_pages %}{{ number }} de {{ total_pages }}{% endblocktrans %}
                 </span>
                 
                 {% if page_obj.has_next %}
                     <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if season_filtered %}season={{ selected_season }}&{% endif %}page={{ page_obj.next_page_number }}" 
-                       class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow transition">
+                       class="px-3 py-2 text-sm text-muted hover:text-brand-text transition">
                         {% trans "Siguiente ›" %}
                     </a>
                     <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if season_filtered %}season={{ selected_season }}&{% endif %}page={{ page_obj.paginator.num_pages }}" 
-                       class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-csj-purple dark:hover:text-csj-yellow transition">
+                       class="px-3 py-2 text-sm text-muted hover:text-brand-text transition">
                         {% trans "Última »" %}
                     </a>
                 {% endif %}
@@ -300,15 +300,15 @@
     {% endif %}
 {% else %}
     <div class="text-center py-12">
-        <div class="mx-auto w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-            <span class="text-2xl">🎥</span>
+        <div class="mx-auto w-16 h-16 bg-tint rounded-full flex items-center justify-center mb-4">
+            <svg class="w-7 h-7 text-brand-text" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 9.5l5 2.5-5 2.5z"/></svg>
         </div>
         {% if search_query or selected_category %}
-            <p class="text-gray-500 dark:text-gray-400 text-lg mb-2">{% trans "No se encontraron vídeos" %}</p>
-            <p class="text-gray-400 dark:text-gray-500 text-sm">{% trans "Prueba con otros criterios de búsqueda" %}</p>
+            <p class="text-muted text-lg mb-2">{% trans "No se encontraron vídeos" %}</p>
+            <p class="text-muted text-sm">{% trans "Prueba con otros criterios de búsqueda" %}</p>
         {% else %}
-            <p class="text-gray-500 dark:text-gray-400 text-lg mb-2">{% trans "Todavía no hay vídeos subidos" %}</p>
-            <p class="text-gray-400 dark:text-gray-500 text-sm">{% trans "Los videos aparecerán aquí cuando se suban" %}</p>
+            <p class="text-muted text-lg mb-2">{% trans "Todavía no hay vídeos subidos" %}</p>
+            <p class="text-muted text-sm">{% trans "Los videos aparecerán aquí cuando se suban" %}</p>
         {% endif %}
     </div>
 {% endif %}

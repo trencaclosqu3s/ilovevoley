@@ -8,11 +8,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 sm:p-4 lg:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark mb-4 sm:mb-6 relative z-30">
+<div class="bg-surface rounded-3xl border border-line p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6 relative z-30">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div class="flex-1 min-w-0 w-full sm:w-auto">
-            <h1 class="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900 dark:text-gray-100">{% trans "Galería de Imágenes" %}</h1>
-            <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
+            <h1 class="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-ink">{% trans "Galería de Imágenes" %}</h1>
+            <p class="text-xs sm:text-sm text-muted mt-1">
                 {% if view_mode == 'albums' %}
                 {% blocktrans count counter=total_albums %}{{ counter }} álbum • {{ total_single_images }} imágenes individuales{% plural %}{{ counter }} álbumes • {{ total_single_images }} imágenes individuales{% endblocktrans %}{% if pending_images > 0 %}
                 • {% blocktrans count counter=pending_images %}{{ counter }} pendiente de moderación{% plural %}{{ counter }} pendientes de moderación{% endblocktrans %}{% endif %}
@@ -24,10 +24,10 @@
 
         <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <!-- Toggle de vista -->
-            <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 w-full sm:w-auto flex-shrink-0">
+            <div class="flex bg-tint rounded-lg p-1 w-full sm:w-auto flex-shrink-0">
                 <a href="{% url 'content:image_gallery' %}"
                     class="flex-1 sm:flex-none justify-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-center
-                          {% if view_mode == 'albums' %}bg-white dark:bg-gray-800 text-csj-purple dark:text-csj-yellow shadow-sm{% else %}text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100{% endif %}">
+ {% if view_mode == 'albums' %}bg-surface text-brand-text shadow-sm{% else %}text-muted hover:text-ink{% endif %}">
                     <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
@@ -37,7 +37,7 @@
                 </a>
                 <a href="{% url 'content:image_gallery_individual' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
                     class="flex-1 sm:flex-none justify-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-center
-                          {% if view_mode != 'albums' %}bg-white dark:bg-gray-800 text-csj-purple dark:text-csj-yellow shadow-sm{% else %}text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100{% endif %}">
+ {% if view_mode != 'albums' %}bg-surface text-brand-text shadow-sm{% else %}text-muted hover:text-ink{% endif %}">
                     <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
@@ -49,7 +49,7 @@
 
             <!-- Botón de filtros (solo móvil) -->
             <button data-call="toggleFilters"
-                class="lg:hidden flex-1 sm:flex-none flex items-center justify-center px-3 py-2 bg-csj-purple text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark transition touch-manipulation">
+                class="lg:hidden flex-1 sm:flex-none flex items-center justify-center px-3 py-2 bg-csj-purple-dark text-white rounded-full text-sm font-medium hover:opacity-90 transition touch-manipulation">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z">
@@ -57,14 +57,14 @@
                 </svg>
                 <span>{% trans "Filtros" %}</span>
                 <span id="activeFiltersCount"
-                    class="ml-1 hidden px-1.5 py-0.5 bg-white dark:bg-gray-700 text-csj-purple dark:text-csj-yellow rounded-full text-xs font-bold"></span>
+                    class="ml-1 hidden px-1.5 py-0.5 bg-surface text-brand-text rounded-full text-xs font-bold"></span>
             </button>
 
             <!-- Menú desplegable de subida -->
             <div class="relative flex-1 sm:flex-none z-40">
                 <button id="upload-menu-btn"
                     aria-label="{% trans "Subir Imagen" %}"
-                    class="w-full justify-center bg-csj-purple text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-csj-purple-dark transition text-sm flex items-center whitespace-nowrap">
+                    class="w-full justify-center bg-csj-purple-dark text-white px-3 sm:px-4 py-2 rounded-full hover:opacity-90 transition text-sm flex items-center whitespace-nowrap">
                     <svg class="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
@@ -76,10 +76,10 @@
                 </button>
 
                 <div id="upload-menu"
-                    class="hidden absolute mt-2 w-64 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
+                    class="hidden absolute mt-2 w-64 rounded-2xl shadow-lg shadow-black/5 bg-surface border border-line z-50">
                     <div class="py-1 min-w-full">
                         <a href="{% url 'content:image_upload' %}"
-                            class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap">
+                            class="block px-4 py-2 text-sm text-ink hover:bg-tint whitespace-nowrap">
                             <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -89,7 +89,7 @@
                             {% trans "Subir una imagen" %}
                         </a>
                         <a href="{% url 'content:image_bulk_upload' %}"
-                            class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap">
+                            class="block px-4 py-2 text-sm text-ink hover:bg-tint whitespace-nowrap">
                             <svg class="w-4 h-4 mr-2 text-csj-purple inline" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -167,19 +167,19 @@
 </div>
 
 <!-- Filtros con aplicación automática -->
-<div id="filtersSection" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 mb-4 sm:mb-6 hidden lg:block">
-    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 sm:p-4">
+<div id="filtersSection" class="bg-surface rounded-[20px] border border-line p-3 sm:p-4 mb-4 sm:mb-6 hidden lg:block">
+    <div class="bg-tint rounded-lg p-3 sm:p-4">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
             <div>
                 {{ filter_form.search.label_tag }}
                 <input type="text" name="search" id="id_search" value="{{ filter_form.search.value|default:'' }}"
                     placeholder="{% trans "Buscar por título, descripción o etiquetas..." %}"
-                    class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
             </div>
             <div>
                 {{ filter_form.category.label_tag }}
                 <select name="category" id="id_category"
-                    class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                     <option value="">{% trans "Todas las categorías" %}</option>
                     {% for cat in filter_form.fields.category.queryset %}
                     <option value="{{ cat.id }}" {% if filter_form.category.value == cat.id|stringformat:"s" %}selected{% endif %}>
@@ -189,9 +189,9 @@
                 </select>
             </div>
             <div>
-                <label for="id_season" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Temporada" %}</label>
+                <label for="id_season" class="block text-sm font-medium text-ink mb-1">{% trans "Temporada" %}</label>
                 <select name="season" id="id_season"
-                    class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                     <option value="">{% trans "Todas las temporadas" %}</option>
                     {% for season in seasons %}
                     <option value="{{ season.id }}" {% if selected_season == season.id|stringformat:"s" %}selected{% endif %}>
@@ -204,7 +204,7 @@
             <div>
                 {{ filter_form.status.label_tag }}
                 <select name="status" id="id_status"
-                    class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                     <option value="">{% trans "Todos los estados" %}</option>
                     {% for status_choice in filter_form.fields.status.choices %}
                     {% if status_choice.0 %}
@@ -218,7 +218,7 @@
             {% endif %}
             <div class="flex items-end">
                 <a href="{% url 'content:image_gallery' %}"
-                    class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition w-full text-center">
+                    class="bg-tint hover:opacity-80 text-ink px-4 py-2 rounded-full font-medium transition w-full text-center">
                     {% trans "Limpiar filtros" %}
                 </a>
             </div>
@@ -239,8 +239,8 @@
             </a>
         </div>
         {% elif show_all %}
-        <div class="mt-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex items-center justify-between">
-            <div class="flex items-center text-sm text-gray-700 dark:text-gray-300">
+        <div class="mt-4 bg-tint border border-line rounded-lg p-3 flex items-center justify-between">
+            <div class="flex items-center text-sm text-ink">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -250,7 +250,7 @@
                 </svg>
                 <span>{% trans "Mostrando todas las categorías" %}</span>
             </div>
-            <a href="?" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">
+            <a href="?" class="text-sm font-medium text-brand-text hover:opacity-80">
                 {% trans "Filtrar por preferencias" %}
             </a>
         </div>
@@ -259,14 +259,14 @@
 </div>
 
 <!-- Grid de Imágenes -->
-<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 lg:p-6">
+<div class="bg-surface rounded-[20px] border border-line p-3 sm:p-4 lg:p-6">
     {% if page_obj %}
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 w-full">
         {% for item in page_obj %}
         {% if view_mode == 'albums' %}
         {% if item.type == 'album' %}
         <!-- Álbum de partido -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer w-full"
+        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200 cursor-pointer w-full"
             data-href="{% url 'content:match_images' item.match.id %}">
             <div class="aspect-square relative overflow-hidden">
                 <!-- Mostrar hasta 4 miniaturas en grid 2x2 -->
@@ -285,17 +285,17 @@
 
                 <!-- Badge de álbum -->
                 <div
-                    class="absolute top-2 left-2 bg-csj-purple text-white px-2 py-1 rounded-full text-xs font-semibold z-20">
+                    class="absolute top-2 left-2 bg-csj-purple-dark text-white px-2 py-1 rounded-full text-xs font-semibold z-20">
                     <i class="fas fa-images mr-1"></i>{{ item.image_count }}
                 </div>
             </div>
 
             <div class="p-3 sm:p-4">
-                <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-2 truncate text-sm sm:text-base">
+                <h3 class="font-semibold text-ink mb-2 truncate text-sm sm:text-base">
                     {{ item.match.home_team_display }} vs {{ item.match.away_team_display }}
                 </h3>
 
-                <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-2">
+                <div class="text-xs sm:text-sm text-muted mb-2">
                     <i class="fas fa-calendar-alt mr-1"></i>
                     {{ item.match.match_date|date:"d/m/Y" }}
                     {% if item.match.venue %}
@@ -304,23 +304,23 @@
                 </div>
 
                 {% if item.match.league %}
-                <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-2">
+                <div class="text-xs sm:text-sm text-muted mb-2">
                     <i class="fas fa-trophy mr-1"></i>
                     <span
-                        class="inline-block bg-csj-purple bg-opacity-10 dark:bg-csj-purple/20 text-csj-purple dark:text-csj-yellow px-1.5 py-0.5 rounded text-xs">
+                        class="inline-block bg-tint text-brand-text px-1.5 py-0.5 rounded text-xs">
                         {{ item.match.league.name }}
                     </span>
                 </div>
                 {% endif %}
 
-                <div class="text-xs text-gray-500 dark:text-gray-400">
+                <div class="text-xs text-muted">
                     <i class="fas fa-images mr-1"></i>{{ item.image_count }} imagen{{ item.image_count|pluralize:"es" }}
                 </div>
             </div>
         </div>
         {% elif item.type == 'album_group' %}
         <!-- Álbum de grupo (sin partido) -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer w-full"
+        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200 cursor-pointer w-full"
             data-href="{% url 'content:album_group_images' item.album_group_id %}">
             <div class="aspect-square relative overflow-hidden">
                 <!-- Mostrar hasta 4 miniaturas en grid 2x2 -->
@@ -339,53 +339,53 @@
 
                 <!-- Badge de álbum -->
                 <div
-                    class="absolute top-2 left-2 bg-csj-purple text-white px-2 py-1 rounded-full text-xs font-semibold z-20">
+                    class="absolute top-2 left-2 bg-csj-purple-dark text-white px-2 py-1 rounded-full text-xs font-semibold z-20">
                     <i class="fas fa-images mr-1"></i>{{ item.image_count }}
                 </div>
             </div>
 
             <div class="p-3 sm:p-4">
-                <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-2 truncate text-sm sm:text-base">
+                <h3 class="font-semibold text-ink mb-2 truncate text-sm sm:text-base">
                     <i class="fas fa-images mr-1"></i>{{ item.album_name }}
                 </h3>
 
-                <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-2">
+                <div class="text-xs sm:text-sm text-muted mb-2">
                     <i class="fas fa-calendar-alt mr-1"></i>
                     {{ item.upload_date|date:"d/m/Y" }}
                 </div>
 
                 {% if item.images.0.categories.exists %}
-                <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-2">
+                <div class="text-xs sm:text-sm text-muted mb-2">
                     <i class="fas fa-tag mr-1"></i>
                     {% for category in item.images.0.categories.all|slice:":2" %}
                     <span
-                        class="inline-block bg-csj-purple bg-opacity-10 dark:bg-csj-purple/20 text-csj-purple dark:text-csj-yellow px-1.5 py-0.5 rounded text-xs mr-1">
+                        class="inline-block bg-tint text-brand-text px-1.5 py-0.5 rounded text-xs mr-1">
                         {{ category.name }}
                     </span>
                     {% endfor %}
                     {% if item.images.0.categories.count > 2 %}
-                    <span class="text-gray-500 dark:text-gray-400">...</span>
+                    <span class="text-muted">...</span>
                     {% endif %}
                 </div>
                 {% endif %}
 
                 {% if item.images.0.image_type %}
-                <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-2">
+                <div class="text-xs sm:text-sm text-muted mb-2">
                     <i class="fas fa-image mr-1"></i>
-                    <span class="inline-block bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded text-xs">
+                    <span class="inline-block bg-tint text-ink px-1.5 py-0.5 rounded text-xs">
                         {{ item.images.0.get_image_type_display }}
                     </span>
                 </div>
                 {% endif %}
 
-                <div class="text-xs text-gray-500 dark:text-gray-400">
+                <div class="text-xs text-muted">
                     <i class="fas fa-images mr-1"></i>{{ item.image_count }} imagen{{ item.image_count|pluralize:"es" }}
                 </div>
             </div>
         </div>
         {% else %}
         <!-- Imagen individual sin partido -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
             <div class="aspect-square relative">
                 {% include 'content/_thumbnail.html' with image=item.image css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" lightbox=True %}
 
@@ -403,21 +403,21 @@
             </div>
 
             <div class="p-3 sm:p-4">
-                <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-2 truncate text-sm sm:text-base">{{ item.image.title }}</h3>
+                <h3 class="font-semibold text-ink mb-2 truncate text-sm sm:text-base">{{ item.image.title }}</h3>
 
                 {% if item.image.categories.exists %}
-                <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-2">
+                <div class="text-xs sm:text-sm text-muted mb-2">
                     <i class="fas fa-tag mr-1"></i>
                     {% for category in item.image.categories.all %}
                     <span
-                        class="inline-block bg-csj-purple bg-opacity-10 dark:bg-csj-purple/20 text-csj-purple dark:text-csj-yellow px-1.5 py-0.5 rounded text-xs mr-1">
+                        class="inline-block bg-tint text-brand-text px-1.5 py-0.5 rounded text-xs mr-1">
                         {{ category.name }}
                     </span>
                     {% endfor %}
                 </div>
                 {% endif %}
 
-                <div class="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                <div class="flex justify-between items-center text-xs text-muted">
                     <span><i class="fas fa-user mr-1"></i>{{ item.image.uploaded_by.username }}</span>
                     <span>{{ item.image.upload_date|date:"d/m/Y" }}</span>
                 </div>
@@ -426,7 +426,7 @@
         {% endif %}
         {% else %}
         <!-- Vista individual tradicional -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
             <div class="aspect-square relative">
                 {% include 'content/_thumbnail.html' with image=item css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" lightbox=True %}
 
@@ -444,30 +444,30 @@
             </div>
 
             <div class="p-3 sm:p-4">
-                <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-2 truncate text-sm sm:text-base">{{ item.title }}</h3>
+                <h3 class="font-semibold text-ink mb-2 truncate text-sm sm:text-base">{{ item.title }}</h3>
 
                 {% if item.match %}
-                <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-2">
+                <div class="text-xs sm:text-sm text-muted mb-2">
                     <i class="fas fa-calendar-alt mr-1"></i>
-                    <a href="{% url 'content:match_images' item.match.id %}" class="hover:text-csj-purple dark:hover:text-csj-yellow">
+                    <a href="{% url 'content:match_images' item.match.id %}" class="hover:text-brand-text">
                         {{ item.match.home_team_display }} vs {{ item.match.away_team_display }}
                     </a>
                 </div>
                 {% endif %}
 
                 {% if item.categories.exists %}
-                <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-2">
+                <div class="text-xs sm:text-sm text-muted mb-2">
                     <i class="fas fa-tag mr-1"></i>
                     {% for category in item.categories.all %}
                     <span
-                        class="inline-block bg-csj-purple bg-opacity-10 dark:bg-csj-purple/20 text-csj-purple dark:text-csj-yellow px-1.5 py-0.5 rounded text-xs mr-1">
+                        class="inline-block bg-tint text-brand-text px-1.5 py-0.5 rounded text-xs mr-1">
                         {{ category.name }}
                     </span>
                     {% endfor %}
                 </div>
                 {% endif %}
 
-                <div class="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                <div class="flex justify-between items-center text-xs text-muted">
                     <span><i class="fas fa-user mr-1"></i>{{ item.uploaded_by.username }}</span>
                     <span>{{ item.upload_date|date:"d/m/Y" }}</span>
                 </div>
@@ -484,12 +484,12 @@
             <!-- Botón anterior -->
             {% if page_obj.has_previous %}
             <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
-                class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple dark:text-csj-yellow bg-white dark:bg-gray-800 border border-csj-purple dark:border-csj-purple-dark rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-brand-text bg-surface border border-line rounded-full hover:bg-tint transition-colors">
                 {% trans "← Anterior" %}
             </a>
             {% else %}
             <span
-                class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md cursor-not-allowed">
+                class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-muted bg-tint border border-line rounded-full cursor-not-allowed">
                 {% trans "← Anterior" %}
             </span>
             {% endif %}
@@ -499,13 +499,13 @@
             {% if page_obj.number == num %}
             <!-- Página actual -->
             <span
-                class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-csj-purple border border-csj-purple rounded-md">
+                class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-csj-purple-dark border border-csj-purple-dark rounded-full">
                 {{ num }}
             </span>
             {% else %}
             <!-- Páginas no activas -->
             <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}"
-                class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-csj-purple dark:text-csj-yellow bg-white dark:bg-gray-800 border border-csj-purple dark:border-csj-purple-dark rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                class="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-brand-text bg-surface border border-line rounded-full hover:bg-tint transition-colors">
                 {{ num }}
             </a>
             {% endif %}
@@ -514,12 +514,12 @@
             <!-- Botón siguiente -->
             {% if page_obj.has_next %}
             <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
-                class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-csj-purple dark:text-csj-yellow bg-white dark:bg-gray-800 border border-csj-purple dark:border-csj-purple-dark rounded-md hover:bg-csj-purple hover:text-white transition-colors">
+                class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-brand-text bg-surface border border-line rounded-full hover:bg-tint transition-colors">
                 {% trans "Siguiente →" %}
             </a>
             {% else %}
             <span
-                class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md cursor-not-allowed">
+                class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-muted bg-tint border border-line rounded-full cursor-not-allowed">
                 {% trans "Siguiente →" %}
             </span>
             {% endif %}
@@ -527,7 +527,7 @@
     </div>
 
     <!-- Info de paginación -->
-    <div class="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4 px-2">
+    <div class="text-center text-xs sm:text-sm text-muted mb-4 px-2">
         {% if view_mode == 'albums' %}
         {% blocktrans with number=page_obj.number total_pages=page_obj.paginator.num_pages total=page_obj.paginator.count trimmed %}Página {{ number }} de {{ total_pages }} ({{ total }} elementos totales){% endblocktrans %}
         {% else %}
@@ -537,12 +537,12 @@
     {% endif %}
     {% else %}
     <div class="text-center py-8 sm:py-12 px-4">
-        <i class="fas fa-images text-gray-400 dark:text-gray-500 text-4xl sm:text-6xl mb-4"></i>
-        <h3 class="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{% trans "No se encontraron imágenes" %}</h3>
-        <p class="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-4">{% trans "No hay imágenes que coincidan con los filtros seleccionados." %}
+        <i class="fas fa-images text-muted text-4xl sm:text-6xl mb-4"></i>
+        <h3 class="text-base sm:text-lg font-medium text-ink mb-2">{% trans "No se encontraron imágenes" %}</h3>
+        <p class="text-sm sm:text-base text-muted mb-4">{% trans "No hay imágenes que coincidan con los filtros seleccionados." %}
         </p>
         <a href="{% url 'content:image_upload' %}"
-            class="bg-csj-purple text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm sm:text-base">
+            class="bg-csj-purple-dark text-white px-3 sm:px-4 py-2 rounded-full hover:opacity-90 transition-colors duration-200 text-sm sm:text-base">
             <i class="fas fa-plus mr-2"></i>{% trans "Subir primera imagen" %}
         </a>
     </div>

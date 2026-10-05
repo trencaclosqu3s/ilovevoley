@@ -27,7 +27,7 @@ class PWAServiceWorkerTest(TestCase):
         response = service_worker(request)
         content = response.content.decode('utf-8')
 
-        self.assertIn('ilovevoley-pwa-v1', content)
+        self.assertIn('ilovevoley-pwa-v2', content)
 
         precache_block = re.search(r'PRECACHE_URLS\s*=\s*\[(.*?)\]', content, re.S)
         self.assertIsNotNone(precache_block, 'el SW debe declarar PRECACHE_URLS')
