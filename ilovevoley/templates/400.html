@@ -1,7 +1,6 @@
 {% extends 'base_error.html' %}
-{% load i18n %}
+{% load i18n icons %}
 {% block title_tag %}{% trans "400 - Doble toque" %}{% endblock %}
-{% block art_class %}{% endblock %}
 {% block art %}{% icon 'warning' 'w-12 h-12' %}{% endblock %}
 {% block code %}400{% endblock %}
 {% block heading %}{% trans "¡Doble toque!" %}{% endblock %}

@@ -54,7 +54,6 @@ ICONS = {
     'home': '<path d="M3 11.5 12 4l9 7.5M5.5 10v10h13V10M10 20v-5h4v5"/>',
     'lock': '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
     'key': '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M16 7l3 3"/>',
-    'arrow-left': '<path d="M19 12H5M11 6l-6 6 6 6"/>',
     'heart': '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',
 }
 

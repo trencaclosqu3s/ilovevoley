@@ -1,7 +1,6 @@
 {% extends 'base_error.html' %}
-{% load i18n %}
+{% load i18n icons %}
 {% block title_tag %}{% trans "500 - Error del árbitro" %}{% endblock %}
-{% block art_class %}{% endblock %}
 {% block art %}{% icon 'x-circle' 'w-12 h-12' %}{% endblock %}
 {% block code %}500{% endblock %}
 {% block heading %}{% trans "¡El árbitro pita falta!" %}{% endblock %}
