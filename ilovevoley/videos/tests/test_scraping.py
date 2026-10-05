@@ -791,6 +791,50 @@ class WithdrawnTeamDetectionTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Identidad de equipos: el id de club federativo manda sobre el nombre (#380)
+# ---------------------------------------------------------------------------
+
+class UpdateTeamsFederationClubTests(TestCase):
+
+    def setUp(self):
+        from ilovevoley.teams.models import Club
+        from ilovevoley.videos.scraping import FederationScraper
+
+        self.category = Category.objects.create(name='Senior')
+        self.league = League.objects.create(
+            name='Superliga 2', federation_id='9001', season=Season.objects.resolve('2026-27'),
+            competition_type='regular', match_format='standard', visibility_type='main',
+        )
+        self.league.categories.add(self.category)
+        self.mataro = Club.objects.create(federation_id='10', official_name='CV MATARO')
+        self.mayurqa = Club.objects.create(federation_id='20', official_name='CLUB MAYURQA')
+        self.scraper = FederationScraper(self.league)
+
+    def test_sponsor_rename_keeps_team_in_its_club(self):
+        """El equipo renombrado por patrocinador es otra fila, pero el id de club lo sitúa."""
+        teams = self.scraper.update_teams([
+            {'name': 'PEP MASCARO CMV PORTOL ROJO', 'federation_id': 'g_new', 'federation_club_id': '10'},
+        ])
+
+        self.assertEqual(teams['PEP MASCARO CMV PORTOL ROJO'].club, self.mataro)
+
+    def test_name_match_from_other_club_is_not_reused(self):
+        """Un nombre coincidente de otro club no se adueña del federation_id."""
+        other = Team.objects.create(
+            name='CV ATLETICO', federation_id='g_old', category=self.category, club=self.mayurqa,
+        )
+
+        teams = self.scraper.update_teams([
+            {'name': 'CV ATLETICO', 'federation_id': 'g_new', 'federation_club_id': '10'},
+        ])
+
+        other.refresh_from_db()
+        self.assertEqual(other.federation_id, 'g_old')
+        self.assertNotEqual(teams['CV ATLETICO'].pk, other.pk)
+        self.assertEqual(teams['CV ATLETICO'].club, self.mataro)
+
+
+# ---------------------------------------------------------------------------
 # Parciales: validación manual, parseo del .asp y penalización
 # ---------------------------------------------------------------------------
 

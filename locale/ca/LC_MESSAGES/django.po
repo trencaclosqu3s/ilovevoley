@@ -4325,8 +4325,8 @@ msgid "Consistencia de nombres"
 msgstr "Consistència de noms"
 
 #: ilovevoley/core/admin.py:64
-msgid "Asignar club a equipos huérfanos por coincidencia de nombre"
-msgstr "Assignar club a equips orfes per coincidència de nom"
+msgid "Asignar club a equipos huérfanos según sus partidos"
+msgstr "Assignar club a equips orfes segons els seus partits"
 
 #: ilovevoley/core/admin.py:81
 #, python-format
@@ -4335,8 +4335,8 @@ msgstr "%(slug)s: %(count)s equip(s) assignat(s) a %(club)s."
 
 #
 #: ilovevoley/core/admin.py:88
-msgid "No se encontraron equipos huérfanos por coincidencia de nombre."
-msgstr "No s'han trobat equips orfes per coincidència de nom."
+msgid "No se encontraron equipos huérfanos con partidos de ese club."
+msgstr "No s'han trobat equips orfes amb partits d'aquest club."
 
 #: ilovevoley/core/admin.py:118
 msgid "Marcar como temporada activa"

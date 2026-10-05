@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
-from ilovevoley.teams.services import MATCH_THRESHOLD, find_best_club
-from ilovevoley.videos.models import Club, Team
+from ilovevoley.teams.services import resolve_team_clubs
+from ilovevoley.videos.models import Club, Match, Team
 import requests
 import logging
 import time
@@ -168,40 +168,23 @@ class Command(BaseCommand):
         return club, created
 
     def match_teams_to_clubs(self):
-        """Ejecuta matching inteligente entre equipos y clubes"""
+        """Asigna club a los equipos huérfanos según los ids de club de sus partidos."""
         self.stdout.write('\nIniciando matching de equipos con clubes...')
-        
-        teams_without_club = Team.objects.filter(club__isnull=True)
-        clubs = list(Club.objects.all())
+
+        team_clubs = resolve_team_clubs(Match, Club)
         matched_count = 0
 
-        for team in teams_without_club:
-            best_match = find_best_club(team.name, clubs)
+        for team in Team.objects.filter(club__isnull=True, pk__in=team_clubs):
+            club = team_clubs[team.pk]
+            if not self.dry_run:
+                team.club = club
+                # Si el equipo no tiene sponsor_name, usar el nombre actual
+                if not team.sponsor_name:
+                    team.sponsor_name = team.name
+                team.save()
 
-            if best_match:
-                club, similarity = best_match
-                if similarity >= MATCH_THRESHOLD:
-                    if not self.dry_run:
-                        team.club = club
-                        # Si el equipo no tiene sponsor_name, usar el nombre actual
-                        if not team.sponsor_name:
-                            team.sponsor_name = team.name
-                        team.save()
-                    
-                    matched_count += 1
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f'✓ Matched: {team.name} → {club.official_name} '
-                            f'(confianza: {similarity:.2f})'
-                        )
-                    )
-                elif self.verbose:
-                    self.stdout.write(
-                        self.style.WARNING(
-                            f'? Posible match: {team.name} → {club.official_name} '
-                            f'(confianza: {similarity:.2f}) - No aplicado automáticamente'
-                        )
-                    )
+            matched_count += 1
+            self.stdout.write(self.style.SUCCESS(f'✓ Matched: {team.name} → {club.official_name}'))
 
         return matched_count
 
