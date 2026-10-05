@@ -670,6 +670,7 @@ def scrape_clubs_task(self, match_teams=True, delay=1.0):
                             'email': clean_string(club_data.get('mail', '')),
                             'venue_name': clean_string(club_data.get('campo', '')),
                             'venue_address': clean_string(club_data.get('direccion_campo', '')),
+                            'municipality': clean_string(club_data.get('municipio', '')),
                             'province': clean_string(club_data.get('provincia', '')),
                             'instagram': clean_url(club_data.get('instagram', '')),
                             'facebook': clean_url(club_data.get('facebook', '')),

@@ -157,6 +157,7 @@ class Command(BaseCommand):
                 'email': self.clean_string(club_data.get('mail', '')),      # Note: 'mail' not 'Email'
                 'venue_name': self.clean_string(club_data.get('campo', '')), # Note: lowercase
                 'venue_address': self.clean_string(club_data.get('direccion_campo', '')), # Note: underscore
+                'municipality': self.clean_string(club_data.get('municipio', '')),
                 'province': self.clean_string(club_data.get('provincia', '')), # Note: lowercase
                 'instagram': self.clean_url(club_data.get('instagram', '')),
                 'facebook': self.clean_url(club_data.get('facebook', '')),

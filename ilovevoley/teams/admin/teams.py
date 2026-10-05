@@ -8,7 +8,7 @@ from ..models import Club, Team
 
 @admin.register(Club)
 class ClubAdmin(ModelAdmin):
-    list_display = ('official_name', 'federation_id', 'president', 'province', 'teams_count', 'logo_preview')
+    list_display = ('official_name', 'federation_id', 'president', 'municipality', 'province', 'teams_count', 'logo_preview')
     list_filter = ('province', 'created_at')
     search_fields = ('official_name', 'federation_id', 'president', 'email')
     readonly_fields = ('created_at', 'updated_at', 'logo_federation_url')
@@ -22,7 +22,7 @@ class ClubAdmin(ModelAdmin):
             'fields': ('president', 'email', 'phone', 'address')
         }),
         (_('Sede'), {
-            'fields': ('default_venue', 'venue_name', 'venue_address', 'province')
+            'fields': ('default_venue', 'venue_name', 'venue_address', 'municipality', 'province')
         }),
         (_('Redes Sociales'), {
             'fields': ('website', 'instagram', 'facebook', 'twitter'),
