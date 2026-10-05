@@ -51,6 +51,10 @@ ICONS = {
     'ban': _CIRCLE + '<path d="m5.6 5.6 12.8 12.8"/>',
     'tag': '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1"/>',
     'refresh': '<path d="M20 11a8 8 0 0 0-14-4M4 4v4h4M4 13a8 8 0 0 0 14 4M20 20v-4h-4"/>',
+    'home': '<path d="M3 11.5 12 4l9 7.5M5.5 10v10h13V10M10 20v-5h4v5"/>',
+    'lock': '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    'key': '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M16 7l3 3"/>',
+    'arrow-left': '<path d="M19 12H5M11 6l-6 6 6 6"/>',
     'heart': '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',
 }
 
@@ -61,7 +65,7 @@ EMOJI_TO_ICON = {
     '📍': 'map-pin', '⚙️': 'cog', '🎯': 'target', '🥇': 'medal', '🥈': 'medal', '🥉': 'medal', '💡': 'bulb', '🏢': 'building',
     '👁️': 'eye', '📄': 'document', '💬': 'chat', '💭': 'chat', '🔔': 'bell', '📱': 'phone', '🚪': 'logout', '💤': 'moon',
     '📌': 'map-pin', '🕒': 'clock', '🤝': 'users', '✓': 'check', '✅': 'check-circle', '❌': 'x-circle', '✕': 'x', '⚠️': 'warning',
-    '⚠': 'warning', 'ℹ️': 'info', 'ℹ': 'info', '🚨': 'warning', '🔞': 'ban', '🏷️': 'tag', '🔄': 'refresh', '🏥': 'building',
+    '⚠': 'warning', 'ℹ️': 'info', 'ℹ': 'info', '🚨': 'warning', '🔞': 'ban', '🏷️': 'tag', '🔄': 'refresh', '🏥': 'building', '🏠': 'home', '🔑': 'key', '🚫': 'ban', '🛑': 'ban',
 }
 
 

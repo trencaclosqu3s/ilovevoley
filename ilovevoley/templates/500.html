@@ -1,133 +1,22 @@
-{% load static i18n %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% trans "500 - Error del árbitro" %} | I Love Voley</title>
-    <link rel="icon" type="image/png" href="{% static 'images/logo_app.png' %}">
-    <link rel="stylesheet" href="{% static 'css/app.css' %}">
-    <script src="{% static 'js/csp_actions.js' %}"></script>
-    <style nonce="{{ csp_nonce }}">
-        @keyframes whistle {
-            0%, 100% { transform: rotate(-5deg); }
-            50% { transform: rotate(5deg); }
-        }
-        .whistle-shake {
-            animation: whistle 0.5s ease-in-out infinite;
-        }
-        
-        .ascii-art {
-            font-family: 'Courier New', monospace;
-            line-height: 1.2;
-            white-space: pre;
-            font-size: 0.65rem;
-        }
-        
-        @media (min-width: 640px) {
-            .ascii-art {
-                font-size: 0.75rem;
-            }
-        }
-        
-        @media (min-width: 768px) {
-            .ascii-art {
-                font-size: 0.85rem;
-            }
-        }
-    </style>
-</head>
-<body class="bg-gradient-to-br from-red-50 via-yellow-50 to-red-100 min-h-screen flex items-center justify-center px-4">
-    <div class="max-w-3xl w-full">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 md:p-12 border-t-4 border-red-500">
-            <!-- Emoji animado -->
-            <div class="text-center mb-6 whistle-shake">
-                <span class="text-6xl sm:text-7xl md:text-8xl">🔴</span>
-            </div>
-            
-            <!-- Arte ASCII de tarjeta roja -->
-            <div class="bg-red-50 rounded-lg p-4 mb-6 overflow-x-auto">
-                <div class="ascii-art text-red-600 text-center">
-    ╔═══════════════╗
-    ║               ║
-    ║               ║
-    ║               ║
-    ║   {% trans "TARJETA" %}     ║
-    ║               ║
-    ║     {% trans "ROJA" %}      ║
-    ║               ║
-    ║      🏐       ║
-    ║               ║
-    ║   ERROR 500   ║
-    ║               ║
-    ╚═══════════════╝
-                </div>
-            </div>
-            
-            <!-- Título del error -->
-            <div class="text-center mb-6">
-                <h1 class="text-5xl sm:text-6xl font-bold text-red-500 mb-2">500</h1>
-                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">{% trans "¡El árbitro pita falta!" %}</h2>
-                <p class="text-lg text-gray-600">{% trans "Hemos tocado la red en el servidor 🤦‍♂️" %}</p>
-            </div>
-            
-            <!-- Mensaje divertido -->
-            <div class="bg-red-100 border-l-4 border-red-500 rounded-lg p-4 mb-8">
-                <p class="text-gray-700 text-center italic">
-                    "{% trans "¡Rotación incorrecta! Algo salió mal en nuestro lado de la cancha..." %}"
-                </p>
-            </div>
-            
-            <!-- Información útil -->
-            <div class="bg-gray-50 rounded-lg p-6 mb-8">
-                <h3 class="text-lg font-semibold text-gray-800 mb-3">{% trans "¿Qué ha pasado?" %}</h3>
-                <ul class="space-y-2 text-gray-600">
-                    <li class="flex items-start">
-                        <span class="text-red-500 mr-2">•</span>
-                        <span>{% trans "Nuestro servidor ha cometido un error técnico" %}</span>
-                    </li>
-                    <li class="flex items-start">
-                        <span class="text-red-500 mr-2">•</span>
-                        <span>{% trans "El equipo técnico ha sido notificado automáticamente" %}</span>
-                    </li>
-                    <li class="flex items-start">
-                        <span class="text-red-500 mr-2">•</span>
-                        <span>{% trans "Estamos trabajando para solucionar el problema" %}</span>
-                    </li>
-                    <li class="flex items-start">
-                        <span class="text-red-500 mr-2">•</span>
-                        <span>{% trans "Intenta volver a cargar la página en unos momentos" %}</span>
-                    </li>
-                </ul>
-            </div>
-            
-            <!-- Botones de acción -->
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="{% url 'content:video_list' %}" 
-                   class="bg-csj-purple hover:bg-csj-purple-dark text-white font-bold py-3 px-8 rounded-lg transition-colors text-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
-                    {% trans "🏠 Volver a Inicio" %}
-                </a>
-                <button data-action="reload" 
-                        class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-8 rounded-lg transition-colors text-center shadow hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
-                    {% trans "🔄 Reintentar" %}
-                </button>
-            </div>
-            
-            <!-- Footer divertido -->
-            <div class="mt-8 pt-6 border-t border-gray-200 text-center">
-                <p class="text-sm text-gray-500">
-                    <span class="font-semibold text-red-500">{% trans "Tiempo muerto técnico:" %}</span> 
-                    {% trans "El entrenador está dando indicaciones al equipo 📋" %}
-                </p>
-            </div>
-        </div>
-        
-        <!-- Logo/Branding -->
-        <div class="text-center mt-6">
-            <p class="text-sm text-gray-600">
-                {% trans "Una producción de" %} <span class="font-bold text-csj-purple">I Love Voley</span>
-            </p>
-        </div>
-    </div>
-</body>
-</html>
+{% extends 'base_error.html' %}
+{% load i18n %}
+{% block title_tag %}{% trans "500 - Error del árbitro" %}{% endblock %}
+{% block art_class %}{% endblock %}
+{% block art %}{% icon 'x-circle' 'w-12 h-12' %}{% endblock %}
+{% block code %}500{% endblock %}
+{% block heading %}{% trans "¡El árbitro pita falta!" %}{% endblock %}
+{% block subtitle %}{% trans "Hemos tocado la red en el servidor" %}{% endblock %}
+{% block quote %}{% trans "¡Rotación incorrecta! Algo salió mal en nuestro lado de la cancha..." %}{% endblock %}
+{% block info_title %}{% trans "¿Qué ha pasado?" %}{% endblock %}
+{% block info_items %}
+                    <li class="flex items-start"><span class="text-brand-text mr-2">&bull;</span><span>{% trans "Nuestro servidor ha cometido un error técnico" %}</span></li>
+                    <li class="flex items-start"><span class="text-brand-text mr-2">&bull;</span><span>{% trans "El equipo técnico ha sido notificado automáticamente" %}</span></li>
+                    <li class="flex items-start"><span class="text-brand-text mr-2">&bull;</span><span>{% trans "Estamos trabajando para solucionar el problema" %}</span></li>
+                    <li class="flex items-start"><span class="text-brand-text mr-2">&bull;</span><span>{% trans "Intenta volver a cargar la página en unos momentos" %}</span></li>
+{% endblock %}
+{% block actions %}
+<a href="{% url 'content:video_list' %}" class="bg-csj-purple-dark hover:opacity-90 text-white font-bold py-3 px-8 rounded-full transition text-center">{% icon 'home' %} {% trans "Volver a Inicio" %}</a>
+                <button data-action="reload" class="bg-tint hover:opacity-80 text-ink font-bold py-3 px-8 rounded-full transition text-center">{% icon 'refresh' %} {% trans "Reintentar" %}</button>
+{% endblock %}
+{% block tip_label %}{% trans "Tiempo muerto técnico:" %}{% endblock %}
+{% block tip %}{% trans "El entrenador está dando indicaciones al equipo" %}{% endblock %}

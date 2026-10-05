@@ -1,0 +1,69 @@
+{% load static i18n %}<!DOCTYPE html>
+<html lang="{% get_current_language as LANG %}{{ LANG }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title_tag %}{% endblock %} | I Love Voley</title>
+    <link rel="icon" type="image/png" href="{% static 'images/logo_app.png' %}">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <script src="{% static 'js/csp_actions.js' %}"></script>
+    <style nonce="{{ csp_nonce }}">
+        /* Página autónoma (no extiende base.html): sin tenant, así que usa los colores corporativos. */
+        :root {
+            --brand: #01696f;
+            --brand-solid: color-mix(in oklab, var(--brand) 78%, black);
+            --accent: var(--brand-solid);
+            --bg: color-mix(in oklab, var(--brand) 5%, #fbfaf9);
+            --surface: #ffffff;
+            --line: color-mix(in oklab, var(--brand) 14%, #e7e5e4);
+            --tint: color-mix(in oklab, var(--brand) 14%, white);
+            --brand-text: var(--brand-solid);
+            --ink: #1c1917;
+            --muted: #57534e;
+        }
+        @keyframes bounce-art { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+        .art-bounce { animation: bounce-art 2s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .art-bounce { animation: none; } }
+    </style>
+</head>
+<body class="bg-page text-ink font-sans min-h-screen flex items-center justify-center px-4 py-8">
+    <main class="max-w-2xl w-full">
+        <div class="bg-surface rounded-3xl border border-line p-6 sm:p-10">
+            <div class="flex justify-center mb-6">
+                <span class="w-24 h-24 rounded-3xl bg-tint text-brand-text grid place-items-center {% block art_class %}{% endblock %}">
+                    {% block art %}{% endblock %}
+                </span>
+            </div>
+
+            <div class="text-center mb-6">
+                <h1 class="font-display {% block code_class %}text-6xl sm:text-7xl{% endblock %} font-bold text-brand-text mb-1">{% block code %}{% endblock %}</h1>
+                <h2 class="font-display text-2xl sm:text-3xl font-bold mb-3">{% block heading %}{% endblock %}</h2>
+                <p class="text-lg text-muted">{% block subtitle %}{% endblock %}</p>
+            </div>
+
+            <p class="bg-tint rounded-2xl p-4 mb-6 text-center italic">&ldquo;{% block quote %}{% endblock %}&rdquo;</p>
+
+            <div class="rounded-2xl border border-line p-5 mb-8">
+                <h3 class="font-display text-lg font-bold mb-3">{% block info_title %}{% endblock %}</h3>
+                <ul class="space-y-2 text-muted">
+                    {% block info_items %}{% endblock %}
+                </ul>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                {% block actions %}{% endblock %}
+            </div>
+
+            <p class="mt-8 pt-6 border-t border-line text-center text-sm text-muted">
+                <span class="font-semibold text-brand-text">{% block tip_label %}{% endblock %}</span>
+                {% block tip %}{% endblock %}
+            </p>
+        </div>
+
+        <p class="text-center mt-6 text-sm text-muted">
+            {% trans "Una producción de" %}
+            <img src="{% static 'images/logo.svg' %}" alt="I Love Voley" class="inline-block h-8 w-auto align-middle">
+        </p>
+    </main>
+</body>
+</html>

@@ -1,10 +1,13 @@
-const CACHE_NAME = 'ilovevoley-pwa-v1';
+const CACHE_NAME = 'ilovevoley-pwa-v2';
 const PRECACHE_URLS = [
     '/offline/',
     '/static/css/app.css',
     '/static/js/csp_actions.js',
     '/static/js/pwa_nav.js',
     '/static/images/logo_app.png',
+    '/static/images/logo.svg',
+    '/static/fonts/bricolage-grotesque-latin-wght-normal.woff2',
+    '/static/fonts/dm-sans-latin-wght-normal.woff2',
     '/static/images/icons/icon-192.png',
     '/static/images/icons/icon-512.png',
 ];

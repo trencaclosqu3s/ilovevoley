@@ -198,3 +198,11 @@ Tamaño `1.1em` (clase `.icon` en `input.css`), color `currentColor`. Hay un tes
 - **Sin migrar a propósito:** emojis dentro de `{% blocktrans %}` (cambiar el msgid rompe la traducción: 💜 en footers, 💡/⚠️ en `profile.html`, ✓ en
   `moderation_result.html`), cadenas JS (`lightbox.js`, `base.html` notyf, `match_changes_review`, `friendly_match_form`), emojis de género 👨👩👧👦,
   páginas autónomas (errores, offline, `static/errors`), emails y comandos de gestión.
+
+## Páginas de error y offline
+
+`templates/base_error.html` (autónoma, tokens corporativos, sin tenant) con bloques; `400/403/404/429/500/offline.html` la extienden.
+Se eliminó el arte ASCII y los emojis grandes: un icono SVG en un cuadrado tintado, código grande, texto, lista y botones en píldora, y
+`logo.svg` en "Una producción de". `static/errors/429.html` y `503.html` (nginx, sin Django ni nonce) se reescribieron como HTML plano con
+los tokens en `static/errors/errors.css`. El SW sube a `ilovevoley-pwa-v2` y precachea `logo.svg` y las dos fuentes latinas para que `/offline/`
+se vea igual sin red. Cadenas traducibles: los msgid pierden el emoji y `locale/ca` se actualizó (hay un `test_pwa_sw` que fija el nombre de la caché).

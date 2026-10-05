@@ -6515,8 +6515,8 @@ msgid "¡Doble toque!"
 msgstr "Doble toc!"
 
 #: ilovevoley/templates/400.html:70
-msgid "La solicitud que enviaste no es válida 🤔"
-msgstr "La sol·licitud que has enviat no és vàlida 🤔"
+msgid "La solicitud que enviaste no es válida"
+msgstr "La sol·licitud que has enviat no és vàlida"
 
 #: ilovevoley/templates/400.html:76
 msgid ""
@@ -6551,8 +6551,8 @@ msgstr "Si el problema persisteix, contacta amb l'administrador"
 #: ilovevoley/templates/400.html:107 ilovevoley/templates/403.html:100
 #: ilovevoley/templates/404.html:101 ilovevoley/templates/429.html:102
 #: ilovevoley/templates/500.html:108
-msgid "🏠 Volver a Inicio"
-msgstr "🏠 Tornar a l'Inici"
+msgid "Volver a Inicio"
+msgstr "Tornar a l'Inici"
 
 #
 #: ilovevoley/templates/400.html:111
@@ -6566,10 +6566,10 @@ msgstr "Regla bàsica:"
 #: ilovevoley/templates/400.html:119
 msgid ""
 "En voleibol, cada jugador solo puede tocar el balón una vez (excepto en el "
-"bloqueo) 📖"
+"bloqueo)"
 msgstr ""
 "En voleibol, cada jugador només pot tocar la pilota una vegada (excepte en "
-"el bloqueig) 📖"
+"el bloqueig)"
 
 #
 #: ilovevoley/templates/400.html:127 ilovevoley/templates/403.html:122
@@ -6592,8 +6592,8 @@ msgid "¡Bloqueo triple!"
 msgstr "Bloqueig triple!"
 
 #: ilovevoley/templates/403.html:67
-msgid "Tu remate ha sido bloqueado en la red 🚫"
-msgstr "El teu remat ha estat bloquejat a la xarxa 🚫"
+msgid "Tu remate ha sido bloqueado en la red"
+msgstr "El teu remat ha estat bloquejat a la xarxa"
 
 #: ilovevoley/templates/403.html:73
 msgid ""
@@ -6620,18 +6620,13 @@ msgstr ""
 msgid "Si crees que deberías tener acceso, contacta con el administrador"
 msgstr "Si creus que hauries de tenir accés, contacta amb l'administrador"
 
-#
-#: ilovevoley/templates/403.html:105
-msgid "🔑 Iniciar Sesión"
-msgstr "🔑 Iniciar Sessió"
-
 #: ilovevoley/templates/403.html:113
 msgid "Consejo táctico:"
 msgstr "Consell tàctic:"
 
 #: ilovevoley/templates/403.html:114
-msgid "A veces es mejor hacer una finta que intentar pasar por la fuerza 😉"
-msgstr "A vegades és millor fer una finta que intentar passar per força 😉"
+msgid "A veces es mejor hacer una finta que intentar pasar por la fuerza"
+msgstr "A vegades és millor fer una finta que intentar passar per força"
 
 #
 #: ilovevoley/templates/404.html:7
@@ -6643,8 +6638,8 @@ msgid "¡Has fallado el saque!"
 msgstr "Has fallat el servei!"
 
 #: ilovevoley/templates/404.html:68
-msgid "La página que buscas se ha ido fuera de la cancha 🏐"
-msgstr "La pàgina que busques ha anat fora de la pista 🏐"
+msgid "La página que buscas se ha ido fuera de la cancha"
+msgstr "La pàgina que busques ha anat fora de la pista"
 
 #: ilovevoley/templates/404.html:74
 msgid ""
@@ -6679,8 +6674,8 @@ msgid "Tip del entrenador:"
 msgstr "Consell de l'entrenador:"
 
 #: ilovevoley/templates/404.html:113
-msgid "Recuerda siempre calentar antes de navegar 😉"
-msgstr "Recorda sempre escalfar abans de navegar 😉"
+msgid "Recuerda siempre calentar antes de navegar"
+msgstr "Recorda sempre escalfar abans de navegar"
 
 #: ilovevoley/templates/429.html:7
 msgid "429 - Tiempo de descanso"
@@ -6695,8 +6690,8 @@ msgid "¡Tiempo de descanso!"
 msgstr "Temps de descans!"
 
 #: ilovevoley/templates/429.html:65
-msgid "Has enviado demasiadas peticiones en muy poco tiempo 🛑"
-msgstr "Has enviat massa peticions en molt poc temps 🛑"
+msgid "Has enviado demasiadas peticiones en muy poco tiempo"
+msgstr "Has enviat massa peticions en molt poc temps"
 
 #: ilovevoley/templates/429.html:71
 msgid ""
@@ -6734,16 +6729,16 @@ msgstr ""
 
 #
 #: ilovevoley/templates/429.html:106 ilovevoley/templates/500.html:112
-msgid "🔄 Reintentar"
-msgstr "🔄 Torna-ho a provar"
+msgid "Reintentar"
+msgstr "Torna-ho a provar"
 
 #: ilovevoley/templates/429.html:114
 msgid ""
 "En voleibol, los tiempos muertos permiten reorganizar la estrategia y "
-"recuperar el aliento 🏐"
+"recuperar el aliento"
 msgstr ""
 "En voleibol, els temps morts permeten reorganitzar l'estratègia i recuperar "
-"l'alè 🏐"
+"l'alè"
 
 #
 #: ilovevoley/templates/500.html:7
@@ -6763,8 +6758,8 @@ msgid "¡El árbitro pita falta!"
 msgstr "L'àrbitre xiula falta!"
 
 #: ilovevoley/templates/500.html:71
-msgid "Hemos tocado la red en el servidor 🤦‍♂️"
-msgstr "Hem tocat la xarxa al servidor 🤦‍♂️"
+msgid "Hemos tocado la red en el servidor"
+msgstr "Hem tocat la xarxa al servidor"
 
 #: ilovevoley/templates/500.html:77
 msgid "¡Rotación incorrecta! Algo salió mal en nuestro lado de la cancha..."
@@ -6797,8 +6792,8 @@ msgid "Tiempo muerto técnico:"
 msgstr "Temps mort tècnic:"
 
 #: ilovevoley/templates/500.html:120
-msgid "El entrenador está dando indicaciones al equipo 📋"
-msgstr "L'entrenador està donant indicacions a l'equip 📋"
+msgid "El entrenador está dando indicaciones al equipo"
+msgstr "L'entrenador està donant indicacions a l'equip"
 
 #: ilovevoley/templates/account/login.html:4
 #: ilovevoley/templates/account/login.html:12
@@ -9520,12 +9515,8 @@ msgid "Balón fuera de cobertura"
 msgstr "Pilota fora de cobertura"
 
 #: ilovevoley/templates/offline.html:73
-msgid ""
-"Parece que estás en el vestuario subterráneo del pabellón y la señal no pasa "
-"la red 🏐"
-msgstr ""
-"Sembla que ets al vestidor subterrani del pavelló i el senyal no passa la "
-"xarxa 🏐"
+msgid "Parece que estás en el vestuario subterráneo del pabellón y la señal no pasa la red"
+msgstr "Sembla que ets al vestidor subterrani del pavelló i el senyal no passa la xarxa"
 
 #: ilovevoley/templates/offline.html:79
 msgid ""
@@ -9558,20 +9549,16 @@ msgstr ""
 
 #
 #: ilovevoley/templates/offline.html:110
-msgid "🔄 Reintentar saque"
-msgstr "🔄 Tornar a intentar el servei"
+msgid "Reintentar saque"
+msgstr "Tornar a intentar el servei"
 
 #: ilovevoley/templates/offline.html:117
 msgid "Pizarra táctica:"
 msgstr "Pissarra tàctica:"
 
 #: ilovevoley/templates/offline.html:118
-msgid ""
-"En voleibol y en la web, la mejor jugada siempre necesita una buena conexión "
-"😉"
-msgstr ""
-"En voleibol i a la web, la millor jugada sempre necessita una bona connexió "
-"😉"
+msgid "En voleibol y en la web, la mejor jugada siempre necesita una buena conexión"
+msgstr "En voleibol i a la web, la millor jugada sempre necessita una bona connexió"
 
 #: ilovevoley/templates/preference_filter_info.html:9
 msgid "Mostrando contenido de tus categorías preferidas."
