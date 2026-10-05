@@ -51,7 +51,7 @@
                     {% trans "Imágenes" %} <span class="text-red-500 dark:text-red-400">*</span>
                 </label>
                 
-                <div id="drop-zone" class="border-2 border-dashed border-line rounded-3xl p-8 text-center hover:border-csj-purple transition-colors duration-200 cursor-pointer">
+                <div id="drop-zone" class="border-2 border-dashed border-line rounded-3xl p-8 text-center hover:border-accent transition-colors duration-200 cursor-pointer">
                     <div id="drop-zone-content">
                         <i class="fas fa-cloud-upload-alt text-muted text-4xl mb-4"></i>
                         <p class="text-muted mb-2">{% trans "Arrastra tus imágenes aquí o haz clic para seleccionar" %}</p>
@@ -99,7 +99,7 @@
                             {% trans "Tipo de Imagen" %} <span class="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <select name="image_type" id="id_image_type" required
-                                class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                                class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                             {% for value, label in image_types %}
                                 <option value="{{ value }}" {% if value == 'match' %}selected{% endif %}>{{ label }}</option>
                             {% endfor %}
@@ -112,7 +112,7 @@
                             Temporada
                         </label>
                         <select name="season"
-                                class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                                class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                             <option value="">{% trans "Inferir de la fecha de subida" %}</option>
                             {% for season in seasons %}
                                 <option value="{{ season.id }}" {% if current_season and season.id == current_season.id %}selected{% endif %}>{{ season.name }}</option>
@@ -126,7 +126,7 @@
                             {% trans "Partido (opcional)" %}
                         </label>
                         <select name="match" id="id_match"
-                                class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                                class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                             <option value="">{% trans "Seleccionar partido (opcional)" %}</option>
                             {% for match in recent_matches %}
                                 <option value="{{ match.id }}" {% if selected_match and selected_match.id == match.id %}selected{% endif %}>
@@ -144,7 +144,7 @@
                         </label>
                         <input type="number" name="set_number" min="1"
                                placeholder="{% trans "Ej: 1" %}"
-                               class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                               class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                         <p class="text-xs text-muted mt-1">{% trans "Número de set al que pertenecen las fotos (si aplica)" %}</p>
                     </div>
 
@@ -159,7 +159,7 @@
                             <input type="checkbox" 
                                    name="create_album" 
                                    id="id_create_album"
-                                   class="w-4 h-4 text-brand-text border-line rounded focus:ring-csj-purple">
+                                   class="w-4 h-4 text-brand-text border-line rounded focus:ring-accent">
                             <span class="text-sm font-medium text-ink">
                                 {% trans "Agrupar todas las imágenes en un álbum" %}
                             </span>
@@ -173,7 +173,7 @@
                                    id="id_album_name"
                                    placeholder="{% trans "Ej: Entrenamiento Senior, Celebración Final..." %}"
                                    maxlength="200"
-                                   class="w-full px-3 py-2 text-sm border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                                   class="w-full px-3 py-2 text-sm border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                             <p class="text-xs text-muted mt-1">
                                 {% trans "El nombre aparecerá en la galería de álbumes" %}
                             </p>
@@ -188,7 +188,7 @@
                         <input type="text" 
                                name="tags" 
                                placeholder="{% trans "victoria, gol, celebración (separadas por comas)" %}"
-                               class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                               class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                     </div>
                 </div>
                 
@@ -206,7 +206,7 @@
                                 <input type="checkbox" 
                                        name="categories" 
                                        value="{{ category.id }}"
-                                       class="w-4 h-4 text-brand-text border-line rounded focus:ring-csj-purple">
+                                       class="w-4 h-4 text-brand-text border-line rounded focus:ring-accent">
                                 <span class="text-sm text-ink">{{ category.name }}</span>
                             </label>
                         {% endfor %}
@@ -512,7 +512,7 @@ function createIndividualFieldsOptimized() {
                                name="title_${index}" 
                                value="${defaultTitle}"
                                placeholder="{% trans "Título de la imagen" as js_msg %}{{ js_msg|escapejs }}"
-                               class="w-full px-2 py-1 text-sm border border-line rounded focus:ring-1 focus:ring-csj-purple focus:border-transparent">
+                               class="w-full px-2 py-1 text-sm border border-line rounded focus:ring-1 focus:ring-accent focus:border-transparent">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink mb-1">
@@ -521,7 +521,7 @@ function createIndividualFieldsOptimized() {
                         <input type="text" 
                                name="description_${index}" 
                                placeholder="{% trans "Descripción breve" as js_msg %}{{ js_msg|escapejs }}"
-                               class="w-full px-2 py-1 text-sm border border-line rounded focus:ring-1 focus:ring-csj-purple focus:border-transparent">
+                               class="w-full px-2 py-1 text-sm border border-line rounded focus:ring-1 focus:ring-accent focus:border-transparent">
                     </div>
                 </div>
             </div>

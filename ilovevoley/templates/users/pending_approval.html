@@ -39,7 +39,7 @@
                 </button>
             </form>
             {% else %}
-            <div class="bg-csj-purple-dark bg-opacity-20 border-l-4 border-csj-purple p-4 rounded">
+            <div class="bg-csj-purple bg-opacity-20 border-l-4 border-csj-purple p-4 rounded">
                 <h3 class="font-semibold text-ink mb-2">{% blocktrans with user_name=user.first_name|default:user.username %}¡Hola {{ user_name }}!{% endblocktrans %}</h3>
                 {% if joining_club %}
                 <p class="text-muted text-sm">

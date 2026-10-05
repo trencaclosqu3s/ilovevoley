@@ -138,7 +138,7 @@
 
             <form method="get" class="flex items-center gap-2">
                 <label for="season" class="text-sm font-medium text-ink">{% trans "Temporada" %}</label>
-                <select name="season" id="season" data-submit-on-change class="px-3 py-2 border border-line bg-surface text-ink rounded-xl bg-surface text-ink focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                <select name="season" id="season" data-submit-on-change class="px-3 py-2 border border-line bg-surface text-ink rounded-xl bg-surface text-ink focus:ring-2 focus:ring-accent focus:border-transparent">
                     <option value="" {% if not stat_season %}selected{% endif %}>{% trans "Todas las temporadas" %}</option>
                     {% for season in seasons %}
                         <option value="{{ season.id }}" {% if stat_season and stat_season.id == season.id %}selected{% endif %}>

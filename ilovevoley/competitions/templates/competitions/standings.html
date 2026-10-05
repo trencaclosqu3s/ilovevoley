@@ -40,7 +40,7 @@
                 <div>
                     <label class="block text-sm font-medium text-ink mb-1">{% trans "Liga" %}</label>
                     <select name="league"
-                        class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent text-sm sm:text-base">
+                        class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent text-sm sm:text-base">
                         <option value="">{% trans "Todas las ligas" %}</option>
                         {% for league in leagues %}
                         <option value="{{ league.id }}" {% if selected_league == league.id|stringformat:"s" %}selected{% endif %}>
@@ -54,7 +54,7 @@
                 <div>
                     <label class="block text-sm font-medium text-ink mb-1">{% trans "Temporada" %}</label>
                     <select name="season_name"
-                        class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent text-sm sm:text-base">
+                        class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent text-sm sm:text-base">
                         <option value="">{% trans "Todas las temporadas" %}</option>
                         {% for season in seasons %}
                         <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>
@@ -69,7 +69,7 @@
             <!-- Filtro de ligas archivadas/referencia -->
             <div class="flex items-center mt-4">
                 <input type="checkbox" name="show_archived" id="show_archived" value="1" {% if show_archived %}checked{% endif %}
-                    class="auto-filter h-4 w-4 text-brand-text focus:ring-csj-purple border-line rounded">
+                    class="auto-filter h-4 w-4 text-brand-text focus:ring-accent border-line rounded">
                 <label for="show_archived" class="ml-2 block text-sm text-ink">
                     {% trans "Mostrar ligas archivadas, de referencia o históricas" %}
                 </label>
@@ -101,7 +101,7 @@
                     <div class="flex flex-wrap gap-1 mt-1">
                         {% for category in league_data.league.categories.all %}
                         <span
-                            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-csj-purple-dark bg-opacity-20 text-csj-purple-dark">
+                            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-csj-purple bg-opacity-20 text-csj-purple-dark">
                             {{ category.name }}
                         </span>
                         {% endfor %}
@@ -155,7 +155,7 @@
                 <tbody class="bg-surface divide-y divide-line">
                     {% for standing in league_data.standings %}
                     <tr class="{% if club_team_name in standing.team.name %}
- bg-csj-purple-dark bg-opacity-10 dark:bg-opacity-20 border-l-4 border-csj-purple dark:border-csj-purple-dark
+ bg-csj-purple bg-opacity-10 dark:bg-opacity-20 border-l-4 border-csj-purple dark:border-csj-purple-dark
  {% elif standing.position <= 3 %}
  bg-green-50 dark:bg-green-900/30
  {% elif standing.position <= 6 %}
@@ -257,7 +257,7 @@
         {% if league_data.league.match_format != 'alevin_balear' %}
         {% for standing in league_data.standings %}
         {% if club_team_name in standing.team.name %}
-        <div class="bg-csj-purple-dark bg-opacity-10 dark:bg-opacity-20 p-4 border-t border-csj-purple dark:border-csj-purple-dark border-opacity-30">
+        <div class="bg-csj-purple bg-opacity-10 dark:bg-opacity-20 p-4 border-t border-csj-purple dark:border-csj-purple-dark border-opacity-30">
             <h4 class="text-sm font-semibold text-ink mb-2">
                 📊 {% blocktrans with team=standing.team.name %}Estadísticas detalladas de {{ team }}{% endblocktrans %}
             </h4>

@@ -164,7 +164,7 @@
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {% for related_image in related_images %}
                     <a href="{% url 'content:image_detail' related_image.id %}" 
-                       class="block bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-csj-purple transition duration-200">
+                       class="block bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
                         <div class="aspect-square">
                             {% include 'content/_thumbnail.html' with image=related_image css_class="w-full h-full object-cover" sizes="(min-width: 1024px) 16vw, (min-width: 768px) 33vw, 50vw" %}
                         </div>

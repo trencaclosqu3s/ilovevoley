@@ -45,13 +45,13 @@
                 '<input type="number" min="0" max="99" inputmode="numeric" ' +
                 'class="set-home w-16 px-2 py-1.5 border border-gray-300 dark:border-gray-600 ' +
                 'rounded-lg text-center dark:bg-gray-700 dark:text-gray-100 ' +
-                'focus:ring-2 focus:ring-csj-purple focus:border-transparent" value="' +
+                'focus:ring-2 focus:ring-accent focus:border-transparent" value="' +
                 (home === undefined || home === null ? '' : home) + '">' +
                 '<span class="text-gray-500 font-semibold">-</span>' +
                 '<input type="number" min="0" max="99" inputmode="numeric" ' +
                 'class="set-away w-16 px-2 py-1.5 border border-gray-300 dark:border-gray-600 ' +
                 'rounded-lg text-center dark:bg-gray-700 dark:text-gray-100 ' +
-                'focus:ring-2 focus:ring-csj-purple focus:border-transparent" value="' +
+                'focus:ring-2 focus:ring-accent focus:border-transparent" value="' +
                 (away === undefined || away === null ? '' : away) + '">' +
                 '<button type="button" class="set-remove text-gray-400 hover:text-red-500 px-1 text-lg" ' +
                 'aria-label="Quitar set">&times;</button>';

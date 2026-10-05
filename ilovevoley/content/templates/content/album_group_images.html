@@ -59,7 +59,7 @@
     {% if page_obj %}
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {% for image in page_obj %}
-                <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-csj-purple transition duration-200">
+                <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
                     <div class="aspect-square relative">
                         {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw" lightbox=True %}
                     </div>

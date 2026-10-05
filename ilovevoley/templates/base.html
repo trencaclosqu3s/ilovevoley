@@ -40,16 +40,20 @@
         --surface: #ffffff;
         --line: color-mix(in oklab, var(--brand) 14%, #e7e5e4);
         --tint: color-mix(in oklab, var(--brand) 14%, white);
-        --brand-text: var(--brand-dark);
+        --brand-solid: color-mix(in oklab, var(--brand) 78%, black);
+        --accent: var(--brand-dark);
+        --brand-text: var(--brand-solid);
         --ink: #1c1917;
         --muted: #57534e;
       }
+      input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+      ::selection { background: color-mix(in oklab, var(--accent) 28%, transparent); }
       .dark {
         --bg: color-mix(in oklab, var(--brand) 7%, #0c0a09);
         --surface: color-mix(in oklab, var(--brand) 6%, #1c1917);
         --line: color-mix(in oklab, var(--brand) 20%, #292524);
         --tint: color-mix(in oklab, var(--brand) 22%, #1c1917);
-        --brand-text: color-mix(in oklab, var(--brand) 65%, white);
+        --brand-text: color-mix(in oklab, var(--brand) 45%, white);
         --ink: #fafaf9;
         --muted: #a8a29e;
       }
@@ -93,8 +97,8 @@
         textarea:focus,
         select:focus {
             outline: none !important;
-            border-color: var(--brand) !important;
-            box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 20%, transparent) !important;
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent) !important;
         }
 
         .dark input[type="text"]:focus,
@@ -381,7 +385,7 @@
                 },
                 {
                     type: 'info',
-                    background: getComputedStyle(document.documentElement).getPropertyValue('--brand-dark').trim(),
+                    background: getComputedStyle(document.documentElement).getPropertyValue('--brand-solid').trim(),
                     icon: {
                         className: 'notyf__icon--info',
                         tagName: 'span',

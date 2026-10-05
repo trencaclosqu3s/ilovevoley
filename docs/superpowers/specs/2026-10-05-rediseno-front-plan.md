@@ -15,6 +15,16 @@ el azul de Sóller nunca estuvo en el modelo). Sin cambios de modelo ni migracio
 Tenants hoy: Sant Josep (lila/amarillo), Sóller (rojo/azul), corporativo (verde, defecto sin tenant).
 Pueden llegar más: el diseño debe aguantar cualquier color primario razonable.
 
+## Modelo de color (revisado tras probar con datos reales de Sóller)
+
+Primario = protagonista, secundario = detalle (decisión del usuario; en Sóller primario azul `#043353`, secundario rojo `#cc0808`).
+- `--brand` (`primary_color`): fondo teñido, bordes, chips y, **oscurecido un 22 % hacia negro**, todos los rellenos con texto blanco
+  (`--brand-solid`, clase Tailwind `bg-csj-purple-dark`; el nombre es histórico). Así el relleno no depende de que el secundario sea más oscuro.
+- `--accent` (= `secondary_color`, clase `accent`): solo detalles sin texto encima: `hover:border-accent`, `focus:ring-accent`, foco de inputs,
+  `accent-color` de checkbox/radio y selección de texto. No usarlo como fondo con texto blanco: no hay garantía de contraste.
+- `gradient_color` ya no se usa en el diseño nuevo (las cabeceras son planas).
+- Las plantillas autónomas (`base_auth`, errores) caen a `--brand-dark-rgb` si no hay `--brand-solid` (fallback en `tailwind.config.js`).
+
 ## Decisiones de diseño
 
 1. **Superficies planas, borde fino:** fuera `shadow-lg` y los `border-t-4` / `border-b-4` de color.

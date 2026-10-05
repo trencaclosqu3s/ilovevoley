@@ -95,7 +95,7 @@
                 <div>
                     <label class="block text-sm font-medium text-ink mb-1">{% trans "Categoría" %}</label>
                     <select name="category" 
-                            class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                            class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                         <option value="">{% trans "Todas las categorías" %}</option>
                         {% for category in categories %}
                             <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
@@ -109,7 +109,7 @@
                 <div>
                     <label class="block text-sm font-medium text-ink mb-1">{% trans "Liga" %}</label>
                     <select name="league" 
-                            class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                            class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                         <option value="">{% trans "Todas las ligas" %}</option>
                         {% for league in leagues %}
                             <option value="{{ league.id }}" {% if selected_league == league.id|stringformat:"s" %}selected{% endif %}>
@@ -124,7 +124,7 @@
                     <label class="flex items-center cursor-pointer touch-manipulation px-3 py-2 bg-tint hover:opacity-80 rounded-lg transition w-full">
                         <input type="checkbox" name="all_teams" value="1" 
                                {% if show_all_teams %}checked{% endif %}
-                               class="auto-filter w-5 h-5 text-brand-text border-line rounded focus:ring-csj-purple">
+                               class="auto-filter w-5 h-5 text-brand-text border-line rounded focus:ring-accent">
                         <span class="ml-2 text-sm font-medium text-ink">{% trans "Todos los equipos" %}</span>
                     </label>
                 </div>
@@ -182,9 +182,9 @@
                         {% for day_info in week %}
                             <div class="relative h-20 sm:h-24 lg:h-28 border-r border-b border-line 
  {% if day_info.is_current_month %}
- {% if day_info.is_today %}bg-csj-purple-dark bg-opacity-20 dark:bg-opacity-30 
+ {% if day_info.is_today %}bg-csj-purple bg-opacity-20 dark:bg-opacity-30 
  {% elif day_info.match_count > 0 %}bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30 hover:bg-blue-100 dark:hover:bg-blue-800 dark:hover:bg-opacity-40 
- {% else %}bg-surface hover:bg-tint{% endif %}
+ {% else %}bg-white hover:bg-tint{% endif %}
  {% else %}bg-tint {% endif %} 
  transition cursor-pointer" 
                                 {% if day_info.matches %}data-call="showDayMatches" data-call-args='[{{ day_info.day }}, "{{ month_name|escapejs }}", {{ year }}]'{% endif %}>
@@ -239,7 +239,7 @@
                         <span>{% trans "Otros equipos" %}</span>
                     </div>
                     <div class="flex items-center space-x-2">
-                        <div class="w-3 h-3 bg-csj-purple-dark bg-opacity-50 rounded"></div>
+                        <div class="w-3 h-3 bg-csj-purple bg-opacity-50 rounded"></div>
                         <span>{% trans "Hoy" %}</span>
                     </div>
                 </div>
@@ -279,7 +279,7 @@
                                             <!-- Categorías -->
                                             {% if match.league %}
                                                 {% for category in match.league.categories.all %}
-                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-csj-purple-dark bg-opacity-20 dark:bg-csj-purple-dark dark:bg-opacity-30 text-csj-purple-dark">
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-csj-purple bg-opacity-20 dark:bg-csj-purple-dark dark:bg-opacity-30 text-csj-purple-dark">
                                                         {{ category.name }}
                                                     </span>
                                                 {% endfor %}
@@ -395,7 +395,7 @@
                                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2 w-full sm:w-auto">
                                     <!-- Indicador de videos -->
                                     {% if match.videos_count %}
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-csj-purple-dark bg-opacity-30 dark:bg-opacity-40 text-brand-text">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-csj-purple bg-opacity-30 dark:bg-opacity-40 text-brand-text">
                                             📹 {% blocktrans count counter=match.videos_count %}{{ counter }} video{% plural %}{{ counter }} videos{% endblocktrans %}
                                         </span>
                                     {% endif %}
@@ -495,7 +495,7 @@
                     <div class="text-center">
                         <label class="block text-sm font-medium text-ink mb-2" id="homeTeamLabel">{% trans "Local" %}</label>
                         <input type="number" id="homeScore" name="home_score" min="0" max="99" 
-                               class="w-20 px-3 py-2 border border-line bg-surface text-ink rounded-xl text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
+                               class="w-20 px-3 py-2 border border-line bg-surface text-ink rounded-xl text-center text-lg font-semibold focus:ring-2 focus:ring-accent focus:border-transparent" 
                                placeholder="0" required>
                     </div>
                     
@@ -506,7 +506,7 @@
                     <div class="text-center">
                         <label class="block text-sm font-medium text-ink mb-2" id="awayTeamLabel">{% trans "Visitante" %}</label>
                         <input type="number" id="awayScore" name="away_score" min="0" max="99" 
-                               class="w-20 px-3 py-2 border border-line bg-surface text-ink rounded-xl text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
+                               class="w-20 px-3 py-2 border border-line bg-surface text-ink rounded-xl text-center text-lg font-semibold focus:ring-2 focus:ring-accent focus:border-transparent" 
                                placeholder="0" required>
                     </div>
                 </div>

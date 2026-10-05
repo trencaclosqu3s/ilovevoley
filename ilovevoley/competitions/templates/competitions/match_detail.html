@@ -70,7 +70,7 @@
                 <!-- Categorías -->
                 {% if match.league %}
                     {% for category in match.league.categories.all %}
-                        <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple-dark bg-opacity-20 dark:bg-csj-purple-dark dark:bg-opacity-30 text-csj-purple-dark">
+                        <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple bg-opacity-20 dark:bg-csj-purple-dark dark:bg-opacity-30 text-csj-purple-dark">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                             </svg>
@@ -378,7 +378,7 @@
             <div class="p-4 sm:p-6">
                 <h3 class="text-xs font-bold text-muted uppercase tracking-widest mb-3">{% trans "Convocados" %}</h3>
                 <div class="grid grid-cols-2 gap-4 sm:gap-6">
-                    <div class="bg-csj-purple-dark bg-opacity-5 rounded-lg p-3 sm:p-4">
+                    <div class="bg-csj-purple bg-opacity-5 rounded-lg p-3 sm:p-4">
                         <div class="mb-2">
                             <div class="text-xs font-semibold text-brand-text uppercase tracking-wide mb-0.5">{% trans "Local" %}</div>
                             <div class="text-xs text-muted">{% trans "Cap:" %} <span id="lineup-home-captain" class="font-medium text-muted"></span></div>
@@ -456,7 +456,7 @@
                             <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
                                 <div class="flex items-center space-x-3">
                                     {% if video.category %}
-                                        <span class="bg-csj-purple-dark bg-opacity-20 text-brand-text px-2 py-1 rounded">
+                                        <span class="bg-csj-purple bg-opacity-20 text-brand-text px-2 py-1 rounded">
                                             {{ video.category.name }}
                                         </span>
                                     {% endif %}
@@ -579,7 +579,7 @@
                 {% csrf_token %}
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-ink mb-1">{% trans "Caducidad del enlace" %}</label>
-                    <select name="hours" class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    <select name="hours" class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                         {% for hours in share_hours_choices %}
                             <option value="{{ hours }}" {% if hours == share_default_hours %}selected{% endif %}>
                                 {% if hours == 168 %}{% trans "7 días" %}{% else %}{% blocktrans with hours=hours %}{{ hours }} horas{% endblocktrans %}{% endif %}
@@ -675,7 +675,7 @@
                     <div class="text-center">
                         <label class="block text-sm font-medium text-ink mb-2" id="homeTeamLabel">{% trans "Local" %}</label>
                         <input type="number" id="homeScore" name="home_score" min="0" max="99" 
-                               class="w-20 px-3 py-2 border border-line bg-surface text-ink rounded-xl text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
+                               class="w-20 px-3 py-2 border border-line bg-surface text-ink rounded-xl text-center text-lg font-semibold focus:ring-2 focus:ring-accent focus:border-transparent" 
                                placeholder="0" required>
                     </div>
                     
@@ -686,7 +686,7 @@
                     <div class="text-center">
                         <label class="block text-sm font-medium text-ink mb-2" id="awayTeamLabel">{% trans "Visitante" %}</label>
                         <input type="number" id="awayScore" name="away_score" min="0" max="99" 
-                               class="w-20 px-3 py-2 border border-line bg-surface text-ink rounded-xl text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
+                               class="w-20 px-3 py-2 border border-line bg-surface text-ink rounded-xl text-center text-lg font-semibold focus:ring-2 focus:ring-accent focus:border-transparent" 
                                placeholder="0" required>
                     </div>
                 </div>

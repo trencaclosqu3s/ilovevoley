@@ -78,7 +78,7 @@
             {% if selected_position %}<input type="hidden" name="position" value="{{ selected_position }}">{% endif %}
             {% if selected_role %}<input type="hidden" name="role" value="{{ selected_role }}">{% endif %}
             <label for="season" class="text-sm font-medium text-ink">{% trans "Temporada" %}</label>
-            <select name="season" id="season" class="auto-filter px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:text-white">
+            <select name="season" id="season" class="auto-filter px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent dark:text-white">
                 <option value="">{% trans "Todas las temporadas" %}</option>
                 {% for season in seasons %}
                     <option value="{{ season.id }}" {% if selected_season == season.id|stringformat:"s" %}selected{% endif %}>{{ season.name }}</option>

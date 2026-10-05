@@ -11,7 +11,9 @@ module.exports = {
       colors: {
         'csj-purple': 'rgb(var(--brand-rgb, 155 127 191) / <alpha-value>)',
         'csj-yellow': '#F4D47C',
-        'csj-purple-dark': 'rgb(var(--brand-dark-rgb, 123 95 160) / <alpha-value>)',
+        // Relleno sólido derivado del PRIMARIO (oscurecido); el secundario del tenant es --accent (detalles).
+        'csj-purple-dark': 'var(--brand-solid, rgb(var(--brand-dark-rgb, 123 95 160)))',
+        accent: 'var(--accent, rgb(var(--brand-dark-rgb, 123 95 160)))',
         'csj-yellow-dark': '#E5C05A',
         'brand-gradient-from': 'rgb(var(--brand-gradient-from-rgb, 1 105 111) / <alpha-value>)',
         'brand-gradient-to': 'rgb(var(--brand-gradient-to-rgb, 0 77 82) / <alpha-value>)',

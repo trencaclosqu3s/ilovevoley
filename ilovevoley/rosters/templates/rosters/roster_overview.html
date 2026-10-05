@@ -66,7 +66,7 @@
             <!-- Filtro por categoría -->
             <div class="flex-1">
                 <label for="category" class="block text-sm font-medium text-ink mb-1">{% trans "Filtrar por Categoría" %}</label>
-                <select name="category" id="category" class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                <select name="category" id="category" class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                     <option value="">{% trans "Todas las categorías" %}</option>
                     {% for cat in categories %}
                         <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == selected_category %}selected{% endif %}>
@@ -79,7 +79,7 @@
             <!-- Filtro por temporada -->
             <div class="flex-1">
                 <label for="season" class="block text-sm font-medium text-ink mb-1">{% trans "Filtrar por Temporada" %}</label>
-                <select name="season" id="season" class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                <select name="season" id="season" class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                     <option value="">{% trans "Todas las temporadas" %}</option>
                     {% for season in seasons %}
                         <option value="{{ season.id }}" {% if selected_season == season.id|stringformat:"s" %}selected{% endif %}>

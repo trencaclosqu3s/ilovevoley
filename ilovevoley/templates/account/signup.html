@@ -26,7 +26,7 @@
                     {% trans "Usuario" %}
                 </label>
                 <input type="text" name="{{ form.username.name }}" id="{{ form.username.id_for_label }}" 
-                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent"
                        placeholder="{% trans 'Tu nombre de usuario' %}" required>
                 {% if form.username.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>
@@ -38,7 +38,7 @@
                     {% trans "Email" %}
                 </label>
                 <input type="email" name="{{ form.email.name }}" id="{{ form.email.id_for_label }}"
-                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent"
                        placeholder="{% trans 'tu@email.com' %}" required>
                 {% if form.email.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
@@ -50,7 +50,7 @@
                     {% trans "Contraseña" %}
                 </label>
                 <input type="password" name="{{ form.password1.name }}" id="{{ form.password1.id_for_label }}"
-                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent"
                        placeholder="{% trans 'Mínimo 8 caracteres' %}" required>
                 {% if form.password1.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.password1.errors.0 }}</p>
@@ -62,7 +62,7 @@
                     {% trans "Confirmar Contraseña" %}
                 </label>
                 <input type="password" name="{{ form.password2.name }}" id="{{ form.password2.id_for_label }}"
-                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent"
                        placeholder="{% trans 'Repite la contraseña' %}" required>
                 {% if form.password2.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.password2.errors.0 }}</p>
@@ -74,7 +74,7 @@
                     {% blocktrans %}Información Familiar <span class="text-red-500">*</span>{% endblocktrans %}
                 </label>
                 <textarea name="{{ form.parent_info.name }}" id="{{ form.parent_info.id_for_label }}"
-                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent"
                        rows="3"
                        placeholder="{% trans 'Ejemplo: Madre/Padre/etc de Pepito Pérez del equipo Infantil' %}" required>{{ form.parent_info.value|default:'' }}</textarea>
                 {% if form.parent_info.errors %}

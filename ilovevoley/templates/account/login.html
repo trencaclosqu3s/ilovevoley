@@ -26,7 +26,7 @@
                     {% trans "Usuario o Email" %}
                 </label>
                 <input type="text" name="{{ form.login.name }}" id="{{ form.login.id_for_label }}" 
-                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent"
                        placeholder="{% trans 'Tu usuario o email' %}" required>
                 {% if form.login.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.login.errors.0 }}</p>
@@ -38,7 +38,7 @@
                     {% trans "Contraseña" %}
                 </label>
                 <input type="password" name="{{ form.password.name }}" id="{{ form.password.id_for_label }}"
-                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent"
+                       class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent"
                        placeholder="{% trans 'Tu contraseña' %}" required>
                 {% if form.password.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.password.errors.0 }}</p>
@@ -48,7 +48,7 @@
             <div class="flex items-center justify-between">
                 <div class="flex items-center">
                     <input type="checkbox" name="{{ form.remember.name }}" id="{{ form.remember.id_for_label }}"
-                           class="h-4 w-4 text-blue-600 focus:ring-csj-purple border-line rounded">
+                           class="h-4 w-4 text-blue-600 focus:ring-accent border-line rounded">
                     <label for="{{ form.remember.id_for_label }}" class="ml-2 block text-sm text-muted">
                         {% trans "Recordarme" %}
                     </label>

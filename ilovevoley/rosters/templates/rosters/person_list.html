@@ -192,12 +192,12 @@ document.addEventListener('DOMContentLoaded', function() {
                        name="search" 
                        value="{{ search }}"
                        placeholder="{% trans 'Buscar por nombre o email...' %}"
-                       class="auto-filter w-full px-4 py-2 border-2 border-line rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:text-white">
+                       class="auto-filter w-full px-4 py-2 border-2 border-line rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent dark:text-white">
             </div>
             
             <!-- Tipo de rol -->
             <div>
-                <select name="role_type" class="auto-filter w-full px-4 py-2 border-2 border-line rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:text-white">
+                <select name="role_type" class="auto-filter w-full px-4 py-2 border-2 border-line rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent dark:text-white">
                     <option value="">{% trans "Todos los roles" %}</option>
                     <option value="player" {% if role_type == 'player' %}selected{% endif %}>{% trans "Solo Jugadores" %}</option>
                     <option value="staff" {% if role_type == 'staff' %}selected{% endif %}>{% trans "Solo Staff" %}</option>

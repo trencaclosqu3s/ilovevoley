@@ -37,7 +37,7 @@
                 </label>
                 <select id="category-filter" 
                         name="category" 
-                        class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                        class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                     <option value="">{% trans "Todas las categorías" %}</option>
                     {% for category in categories %}
                         <option value="{{ category.id }}" {% if selected_category|stringformat:"s" == category.id|stringformat:"s" %}selected{% endif %}>
@@ -54,7 +54,7 @@
                            name="show_friendly" 
                            value="1" 
                            {% if show_friendly %}checked{% endif %}
-                           class="auto-filter w-4 h-4 text-brand-text border-line rounded focus:ring-csj-purple">
+                           class="auto-filter w-4 h-4 text-brand-text border-line rounded focus:ring-accent">
                     <span class="text-sm font-medium text-ink">{% trans "Mostrar partidos amistosos" %}</span>
                 </label>
             </div>
@@ -66,7 +66,7 @@
                            name="show_past" 
                            value="1" 
                            {% if show_past %}checked{% endif %}
-                           class="auto-filter w-4 h-4 text-brand-text border-line rounded focus:ring-csj-purple">
+                           class="auto-filter w-4 h-4 text-brand-text border-line rounded focus:ring-accent">
                     <span class="text-sm font-medium text-ink">{% trans "Ver ligas pasadas" %}</span>
                 </label>
             </div>
@@ -118,17 +118,17 @@
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
                                     {% for category in league.categories.all %}
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-surface bg-opacity-20 text-white">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
                                             {{ category.name }}
                                         </span>
                                     {% endfor %}
-                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-surface bg-opacity-20 text-white">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
                                         {{ league.season }}
                                     </span>
                                 </div>
                             </div>
                             <div class="ml-4">
-                                <div class="w-12 h-12 bg-surface bg-opacity-20 rounded-full flex items-center justify-center">
+                                <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
                                     {% if league.competition_type == 'playoff' %}
                                         <span class="text-2xl">🏆</span>
                                     {% elif league.competition_type == 'cup' %}
@@ -198,7 +198,7 @@
 
                     <!-- Próximos partidos -->
                     {% if league.next_official_match %}
-                        <div class="bg-csj-purple-dark bg-opacity-20 px-4 py-3 border-t border-csj-purple border-opacity-30">
+                        <div class="bg-csj-purple bg-opacity-20 px-4 py-3 border-t border-csj-purple border-opacity-30">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <div class="text-xs font-medium text-csj-purple-dark">{% trans "Próximo partido" %}</div>

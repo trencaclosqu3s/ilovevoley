@@ -174,12 +174,12 @@
                 {{ filter_form.search.label_tag }}
                 <input type="text" name="search" id="id_search" value="{{ filter_form.search.value|default:'' }}"
                     placeholder="{% trans "Buscar por título, descripción o etiquetas..." %}"
-                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
             </div>
             <div>
                 {{ filter_form.category.label_tag }}
                 <select name="category" id="id_category"
-                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                     <option value="">{% trans "Todas las categorías" %}</option>
                     {% for cat in filter_form.fields.category.queryset %}
                     <option value="{{ cat.id }}" {% if filter_form.category.value == cat.id|stringformat:"s" %}selected{% endif %}>
@@ -191,7 +191,7 @@
             <div>
                 <label for="id_season" class="block text-sm font-medium text-ink mb-1">{% trans "Temporada" %}</label>
                 <select name="season" id="id_season"
-                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                     <option value="">{% trans "Todas las temporadas" %}</option>
                     {% for season in seasons %}
                     <option value="{{ season.id }}" {% if selected_season == season.id|stringformat:"s" %}selected{% endif %}>
@@ -204,7 +204,7 @@
             <div>
                 {{ filter_form.status.label_tag }}
                 <select name="status" id="id_status"
-                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                    class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
                     <option value="">{% trans "Todos los estados" %}</option>
                     {% for status_choice in filter_form.fields.status.choices %}
                     {% if status_choice.0 %}
@@ -266,7 +266,7 @@
         {% if view_mode == 'albums' %}
         {% if item.type == 'album' %}
         <!-- Álbum de partido -->
-        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-csj-purple transition duration-200 cursor-pointer w-full"
+        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200 cursor-pointer w-full"
             data-href="{% url 'content:match_images' item.match.id %}">
             <div class="aspect-square relative overflow-hidden">
                 <!-- Mostrar hasta 4 miniaturas en grid 2x2 -->
@@ -320,7 +320,7 @@
         </div>
         {% elif item.type == 'album_group' %}
         <!-- Álbum de grupo (sin partido) -->
-        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-csj-purple transition duration-200 cursor-pointer w-full"
+        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200 cursor-pointer w-full"
             data-href="{% url 'content:album_group_images' item.album_group_id %}">
             <div class="aspect-square relative overflow-hidden">
                 <!-- Mostrar hasta 4 miniaturas en grid 2x2 -->
@@ -385,7 +385,7 @@
         </div>
         {% else %}
         <!-- Imagen individual sin partido -->
-        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-csj-purple transition duration-200">
+        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
             <div class="aspect-square relative">
                 {% include 'content/_thumbnail.html' with image=item.image css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" lightbox=True %}
 
@@ -426,7 +426,7 @@
         {% endif %}
         {% else %}
         <!-- Vista individual tradicional -->
-        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-csj-purple transition duration-200">
+        <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
             <div class="aspect-square relative">
                 {% include 'content/_thumbnail.html' with image=item css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" lightbox=True %}
 
