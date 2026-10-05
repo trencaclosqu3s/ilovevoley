@@ -134,17 +134,23 @@ Los colores semánticos (verde/rojo/amarillo de éxito, error, aviso) se dejan c
 - [x] Mockups y plan aprobados por el usuario
 - [x] Fase 0: tokens en `base.html`, fuentes autoalojadas en `static/fonts`, `tailwind.config.js`,
   `app.css` regenerado; focus de inputs y toast info ya usan `--brand`. Pendiente: revisión visual en navegador.
-- [~] Fase 1 (código hecho, SIN verificar en navegador): `base.html` (fondo `bg-page`, aside plano, footer `bg-csj-purple-dark` con
+- [x] Fase 1 (verificada en navegador: escritorio/móvil, claro/oscuro, Sant Josep y Balears, con sesión): `base.html` (fondo `bg-page`, aside plano, footer `bg-csj-purple-dark` con
   esquinas 32 px, flash sin `border-l-4`), `includes/navbar.html` (sticky translúcida, disparadores en píldora, balón SVG vía
   `includes/ball_icon.html`), `input.css` (`h1-h3` en `font-display`). Los dropdowns de la navbar siguen igual de estructura.
   Verificado en navegador (escritorio, claro y oscuro) en `/core/quienes-somos/` con Sant Josep y Balears. Falta móvil, footer
   (no visto), páginas autenticadas (dropdowns) y `cookies_banner.html` (aún con borde superior antiguo).
+  **Datos de prueba locales** (BD de desarrollo, no del repo): usuario `dev_preview` (sin contraseña, admin aprobado en santjosep y
+  balears) y 2 vídeos demo por club. Sesión: crear `SessionStore` por shell y fijar la cookie `sessionid` con `domain=.lvh.me`.
   **Entorno local:** el build de Docker falla con rutas con `ñ` (`rediseño-front`): usar `up -d --no-build web` (imagen
   `rediseo-front-web` ya existe). Para ver tenants hace falta un dominio de 3 niveles: `http://santjosep.lvh.me:8008` con
   override de compose (`TENANT_BASE_DOMAIN=lvh.me:8008`, `ALLOWED_HOSTS=localhost,127.0.0.1,.lvh.me`) vía `-f` extra, sin tocar
   `docker-compose.dev.yml`. Con `*.localhost` el middleware no resuelve tenant (toma `host == root_domain`).
   Nota: `Organization.secondary_color` de Balears es azul (`#003DA5`), no un rojo oscuro: `--brand-dark` = azul ahí.
-- [ ] Fase 2
+- [x] Fase 2: `content/video_list.html` y `cookies_banner.html` migrados con la tabla de clases; tarjetas de vídeo con
+  borde fino y radio 20 (siguen siendo iframes de YouTube, 2 columnas); inputs/selects de `base.html` ahora usan
+  `--surface/--line/--ink`; navbar sin desbordamiento a ~1150 px (textos "Cambiar de club"/usuario solo desde `xl`);
+  aside `lg:w-80`. **Decisión:** NO se añadió el bloque "Próximo partido" ni chips de filtro del mockup: exigen cambios de
+  vista/JS y el mockup suponía miniaturas que el modelo no tiene. Pendiente si se quiere.
 - [ ] Fase 3
 - [ ] Fase 4
 - [ ] Fase 5 (pendiente de confirmar barra inferior)
