@@ -250,3 +250,44 @@ class UserProfileFormNotificationPreferenceTest(TestCase):
         self.assertTrue(pref_result.is_enabled)
 
 
+
+
+class UserProfileFormFollowedTeamsTest(TestCase):
+    """Los equipos seguidos (#363) se guardan en la misma preferencia del club que
+    las categorías: elegir solo equipos debe crearla y vaciarlos no toca las categorías.
+    """
+
+    def setUp(self):
+        from ilovevoley.teams.models import Club, Team
+        User = get_user_model()
+        self.user = User.objects.create_user(username='socio', password='contrasena')
+        club = Club.objects.create(federation_id='c-uno', official_name='Club Uno')
+        self.org = Organization.objects.create(slug='club-uno', name='Club Uno', is_active=True, club=club)
+        self.team = Team.objects.create(name='Cadete B', federation_id='t-b', club=club)
+        self.cadete = Category.objects.create(name='Cadete', is_active=True)
+
+    def _save(self, categories=(), teams=()):
+        form = UserProfileForm(
+            data={
+                'username': 'socio',
+                'first_name': 'Socio',
+                'last_name': 'Uno',
+                f'preferred_categories_{self.org.id}': [c.pk for c in categories],
+                f'followed_teams_{self.org.id}': [t.pk for t in teams],
+            },
+            instance=self.user,
+            organization=self.org,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        return self.user.category_preferences.get(organization=self.org)
+
+    def test_teams_alone_create_preference_and_clearing_them_keeps_categories(self):
+        pref = self._save(teams=[self.team])
+        self.assertEqual(list(pref.teams.all()), [self.team])
+        form = UserProfileForm(instance=self.user, organization=self.org)
+        self.assertEqual(list(form.initial[f'followed_teams_{self.org.id}']), [self.team])
+
+        pref = self._save(categories=[self.cadete])
+        self.assertFalse(pref.teams.exists())
+        self.assertEqual(list(pref.categories.all()), [self.cadete])
