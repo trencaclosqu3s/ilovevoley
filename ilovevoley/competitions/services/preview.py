@@ -53,7 +53,8 @@ def _head_to_head_filter(match):
         | Q(home_team_id=away_id, away_team_id=home_id)
     )
     local, away = match.federation_club_local_id, match.federation_club_away_id
-    if not (local and away and match.league_id):
+    # El parser guarda str(None) cuando la federación envía null: no es un club.
+    if not (local and away and match.league_id) or {local, away} & {'None', '0'}:
         return by_team
     by_club = (
         Q(federation_club_local_id=local, federation_club_away_id=away)

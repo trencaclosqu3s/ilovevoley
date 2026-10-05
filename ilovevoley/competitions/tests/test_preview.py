@@ -75,6 +75,23 @@ class MatchPreviewTests(TestCase):
 
         self.assertEqual(preview['head_to_head'], [same_clubs])
 
+    def test_null_federation_club_ids_do_not_match_unrelated_teams(self):
+        # El parser guarda 'None' si la federación envía null en ID_CLUB_*.
+        self.match.federation_club_local_id = self.match.federation_club_away_id = 'None'
+        self.match.save()
+        Match.objects.create(
+            league=self.league, home_team=self.other,
+            away_team=Team.objects.create(name='Ajeno', federation_id='T7'),
+            status='finished', match_date=self.now - timedelta(days=10),
+            home_score=3, away_score=0,
+            federation_club_local_id='None', federation_club_away_id='None',
+        )
+        Standing.objects.create(league=self.league, team=self.home, position=1)
+
+        preview = build_match_preview(self.match)
+
+        self.assertEqual(preview['head_to_head'], [])
+
     def test_hidden_for_finished_match_or_without_data(self):
         self.assertIsNone(build_match_preview(self.match))
 
