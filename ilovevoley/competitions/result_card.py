@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from typing import Callable, Iterable
@@ -59,6 +60,7 @@ _STATIC = Path(__file__).resolve().parents[1] / 'static'
 _FONT_REGULAR = _STATIC / 'fonts' / 'SourceSans3-Regular.ttf'
 _FONT_BOLD = _STATIC / 'fonts' / 'SourceSans3-Bold.ttf'
 _PLACEHOLDER = _STATIC / 'images' / 'crest_placeholder.png'
+_LOGO_ISOTYPE = _STATIC / 'images' / 'logo_isotype_white.png'
 
 MARGIN = 80
 NAME_GAP = 60
@@ -319,6 +321,71 @@ def _draw_sets_row(draw, set_list, font, *, center_x, y, bg, text_color):
     return height
 
 
+@lru_cache(maxsize=4)
+def _load_footer_isotype(height: int) -> Image.Image | None:
+    if not _LOGO_ISOTYPE.exists():
+        return None
+    try:
+        with Image.open(_LOGO_ISOTYPE) as raw:
+            image = raw.convert('RGBA')
+        ratio = height / image.height
+        new_width = max(1, round(image.width * ratio))
+        return image.resize((new_width, height), Image.Resampling.LANCZOS)
+    except Exception as exc:
+        logger.warning('No se pudo cargar el isotipo de footer %s: %s', _LOGO_ISOTYPE, exc)
+        return None
+
+
+def _footer_dimensions(
+    draw: ImageDraw.ImageDraw, font, *, icon_height: int = 24, gap: int = 10
+) -> tuple[int, int]:
+    text = 'ilovevoley.es'
+    text_bbox = draw.textbbox((0, 0), text, font=font)
+    text_w = text_bbox[2] - text_bbox[0]
+    text_h = text_bbox[3] - text_bbox[1]
+    isotype = _load_footer_isotype(icon_height)
+    if isotype is not None:
+        total_w = isotype.width + gap + text_w
+        footer_h = max(isotype.height, text_h)
+        return total_w, footer_h
+    return text_w, text_h
+
+
+def _draw_footer(
+    draw: ImageDraw.ImageDraw,
+    image: Image.Image,
+    *,
+    width: int,
+    y: int,
+    font,
+    text_color=WHITE,
+    gap: int = 10,
+    icon_height: int = 24,
+) -> int:
+    text = 'ilovevoley.es'
+    text_bbox = draw.textbbox((0, 0), text, font=font)
+    text_w = text_bbox[2] - text_bbox[0]
+    text_h = text_bbox[3] - text_bbox[1]
+
+    isotype = _load_footer_isotype(icon_height)
+    if isotype is not None:
+        total_width = isotype.width + gap + text_w
+        footer_height = max(isotype.height, text_h)
+        start_x = (width - total_width) // 2
+
+        icon_y = y + (footer_height - isotype.height) // 2
+        image.paste(isotype, (start_x, icon_y), isotype)
+
+        text_x = start_x + isotype.width + gap
+        text_y = y + (footer_height - text_h) // 2 - text_bbox[1]
+        draw.text((text_x, text_y), text, font=font, fill=text_color)
+        return footer_height
+
+    start_x = (width - text_w) // 2
+    draw.text((start_x, y - text_bbox[1]), text, font=font, fill=text_color)
+    return text_h
+
+
 def render_result_card(
     *,
     match,
@@ -392,8 +459,7 @@ def render_result_card(
         )
         _unused_width, sets_height = _sets_row_size(draw, set_list, font_pill, 20, 9, 14)
         footer_font = font_xs
-        footer_bbox = draw.textbbox((0, 0), 'ilovevoley', font=footer_font)
-        footer_height = footer_bbox[3] - footer_bbox[1]
+        _footer_w, footer_height = _footer_dimensions(draw, footer_font)
 
         content_bottom = height - metrics['card_pad']
         footer_y = content_bottom - footer_height
@@ -420,9 +486,8 @@ def render_result_card(
                 draw, set_list, font_pill, center_x=width // 2, y=sets_y,
                 bg=pill_bg_marco, text_color=WHITE,
             )
-        draw.text(
-            ((width - (footer_bbox[2] - footer_bbox[0])) // 2, footer_y),
-            'ilovevoley', font=footer_font, fill=WHITE,
+        _draw_footer(
+            draw, image, width=width, y=footer_y, font=footer_font, text_color=WHITE
         )
         _draw_frame(
             draw, width, height, metrics['frame_outer'], metrics['frame_inner'], secondary, primary
@@ -477,13 +542,12 @@ def render_result_card(
                 bg=pill_bg, text_color=primary,
             )
 
-        footer_bbox = draw.textbbox((0, 0), 'ilovevoley', font=font_xs)
-        draw.text(
-            ((width - (footer_bbox[2] - footer_bbox[0])) // 2, height - 60),
-            'ilovevoley', font=font_xs, fill=WHITE,
+        _draw_footer(
+            draw, image, width=width, y=height - 60, font=font_xs, text_color=WHITE
         )
 
     buffer = BytesIO()
+
     image.convert('RGB').save(buffer, format='PNG', optimize=True)
     return buffer.getvalue()
 
