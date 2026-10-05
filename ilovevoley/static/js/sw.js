@@ -3,6 +3,7 @@ const PRECACHE_URLS = [
     '/offline/',
     '/static/css/app.css',
     '/static/js/csp_actions.js',
+    '/static/js/pwa_nav.js',
     '/static/images/logo_app.png',
     '/static/images/icons/icon-192.png',
     '/static/images/icons/icon-512.png',

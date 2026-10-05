@@ -10620,6 +10620,10 @@ msgstr ""
 "Arguments amb nom en JSON vàlid, per exemple {\"delay\": 2.0}. Han de "
 "coincidir amb la signatura de la tasca."
 
+#: ilovevoley/templates/includes/navbar.html:11
+msgid "Atrás"
+msgstr "Enrere"
+
 #~ msgid "¿Dónde juega?"
 #~ msgstr "On juga?"
 

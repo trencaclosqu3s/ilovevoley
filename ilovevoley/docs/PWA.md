@@ -14,6 +14,7 @@ I Love Voley implementa el modelo de **App Única Comunitaria**: en lugar de pub
 3. **Navegación Multi-Club In-App**: Gracias al soporte de **Scope Extensions**, un usuario puede alternar entre clubes federados (`santjosep.ilovevoley.es`, `cvsoller.ilovevoley.es`, etc.) sin salirse de la ventana de la aplicación.
 4. **Resiliencia Offline**: Caché inteligente de recursos estáticos críticos y pantalla de contingencia con diseño propio cuando no hay conexión.
 5. **Avisos Web Push y App Badging**: Recepción nativa de notificaciones push y contador en el icono de la app en sistemas compatibles.
+6. **Retroceso In-App**: En `display: standalone` el navegador no muestra sus flechas de navegación (y en iOS no existe gesto de swipe). La cabecera incorpora un botón "atrás" propio para no perder el contexto ni los filtros al volver.
 
 ---
 
@@ -46,6 +47,11 @@ Servido por la vista `ilovevoley.core.views.service_worker` desde la raíz con l
 ### 3. Pantalla de Fallback Offline (`/offline/`)
 - Servida por `ilovevoley.core.views.offline_view` utilizando la plantilla `ilovevoley/templates/offline.html`.
 - Informa al usuario de la pérdida de conectividad, proporciona un botón interactivo de reintento (`data-action="reload"`) y mantiene la coherencia visual de la plataforma.
+
+### 4. Navegación In-App (`static/js/pwa_nav.js`)
+- El botón `#pwa-back-button` de la navbar solo se muestra cuando la app corre instalada (`display-mode: standalone` o `navigator.standalone` en iOS) y no estamos en la portada del club.
+- Retrocede con `history.back()`; si no hay historial interno (acceso directo desde un push, por ejemplo) navega a la portada del club. Al usar el historial del navegador, los filtros de la página previa (p. ej. Resultados) se conservan.
+- Complementariamente, `static/js/results.js` guarda los filtros de Resultados en `sessionStorage` y los reaplica si se entra a la página sin parámetros (por ejemplo desde el menú).
 
 ---
 
