@@ -322,23 +322,27 @@ def _draw_sets_row(draw, set_list, font, *, center_x, y, bg, text_color):
 
 
 @lru_cache(maxsize=4)
+def _cached_isotype(path: Path, height: int) -> Image.Image:
+    with Image.open(path) as raw:
+        image = raw.convert('RGBA')
+    ratio = height / image.height
+    new_width = max(1, round(image.width * ratio))
+    return image.resize((new_width, height), Image.Resampling.LANCZOS)
+
+
 def _load_footer_isotype(height: int) -> Image.Image | None:
     if not _LOGO_ISOTYPE.exists():
         return None
     try:
-        with Image.open(_LOGO_ISOTYPE) as raw:
-            image = raw.convert('RGBA')
-        ratio = height / image.height
-        new_width = max(1, round(image.width * ratio))
-        return image.resize((new_width, height), Image.Resampling.LANCZOS)
-    except Exception as exc:
+        return _cached_isotype(_LOGO_ISOTYPE, height)
+    except (OSError, ValueError) as exc:
         logger.warning('No se pudo cargar el isotipo de footer %s: %s', _LOGO_ISOTYPE, exc)
         return None
 
 
-def _footer_dimensions(
+def _measure_footer(
     draw: ImageDraw.ImageDraw, font, *, icon_height: int = 24, gap: int = 10
-) -> tuple[int, int]:
+) -> tuple[int, int, Image.Image | None, tuple[int, int, int, int]]:
     text = 'ilovevoley.es'
     text_bbox = draw.textbbox((0, 0), text, font=font)
     text_w = text_bbox[2] - text_bbox[0]
@@ -347,8 +351,10 @@ def _footer_dimensions(
     if isotype is not None:
         total_w = isotype.width + gap + text_w
         footer_h = max(isotype.height, text_h)
-        return total_w, footer_h
-    return text_w, text_h
+    else:
+        total_w = text_w
+        footer_h = text_h
+    return total_w, footer_h, isotype, text_bbox
 
 
 def _draw_footer(
@@ -361,29 +367,29 @@ def _draw_footer(
     text_color=WHITE,
     gap: int = 10,
     icon_height: int = 24,
+    measured: tuple[int, int, Image.Image | None, tuple[int, int, int, int]] | None = None,
 ) -> int:
+    total_width, footer_height, isotype, text_bbox = (
+        measured
+        if measured is not None
+        else _measure_footer(draw, font, icon_height=icon_height, gap=gap)
+    )
     text = 'ilovevoley.es'
-    text_bbox = draw.textbbox((0, 0), text, font=font)
-    text_w = text_bbox[2] - text_bbox[0]
     text_h = text_bbox[3] - text_bbox[1]
 
-    isotype = _load_footer_isotype(icon_height)
     if isotype is not None:
-        total_width = isotype.width + gap + text_w
-        footer_height = max(isotype.height, text_h)
         start_x = (width - total_width) // 2
-
         icon_y = y + (footer_height - isotype.height) // 2
         image.paste(isotype, (start_x, icon_y), isotype)
 
         text_x = start_x + isotype.width + gap
         text_y = y + (footer_height - text_h) // 2 - text_bbox[1]
         draw.text((text_x, text_y), text, font=font, fill=text_color)
-        return footer_height
+    else:
+        start_x = (width - total_width) // 2
+        draw.text((start_x, y - text_bbox[1]), text, font=font, fill=text_color)
 
-    start_x = (width - text_w) // 2
-    draw.text((start_x, y - text_bbox[1]), text, font=font, fill=text_color)
-    return text_h
+    return footer_height
 
 
 def render_result_card(
@@ -459,7 +465,8 @@ def render_result_card(
         )
         _unused_width, sets_height = _sets_row_size(draw, set_list, font_pill, 20, 9, 14)
         footer_font = font_xs
-        _footer_w, footer_height = _footer_dimensions(draw, footer_font)
+        footer_measured = _measure_footer(draw, footer_font)
+        _footer_w, footer_height, _isotype, _bbox = footer_measured
 
         content_bottom = height - metrics['card_pad']
         footer_y = content_bottom - footer_height
@@ -487,7 +494,8 @@ def render_result_card(
                 bg=pill_bg_marco, text_color=WHITE,
             )
         _draw_footer(
-            draw, image, width=width, y=footer_y, font=footer_font, text_color=WHITE
+            draw, image, width=width, y=footer_y, font=footer_font, text_color=WHITE,
+            measured=footer_measured,
         )
         _draw_frame(
             draw, width, height, metrics['frame_outer'], metrics['frame_inner'], secondary, primary
@@ -542,8 +550,12 @@ def render_result_card(
                 bg=pill_bg, text_color=primary,
             )
 
+        footer_measured = _measure_footer(draw, font_xs)
+        _footer_w, footer_height, _isotype, _bbox = footer_measured
+        footer_y = height - card_pad - footer_height
         _draw_footer(
-            draw, image, width=width, y=height - 60, font=font_xs, text_color=WHITE
+            draw, image, width=width, y=footer_y, font=font_xs, text_color=WHITE,
+            measured=footer_measured,
         )
 
     buffer = BytesIO()
