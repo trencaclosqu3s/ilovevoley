@@ -147,7 +147,7 @@ class P1P2NotificationTasksTest(TestCase):
         request.path = '/gone'
 
         with patch(
-            'ilovevoley.core.middleware.get_admin_emails', return_value=['root@test.com']
+            'ilovevoley.core.middleware.get_technical_alert_emails', return_value=['root@test.com']
         ), patch(
             'ilovevoley.core.middleware._atomic_incr', return_value=10
         ), patch(

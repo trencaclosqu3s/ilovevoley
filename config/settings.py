@@ -421,6 +421,10 @@ SECURITY_CONTACT_EMAIL = env_config('SECURITY_CONTACT_EMAIL', default=DEFAULT_FR
 # Notificaciones
 NOTIFICATION_EMAIL_ENABLED = env_config('NOTIFICATION_EMAIL_ENABLED', default=False, cast=bool)
 ADMIN_EMAIL_LIST = env_config('ADMIN_EMAIL_LIST', default='', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
+# Destinatarios de avisos técnicos (errores 404). No son los superusers: se separan
+# para que los avisos de infraindicadores no lleguen a quien solo administra contenido.
+# Si está vacío, cae a ADMIN_EMAIL_LIST y, en último caso, a los superusers.
+TECHNICAL_ALERT_EMAILS = env_config('TECHNICAL_ALERT_EMAILS', default='', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
 
 # Configuración específica de notificaciones
 EMAIL_NOTIFICATIONS = {

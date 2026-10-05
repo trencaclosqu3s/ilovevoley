@@ -42,6 +42,11 @@ NOTIFICATION_EMAIL_ENABLED=True
 # (OPCIONAL) Solo si quieres un fallback cuando no hay superusers con email:
 # ADMIN_EMAIL_LIST=admin1@example.com,admin2@example.com
 
+# (OPCIONAL) Destinatarios de avisos técnicos (alertas/reporte de errores 404).
+# No se envían a todos los superusers: un superuser puede existir solo para
+# gestionar contenido. Prioridad: TECHNICAL_ALERT_EMAILS > ADMIN_EMAIL_LIST > superusers.
+# TECHNICAL_ALERT_EMAILS=tecnico@example.com
+
 # Configuración específica (True/False)
 EMAIL_NOTIFY_NEW_USER=True
 EMAIL_NOTIFY_USER_APPROVED=True
