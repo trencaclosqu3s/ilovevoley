@@ -573,7 +573,6 @@ def scrape_clubs_task(self, match_teams=True, delay=1.0):
         dict: Estadísticas del scraping realizado
     """
     import requests
-    from difflib import SequenceMatcher
     import unicodedata
     import re
     
@@ -593,42 +592,6 @@ def scrape_clubs_task(self, match_teams=True, delay=1.0):
         if url and not url.startswith(('http://', 'https://')):
             url = f'https://{url}'
         return url
-    
-    def normalize_name(name):
-        """Normaliza un nombre para comparación"""
-        from ilovevoley.videos.utils import normalize_team_name
-        return normalize_team_name(name)
-    
-    def find_best_club_match(team, clubs):
-        """Encuentra la mejor coincidencia entre un equipo y los clubes"""
-        team_normalized = normalize_name(team.name)
-        best_match = None
-        best_similarity = 0
-        
-        for club in clubs:
-            club_normalized = normalize_name(club.official_name)
-            
-            # Comparar nombre completo
-            similarity = SequenceMatcher(None, team_normalized, club_normalized).ratio()
-            
-            # Comparar palabras clave
-            team_words = set(team_normalized.split())
-            club_words = set(club_normalized.split())
-            
-            common_words = team_words.intersection(club_words)
-            if common_words:
-                stopwords = {'club', 'volei', 'voley', 'voleibol', 'cv', 'esportiu', 'deportivo'}
-                meaningful_common = common_words - stopwords
-                
-                if meaningful_common:
-                    word_similarity = len(meaningful_common) / max(len(team_words), len(club_words))
-                    similarity = max(similarity, word_similarity)
-            
-            if similarity > best_similarity:
-                best_similarity = similarity
-                best_match = (club, similarity)
-        
-        return best_match if best_similarity > 0.3 else None
     
     try:
         # 1. Obtener lista de clubes
@@ -698,25 +661,15 @@ def scrape_clubs_task(self, match_teams=True, delay=1.0):
         matched_count = 0
         if match_teams:
             logger.info("Iniciando matching de equipos con clubes")
-            teams_without_club = Team.objects.filter(club__isnull=True)
-            clubs = Club.objects.all()
-            
-            for team in teams_without_club:
-                best_match = find_best_club_match(team, clubs)
-                
-                if best_match:
-                    club, similarity = best_match
-                    if similarity > 0.55:  # Umbral de confianza
-                        team.club = club
-                        if not team.sponsor_name:
-                            team.sponsor_name = team.name
-                        team.save()
-                        
-                        matched_count += 1
-                        logger.info(
-                            f'Matched: {team.name} → {club.official_name} '
-                            f'(confianza: {similarity:.2f})'
-                        )
+            from ilovevoley.teams.services import resolve_team_clubs
+            team_clubs = resolve_team_clubs(Match, Club)
+
+            for team in Team.objects.filter(club__isnull=True, pk__in=team_clubs):
+                team.club = team_clubs[team.pk]
+                if not team.sponsor_name:
+                    team.sponsor_name = team.name
+                team.save()
+                matched_count += 1
         
         summary = {
             'status': 'success',
