@@ -6,13 +6,13 @@
 {% block content %}
 <div class="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
     <!-- Header -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 border-t-4 border-csj-purple dark:border-csj-purple-dark">
+    <div class="bg-surface rounded-[20px] border border-line p-5">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <h1 class="text-2xl font-bold text-ink flex items-center gap-2">
                     <span>📋</span> {% trans "Modificaciones Federativas" %}
                 </h1>
-                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                <p class="text-sm text-muted mt-1">
                     {% trans "Control de variaciones horarias, pistas, aplazamientos y discrepancias detectadas por el scraper" %}
                 </p>
             </div>
@@ -25,20 +25,20 @@
     </div>
 
     <!-- Filtros y Pestañas -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
+    <div class="bg-surface rounded-[20px] border border-line p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4">
             <!-- Pestañas de estado -->
             <nav class="flex flex-wrap gap-2" aria-label="{% trans "Tabs" %}">
                 <a href="?status=pending&type={{ selected_type }}&season={{ selected_season_id }}"
-                   class="px-3 py-2 text-sm font-medium rounded-md {% if status_filter == 'pending' %}bg-csj-purple text-white{% else %}text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                   class="px-3 py-2 text-sm font-medium rounded-full {% if status_filter == 'pending' %}bg-csj-purple-dark text-white{% else %}text-muted hover:text-ink dark:hover:text-white hover:bg-tint{% endif %}">
                     {% trans "Pendientes" %}
                 </a>
                 <a href="?status=all&type={{ selected_type }}&season={{ selected_season_id }}"
-                   class="px-3 py-2 text-sm font-medium rounded-md {% if status_filter == 'all' %}bg-csj-purple text-white{% else %}text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                   class="px-3 py-2 text-sm font-medium rounded-full {% if status_filter == 'all' %}bg-csj-purple-dark text-white{% else %}text-muted hover:text-ink dark:hover:text-white hover:bg-tint{% endif %}">
                     {% trans "Todos los cambios" %}
                 </a>
                 <a href="?status=reviewed&type={{ selected_type }}&season={{ selected_season_id }}"
-                   class="px-3 py-2 text-sm font-medium rounded-md {% if status_filter == 'reviewed' %}bg-csj-purple text-white{% else %}text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                   class="px-3 py-2 text-sm font-medium rounded-full {% if status_filter == 'reviewed' %}bg-csj-purple-dark text-white{% else %}text-muted hover:text-ink dark:hover:text-white hover:bg-tint{% endif %}">
                     {% trans "Revisados" %}
                 </a>
             </nav>
@@ -50,7 +50,7 @@
                 <!-- Selector de Temporada -->
                 <div>
                     <select name="season" data-submit-on-change
-                            class="text-sm rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5">
+                            class="text-sm rounded-lg border-line dark:text-white px-3 py-1.5">
                         <option value="">{% trans "Todas las temporadas" %}</option>
                         {% for s in seasons %}
                         <option value="{{ s.id }}" {% if selected_season_id == s.id|stringformat:"s" %}selected{% endif %}>
@@ -63,7 +63,7 @@
                 <!-- Selector de Tipo -->
                 <div>
                     <select name="type" data-submit-on-change
-                            class="text-sm rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5">
+                            class="text-sm rounded-lg border-line dark:text-white px-3 py-1.5">
                         <option value="">{% trans "Todos los tipos" %}</option>
                         {% for code, label in change_types %}
                         <option value="{{ code }}" {% if selected_type == code %}selected{% endif %}>
@@ -78,28 +78,28 @@
         <!-- Listado de modificaciones -->
         {% if changes %}
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-900/50">
+            <table class="min-w-full divide-y divide-line">
+                <thead class="bg-tint">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Partido / Liga" %}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Alteración" %}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Diferencia" %}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Detección / Alerta" %}</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Acción" %}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">{% trans "Partido / Liga" %}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">{% trans "Alteración" %}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">{% trans "Diferencia" %}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">{% trans "Detección / Alerta" %}</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-muted uppercase tracking-wider">{% trans "Acción" %}</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody class="divide-y divide-line">
                     {% trans "(vacío)" as empty_label %}
                     {% for log in changes %}
-                    <tr id="change-row-{{ log.id }}" class="hover:bg-gray-50/70 dark:hover:bg-gray-700/50 transition">
+                    <tr id="change-row-{{ log.id }}" class="hover:bg-tint transition">
                         <!-- Partido / Liga -->
                         <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="text-sm font-semibold text-gray-900 dark:text-white">
+                            <div class="text-sm font-semibold text-ink">
                                 <a href="{% url 'competitions:match_detail' log.match_id %}" class="hover:underline text-csj-purple dark:text-purple-400">
                                     {{ log.match.home_team_display }} vs {{ log.match.away_team_display }}
                                 </a>
                             </div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                            <div class="text-xs text-muted">
                                 {% if log.match.league %}{{ log.match.league.name }}{% endif %}
                                 · {% blocktrans with round=log.match.round_number %}Jornada {{ round }}{% endblocktrans %}
                             </div>
@@ -122,10 +122,10 @@
                                 </span>
                                 {% elif log.change_type == 'score' %}
                                 <span class="px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
-                                    🏐 {% trans "Tanteo" %}
+                                    {% include 'includes/ball_icon.html' with class='w-4 h-4 inline align-text-bottom' %} {% trans "Tanteo" %}
                                 </span>
                                 {% else %}
-                                <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                <span class="px-2 py-0.5 text-xs font-medium rounded bg-tint text-ink">
                                     {{ log.get_change_type_display }}
                                 </span>
                                 {% endif %}
@@ -136,7 +136,7 @@
                                 </span>
                                 {% endif %}
                             </div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 font-mono mt-1">{{ log.field_name }}</div>
+                            <div class="text-xs text-muted font-mono mt-1">{{ log.field_name }}</div>
                         </td>
 
                         <!-- Diferencia (Antes -> Ahora) -->
@@ -152,7 +152,7 @@
                         </td>
 
                         <!-- Detección / Notificación -->
-                        <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                        <td class="px-4 py-3 whitespace-nowrap text-xs text-muted">
                             <div>{% blocktrans with detected=log.detected_at|date:"d/m/Y H:i" %}Detectado: {{ detected }}{% endblocktrans %}</div>
                             {% if log.notified %}
                             <div class="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
@@ -173,7 +173,7 @@
                                 <button data-call="markAsReviewed" data-call-this
                                         data-log-id="{{ log.id }}"
                                         data-url="{% url 'competitions:ajax_mark_change_reviewed' log.id %}"
-                                        class="px-2.5 py-1.5 bg-gray-100 hover:bg-csj-purple hover:text-white dark:bg-gray-700 dark:hover:bg-csj-purple text-gray-700 dark:text-gray-200 rounded font-medium transition cursor-pointer shadow-sm">
+                                        class="px-2.5 py-1.5 bg-tint hover:bg-csj-purple hover:text-white dark:hover:bg-csj-purple text-ink rounded font-medium transition cursor-pointer shadow-sm">
                                     {% trans "Marcar revisado" %}
                                 </button>
                                 {% endif %}
@@ -187,20 +187,20 @@
 
         <!-- Paginación -->
         {% if page_obj.has_other_pages %}
-        <div class="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-4">
-            <div class="text-xs text-gray-500 dark:text-gray-400">
+        <div class="flex items-center justify-between border-t border-line pt-4">
+            <div class="text-xs text-muted">
                 {% blocktrans with number=page_obj.number num_pages=page_obj.paginator.num_pages count=page_obj.paginator.count %}Página {{ number }} de {{ num_pages }} ({{ count }} registros){% endblocktrans %}
             </div>
             <div class="flex gap-1">
                 {% if page_obj.has_previous %}
                 <a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}&type={{ selected_type }}&season={{ selected_season_id }}"
-                   class="px-2.5 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+                   class="px-2.5 py-1 text-xs rounded border border-line hover:bg-tint">
                     {% trans "Anterior" %}
                 </a>
                 {% endif %}
                 {% if page_obj.has_next %}
                 <a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}&type={{ selected_type }}&season={{ selected_season_id }}"
-                   class="px-2.5 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+                   class="px-2.5 py-1 text-xs rounded border border-line hover:bg-tint">
                     {% trans "Siguiente" %}
                 </a>
                 {% endif %}
@@ -209,7 +209,7 @@
         {% endif %}
 
         {% else %}
-        <div class="text-center py-12 text-gray-500 dark:text-gray-400">
+        <div class="text-center py-12 text-muted">
             <span class="text-4xl block mb-2">🎉</span>
             <p class="text-base font-medium">{% trans "No hay modificaciones federativas que coincidan con los filtros." %}</p>
         </div>

@@ -10,11 +10,11 @@
 {% block content %}
 <div class="space-y-6">
     <!-- Header con título y navegación de meses - STICKY EN MÓVIL -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark sticky top-0 z-30 lg:static">
+    <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6 sticky top-0 z-30 lg:static">
         <!-- Primera línea: Título y descripción -->
         <div class="mb-4">
-            <h1 class="text-xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100 mb-1 sm:mb-2">📅 {% trans "Calendario de Partidos" %}</h1>
-            <p class="text-xs sm:text-base text-gray-600 dark:text-gray-300">
+            <h1 class="text-xl sm:text-3xl font-bold text-ink mb-1 sm:mb-2">📅 {% trans "Calendario de Partidos" %}</h1>
+            <p class="text-xs sm:text-base text-muted">
                 {% if show_all_teams %}
                     {% trans "Mostrando todos los equipos" %}
                 {% else %}
@@ -41,25 +41,25 @@
                 
                 <!-- Botón de filtros (solo móvil) -->
                 <button data-call="toggleFilters" 
-                        class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple dark:bg-csj-purple-dark text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark dark:hover:bg-csj-purple transition touch-manipulation">
+                        class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple-dark dark:bg-csj-purple-dark text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark dark:hover:bg-csj-purple transition touch-manipulation">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                     </svg>
                     {% trans "Filtros" %}
-                    <span id="activeFiltersCount" class="ml-1 hidden px-1.5 py-0.5 bg-white dark:bg-gray-700 text-csj-purple dark:text-csj-yellow rounded-full text-xs font-bold"></span>
+                    <span id="activeFiltersCount" class="ml-1 hidden px-1.5 py-0.5 bg-surface text-brand-text rounded-full text-xs font-bold"></span>
                 </button>
             </div>
             
             <!-- Grupo derecho: Toggle de vista y navegación de meses -->
             <div class="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
                 <!-- Toggle de vista -->
-                <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                <div class="flex bg-tint rounded-lg p-1">
                     <a href="?view=list{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&year={{ year }}&month={{ month }}"
-                       class="px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition {% if view_mode == 'list' %}bg-white dark:bg-gray-600 text-csj-purple dark:text-csj-yellow shadow-sm{% else %}text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100{% endif %}">
+                       class="px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition {% if view_mode == 'list' %}bg-surface text-brand-text shadow-sm{% else %}text-muted hover:text-ink{% endif %}">
                         📋 <span class="hidden sm:inline">{% trans "Lista" %}</span>
                     </a>
                     <a href="?view=calendar{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&year={{ year }}&month={{ month }}"
-                       class="px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition {% if view_mode == 'calendar' %}bg-white dark:bg-gray-600 text-csj-purple dark:text-csj-yellow shadow-sm{% else %}text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100{% endif %}">
+                       class="px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition {% if view_mode == 'calendar' %}bg-surface text-brand-text shadow-sm{% else %}text-muted hover:text-ink{% endif %}">
                         📅 <span class="hidden sm:inline">{% trans "Calendario" %}</span>
                     </a>
                 </div>
@@ -67,17 +67,17 @@
                 <!-- Navegación de meses -->
                 <div class="flex items-center space-x-1">
                     <a href="?year={{ prev_month.year }}&month={{ prev_month.month }}{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&view={{ view_mode }}"
-                       class="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition touch-manipulation">
+                       class="p-2 bg-tint hover:opacity-80 rounded-lg transition touch-manipulation">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                         </svg>
                     </a>
-                    <h2 class="text-xs sm:text-lg font-semibold text-gray-700 dark:text-gray-200 px-1 sm:px-4">
+                    <h2 class="text-xs sm:text-lg font-semibold text-ink px-1 sm:px-4">
                         <span class="hidden sm:inline">{{ month_name }} {{ year }}</span>
                         <span class="sm:hidden">{{ month_name|slice:":3" }} '{{ year|slice:"2:" }}</span>
                     </h2>
                     <a href="?year={{ next_month.year }}&month={{ next_month.month }}{% if selected_league %}&league={{ selected_league }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if show_all_teams %}&all_teams=1{% endif %}&view={{ view_mode }}"
-                       class="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition touch-manipulation">
+                       class="p-2 bg-tint hover:opacity-80 rounded-lg transition touch-manipulation">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                         </svg>
@@ -88,14 +88,14 @@
     </div>
 
     <!-- Filtros con aplicación automática - COLAPSABLES EN MÓVIL -->
-    <div id="filtersSection" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hidden lg:block">
+    <div id="filtersSection" class="bg-surface rounded-3xl border border-line p-6 hidden lg:block">
         <div class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 <!-- Filtro de Categoría -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Categoría" %}</label>
+                    <label class="block text-sm font-medium text-ink mb-1">{% trans "Categoría" %}</label>
                     <select name="category" 
-                            class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                            class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                         <option value="">{% trans "Todas las categorías" %}</option>
                         {% for category in categories %}
                             <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
@@ -107,9 +107,9 @@
 
                 <!-- Filtro de Liga -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{% trans "Liga" %}</label>
+                    <label class="block text-sm font-medium text-ink mb-1">{% trans "Liga" %}</label>
                     <select name="league" 
-                            class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                            class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                         <option value="">{% trans "Todas las ligas" %}</option>
                         {% for league in leagues %}
                             <option value="{{ league.id }}" {% if selected_league == league.id|stringformat:"s" %}selected{% endif %}>
@@ -121,11 +121,11 @@
 
                 <!-- Toggle equipos -->
                 <div class="flex items-end">
-                    <label class="flex items-center cursor-pointer touch-manipulation px-3 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition w-full">
+                    <label class="flex items-center cursor-pointer touch-manipulation px-3 py-2 bg-tint hover:opacity-80 rounded-lg transition w-full">
                         <input type="checkbox" name="all_teams" value="1" 
                                {% if show_all_teams %}checked{% endif %}
-                               class="auto-filter w-5 h-5 text-csj-purple dark:text-csj-yellow border-gray-300 dark:border-gray-600 rounded focus:ring-csj-purple">
-                        <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Todos los equipos" %}</span>
+                               class="auto-filter w-5 h-5 text-brand-text border-line rounded focus:ring-csj-purple">
+                        <span class="ml-2 text-sm font-medium text-ink">{% trans "Todos los equipos" %}</span>
                     </label>
                 </div>
             </div>
@@ -144,15 +144,15 @@
                     </a>
                 </div>
             {% elif show_all %}
-                <div class="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 flex items-center justify-between">
-                    <div class="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                <div class="bg-tint border border-line rounded-lg p-3 flex items-center justify-between">
+                    <div class="flex items-center text-sm text-ink">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                         </svg>
                         <span>{% trans "Mostrando todas las categorías" %}</span>
                     </div>
-                    <a href="?year={{ year }}&month={{ month }}&view={{ view_mode }}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300">
+                    <a href="?year={{ year }}&month={{ month }}&view={{ view_mode }}" class="text-sm font-medium text-muted hover:text-ink">
                         {% trans "Filtrar por preferencias" %}
                     </a>
                 </div>
@@ -161,40 +161,40 @@
     </div>
 
     <!-- Vista Lista o Calendario -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+    <div class="bg-surface rounded-[20px] border border-line overflow-hidden">
         {% if view_mode == 'calendar' %}
             <!-- Vista Calendario -->
             <div class="p-4 sm:p-6">
                 <!-- Encabezados de días de la semana -->
                 <div class="grid grid-cols-7 gap-1 mb-2">
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">L</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">M</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">X</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">J</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">V</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">S</div>
-                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">D</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-muted">L</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-muted">M</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-muted">X</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-muted">J</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-muted">V</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-muted">S</div>
+                    <div class="p-2 text-center text-xs sm:text-sm font-medium text-muted">D</div>
                 </div>
                 
                 <!-- Grid del calendario -->
-                <div class="grid grid-cols-7 gap-1 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                <div class="grid grid-cols-7 gap-1 border border-line rounded-lg overflow-hidden">
                     {% for week in calendar_weeks %}
                         {% for day_info in week %}
-                            <div class="relative h-20 sm:h-24 lg:h-28 border-r border-b border-gray-100 dark:border-gray-700 
-                                {% if day_info.is_current_month %}
-                                    {% if day_info.is_today %}bg-csj-yellow dark:bg-csj-yellow-dark bg-opacity-20 dark:bg-opacity-30 
-                                    {% elif day_info.match_count > 0 %}bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30 hover:bg-blue-100 dark:hover:bg-blue-800 dark:hover:bg-opacity-40 
-                                    {% else %}bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700{% endif %}
-                                {% else %}bg-gray-50 dark:bg-gray-900{% endif %} 
-                                transition cursor-pointer" 
+                            <div class="relative h-20 sm:h-24 lg:h-28 border-r border-b border-line 
+ {% if day_info.is_current_month %}
+ {% if day_info.is_today %}bg-csj-purple-dark bg-opacity-20 dark:bg-opacity-30 
+ {% elif day_info.match_count > 0 %}bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30 hover:bg-blue-100 dark:hover:bg-blue-800 dark:hover:bg-opacity-40 
+ {% else %}bg-surface hover:bg-tint{% endif %}
+ {% else %}bg-tint {% endif %} 
+ transition cursor-pointer" 
                                 {% if day_info.matches %}data-call="showDayMatches" data-call-args='[{{ day_info.day }}, "{{ month_name|escapejs }}", {{ year }}]'{% endif %}>
                                 
                                 <!-- Número del día -->
                                 {% if day_info.day %}
                                     <div class="absolute top-1 left-1 text-xs sm:text-sm 
-                                        {% if day_info.is_today %}font-bold text-csj-purple dark:text-csj-yellow
-                                        {% elif day_info.is_current_month %}text-gray-900 dark:text-gray-100
-                                        {% else %}text-gray-400 dark:text-gray-600{% endif %}">
+ {% if day_info.is_today %}font-bold text-brand-text
+ {% elif day_info.is_current_month %}text-ink
+ {% else %}text-muted {% endif %}">
                                         {{ day_info.day }}
                                     </div>
                                 {% endif %}
@@ -205,20 +205,20 @@
                                         <div class="flex flex-wrap gap-1">
                                             {% for match in day_info.matches|slice:":3" %}
                                                 <div class="w-2 h-2 rounded-full 
-                                                    {% if match.is_friendly %}
-                                                        bg-green-500
-                                                    {% elif club_team_name in match.home_team_display or club_team_name in match.away_team_display %}
-                                                        bg-csj-purple
-                                                    {% else %}
-                                                        bg-blue-500
-                                                    {% endif %}">
+ {% if match.is_friendly %}
+ bg-green-500
+ {% elif club_team_name in match.home_team_display or club_team_name in match.away_team_display %}
+ bg-csj-purple
+ {% else %}
+ bg-blue-500
+ {% endif %}">
                                                 </div>
                                             {% endfor %}
                                             {% if day_info.match_count > 3 %}
-                                                <div class="text-xs text-gray-600 dark:text-gray-400">+{{ day_info.match_count|add:"-3" }}</div>
+                                                <div class="text-xs text-muted">+{{ day_info.match_count|add:"-3" }}</div>
                                             {% endif %}
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-gray-400 mt-1 hidden sm:block">
+                                        <div class="text-xs text-muted mt-1 hidden sm:block">
                                             {% blocktrans count counter=day_info.match_count %}{{ counter }} partido{% plural %}{{ counter }} partidos{% endblocktrans %}
                                         </div>
                                     </div>
@@ -229,9 +229,9 @@
                 </div>
                 
                 <!-- Leyenda -->
-                <div class="flex flex-wrap items-center gap-4 mt-4 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                <div class="flex flex-wrap items-center gap-4 mt-4 text-xs sm:text-sm text-muted">
                     <div class="flex items-center space-x-2">
-                        <div class="w-3 h-3 rounded-full bg-csj-purple dark:bg-csj-yellow"></div>
+                        <div class="w-3 h-3 rounded-full bg-csj-purple-dark"></div>
                         <span>{{ club_team_name }}</span>
                     </div>
                     <div class="flex items-center space-x-2">
@@ -239,7 +239,7 @@
                         <span>{% trans "Otros equipos" %}</span>
                     </div>
                     <div class="flex items-center space-x-2">
-                        <div class="w-3 h-3 bg-csj-yellow dark:bg-csj-yellow-dark bg-opacity-50 rounded"></div>
+                        <div class="w-3 h-3 bg-csj-purple-dark bg-opacity-50 rounded"></div>
                         <span>{% trans "Hoy" %}</span>
                     </div>
                 </div>
@@ -248,15 +248,15 @@
         {% else %}
             <!-- Vista Lista -->
             {% if matches %}
-                <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                <div class="divide-y divide-line">
                     {% for match in matches %}
-                        <div class="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <div class="p-3 sm:p-4 hover:bg-tint transition">
                             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 sm:gap-4">
                                 <!-- Información del partido -->
                                 <div class="flex-1">
                                     <div class="space-y-2 mb-3">
                                         <!-- Primera línea: Fecha y hora -->
-                                        <div class="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                                        <div class="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-muted">
                                             <svg class="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                             </svg>
@@ -279,7 +279,7 @@
                                             <!-- Categorías -->
                                             {% if match.league %}
                                                 {% for category in match.league.categories.all %}
-                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-csj-purple bg-opacity-20 dark:bg-csj-purple-dark dark:bg-opacity-30 text-csj-purple-dark dark:text-csj-yellow">
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-csj-purple-dark bg-opacity-20 dark:bg-csj-purple-dark dark:bg-opacity-30 text-csj-purple-dark">
                                                         {{ category.name }}
                                                     </span>
                                                 {% endfor %}
@@ -288,7 +288,7 @@
                                             <!-- Indicador de amistoso -->
                                             {% if match.is_friendly %}
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-700 dark:text-green-200 bg-green-100 dark:bg-green-900">
-                                                    🏐 {% trans "Amistoso" %}
+                                                    {% include 'includes/ball_icon.html' with class='w-4 h-4 inline align-text-bottom' %} {% trans "Amistoso" %}
                                                 </span>
                                             {% endif %}
                                             
@@ -304,7 +304,7 @@
                                                         📝 {% trans "Agregar resultado" %}
                                                     </button>
                                                 {% else %}
-                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-tint text-muted">
                                                         {{ match.get_status_display }}
                                                     </span>
                                                 {% endif %}
@@ -325,20 +325,20 @@
                                                          class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
                                                          data-hide-on-error>
                                                 {% endif %}
-                                                <span class="font-semibold text-sm sm:text-base text-gray-800 dark:text-gray-100 
-                                                    {% if club_team_name in match.home_team_display %}text-csj-purple dark:text-csj-yellow{% endif %} break-words">
+                                                <span class="font-semibold text-sm sm:text-base text-ink 
+ {% if club_team_name in match.home_team_display %}text-brand-text{% endif %} break-words">
                                                     {{ match.home_team_display }}
                                                 </span>
                                             </div>
-                                            <span class="text-gray-500 dark:text-gray-400 text-xs sm:text-sm self-center sm:self-auto">{% trans "vs" %}</span>
+                                            <span class="text-muted text-xs sm:text-sm self-center sm:self-auto">{% trans "vs" %}</span>
                                             <div class="flex items-center space-x-2">
                                                 {% if match.away_team and match.away_team.display_logo %}
                                                     <img src="{{ match.away_team.display_logo }}" alt="{{ match.away_team_display }}" 
                                                          class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
                                                          data-hide-on-error>
                                                 {% endif %}
-                                                <span class="font-semibold text-sm sm:text-base text-gray-800 dark:text-gray-100 
-                                                    {% if club_team_name in match.away_team_display %}text-csj-purple dark:text-csj-yellow{% endif %} break-words">
+                                                <span class="font-semibold text-sm sm:text-base text-ink 
+ {% if club_team_name in match.away_team_display %}text-brand-text{% endif %} break-words">
                                                     {{ match.away_team_display }}
                                                 </span>
                                             </div>
@@ -346,8 +346,8 @@
                                     </div>
 
                                     <!-- Liga y ubicación -->
-                                    <div class="flex flex-wrap items-center gap-1 sm:gap-2 mt-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                        <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">{{ match.league.name }}</span>
+                                    <div class="flex flex-wrap items-center gap-1 sm:gap-2 mt-2 text-xs sm:text-sm text-muted">
+                                        <span class="bg-tint px-2 py-1 rounded text-xs">{{ match.league.name }}</span>
                                         {% if match.venue %}
                                             <span class="text-xs">📍 
                                                 <span class="hidden sm:inline">{{ match.venue }}{% if match.city %} - {{ match.city }}{% endif %}</span>
@@ -358,7 +358,7 @@
 
                                     <!-- Información adicional: árbitros y personal técnico -->
                                     {% if match.referee1 or match.scorer or match.acta_html %}
-                                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                        <div class="mt-2 text-xs text-muted">
                                             {% if match.referee1 %}
                                                 <span class="inline-flex items-center mr-3">
                                                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -382,7 +382,7 @@
                                                     </svg>
                                                     <a href="{{ match.official_acta_url }}" 
                                                        target="_blank" 
-                                                       class="text-csj-purple dark:text-csj-yellow hover:text-purple-700 underline">
+                                                       class="text-brand-text hover:text-purple-700 underline">
                                                         {% trans "Acta oficial" %}
                                                     </a>
                                                 </span>
@@ -395,14 +395,14 @@
                                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2 w-full sm:w-auto">
                                     <!-- Indicador de videos -->
                                     {% if match.videos_count %}
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-csj-yellow dark:bg-csj-yellow-dark bg-opacity-30 dark:bg-opacity-40 text-csj-yellow-dark dark:text-csj-yellow">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-csj-purple-dark bg-opacity-30 dark:bg-opacity-40 text-brand-text">
                                             📹 {% blocktrans count counter=match.videos_count %}{{ counter }} video{% plural %}{{ counter }} videos{% endblocktrans %}
                                         </span>
                                     {% endif %}
                                     
                                     <!-- Enlace al detalle -->
                                     <a href="{% url 'competitions:match_detail' match.id %}" 
-                                       class="inline-flex items-center justify-center px-3 py-2 border border-csj-purple dark:border-csj-yellow text-xs sm:text-sm font-medium rounded-md text-csj-purple dark:text-csj-yellow hover:bg-csj-purple dark:hover:bg-csj-yellow hover:text-white dark:hover:text-gray-900 transition touch-manipulation w-full sm:w-auto">
+                                       class="inline-flex items-center justify-center px-3 py-2 border border-csj-purple text-xs sm:text-sm font-medium rounded-md text-brand-text hover:bg-csj-purple hover:text-white transition touch-manipulation w-full sm:w-auto">
                                         <span class="hidden sm:inline">{% trans "Ver detalles" %}</span>
                                         <span class="sm:hidden">{% trans "Detalles" %}</span>
                                     </a>
@@ -414,11 +414,11 @@
             {% else %}
                 <!-- Estado vacío -->
                 <div class="text-center py-12">
-                    <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="mx-auto h-12 w-12 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">{% trans "No hay partidos programados" %}</h3>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    <h3 class="mt-2 text-sm font-medium text-ink">{% trans "No hay partidos programados" %}</h3>
+                    <p class="mt-1 text-sm text-muted">
                         {% trans "No se encontraron partidos para" %} 
                         {% if show_all_teams %}
                             {% blocktrans with month=month_name year=year %}el mes de {{ month }} {{ year }}{% endblocktrans %}
@@ -432,19 +432,19 @@
     </div>
 
     <!-- Enlaces rápidos -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">{% trans "Enlaces relacionados" %}</h3>
+    <div class="bg-surface rounded-3xl border border-line p-6">
+        <h3 class="text-lg font-semibold text-ink mb-4">{% trans "Enlaces relacionados" %}</h3>
         <div class="flex flex-wrap gap-3">
             <a href="{% url 'competitions:standings_view' %}" 
-               class="inline-flex items-center px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 dark:text-gray-900 rounded-lg font-semibold transition">
+               class="inline-flex items-center px-4 py-2 bg-csj-purple-dark hover:opacity-90 text-white rounded-full font-semibold transition">
                 🏆 {% trans "Ver clasificación" %}
             </a>
             <a href="{% url 'competitions:league_list' %}" 
-               class="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold transition">
+               class="inline-flex items-center px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-semibold transition">
                 📋 {% trans "Ver ligas" %}
             </a>
             <a href="{% url 'content:video_list' %}" 
-               class="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold transition">
+               class="inline-flex items-center px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-semibold transition">
                 🎬 {% trans "Ver videos" %}
             </a>
         </div>
@@ -453,11 +453,11 @@
 
 <!-- Modal para mostrar partidos del día -->
 <div id="dayMatchesModal" class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
-        <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+    <div class="bg-surface rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
+        <div class="sticky top-0 bg-surface border-b border-line px-6 py-4">
             <div class="flex justify-between items-center">
-                <h3 id="modalTitle" class="text-lg font-semibold text-gray-900 dark:text-gray-100"></h3>
-                <button data-call="closeDayMatches" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+                <h3 id="modalTitle" class="text-lg font-semibold text-ink"></h3>
+                <button data-call="closeDayMatches" class="text-muted hover:text-ink">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -472,11 +472,11 @@
 
 <!-- Modal para agregar resultado -->
 <div id="resultModal" class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full">
-        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+    <div class="bg-surface rounded-lg max-w-md w-full">
+        <div class="px-6 py-4 border-b border-line">
             <div class="flex justify-between items-center">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{% trans "Agregar Resultado" %}</h3>
-                <button data-call="closeResultModal" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+                <h3 class="text-lg font-semibold text-ink">{% trans "Agregar Resultado" %}</h3>
+                <button data-call="closeResultModal" class="text-muted hover:text-ink">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -485,28 +485,28 @@
         </div>
         <div class="p-6">
             <div class="text-center mb-6">
-                <div id="resultMatchInfo" class="text-lg font-semibold text-gray-800 dark:text-gray-200"></div>
-                <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">{% trans "Introduce el marcador final" %}</div>
+                <div id="resultMatchInfo" class="text-lg font-semibold text-ink"></div>
+                <div class="text-sm text-muted mt-1">{% trans "Introduce el marcador final" %}</div>
             </div>
             
             <form id="resultForm" class="space-y-6">
                 <div class="flex items-center justify-center space-x-8">
                     <!-- Equipo Local -->
                     <div class="text-center">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" id="homeTeamLabel">{% trans "Local" %}</label>
+                        <label class="block text-sm font-medium text-ink mb-2" id="homeTeamLabel">{% trans "Local" %}</label>
                         <input type="number" id="homeScore" name="home_score" min="0" max="99" 
-                               class="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
+                               class="w-20 px-3 py-2 border border-line bg-surface text-ink rounded-xl text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
                                placeholder="0" required>
                     </div>
                     
                     <!-- Separador -->
-                    <div class="text-2xl font-bold text-gray-500 dark:text-gray-400">-</div>
+                    <div class="text-2xl font-bold text-muted">-</div>
                     
                     <!-- Equipo Visitante -->
                     <div class="text-center">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" id="awayTeamLabel">{% trans "Visitante" %}</label>
+                        <label class="block text-sm font-medium text-ink mb-2" id="awayTeamLabel">{% trans "Visitante" %}</label>
                         <input type="number" id="awayScore" name="away_score" min="0" max="99" 
-                               class="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
+                               class="w-20 px-3 py-2 border border-line bg-surface text-ink rounded-xl text-center text-lg font-semibold focus:ring-2 focus:ring-csj-purple focus:border-transparent" 
                                placeholder="0" required>
                     </div>
                 </div>
@@ -514,14 +514,14 @@
                 <!-- Parciales (opcional) -->
                 <div class="space-y-2">
                     <div class="flex items-center justify-between">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Parciales (opcional)" %}</label>
+                        <label class="block text-sm font-medium text-ink">{% trans "Parciales (opcional)" %}</label>
                         <button type="button" id="addSetRow"
-                                class="text-sm font-medium text-csj-purple dark:text-csj-yellow hover:underline">
+                                class="text-sm font-medium text-brand-text hover:underline">
                             + {% trans "Añadir set" %}
                         </button>
                     </div>
                     <div id="setRows" class="space-y-2"></div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                    <p class="text-xs text-muted">
                         {% trans "Si rellenas los parciales, el marcador se calcula automáticamente." %}
                     </p>
                 </div>
@@ -532,11 +532,11 @@
                 <!-- Botones -->
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" data-call="closeResultModal" 
-                            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                            class="px-4 py-2 border border-line bg-surface text-ink rounded-xl text-ink hover:bg-tint transition">
                         {% trans "Cancelar" %}
                     </button>
                     <button type="submit" 
-                            class="px-4 py-2 bg-csj-purple text-white rounded-lg hover:bg-csj-purple-dark transition">
+                            class="px-4 py-2 bg-csj-purple-dark text-white rounded-full hover:opacity-90 transition">
                         {% trans "Guardar Resultado" %}
                     </button>
                 </div>
@@ -586,27 +586,27 @@ function showDayMatches(day, monthName, year) {
                            match.away_team.includes(match.club_team_name);
         
         content += `
-            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition ${match.is_friendly ? 'border-l-4 border-l-green-500' : (isClubMatch ? 'border-l-4 border-l-purple-500' : '')}">
+            <div class="border border-line rounded-lg p-4 hover:bg-tint transition ${match.is_friendly ? 'border-l-4 border-l-green-500' : (isClubMatch ? 'border-l-4 border-l-purple-500' : '')}">
                 <div class="flex flex-col sm:flex-row justify-between items-start gap-3">
                     <div class="flex-1">
                         <div class="flex items-center space-x-2 mb-2">
-                            <span class="text-sm text-gray-600 dark:text-gray-300">${esc(match.time)}</span>
+                            <span class="text-sm text-muted">${esc(match.time)}</span>
                             ${match.is_friendly ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200">🏐 {% trans "Amistoso" as js_msg %}{{ js_msg|escapejs }}</span>' : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200">J${esc(match.round_number)}</span>`}
                             ${match.category ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200">${esc(match.category)}</span>` : ''}
                         </div>
-                        <div class="font-semibold text-gray-900 dark:text-gray-100 mb-1 flex items-center gap-2">
+                        <div class="font-semibold text-ink mb-1 flex items-center gap-2">
                             <div class="flex items-center space-x-2">
                                 ${match.home_team_logo ? `<img src="${esc(match.home_team_logo)}" alt="${esc(match.home_team)}" class="w-5 h-5 object-contain rounded-sm" data-hide-on-error>` : ''}
                                 <span class="${isClubMatch && match.home_team.includes(match.club_team_name) ? 'text-purple-600 dark:text-purple-300' : ''}">${esc(match.home_team)}</span>
                             </div>
-                            <span class="text-gray-500 dark:text-gray-400">{% trans "vs" as js_msg %}{{ js_msg|escapejs }}</span>
+                            <span class="text-muted">{% trans "vs" as js_msg %}{{ js_msg|escapejs }}</span>
                             <div class="flex items-center space-x-2">
                                 ${match.away_team_logo ? `<img src="${esc(match.away_team_logo)}" alt="${esc(match.away_team)}" class="w-5 h-5 object-contain rounded-sm" data-hide-on-error>` : ''}
                                 <span class="${isClubMatch && match.away_team.includes(match.club_team_name) ? 'text-purple-600 dark:text-purple-300' : ''}">${esc(match.away_team)}</span>
                             </div>
                         </div>
                         ${match.result ? `<div class="text-sm text-green-600 dark:text-green-400 font-medium">{% trans "Resultado:" as js_msg %}{{ js_msg|escapejs }} ${esc(match.result)}</div>` : ''}
-                        <div class="text-sm text-gray-600 dark:text-gray-300">
+                        <div class="text-sm text-muted">
                             <span>${esc(match.league)}</span>
                             ${match.venue ? ` • 📍 ${esc(match.venue)}${match.city ? ' - ' + esc(match.city) : ''}` : ''}
                         </div>

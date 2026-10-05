@@ -158,7 +158,13 @@ Los colores semánticos (verde/rojo/amarillo de éxito, error, aviso) se dejan c
   **Script de migración reutilizable** (fuera del repo, en el scratchpad de la sesión): dos pasos de `str.replace` ordenados
   (patrones específicos de tarjeta/botón antes que los genéricos de `text-gray-*`). Ojo: al migrar, buscar `querySelector` que dependan
   de clases cambiadas (p. ej. `.text-gray-600` en `image_upload.html`, ya actualizado a `.text-muted`).
-- [ ] Fase 4
+- [x] Fase 4 (parcial en verificación): todas las plantillas de `competitions/templates/competitions/` migradas con regex de tokens
+  (cabeceras con degradado → `bg-csj-purple-dark` plano, botones amarillos → `bg-csj-purple-dark text-white`, 🏐 → icono SVG salvo dentro
+  de template literals JS de `calendar.html`). JS que alternaba clases (tabs de `league_detail`, selector de estilo de tarjeta y chips de
+  `match_detail`) actualizado a las clases nuevas. Plantillas compilan. Verificado en navegador solo calendario y clasificación **vacíos**
+  (oscuro); NO revisadas con datos: `league_detail`, `match_detail`, `standings` con equipos, `league_list`, `calendar` con partidos.
+  La BD `videosvoley-db-1` (espejo de producción) tiene el esquema antiguo (`videos_league`, `videos_match`): usarla exigiría `migrate`
+  sobre ella; no se ha tocado. Quedan emojis en títulos (📅 🏆 📋 …) a decidir en la fase 6.
 - [ ] Fase 5 (pendiente de confirmar barra inferior)
 - [ ] Fase 6
 

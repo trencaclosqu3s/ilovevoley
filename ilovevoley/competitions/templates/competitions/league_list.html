@@ -10,21 +10,21 @@
 {% block content %}
 <div class="space-y-6">
     <!-- Header -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark">
+    <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div class="flex-1 min-w-0">
-                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-2">📋 {% trans "Ligas" %}</h1>
-                <p class="text-sm sm:text-base text-gray-600 dark:text-gray-300">{% trans "Todas las competiciones disponibles" %}</p>
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink mb-2">📋 {% trans "Ligas" %}</h1>
+                <p class="text-sm sm:text-base text-muted">{% trans "Todas las competiciones disponibles" %}</p>
             </div>
             
             <!-- Botón de filtros (solo móvil) -->
             <button data-call="toggleFilters" 
-                    class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple text-white rounded-lg text-sm font-medium hover:bg-csj-purple-dark transition touch-manipulation">
+                    class="lg:hidden flex items-center justify-center px-3 py-2 bg-csj-purple-dark text-white rounded-full text-sm font-medium hover:opacity-90 transition touch-manipulation">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                 </svg>
                 {% trans "Filtros" %}
-                <span id="activeFiltersCount" class="ml-1 hidden px-1.5 py-0.5 bg-white text-csj-purple rounded-full text-xs font-bold"></span>
+                <span id="activeFiltersCount" class="ml-1 hidden px-1.5 py-0.5 bg-surface text-csj-purple rounded-full text-xs font-bold"></span>
             </button>
         </div>
         
@@ -32,12 +32,12 @@
         <div id="filtersSection" class="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-3 hidden lg:flex">
             <!-- Filtro de categoría -->
             <div class="flex-1">
-                <label for="category-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label for="category-filter" class="block text-sm font-medium text-ink mb-1">
                     {% trans "Filtrar por categoría" %}
                 </label>
                 <select id="category-filter" 
                         name="category" 
-                        class="auto-filter w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent">
+                        class="auto-filter w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-csj-purple focus:border-transparent">
                     <option value="">{% trans "Todas las categorías" %}</option>
                     {% for category in categories %}
                         <option value="{{ category.id }}" {% if selected_category|stringformat:"s" == category.id|stringformat:"s" %}selected{% endif %}>
@@ -54,8 +54,8 @@
                            name="show_friendly" 
                            value="1" 
                            {% if show_friendly %}checked{% endif %}
-                           class="auto-filter w-4 h-4 text-csj-purple dark:text-csj-yellow border-gray-300 dark:border-gray-600 rounded focus:ring-csj-purple">
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Mostrar partidos amistosos" %}</span>
+                           class="auto-filter w-4 h-4 text-brand-text border-line rounded focus:ring-csj-purple">
+                    <span class="text-sm font-medium text-ink">{% trans "Mostrar partidos amistosos" %}</span>
                 </label>
             </div>
             
@@ -66,8 +66,8 @@
                            name="show_past" 
                            value="1" 
                            {% if show_past %}checked{% endif %}
-                           class="auto-filter w-4 h-4 text-csj-purple dark:text-csj-yellow border-gray-300 dark:border-gray-600 rounded focus:ring-csj-purple">
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Ver ligas pasadas" %}</span>
+                           class="auto-filter w-4 h-4 text-brand-text border-line rounded focus:ring-csj-purple">
+                    <span class="text-sm font-medium text-ink">{% trans "Ver ligas pasadas" %}</span>
                 </label>
             </div>
             
@@ -75,7 +75,7 @@
             {% if has_preferences and not show_all and not selected_category %}
                 <div class="flex items-end">
                     <a href="?show_all=1" 
-                       class="inline-flex items-center px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm whitespace-nowrap">
+                       class="inline-flex items-center px-4 py-2 bg-csj-purple-dark hover:opacity-90 text-white rounded-full font-medium transition text-sm whitespace-nowrap">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
@@ -86,7 +86,7 @@
             {% elif show_all %}
                 <div class="flex items-end">
                     <a href="?" 
-                       class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition text-sm whitespace-nowrap">
+                       class="inline-flex items-center px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm whitespace-nowrap">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                         </svg>
@@ -101,9 +101,9 @@
     {% if leagues %}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {% for league in leagues %}
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+                <div class="bg-surface rounded-[20px] border border-line overflow-hidden transition-shadow">
                     <!-- Header de la liga -->
-                    <div class="bg-gradient-to-r from-csj-purple to-csj-purple-dark p-4 sm:p-6 {% if league.is_past_league %}opacity-75{% endif %}">
+                    <div class="bg-csj-purple-dark p-4 sm:p-6 {% if league.is_past_league %}opacity-75{% endif %}">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
                                 <div class="flex items-center gap-2 mb-2">
@@ -111,24 +111,24 @@
                                         {{ league.name }}
                                     </h2>
                                     {% if league.is_past_league %}
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-500 text-white">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-tint text-ink text-white">
                                             📅 {% trans "Finalizada" %}
                                         </span>
                                     {% endif %}
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
                                     {% for category in league.categories.all %}
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-surface bg-opacity-20 text-white">
                                             {{ category.name }}
                                         </span>
                                     {% endfor %}
-                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-surface bg-opacity-20 text-white">
                                         {{ league.season }}
                                     </span>
                                 </div>
                             </div>
                             <div class="ml-4">
-                                <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                <div class="w-12 h-12 bg-surface bg-opacity-20 rounded-full flex items-center justify-center">
                                     {% if league.competition_type == 'playoff' %}
                                         <span class="text-2xl">🏆</span>
                                     {% elif league.competition_type == 'cup' %}
@@ -136,7 +136,7 @@
                                     {% elif league.competition_type == 'friendly' %}
                                         <span class="text-2xl">🤝</span>
                                     {% else %}
-                                        <span class="text-2xl">🏐</span>
+                                        <span class="text-2xl">{% include 'includes/ball_icon.html' with class='w-4 h-4 inline align-text-bottom' %}</span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -148,25 +148,25 @@
                         <!-- Estadísticas -->
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div class="text-center">
-                                <div class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ league.matches_count }}</div>
-                                <div class="text-xs text-gray-600 dark:text-gray-300">{% trans "Partidos" %}</div>
+                                <div class="text-2xl font-bold text-brand-text">{{ league.matches_count }}</div>
+                                <div class="text-xs text-muted">{% trans "Partidos" %}</div>
                             </div>
                             {% if league.has_standings %}
                                 <div class="text-center">
-                                    <div class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ league.standings_count }}</div>
-                                    <div class="text-xs text-gray-600 dark:text-gray-300">{% trans "Equipos" %}</div>
+                                    <div class="text-2xl font-bold text-brand-text">{{ league.standings_count }}</div>
+                                    <div class="text-xs text-muted">{% trans "Equipos" %}</div>
                                 </div>
                             {% else %}
                                 <div class="text-center">
-                                    <div class="text-2xl font-bold text-csj-purple dark:text-csj-yellow">{{ league.season }}</div>
-                                    <div class="text-xs text-gray-600 dark:text-gray-300">{% trans "Temporada" %}</div>
+                                    <div class="text-2xl font-bold text-brand-text">{{ league.season }}</div>
+                                    <div class="text-xs text-muted">{% trans "Temporada" %}</div>
                                 </div>
                             {% endif %}
                         </div>
 
                         <!-- Información adicional -->
                         <div class="space-y-2 mb-4">
-                            <div class="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                            <div class="flex items-center text-sm text-muted">
                                 <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
                                 </svg>
@@ -179,7 +179,7 @@
                         <!-- Acciones -->
                         <div class="flex flex-col sm:flex-row gap-2">
                             <a href="{% url 'competitions:league_detail' league.id %}" 
-                               class="flex-1 inline-flex items-center justify-center px-4 py-2 bg-csj-purple hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition touch-manipulation">
+                               class="flex-1 inline-flex items-center justify-center px-4 py-2 bg-csj-purple-dark hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition touch-manipulation">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
@@ -189,7 +189,7 @@
                             
                             {% if league.has_standings %}
                                 <a href="{% url 'competitions:standings_view' %}?league={{ league.id }}" 
-                                   class="inline-flex items-center justify-center px-3 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 text-sm font-medium rounded-lg transition touch-manipulation">
+                                   class="inline-flex items-center justify-center px-3 py-2 bg-csj-purple-dark hover:opacity-90 text-white text-sm font-medium rounded-full transition touch-manipulation">
                                     🏆
                                 </a>
                             {% endif %}
@@ -198,20 +198,20 @@
 
                     <!-- Próximos partidos -->
                     {% if league.next_official_match %}
-                        <div class="bg-csj-yellow bg-opacity-20 px-4 py-3 border-t border-csj-yellow border-opacity-30">
+                        <div class="bg-csj-purple-dark bg-opacity-20 px-4 py-3 border-t border-csj-purple border-opacity-30">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <div class="text-xs font-medium text-csj-purple-dark">{% trans "Próximo partido" %}</div>
-                                    <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                    <div class="text-sm font-semibold text-ink">
                                         {{ league.next_official_match.home_team_display }} vs {{ league.next_official_match.away_team_display }}
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <div class="text-xs text-gray-600 dark:text-gray-300">{{ league.next_official_match.match_date|date:"d/m" }}</div>
+                                    <div class="text-xs text-muted">{{ league.next_official_match.match_date|date:"d/m" }}</div>
                                     {% if league.next_official_match.match_date|date:"H:i" == "00:00" %}
                                         <div class="text-xs text-orange-600 dark:text-orange-400">{% trans "Sin horario confirmado" %}</div>
                                     {% else %}
-                                        <div class="text-xs text-gray-600 dark:text-gray-300">{{ league.next_official_match.match_date|date:"H:i" }}</div>
+                                        <div class="text-xs text-muted">{{ league.next_official_match.match_date|date:"H:i" }}</div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -223,16 +223,16 @@
                             <div class="flex items-center justify-between">
                                 <div>
                                     <div class="text-xs font-medium text-blue-700 dark:text-blue-300">{% trans "Partido amistoso" %}</div>
-                                    <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                    <div class="text-sm font-semibold text-ink">
                                         {{ league.next_friendly_match.home_team_display }} vs {{ league.next_friendly_match.away_team_display }}
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <div class="text-xs text-gray-600 dark:text-gray-300">{{ league.next_friendly_match.match_date|date:"d/m" }}</div>
+                                    <div class="text-xs text-muted">{{ league.next_friendly_match.match_date|date:"d/m" }}</div>
                                     {% if league.next_friendly_match.match_date|date:"H:i" == "00:00" %}
                                         <div class="text-xs text-orange-600 dark:text-orange-400">{% trans "Sin horario confirmado" %}</div>
                                     {% else %}
-                                        <div class="text-xs text-gray-600 dark:text-gray-300">{{ league.next_friendly_match.match_date|date:"H:i" }}</div>
+                                        <div class="text-xs text-muted">{{ league.next_friendly_match.match_date|date:"H:i" }}</div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -243,31 +243,31 @@
         </div>
     {% else %}
         <!-- Estado vacío -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 sm:p-12 text-center">
-            <svg class="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-surface rounded-3xl border border-line p-8 sm:p-12 text-center">
+            <svg class="mx-auto h-16 w-16 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
             </svg>
-            <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">{% trans "No hay ligas disponibles" %}</h3>
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            <h3 class="mt-4 text-lg font-medium text-ink">{% trans "No hay ligas disponibles" %}</h3>
+            <p class="mt-2 text-sm text-muted">
                 {% trans "Aún no se han configurado ligas en el sistema." %}
             </p>
         </div>
     {% endif %}
 
     <!-- Enlaces rápidos -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3 sm:mb-4">🔗 {% trans "Enlaces relacionados" %}</h3>
+    <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold text-ink mb-3 sm:mb-4">🔗 {% trans "Enlaces relacionados" %}</h3>
         <div class="flex flex-wrap gap-2 sm:gap-3">
             <a href="{% url 'competitions:calendar_view' %}" 
-               class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-purple-dark hover:opacity-90 text-white rounded-full font-medium transition text-sm">
                 📅 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Calendario" %}
             </a>
             <a href="{% url 'competitions:standings_view' %}" 
-               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition text-sm">
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
                 🏆 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Clasificación" %}
             </a>
             <a href="{% url 'content:video_list' %}" 
-               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition text-sm">
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
                 🎬 <span class="hidden sm:inline ml-1">{% trans "Ver" %}</span> {% trans "Videos" %}
             </a>
         </div>

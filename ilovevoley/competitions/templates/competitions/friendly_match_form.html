@@ -85,24 +85,24 @@
 {% block content %}
 <div class="max-w-3xl mx-auto space-y-6">
     <!-- Header -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-t-4 border-csj-purple dark:border-csj-purple-dark">
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-200 mb-2">🏐 {% trans "Crear Partido Amistoso" %}</h1>
-        <p class="text-gray-600 dark:text-gray-300">
+    <div class="bg-surface rounded-3xl border border-line p-6">
+        <h1 class="text-3xl font-bold text-ink mb-2">{% include 'includes/ball_icon.html' with class='w-4 h-4 inline align-text-bottom' %} {% trans "Crear Partido Amistoso" %}</h1>
+        <p class="text-muted">
             {% trans "Añade un partido amistoso al calendario. Puedes buscar equipos existentes o escribir el nombre libremente." %}
         </p>
     </div>
 
     <!-- Formulario -->
-    <form method="post" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 space-y-6">
+    <form method="post" class="bg-surface rounded-3xl border border-line p-6 space-y-6">
         {% csrf_token %}
         
         <!-- Categoría -->
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label class="block text-sm font-medium text-ink mb-2">
                 {{ form.category.label }} <span class="text-red-500 dark:text-red-400">*</span>
             </label>
             {{ form.category }}
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ form.category.help_text }}</p>
+            <p class="text-sm text-muted mt-1">{{ form.category.help_text }}</p>
             {% if form.category.errors %}
                 <p class="text-sm text-red-600 dark:text-red-400 mt-1">{{ form.category.errors.0 }}</p>
             {% endif %}
@@ -110,7 +110,7 @@
         
         <!-- Fecha y Hora -->
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label class="block text-sm font-medium text-ink mb-2">
                 {{ form.match_date.label }} <span class="text-red-500 dark:text-red-400">*</span>
             </label>
             {{ form.match_date }}
@@ -121,7 +121,7 @@
         
         <!-- Equipo Local -->
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label class="block text-sm font-medium text-ink mb-2">
                 {{ form.home_team_search.label }} <span class="text-red-500 dark:text-red-400">*</span>
             </label>
             <div class="relative" id="home-team-autocomplete">
@@ -130,22 +130,22 @@
                 <div id="home-team-results" class="autocomplete-results hidden"></div>
             </div>
             <div id="home-team-selected"></div>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ form.home_team_search.help_text }}</p>
+            <p class="text-sm text-muted mt-1">{{ form.home_team_search.help_text }}</p>
             {% if form.home_team_search.errors %}
                 <p class="text-sm text-red-600 dark:text-red-400 mt-1">{{ form.home_team_search.errors.0 }}</p>
             {% endif %}
             
             <!-- Opción de registrar equipo local -->
-            <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hidden" id="home-team-register-section">
+            <div class="mt-3 p-3 bg-tint rounded-lg hidden" id="home-team-register-section">
                 <div class="flex items-center mb-2">
                     {{ form.register_home_team }}
-                    <label for="{{ form.register_home_team.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label for="{{ form.register_home_team.id_for_label }}" class="ml-2 text-sm font-medium text-ink">
                         {{ form.register_home_team.label }}
                     </label>
                 </div>
                 <div id="home-team-register-fields" class="hidden">
                     <div class="mt-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label class="block text-sm font-medium text-ink mb-1">
                             {{ form.home_team_club.label }}
                         </label>
                         {{ form.home_team_club }}
@@ -156,7 +156,7 @@
         
         <!-- Equipo Visitante -->
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label class="block text-sm font-medium text-ink mb-2">
                 {{ form.away_team_search.label }} <span class="text-red-500 dark:text-red-400">*</span>
             </label>
             <div class="relative" id="away-team-autocomplete">
@@ -165,22 +165,22 @@
                 <div id="away-team-results" class="autocomplete-results hidden"></div>
             </div>
             <div id="away-team-selected"></div>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ form.away_team_search.help_text }}</p>
+            <p class="text-sm text-muted mt-1">{{ form.away_team_search.help_text }}</p>
             {% if form.away_team_search.errors %}
                 <p class="text-sm text-red-600 dark:text-red-400 mt-1">{{ form.away_team_search.errors.0 }}</p>
             {% endif %}
             
             <!-- Opción de registrar equipo visitante -->
-            <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hidden" id="away-team-register-section">
+            <div class="mt-3 p-3 bg-tint rounded-lg hidden" id="away-team-register-section">
                 <div class="flex items-center mb-2">
                     {{ form.register_away_team }}
-                    <label for="{{ form.register_away_team.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label for="{{ form.register_away_team.id_for_label }}" class="ml-2 text-sm font-medium text-ink">
                         {{ form.register_away_team.label }}
                     </label>
                 </div>
                 <div id="away-team-register-fields" class="hidden">
                     <div class="mt-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label class="block text-sm font-medium text-ink mb-1">
                             {{ form.away_team_club.label }}
                         </label>
                         {{ form.away_team_club }}
@@ -192,14 +192,14 @@
         <!-- Ubicación -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label class="block text-sm font-medium text-ink mb-2">
                     {{ form.venue.label }}
                 </label>
                 {{ form.venue }}
             </div>
             
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label class="block text-sm font-medium text-ink mb-2">
                     {{ form.city.label }}
                 </label>
                 {{ form.city }}
@@ -209,11 +209,11 @@
         <!-- Botones -->
         <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t">
             <a href="{% url 'competitions:calendar_view' %}" 
-               class="w-full sm:w-auto text-center px-6 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+               class="w-full sm:w-auto text-center px-6 py-2.5 border border-line bg-surface text-ink rounded-xl text-ink hover:bg-tint transition">
                 {% trans "Cancelar" %}
             </a>
             <button type="submit" 
-                    class="w-full sm:w-auto text-center px-6 py-2.5 bg-csj-purple text-white rounded-lg hover:bg-csj-purple-dark transition font-medium">
+                    class="w-full sm:w-auto text-center px-6 py-2.5 bg-csj-purple-dark text-white rounded-full hover:opacity-90 transition font-medium">
                 {% trans "Crear Partido Amistoso" %}
             </button>
         </div>

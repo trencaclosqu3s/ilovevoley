@@ -6,8 +6,8 @@
 {% block content %}
 <div class="space-y-6">
     <!-- Header de la liga -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden border-t-4 border-csj-purple dark:border-csj-purple-dark">
-        <div class="bg-gradient-to-r from-csj-purple to-csj-purple-dark p-4 sm:p-6">
+    <div class="bg-surface rounded-[20px] border border-line overflow-hidden">
+        <div class="bg-csj-purple-dark p-4 sm:p-6">
             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div class="flex-1">
                     <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2">
@@ -15,14 +15,14 @@
                     </h1>
                     <div class="flex flex-wrap items-center gap-2 sm:gap-3">
                         {% for category in league.categories.all %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface bg-opacity-20 text-white">
                                 {{ category.name }}
                             </span>
                         {% endfor %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface bg-opacity-20 text-white">
                             {{ league.season }}
                         </span>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white capitalize">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface bg-opacity-20 text-white capitalize">
                             {{ league.get_competition_type_display }}
                         </span>
                     </div>
@@ -32,13 +32,13 @@
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="?all_phases=1"
                            class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition
-                                  {% if show_all_phases %}bg-white text-csj-purple{% else %}bg-white bg-opacity-20 text-white hover:bg-opacity-30{% endif %}">
+ {% if show_all_phases %}bg-surface text-csj-purple{% else %}bg-surface bg-opacity-20 text-white hover:bg-opacity-30{% endif %}">
                             📊 {% trans "Todas las fases" %}
                         </a>
                         {% for phase in all_phases %}
                         <a href="?phase={{ phase.id }}"
                            class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition
-                                  {% if selected_phase == phase.id|stringformat:'s' %}bg-white text-csj-purple{% else %}bg-white bg-opacity-20 text-white hover:bg-opacity-30{% endif %}">
+ {% if selected_phase == phase.id|stringformat:'s' %}bg-surface text-csj-purple{% else %}bg-surface bg-opacity-20 text-white hover:bg-opacity-30{% endif %}">
                             {% if phase.phase_name %}{{ phase.phase_name }}{% else %}{% trans "Liga Regular" %}{% endif %}
                         </a>
                         {% endfor %}
@@ -69,16 +69,16 @@
         </div>
 
         <!-- Navegación interna -->
-        <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div class="bg-surface border-b border-line">
             <div class="p-4 sm:p-6">
                 <div class="flex flex-wrap gap-2 sm:gap-3">
                     <a href="#partidos" data-call="showSection" data-call-args='["partidos"]' 
-                       class="section-tab active inline-flex items-center px-3 py-2 bg-csj-purple text-white text-sm font-medium rounded-lg transition">
+                       class="section-tab active inline-flex items-center px-3 py-2 bg-csj-purple-dark text-white text-sm font-medium rounded-full transition">
                         📅 {% trans "Partidos" %}
                     </a>
                     {% if standings %}
                         <a href="#clasificacion" data-call="showSection" data-call-args='["clasificacion"]' 
-                           class="section-tab inline-flex items-center px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm font-medium rounded-lg transition">
+                           class="section-tab inline-flex items-center px-3 py-2 bg-tint text-ink hover:opacity-80 text-sm font-medium rounded-full transition">
                             🏆 {% trans "Clasificación" %}
                         </a>
                     {% endif %}
@@ -88,11 +88,11 @@
     </div>
 
     <!-- Filtros para partidos -->
-    <div id="partidos-filters" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
+    <div id="partidos-filters" class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
         <form method="get" class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <!-- Filtro de jornada -->
-                <select name="round" class="rounded-lg border-gray-300 dark:border-gray-600 focus:border-csj-purple focus:ring focus:ring-csj-purple focus:ring-opacity-50 text-sm">
+                <select name="round" class="rounded-lg border-line focus:border-csj-purple focus:ring focus:ring-csj-purple focus:ring-opacity-50 text-sm">
                     <option value="">{% trans "Todas las jornadas" %}</option>
                     {% for round in available_rounds %}
                         <option value="{{ round }}" {% if selected_round == round|stringformat:"s" %}selected{% endif %}>
@@ -106,13 +106,13 @@
                     <label class="flex items-center cursor-pointer">
                         <input type="checkbox" name="with_videos" value="1" 
                                {% if request.GET.with_videos %}checked{% endif %}
-                               class="w-4 h-4 text-csj-purple dark:text-csj-yellow border-gray-300 dark:border-gray-600 rounded focus:ring-csj-purple">
-                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">{% trans "Solo con videos" %}</span>
+                               class="w-4 h-4 text-brand-text border-line rounded focus:ring-csj-purple">
+                        <span class="ml-2 text-sm text-ink">{% trans "Solo con videos" %}</span>
                     </label>
                 </div>
 
                 <!-- Botón aplicar -->
-                <button type="submit" class="bg-csj-purple hover:bg-csj-purple-dark text-white px-4 py-2 rounded-lg font-medium transition text-sm w-full sm:w-auto">
+                <button type="submit" class="bg-csj-purple-dark hover:opacity-90 text-white px-4 py-2 rounded-full font-medium transition text-sm w-full sm:w-auto">
                     {% trans "Filtrar" %}
                 </button>
             </div>
@@ -120,17 +120,17 @@
     </div>
 
     <!-- Sección de Partidos -->
-    <div id="partidos-section" class="content-section bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+    <div id="partidos-section" class="content-section bg-surface rounded-[20px] border border-line overflow-hidden">
         {% if page_obj %}
-            <div class="divide-y divide-gray-200 dark:divide-gray-700">
+            <div class="divide-y divide-line">
                 {% for match in page_obj %}
-                    <div class="p-4 sm:p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    <div class="p-4 sm:p-6 hover:bg-tint transition">
                         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                             <!-- Información del partido -->
                             <div class="flex-1">
                                 <div class="flex flex-wrap items-center gap-2 mb-3">
                                     <!-- Fecha y hora -->
-                                    <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
+                                    <div class="flex items-center space-x-2 text-sm text-muted">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                         </svg>
@@ -164,7 +164,7 @@
                                             {% trans "En curso" %}
                                         </span>
                                     {% else %}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-tint text-ink">
                                             {% trans "Programado" %}
                                         </span>
                                     {% endif %}
@@ -173,8 +173,8 @@
                                 <!-- Equipos -->
                                 <div class="flex items-center space-x-3 mb-2">
                                     <div class="flex items-center space-x-2 flex-wrap">
-                                        <span class="font-semibold text-lg text-gray-800 dark:text-gray-200
-                                            {% if 'SANT JOSEP' in match.home_team_display %}text-csj-purple dark:text-csj-yellow{% endif %}">
+                                        <span class="font-semibold text-lg text-ink
+                                            {% if 'SANT JOSEP' in match.home_team_display %}text-brand-text{% endif %}">
                                             {{ match.home_team_display }}
                                         </span>
                                         {% if match.home_team and match.home_team.is_variant %}
@@ -182,9 +182,9 @@
                                                 {{ match.home_team.variant_name }}
                                             </span>
                                         {% endif %}
-                                        <span class="text-gray-500 dark:text-gray-400">{% trans "vs" %}</span>
-                                        <span class="font-semibold text-lg text-gray-800 dark:text-gray-200
-                                            {% if 'SANT JOSEP' in match.away_team_display %}text-csj-purple dark:text-csj-yellow{% endif %}">
+                                        <span class="text-muted">{% trans "vs" %}</span>
+                                        <span class="font-semibold text-lg text-ink
+                                            {% if 'SANT JOSEP' in match.away_team_display %}text-brand-text{% endif %}">
                                             {{ match.away_team_display }}
                                         </span>
                                         {% if match.away_team and match.away_team.is_variant %}
@@ -204,7 +204,7 @@
 
                                 <!-- Ubicación -->
                                 {% if match.venue %}
-                                    <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
+                                    <div class="flex items-center space-x-2 text-sm text-muted">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                                         </svg>
@@ -217,14 +217,14 @@
                             <div class="flex items-center space-x-3">
                                 <!-- Indicador de videos -->
                                 {% if match.videos_count %}
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-yellow bg-opacity-30 text-csj-yellow-dark">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple-dark bg-opacity-30 text-brand-text">
                                         📹 {% blocktrans count counter=match.videos_count %}{{ counter }} video{% plural %}{{ counter }} videos{% endblocktrans %}
                                     </span>
                                 {% endif %}
                                 
                                 <!-- Enlace al detalle -->
                                 <a href="{% url 'competitions:match_detail' match.id %}"
-                                   class="inline-flex items-center px-4 py-2 border border-csj-purple dark:border-csj-purple-dark text-sm font-medium rounded-lg text-csj-purple dark:text-csj-yellow hover:bg-csj-purple hover:text-white transition">
+                                   class="inline-flex items-center px-4 py-2 border border-csj-purple dark:border-csj-purple-dark text-sm font-medium rounded-lg text-brand-text hover:bg-csj-purple hover:text-white transition">
                                     {% trans "Ver detalles" %}
                                 </a>
                             </div>
@@ -235,25 +235,25 @@
 
             <!-- Paginación -->
             {% if page_obj.has_other_pages %}
-                <div class="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
+                <div class="bg-tint px-4 py-3 border-t border-line sm:px-6">
                     <div class="flex items-center justify-between">
                         <div class="flex-1 flex justify-between sm:hidden">
                             {% if page_obj.has_previous %}
                                 <a href="?page={{ page_obj.previous_page_number }}{% if selected_round %}&round={{ selected_round }}{% endif %}" 
-                                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                   class="relative inline-flex items-center px-4 py-2 border border-line text-sm font-medium rounded-md text-ink bg-surface hover:bg-tint">
                                     {% trans "Anterior" %}
                                 </a>
                             {% endif %}
                             {% if page_obj.has_next %}
                                 <a href="?page={{ page_obj.next_page_number }}{% if selected_round %}&round={{ selected_round }}{% endif %}" 
-                                   class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                   class="ml-3 relative inline-flex items-center px-4 py-2 border border-line text-sm font-medium rounded-md text-ink bg-surface hover:bg-tint">
                                     {% trans "Siguiente" %}
                                 </a>
                             {% endif %}
                         </div>
                         <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                             <div>
-                                <p class="text-sm text-gray-700 dark:text-gray-300">
+                                <p class="text-sm text-ink">
                                     {% blocktrans with start=page_obj.start_index end=page_obj.end_index count=page_obj.paginator.count %}Mostrando <span class="font-medium">{{ start }}</span> a <span class="font-medium">{{ end }}</span> de <span class="font-medium">{{ count }}</span> partidos{% endblocktrans %}
                                 </p>
                             </div>
@@ -261,7 +261,7 @@
                                 <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                                     {% if page_obj.has_previous %}
                                         <a href="?page={{ page_obj.previous_page_number }}{% if selected_round %}&round={{ selected_round }}{% endif %}" 
-                                           class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                           class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-line bg-surface text-sm font-medium text-muted hover:bg-tint">
                                             <span class="sr-only">{% trans "Anterior" %}</span>
                                             <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -271,12 +271,12 @@
                                     
                                     {% for page_num in page_obj.paginator.page_range %}
                                         {% if page_num == page_obj.number %}
-                                            <span class="relative inline-flex items-center px-4 py-2 border border-csj-purple dark:border-csj-purple-dark bg-csj-purple text-sm font-medium text-white">
+                                            <span class="relative inline-flex items-center px-4 py-2 border border-csj-purple dark:border-csj-purple-dark bg-csj-purple-dark text-sm font-medium text-white">
                                                 {{ page_num }}
                                             </span>
                                         {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %}
                                             <a href="?page={{ page_num }}{% if selected_round %}&round={{ selected_round }}{% endif %}" 
-                                               class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                               class="relative inline-flex items-center px-4 py-2 border border-line bg-surface text-sm font-medium text-ink hover:bg-tint">
                                                 {{ page_num }}
                                             </a>
                                         {% endif %}
@@ -284,7 +284,7 @@
                                     
                                     {% if page_obj.has_next %}
                                         <a href="?page={{ page_obj.next_page_number }}{% if selected_round %}&round={{ selected_round }}{% endif %}" 
-                                           class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                           class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-line bg-surface text-sm font-medium text-muted hover:bg-tint">
                                             <span class="sr-only">{% trans "Siguiente" %}</span>
                                             <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
@@ -300,35 +300,35 @@
         {% else %}
             <!-- Estado vacío -->
             <div class="text-center py-12">
-                <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="mx-auto h-12 w-12 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">{% trans "No hay partidos" %}</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{% trans "No se encontraron partidos para esta liga." %}</p>
+                <h3 class="mt-2 text-sm font-medium text-ink">{% trans "No hay partidos" %}</h3>
+                <p class="mt-1 text-sm text-muted">{% trans "No se encontraron partidos para esta liga." %}</p>
             </div>
         {% endif %}
     </div>
 
     <!-- Sección de Clasificación -->
     {% if standings %}
-        <div id="clasificacion-section" class="content-section hidden bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+        <div id="clasificacion-section" class="content-section hidden bg-surface rounded-[20px] border border-line overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead class="bg-gray-50 dark:bg-gray-700/50">
+                <table class="min-w-full divide-y divide-line">
+                    <thead class="bg-tint">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Pos" %}</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Equipo" %}</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "PJ" %}</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "G" %}</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "P" %}</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Sets" %}</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Pts" %}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">{% trans "Pos" %}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">{% trans "Equipo" %}</th>
+                            <th class="px-3 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">{% trans "PJ" %}</th>
+                            <th class="px-3 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">{% trans "G" %}</th>
+                            <th class="px-3 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">{% trans "P" %}</th>
+                            <th class="px-3 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">{% trans "Sets" %}</th>
+                            <th class="px-3 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">{% trans "Pts" %}</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody class="bg-surface divide-y divide-line">
                         {% for standing in standings %}
-                            <tr class="{% if 'SANT JOSEP' in standing.team.name %}bg-csj-purple bg-opacity-10 dark:bg-opacity-20 border-l-4 border-csj-purple dark:border-csj-purple-dark{% endif %}">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-gray-100">
+                            <tr class="{% if 'SANT JOSEP' in standing.team.name %}bg-csj-purple-dark bg-opacity-10 dark:bg-opacity-20 border-l-4 border-csj-purple dark:border-csj-purple-dark{% endif %}">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-ink">
                                     {{ standing.position }}
                                     {% if standing.position <= 3 %}
                                         {% if standing.position == 1 %}🥇
@@ -338,19 +338,19 @@
                                     {% endif %}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100{% if 'SANT JOSEP' in standing.team.name %} font-bold{% endif %}">
+                                    <div class="text-sm font-medium text-ink{% if 'SANT JOSEP' in standing.team.name %} font-bold{% endif %}">
                                         {{ standing.team.name }}
-                                        {% if 'SANT JOSEP' in standing.team.name %}🏐{% endif %}
+                                        {% if 'SANT JOSEP' in standing.team.name %}{% include 'includes/ball_icon.html' with class='w-4 h-4 inline align-text-bottom' %}{% endif %}
                                     </div>
                                 </td>
-                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900 dark:text-gray-100">{{ standing.played }}</td>
+                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-ink">{{ standing.played }}</td>
                                 <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-medium text-green-600 dark:text-green-400">{{ standing.won }}</td>
                                 <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-medium text-red-600 dark:text-red-400">{{ standing.lost }}</td>
-                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900 dark:text-gray-100">
+                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-ink">
                                     {{ standing.sets_for }}-{{ standing.sets_against }}
-                                    <div class="text-xs text-gray-500 dark:text-gray-400">({% if standing.set_difference > 0 %}+{% endif %}{{ standing.set_difference }})</div>
+                                    <div class="text-xs text-muted">({% if standing.set_difference > 0 %}+{% endif %}{{ standing.set_difference }})</div>
                                 </td>
-                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900 dark:text-gray-100">
+                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-bold text-ink">
                                     {{ standing.total_points }}
                                 </td>
                             </tr>
@@ -362,19 +362,19 @@
     {% endif %}
 
     <!-- Enlaces rápidos -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3 sm:mb-4">🔗 {% trans "Enlaces relacionados" %}</h3>
+    <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold text-ink mb-3 sm:mb-4">🔗 {% trans "Enlaces relacionados" %}</h3>
         <div class="flex flex-wrap gap-2 sm:gap-3">
             <a href="{% url 'competitions:league_list' %}"
-               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition text-sm">
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
                 ← {% trans "Volver a ligas" %}
             </a>
             <a href="{% url 'competitions:calendar_view' %}"
-               class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-yellow hover:bg-csj-yellow-dark text-gray-800 rounded-lg font-medium transition text-sm">
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-csj-purple-dark hover:opacity-90 text-white rounded-full font-medium transition text-sm">
                 📅 {% trans "Calendario" %}
             </a>
             <a href="{% url 'content:video_list' %}" 
-               class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition text-sm">
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
                 🎬 {% trans "Videos" %}
             </a>
         </div>
@@ -393,13 +393,13 @@ function showSection(sectionName) {
     
     // Actualizar tabs
     document.querySelectorAll('.section-tab').forEach(tab => {
-        tab.classList.remove('active', 'bg-csj-purple', 'text-white');
-        tab.classList.add('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-200', 'dark:hover:bg-gray-600');
+        tab.classList.remove('active', 'bg-csj-purple-dark', 'text-white');
+        tab.classList.add('bg-tint', 'text-muted', 'hover:opacity-80');
     });
     
     // Activar tab seleccionado
-    this.classList.add('active', 'bg-csj-purple', 'text-white');
-    this.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-200', 'dark:hover:bg-gray-600');
+    this.classList.add('active', 'bg-csj-purple-dark', 'text-white');
+    this.classList.remove('bg-tint', 'text-muted', 'hover:opacity-80');
     
     // Mostrar/ocultar filtros según la sección
     if (sectionName === 'partidos') {
