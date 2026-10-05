@@ -295,6 +295,73 @@ class RenderResultCardTests(SimpleTestCase):
 
         self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
 
+    def test_footer_renders_ilovevoley_es_in_completa_style(self):
+        calls, spy = _capture_drawn_text()
+        with spy:
+            result_card.render_result_card(
+                match=_fake_match(),
+                organization=_fake_org(),
+                card_style='completa',
+                sets=[],
+                logo_fetcher=lambda url: None,
+            )
+        drawn = [content for _, content, _ in calls]
+        self.assertIn('ilovevoley.es', drawn)
+        self.assertNotIn('ilovevoley', drawn)
+
+    def test_footer_renders_ilovevoley_es_in_marco_style(self):
+        calls, spy = _capture_drawn_text()
+        with spy:
+            result_card.render_result_card(
+                match=_fake_match(),
+                organization=_fake_org(),
+                card_style='marco',
+                photo=_fake_photo_bytes(),
+                sets=[],
+                logo_fetcher=lambda url: None,
+            )
+        drawn = [content for _, content, _ in calls]
+        self.assertIn('ilovevoley.es', drawn)
+        self.assertNotIn('ilovevoley', drawn)
+
+
+class FooterAssetTests(SimpleTestCase):
+    def test_isotype_asset_exists_and_is_valid_transparent_png(self):
+        asset_path = result_card._LOGO_ISOTYPE
+        self.assertTrue(asset_path.exists(), f'Falta el asset {asset_path}')
+        with Image.open(asset_path) as img:
+            self.assertEqual(img.format, 'PNG')
+            self.assertEqual(img.mode, 'RGBA')
+            alpha_extrema = img.getchannel('A').getextrema()
+            self.assertEqual(alpha_extrema[0], 0, 'El icono debe tener fondo transparente')
+            self.assertGreater(alpha_extrema[1], 0, 'El icono debe tener contenido visible')
+
+
+class DrawFooterTests(SimpleTestCase):
+    def test_draw_footer_centers_icon_and_domain_text(self):
+        width, height = 1080, 200
+        canvas = Image.new('RGB', (width, height), (50, 50, 50))
+        font = result_card._load_font(result_card._FONT_REGULAR, 26)
+
+        calls, spy = _capture_drawn_text()
+        with spy:
+            draw = ImageDraw.Draw(canvas)
+            with patch.object(canvas, 'paste', wraps=canvas.paste) as mock_paste:
+                result_card._draw_footer(
+                    draw, canvas, width=width, y=100, font=font, text_color=result_card.WHITE
+                )
+
+        drawn = [content for _, content, _ in calls]
+        self.assertIn('ilovevoley.es', drawn)
+        self.assertTrue(mock_paste.called)
+        paste_xy = mock_paste.call_args[0][1]
+        text_xy = [xy for xy, content, _ in calls if content == 'ilovevoley.es'][0]
+        self.assertLess(paste_xy[0], text_xy[0])
+        text_w = result_card._text_width(draw, 'ilovevoley.es', font)
+        total_span = (text_xy[0] + text_w) - paste_xy[0]
+        expected_start = (width - total_span) // 2
+        self.assertEqual(paste_xy[0], expected_start)
+
 
 class FetchLogoBytesTests(SimpleTestCase):
     @override_settings(ACTA_ALLOWED_HOSTS=['logos.example'])
