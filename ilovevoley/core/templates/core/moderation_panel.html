@@ -18,8 +18,8 @@
                 <p class="text-gray-600 dark:text-gray-300">{% if can_moderate_images %}{% trans "Gestiona usuarios e imágenes pendientes de aprobación" %}{% else %}{% trans "Gestiona las solicitudes de membresía pendientes de tu club" %}{% endif %}</p>
             </div>
             <div class="text-right">
-                <div class="text-3xl font-bold text-csj-purple dark:text-csj-yellow">{{ pending_users_count|add:pending_images_count|add:pending_callups_count }}</div>
-                <div class="text-sm text-gray-500 dark:text-gray-400">{% blocktrans count counter=pending_users_count|add:pending_images_count|add:pending_callups_count %}elemento pendiente{% plural %}elementos pendientes{% endblocktrans %}</div>
+                <div class="text-3xl font-bold text-csj-purple dark:text-csj-yellow">{{ pending_users_count|add:pending_images_count|add:pending_callups_count|add:pending_reactivations_count }}</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">{% blocktrans count counter=pending_users_count|add:pending_images_count|add:pending_callups_count|add:pending_reactivations_count %}elemento pendiente{% plural %}elementos pendientes{% endblocktrans %}</div>
             </div>
         </div>
     </div>
@@ -57,6 +57,17 @@
                     <h3 class="text-lg font-semibold text-gray-800">{% trans "Convocatorias" %}</h3>
                     <p class="text-2xl font-bold text-amber-600">{{ pending_callups_count }}</p>
                     <p class="text-sm text-gray-600">{% trans "Por confirmar o descartar" %}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-teal-50 to-teal-100 rounded-lg p-6 border-l-4 border-teal-500">
+            <div class="flex items-center">
+                <div class="text-3xl mr-4">🔄</div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">{% trans "Reactivaciones" %}</h3>
+                    <p class="text-2xl font-bold text-teal-600 dark:text-teal-400">{{ pending_reactivations_count }}</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">{% trans "Piden volver" %}</p>
                 </div>
             </div>
         </div>
@@ -137,6 +148,68 @@
                             data-call="rejectUser" data-call-args='[{{ user.id }}]' data-call-this
                             class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
                             {% trans "❌ Rechazar" %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sección de Solicitudes de Reactivación -->
+    {% if reactivation_users %}
+    <div class="mb-12">
+        <div class="flex items-center mb-6">
+            <h2 class="text-xl lg:text-2xl font-bold text-gray-800 dark:text-gray-200 mr-3">{% trans "🔄 Cuentas que piden reactivación" %}</h2>
+            <span class="bg-teal-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_reactivations_count }}</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {% for ruser in reactivation_users %}
+            <div class="reactivation-card bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow">
+                <div class="p-6">
+                    <div class="flex items-center mb-4">
+                        {% if ruser.avatar %}
+                            <img src="{{ ruser.avatar.url }}" alt="{{ ruser.username }}" class="w-12 h-12 rounded-full object-cover mr-4">
+                        {% else %}
+                            <div class="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center mr-4">
+                                <span class="text-xl">👤</span>
+                            </div>
+                        {% endif %}
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">{{ ruser.username }}</h3>
+                            {% if ruser.get_full_name %}
+                                <p class="text-sm text-gray-600 dark:text-gray-300">{{ ruser.get_full_name }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600 dark:text-gray-300">{% trans "Email:" %}</span>
+                            <span class="text-gray-800 dark:text-gray-200">{% trans "No proporcionado" as no_proporcionado %}{{ ruser.email|default:no_proporcionado }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600 dark:text-gray-300">{% trans "Último acceso:" %}</span>
+                            <span class="text-gray-800 dark:text-gray-200">{% if ruser.last_login %}{{ ruser.last_login|date:"d/m/Y H:i" }}{% else %}{% trans "Nunca" %}{% endif %}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600 dark:text-gray-300">{% trans "Solicitado:" %}</span>
+                            <span class="text-gray-800 dark:text-gray-200">{{ ruser.reactivation_requested_at|date:"d/m/Y H:i" }}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-3">
+                        <button
+                            data-call="reactivateUser" data-call-args='[{{ ruser.id }}]' data-call-this
+                            class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            {% trans "✅ Reactivar" %}
+                        </button>
+                        <button
+                            data-call="dismissReactivation" data-call-args='[{{ ruser.id }}]' data-call-this
+                            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            {% trans "❌ Descartar" %}
                         </button>
                     </div>
                 </div>
@@ -371,7 +444,7 @@
     {% endif %}
 
     <!-- Mensaje cuando no hay elementos pendientes -->
-    {% if not pending_users and not pending_images %}
+    {% if not pending_users and not pending_images and not reactivation_users %}
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-12 text-center border-t-4 border-green-500">
         <div class="text-6xl mb-4">🎉</div>
         <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">{% trans "¡Todo al día!" %}</h2>

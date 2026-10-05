@@ -149,3 +149,84 @@ class CategoryPreferencesBackfillTest(TransactionTestCase):
                 list(preference.categories.values_list('id', flat=True)),
                 [self.category.id],
             )
+
+
+class DeactivateInactiveUsersMigrationTest(TransactionTestCase):
+    """La migración 0025 apaga inactivos desde febrero y respeta staff/superuser (#327)."""
+
+    migrate_from = ('users', '0024_user_reactivation_requested_at')
+    migrate_to = ('users', '0025_deactivate_inactive_users')
+
+    def setUp(self):
+        super().setUp()
+        from datetime import timedelta
+        from django.utils import timezone
+
+        self.executor = MigrationExecutor(connection)
+        self.executor.migrate([self.migrate_from])
+        self.executor.loader.build_graph()
+        old_apps = self.executor.loader.project_state([self.migrate_from]).apps
+
+        User = old_apps.get_model('users', 'User')
+        WebPushSubscription = old_apps.get_model('users', 'WebPushSubscription')
+        Organization = old_apps.get_model('core', 'Organization')
+
+        old = timezone.now() - timedelta(days=400)
+        recent = timezone.now() - timedelta(days=5)
+        org = Organization.objects.create(slug='club1', name='Club 1')
+
+        with_login = User.objects.create_user(
+            username='with_login', password='pass', is_approved=True, is_active=True,
+        )
+        User.objects.filter(pk=with_login.pk).update(last_login=old, date_joined=old)
+        WebPushSubscription.objects.create(
+            user_id=with_login.id, organization_id=org.id,
+            endpoint='https://push.example.com/a', p256dh='k', auth='a',
+        )
+
+        never_logged = User.objects.create_user(
+            username='never', password='pass', is_approved=True, is_active=True,
+        )
+        User.objects.filter(pk=never_logged.pk).update(last_login=None, date_joined=old)
+
+        recent_user = User.objects.create_user(
+            username='recent', password='pass', is_approved=True, is_active=True,
+        )
+        User.objects.filter(pk=recent_user.pk).update(last_login=recent, date_joined=old)
+
+        staff = User.objects.create_user(
+            username='staff', password='pass', is_staff=True, is_approved=True, is_active=True,
+        )
+        User.objects.filter(pk=staff.pk).update(last_login=old, date_joined=old)
+
+        superuser = User.objects.create_superuser(username='root', password='pass')
+        User.objects.filter(pk=superuser.pk).update(last_login=old, date_joined=old)
+
+        self.user_ids = {
+            'with_login': with_login.id,
+            'never': never_logged.id,
+            'recent': recent_user.id,
+            'staff': staff.id,
+            'superuser': superuser.id,
+        }
+
+    def tearDown(self):
+        self.executor.loader.build_graph()
+        self.executor.migrate(self.executor.loader.graph.leaf_nodes())
+        super().tearDown()
+
+    def test_deactivates_inactive_and_revokes_push(self):
+        self.executor.loader.build_graph()
+        self.executor.migrate([self.migrate_to])
+        new_apps = self.executor.loader.project_state([self.migrate_to]).apps
+        User = new_apps.get_model('users', 'User')
+        WebPushSubscription = new_apps.get_model('users', 'WebPushSubscription')
+
+        self.assertFalse(User.objects.get(pk=self.user_ids['with_login']).is_active)
+        self.assertFalse(User.objects.get(pk=self.user_ids['never']).is_active)
+        self.assertTrue(User.objects.get(pk=self.user_ids['recent']).is_active)
+        self.assertTrue(User.objects.get(pk=self.user_ids['staff']).is_active)
+        self.assertTrue(User.objects.get(pk=self.user_ids['superuser']).is_active)
+        self.assertFalse(
+            WebPushSubscription.objects.filter(user_id=self.user_ids['with_login']).exists()
+        )
