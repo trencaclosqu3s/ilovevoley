@@ -202,6 +202,39 @@
                 {% endif %}
             </div>
 
+            <!-- Mis equipos -->
+            {% if form.organization_team_fields %}
+                <div>
+                    <label class="block text-base font-semibold text-ink mb-3">
+                        {% trans "Mis equipos" %}
+                    </label>
+                    <div class="space-y-6">
+                        {% for org, field in form.organization_team_fields %}
+                            <div class="bg-tint p-4 rounded-lg border border-line">
+                                <h3 class="text-sm font-semibold text-ink mb-1 flex items-center gap-2">
+                                    <span>{% icon 'ball' %}</span>
+                                    <span>{{ org.name }}</span>
+                                </h3>
+                                <p class="text-xs text-muted mb-3">{{ field.help_text }}</p>
+                                <div class="space-y-2 max-h-60 overflow-y-auto">
+                                    {% for choice in field %}
+                                        <div class="flex items-center">
+                                            {{ choice.tag }}
+                                            <label for="{{ choice.id_for_label }}" class="ml-2 block text-sm text-ink cursor-pointer">
+                                                {{ choice.choice_label }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                {% if field.errors %}
+                                    <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
             <!-- Tipos de Notificaciones Push -->
             <div>
                 <label class="block text-base font-semibold text-ink mb-3">

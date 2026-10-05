@@ -405,3 +405,40 @@ class WebPushAuditTest(TestCase):
         self.assertTrue(any('error al registrar auditoría' in msg for msg in cm.output))
 
 
+
+
+class WebPushFollowedTeamsTest(TestCase):
+    """Seguir equipos concretos sustituye al filtro por categoría en avisos de partido (#363)."""
+
+    def setUp(self):
+        from ilovevoley.competitions.models import Match
+        from ilovevoley.teams.models import Team
+        self.org = Organization.objects.create(name='CV Sant Just', slug='santjust')
+        self.cadete = Category.objects.create(name='Cadete')
+        self.cadete_a = Team.objects.create(name='Cadete A', federation_id='t-a', category=self.cadete)
+        self.cadete_b = Team.objects.create(name='Cadete B', federation_id='t-b', category=self.cadete)
+        rival = Team.objects.create(name='Rival', federation_id='t-r')
+        self.match = Match.objects.create(match_date=timezone.now(), home_team=self.cadete_a, away_team=rival)
+
+    def _sub(self, name, categories=(), teams=()):
+        user = User.objects.create_user(username=name, email=f'{name}@test.es')
+        pref = CategoryPreference.objects.create(user=user, organization=self.org)
+        pref.categories.set(categories)
+        pref.teams.set(teams)
+        WebPushSubscription.objects.create(
+            user=user, organization=self.org, endpoint=f'https://push.example/{name}', p256dh='k', auth='a',
+        )
+
+    @patch('ilovevoley.users.tasks.send_web_push', return_value=True)
+    def test_match_push_goes_only_to_followers_of_playing_team_or_category_users(self, mock_send):
+        self._sub('follows_b', categories=[self.cadete], teams=[self.cadete_b])
+        self._sub('follows_a', teams=[self.cadete_a])
+        self._sub('category_only', categories=[self.cadete])
+
+        notify_web_push_organization_task(
+            organization_id=self.org.id, title='t', body='b',
+            category_ids=[self.cadete.id], match_id=self.match.id,
+        )
+
+        notified = {call.args[0].endpoint.rsplit('/', 1)[1] for call in mock_send.call_args_list}
+        self.assertEqual(notified, {'follows_a', 'category_only'})

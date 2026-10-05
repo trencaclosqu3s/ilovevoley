@@ -2,7 +2,9 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 
+from ilovevoley.core.mixins import get_tenant_club
 from ilovevoley.core.models import Category, Organization
+from ilovevoley.teams.models import Team
 from .models import CategoryPreference, NotificationPreference, NotificationType
 
 AVAILABLE_NOTIFICATION_TYPES = list(NotificationType.choices)
@@ -107,16 +109,14 @@ class UserProfileForm(forms.ModelForm):
             self.organizations = []
 
         preferences_by_org = {}
+        teams_by_org = {}
         disabled_notifications_by_org = {}
         if self.instance and self.instance.pk and self.organizations:
-            preferences_by_org = {
-                pref.organization_id: pref.categories.all()
-                for pref in (
-                    self.instance.category_preferences.filter(
-                        organization__in=self.organizations
-                    ).prefetch_related('categories')
-                )
-            }
+            prefs = self.instance.category_preferences.filter(
+                organization__in=self.organizations
+            ).prefetch_related('categories', 'teams')
+            preferences_by_org = {pref.organization_id: pref.categories.all() for pref in prefs}
+            teams_by_org = {pref.organization_id: pref.teams.all() for pref in prefs}
             from collections import defaultdict
             disabled_map = defaultdict(set)
             for notif_pref in self.instance.notification_preferences.filter(
@@ -142,6 +142,25 @@ class UserProfileForm(forms.ModelForm):
             if org.id in preferences_by_org:
                 self.initial[field_name] = preferences_by_org[org.id]
 
+            # Solo se ofrecen equipos del club federativo vinculado; sin club no hay lista fiable.
+            club = get_tenant_club(org)
+            if club:
+                teams_field_name = f'followed_teams_{org.id}'
+                self.fields[teams_field_name] = forms.ModelMultipleChoiceField(
+                    queryset=Team.objects.filter(club=club, is_active=True).order_by('name'),
+                    required=False,
+                    widget=forms.CheckboxSelectMultiple(attrs={
+                        'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'
+                    }),
+                    label=_('Mis equipos en %(org)s') % {'org': org.name},
+                    help_text=_(
+                        'Opcional. Si eliges equipos, los avisos de partido y tu calendario de '
+                        '%(org)s se limitan a ellos en lugar de a tus categorías.'
+                    ) % {'org': org.name},
+                )
+                if org.id in teams_by_org:
+                    self.initial[teams_field_name] = teams_by_org[org.id]
+
             notif_field_name = f'notification_types_{org.id}'
             self.fields[notif_field_name] = forms.MultipleChoiceField(
                 choices=AVAILABLE_NOTIFICATION_TYPES,
@@ -166,6 +185,15 @@ class UserProfileForm(forms.ModelForm):
         return fields
 
     @property
+    def organization_team_fields(self):
+        """Devuelve una lista de tuplas (organization, bound_field) para iterar en plantillas."""
+        return [
+            (org, self[f'followed_teams_{org.id}'])
+            for org in self.organizations
+            if f'followed_teams_{org.id}' in self.fields
+        ]
+
+    @property
     def organization_notification_fields(self):
         """Devuelve una lista de tuplas (organization, bound_field) para iterar en plantillas."""
         fields = []
@@ -180,18 +208,18 @@ class UserProfileForm(forms.ModelForm):
         user = user or self.instance
         with transaction.atomic():
             for org in self.organizations:
-                field_name = f'preferred_categories_{org.id}'
-                if field_name in self.cleaned_data:
+                pref = user.category_preferences.filter(organization=org).first()
+                for field_name, relation in (
+                    (f'preferred_categories_{org.id}', 'categories'),
+                    (f'followed_teams_{org.id}', 'teams'),
+                ):
+                    if field_name not in self.cleaned_data:
+                        continue
                     selected = self.cleaned_data[field_name]
-                    pref = user.category_preferences.filter(organization=org).first()
-                    if selected:
-                        if not pref:
-                            pref = CategoryPreference.objects.create(
-                                user=user, organization=org
-                            )
-                        pref.categories.set(selected)
-                    elif pref:
-                        pref.categories.clear()
+                    if selected and not pref:
+                        pref = CategoryPreference.objects.create(user=user, organization=org)
+                    if pref:
+                        getattr(pref, relation).set(selected)
 
     def save_notification_preferences(self, user=None):
         from django.db import transaction
