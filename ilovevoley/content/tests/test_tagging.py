@@ -1,5 +1,6 @@
 """Etiquetado de deportistas en imágenes (#362): permisos, aislamiento y galería."""
 import uuid
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -10,11 +11,13 @@ from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match
 from ilovevoley.content.models import Image
-from ilovevoley.content.services import taggable_persons
+from ilovevoley.content.services import apply_image_tags, taggable_persons, tagging_push_audience
+from ilovevoley.content.tasks import notify_image_tagged_push_task
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.rosters.models import Person, PlayerRole
 from ilovevoley.teams.models import Club, Team
-from ilovevoley.users.models import Membership
+from ilovevoley.users.models import Membership, NotificationPreference, WebPushSubscription
+from ilovevoley.users.tasks import notify_web_push_organization_task
 
 TINY_GIF = (
     b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
@@ -227,3 +230,134 @@ class ImageTaggingTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertTrue(self.image.persons.filter(id=self.person_a.id).exists())
+
+    @patch('ilovevoley.content.tasks.notify_image_tagged_push_task.delay')
+    def test_tagging_enqueues_push_only_for_new_tags(self, mock_delay):
+        self.client.force_login(self.uploader)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                reverse('content:image_tag', args=[self.image.id]),
+                {'person_ids': [self.person_a.id], 'action': 'replace'},
+                HTTP_HOST='testclub.ilovevoley.es',
+            )
+        mock_delay.assert_called_once()
+        args, _kwargs = mock_delay.call_args
+        self.assertEqual(args[0], self.org_a.id)
+        self.assertEqual(args[1], self.person_a.id)
+        self.assertEqual(args[2], [self.image.id])
+        self.assertEqual(args[3], self.uploader.id)
+
+        # Reetiquetar a la misma persona no vuelve a avisar.
+        mock_delay.reset_mock()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                reverse('content:image_tag', args=[self.image.id]),
+                {'person_ids': [self.person_a.id], 'action': 'replace'},
+                HTTP_HOST='testclub.ilovevoley.es',
+            )
+        mock_delay.assert_not_called()
+
+    @patch('ilovevoley.content.tasks.notify_image_tagged_push_task.delay')
+    def test_pending_image_not_notified_until_approved(self, mock_delay):
+        pending = Image.objects.create(
+            image=SimpleUploadedFile('pend.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Pendiente', uploaded_by=self.uploader, organization=self.org_a,
+            status='pending',
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            apply_image_tags(self.uploader, self.org_a, [pending], [self.person_a])
+        mock_delay.assert_not_called()
+        self.assertEqual(
+            list(pending.persons.values_list('id', flat=True)), [self.person_a.id],
+        )
+
+        from ilovevoley.content.services import moderate_image
+
+        with self.captureOnCommitCallbacks(execute=True):
+            moderate_image(actor=self.manager, tenant=self.org_a, image=pending, decision='approve')
+
+        mock_delay.assert_called_once()
+        args, _kwargs = mock_delay.call_args
+        self.assertEqual(args[1], self.person_a.id)
+        self.assertEqual(args[2], [pending.id])
+        self.assertEqual(args[3], self.manager.id)
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class ImageTagPushTests(TestCase):
+    """El aviso de etiquetado solo llega al deportista y a su familia (#362)."""
+
+    def setUp(self):
+        cache.clear()
+        User = get_user_model()
+        self.org = Organization.objects.create(
+            slug='testclub', name='Club A', club_team_names={'1': 'Club A'}, is_active=True,
+        )
+        self.player = User.objects.create_user(username='player', password='pass')
+        self.parent1 = User.objects.create_user(username='parent1', password='pass')
+        self.parent2 = User.objects.create_user(username='parent2', password='pass')
+        self.unrelated = User.objects.create_user(username='unrelated', password='pass')
+        for u in (self.player, self.parent1, self.parent2, self.unrelated):
+            Membership.objects.create(user=u, organization=self.org, is_approved=True)
+
+        self.person = Person.objects.create(first_name='Lluc', last_name='Puig', user=self.player)
+        self.parent1.children.add(self.person)
+        self.parent2.children.add(self.person)
+
+        self.image = Image.objects.create(
+            image=SimpleUploadedFile('p.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Foto', uploaded_by=self.unrelated, organization=self.org, status='approved',
+        )
+
+    def _subscribe(self, user, endpoint):
+        return WebPushSubscription.objects.create(
+            user=user, organization=self.org, endpoint=endpoint,
+            p256dh='key', auth='auth',
+        )
+
+    def test_audience_is_only_player_and_parents(self):
+        player_id, parent_ids = tagging_push_audience(self.person, actor=self.unrelated)
+        self.assertEqual(player_id, self.player.id)
+        self.assertEqual(parent_ids, {self.parent1.id, self.parent2.id})
+
+    def test_audience_excludes_the_actor(self):
+        player_id, parent_ids = tagging_push_audience(self.person, actor=self.player)
+        self.assertIsNone(player_id)
+        self.assertNotIn(self.player.id, parent_ids)
+
+        _, parent_ids = tagging_push_audience(self.person, actor=self.parent1)
+        self.assertNotIn(self.parent1.id, parent_ids)
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_task_sends_player_and_parent_messages(self, mock_push):
+        result = notify_image_tagged_push_task(
+            self.org.id, self.person.id, [self.image.id], actor_id=self.unrelated.id,
+        )
+        self.assertEqual(result, 2)
+        calls = {tuple(call.kwargs['user_ids']): call.kwargs for call in mock_push.call_args_list}
+        self.assertIn((self.player.id,), calls)
+        self.assertEqual(calls[(self.player.id,)]['title'], 'Te han etiquetado en una foto')
+        self.assertEqual(calls[(self.player.id,)]['notification_type'], 'image_tag')
+        parent_kwargs = calls[(self.parent1.id, self.parent2.id)]
+        self.assertEqual(parent_kwargs['title'], 'Han etiquetado a Lluc Puig')
+        self.assertEqual(
+            parent_kwargs['url'], reverse('content:image_detail', args=[self.image.id]),
+        )
+
+    @patch('ilovevoley.users.tasks.send_web_push')
+    def test_notify_task_targets_user_ids_and_respects_disabled_preference(self, mock_send):
+        self._subscribe(self.player, 'https://fcm.googleapis.com/player')
+        self._subscribe(self.parent1, 'https://fcm.googleapis.com/parent1')
+        NotificationPreference.objects.create(
+            user=self.parent1, organization=self.org,
+            notification_type='image_tag', is_enabled=False,
+        )
+
+        sent = notify_web_push_organization_task(
+            self.org.id, 'Título', 'Cuerpo',
+            user_ids=[self.player.id, self.parent1.id],
+            notification_type='image_tag',
+        )
+        self.assertEqual(sent, 1)
+        recipients = {call.args[0].user_id for call in mock_send.call_args_list}
+        self.assertEqual(recipients, {self.player.id})

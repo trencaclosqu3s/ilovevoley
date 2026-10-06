@@ -1,5 +1,6 @@
 """Servicios de dominio para el módulo de contenido (vídeos e imágenes)."""
 import logging
+from collections import defaultdict
 
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
@@ -77,6 +78,20 @@ def moderate_image(actor, tenant, image, decision, notes='', validate_permission
         except Exception as exc:
             logger.exception("No se pudo encolar el aviso de media del partido: %s", exc)
 
+    # El etiquetado de una foto aún pendiente no avisó; al aprobarla ya es visible,
+    # así que se avisa ahora al deportista y a su familia (#362).
+    if approved and image.organization_id:
+        person_ids = list(image.persons.values_list('id', flat=True))
+        if person_ids:
+            from ilovevoley.content.tasks import notify_image_tagged_push_task
+            from ilovevoley.core.email_utils import enqueue_on_commit
+
+            for person_id in person_ids:
+                enqueue_on_commit(
+                    notify_image_tagged_push_task,
+                    image.organization_id, person_id, [image.id], actor.id,
+                )
+
     return image
 
 
@@ -100,28 +115,71 @@ def taggable_persons(match, tenant):
     return base.filter(Q(pk__in=roster_ids)).order_by('last_name', 'first_name')
 
 
+def tagging_push_audience(person, actor=None):
+    """Usuarios a los que interesa que se etiquete a ``person`` en una foto.
+
+    Devuelve ``(player_id, parent_ids)``: el propio deportista (usuario vinculado
+    a la ficha) y los familiares que lo tienen como hijo. Se excluye a quien
+    realizó el etiquetado para no avisarle de su propia acción.
+    """
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor_id = getattr(actor, 'id', None)
+    player_id = person.user_id
+    if player_id == actor_id:
+        player_id = None
+    parent_ids = set(
+        User.objects.filter(children=person).values_list('id', flat=True)
+    )
+    parent_ids.discard(actor_id)
+    parent_ids.discard(person.user_id)
+    return player_id, parent_ids
+
+
 def apply_image_tags(actor, tenant, images, persons, *, replace=False, validate_permission=True):
     """Etiqueta personas en imágenes respetando aislamiento y permisos.
 
     Con ``replace`` sustituye las etiquetas de cada imagen; sin él añade las
     nuevas sin quitar las existentes. Las imágenes que el actor no puede
     etiquetar (o de otro club) se omiten. Devuelve el número de imágenes
-    modificadas.
+    modificadas. Por cada ficha etiquetada de nuevo se avisa al deportista y a
+    su familia.
     """
     # TODO(#122): descartar fichas sin consentimiento de imagen cuando exista el
     # campo en Person; hoy todas las fichas del club son etiquetables.
     persons = list(persons)
     changed = 0
+    added_by_person = defaultdict(set)
+    org_by_person = {}
     for image in images:
         if validate_permission and not can_tag_image(actor, tenant, image):
             continue
         if tenant is not None and image.organization_id != tenant.id and not actor.is_superuser:
             continue
+        existing = set(image.persons.values_list('id', flat=True))
         if replace:
             image.persons.set(persons)
         else:
             image.persons.add(*persons)
+        for person in persons:
+            # Solo se avisa de fotos visibles; en una pendiente el aviso se
+            # pospone a la aprobación (#286, #362).
+            if person.id not in existing and image.status == 'approved':
+                added_by_person[person.id].add(image.id)
+                org_by_person.setdefault(person.id, image.organization_id)
         changed += 1
+
+    if added_by_person:
+        from ilovevoley.content.tasks import notify_image_tagged_push_task
+        from ilovevoley.core.email_utils import enqueue_on_commit
+
+        actor_id = getattr(actor, 'id', None)
+        for person_id, image_ids in added_by_person.items():
+            org_id = org_by_person.get(person_id)
+            if org_id is None:
+                continue
+            enqueue_on_commit(notify_image_tagged_push_task, org_id, person_id, list(image_ids), actor_id)
     return changed
 
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-06 10:38+0200\n"
+"POT-Creation-Date: 2026-10-06 10:46+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -3324,28 +3324,28 @@ msgstr "Notes internes de moderació"
 msgid "Imágenes"
 msgstr "Imatges"
 
-#: ilovevoley/content/services.py:32
+#: ilovevoley/content/services.py:33
 msgid "Se requiere autenticación para moderar."
 msgstr "Es requereix autenticació per moderar."
 
-#: ilovevoley/content/services.py:36
+#: ilovevoley/content/services.py:37
 msgid "No tienes permisos para moderar imágenes en esta organización."
 msgstr "No tens permisos per moderar imatges en aquesta organització."
 
-#: ilovevoley/content/services.py:41
+#: ilovevoley/content/services.py:42
 msgid "No puedes moderar una imagen perteneciente a otra organización."
 msgstr "No pots moderar una imatge pertanyent a una altra organització."
 
-#: ilovevoley/content/services.py:43
+#: ilovevoley/content/services.py:44
 msgid "Solo un superusuario puede moderar imágenes a nivel global."
 msgstr "Només un superusuari pot moderar imatges a nivell global."
 
 #
-#: ilovevoley/content/services.py:49
+#: ilovevoley/content/services.py:50
 msgid "La imagen no está en estado pendiente de moderación."
 msgstr "La imatge no està en estat pendent de moderació."
 
-#: ilovevoley/content/services.py:58 ilovevoley/content/services.py:62
+#: ilovevoley/content/services.py:59 ilovevoley/content/services.py:63
 #, python-format
 msgid "Decisión de moderación no válida: %(decision)s"
 msgstr "Decisió de moderació no vàlida: %(decision)s"
@@ -3387,6 +3387,36 @@ msgstr "Vídeos: %(teams)s"
 #, python-format
 msgid "Se han subido vídeos del partido %(match)s"
 msgstr "S'han pujat vídeos del partit %(match)s"
+
+#
+#: ilovevoley/content/tasks.py:331
+msgid "Te han etiquetado en una foto"
+msgstr "T'han etiquetat en una foto"
+
+#: ilovevoley/content/tasks.py:331
+msgid "Han publicado una foto en la que apareces."
+msgstr "Han publicat una foto en la qual apareixes."
+
+#: ilovevoley/content/tasks.py:333
+msgid "Te han etiquetado en fotos nuevas"
+msgstr "T'han etiquetat en fotos noves"
+
+#: ilovevoley/content/tasks.py:334
+#, python-format
+msgid "Apareces en %(count)s fotos nuevas."
+msgstr "Apareixes en %(count)s fotos noves."
+
+#: ilovevoley/content/tasks.py:350 ilovevoley/content/tasks.py:354
+msgid "Han etiquetado a %(name)s"
+msgstr "Han etiquetat a %(name)s"
+
+#: ilovevoley/content/tasks.py:351
+msgid "Hay una foto nueva donde aparece."
+msgstr "Hi ha una foto nova on apareix."
+
+#: ilovevoley/content/tasks.py:355
+msgid "Hay %(count)s fotos nuevas donde aparece."
+msgstr "Hi ha %(count)s fotos noves on apareix."
 
 #: ilovevoley/content/templates/content/_album_zip_button.html:11
 #: ilovevoley/content/templates/content/_album_zip_button.html:40
@@ -7199,8 +7229,8 @@ msgstr ""
 msgid "Crear Cuenta"
 msgstr "Crear compte"
 
-#: ilovevoley/templates/account/signup.html:26 ilovevoley/users/models.py:229
-#: ilovevoley/users/models.py:271
+#: ilovevoley/templates/account/signup.html:26 ilovevoley/users/models.py:230
+#: ilovevoley/users/models.py:272
 msgid "Usuario"
 msgstr "Usuari"
 
@@ -10661,39 +10691,43 @@ msgstr "Recordatoris previs al partit"
 msgid "Fotos y vídeos de partidos"
 msgstr "Fotos i vídeos de partits"
 
-#: ilovevoley/users/models.py:235 ilovevoley/users/models.py:277
-#: ilovevoley/users/models.py:324
+#: ilovevoley/users/models.py:220
+msgid "Avisos de etiquetado en fotos"
+msgstr "Avisos d'etiquetatge en fotos"
+
+#: ilovevoley/users/models.py:236 ilovevoley/users/models.py:278
+#: ilovevoley/users/models.py:325
 msgid "Organización / Club"
 msgstr "Organització / Club"
 
 #
-#: ilovevoley/users/models.py:240 ilovevoley/users/models.py:330
+#: ilovevoley/users/models.py:241 ilovevoley/users/models.py:331
 msgid "Tipo de notificación"
 msgstr "Tipus de notificació"
 
 #
-#: ilovevoley/users/models.py:244
+#: ilovevoley/users/models.py:245
 msgid "Activado"
 msgstr "Activat"
 
-#: ilovevoley/users/models.py:245
+#: ilovevoley/users/models.py:246
 msgid "Indica si el usuario desea recibir este tipo de notificación."
 msgstr "Indica si l'usuari vol rebre aquest tipus de notificació."
 
 #
-#: ilovevoley/users/models.py:252
+#: ilovevoley/users/models.py:253
 msgid "Preferencia de notificación"
 msgstr "Preferència de notificació"
 
-#: ilovevoley/users/models.py:253
+#: ilovevoley/users/models.py:254
 msgid "Preferencias de notificaciones"
 msgstr "Preferències de notificacions"
 
-#: ilovevoley/users/models.py:281
+#: ilovevoley/users/models.py:282
 msgid "Push Service Endpoint"
 msgstr "Push Service Endpoint"
 
-#: ilovevoley/users/models.py:282
+#: ilovevoley/users/models.py:283
 msgid ""
 "URL de entrega proporcionada por el servicio Push del navegador (FCM, Apple "
 "APNs, etc.)"
@@ -10701,64 +10735,64 @@ msgstr ""
 "URL de lliurament proporcionada pel servei Push del navegador (FCM, Apple "
 "APNs, etc.)"
 
-#: ilovevoley/users/models.py:286
+#: ilovevoley/users/models.py:287
 msgid "Clave Pública P-256 (Dispositivo)"
 msgstr "Clau Pública P-256 (Dispositiu)"
 
-#: ilovevoley/users/models.py:290
+#: ilovevoley/users/models.py:291
 msgid "Token de Autenticación Criptográfica"
 msgstr "Token d'Autenticació Criptogràfica"
 
-#: ilovevoley/users/models.py:296
+#: ilovevoley/users/models.py:297
 msgid "User Agent"
 msgstr "User Agent"
 
 #
-#: ilovevoley/users/models.py:302
+#: ilovevoley/users/models.py:303
 msgid "Suscripción Web Push"
 msgstr "Subscripció Web Push"
 
-#: ilovevoley/users/models.py:303
+#: ilovevoley/users/models.py:304
 msgid "Suscripciones Web Push"
 msgstr "Subscripcions Web Push"
 
 #
-#: ilovevoley/users/models.py:336
+#: ilovevoley/users/models.py:337
 msgid "ID de partido"
 msgstr "ID de partit"
 
-#: ilovevoley/users/models.py:340
+#: ilovevoley/users/models.py:341
 msgid "Dispositivos candidatos"
 msgstr "Dispositius candidats"
 
-#: ilovevoley/users/models.py:344
+#: ilovevoley/users/models.py:345
 msgid "Enviados"
 msgstr "Enviats"
 
-#: ilovevoley/users/models.py:348
+#: ilovevoley/users/models.py:349
 msgid "Fallidos"
 msgstr "Fallits"
 
-#: ilovevoley/users/models.py:353
+#: ilovevoley/users/models.py:354
 msgid "Fecha"
 msgstr "Data"
 
-#: ilovevoley/users/models.py:358
+#: ilovevoley/users/models.py:359
 msgid "Auditoría de aviso push"
 msgstr "Auditoria d'avís push"
 
-#: ilovevoley/users/models.py:359
+#: ilovevoley/users/models.py:360
 msgid "Auditorías de avisos push"
 msgstr "Auditories d'avisos push"
 
-#: ilovevoley/users/tasks.py:142
+#: ilovevoley/users/tasks.py:146
 #, python-format
 msgid ""
 "Último aviso: Tu cuenta en %(site_name)s se desactivará en %(days)d días"
 msgstr ""
 "Darrer avís: El teu compte a %(site_name)s es desactivarà en %(days)d dies"
 
-#: ilovevoley/users/tasks.py:147
+#: ilovevoley/users/tasks.py:151
 #, python-format
 msgid ""
 "Aviso de inactividad: Tu cuenta en %(site_name)s se desactivará en %(days)d "
