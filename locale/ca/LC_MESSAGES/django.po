@@ -2201,10 +2201,27 @@ msgstr "Convocats"
 msgid "Cap:"
 msgstr "Capità:"
 
+#: ilovevoley/competitions/templates/competitions/match_detail.html:385
+#: ilovevoley/competitions/templates/competitions/match_detail.html:393
+msgid "Entr:"
+msgstr "Entr:"
+
 #
 #: ilovevoley/competitions/templates/competitions/match_detail.html:400
 msgid "Desarrollo por sets"
 msgstr "Desenvolupament per sets"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:408
+msgid "Árbitros y oficiales"
+msgstr "Àrbitres i oficials"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:415
+msgid "Observaciones"
+msgstr "Observacions"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1458
+msgid "Oficiales"
+msgstr "Oficials"
 
 #: ilovevoley/competitions/templates/competitions/match_detail.html:406
 msgid "* Datos extraídos del acta oficial. ↑N = sustituido por dorsal N."

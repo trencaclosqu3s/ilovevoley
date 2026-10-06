@@ -112,6 +112,75 @@ def _parse_set_table(table):
     return team_name, lineup, points
 
 
+def _normalize_ws(text):
+    """Colapsa saltos de línea y espacios repetidos de los textos libres del acta."""
+    return re.sub(r'\s+', ' ', text or '').strip()
+
+
+def _parse_observations(soup):
+    """Texto libre del bloque ``Observaciones:`` del acta (vacío si no existe)."""
+    for td in soup.find_all('td'):
+        text = _normalize_ws(td.get_text(' ', strip=True))
+        match = re.match(r'^Observaciones:\s*(.*)$', text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+    return ''
+
+
+def _parse_signatures(soup):
+    """Nombre escrito junto a cada firma, indexado por la etiqueta del recuadro.
+
+    Cada ``td.espacio-firma`` empieza por una etiqueta ("Firma Entrenador Local",
+    "Firma Árbitro"…) y a veces lleva el nombre en un ``<strong>``. Muchas firmas
+    solo traen imagen, así que el nombre puede quedar vacío.
+    """
+    signatures = {}
+    for td in soup.find_all('td', class_='espacio-firma'):
+        label = ''
+        for child in td.children:
+            if isinstance(child, NavigableString):
+                text = str(child).strip()
+                if text:
+                    label = text
+                    break
+        if not label:
+            continue
+        strong = td.find('strong')
+        name = _normalize_ws(strong.get_text(' ', strip=True)) if strong else ''
+        # La primera firma con nombre gana; una repetición vacía no lo borra.
+        if not signatures.get(label):
+            signatures[label] = name
+    return signatures
+
+
+def _parse_officials(soup):
+    """Filas de la tabla OFICIALES (LOCAL / ROL / VISITANTE).
+
+    La cabecera existe aunque no haya filas, así que una lista vacía significa
+    que el acta no designa oficiales.
+    """
+    officials = []
+    for table in soup.find_all('table'):
+        header = table.find('tr', class_='seccion')
+        if not header:
+            continue
+        header_cells = [cell.get_text(strip=True) for cell in header.find_all('td')]
+        if header_cells != ['LOCAL', 'ROL', 'VISITANTE']:
+            continue
+        for row in table.find_all('tr'):
+            if 'seccion' in row.get('class', []):
+                continue
+            cells = row.find_all('td')
+            if len(cells) != 3:
+                continue
+            local = _normalize_ws(cells[0].get_text(' ', strip=True))
+            role = cells[1].get_text(strip=True)
+            visitor = _normalize_ws(cells[2].get_text(' ', strip=True))
+            if local or role or visitor:
+                officials.append({'local': local, 'role': role, 'visitor': visitor})
+    return officials
+
+
 def parse_acta_lineup(html_content):
     """
     Parsea el HTML del acta oficial.
@@ -121,7 +190,11 @@ def parse_acta_lineup(html_content):
         home_captain (str), away_captain (str),
         home_convocados (list[str]),   # ej: ["1 Raya", "4 Oliver", ...]
         away_convocados (list[str]),
-        sets (list[dict])              # cada set con título, tiempo y equipos I-VI
+        sets (list[dict]),             # cada set con título, tiempo y equipos I-VI
+        observations (str),            # texto libre del bloque "Observaciones:"
+        home_coach (str), away_coach (str),  # vacíos si la firma es solo imagen
+        referees (list[str]),          # nombres de árbitro presentes en las firmas
+        officials (list[dict])         # tabla OFICIALES: local/role/visitor
     """
     soup = BeautifulSoup(html_content, 'html.parser')
 
@@ -209,6 +282,13 @@ def parse_acta_lineup(html_content):
     if len(seen) >= 2:
         away_team = seen[1]
 
+    signatures = _parse_signatures(soup)
+    referees = [
+        signatures[label]
+        for label in ('Firma Árbitro', 'Firma Árbitro 2')
+        if signatures.get(label)
+    ]
+
     return {
         'home_team': home_team,
         'away_team': away_team,
@@ -217,6 +297,11 @@ def parse_acta_lineup(html_content):
         'home_convocados': home_convocados_raw,
         'away_convocados': away_convocados_raw,
         'sets': sets,
+        'observations': _parse_observations(soup),
+        'home_coach': signatures.get('Firma Entrenador Local', ''),
+        'away_coach': signatures.get('Firma Entrenador Visitante', ''),
+        'referees': referees,
+        'officials': _parse_officials(soup),
     }
 
 

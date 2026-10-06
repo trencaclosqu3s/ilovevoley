@@ -1031,9 +1031,14 @@ def ajax_acta_lineup(request, match_id):
         'away_team': lineup_data.get('away_team', ''),
         'home_captain': lineup_data.get('home_captain', ''),
         'away_captain': lineup_data.get('away_captain', ''),
+        'home_coach': lineup_data.get('home_coach', ''),
+        'away_coach': lineup_data.get('away_coach', ''),
         'home_convocados': _enrich_convocados(lineup_data.get('home_convocados', []), match.home_team),
         'away_convocados': _enrich_convocados(lineup_data.get('away_convocados', []), match.away_team),
         'sets': enriched_sets,
+        'referees': lineup_data.get('referees', []),
+        'officials': lineup_data.get('officials', []),
+        'observations': lineup_data.get('observations', ''),
     })
 
 
