@@ -527,6 +527,63 @@ def notify_match_reminder(match: Match) -> bool:
     return True
 
 
+# Con este número de fotos ya subidas el recordatorio no aporta nada.
+PHOTO_REMINDER_MIN_IMAGES = 5
+
+
+def notify_match_photo_reminder(match: Match) -> bool:
+    """Envía un push para animar a subir fotos de un partido ya finalizado (#361).
+
+    - Idempotente: reclama `photo_reminder_sent_at` antes de enviar.
+    - No avisa si el partido ya tiene `PHOTO_REMINDER_MIN_IMAGES` fotos o más
+      (en ese caso se marca igualmente para no volver a evaluarlo).
+    - Respeta categorías y el tipo 'match_photos'; abre la subida con el partido preseleccionado.
+    """
+    from django.db import transaction
+
+    with transaction.atomic():
+        updated = Match.objects.filter(pk=match.pk, photo_reminder_sent_at__isnull=True).update(
+            photo_reminder_sent_at=timezone.now()
+        )
+        if not updated:
+            return False
+
+        if match.images.count() >= PHOTO_REMINDER_MIN_IMAGES:
+            return False
+
+        club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
+        if not club_ids:
+            return False
+
+        from ilovevoley.core.models import Organization
+
+        orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
+        q = organization_branch_q(match_branches(match))
+        if q is not None:
+            orgs = orgs.filter(q)
+
+        home_name = match.home_team_display
+        away_name = match.away_team_display
+
+        def build():
+            return (
+                _("¿Tienes fotos del partido?"),
+                _("%(home)s - %(away)s ya ha terminado. ¡Súbelas mientras están frescas!")
+                % {'home': home_name, 'away': away_name},
+            )
+
+        _dispatch_organization_push(
+            orgs,
+            build=build,
+            url=f"{reverse('content:image_bulk_upload')}?match={match.id}",
+            category_ids=match_category_ids(match),
+            notification_type='match_photos',
+            match_id=match.id,
+        )
+
+    return True
+
+
 def notify_callup_confirmed(player: CallUpPlayer) -> bool:
     """Envía notificación Web Push a los miembros del club informando de la convocatoria confirmada."""
     if player.notification_sent:
