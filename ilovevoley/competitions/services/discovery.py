@@ -106,7 +106,7 @@ def matching_tenants(team_names, organizations):
 def discover(season):
     """Crea ``LeagueCandidate`` pendientes para las ligas nuevas con equipos de un tenant.
 
-    Devuelve las candidatas creadas. Las ya conocidas (liga o candidata, también
+    Devuelve las candidatas nuevas por validar (las ligas manuales enlazadas no cuentan). Las ya conocidas (liga o candidata, también
     rechazadas) no se vuelven a pedir. Las clasificaciones vacías o caídas se
     reintentan en la siguiente ejecución (al inicio aún no hay equipos). Una
     clasificación con equipos pero ninguno de un tenant se guarda como rechazada,
@@ -118,6 +118,9 @@ def discover(season):
 
     from ..models import League, LeagueCandidate
 
+    # Ligas dadas de alta a mano: se enlazan con su fila del menú (mismo federation_id)
+    # para que cuenten como posible liga padre de fases nuevas
+    manual = {league.federation_id: league for league in League.objects.filter(candidate__isnull=True)}
     known = set(League.objects.values_list('federation_id', flat=True))
     known |= set(LeagueCandidate.objects.values_list('federation_id', flat=True))
     organizations = list(Organization.objects.filter(is_active=True))
@@ -125,6 +128,17 @@ def discover(season):
     created = []
     with requests.Session() as session:
         for row in parse_menu(fetch_menu(calculate_federation_temp(season), session)):
+            if row['federation_id'] in manual:
+                # update_or_create: si antes se guardó como rechazada (ajena), ya existe la fila
+                LeagueCandidate.objects.update_or_create(
+                    federation_id=row['federation_id'],
+                    defaults={
+                        **row, 'season': season, 'status': 'approved',
+                        'league': manual.pop(row['federation_id']),
+                        'category': detect_category(row['category_label']),
+                    },
+                )
+                continue
             if row['federation_id'] in known:
                 continue
             try:

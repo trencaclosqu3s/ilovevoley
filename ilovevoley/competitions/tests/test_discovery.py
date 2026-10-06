@@ -142,3 +142,19 @@ def test_discover_now_button_is_superuser_only(client):
         client.force_login(root)
         client.get(url)
         delay.assert_called_once_with()
+
+
+@pytest.mark.django_db
+def test_discover_links_manual_league_so_it_can_be_suggested_as_parent():
+    season = Season.objects.resolve('2026-27')
+    Organization.objects.create(slug='sj', name='SJ', club_team_names={'a': 'SANT JOSEP'})
+    manual = League.objects.create(name='Alevín a mano', federation_id='8020', season=season)
+    # Antes de crearla a mano, una pasada la guardó como ajena (rechazada)
+    LeagueCandidate.objects.create(federation_id='8020', season=season, status='rejected')
+    menu = MENU + MENU.replace('8020', '8999').replace('8095', '8998').replace('INSULAR ESCOLAR MALLORCA', 'COPA NADAL')
+    with mock.patch.object(discovery, 'fetch_menu', return_value=menu), \
+            mock.patch.object(discovery, 'fetch_team_names', return_value=['CV SANT JOSEP A']):
+        created = discovery.discover(season)
+    assert manual.candidate.status == 'approved' and manual.candidate.section == 'INSULAR ESCOLAR MALLORCA'
+    assert LeagueCandidate.objects.get(federation_id='8999').parent_league == manual
+    assert '8020' not in [c.federation_id for c in created]

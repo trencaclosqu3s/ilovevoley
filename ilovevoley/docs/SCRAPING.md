@@ -560,7 +560,7 @@ juvenil…) y género claros en la etiqueta. Las ambiguas (`Categoria unificada`
 **Fases y copas:** la federación no es consistente (a veces otra sección con la
 misma categoría, a veces cuelga de la liga existente). Se sugiere como
 `parent_league` la liga de la misma temporada y categoría, en cualquier sección;
-el superuser la confirma, cambia o vacía. Si sección o fase contienen
+el superuser la confirma, cambia o vacía. Las ligas dadas de alta a mano que aparecen en el menú (mismo `federation_id`) se enlazan solas con una candidata `approved`, así que también valen como padre. Si sección o fase contienen
 "copa", "campeonato" o "torneo" se crea con `competition_type='cup'`.
 
 ## Notas Importantes
