@@ -2,9 +2,10 @@
 import logging
 
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.utils.translation import gettext as _
 
-from ilovevoley.core.tenant_utils import can_moderate_images
+from ilovevoley.core.tenant_utils import can_moderate_images, can_tag_image
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,51 @@ def moderate_image(actor, tenant, image, decision, notes='', validate_permission
             logger.exception("No se pudo encolar el aviso de media del partido: %s", exc)
 
     return image
+
+
+def taggable_persons(match, tenant):
+    """Fichas activas del club ofrecidas para etiquetar deportistas.
+
+    Con partido se limita a los jugadores de sus dos equipos; sin partido se
+    ofrecen todas las fichas activas del club. En ambos casos el queryset queda
+    acotado al club del tenant (aislamiento multi-tenant).
+    """
+    from ilovevoley.rosters.models import Person, PlayerRole
+
+    base = Person.objects.for_tenant(tenant).filter(is_active=True)
+    if match is None:
+        return base.order_by('last_name', 'first_name')
+
+    team_ids = [tid for tid in (match.home_team_id, match.away_team_id) if tid]
+    roster_ids = PlayerRole.objects.filter(
+        team_id__in=team_ids, is_active=True
+    ).values_list('person_id', flat=True)
+    return base.filter(Q(pk__in=roster_ids)).order_by('last_name', 'first_name')
+
+
+def apply_image_tags(actor, tenant, images, persons, *, replace=False, validate_permission=True):
+    """Etiqueta personas en imágenes respetando aislamiento y permisos.
+
+    Con ``replace`` sustituye las etiquetas de cada imagen; sin él añade las
+    nuevas sin quitar las existentes. Las imágenes que el actor no puede
+    etiquetar (o de otro club) se omiten. Devuelve el número de imágenes
+    modificadas.
+    """
+    # TODO(#122): descartar fichas sin consentimiento de imagen cuando exista el
+    # campo en Person; hoy todas las fichas del club son etiquetables.
+    persons = list(persons)
+    changed = 0
+    for image in images:
+        if validate_permission and not can_tag_image(actor, tenant, image):
+            continue
+        if tenant is not None and image.organization_id != tenant.id and not actor.is_superuser:
+            continue
+        if replace:
+            image.persons.set(persons)
+        else:
+            image.persons.add(*persons)
+        changed += 1
+    return changed
 
 
 def match_media_push_cache_keys(organization_id: int, match_id: int) -> dict:

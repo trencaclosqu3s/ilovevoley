@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Etiquetar deportistas" %} - {{ title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="mb-6">
+        {% if match %}
+            <a href="{% url 'content:match_images' match.id %}" class="text-brand-text hover:text-purple-700">
+                <i class="fas fa-arrow-left mr-2"></i>{% trans "Volver al álbum" %}
+            </a>
+        {% else %}
+            <a href="{% url 'content:album_group_images' album_group_id %}" class="text-brand-text hover:text-purple-700">
+                <i class="fas fa-arrow-left mr-2"></i>{% trans "Volver al álbum" %}
+            </a>
+        {% endif %}
+    </div>
+
+    <h1 class="text-2xl font-bold text-ink mb-2">{% trans "Etiquetar deportistas" %}</h1>
+    <p class="text-muted mb-6">{{ title }}</p>
+
+    <form method="post">
+        {% csrf_token %}
+        {% if match %}
+            <input type="hidden" name="match" value="{{ match.id }}">
+        {% else %}
+            <input type="hidden" name="album" value="{{ album_group_id }}">
+        {% endif %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Imágenes -->
+            <div class="lg:col-span-2">
+                <div class="bg-surface rounded-[20px] border border-line p-4 sm:p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-ink">{% trans "Fotos" %}</h2>
+                        <button type="button" data-select-all
+                                class="text-sm text-brand-text hover:text-purple-700">
+                            {% trans "Seleccionar todas" %}
+                        </button>
+                    </div>
+
+                    {% if images %}
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[32rem] overflow-y-auto pr-1">
+                            {% for image in images %}
+                                <label class="block bg-tint rounded-xl border border-line overflow-hidden cursor-pointer hover:border-accent transition">
+                                    <div class="aspect-square relative">
+                                        {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover" sizes="(min-width: 1024px) 20vw, 33vw" %}
+                                        <input type="checkbox" name="image_ids" value="{{ image.id }}"
+                                               class="absolute top-2 left-2 w-5 h-5 rounded border-line text-brand-text focus:ring-accent"
+                                               data-image-checkbox>
+                                    </div>
+                                    <span class="block px-2 py-1 text-xs text-ink truncate">{{ image.title }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-sm text-muted italic">{% trans "No hay imágenes disponibles." %}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Deportistas y acción -->
+            <div>
+                <div class="bg-surface rounded-[20px] border border-line p-4 sm:p-6 lg:sticky lg:top-4">
+                    <h2 class="text-lg font-semibold text-ink mb-4">{% trans "Deportistas" %}</h2>
+                    {% include 'content/_person_tag_picker.html' with taggable_persons=taggable_persons name='person_ids' %}
+
+                    <div class="mt-4">
+                        <label for="action" class="block text-sm font-medium text-ink mb-1">{% trans "Acción" %}</label>
+                        <select name="action" id="action"
+                                class="w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl text-sm focus:ring-2 focus:ring-accent focus:border-transparent">
+                            <option value="add">{% trans "Añadir etiquetas" %}</option>
+                            <option value="replace">{% trans "Sustituir etiquetas" %}</option>
+                        </select>
+                    </div>
+
+                    <button type="submit"
+                            class="mt-4 w-full bg-csj-purple-dark text-white px-4 py-2 rounded-full font-medium text-sm hover:opacity-90 transition">
+                        {% trans "Aplicar etiquetas" %}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+    const selectAll = document.querySelector('[data-select-all]');
+    if (selectAll) {
+        selectAll.addEventListener('click', function () {
+            document.querySelectorAll('[data-image-checkbox]').forEach(function (cb) {
+                cb.checked = true;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

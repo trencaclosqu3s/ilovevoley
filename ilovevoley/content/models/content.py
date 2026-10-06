@@ -279,6 +279,14 @@ class Image(models.Model):
         db_table='videos_image_categories',
         help_text=_('Categorías asociadas a la imagen. Se asigna automáticamente desde el partido o manualmente')
     )
+    persons = models.ManyToManyField(
+        'rosters.Person',
+        blank=True,
+        related_name='tagged_images',
+        db_table='videos_image_persons',
+        verbose_name=_('Deportistas etiquetados'),
+        help_text=_('Personas que aparecen en la imagen'),
+    )
     season = models.ForeignKey(
         'core.Season',
         on_delete=models.PROTECT,

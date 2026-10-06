@@ -47,6 +47,12 @@
                    class="inline-flex items-center px-3 py-2 bg-csj-purple-dark text-white rounded-full hover:opacity-90 transition-colors duration-200 text-sm">
                     <i class="fas fa-plus mr-2"></i>{% trans "Agregar más fotos" %}
                 </a>
+                {% if is_tenant_manager %}
+                    <a href="{% url 'content:image_tag_bulk' %}?album={{ album.album_group_id }}"
+                       class="inline-flex items-center px-3 py-2 bg-tint text-ink rounded-full hover:opacity-80 transition-colors duration-200 text-sm">
+                        <i class="fas fa-user-tag mr-2"></i>{% trans "Etiquetar deportistas" %}
+                    </a>
+                {% endif %}
                 <a href="{% url 'content:image_gallery' %}"
                    class="inline-flex items-center px-3 py-2 bg-tint text-ink rounded-full hover:opacity-80 transition-colors duration-200 text-sm">
                     <i class="fas fa-arrow-left mr-2"></i>{% trans "Volver a la galería" %}

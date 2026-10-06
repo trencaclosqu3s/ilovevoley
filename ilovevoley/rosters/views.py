@@ -14,6 +14,7 @@ from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import person_belongs_to_tenant, tenant_access_required
 from ilovevoley.competitions.models import MatchLineup
+from ilovevoley.content.models import Image
 from ilovevoley.competitions.services.lineups import get_player_season_stats
 from ilovevoley.teams.models import Team
 from .forms import PersonForm, PlayerRoleForm, StaffRoleForm
@@ -171,10 +172,16 @@ def my_profile(request):
             by_season.setdefault(role.season, {'season': role.season, 'player_roles': [], 'staff_roles': []})[kind].append(role)
     seasons = sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True)
 
+    tagged_images_qs = Image.objects.for_tenant(request.tenant).filter(
+        persons=person, status='approved'
+    ).order_by('-upload_date')
+
     return render(request, 'rosters/my_profile.html', {
         'person': person,
         'seasons': seasons,
         'in_current_tenant': person_belongs_to_tenant(person, request.tenant),
+        'tagged_images': list(tagged_images_qs[:8]),
+        'tagged_images_count': tagged_images_qs.count(),
     })
 
 
@@ -207,6 +214,10 @@ def person_detail(request, person_id):
     stat_season = _resolve_person_stat_season(request, seasons)
     player_stats = get_player_season_stats(person, stat_season, tenant_teams) if person_lineups.exists() else None
 
+    tagged_images_qs = Image.objects.for_tenant(request.tenant).filter(
+        persons=person, status='approved'
+    ).order_by('-upload_date')
+
     context = {
         'person': person,
         'player_roles': player_roles,
@@ -215,6 +226,8 @@ def person_detail(request, person_id):
         'seasons': seasons,
         'stat_season': stat_season,
         'player_stats': player_stats,
+        'tagged_images': list(tagged_images_qs[:8]),
+        'tagged_images_count': tagged_images_qs.count(),
     }
 
     return render(request, 'rosters/person_detail.html', context)

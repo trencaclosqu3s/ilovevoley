@@ -1,0 +1,44 @@
+{% load i18n %}
+{% comment %}
+Selector de deportistas para etiquetar (buscador + casillas).
+
+Parámetros:
+- taggable_persons: queryset de fichas candidatas
+- selected_person_ids: ids ya etiquetados (para marcar casillas)
+- name: nombre del input checkbox (por defecto 'person_ids')
+{% endcomment %}
+<div class="person-picker">
+    <input type="search"
+           data-person-search
+           class="w-full px-3 py-2 mb-2 border border-line bg-surface text-ink rounded-xl text-sm focus:ring-2 focus:ring-accent focus:border-transparent"
+           placeholder="{% trans 'Buscar por nombre…' %}"
+           autocomplete="off">
+    <div class="max-h-72 overflow-y-auto border border-line rounded-xl divide-y divide-line" data-person-list>
+        {% for person in taggable_persons %}
+            <label class="flex items-center gap-3 px-3 py-2 hover:bg-tint cursor-pointer"
+                   data-person-option
+                   data-search="{{ person.full_name|lower|escape }}">
+                <input type="checkbox" name="{{ name|default:'person_ids' }}" value="{{ person.id }}"
+                       class="rounded border-line text-brand-text focus:ring-accent"
+                       {% if selected_person_ids and person.id in selected_person_ids %}checked{% endif %}>
+                <span class="text-sm text-ink">{{ person.full_name }}</span>
+            </label>
+        {% empty %}
+            <p class="px-3 py-4 text-sm text-muted italic">{% trans "No hay deportistas disponibles." %}</p>
+        {% endfor %}
+    </div>
+</div>
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-person-search]').forEach(function (input) {
+        const list = input.parentElement.querySelector('[data-person-list]');
+        if (!list) return;
+        input.addEventListener('input', function () {
+            const q = input.value.trim().toLowerCase();
+            list.querySelectorAll('[data-person-option]').forEach(function (opt) {
+                opt.classList.toggle('hidden', q !== '' && !opt.dataset.search.includes(q));
+            });
+        });
+    });
+});
+</script>

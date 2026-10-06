@@ -17,6 +17,8 @@
         {% endif %}
     </div>
 
+    {% include 'rosters/_tagged_photos.html' with person=person tagged_images=tagged_images tagged_images_count=tagged_images_count %}
+
     {% for entry in seasons %}
         <section class="bg-surface rounded-[20px] border border-line p-5 mb-4">
             <h2 class="text-lg font-bold text-ink mb-3">{% blocktrans with season=entry.season %}Temporada {{ season }}{% endblocktrans %}</h2>

@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count, F, Max, Q, Window
 from django.db.models.functions import RowNumber
@@ -25,12 +25,14 @@ from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import (
     can_moderate_images,
+    can_tag_image,
     tenant_access_required,
     user_is_tenant_manager,
 )
+from ilovevoley.rosters.models import Person
 from ilovevoley.teams.models import Team
 from ilovevoley.core.email_utils import enqueue_on_commit
-from .services import moderate_image
+from .services import apply_image_tags, moderate_image, taggable_persons
 from .forms import (
     CommentForm,
     ImageFilterForm,
@@ -478,6 +480,16 @@ def image_gallery(request):
             user_categories = request.user.preferred_categories_for(request.tenant)
             images = images.filter(categories__in=user_categories).distinct()
 
+    # Galería "Fotos de X": filtra por deportista etiquetado, acotado al club.
+    tagged_person = None
+    person_param = request.GET.get('person')
+    if person_param and person_param.isdigit():
+        tagged_person = Person.objects.for_tenant(request.tenant).filter(
+            pk=person_param
+        ).first()
+        if tagged_person is not None:
+            images = images.filter(persons=tagged_person)
+
     # Filtrar por temporada (activa por defecto)
     season_filter, selected_season = resolve_season_filter(request)
     if season_filter:
@@ -505,6 +517,7 @@ def image_gallery(request):
         'show_all': show_all,
         'has_preferences': request.user.has_preferred_categories(request.tenant),
         'view_mode': 'individual',
+        'tagged_person': tagged_person,
     }
 
     return render(request, 'content/image_gallery.html', context)
@@ -1068,13 +1081,91 @@ def image_detail(request, image_id):
         match=image.match,
         status='approved'
     ).exclude(id=image.id)[:6]
-    
+
+    can_tag = can_tag_image(request.user, request.tenant, image)
     context = {
         'image': image,
         'related_images': related_images,
+        'tagged_persons': image.persons.all().order_by('last_name', 'first_name'),
+        'can_tag': can_tag,
+        'taggable_persons': taggable_persons(image.match, request.tenant) if can_tag else [],
+        'selected_person_ids': set(image.persons.values_list('id', flat=True)),
     }
-    
+
     return render(request, 'content/image_detail.html', context)
+
+
+@tenant_access_required()
+@require_POST
+def image_tag(request, image_id):
+    """Guarda las etiquetas de deportistas de una imagen individual."""
+    image = get_tenant_object_or_404(Image.objects, request.tenant, id=image_id)
+
+    if not can_tag_image(request.user, request.tenant, image):
+        raise PermissionDenied
+
+    person_ids = request.POST.getlist('person_ids')
+    # Solo se etiquetan fichas del club: `for_tenant` descarta ids de otro tenant.
+    persons = Person.objects.for_tenant(request.tenant).filter(pk__in=person_ids)
+    apply_image_tags(
+        request.user, request.tenant, [image], persons,
+        replace=request.POST.get('action') != 'add',
+    )
+
+    messages.success(request, _('Etiquetas actualizadas.'))
+    return redirect('content:image_detail', image_id=image.id)
+
+
+@tenant_access_required(staff=True)
+def image_tag_bulk(request):
+    """Etiquetado en lote de las imágenes de un partido o álbum."""
+    match = None
+    images = Image.objects.for_tenant(request.tenant).filter(status='approved').order_by('-upload_date')
+
+    match_id = request.GET.get('match') or request.POST.get('match')
+    album_id = request.GET.get('album') or request.POST.get('album')
+
+    if match_id and match_id.isdigit():
+        match = Match.objects.filter(pk=match_id).first()
+        if match is None:
+            raise Http404(_('Partido no encontrado'))
+        images = images.filter(match=match)
+        title = f'{match.home_team_display} vs {match.away_team_display}'
+    elif album_id:
+        images = images.filter(album_group_id=album_id)
+        title = images.values_list('album_name', flat=True).first() or _('Álbum')
+    else:
+        raise Http404(_('No se indicó álbum ni partido'))
+
+    if request.method == 'POST':
+        image_ids = request.POST.getlist('image_ids')
+        person_ids = request.POST.getlist('person_ids')
+        replace = request.POST.get('action') != 'add'
+        selected = images.filter(pk__in=image_ids)
+        persons = Person.objects.for_tenant(request.tenant).filter(pk__in=person_ids)
+        changed = apply_image_tags(
+            request.user, request.tenant, selected, persons, replace=replace
+        )
+        messages.success(
+            request,
+            _('Etiquetas actualizadas en %(count)s imágenes.') % {'count': changed},
+        )
+        next_url = request.POST.get('next')
+        if next_url:
+            return redirect(next_url)
+        if match is not None:
+            return redirect('content:match_images', match_id=match.id)
+        return redirect('content:album_group_images', album_group_id=album_id)
+
+    context = {
+        'title': title,
+        'match': match,
+        'album_group_id': album_id,
+        'images': images,
+        'taggable_persons': taggable_persons(match, request.tenant),
+        'next': request.get_full_path(),
+    }
+    return render(request, 'content/image_tag_bulk.html', context)
 
 
 @tenant_access_required()
