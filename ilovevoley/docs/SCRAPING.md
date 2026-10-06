@@ -546,7 +546,7 @@ o `manage.py discover_leagues [--season 2026-27]` recorre el menú y, para cada
 `federation_id` desconocido, pide la clasificación. Si juega algún equipo de un
 tenant crea un `LeagueCandidate` pendiente. Un superuser las valida en el admin
 (*Ligas candidatas* → Aprobar / Rechazar). Aprobar crea la `League`; su signal
-añade los 3 endpoints de scraping. No toca `League` hasta que se aprueba.
+añade los 3 endpoints de scraping. No toca `League` hasta que se aprueba. Si una pasada encuentra candidatas nuevas envía un email con enlace a la cola a `TECHNICAL_ALERT_EMAILS` (o `ADMIN_EMAIL_LIST`/superusers si no está definida); el botón *Buscar ligas nuevas ahora* del admin lanza la misma tarea al momento.
 
 **Qué se propone:** solo ligas con un equipo de un tenant. La clasificación solo
 trae nombres, así que se cruza con `Organization.club_team_names` (subcadena,

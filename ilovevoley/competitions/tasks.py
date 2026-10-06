@@ -119,13 +119,14 @@ def discover_leagues_task():
 
     Las competiciones se publican escalonadas durante todo el año (categorías que
     llegan tarde, fases Oro/Plata, copas), así que debe ejecutarse a menudo. Solo
-    avisa a los superusers cuando hay candidatas nuevas, con enlace a la cola.
+    avisa por email cuando hay candidatas nuevas, con enlace a la cola, solo a los
+    destinatarios técnicos (``TECHNICAL_ALERT_EMAILS``) para no saturar a los demás superusers.
     """
     from django.urls import reverse
     from django.utils.translation import gettext as _
 
     from ilovevoley.competitions.services.discovery import discover
-    from ilovevoley.core.email_utils import get_admin_emails, send_notification_email
+    from ilovevoley.core.email_utils import get_technical_alert_emails, send_notification_email
     from ilovevoley.core.models import Season
     from ilovevoley.core.tenant_utils import build_absolute_url
 
@@ -142,6 +143,6 @@ def discover_leagues_task():
                     reverse('admin:competitions_leaguecandidate_changelist') + '?status__exact=pending'
                 ),
             },
-            recipient_list=get_admin_emails(),
+            recipient_list=get_technical_alert_emails(),
         )
     return len(candidates)

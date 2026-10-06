@@ -107,12 +107,13 @@ def test_discover_survives_failed_standings_and_remembers_foreign_leagues():
 
 
 @pytest.mark.django_db
-def test_task_emails_superusers_only_when_there_are_new_candidates():
+def test_task_emails_technical_recipients_only_when_there_are_new_candidates(settings):
     from django.contrib.auth import get_user_model
 
     from ilovevoley.competitions.tasks import discover_leagues_task
 
     get_user_model().objects.create_superuser('root', 'root@example.com', 'x')
+    settings.TECHNICAL_ALERT_EMAILS = ['tech@example.com']
     season = Season.objects.resolve('2026-27')
     candidate = LeagueCandidate.objects.create(federation_id='1', season=season, category_label='ALEVIN MASCULINO 4X4')
     with mock.patch.object(discovery, 'discover', side_effect=[[], [candidate]]), \
@@ -122,7 +123,7 @@ def test_task_emails_superusers_only_when_there_are_new_candidates():
         assert discover_leagues_task() == 1
     kwargs = send.call_args.kwargs
     assert kwargs['subject']()
-    assert kwargs['recipient_list'] == ['root@example.com']
+    assert kwargs['recipient_list'] == ['tech@example.com']  # no a los superusers
     assert kwargs['context']['admin_url'].endswith('/leaguecandidate/?status__exact=pending')
 
 
