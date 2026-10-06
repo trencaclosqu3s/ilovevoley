@@ -16,7 +16,16 @@ urlpatterns = [
     path('imagenes/individual/', views.image_gallery, name='image_gallery_individual'),
     path('imagenes/subir/', views.image_upload, name='image_upload'),
     path('imagenes/subir-multiples/', views.image_bulk_upload, name='image_bulk_upload'),
+    path('imagenes/favoritas/', views.favorite_images, name='favorite_images'),
     path('imagenes/<int:image_id>/', views.image_detail, name='image_detail'),
+    path(
+        'imagenes/<int:image_id>/favorito/',
+        views.toggle_image_favorite,
+        name='toggle_image_favorite',
+    ),
+    path('imagenes/<int:image_id>/etiquetar/', views.image_tag, name='image_tag'),
+    path('imagenes/<int:image_id>/solicitar-retirada/', views.image_removal_request, name='image_removal_request'),
+    path('imagenes/etiquetar/', views.image_tag_bulk, name='image_tag_bulk'),
     path('partidos/<int:match_id>/imagenes/', views.match_images, name='match_images'),
     path(
         'partidos/<int:match_id>/imagenes/zip/',

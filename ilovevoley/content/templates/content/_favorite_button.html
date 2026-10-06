@@ -1,0 +1,24 @@
+{% load i18n %}
+{% comment %}
+Botón de favorito para una foto.
+
+Parámetros:
+- image: instancia de content.Image, con favorite_count/is_favorite anotados (obligatorio).
+- extra_class: clases de posicionamiento (por defecto, flotante arriba-derecha).
+- icon_class: clases del icono (por defecto w-4 h-4).
+- show_count: si es "0", oculta el contador.
+{% endcomment %}
+<button type="button"
+        class="image-favorite-btn {{ extra_class|default:'absolute top-2 right-2 z-10' }} inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-xs font-medium transition hover:bg-black/70 {% if image.is_favorite %}text-red-400{% else %}text-white{% endif %}"
+        data-favorite-url="{% url 'content:toggle_image_favorite' image.id %}"
+        data-favorite-error="{% trans 'No se pudo guardar la favorita' %}"
+        aria-pressed="{% if image.is_favorite %}true{% else %}false{% endif %}"
+        aria-label="{% trans 'Favorita' %}"
+        title="{% trans 'Marcar como favorita' %}">
+    {% if image.is_favorite %}
+        {% icon 'heart' icon_class|default:'w-4 h-4 fill-current' %}
+    {% else %}
+        {% icon 'heart' icon_class|default:'w-4 h-4' %}
+    {% endif %}
+    {% if show_count != '0' %}<span class="image-favorite-count">{{ image.favorite_count|default:0 }}</span>{% endif %}
+</button>

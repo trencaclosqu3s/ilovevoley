@@ -43,6 +43,13 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'send_match_reminders_2h',
         'schedule': timedelta(minutes=10),
     },
+    # Push para animar a subir fotos, 1 h después de registrarse el resultado (#361).
+    # Recoge resultados de entre 1 h y 7 días y se apoya en photo_reminder_sent_at,
+    # así que la cadencia solo marca cuánto tarda el aviso tras cumplirse la hora.
+    'send-match-photo-reminders': {
+        'task': 'send_match_photo_reminders',
+        'schedule': timedelta(minutes=15),
+    },
     # --- Scrapers federativos legacy (antes creados a mano en la BD) -----------
     # Nombres normalizados (slug) para que DatabaseScheduler los reconozca; las
     # filas viejas las borra la migración de datos.
@@ -89,6 +96,14 @@ CELERY_BEAT_SCHEDULE = {
     'scrape-balearic-tracking': {
         'task': 'scrape_balearic_tracking',
         'schedule': crontab(minute=15, hour='*/6'),
+        'options': {'expire_seconds': 3600},
+    },
+    # --- Descubrimiento de ligas (#377) ----------------------------------------
+    # La federación publica competiciones escalonadas todo el año (categorías que
+    # llegan tarde, fases, copas); cada pasada solo consulta lo aún no conocido.
+    'discover-leagues': {
+        'task': 'discover_leagues',
+        'schedule': crontab(minute=45, hour=7),
         'options': {'expire_seconds': 3600},
     },
 }

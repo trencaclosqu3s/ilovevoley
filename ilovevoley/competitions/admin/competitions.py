@@ -1,13 +1,15 @@
 from django.contrib import admin
 from django.contrib.admin import helpers
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
+from unfold.decorators import action
 
 from ilovevoley.content.admin.content import ImageInline
 from ..forms import MatchAdminForm
-from ..models import League, Match, MatchChangeLog, ScrapingEndpoint, Standing, Venue
+from ..models import League, LeagueCandidate, Match, MatchChangeLog, ScrapingEndpoint, Standing, Venue
+from ..services.delta_detector import notify_match_result_after_save
 
 
 
@@ -337,6 +339,12 @@ class MatchAdmin(ModelAdmin):
         """Usar all_objects en el admin para ver todos los partidos, incluyendo withdrawn"""
         return Match.all_objects.get_queryset()
 
+    def save_model(self, request, obj, form, change):
+        """Un resultado puesto desde el admin se notifica igual que el del scraping (#361)."""
+        already_finished = change and Match.all_objects.filter(pk=obj.pk, status='finished').exists()
+        super().save_model(request, obj, form, change)
+        notify_match_result_after_save(obj, already_finished)
+
     fieldsets = (
         ('Configuración de Filtrado', {
             'fields': ('filter_by_category',),
@@ -518,3 +526,41 @@ class MatchChangeLogAdmin(ModelAdmin):
         self.message_user(request, f'{updated} modificación(es) marcada(s) como revisada(s).')
     mark_as_reviewed.short_description = "Marcar modificaciones seleccionadas como revisadas"
 
+
+
+@admin.register(LeagueCandidate)
+class LeagueCandidateAdmin(ModelAdmin):
+    list_display = ('category_label', 'phase_label', 'section', 'category', 'season', 'status', 'federation_id', 'created_at')
+    list_filter = ('status', 'season', 'section')
+    search_fields = ('category_label', 'federation_id')
+    readonly_fields = ('federation_id', 'season', 'section', 'category_label', 'phase_label', 'matched_teams', 'league', 'status')
+    list_select_related = ('category', 'season')
+    autocomplete_fields = ('parent_league',)
+    actions = ['approve', 'reject', 'reopen']
+    actions_list = ['discover_now']
+
+    @admin.action(description='Aprobar y crear liga')
+    def approve(self, request, queryset):
+        leagues = [c.approve() for c in queryset.filter(status='pending')]
+        self.message_user(request, f'{len(leagues)} ligas creadas.')
+
+    @admin.action(description='Rechazar')
+    def reject(self, request, queryset):
+        updated = queryset.filter(status='pending').update(status='rejected')
+        self.message_user(request, f'{updated} candidatas rechazadas.')
+
+    @admin.action(description='Reabrir (volver a pendiente)')
+    def reopen(self, request, queryset):
+        updated = queryset.filter(status='rejected').update(status='pending')
+        self.message_user(request, f'{updated} candidatas reabiertas.')
+
+    def has_discover_now_permission(self, request):
+        return request.user.is_superuser
+
+    @action(description='Buscar ligas nuevas ahora', permissions=['discover_now'])
+    def discover_now(self, request):
+        # En segundo plano: la búsqueda pide ~50 clasificaciones y excede el timeout de una petición
+        from ..tasks import discover_leagues_task
+        discover_leagues_task.delay()
+        self.message_user(request, 'Búsqueda lanzada: las candidatas nuevas aparecerán aquí en un minuto (y llegará el aviso por email).')
+        return redirect('admin:competitions_leaguecandidate_changelist')
