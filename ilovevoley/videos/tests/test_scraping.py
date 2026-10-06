@@ -753,6 +753,42 @@ class ProcessJsonMatchesUnifiedTests(TestCase):
             'https://voleibolib.federatio.com/actas/85846/acta_10932.html',
         )
 
+    def test_persists_federation_comment_and_sponsor_name_only_when_different(self):
+        """Regla de #373: el comentario se persiste (y se vacía si la federación lo retira);
+        ELOCALPAT solo va a sponsor_name si difiere del nombre base."""
+        partido = {
+            'ID': 85850,
+            'ELOCAL': 'CLUB VOLEIBOL EIVISSA',
+            'ELOCALPAT': 'CLUB VOLEIBOL EIVISSA',
+            'EVISITANTE': 'CD MESTRAL IBIZA VOLEY',
+            'EVISITANTEPAT': 'MESTRAL IBIZA - HOTEL SOL',
+            'FECHA': '03/10/2026',
+            'HORA': '12:00',
+            'TORNEO': 8246,
+            'COMENTARIO': 'Aplazado por lluvia',
+        }
+
+        self.scraper._process_json_matches_unified(self.league, [partido], 'Juvenil', '8246', '1')
+        match = Match.objects.get(federation_id='85850')
+        self.assertEqual(match.federation_comment, 'Aplazado por lluvia')
+        self.home_team.refresh_from_db()
+        self.away_team.refresh_from_db()
+        self.assertEqual(self.home_team.sponsor_name, '')
+        self.assertEqual(self.away_team.sponsor_name, 'MESTRAL IBIZA - HOTEL SOL')
+
+        self.scraper._process_json_matches_unified(
+            self.league, [{**partido, 'COMENTARIO': None}], 'Juvenil', '8246', '1'
+        )
+        match.refresh_from_db()
+        self.assertEqual(match.federation_comment, '')
+
+        # La federación retira el patrocinio: PAT vuelve a ser igual al nombre base.
+        self.scraper._process_json_matches_unified(
+            self.league, [{**partido, 'EVISITANTEPAT': 'CD MESTRAL IBIZA VOLEY'}], 'Juvenil', '8246', '1'
+        )
+        self.away_team.refresh_from_db()
+        self.assertEqual(self.away_team.sponsor_name, '')
+
 
 # ---------------------------------------------------------------------------
 # Withdrawn team detection: evaluación una sola vez con la unión del scrape (#235)

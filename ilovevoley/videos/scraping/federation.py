@@ -317,6 +317,9 @@ class FederationScraper:
                         logger.warning(f'No se pudieron encontrar ni crear equipos: {match_data["home_team"]} vs {match_data["away_team"]}')
                         continue
                 
+                self._sync_sponsor_name(home_team, match_data['home_team'], match_data.get('home_sponsor_name', ''))
+                self._sync_sponsor_name(away_team, match_data['away_team'], match_data.get('away_sponsor_name', ''))
+
                 # Buscar partido existente
                 # 1. Prioridad: Buscar por federation_id acotando por liga (incluye withdrawn)
                 fed_id = str(match_data.get('federation_id') or '').strip()
@@ -371,6 +374,7 @@ class FederationScraper:
                     match.timekeeper = match_data.get('timekeeper', '')
                     match.delegate = match_data.get('delegate', '')
                     match.field_address = match_data.get('field_address', '')
+                    match.federation_comment = (match_data.get('comentario') or '')
                     if fed_id:
                         match.federation_id = fed_id
                     match.match_date = match_data['match_date']
@@ -422,6 +426,7 @@ class FederationScraper:
                         field_address=match_data.get('field_address', ''),
                         federation_id=fed_id or None,
                         acta_html=build_acta_url(match_data.get('acta_html', ''), fed_id),
+                        federation_comment=(match_data.get('comentario') or ''),
                         round_number=round_number or 1
                     )
                     matches_created += 1
@@ -1397,6 +1402,12 @@ class FederationScraper:
         if field_address and not match.field_address:
             match.field_address = field_address
             updated = True
+
+        if 'COMENTARIO' in partido_data:
+            comment = (partido_data['COMENTARIO'] or '').strip()
+            if comment != match.federation_comment:
+                match.federation_comment = comment
+                updated = True
         
         # Actualizar IDs de clubes de la federación
         federation_club_local_id = str(partido_data.get('ID_CLUB_LOCAL', ''))
@@ -1454,6 +1465,9 @@ class FederationScraper:
         if not home_team or not away_team:
             logger.debug(f"Teams not found for JSON match: {home_team_name} vs {away_team_name}")
             return False
+
+        self._sync_sponsor_name(home_team, home_team_name, (partido_data.get('ELOCALPAT') or '').strip())
+        self._sync_sponsor_name(away_team, away_team_name, (partido_data.get('EVISITANTEPAT') or '').strip())
         
         # Parsear fecha
         fecha_str = partido_data.get('FECHA', '')
@@ -1521,12 +1535,33 @@ class FederationScraper:
             federation_club_away_id=str(partido_data.get('ID_CLUB_VISITANTE', '')),
             federation_id=json_match_id,
             acta_html=self._build_acta_url(partido_data),
+            federation_comment=(partido_data.get('COMENTARIO') or '').strip(),
             status='scheduled'
         )
         
         logger.info(f"Created new match from JSON: {match}")
         return True
     
+    @staticmethod
+    def _sync_sponsor_name(team: Team, base_name: str, sponsor_name: str) -> None:
+        """Sincroniza ``sponsor_name`` con ELOCALPAT/EVISITANTEPAT.
+
+        PAT vacío = sin información, no se toca. PAT distinto del nombre base = patrocinio
+        vigente. PAT igual al base = la federación retiró el patrocinio: se limpia un
+        valor anterior (``sponsor_name == name`` es el valor por defecto y se respeta).
+        """
+        if not sponsor_name:
+            return
+        if sponsor_name != base_name:
+            new_value = sponsor_name
+        elif team.sponsor_name in ('', team.name, base_name):
+            return
+        else:
+            new_value = ''
+        if team.sponsor_name != new_value:
+            team.sponsor_name = new_value
+            team.save(update_fields=['sponsor_name'])
+
     def _find_team_by_name(self, team_name: str, league: League) -> Optional[Team]:
         """Busca un equipo por nombre en la liga específica"""
         # Obtener las categorías de la liga
