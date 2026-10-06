@@ -366,11 +366,13 @@ class ImageTagPushTests(TestCase):
             self.org.id, self.person.id, [self.image.id], actor_id=self.unrelated.id,
         )
         self.assertEqual(result, 2)
-        calls = {tuple(call.kwargs['user_ids']): call.kwargs for call in mock_push.call_args_list}
-        self.assertIn((self.player.id,), calls)
-        self.assertEqual(calls[(self.player.id,)]['title'], 'Te han etiquetado en una foto')
-        self.assertEqual(calls[(self.player.id,)]['notification_type'], 'image_tag')
-        parent_kwargs = calls[(self.parent1.id, self.parent2.id)]
+        # La audiencia de padres se construye con un set: el orden no es estable.
+        calls = {frozenset(call.kwargs['user_ids']): call.kwargs for call in mock_push.call_args_list}
+        self.assertIn(frozenset({self.player.id}), calls)
+        player_kwargs = calls[frozenset({self.player.id})]
+        self.assertEqual(player_kwargs['title'], 'Te han etiquetado en una foto')
+        self.assertEqual(player_kwargs['notification_type'], 'image_tag')
+        parent_kwargs = calls[frozenset({self.parent1.id, self.parent2.id})]
         self.assertEqual(parent_kwargs['title'], 'Han etiquetado a Lluc Puig')
         self.assertEqual(
             parent_kwargs['url'], reverse('content:image_detail', args=[self.image.id]),

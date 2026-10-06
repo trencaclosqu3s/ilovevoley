@@ -61,6 +61,22 @@
         </div>
     </div>
 
+    <!-- Orden -->
+    {% if total_images %}
+        <div class="flex justify-end mb-3 sm:mb-4">
+            <div class="inline-flex rounded-full bg-tint p-1 text-xs sm:text-sm">
+                <a href="?sort=recent"
+                   class="px-3 py-1 rounded-full font-medium transition {% if sort != 'liked' %}bg-csj-purple-dark text-white{% else %}text-muted{% endif %}">
+                    {% trans "Recientes" %}
+                </a>
+                <a href="?sort=liked"
+                   class="px-3 py-1 rounded-full font-medium transition {% if sort == 'liked' %}bg-csj-purple-dark text-white{% else %}text-muted{% endif %}">
+                    {% trans "Más gustadas" %}
+                </a>
+            </div>
+        </div>
+    {% endif %}
+
     <!-- Grid de imágenes -->
     {% if page_obj %}
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -68,6 +84,7 @@
                 <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
                     <div class="aspect-square relative">
                         {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw" lightbox=True %}
+                        {% include 'content/_favorite_button.html' with image=image %}
                     </div>
                     <div class="p-2 sm:p-3">
                         <h3 class="font-semibold text-ink mb-1 truncate text-xs sm:text-sm">{{ image.title }}</h3>
@@ -89,7 +106,7 @@
                 <nav class="flex items-center space-x-1 sm:space-x-2 flex-wrap justify-center">
                     <!-- Botón anterior -->
                     {% if page_obj.has_previous %}
-                        <a href="?page={{ page_obj.previous_page_number }}" 
+                        <a href="?page={{ page_obj.previous_page_number }}&sort={{ sort }}" 
                            class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-brand-text bg-surface border border-line rounded-full hover:bg-tint transition-colors">
                             {% trans "← Anterior" %}
                         </a>
@@ -117,7 +134,7 @@
 
                     <!-- Botón siguiente -->
                     {% if page_obj.has_next %}
-                        <a href="?page={{ page_obj.next_page_number }}" 
+                        <a href="?page={{ page_obj.next_page_number }}&sort={{ sort }}" 
                            class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-brand-text bg-surface border border-line rounded-full hover:bg-tint transition-colors">
                             {% trans "Siguiente →" %}
                         </a>

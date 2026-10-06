@@ -116,7 +116,8 @@
                     <div id="result-card-actions"
                          class="flex flex-col gap-2 mt-2"
                          data-card-url="{% url 'competitions:match_result_card' match.id %}"
-                         data-card-style="completa">
+                         data-card-style="completa"
+                         {% if default_card_photo_id %}data-photo-id="{{ default_card_photo_id }}"{% endif %}>
                         {% if images %}
                             <div class="inline-flex self-start rounded-full bg-tint p-1 text-sm">
                                 <button type="button"
@@ -539,6 +540,31 @@
         </div>
     {% endif %}
 
+    <!-- Top del partido: fotos con más favoritos -->
+    {% if top_images %}
+    <div class="bg-surface rounded-3xl border border-line relative mb-6">
+        <div class="bg-tint rounded-t-lg px-4 sm:px-6 py-3 sm:py-4 border-b border-line">
+            <h2 class="text-lg sm:text-xl font-bold text-ink">
+                {% icon 'trophy' %} {% trans "Top del partido" %}
+            </h2>
+        </div>
+        <div class="p-4 sm:p-6">
+            <div class="grid grid-cols-3 gap-3 sm:gap-4">
+                {% for image in top_images %}
+                    <div class="relative">
+                        <div class="aspect-square relative rounded-lg overflow-hidden">
+                            {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 640px) 22vw, 33vw" lightbox=True %}
+                            <span class="absolute top-2 left-2 z-10 inline-flex items-center justify-center w-6 h-6 rounded-full bg-csj-purple-dark text-white text-xs font-bold">{{ forloop.counter }}</span>
+                            {% include 'content/_favorite_button.html' with image=image %}
+                        </div>
+                        <p class="mt-2 text-xs sm:text-sm text-ink font-medium truncate">{{ image.title }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Imágenes del partido -->
     <div class="bg-surface rounded-3xl border border-line relative">
         <div class="bg-tint rounded-t-lg px-4 sm:px-6 py-3 sm:py-4 border-b border-line">
@@ -563,6 +589,7 @@
                             <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-200 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-expand text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"></i>
                             </div>
+                            {% include 'content/_favorite_button.html' with image=image %}
                         </div>
                     {% endfor %}
                 </div>
@@ -1022,6 +1049,9 @@ function closeImageLightbox() {
             if (event.target === photoModal) closeModal();
         });
     }
+
+    // Sugerencia por defecto: la foto más gustada, sin pisar la elección manual.
+    if (root.dataset.photoId) selectPhoto(root.dataset.photoId);
 })();
 
 // Variables globales para el modal de resultado

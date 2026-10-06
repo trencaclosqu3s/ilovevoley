@@ -28,6 +28,7 @@ from ilovevoley.competitions.result_card import (
     _file_field_bytes,
     render_result_card,
 )
+from ilovevoley.content.favorites import annotate_favorites, match_top_images
 from ilovevoley.content.models import Image
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category, Season
@@ -322,11 +323,18 @@ def match_detail(request, match_id):
         # Obtener videos del partido filtrados por tenant
         videos = match.videos.select_related('created_by', 'category').filter(organization=request.tenant)
         # Obtener imágenes aprobadas del partido filtradas por tenant
-        images = match.images.filter(status='approved', organization=request.tenant).select_related('uploaded_by').all()
+        images = annotate_favorites(
+            match.images.filter(
+                status='approved', organization=request.tenant
+            ).select_related('uploaded_by'),
+            request.user,
+        )
+        top_images = match_top_images(match, request.tenant, user=request.user, limit=3)
         can_manage = user_is_tenant_manager(request.user, request.tenant)
     else:
         videos = match.videos.none()
         images = match.images.none()
+        top_images = []
         can_manage = False
 
     # Enlaces de compartición (solo relevantes para managers)
@@ -344,6 +352,8 @@ def match_detail(request, match_id):
         'match': match,
         'videos': videos,
         'images': images,
+        'top_images': top_images,
+        'default_card_photo_id': top_images[0].id if top_images else None,
         'today': timezone.now().date(),
         'is_own_match': is_own_match,
         'can_manage_videos': can_manage,

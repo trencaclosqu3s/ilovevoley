@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Mis fotos favoritas" %}{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-full">
+    <div class="bg-surface rounded-[20px] border border-line p-3 sm:p-4 lg:p-6 max-w-full relative z-20">
+        <div class="border-b border-line pb-3 sm:pb-4 lg:pb-6 mb-3 sm:mb-4 lg:mb-6">
+            <div class="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-between sm:items-start">
+                <div class="flex-1 min-w-0">
+                    <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-ink mb-2">
+                        {% icon 'heart' %} {% trans "Mis fotos favoritas" %}
+                    </h1>
+                    <p class="text-xs sm:text-sm text-muted">
+                        {% blocktrans count counter=total_images %}{{ counter }} foto marcada como favorita{% plural %}{{ counter }} fotos marcadas como favoritas{% endblocktrans %}
+                    </p>
+                </div>
+                <a href="{% url 'content:image_gallery' %}"
+                   class="inline-flex items-center px-3 py-2 bg-tint text-ink rounded-full hover:opacity-80 transition-colors duration-200 text-sm self-start">
+                    {% icon 'camera' %} {% trans "Volver a la galería" %}
+                </a>
+            </div>
+        </div>
+
+        {% if page_obj %}
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                {% for image in page_obj %}
+                    <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
+                        <div class="aspect-square relative">
+                            {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw" lightbox=True %}
+                            {% include 'content/_favorite_button.html' with image=image %}
+                        </div>
+                        <div class="p-2 sm:p-3">
+                            <h3 class="font-semibold text-ink mb-1 truncate text-xs sm:text-sm">
+                                <a href="{% url 'content:image_detail' image.id %}" class="hover:text-brand-text">{{ image.title }}</a>
+                            </h3>
+                            {% if image.match %}
+                                <a href="{% url 'content:match_images' image.match.id %}" class="text-xs text-brand-text hover:opacity-80 truncate block">
+                                    {{ image.match.home_team_display }} vs {{ image.match.away_team_display }}
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if page_obj.has_other_pages %}
+                <div class="mt-6 sm:mt-8 flex justify-center">
+                    <nav class="flex items-center space-x-2">
+                        {% if page_obj.has_previous %}
+                            <a href="?page={{ page_obj.previous_page_number }}"
+                               class="px-3 py-2 bg-surface border border-line rounded-full text-sm font-medium text-ink hover:bg-tint">
+                                {% trans "Anterior" %}
+                            </a>
+                        {% endif %}
+                        <span class="px-3 py-2 text-sm font-medium text-ink">
+                            {% blocktrans with number=page_obj.number total_pages=page_obj.paginator.num_pages %}Página {{ number }} de {{ total_pages }}{% endblocktrans %}
+                        </span>
+                        {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}"
+                               class="px-3 py-2 bg-surface border border-line rounded-full text-sm font-medium text-ink hover:bg-tint">
+                                {% trans "Siguiente" %}
+                            </a>
+                        {% endif %}
+                    </nav>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-8 sm:py-12">
+                {% icon 'heart' 'text-muted text-4xl sm:text-6xl mb-4' %}
+                <h3 class="text-base sm:text-lg font-medium text-ink mb-2">{% trans "Todavía no tienes fotos favoritas" %}</h3>
+                <p class="text-sm sm:text-base text-muted mb-4">{% trans "Marca el corazón de las fotos que más te gusten para tenerlas aquí." %}</p>
+                <a href="{% url 'content:image_gallery' %}"
+                   class="bg-csj-purple-dark text-white px-3 py-1.5 rounded-full hover:opacity-90 transition-colors duration-200 text-sm">
+                    {% icon 'camera' %} {% trans "Ir a la galería" %}
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

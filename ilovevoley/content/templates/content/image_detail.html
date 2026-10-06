@@ -41,6 +41,8 @@
             <!-- Información básica -->
             <div class="bg-surface rounded-[20px] border border-line p-6">
                 <h1 class="text-2xl font-bold text-ink mb-4">{{ image.title }}</h1>
+
+                {% include 'content/_favorite_button.html' with image=image extra_class='static mb-4' icon_class='w-5 h-5' %}
                 
                 {% if image.description %}
                     <div class="mb-4">
