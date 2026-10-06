@@ -121,7 +121,7 @@ def _parse_observations(soup):
     """Texto libre del bloque ``Observaciones:`` del acta (vacío si no existe)."""
     for td in soup.find_all('td'):
         text = _normalize_ws(td.get_text(' ', strip=True))
-        match = re.match(r'^Observaciones:\s*(.*)$', text, re.DOTALL)
+        match = re.match(r'^Observaciones:\s*(.*)$', text)
         if match:
             return match.group(1).strip()
     return ''
