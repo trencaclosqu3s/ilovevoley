@@ -42,7 +42,7 @@ from .forms import (
     VideoEntryFormSet,
     VideoForm,
 )
-from .models import Comment, Image, Video
+from .models import Comment, Image, ImageRemovalRequest, Video
 from .services import queue_match_media_push
 from .thumbnails import schedule_thumbnail_generation
 
@@ -1091,6 +1091,15 @@ def image_detail(request, image_id):
     ).exclude(id=image.id)[:6]
 
     can_tag = can_tag_image(request.user, request.tenant, image)
+
+    # Retirada: puede pedirla el deportista etiquetado o su familia (#362).
+    my_tagged_persons = image.persons.filter(
+        Q(user=request.user) | Q(parents=request.user)
+    )
+    pending_removal = ImageRemovalRequest.objects.filter(
+        image=image, status='pending'
+    ).first()
+
     context = {
         'image': image,
         'related_images': related_images,
@@ -1098,9 +1107,42 @@ def image_detail(request, image_id):
         'can_tag': can_tag,
         'taggable_persons': taggable_persons(image.match, request.tenant) if can_tag else [],
         'selected_person_ids': set(image.persons.values_list('id', flat=True)),
+        'is_family': my_tagged_persons.exists(),
+        'can_request_removal': my_tagged_persons.exists() and pending_removal is None,
+        'pending_removal': pending_removal,
     }
 
     return render(request, 'content/image_detail.html', context)
+
+
+@tenant_access_required()
+@require_POST
+def image_removal_request(request, image_id):
+    """Registra la petición de retirada de una foto por un deportista o su familia."""
+    image = get_tenant_object_or_404(
+        Image.objects, request.tenant, id=image_id, status='approved'
+    )
+
+    person = image.persons.filter(
+        Q(user=request.user) | Q(parents=request.user)
+    ).first()
+    if person is None:
+        raise PermissionDenied
+
+    if ImageRemovalRequest.objects.filter(image=image, status='pending').exists():
+        messages.info(request, _('Ya hay una solicitud de retirada pendiente para esta foto.'))
+        return redirect('content:image_detail', image_id=image.id)
+
+    ImageRemovalRequest.objects.create(
+        organization=request.tenant,
+        image=image,
+        image_title=image.title,
+        person=person,
+        requested_by=request.user,
+        reason=request.POST.get('reason', '').strip()[:500],
+    )
+    messages.success(request, _('Solicitud enviada. Un administrador la revisará.'))
+    return redirect('content:image_detail', image_id=image.id)
 
 
 @tenant_access_required()

@@ -95,6 +95,21 @@ def moderate_image(actor, tenant, image, decision, notes='', validate_permission
     return image
 
 
+def delete_image_with_files(image):
+    """Elimina una imagen y sus ficheros (original y miniaturas) de forma definitiva."""
+    for field_name in (
+        'image',
+        'thumbnail_small',
+        'thumbnail_large',
+        'thumbnail_small_avif',
+        'thumbnail_large_avif',
+    ):
+        field = getattr(image, field_name, None)
+        if field:
+            field.delete(save=False)
+    image.delete()
+
+
 def taggable_persons(match, tenant):
     """Fichas activas del club ofrecidas para etiquetar deportistas.
 
