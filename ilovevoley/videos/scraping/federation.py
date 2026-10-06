@@ -1336,10 +1336,11 @@ class FederationScraper:
             match.field_address = field_address
             updated = True
 
-        comment = (partido_data.get('COMENTARIO') or '').strip()
-        if comment != match.federation_comment:
-            match.federation_comment = comment
-            updated = True
+        if 'COMENTARIO' in partido_data:
+            comment = (partido_data['COMENTARIO'] or '').strip()
+            if comment != match.federation_comment:
+                match.federation_comment = comment
+                updated = True
         
         # Actualizar IDs de clubes de la federación
         federation_club_local_id = str(partido_data.get('ID_CLUB_LOCAL', ''))
