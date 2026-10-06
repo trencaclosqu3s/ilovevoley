@@ -8,6 +8,17 @@
 {% endblock %}
 
 {% block content %}
+{% if tagged_person %}
+<div class="bg-surface rounded-3xl border border-line p-4 mb-4 sm:mb-6 flex items-center justify-between gap-4">
+    <div>
+        <p class="text-xs uppercase tracking-wide text-muted">{% trans "Fotos de" %}</p>
+        <h2 class="text-xl font-bold text-ink">{{ tagged_person.full_name }}</h2>
+    </div>
+    <a href="{% url 'content:image_gallery_individual' %}" class="text-sm text-brand-text hover:text-purple-700 whitespace-nowrap">
+        <i class="fas fa-times mr-1"></i>{% trans "Quitar filtro" %}
+    </a>
+</div>
+{% endif %}
 <div class="bg-surface rounded-3xl border border-line p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6 relative z-30">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div class="flex-1 min-w-0 w-full sm:w-auto">

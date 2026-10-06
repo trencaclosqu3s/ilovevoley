@@ -23,6 +23,9 @@ urlpatterns = [
         views.toggle_image_favorite,
         name='toggle_image_favorite',
     ),
+    path('imagenes/<int:image_id>/etiquetar/', views.image_tag, name='image_tag'),
+    path('imagenes/<int:image_id>/solicitar-retirada/', views.image_removal_request, name='image_removal_request'),
+    path('imagenes/etiquetar/', views.image_tag_bulk, name='image_tag_bulk'),
     path('partidos/<int:match_id>/imagenes/', views.match_images, name='match_images'),
     path(
         'partidos/<int:match_id>/imagenes/zip/',

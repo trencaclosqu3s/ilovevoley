@@ -75,6 +75,13 @@
                     </div>
                 </div>
                 
+                {% if is_tenant_manager %}
+                    <a href="{% url 'content:image_tag_bulk' %}?match={{ match.id }}"
+                       class="inline-flex items-center px-2.5 py-1 bg-tint text-ink rounded-full hover:opacity-80 transition-colors duration-200 text-xs">
+                        <i class="fas fa-user-tag mr-1"></i>{% trans "Etiquetar deportistas" %}
+                    </a>
+                {% endif %}
+
                 <div class="text-xs text-muted">
                     {% blocktrans count counter=total_images %}{{ counter }} imagen total{% plural %}{{ counter }} imágenes totales{% endblocktrans %}
                 </div>

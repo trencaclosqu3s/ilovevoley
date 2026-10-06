@@ -21,7 +21,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
-from ilovevoley.content.models import Image
+from ilovevoley.content.models import Image, ImageRemovalRequest
 from ilovevoley.core.context_processors import DEFAULT_BRAND
 from ilovevoley.core.forms import SeasonWizardForm
 from ilovevoley.core.models import Organization, Season
@@ -451,9 +451,25 @@ def moderation_counts_api(request):
     else:
         pending_callups_count = 0
 
+    # Solicitudes de retirada de fotos (solo relevante para quien modera imágenes)
+    if can_mod_images:
+        if tenant:
+            pending_removals_count = ImageRemovalRequest.objects.filter(
+                organization=tenant, status='pending'
+            ).count()
+        elif request.user.is_superuser:
+            pending_removals_count = ImageRemovalRequest.objects.filter(status='pending').count()
+        else:
+            pending_removals_count = 0
+    else:
+        pending_removals_count = 0
+
     # Total de elementos pendientes
     pending_reactivations_count = _reactivation_requests_qs(request).count()
-    total_pending = pending_users_count + pending_images_count + pending_callups_count + pending_reactivations_count
+    total_pending = (
+        pending_users_count + pending_images_count + pending_callups_count
+        + pending_reactivations_count + pending_removals_count
+    )
 
     return JsonResponse({
         'success': True,
@@ -461,6 +477,7 @@ def moderation_counts_api(request):
         'pending_images': pending_images_count,
         'pending_callups': pending_callups_count,
         'pending_reactivations': pending_reactivations_count,
+        'pending_removals': pending_removals_count,
         'total_pending': total_pending
     })
 
@@ -521,15 +538,31 @@ def moderation_panel(request):
     else:
         pending_callups = CallUpPlayer.objects.none()
 
+    if can_mod_images:
+        if tenant:
+            pending_removals = ImageRemovalRequest.objects.filter(
+                organization=tenant, status='pending'
+            ).select_related('image', 'person', 'requested_by').order_by('created_at')
+        elif is_superuser:
+            pending_removals = ImageRemovalRequest.objects.filter(
+                status='pending'
+            ).select_related('image', 'person', 'requested_by', 'organization').order_by('created_at')
+        else:
+            pending_removals = ImageRemovalRequest.objects.none()
+    else:
+        pending_removals = ImageRemovalRequest.objects.none()
+
     reactivation_users = _reactivation_requests_qs(request)
     context = {
         'pending_users': pending_users,
         'pending_images': pending_images,
         'pending_callups': pending_callups,
+        'pending_removals': pending_removals,
         'reactivation_users': reactivation_users,
         'pending_users_count': pending_users.count(),
         'pending_images_count': pending_images.count(),
         'pending_callups_count': pending_callups.count(),
+        'pending_removals_count': pending_removals.count(),
         'pending_reactivations_count': reactivation_users.count(),
         'can_moderate_images': can_mod_images,
     }
@@ -634,6 +667,45 @@ def reject_user_api(request, user_id):
             'success': False,
             'error': _('Error interno del servidor')
         }, status=500)
+
+
+@login_required
+@require_POST
+def resolve_image_removal(request, request_id):
+    """Resuelve una solicitud de retirada de foto: elimina la imagen o la descarta."""
+    tenant = getattr(request, 'tenant', None)
+    if not can_moderate_images(request.user, tenant):
+        raise PermissionDenied
+
+    removal = ImageRemovalRequest.objects.filter(id=request_id, status='pending').first()
+    if removal is None:
+        messages.error(request, _('La solicitud ya no está pendiente.'))
+        return redirect('core:moderation_panel')
+
+    if tenant is not None and removal.organization_id != tenant.id and not request.user.is_superuser:
+        raise PermissionDenied
+
+    action = request.POST.get('action')
+    removal.resolved_at = timezone.now()
+    removal.resolved_by = request.user
+
+    if action == 'remove':
+        if removal.image is not None:
+            from ilovevoley.content.services import delete_image_with_files
+
+            delete_image_with_files(removal.image)
+            removal.image = None
+        removal.status = 'removed'
+        messages.success(request, _('Foto eliminada.'))
+    elif action == 'dismiss':
+        removal.status = 'dismissed'
+        messages.success(request, _('Solicitud descartada.'))
+    else:
+        messages.error(request, _('Acción no válida.'))
+        return redirect('core:moderation_panel')
+
+    removal.save(update_fields=['status', 'resolved_at', 'resolved_by'])
+    return redirect('core:moderation_panel')
 
 
 def _get_reactivation_user(request, user_id):

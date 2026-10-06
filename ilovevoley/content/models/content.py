@@ -279,6 +279,14 @@ class Image(models.Model):
         db_table='videos_image_categories',
         help_text=_('Categorías asociadas a la imagen. Se asigna automáticamente desde el partido o manualmente')
     )
+    persons = models.ManyToManyField(
+        'rosters.Person',
+        blank=True,
+        related_name='tagged_images',
+        db_table='videos_image_persons',
+        verbose_name=_('Deportistas etiquetados'),
+        help_text=_('Personas que aparecen en la imagen'),
+    )
     season = models.ForeignKey(
         'core.Season',
         on_delete=models.PROTECT,
@@ -534,3 +542,86 @@ class ImageFavorite(models.Model):
 
     def __str__(self):
         return f'{self.user} ♥ {self.image_id}'
+
+
+class ImageRemovalRequest(models.Model):
+    """Petición de un deportista o su familia para retirar una foto etiquetada.
+
+    La resuelve un administrador desde el panel de moderación, eliminando la
+    imagen o descartando la petición. Se conserva el registro aunque la imagen
+    se borre, para dejar rastro de la solicitud.
+    """
+
+    STATUS = [
+        ('pending', _('Pendiente')),
+        ('removed', _('Foto eliminada')),
+        ('dismissed', _('Descartada')),
+    ]
+
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.PROTECT,
+        related_name='image_removal_requests',
+        verbose_name=_('Organización'),
+    )
+    image = models.ForeignKey(
+        Image,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='removal_requests',
+        verbose_name=_('Imagen'),
+    )
+    image_title = models.CharField(max_length=200, verbose_name=_('Título de la imagen'))
+    person = models.ForeignKey(
+        'rosters.Person',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='image_removal_requests',
+        verbose_name=_('Deportista'),
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='image_removal_requests',
+        verbose_name=_('Solicitada por'),
+    )
+    reason = models.TextField(
+        max_length=500,
+        blank=True,
+        verbose_name=_('Motivo'),
+        help_text=_('Motivo opcional de la solicitud'),
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS, default='pending', verbose_name=_('Estado'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Creada'))
+    resolved_at = models.DateTimeField(null=True, blank=True, verbose_name=_('Resuelta'))
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='resolved_image_removal_requests',
+        verbose_name=_('Resuelta por'),
+    )
+
+    class Meta:
+        db_table = 'videos_image_removal_request'
+        ordering = ['-created_at']
+        verbose_name = _('Solicitud de retirada de imagen')
+        verbose_name_plural = _('Solicitudes de retirada de imágenes')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['image'],
+                condition=models.Q(status='pending'),
+                name='unique_pending_image_removal',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['organization', 'status', '-created_at'], name='img_rm_org_status_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.image_title} ({self.get_status_display()})'

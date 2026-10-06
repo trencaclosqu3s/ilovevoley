@@ -217,6 +217,7 @@ class NotificationType(models.TextChoices):
     MATCH_CHANGE = 'match_change', _('Cambios de horario o pista')
     MATCH_REMINDER = 'match_reminder', _('Recordatorios previos al partido')
     MATCH_MEDIA = 'match_media', _('Fotos y vídeos de partidos')
+    IMAGE_TAG = 'image_tag', _('Avisos de etiquetado en fotos')
 
 
 class NotificationPreference(models.Model):
