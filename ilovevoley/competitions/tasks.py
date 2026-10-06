@@ -118,9 +118,30 @@ def discover_leagues_task():
     """Busca en el menú federativo ligas nuevas de la temporada activa (#377).
 
     Las competiciones se publican escalonadas durante todo el año (categorías que
-    llegan tarde, fases Oro/Plata, copas), así que debe ejecutarse a menudo.
+    llegan tarde, fases Oro/Plata, copas), así que debe ejecutarse a menudo. Solo
+    avisa a los superusers cuando hay candidatas nuevas, con enlace a la cola.
     """
-    from ilovevoley.competitions.services.discovery import discover
-    from ilovevoley.core.models import Season
+    from django.urls import reverse
+    from django.utils.translation import gettext as _
 
-    return len(discover(Season.objects.current()))  # sin temporada, discover no hace nada
+    from ilovevoley.competitions.services.discovery import discover
+    from ilovevoley.core.email_utils import get_admin_emails, send_notification_email
+    from ilovevoley.core.models import Season
+    from ilovevoley.core.tenant_utils import build_absolute_url
+
+    candidates = discover(Season.objects.current())  # sin temporada, discover no hace nada
+    if candidates:
+        send_notification_email(
+            subject=lambda: _('%(count)s nuevas ligas pendientes de validar') % {'count': len(candidates)},
+            template_name='emails/league_candidates_pending.html',
+            context={
+                'candidates': candidates,
+                'count': len(candidates),
+                'site_name': 'I Love Voley',
+                'admin_url': build_absolute_url(
+                    reverse('admin:competitions_leaguecandidate_changelist') + '?status__exact=pending'
+                ),
+            },
+            recipient_list=get_admin_emails(),
+        )
+    return len(candidates)

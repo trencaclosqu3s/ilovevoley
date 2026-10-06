@@ -104,3 +104,22 @@ def test_discover_survives_failed_standings_and_remembers_foreign_leagues():
     # Con equipos pero ninguno nuestro: no se vuelve a pedir; caída o vacía: se reintenta
     assert dict(LeagueCandidate.objects.values_list('federation_id', 'status')) == {'8095': 'rejected'}
     assert discovery.discover(None) == []
+
+
+@pytest.mark.django_db
+def test_task_emails_superusers_only_when_there_are_new_candidates():
+    from django.contrib.auth import get_user_model
+
+    from ilovevoley.competitions.tasks import discover_leagues_task
+
+    get_user_model().objects.create_superuser('root', 'root@example.com', 'x')
+    season = Season.objects.resolve('2026-27')
+    candidate = LeagueCandidate.objects.create(federation_id='1', season=season, category_label='ALEVIN MASCULINO 4X4')
+    with mock.patch.object(discovery, 'discover', side_effect=[[], [candidate]]), \
+            mock.patch('ilovevoley.core.email_utils.send_notification_email') as send:
+        assert discover_leagues_task() == 0
+        send.assert_not_called()
+        assert discover_leagues_task() == 1
+    kwargs = send.call_args.kwargs
+    assert kwargs['recipient_list'] == ['root@example.com']
+    assert kwargs['context']['admin_url'].endswith('/leaguecandidate/?status__exact=pending')
