@@ -1,7 +1,8 @@
+import re
 import uuid
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -587,6 +588,60 @@ class Match(models.Model):
             if update_fields is not None and 'acta_html' not in update_fields:
                 kwargs['update_fields'] = list(update_fields) + ['acta_html']
         super().save(*args, **kwargs)
+
+
+class LeagueCandidate(models.Model):
+    """Liga detectada en el menú federativo, pendiente de que un superuser la valide."""
+    STATUS_CHOICES = [
+        ('pending', _('Pendiente')),
+        ('approved', _('Aprobada')),
+        ('rejected', _('Rechazada')),
+    ]
+
+    federation_id = models.CharField(max_length=200, unique=True)
+    season = models.ForeignKey('core.Season', on_delete=models.PROTECT, related_name='league_candidates')
+    section = models.CharField(max_length=200, blank=True)
+    category_label = models.CharField(max_length=200, blank=True)
+    phase_label = models.CharField(max_length=200, blank=True)
+    category = models.ForeignKey(
+        'core.Category', on_delete=models.SET_NULL, null=True, blank=True,
+        help_text=_('Detectada del menú; vacía si es ambigua (asignar al aprobar)'),
+    )
+    parent_league = models.ForeignKey(
+        League, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        help_text=_('Si es una fase de otra liga (Oro/Plata, copas). Sugerida por categoría; la federación no es consistente'),
+    )
+    matched_teams = models.JSONField(default=dict, help_text=_('{slug del tenant: [equipos que juegan]}'))
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True)
+    league = models.OneToOneField(League, on_delete=models.SET_NULL, null=True, blank=True, related_name='candidate')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = _('Liga candidata')
+        verbose_name_plural = _('Ligas candidatas')
+
+    def __str__(self):
+        return f'{self.category_label} · {self.phase_label} ({self.federation_id})'
+
+    def approve(self):
+        """Crea la liga (la signal ``post_save`` añade los 3 endpoints) y la enlaza."""
+        if self.status != 'pending':
+            return self.league
+        with transaction.atomic():
+            name = ' '.join(filter(None, [self.category_label.title(), self.phase_label]))
+            is_cup = re.search(r'copa|campeonato|torneo', f'{self.section} {self.phase_label}', re.I)
+            league = League.objects.create(
+                name=name, federation_id=self.federation_id, season=self.season,
+                competition_type='cup' if is_cup else 'regular',
+                parent_league=self.parent_league, phase_name=self.phase_label if self.parent_league_id else '',
+                phase_order=1 if self.parent_league_id else 0,
+            )
+            if self.category_id:
+                league.categories.add(self.category_id)
+            self.league, self.status = league, 'approved'
+            self.save(update_fields=['league', 'status'])
+        return league
 
 
 class ScrapingEndpoint(models.Model):

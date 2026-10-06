@@ -7,7 +7,7 @@ from unfold.admin import ModelAdmin, TabularInline
 
 from ilovevoley.content.admin.content import ImageInline
 from ..forms import MatchAdminForm
-from ..models import League, Match, MatchChangeLog, ScrapingEndpoint, Standing, Venue
+from ..models import League, LeagueCandidate, Match, MatchChangeLog, ScrapingEndpoint, Standing, Venue
 
 
 
@@ -518,3 +518,23 @@ class MatchChangeLogAdmin(ModelAdmin):
         self.message_user(request, f'{updated} modificación(es) marcada(s) como revisada(s).')
     mark_as_reviewed.short_description = "Marcar modificaciones seleccionadas como revisadas"
 
+
+
+@admin.register(LeagueCandidate)
+class LeagueCandidateAdmin(ModelAdmin):
+    list_display = ('category_label', 'phase_label', 'section', 'category', 'season', 'status', 'federation_id', 'created_at')
+    list_filter = ('status', 'season', 'section')
+    search_fields = ('category_label', 'federation_id')
+    readonly_fields = ('federation_id', 'season', 'section', 'category_label', 'phase_label', 'matched_teams', 'league')
+    autocomplete_fields = ('parent_league',)
+    actions = ['approve', 'reject']
+
+    @admin.action(description='Aprobar y crear liga')
+    def approve(self, request, queryset):
+        leagues = [c.approve() for c in queryset.filter(status='pending')]
+        self.message_user(request, f'{len(leagues)} ligas creadas.')
+
+    @admin.action(description='Rechazar')
+    def reject(self, request, queryset):
+        updated = queryset.filter(status='pending').update(status='rejected')
+        self.message_user(request, f'{updated} candidatas rechazadas.')

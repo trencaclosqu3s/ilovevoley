@@ -111,3 +111,16 @@ def scrape_balearic_tracking_task(
         force=force,
         no_notify=no_notify,
     )
+
+
+@shared_task(name='discover_leagues')
+def discover_leagues_task():
+    """Busca en el menú federativo ligas nuevas de la temporada activa (#377).
+
+    Las competiciones se publican escalonadas durante todo el año (categorías que
+    llegan tarde, fases Oro/Plata, copas), así que debe ejecutarse a menudo.
+    """
+    from ilovevoley.competitions.services.discovery import discover
+    from ilovevoley.core.models import Season
+
+    return len(discover(Season.objects.current()))
