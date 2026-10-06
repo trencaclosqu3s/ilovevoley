@@ -782,6 +782,13 @@ class ProcessJsonMatchesUnifiedTests(TestCase):
         match.refresh_from_db()
         self.assertEqual(match.federation_comment, '')
 
+        # La federación retira el patrocinio: PAT vuelve a ser igual al nombre base.
+        self.scraper._process_json_matches_unified(
+            self.league, [{**partido, 'EVISITANTEPAT': 'CD MESTRAL IBIZA VOLEY'}], 'Juvenil', '8246', '1'
+        )
+        self.away_team.refresh_from_db()
+        self.assertEqual(self.away_team.sponsor_name, '')
+
 
 # ---------------------------------------------------------------------------
 # Withdrawn team detection: evaluación una sola vez con la unión del scrape (#235)
