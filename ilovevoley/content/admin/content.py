@@ -9,7 +9,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin, TabularInline
 
-from ..models import Video, Image
+from ..models import Video, Image, ImageFavorite
 from ilovevoley.competitions.models import Match
 
 
@@ -312,3 +312,12 @@ class ImageAdmin(ModelAdmin):
                 obj.moderation_date = timezone.now()
 
         super().save_model(request, obj, form, change)
+
+
+@admin.register(ImageFavorite)
+class ImageFavoriteAdmin(ModelAdmin):
+    list_display = ('image', 'user', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('image__title', 'user__username', 'user__email')
+    autocomplete_fields = ('image', 'user')
+    date_hierarchy = 'created_at'
