@@ -535,7 +535,7 @@ def notify_match_photo_reminder(match: Match) -> bool:
     """Envía un push para animar a subir fotos de un partido ya finalizado (#361).
 
     - Idempotente: reclama `photo_reminder_sent_at` antes de enviar.
-    - No avisa si el partido ya tiene `PHOTO_REMINDER_MIN_IMAGES` fotos o más
+    - No avisa si el partido ya tiene `PHOTO_REMINDER_MIN_IMAGES` fotos o más (sin contar las rechazadas)
       (en ese caso se marca igualmente para no volver a evaluarlo).
     - Respeta categorías y el tipo 'match_photos'; abre la subida con el partido preseleccionado.
     """
@@ -548,7 +548,7 @@ def notify_match_photo_reminder(match: Match) -> bool:
         if not updated:
             return False
 
-        if match.images.count() >= PHOTO_REMINDER_MIN_IMAGES:
+        if match.images.exclude(status='rejected').count() >= PHOTO_REMINDER_MIN_IMAGES:
             return False
 
         club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}

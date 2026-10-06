@@ -59,15 +59,17 @@ def send_match_photo_reminders_task():
     """Push para animar a subir fotos, 1 h después de registrarse el resultado (#361).
 
     Ancla: `result_notified_at` (lo fija `notify_match_result` al llegar el marcador,
-    por scraping o a mano en amistosos). Ventana de 30 min: la tarea debe correr
-    al menos cada 30 min. Un resultado editado solo en el admin no dispara el aviso.
+    por scraping o a mano en amistosos). Se recogen los resultados de más de 1 h y
+    menos de 7 días, así un retraso de Celery no pierde avisos; el flag
+    `photo_reminder_sent_at` evita repetirlos. Un resultado editado solo en el
+    admin no dispara el aviso.
     """
     now = timezone.now()
     matches = (
         Match.objects.filter(
             status='finished',
-            result_notified_at__gte=now - timedelta(minutes=90),
-            result_notified_at__lte=now - timedelta(minutes=60),
+            result_notified_at__gte=now - timedelta(days=7),
+            result_notified_at__lte=now - timedelta(hours=1),
             photo_reminder_sent_at__isnull=True,
         )
         .select_related('home_team', 'away_team', 'league')

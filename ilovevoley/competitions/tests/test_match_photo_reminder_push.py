@@ -58,6 +58,11 @@ class MatchPhotoReminderPushTest(TestCase):
         self.assertEqual(self.run_task(), 0)
         mock_push.assert_not_called()
 
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_catches_up_after_task_delay(self, mock_push):
+        Match.objects.filter(pk=self.match.pk).update(result_notified_at=timezone.now() - timedelta(hours=5))
+        self.assertEqual(self.run_task(), 1)
+
     @patch('ilovevoley.competitions.services.notifications.PHOTO_REMINDER_MIN_IMAGES', 1)
     @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
     def test_skips_match_with_enough_photos(self, mock_push):
@@ -67,3 +72,12 @@ class MatchPhotoReminderPushTest(TestCase):
         )])
         self.assertEqual(self.run_task(), 0)
         mock_push.assert_not_called()
+
+    @patch('ilovevoley.competitions.services.notifications.PHOTO_REMINDER_MIN_IMAGES', 1)
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_rejected_photos_do_not_count(self, mock_push):
+        Image.objects.bulk_create([Image(
+            image='x.jpg', title='x', uploaded_by=self.user, organization=self.org,
+            season=self.season, status='rejected', match=self.match,
+        )])
+        self.assertEqual(self.run_task(), 1)
