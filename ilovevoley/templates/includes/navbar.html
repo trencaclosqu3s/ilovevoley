@@ -275,7 +275,7 @@
         </div>
         
         <!-- Menú móvil (oculto por defecto) -->
-        <div id="mobile-menu" class="md:hidden hidden border-t border-line py-3">
+        <div id="mobile-menu" class="md:hidden hidden border-t border-line pt-3 pb-[calc(env(safe-area-inset-bottom)+5rem)] overflow-y-auto overscroll-contain max-h-[calc(100dvh-4rem)]">
             {% if user.is_authenticated %}
                 <div class="px-4 py-3 border-b border-line">
                     <p class="text-sm font-medium text-ink mb-1">{% blocktrans with name=user.username %}Hola, {{ name }}{% endblocktrans %}</p>

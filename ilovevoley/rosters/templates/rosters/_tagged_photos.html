@@ -1,0 +1,34 @@
+{% load i18n %}
+{% comment %}
+Galería "Fotos de X" con las imágenes en las que aparece la persona.
+
+Parámetros:
+- person: ficha mostrada
+- tagged_images: últimas imágenes etiquetadas (lista)
+- tagged_images_count: total de imágenes etiquetadas
+{% endcomment %}
+{% if tagged_images_count %}
+<div class="bg-surface rounded-[20px] border border-line p-6 mb-6">
+    <div class="flex justify-between items-center mb-4">
+        <div class="border-l-4 border-csj-purple pl-4">
+            <h2 class="text-xl font-bold text-ink">{% trans "Fotos" %}</h2>
+            <p class="text-sm text-muted">{% trans "Imágenes donde aparece" %} {{ person.full_name }}</p>
+        </div>
+        <a href="{% url 'content:image_gallery_individual' %}?person={{ person.id }}&season=&show_all=1"
+           class="text-sm text-brand-text hover:text-purple-700 whitespace-nowrap">
+            {% trans "Ver todas" %} <i class="fas fa-arrow-right ml-1"></i>
+        </a>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {% for image in tagged_images %}
+            <a href="{% url 'content:image_detail' image.id %}"
+               class="block bg-tint rounded-xl border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
+                <div class="aspect-square">
+                    {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover" sizes="(min-width: 640px) 25vw, 50vw" %}
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

@@ -9,6 +9,7 @@ from unfold.decorators import action
 from ilovevoley.content.admin.content import ImageInline
 from ..forms import MatchAdminForm
 from ..models import League, LeagueCandidate, Match, MatchChangeLog, ScrapingEndpoint, Standing, Venue
+from ..services.delta_detector import notify_match_result_after_save
 
 
 
@@ -337,6 +338,12 @@ class MatchAdmin(ModelAdmin):
     def get_queryset(self, request):
         """Usar all_objects en el admin para ver todos los partidos, incluyendo withdrawn"""
         return Match.all_objects.get_queryset()
+
+    def save_model(self, request, obj, form, change):
+        """Un resultado puesto desde el admin se notifica igual que el del scraping (#361)."""
+        already_finished = change and Match.all_objects.filter(pk=obj.pk, status='finished').exists()
+        super().save_model(request, obj, form, change)
+        notify_match_result_after_save(obj, already_finished)
 
     fieldsets = (
         ('Configuración de Filtrado', {

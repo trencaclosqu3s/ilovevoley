@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 @shared_task(name='notify_web_push_organization')
 def notify_web_push_organization_task(
     organization_id, title, body, url=None, badge_count=None, category_ids=None, notification_type=None,
-    translations=None, match_id=None,
+    translations=None, match_id=None, user_ids=None,
 ):
     """Broadcast a push notification to the devices of an organization.
 
@@ -31,6 +31,8 @@ def notify_web_push_organization_task(
     ``translations`` (``{lang: {'title', 'body'}}``) permite enviar a cada dispositivo el texto en
     el idioma de su usuario; sin traducción para ese idioma, o con dispositivo anónimo, se usan
     ``title`` y ``body``.
+    Con ``user_ids`` el aviso se limita a los dispositivos de esos usuarios (p. ej. el etiquetado
+    en fotos, que solo interesa al deportista y a su familia).
     """
     # Un dispositivo queda ligado a una sola organización (endpoint único), así que un
     # usuario miembro de varios clubes solo recibiría los del club donde se suscribió.
@@ -38,6 +40,8 @@ def notify_web_push_organization_task(
         Q(organization_id=organization_id)
         | Q(user__memberships__organization_id=organization_id, user__memberships__is_approved=True)
     ).distinct()
+    if user_ids is not None:
+        subs = subs.filter(user_id__in=list(user_ids))
     prefs = CategoryPreference.objects.filter(organization_id=organization_id)
     by_category = Q()
     if category_ids:
