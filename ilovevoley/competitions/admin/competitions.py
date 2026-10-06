@@ -528,7 +528,7 @@ class LeagueCandidateAdmin(ModelAdmin):
     readonly_fields = ('federation_id', 'season', 'section', 'category_label', 'phase_label', 'matched_teams', 'league', 'status')
     list_select_related = ('category', 'season')
     autocomplete_fields = ('parent_league',)
-    actions = ['approve', 'reject']
+    actions = ['approve', 'reject', 'reopen']
 
     @admin.action(description='Aprobar y crear liga')
     def approve(self, request, queryset):
@@ -539,3 +539,8 @@ class LeagueCandidateAdmin(ModelAdmin):
     def reject(self, request, queryset):
         updated = queryset.filter(status='pending').update(status='rejected')
         self.message_user(request, f'{updated} candidatas rechazadas.')
+
+    @admin.action(description='Reabrir (volver a pendiente)')
+    def reopen(self, request, queryset):
+        updated = queryset.filter(status='rejected').update(status='pending')
+        self.message_user(request, f'{updated} candidatas reabiertas.')

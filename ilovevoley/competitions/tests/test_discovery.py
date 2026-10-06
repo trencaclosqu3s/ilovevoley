@@ -90,7 +90,7 @@ def test_discover_suggests_parent_by_category_across_sections():
 @pytest.mark.django_db
 def test_discover_survives_failed_standings_and_remembers_foreign_leagues():
     season = Season.objects.resolve('2026-27')
-    Organization.objects.create(slug='sj', name='SJ', club_team_names={'a': 'SANT JOSEP', 'blank': ' '})
+    Organization.objects.create(slug='sj', name='SJ', club_team_names={'a': 'SANT JOSEP', 'blank': ' ', 'none': None})
     menu = MENU + '<p class="fase"><a href="clasificaciones?id=9000&desp=1">Liga Regular </a>'
 
     def teams(federation_id, session):

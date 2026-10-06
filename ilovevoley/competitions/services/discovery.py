@@ -96,7 +96,7 @@ def matching_tenants(team_names, organizations):
     result = {}
     for organization in organizations:
         # Sin fallback de settings: un tenant sin nombres no debe casar con equipos ajenos
-        club_names = [norm for n in (organization.club_team_names or {}).values() if (norm := _normalize(n))]
+        club_names = [norm for n in (organization.club_team_names or {}).values() if n and (norm := _normalize(n))]
         teams = [name for name, norm in normalized if any(club in norm for club in club_names)]
         if teams:
             result[organization] = teams
@@ -113,44 +113,47 @@ def discover(season):
     sin equipos coincidentes, para no pedirla cada día; si un tenant cambia sus
     ``club_team_names`` hay que reabrirla a mano.
     """
+    if season is None:
+        return []
+
     from ..models import League, LeagueCandidate
 
     known = set(League.objects.values_list('federation_id', flat=True))
     known |= set(LeagueCandidate.objects.values_list('federation_id', flat=True))
     organizations = list(Organization.objects.filter(is_active=True))
 
-    if season is None:
-        return []
-
     created = []
-    session = requests.Session()
-    for row in parse_menu(fetch_menu(calculate_federation_temp(season), session)):
-        if row['federation_id'] in known:
-            continue
-        try:
-            team_names = fetch_team_names(row['federation_id'], session)
-        except requests.RequestException:
-            logger.warning('No se pudo leer la clasificación federativa %s', row['federation_id'])
-            continue
-        if not team_names:
-            continue
-        tenants = matching_tenants(team_names, organizations)
-        if not tenants:
-            LeagueCandidate.objects.create(season=season, status='rejected', **row)
+    with requests.Session() as session:
+        for row in parse_menu(fetch_menu(calculate_federation_temp(season), session)):
+            if row['federation_id'] in known:
+                continue
+            try:
+                team_names = fetch_team_names(row['federation_id'], session)
+            except requests.RequestException:
+                logger.warning('No se pudo leer la clasificación federativa %s', row['federation_id'])
+                continue
+            if not team_names:
+                continue
+            tenants = matching_tenants(team_names, organizations)
+            if not tenants:
+                LeagueCandidate.objects.create(season=season, status='rejected', **row)
+                known.add(row['federation_id'])
+                continue
+            # La federación a veces crea otra sección con la misma categoría y a veces
+            # cuelga la fase de la liga existente: solo se sugiere, decide el superuser
+            parent = (
+                League.objects.filter(
+                    candidate__season=season, candidate__category_label__iexact=row['category_label'],
+                    parent_league__isnull=True,
+                ).order_by('created_at').first()
+                if row['category_label'] else None
+            )
+            candidate = LeagueCandidate.objects.create(
+                season=season, parent_league=parent,
+                category=detect_category(row['category_label']),
+                matched_teams={org.slug: teams for org, teams in tenants.items()},
+                **row,
+            )
+            created.append(candidate)
             known.add(row['federation_id'])
-            continue
-        # La federación a veces crea otra sección con la misma categoría y a veces
-        # cuelga la fase de la liga existente: solo se sugiere, decide el superuser
-        parent = row['category_label'] and League.objects.filter(
-            candidate__season=season, candidate__category_label__iexact=row['category_label'],
-            parent_league__isnull=True,
-        ).order_by('created_at').first() or None
-        candidate = LeagueCandidate.objects.create(
-            season=season, parent_league=parent,
-            category=detect_category(row['category_label']),
-            matched_teams={org.slug: teams for org, teams in tenants.items()},
-            **row,
-        )
-        created.append(candidate)
-        known.add(row['federation_id'])
     return created
