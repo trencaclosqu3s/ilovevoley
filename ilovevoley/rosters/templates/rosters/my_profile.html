@@ -17,6 +17,14 @@
         {% endif %}
     </div>
 
+    <a href="{% url 'content:favorite_images' %}"
+       class="bg-surface rounded-3xl border border-line p-4 mb-6 flex items-center gap-3 hover:border-accent transition">
+        {% icon 'heart' 'w-6 h-6 text-red-400' %}
+        <span class="font-semibold text-ink">{% trans "Mis fotos favoritas" %}</span>
+    </a>
+
+    {% include 'rosters/_tagged_photos.html' with person=person tagged_images=tagged_images tagged_images_count=tagged_images_count %}
+
     {% for entry in seasons %}
         <section class="bg-surface rounded-[20px] border border-line p-5 mb-4">
             <h2 class="text-lg font-bold text-ink mb-3">{% blocktrans with season=entry.season %}Temporada {{ season }}{% endblocktrans %}</h2>

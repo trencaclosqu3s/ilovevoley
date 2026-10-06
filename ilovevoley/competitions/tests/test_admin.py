@@ -1,8 +1,10 @@
+from unittest.mock import patch
+
 from django.contrib import admin as django_admin
 from django.test import TestCase
 from django.utils import timezone
 
-from ilovevoley.competitions.admin.competitions import LeagueAdmin
+from ilovevoley.competitions.admin.competitions import LeagueAdmin, MatchAdmin
 from ilovevoley.competitions.models import League, Match
 from ilovevoley.core.models import Organization
 from ilovevoley.teams.models import Club, Team
@@ -82,3 +84,30 @@ class MatchChangeLogAdminTest(TestCase):
         self.assertEqual(self.log1.reviewed_by, self.user)
         self.assertIsNotNone(self.log1.reviewed_at)
 
+
+
+class MatchAdminResultNotificationTest(TestCase):
+    """#361: el resultado puesto desde el admin fija result_notified_at (ancla del push de fotos)."""
+
+    def setUp(self):
+        self.admin = MatchAdmin(Match, django_admin.site)
+        self.match = Match.objects.create(
+            home_team=Team.objects.create(name='A', federation_id='t-a'),
+            away_team=Team.objects.create(name='B', federation_id='t-b'),
+            match_date=timezone.now(),
+            is_friendly=True,
+        )
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_saving_finished_result_sets_anchor_once(self, _push):
+        self.match.status, self.match.home_score, self.match.away_score = 'finished', 3, 0
+        self.admin.save_model(None, self.match, None, change=True)
+        self.match.refresh_from_db()
+        first = self.match.result_notified_at
+        self.assertIsNotNone(first)
+
+        # Reeditar un partido ya finalizado no reinicia el ancla
+        self.match.referee1 = 'Árbitro'
+        self.admin.save_model(None, self.match, None, change=True)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.result_notified_at, first)

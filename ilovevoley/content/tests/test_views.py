@@ -15,7 +15,7 @@ def _count_script(content, needle):
 from ilovevoley.core.models import Organization, Season
 from ilovevoley.content import forms as content_forms
 from ilovevoley.content import views as content_views
-from ilovevoley.content.models import Image, Video
+from ilovevoley.content.models import Image, ImageFavorite, Video
 from ilovevoley.videos.forms import content as videos_forms_content
 from ilovevoley.videos.views import content as videos_views_content
 from ilovevoley.videos.views import moderation as videos_views_moderation
@@ -566,3 +566,86 @@ class CoerceSetNumberTest(TestCase):
     def test_valid_values_become_int(self):
         self.assertEqual(content_views._coerce_set_number('1'), 1)
         self.assertEqual(content_views._coerce_set_number('5'), 5)
+
+
+@override_settings(ALLOWED_HOSTS=['cluba.ilovevoley.es', 'clubb.ilovevoley.es', 'localhost'])
+class ImageFavoriteToggleTests(TestCase):
+    """Toggle de favoritas: por usuario, solo fotos aprobadas y del propio tenant."""
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org_a = Organization.objects.create(slug='cluba', name='Club A', is_active=True)
+        self.org_b = Organization.objects.create(slug='clubb', name='Club B', is_active=True)
+        User = get_user_model()
+        self.user_a = User.objects.create_user(username='member_a', password='pass')
+        Membership.objects.create(user=self.user_a, organization=self.org_a, is_approved=True)
+        self.user_a2 = User.objects.create_user(username='member_a2', password='pass')
+        Membership.objects.create(user=self.user_a2, organization=self.org_a, is_approved=True)
+
+        self.image_a = self._image(self.org_a, 'A')
+        self.image_pending = self._image(self.org_a, 'P', status='pending')
+        self.image_b = self._image(self.org_b, 'B')
+
+    def _image(self, org, title, status='approved'):
+        return Image.objects.create(
+            image=SimpleUploadedFile(f'{title}.jpg', TINY_GIF, content_type='image/jpeg'),
+            title=title,
+            uploaded_by=self.user_a,
+            organization=org,
+            status=status,
+        )
+
+    def test_toggle_crea_y_elimina_la_favorita(self):
+        self.client.force_login(self.user_a)
+        url = reverse('content:toggle_image_favorite', args=[self.image_a.id])
+
+        first = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json(), {'success': True, 'favorited': True, 'count': 1})
+        self.assertEqual(self.image_a.favorites.count(), 1)
+
+        second = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(second.json()['favorited'], False)
+        self.assertEqual(second.json()['count'], 0)
+        self.assertEqual(self.image_a.favorites.count(), 0)
+
+    def test_contador_suma_favoritas_de_varios_usuarios(self):
+        url = reverse('content:toggle_image_favorite', args=[self.image_a.id])
+        self.client.force_login(self.user_a)
+        self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.client.force_login(self.user_a2)
+        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.json()['count'], 2)
+
+    def test_rechaza_foto_pendiente(self):
+        self.client.force_login(self.user_a)
+        url = reverse('content:toggle_image_favorite', args=[self.image_pending.id])
+        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(self.image_pending.favorites.exists())
+
+    def test_rechaza_foto_de_otro_tenant(self):
+        self.client.force_login(self.user_a)
+        url = reverse('content:toggle_image_favorite', args=[self.image_b.id])
+        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(self.image_b.favorites.exists())
+
+    def test_anonimo_redirige_a_login(self):
+        url = reverse('content:toggle_image_favorite', args=[self.image_a.id])
+        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
+        self.assertEqual(response.status_code, 302)
+
+    def test_pagina_favoritas_solo_muestra_aprobadas_del_tenant(self):
+        ImageFavorite.objects.create(user=self.user_a, image=self.image_a)
+        ImageFavorite.objects.create(user=self.user_a, image=self.image_pending)
+        ImageFavorite.objects.create(user=self.user_a, image=self.image_b)
+
+        self.client.force_login(self.user_a)
+        response = self.client.get(
+            reverse('content:favorite_images'), HTTP_HOST='cluba.ilovevoley.es'
+        )
+        self.assertEqual(response.status_code, 200)
+        ids = [img.id for img in response.context['page_obj'].object_list]
+        self.assertEqual(ids, [self.image_a.id])
