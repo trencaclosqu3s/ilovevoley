@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count, F, Max, Q, Window
 from django.db.models.functions import RowNumber
@@ -14,6 +14,7 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
@@ -25,12 +26,14 @@ from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import (
     can_moderate_images,
+    can_tag_image,
     tenant_access_required,
     user_is_tenant_manager,
 )
+from ilovevoley.rosters.models import Person
 from ilovevoley.teams.models import Team
 from ilovevoley.core.email_utils import enqueue_on_commit
-from .services import moderate_image
+from .services import apply_image_tags, moderate_image, taggable_persons
 from .forms import (
     CommentForm,
     ImageFilterForm,
@@ -40,7 +43,7 @@ from .forms import (
     VideoEntryFormSet,
     VideoForm,
 )
-from .models import Comment, Image, Video
+from .models import Comment, Image, ImageRemovalRequest, Video
 from .services import queue_match_media_push
 from .thumbnails import schedule_thumbnail_generation
 
@@ -433,12 +436,16 @@ def image_gallery(request):
         category = filter_form.cleaned_data.get('category')
         status_filter = filter_form.cleaned_data.get('status')
         
-        # Búsqueda general en título, descripción y etiquetas
+        # Búsqueda general en título, descripción, etiquetas y deportistas etiquetados
         if search:
+            matched_persons = Person.objects.filter(
+                Q(first_name__icontains=search) | Q(last_name__icontains=search)
+            ).values('pk')
             images = images.filter(
                 Q(title__icontains=search) | 
                 Q(description__icontains=search) |
-                Q(tags__icontains=search)
+                Q(tags__icontains=search) |
+                Q(persons__in=matched_persons)
             )
         
         # Búsqueda específica por etiquetas (incluye auto_tags)
@@ -478,6 +485,16 @@ def image_gallery(request):
             user_categories = request.user.preferred_categories_for(request.tenant)
             images = images.filter(categories__in=user_categories).distinct()
 
+    # Galería "Fotos de X": filtra por deportista etiquetado, acotado al club.
+    tagged_person = None
+    person_param = request.GET.get('person')
+    if person_param and person_param.isdigit():
+        tagged_person = Person.objects.for_tenant(request.tenant).filter(
+            pk=person_param
+        ).first()
+        if tagged_person is not None:
+            images = images.filter(persons=tagged_person)
+
     # Filtrar por temporada (activa por defecto)
     season_filter, selected_season = resolve_season_filter(request)
     if season_filter:
@@ -505,6 +522,7 @@ def image_gallery(request):
         'show_all': show_all,
         'has_preferences': request.user.has_preferred_categories(request.tenant),
         'view_mode': 'individual',
+        'tagged_person': tagged_person,
     }
 
     return render(request, 'content/image_gallery.html', context)
@@ -535,12 +553,16 @@ def image_gallery_albums(request):
         category = filter_form.cleaned_data.get('category')
         status_filter = filter_form.cleaned_data.get('status')
         
-        # Búsqueda general en título, descripción y etiquetas
+        # Búsqueda general en título, descripción, etiquetas y deportistas etiquetados
         if search:
+            matched_persons = Person.objects.filter(
+                Q(first_name__icontains=search) | Q(last_name__icontains=search)
+            ).values('pk')
             images = images.filter(
                 Q(title__icontains=search) | 
                 Q(description__icontains=search) |
-                Q(tags__icontains=search)
+                Q(tags__icontains=search) |
+                Q(persons__in=matched_persons)
             )
         
         # Búsqueda específica por etiquetas (incluye auto_tags)
@@ -1068,13 +1090,138 @@ def image_detail(request, image_id):
         match=image.match,
         status='approved'
     ).exclude(id=image.id)[:6]
-    
+
+    can_tag = can_tag_image(request.user, request.tenant, image)
+
+    # Retirada: puede pedirla el deportista etiquetado o su familia (#362).
+    my_tagged_persons = image.persons.filter(
+        Q(user=request.user) | Q(parents=request.user)
+    )
+    pending_removal = ImageRemovalRequest.objects.filter(
+        image=image, status='pending'
+    ).first()
+
     context = {
         'image': image,
         'related_images': related_images,
+        'tagged_persons': image.persons.all().order_by('last_name', 'first_name'),
+        'can_tag': can_tag,
+        'taggable_persons': taggable_persons(image.match, request.tenant) if can_tag else [],
+        'selected_person_ids': set(image.persons.values_list('id', flat=True)),
+        'is_family': my_tagged_persons.exists(),
+        'can_request_removal': my_tagged_persons.exists() and pending_removal is None,
+        'pending_removal': pending_removal,
     }
-    
+
     return render(request, 'content/image_detail.html', context)
+
+
+@tenant_access_required()
+@require_POST
+def image_removal_request(request, image_id):
+    """Registra la petición de retirada de una foto por un deportista o su familia."""
+    image = get_tenant_object_or_404(
+        Image.objects, request.tenant, id=image_id, status='approved'
+    )
+
+    person = image.persons.filter(
+        Q(user=request.user) | Q(parents=request.user)
+    ).first()
+    if person is None:
+        raise PermissionDenied
+
+    if ImageRemovalRequest.objects.filter(image=image, status='pending').exists():
+        messages.info(request, _('Ya hay una solicitud de retirada pendiente para esta foto.'))
+        return redirect('content:image_detail', image_id=image.id)
+
+    ImageRemovalRequest.objects.create(
+        organization=request.tenant,
+        image=image,
+        image_title=image.title,
+        person=person,
+        requested_by=request.user,
+        reason=request.POST.get('reason', '').strip()[:500],
+    )
+    messages.success(request, _('Solicitud enviada. Un administrador la revisará.'))
+    return redirect('content:image_detail', image_id=image.id)
+
+
+@tenant_access_required()
+@require_POST
+def image_tag(request, image_id):
+    """Guarda las etiquetas de deportistas de una imagen individual."""
+    image = get_tenant_object_or_404(Image.objects, request.tenant, id=image_id)
+
+    if not can_tag_image(request.user, request.tenant, image):
+        raise PermissionDenied
+
+    person_ids = request.POST.getlist('person_ids')
+    # Solo se etiquetan fichas del club: `for_tenant` descarta ids de otro tenant.
+    persons = Person.objects.for_tenant(request.tenant).filter(pk__in=person_ids)
+    apply_image_tags(
+        request.user, request.tenant, [image], persons,
+        replace=request.POST.get('action') != 'add',
+    )
+
+    messages.success(request, _('Etiquetas actualizadas.'))
+    return redirect('content:image_detail', image_id=image.id)
+
+
+@tenant_access_required(staff=True)
+def image_tag_bulk(request):
+    """Etiquetado en lote de las imágenes de un partido o álbum."""
+    match = None
+    images = Image.objects.for_tenant(request.tenant).filter(status='approved').order_by('-upload_date')
+
+    match_id = request.GET.get('match') or request.POST.get('match')
+    album_id = request.GET.get('album') or request.POST.get('album')
+
+    if match_id and match_id.isdigit():
+        # Acotado al club: un partido de otro tenant devuelve 404, no revela datos.
+        match = get_tenant_object_or_404(
+            Match.objects, request.tenant, user=request.user, id=match_id
+        )
+        images = images.filter(match=match)
+        title = f'{match.home_team_display} vs {match.away_team_display}'
+    elif album_id:
+        images = images.filter(album_group_id=album_id)
+        title = images.values_list('album_name', flat=True).first() or _('Álbum')
+    else:
+        raise Http404(_('No se indicó álbum ni partido'))
+
+    if request.method == 'POST':
+        image_ids = request.POST.getlist('image_ids')
+        person_ids = request.POST.getlist('person_ids')
+        replace = request.POST.get('action') != 'add'
+        selected = images.filter(pk__in=image_ids)
+        persons = Person.objects.for_tenant(request.tenant).filter(pk__in=person_ids)
+        changed = apply_image_tags(
+            request.user, request.tenant, selected, persons, replace=replace
+        )
+        messages.success(
+            request,
+            _('Etiquetas actualizadas en %(count)s imágenes.') % {'count': changed},
+        )
+        next_url = request.POST.get('next')
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
+            return redirect(next_url)
+        if match is not None:
+            return redirect('content:match_images', match_id=match.id)
+        return redirect('content:album_group_images', album_group_id=album_id)
+
+    page_obj = Paginator(images, 24).get_page(request.GET.get('page'))
+    context = {
+        'title': title,
+        'match': match,
+        'album_group_id': album_id,
+        'page_obj': page_obj,
+        'total_images': page_obj.paginator.count,
+        'taggable_persons': taggable_persons(match, request.tenant),
+        'next': request.get_full_path(),
+    }
+    return render(request, 'content/image_tag_bulk.html', context)
 
 
 @tenant_access_required()

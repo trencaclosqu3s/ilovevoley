@@ -160,6 +160,18 @@ def can_moderate_images(user, tenant=None):
     return user_is_tenant_manager(user, tenant) or user_is_tenant_staff(user, tenant)
 
 
+def can_tag_image(user, tenant, image=None):
+    """Determina si un usuario puede etiquetar deportistas en una imagen.
+
+    Puede quien subió la foto o quien modera imágenes (manager/admin del club).
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if image is not None and image.uploaded_by_id == user.id:
+        return True
+    return can_moderate_images(user, tenant)
+
+
 def approve_user_membership(user, tenant=None):
     """Aprueba al usuario globalmente y su membresía en el tenant indicado (o todas las pendientes)."""
     from ilovevoley.users.models import Membership

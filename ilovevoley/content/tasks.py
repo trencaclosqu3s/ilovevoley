@@ -286,3 +286,83 @@ def notify_match_media_push_task(organization_id, match_id):
     )
     return True
 
+
+@shared_task(name='notify_image_tagged_push')
+def notify_image_tagged_push_task(organization_id, person_id, image_ids, actor_id=None):
+    """Avisa al deportista y a su familia de que se le ha etiquetado en fotos.
+
+    Solo reciben el aviso el usuario vinculado a la ficha y quienes la tienen
+    como hijo/a; se respeta la preferencia ``image_tag`` por club y se excluye a
+    quien realizó el etiquetado. Devuelve cuántos avisos (jugador/familia) se
+    encolaron.
+    """
+    from django.contrib.auth import get_user_model
+    from django.urls import reverse
+
+    from ilovevoley.content.services import tagging_push_audience
+    from ilovevoley.rosters.models import Person
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+
+    image_ids = [int(i) for i in (image_ids or [])]
+    if not image_ids:
+        return False
+
+    person = Person.objects.select_related('user').filter(pk=person_id).first()
+    if person is None:
+        return False
+
+    actor = get_user_model().objects.filter(pk=actor_id).first() if actor_id else None
+    player_id, parent_ids = tagging_push_audience(person, actor)
+    if player_id is None and not parent_ids:
+        return False
+
+    if len(image_ids) == 1:
+        url = reverse('content:image_detail', args=[image_ids[0]])
+    else:
+        url = reverse('content:image_gallery_individual') + f'?person={person.id}&season=&show_all=1'
+
+    name = person.full_name
+    count = len(image_ids)
+    sent = 0
+
+    if player_id is not None:
+        def build_player():
+            if count == 1:
+                return _('Te han etiquetado en una foto'), _('Han publicado una foto en la que apareces.')
+            return (
+                _('Te han etiquetado en fotos nuevas'),
+                _('Apareces en %(count)s fotos nuevas.') % {'count': count},
+            )
+
+        notify_web_push_organization_task.delay(
+            organization_id=organization_id,
+            user_ids=[player_id],
+            **push_message(build_player),
+            url=url,
+            notification_type='image_tag',
+        )
+        sent += 1
+
+    if parent_ids:
+        def build_parents():
+            if count == 1:
+                return (
+                    _('Han etiquetado a %(name)s') % {'name': name},
+                    _('Hay una foto nueva donde aparece.'),
+                )
+            return (
+                _('Han etiquetado a %(name)s') % {'name': name},
+                _('Hay %(count)s fotos nuevas donde aparece.') % {'count': count},
+            )
+
+        notify_web_push_organization_task.delay(
+            organization_id=organization_id,
+            user_ids=list(parent_ids),
+            **push_message(build_parents),
+            url=url,
+            notification_type='image_tag',
+        )
+        sent += 1
+
+    return sent
+
