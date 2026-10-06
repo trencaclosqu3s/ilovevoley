@@ -7,6 +7,7 @@ solo trae nombres de equipo (sin ids), así que se cruza con ``club_team_names``
 igual que el resto de filtros por tenant (nunca difuso, ver #380).
 """
 import html
+import logging
 import re
 import unicodedata
 
@@ -20,6 +21,8 @@ BASE_URL = 'https://www.voleibolib.net'
 MENU_URL = BASE_URL + '/JSON/get_Menu_Competiciones.asp?temp={temp}'
 STANDINGS_URL = BASE_URL + '/JSON/get_clasificacion.asp?id={federation_id}'
 TIMEOUT = 20
+
+logger = logging.getLogger(__name__)
 
 _MENU_TOKEN = re.compile(
     r'<a data-toggle="collapse"[^>]*?href="#\d+"[^>]*?(?P<is_category>class="category")?>\s*(?P<label>.*?)\s*(?:<i class|</a>)'
@@ -54,6 +57,7 @@ def parse_menu(menu_html):
             category = html.unescape(match['label']).strip()
         else:
             section = html.unescape(match['label']).strip()
+            category = ''
     return rows
 
 
@@ -74,14 +78,14 @@ def detect_category(category_label):
     )
 
 
-def fetch_menu(temp):
-    response = requests.get(MENU_URL.format(temp=temp), headers=DEFAULT_HEADERS, timeout=TIMEOUT)
+def fetch_menu(temp, session=requests):
+    response = session.get(MENU_URL.format(temp=temp), headers=DEFAULT_HEADERS, timeout=TIMEOUT)
     response.raise_for_status()
     return response.text
 
 
-def fetch_team_names(federation_id):
-    response = requests.get(STANDINGS_URL.format(federation_id=federation_id), headers=DEFAULT_HEADERS, timeout=TIMEOUT)
+def fetch_team_names(federation_id, session=requests):
+    response = session.get(STANDINGS_URL.format(federation_id=federation_id), headers=DEFAULT_HEADERS, timeout=TIMEOUT)
     response.raise_for_status()
     return [html.unescape(name).strip() for name in _TEAM_CELL.findall(response.text)]
 
@@ -92,7 +96,7 @@ def matching_tenants(team_names, organizations):
     result = {}
     for organization in organizations:
         # Sin fallback de settings: un tenant sin nombres no debe casar con equipos ajenos
-        club_names = [_normalize(n) for n in (organization.club_team_names or {}).values() if n]
+        club_names = [norm for n in (organization.club_team_names or {}).values() if (norm := _normalize(n))]
         teams = [name for name, norm in normalized if any(club in norm for club in club_names)]
         if teams:
             result[organization] = teams
@@ -103,8 +107,11 @@ def discover(season):
     """Crea ``LeagueCandidate`` pendientes para las ligas nuevas con equipos de un tenant.
 
     Devuelve las candidatas creadas. Las ya conocidas (liga o candidata, también
-    rechazadas) no se vuelven a pedir. Las clasificaciones vacías se reintentan en
-    la siguiente ejecución: al inicio de temporada aún no hay equipos.
+    rechazadas) no se vuelven a pedir. Las clasificaciones vacías o caídas se
+    reintentan en la siguiente ejecución (al inicio aún no hay equipos). Una
+    clasificación con equipos pero ninguno de un tenant se guarda como rechazada,
+    sin equipos coincidentes, para no pedirla cada día; si un tenant cambia sus
+    ``club_team_names`` hay que reabrirla a mano.
     """
     from ..models import League, LeagueCandidate
 
@@ -112,19 +119,32 @@ def discover(season):
     known |= set(LeagueCandidate.objects.values_list('federation_id', flat=True))
     organizations = list(Organization.objects.filter(is_active=True))
 
+    if season is None:
+        return []
+
     created = []
-    for row in parse_menu(fetch_menu(calculate_federation_temp(season))):
+    session = requests.Session()
+    for row in parse_menu(fetch_menu(calculate_federation_temp(season), session)):
         if row['federation_id'] in known:
             continue
-        tenants = matching_tenants(fetch_team_names(row['federation_id']), organizations)
+        try:
+            team_names = fetch_team_names(row['federation_id'], session)
+        except requests.RequestException:
+            logger.warning('No se pudo leer la clasificación federativa %s', row['federation_id'])
+            continue
+        if not team_names:
+            continue
+        tenants = matching_tenants(team_names, organizations)
         if not tenants:
+            LeagueCandidate.objects.create(season=season, status='rejected', **row)
+            known.add(row['federation_id'])
             continue
         # La federación a veces crea otra sección con la misma categoría y a veces
         # cuelga la fase de la liga existente: solo se sugiere, decide el superuser
-        parent = League.objects.filter(
+        parent = row['category_label'] and League.objects.filter(
             candidate__season=season, candidate__category_label__iexact=row['category_label'],
             parent_league__isnull=True,
-        ).order_by('created_at').first()
+        ).order_by('created_at').first() or None
         candidate = LeagueCandidate.objects.create(
             season=season, parent_league=parent,
             category=detect_category(row['category_label']),

@@ -551,7 +551,7 @@ añade los 3 endpoints de scraping. No toca `League` hasta que se aprueba.
 **Qué se propone:** solo ligas con un equipo de un tenant. La clasificación solo
 trae nombres, así que se cruza con `Organization.club_team_names` (subcadena,
 sin fallback de settings ni matching difuso, #380). Un grupo sin equipos aún se
-reintenta en la siguiente pasada; las rechazadas no se vuelven a proponer.
+reintenta en la siguiente pasada, igual que una clasificación que falle por red. Las rechazadas no se vuelven a proponer, y una clasificación con equipos pero ninguno de un tenant se guarda como rechazada (sin equipos coincidentes) para no pedirla cada día; si un tenant cambia sus `club_team_names` hay que reabrirla a mano.
 
 **Categoría:** se detecta por palabra de categoría (alevín, infantil, cadete,
 juvenil…) y género claros en la etiqueta. Las ambiguas (`Categoria unificada`,

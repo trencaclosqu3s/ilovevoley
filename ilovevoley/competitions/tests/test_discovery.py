@@ -50,7 +50,7 @@ def test_discover_skips_known_and_leagues_without_our_teams():
     League.objects.create(name='Ya existe', federation_id='8095', season=season)
     teams = {'8020': ['CV SANT JOSEP A']}
     with mock.patch.object(discovery, 'fetch_menu', return_value=MENU), \
-            mock.patch.object(discovery, 'fetch_team_names', side_effect=lambda i: teams.get(i, ['OTRO'])) as fetch:
+            mock.patch.object(discovery, 'fetch_team_names', side_effect=lambda i, s: teams.get(i, ['OTRO'])) as fetch:
         created = discovery.discover(season)
         assert [c.federation_id for c in created] == ['8020']
         assert discovery.discover(season) == []  # idempotente: no la vuelve a proponer
@@ -85,3 +85,22 @@ def test_discover_suggests_parent_by_category_across_sections():
     assert copa.parent_league == first
     league = copa.approve()
     assert (league.parent_league, league.phase_name, league.competition_type) == (first, 'Liga Regular', 'cup')
+
+
+@pytest.mark.django_db
+def test_discover_survives_failed_standings_and_remembers_foreign_leagues():
+    season = Season.objects.resolve('2026-27')
+    Organization.objects.create(slug='sj', name='SJ', club_team_names={'a': 'SANT JOSEP', 'blank': ' '})
+    menu = MENU + '<p class="fase"><a href="clasificaciones?id=9000&desp=1">Liga Regular </a>'
+
+    def teams(federation_id, session):
+        if federation_id == '8020':
+            raise discovery.requests.ConnectionError
+        return {'8095': ['OTRO CLUB'], '9000': []}[federation_id]
+
+    with mock.patch.object(discovery, 'fetch_menu', return_value=menu), \
+            mock.patch.object(discovery, 'fetch_team_names', side_effect=teams):
+        assert discovery.discover(season) == []
+    # Con equipos pero ninguno nuestro: no se vuelve a pedir; caída o vacía: se reintenta
+    assert dict(LeagueCandidate.objects.values_list('federation_id', 'status')) == {'8095': 'rejected'}
+    assert discovery.discover(None) == []

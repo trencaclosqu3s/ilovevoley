@@ -632,9 +632,9 @@ class LeagueCandidate(models.Model):
             name = ' '.join(filter(None, [self.category_label.title(), self.phase_label]))
             is_cup = re.search(r'copa|campeonato|torneo', f'{self.section} {self.phase_label}', re.I)
             league = League.objects.create(
-                name=name, federation_id=self.federation_id, season=self.season,
+                name=name, federation_id=self.federation_id, season_id=self.season_id,
                 competition_type='cup' if is_cup else 'regular',
-                parent_league=self.parent_league, phase_name=self.phase_label if self.parent_league_id else '',
+                parent_league_id=self.parent_league_id, phase_name=self.phase_label if self.parent_league_id else '',
                 phase_order=1 if self.parent_league_id else 0,
             )
             if self.category_id:

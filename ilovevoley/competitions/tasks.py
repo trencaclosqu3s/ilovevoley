@@ -123,4 +123,4 @@ def discover_leagues_task():
     from ilovevoley.competitions.services.discovery import discover
     from ilovevoley.core.models import Season
 
-    return len(discover(Season.objects.current()))
+    return len(discover(Season.objects.current()))  # sin temporada, discover no hace nada

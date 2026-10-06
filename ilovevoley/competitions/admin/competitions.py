@@ -525,7 +525,8 @@ class LeagueCandidateAdmin(ModelAdmin):
     list_display = ('category_label', 'phase_label', 'section', 'category', 'season', 'status', 'federation_id', 'created_at')
     list_filter = ('status', 'season', 'section')
     search_fields = ('category_label', 'federation_id')
-    readonly_fields = ('federation_id', 'season', 'section', 'category_label', 'phase_label', 'matched_teams', 'league')
+    readonly_fields = ('federation_id', 'season', 'section', 'category_label', 'phase_label', 'matched_teams', 'league', 'status')
+    list_select_related = ('category', 'season')
     autocomplete_fields = ('parent_league',)
     actions = ['approve', 'reject']
 
