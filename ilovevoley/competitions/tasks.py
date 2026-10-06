@@ -147,3 +147,38 @@ def scrape_balearic_tracking_task(
         force=force,
         no_notify=no_notify,
     )
+
+
+@shared_task(name='discover_leagues')
+def discover_leagues_task():
+    """Busca en el menú federativo ligas nuevas de la temporada activa (#377).
+
+    Las competiciones se publican escalonadas durante todo el año (categorías que
+    llegan tarde, fases Oro/Plata, copas), así que debe ejecutarse a menudo. Solo
+    avisa por email cuando hay candidatas nuevas, con enlace a la cola, solo a los
+    destinatarios técnicos (``TECHNICAL_ALERT_EMAILS``) para no saturar a los demás superusers.
+    """
+    from django.urls import reverse
+    from django.utils.translation import gettext as _
+
+    from ilovevoley.competitions.services.discovery import discover
+    from ilovevoley.core.email_utils import get_technical_alert_emails, send_notification_email
+    from ilovevoley.core.models import Season
+    from ilovevoley.core.tenant_utils import build_absolute_url
+
+    candidates = discover(Season.objects.current())  # sin temporada, discover no hace nada
+    if candidates:
+        send_notification_email(
+            subject=lambda: _('%(count)s nuevas ligas pendientes de validar') % {'count': len(candidates)},
+            template_name='emails/league_candidates_pending.html',
+            context={
+                'candidates': candidates,
+                'count': len(candidates),
+                'site_name': 'I Love Voley',
+                'admin_url': build_absolute_url(
+                    reverse('admin:competitions_leaguecandidate_changelist') + '?status__exact=pending'
+                ),
+            },
+            recipient_list=get_technical_alert_emails(),
+        )
+    return len(candidates)

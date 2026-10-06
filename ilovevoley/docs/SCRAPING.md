@@ -533,6 +533,36 @@ docker-compose exec web python manage.py scrape_all_leagues --category "Senior"
 - **Matching inteligente**: Equipos con patrocinadores asociados automáticamente a clubes oficiales
 - **Gestión unificada**: Vista consolidada de toda la información del club y sus equipos
 
+## Descubrimiento automático de ligas (#377)
+
+La federación publica las competiciones de forma escalonada durante todo el año
+(categorías que llegan semanas tarde, fases Oro/Plata, copas y campeonatos). El
+menú `JSON/get_Menu_Competiciones.asp?temp=2627` tiene tres niveles: sección
+(AUTONÓMICA, INSULAR ESCOLAR MALLORCA…) → categoría → fase con enlace
+`clasificaciones?id={federation_id}`.
+
+**Flujo:** la tarea `discover_leagues` (`config/celery_schedule.py`, diaria 07:45)
+o `manage.py discover_leagues [--season 2026-27]` recorre el menú y, para cada
+`federation_id` desconocido, pide la clasificación. Si juega algún equipo de un
+tenant crea un `LeagueCandidate` pendiente. Un superuser las valida en el admin
+(*Ligas candidatas* → Aprobar / Rechazar). Aprobar crea la `League`; su signal
+añade los 3 endpoints de scraping. No toca `League` hasta que se aprueba. Si una pasada encuentra candidatas nuevas envía un email con enlace a la cola a `TECHNICAL_ALERT_EMAILS` (o `ADMIN_EMAIL_LIST`/superusers si no está definida); el botón *Buscar ligas nuevas ahora* del admin lanza la misma tarea al momento.
+
+**Qué se propone:** solo ligas con un equipo de un tenant. La clasificación solo
+trae nombres, así que se cruza con `Organization.club_team_names` (subcadena,
+sin fallback de settings ni matching difuso, #380). Un grupo sin equipos aún se
+reintenta en la siguiente pasada, igual que una clasificación que falle por red. Las rechazadas no se vuelven a proponer, y una clasificación con equipos pero ninguno de un tenant se guarda como rechazada (sin equipos coincidentes) para no pedirla cada día; si un tenant cambia sus `club_team_names` hay que reabrirla a mano.
+
+**Categoría:** se detecta por palabra de categoría (alevín, infantil, cadete,
+juvenil…) y género claros en la etiqueta. Las ambiguas (`Categoria unificada`,
+`ALEVIN` sin género) entran sin categoría y se asigna al aprobar.
+
+**Fases y copas:** la federación no es consistente (a veces otra sección con la
+misma categoría, a veces cuelga de la liga existente). Se sugiere como
+`parent_league` la liga de la misma temporada y categoría, en cualquier sección;
+el superuser la confirma, cambia o vacía. Las ligas dadas de alta a mano que aparecen en el menú (mismo `federation_id`) se enlazan solas con una candidata `approved`, así que también valen como padre. Si sección o fase contienen
+"copa", "campeonato" o "torneo" se crea con `competition_type='cup'`.
+
 ## Notas Importantes
 
 - ⚠️ **Respetar rate limiting**: No hacer requests muy frecuentes (usar --delay)

@@ -1,0 +1,33 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans %}Ligas pendientes de validar - {{ site_name }}{% endblocktrans %}{% endblock %}
+
+{% block header_subtitle %}{% trans "Ligas federativas pendientes de validar" %}{% endblock %}
+
+{% block content %}
+    <div class="alert warning">
+        <h2 style="margin-top: 0;">{% blocktrans count counter=count %}{{ counter }} liga nueva detectada{% plural %}{{ counter }} ligas nuevas detectadas{% endblocktrans %}</h2>
+        <p>{% trans "Se han encontrado en el menú de la federación competiciones con equipos de algún club y están pendientes de que las valides." %}</p>
+    </div>
+
+    <table class="data-table">
+        <tr>
+            <th>{% trans "Competición" %}</th>
+            <th>{% trans "Sección" %}</th>
+        </tr>
+        {% for candidate in candidates %}
+        <tr>
+            <td><strong>{{ candidate.category_label }}</strong> · {{ candidate.phase_label }}</td>
+            <td>{{ candidate.section }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{ admin_url }}" class="button"
+           style="background-color: #3498db; text-decoration: none; color: white;
+                  padding: 12px 30px; border-radius: 5px; display: inline-block;
+                  font-weight: bold; font-size: 16px;">{% trans "Revisar ligas pendientes" %}</a>
+    </div>
+{% endblock %}
