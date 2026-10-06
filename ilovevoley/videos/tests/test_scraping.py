@@ -1079,3 +1079,109 @@ class UpdateMatchesResultPersistenceTests(TestCase):
         self.assertEqual(self.match.set_scores, [[25, 20], [20, 25], [25, 18], [25, 22]])
         mock_notify_after_save.assert_called_once()
         self.assertFalse(mock_notify_after_save.call_args[0][1])
+
+
+# ---------------------------------------------------------------------------
+# Jornada real en partidos del JSON unificado (#369)
+# ---------------------------------------------------------------------------
+
+def _results_html(round_number, home_club, away_club):
+    return (
+        f"<h3>JORNADA {round_number}</h3><div class='info_partido little'>"
+        f"<img src='https://x//fichas/clubes/{home_club}mini.jpg?1'>"
+        f"<img src='https://x//fichas/clubes/{away_club}mini.jpg?1'></div>"
+    )
+
+
+class RoundFixtureMixin:
+    """Liga 8248 con dos equipos, compartida por los tests de jornada."""
+
+    def setUp(self):
+        category = Category.objects.create(name='Senior')
+        self.league = League.objects.create(
+            name='Liga 8248', federation_id='8248', season=Season.objects.resolve('2025-26'),
+            competition_type='league', match_format='standard', visibility_type='main',
+        )
+        self.league.categories.add(category)
+        Team.objects.create(name='Club A', federation_id='a', category=category, is_active=True)
+        Team.objects.create(name='Club B', federation_id='b', category=category, is_active=True)
+
+
+class JSONRoundNumberTests(RoundFixtureMixin, TestCase):
+    """El JSON no trae jornada: se cruza con el HTML de resultados por club local/visitante."""
+
+    def _partido(self, fed_id, local, visitante, club_local, club_visitante, fecha):
+        return {
+            'ID': fed_id, 'ELOCAL': local, 'EVISITANTE': visitante, 'FECHA': fecha, 'HORA': '12:00',
+            'ID_CLUB_LOCAL': club_local, 'ID_CLUB_VISITANTE': club_visitante,
+            'RESULTADO_LOCAL': None, 'RESULTADO_VISITANTE': None,
+        }
+
+    @patch('ilovevoley.videos.scraping.federation.FederationScraper._fetch_json_with_retry')
+    def test_ida_y_vuelta_get_their_own_round_and_existing_match_is_corrected(self, fetch):
+        from ilovevoley.videos.scraping.federation import FederationScraper
+
+        # Sin jor = jornada actual (1); con jor, esa jornada. Fuera de rango el servidor devuelve la 1.
+        pages = {'jor=2': _results_html(2, 20, 10)}
+        fetch.side_effect = lambda url: MagicMock(
+            text=next((v for k, v in pages.items() if k in url), _results_html(1, 10, 20))
+        )
+
+        # Partido ya importado antes con la jornada falsa por defecto.
+        a, b = Team.objects.get(name='Club A'), Team.objects.get(name='Club B')
+        Match.objects.create(
+            league=self.league, home_team=a, away_team=b, federation_id='1',
+            match_date=timezone.make_aware(timezone.datetime(2026, 10, 11, 12, 0)), round_number=1,
+        )
+        scraper = FederationScraper(self.league)
+        scraper._process_json_matches_unified(
+            self.league,
+            [
+                self._partido('1', 'Club A', 'Club B', 10, 20, '11/10/2026'),
+                self._partido('2', 'Club B', 'Club A', 20, 10, '18/10/2026'),
+            ],
+            'Senior', '8248', '1', round_map=scraper._fetch_round_map(self.league, {('10', '20'), ('20', '10')}),
+        )
+
+        self.assertEqual(fetch.call_count, 2)  # jornada actual + la contigua; no recorre la liga entera
+        self.assertEqual(Match.objects.get(federation_id='1').round_number, 1)
+        self.assertEqual(Match.objects.get(federation_id='2').round_number, 2)
+
+    @patch('ilovevoley.videos.scraping.federation.FederationScraper._fetch_json_with_retry',
+           side_effect=Exception('boom'))
+    def test_round_map_failure_does_not_block_import(self, fetch):
+        from ilovevoley.videos.scraping.federation import FederationScraper
+
+        self.assertEqual(FederationScraper(self.league)._fetch_round_map(self.league, {('10', '20')}), {})
+
+
+class BackfillMatchRoundsCommandTests(RoundFixtureMixin, TestCase):
+    """El histórico con jornada falsa 1 se corrige recorriendo la liga entera, y dry-run no guarda."""
+
+    @patch('ilovevoley.videos.scraping.federation.FederationScraper._fetch_json_with_retry')
+    def test_backfill_fixes_vuelta_and_dry_run_changes_nothing(self, fetch):
+        from ilovevoley.teams.models import Club
+
+        pages = {'jor=1': _results_html(1, 10, 20), 'jor=2': _results_html(2, 20, 10)}
+        # jor=3 fuera de rango: el servidor devuelve la jornada 1, que debe cortar el recorrido.
+        fetch.side_effect = lambda url: MagicMock(
+            text=next((v for k, v in pages.items() if k in url), _results_html(1, 10, 20))
+        )
+        club_a = Club.objects.create(federation_id='10')
+        club_b = Club.objects.create(federation_id='20')
+        a = Team.objects.get(name='Club A')
+        b = Team.objects.get(name='Club B')
+        a.club, b.club = club_a, club_b
+        a.save()
+        b.save()
+        date = timezone.now()
+        Match.objects.create(league=self.league, home_team=a, away_team=b, match_date=date, round_number=1)
+        vuelta = Match.objects.create(league=self.league, home_team=b, away_team=a, match_date=date, round_number=1)
+
+        call_command('backfill_match_rounds', '--dry-run', '--delay', '0', stdout=StringIO())
+        vuelta.refresh_from_db()
+        self.assertEqual(vuelta.round_number, 1)
+
+        call_command('backfill_match_rounds', '--delay', '0', stdout=StringIO())
+        vuelta.refresh_from_db()
+        self.assertEqual(vuelta.round_number, 2)

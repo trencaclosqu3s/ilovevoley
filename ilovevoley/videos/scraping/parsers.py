@@ -639,7 +639,7 @@ class JSONUnifiedParser(BaseParser):
             'match_date': match_datetime,
             'venue': field_name,
             'city': city,
-            'round_number': 1,  # El JSON no incluye jornada, usar 1 por defecto
+            'round_number': None,  # El JSON no incluye jornada; la resuelve FederationScraper._fetch_round_map
             'home_score': home_score if home_score is not None else None,
             'away_score': away_score if away_score is not None else None,
             'status': status,
