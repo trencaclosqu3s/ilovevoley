@@ -435,12 +435,16 @@ def image_gallery(request):
         category = filter_form.cleaned_data.get('category')
         status_filter = filter_form.cleaned_data.get('status')
         
-        # Búsqueda general en título, descripción y etiquetas
+        # Búsqueda general en título, descripción, etiquetas y deportistas etiquetados
         if search:
+            matched_persons = Person.objects.filter(
+                Q(first_name__icontains=search) | Q(last_name__icontains=search)
+            ).values('pk')
             images = images.filter(
                 Q(title__icontains=search) | 
                 Q(description__icontains=search) |
-                Q(tags__icontains=search)
+                Q(tags__icontains=search) |
+                Q(persons__in=matched_persons)
             )
         
         # Búsqueda específica por etiquetas (incluye auto_tags)
@@ -548,12 +552,16 @@ def image_gallery_albums(request):
         category = filter_form.cleaned_data.get('category')
         status_filter = filter_form.cleaned_data.get('status')
         
-        # Búsqueda general en título, descripción y etiquetas
+        # Búsqueda general en título, descripción, etiquetas y deportistas etiquetados
         if search:
+            matched_persons = Person.objects.filter(
+                Q(first_name__icontains=search) | Q(last_name__icontains=search)
+            ).values('pk')
             images = images.filter(
                 Q(title__icontains=search) | 
                 Q(description__icontains=search) |
-                Q(tags__icontains=search)
+                Q(tags__icontains=search) |
+                Q(persons__in=matched_persons)
             )
         
         # Búsqueda específica por etiquetas (incluye auto_tags)

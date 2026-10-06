@@ -156,6 +156,24 @@ class ImageTaggingTests(TestCase):
         self.assertIn(self.image, returned)
         self.assertNotIn(other_image, returned)
 
+    def test_gallery_search_matches_tagged_person_name(self):
+        other_image = Image.objects.create(
+            image=SimpleUploadedFile('o2.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Otra', uploaded_by=self.uploader, organization=self.org_a,
+            status='approved', season=self.season,
+        )
+        self.image.persons.add(self.person_a)
+
+        self.client.force_login(self.uploader)
+        response = self.client.get(
+            reverse('content:image_gallery_individual'),
+            {'search': 'García', 'season': '', 'show_all': '1'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        returned = list(response.context['page_obj'].object_list)
+        self.assertIn(self.image, returned)
+        self.assertNotIn(other_image, returned)
+
     def test_person_detail_lists_tagged_photos(self):
         self.image.persons.add(self.person_a)
         self.client.force_login(self.uploader)

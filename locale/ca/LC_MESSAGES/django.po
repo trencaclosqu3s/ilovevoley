@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-06 10:10+0200\n"
+"POT-Creation-Date: 2026-10-06 10:38+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -2616,7 +2616,7 @@ msgstr "Escriu el nom d'un equip, club, pavelló o municipi."
 #
 #: ilovevoley/competitions/views.py:415 ilovevoley/competitions/views.py:779
 #: ilovevoley/competitions/views.py:853 ilovevoley/competitions/views.py:911
-#: ilovevoley/content/views.py:1133
+#: ilovevoley/content/views.py:1139
 msgid "Partido no encontrado"
 msgstr "Partit no trobat"
 
@@ -2818,8 +2818,8 @@ msgid "Información de verificación automática de contenido"
 msgstr "Informació de verificació automàtica de contingut"
 
 #: ilovevoley/content/admin/content.py:93 ilovevoley/content/views.py:203
-#: ilovevoley/content/views.py:796 ilovevoley/content/views.py:1003
-#: ilovevoley/content/views.py:1138 ilovevoley/content/views.py:1226
+#: ilovevoley/content/views.py:804 ilovevoley/content/views.py:1011
+#: ilovevoley/content/views.py:1144 ilovevoley/content/views.py:1231
 msgid "Álbum"
 msgstr "Àlbum"
 
@@ -3180,9 +3180,8 @@ msgid "Sin partido vinculado"
 msgstr "Sense partit vinculat"
 
 #: ilovevoley/content/forms.py:382
-#: ilovevoley/content/templates/content/image_gallery.html:187
-msgid "Buscar por título, descripción o etiquetas..."
-msgstr "Cerca per títol, descripció o etiquetes..."
+msgid "Buscar por título, descripción, etiquetas o deportista..."
+msgstr "Cerca per títol, descripció, etiquetes o esportista..."
 
 #
 #: ilovevoley/content/forms.py:391
@@ -3801,6 +3800,10 @@ msgstr "Pujar imatge"
 msgid "Subir"
 msgstr "Pujar"
 
+#: ilovevoley/content/templates/content/image_gallery.html:187
+msgid "Buscar por título, descripción o etiquetas..."
+msgstr "Cerca per títol, descripció o etiquetes..."
+
 #: ilovevoley/content/templates/content/image_gallery.html:233
 #: ilovevoley/content/templates/content/video_list.html:172
 #: ilovevoley/rosters/templates/rosters/person_list.html:210
@@ -4258,149 +4261,149 @@ msgid "¡Comentario añadido correctamente!"
 msgstr "Comentari afegit correctament!"
 
 #
-#: ilovevoley/content/views.py:642 ilovevoley/content/views.py:858
+#: ilovevoley/content/views.py:650 ilovevoley/content/views.py:866
 msgid "Aprobada automáticamente por superusuario"
 msgstr "Aprovada automàticament per superusuari"
 
-#: ilovevoley/content/views.py:690 ilovevoley/content/views.py:695
+#: ilovevoley/content/views.py:698 ilovevoley/content/views.py:703
 #, python-format
 msgid " Se detectaron automáticamente las etiquetas: %(tags)s."
 msgstr " S'han detectat automàticament les etiquetes: %(tags)s."
 
 #
-#: ilovevoley/content/views.py:692
+#: ilovevoley/content/views.py:700
 msgid "Imagen subida y aprobada automáticamente."
 msgstr "Imatge pujada i aprovada automàticament."
 
 #
-#: ilovevoley/content/views.py:697
+#: ilovevoley/content/views.py:705
 msgid "Imagen subida correctamente. Está pendiente de moderación."
 msgstr "Imatge pujada correctament. Està pendent de moderació."
 
-#: ilovevoley/content/views.py:710
+#: ilovevoley/content/views.py:718
 #, python-format
 msgid "%(field)s: %(error)s"
 msgstr "%(field)s: %(error)s"
 
 #
-#: ilovevoley/content/views.py:763
+#: ilovevoley/content/views.py:771
 msgid "No se seleccionaron imágenes."
 msgstr "No s'han seleccionat imatges."
 
-#: ilovevoley/content/views.py:800
+#: ilovevoley/content/views.py:808
 msgid "El álbum especificado no existe."
 msgstr "L'àlbum especificat no existeix."
 
-#: ilovevoley/content/views.py:803
+#: ilovevoley/content/views.py:811
 msgid "ID de álbum inválido."
 msgstr "ID d'àlbum invàlid."
 
-#: ilovevoley/content/views.py:811
+#: ilovevoley/content/views.py:819
 msgid "El nombre del álbum es obligatorio cuando se agrupan imágenes."
 msgstr "El nom de l'àlbum és obligatori quan s'agrupen imatges."
 
-#: ilovevoley/content/views.py:832
+#: ilovevoley/content/views.py:840
 #, python-format
 msgid "%(name)s: No es una imagen válida"
 msgstr "%(name)s: No és una imatge vàlida"
 
-#: ilovevoley/content/views.py:836
+#: ilovevoley/content/views.py:844
 #, python-format
 msgid "%(name)s: Archivo demasiado grande (máx 10MB)"
 msgstr "%(name)s: Fitxer massa gran (màx 10MB)"
 
-#: ilovevoley/content/views.py:913
+#: ilovevoley/content/views.py:921
 #, python-format
 msgid "%(name)s: %(error)s"
 msgstr "%(name)s: %(error)s"
 
-#: ilovevoley/content/views.py:933
+#: ilovevoley/content/views.py:941
 #, python-format
 msgid "✅ %(count)s imagen(es) subida(s) correctamente."
 msgstr "✅ %(count)s imatge(s) pujada(s) correctament."
 
-#: ilovevoley/content/views.py:939
+#: ilovevoley/content/views.py:947
 #, python-format
 msgid "... y %(count)s error(es) más."
 msgstr "... i %(count)s error(s) més."
 
-#: ilovevoley/content/views.py:955
+#: ilovevoley/content/views.py:963
 msgid "Nuevo Álbum"
 msgstr "Nou àlbum"
 
-#: ilovevoley/content/views.py:956
+#: ilovevoley/content/views.py:964
 #, python-format
 msgid "Se han subido nuevas fotos: %(album)s"
 msgstr "S'han pujat fotos noves: %(album)s"
 
 #
-#: ilovevoley/content/views.py:957
+#: ilovevoley/content/views.py:965
 msgid "Se han subido nuevas fotos"
 msgstr "S'han pujat fotos noves"
 
-#: ilovevoley/content/views.py:977
+#: ilovevoley/content/views.py:985
 #, python-format
 msgid "✅ %(count)s imagen(es) agregada(s) al álbum correctamente."
 msgstr "✅ %(count)s imatge(s) afegida(es) a l'àlbum correctament."
 
 #
-#: ilovevoley/content/views.py:1076
+#: ilovevoley/content/views.py:1084
 msgid "Imagen no disponible."
 msgstr "Imatge no disponible."
 
-#: ilovevoley/content/views.py:1116
+#: ilovevoley/content/views.py:1123
 msgid "Etiquetas actualizadas."
 msgstr "Etiquetes actualitzades."
 
-#: ilovevoley/content/views.py:1141
+#: ilovevoley/content/views.py:1146
 msgid "No se indicó álbum ni partido"
 msgstr "No s'ha indicat àlbum ni partit"
 
-#: ilovevoley/content/views.py:1154
+#: ilovevoley/content/views.py:1159
 #, python-format
 msgid "Etiquetas actualizadas en %(count)s imágenes."
 msgstr "Etiquetes actualitzades en %(count)s imatges."
 
-#: ilovevoley/content/views.py:1213 ilovevoley/content/views_album_zip.py:75
+#: ilovevoley/content/views.py:1218 ilovevoley/content/views_album_zip.py:75
 msgid "Álbum no encontrado"
 msgstr "Àlbum no trobat"
 
 #
-#: ilovevoley/content/views.py:1293 ilovevoley/content/views.py:1376
+#: ilovevoley/content/views.py:1298 ilovevoley/content/views.py:1381
 #: ilovevoley/core/moderation_views.py:362
 #: ilovevoley/core/moderation_views.py:409 ilovevoley/core/tasks.py:324
 msgid "aprobada"
 msgstr "aprovada"
 
 #
-#: ilovevoley/content/views.py:1293 ilovevoley/content/views.py:1376
+#: ilovevoley/content/views.py:1298 ilovevoley/content/views.py:1381
 #: ilovevoley/core/moderation_views.py:362
 #: ilovevoley/core/moderation_views.py:433 ilovevoley/core/tasks.py:324
 msgid "rechazada"
 msgstr "rebutjada"
 
-#: ilovevoley/content/views.py:1294
+#: ilovevoley/content/views.py:1299
 #, python-format
 msgid "Imagen %(action)s correctamente."
 msgstr "Imatge %(action)s correctament."
 
 #
-#: ilovevoley/content/views.py:1334
+#: ilovevoley/content/views.py:1339
 msgid "aprobadas"
 msgstr "aprovades"
 
 #
-#: ilovevoley/content/views.py:1334
+#: ilovevoley/content/views.py:1339
 msgid "rechazadas"
 msgstr "rebutjades"
 
-#: ilovevoley/content/views.py:1335
+#: ilovevoley/content/views.py:1340
 #, python-format
 msgid "%(count)s imágenes %(action)s."
 msgstr "%(count)s imatges %(action)s."
 
 #
-#: ilovevoley/content/views.py:1349 ilovevoley/content/views.py:1357
+#: ilovevoley/content/views.py:1354 ilovevoley/content/views.py:1362
 #: ilovevoley/core/moderation_views.py:211
 #: ilovevoley/core/moderation_views.py:351 ilovevoley/core/views.py:406
 #: ilovevoley/core/views.py:545 ilovevoley/core/views.py:591
@@ -4410,20 +4413,20 @@ msgstr "%(count)s imatges %(action)s."
 msgid "Permiso denegado"
 msgstr "Permís denegat"
 
-#: ilovevoley/content/views.py:1365
+#: ilovevoley/content/views.py:1370
 msgid "Acción no válida"
 msgstr "Acció no vàlida"
 
-#: ilovevoley/content/views.py:1380
+#: ilovevoley/content/views.py:1385
 #, python-format
 msgid "Imagen \"%(title)s\" %(action)s correctamente"
 msgstr "Imatge \"%(title)s\" %(action)s correctament"
 
-#: ilovevoley/content/views.py:1388
+#: ilovevoley/content/views.py:1393
 msgid "Imagen no encontrada o ya moderada"
 msgstr "Imatge no trobada o ja moderada"
 
-#: ilovevoley/content/views.py:1394 ilovevoley/core/views.py:582
+#: ilovevoley/content/views.py:1399 ilovevoley/core/views.py:582
 #: ilovevoley/core/views.py:635 ilovevoley/core/views.py:680
 #: ilovevoley/core/views.py:704
 msgid "Error interno del servidor"
