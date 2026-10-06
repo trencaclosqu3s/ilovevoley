@@ -654,6 +654,8 @@ class JSONUnifiedParser(BaseParser):
             'federation_id': str(partido_data.get('ID', '')),
             'acta_html': acta_html,
             'comentario': comentario,
+            'home_sponsor_name': (partido_data.get('ELOCALPAT') or '').strip(),
+            'away_sponsor_name': (partido_data.get('EVISITANTEPAT') or '').strip(),
             'resultado_web': resultado_web,
             'categoria': categoria_name,
             'grupo_id': grupo_id,

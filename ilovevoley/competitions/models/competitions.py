@@ -461,6 +461,11 @@ class Match(models.Model):
     federation_club_local_id = models.CharField(max_length=50, blank=True, verbose_name=_('ID Club Local (Federación)'))
     federation_club_away_id = models.CharField(max_length=50, blank=True, verbose_name=_('ID Club Visitante (Federación)'))
 
+    federation_comment = models.TextField(
+        blank=True, verbose_name=_('Comentario federativo'),
+        help_text=_('Aviso de la federación (aplazamientos, cambios) tal cual viene del JSON'),
+    )
+
     # Información de acta oficial
     acta_html = models.CharField(max_length=200, blank=True, verbose_name=_('Acta HTML'))
     acta_data = models.JSONField(

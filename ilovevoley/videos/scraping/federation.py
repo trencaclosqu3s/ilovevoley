@@ -254,6 +254,9 @@ class FederationScraper:
                         logger.warning(f'No se pudieron encontrar ni crear equipos: {match_data["home_team"]} vs {match_data["away_team"]}')
                         continue
                 
+                self._sync_sponsor_name(home_team, match_data['home_team'], match_data.get('home_sponsor_name', ''))
+                self._sync_sponsor_name(away_team, match_data['away_team'], match_data.get('away_sponsor_name', ''))
+
                 # Buscar partido existente
                 # 1. Prioridad: Buscar por federation_id acotando por liga (incluye withdrawn)
                 fed_id = str(match_data.get('federation_id') or '').strip()
@@ -308,6 +311,7 @@ class FederationScraper:
                     match.timekeeper = match_data.get('timekeeper', '')
                     match.delegate = match_data.get('delegate', '')
                     match.field_address = match_data.get('field_address', '')
+                    match.federation_comment = match_data.get('comentario', '')
                     if fed_id:
                         match.federation_id = fed_id
                     match.match_date = match_data['match_date']
@@ -357,6 +361,7 @@ class FederationScraper:
                         field_address=match_data.get('field_address', ''),
                         federation_id=fed_id or None,
                         acta_html=build_acta_url(match_data.get('acta_html', ''), fed_id),
+                        federation_comment=match_data.get('comentario', ''),
                         round_number=match_data.get('round_number', 1)
                     )
                     matches_created += 1
@@ -1460,6 +1465,14 @@ class FederationScraper:
         logger.info(f"Created new match from JSON: {match}")
         return True
     
+    @staticmethod
+    def _sync_sponsor_name(team: Team, base_name: str, sponsor_name: str) -> None:
+        """Guarda el nombre con patrocinio (ELOCALPAT/EVISITANTEPAT) solo si aporta algo
+        distinto del nombre base; si coincide con él no se toca ``sponsor_name``."""
+        if sponsor_name and sponsor_name != base_name and team.sponsor_name != sponsor_name:
+            team.sponsor_name = sponsor_name
+            team.save(update_fields=['sponsor_name'])
+
     def _find_team_by_name(self, team_name: str, league: League) -> Optional[Team]:
         """Busca un equipo por nombre en la liga específica"""
         # Obtener las categorías de la liga
