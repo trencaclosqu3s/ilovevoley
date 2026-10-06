@@ -121,5 +121,24 @@ def test_task_emails_superusers_only_when_there_are_new_candidates():
         send.assert_not_called()
         assert discover_leagues_task() == 1
     kwargs = send.call_args.kwargs
+    assert kwargs['subject']()
     assert kwargs['recipient_list'] == ['root@example.com']
     assert kwargs['context']['admin_url'].endswith('/leaguecandidate/?status__exact=pending')
+
+
+@pytest.mark.django_db
+def test_discover_now_button_is_superuser_only(client):
+    from django.contrib.auth import get_user_model
+    from django.urls import reverse
+
+    users = get_user_model().objects
+    staff = users.create_user('staff', 'staff@example.com', 'x', is_staff=True)
+    root = users.create_superuser('root', 'root@example.com', 'x')
+    url = reverse('admin:competitions_leaguecandidate_discover_now')
+    with mock.patch('ilovevoley.competitions.tasks.discover_leagues_task.delay') as delay:
+        client.force_login(staff)
+        client.get(url)
+        delay.assert_not_called()
+        client.force_login(root)
+        client.get(url)
+        delay.assert_called_once_with()

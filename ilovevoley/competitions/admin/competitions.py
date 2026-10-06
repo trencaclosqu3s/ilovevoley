@@ -1,9 +1,10 @@
 from django.contrib import admin
 from django.contrib.admin import helpers
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
+from unfold.decorators import action
 
 from ilovevoley.content.admin.content import ImageInline
 from ..forms import MatchAdminForm
@@ -529,6 +530,7 @@ class LeagueCandidateAdmin(ModelAdmin):
     list_select_related = ('category', 'season')
     autocomplete_fields = ('parent_league',)
     actions = ['approve', 'reject', 'reopen']
+    actions_list = ['discover_now']
 
     @admin.action(description='Aprobar y crear liga')
     def approve(self, request, queryset):
@@ -544,3 +546,14 @@ class LeagueCandidateAdmin(ModelAdmin):
     def reopen(self, request, queryset):
         updated = queryset.filter(status='rejected').update(status='pending')
         self.message_user(request, f'{updated} candidatas reabiertas.')
+
+    def has_discover_now_permission(self, request):
+        return request.user.is_superuser
+
+    @action(description='Buscar ligas nuevas ahora', permissions=['discover_now'])
+    def discover_now(self, request):
+        # En segundo plano: la búsqueda pide ~50 clasificaciones y excede el timeout de una petición
+        from ..tasks import discover_leagues_task
+        discover_leagues_task.delay()
+        self.message_user(request, 'Búsqueda lanzada: las candidatas nuevas aparecerán aquí en un minuto (y llegará el aviso por email).')
+        return redirect('admin:competitions_leaguecandidate_changelist')
