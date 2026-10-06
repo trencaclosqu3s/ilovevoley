@@ -40,7 +40,8 @@ from .forms import (
     VideoEntryFormSet,
     VideoForm,
 )
-from .models import Comment, Image, Video
+from .favorites import annotate_favorites
+from .models import Comment, Image, ImageFavorite, Video
 from .services import queue_match_media_push
 from .thumbnails import schedule_thumbnail_generation
 
@@ -96,7 +97,7 @@ def gallery_image_stats(organization):
     return stats
 
 
-def _covers_by(images_qs, field, ids, *, prefetch=()):
+def _covers_by(images_qs, field, ids, *, prefetch=(), user=None):
     """Top 4 images per group in one SQL query (ROW_NUMBER + qualify subquery)."""
     if not ids:
         return {}
@@ -112,6 +113,8 @@ def _covers_by(images_qs, field, ids, *, prefetch=()):
         .filter(rn__lte=4)
         .order_by(field, '-upload_date')
     )
+    if user is not None:
+        qs = annotate_favorites(qs, user)
     if prefetch:
         qs = qs.prefetch_related(*prefetch)
     buckets = defaultdict(list)
@@ -120,7 +123,7 @@ def _covers_by(images_qs, field, ids, *, prefetch=()):
     return buckets
 
 
-def build_album_gallery_page(images_qs, page_number, per_page=12):
+def build_album_gallery_page(images_qs, page_number, per_page=12, user=None):
     """
     Aggregate albums in SQL, paginate lightweight group rows, hydrate covers for the page.
     Returns (page_obj, total_albums, total_single_images).
@@ -175,14 +178,16 @@ def build_album_gallery_page(images_qs, page_number, per_page=12):
         )
     }
 
-    covers_by_match = _covers_by(images_qs, 'match_id', match_ids)
+    covers_by_match = _covers_by(images_qs, 'match_id', match_ids, user=user)
     covers_by_group = _covers_by(
-        images_qs, 'album_group_id', group_ids, prefetch=('categories',)
+        images_qs, 'album_group_id', group_ids, prefetch=('categories',), user=user
     )
 
     singles_map = {
         image.id: image
-        for image in images_qs.filter(pk__in=single_ids).prefetch_related('categories')
+        for image in annotate_favorites(
+            images_qs.filter(pk__in=single_ids), user
+        ).prefetch_related('categories')
     } if single_ids else {}
 
     hydrated = []
@@ -483,6 +488,8 @@ def image_gallery(request):
     if season_filter:
         images = images.filter(season=season_filter)
 
+    images = annotate_favorites(images, request.user)
+
     # Paginación
     paginator = Paginator(images, 12)
     page_number = request.GET.get('page')
@@ -586,7 +593,7 @@ def image_gallery_albums(request):
         images = images.filter(season=season_filter)
 
     page_obj, total_albums, total_single_images = build_album_gallery_page(
-        images, request.GET.get('page')
+        images, request.GET.get('page'), user=request.user
     )
     stats = gallery_image_stats(request.tenant)
     popular_tags = get_popular_tags(request.tenant)
@@ -1051,10 +1058,13 @@ def image_bulk_upload(request):
 def image_detail(request, image_id):
     """Vista de detalle de imagen"""
     image = get_tenant_object_or_404(
-        Image.objects.select_related(
-            'match__home_team', 'match__away_team', 'match__league',
-            'uploaded_by', 'moderated_by'
-        ).prefetch_related('categories'),
+        annotate_favorites(
+            Image.objects.select_related(
+                'match__home_team', 'match__away_team', 'match__league',
+                'uploaded_by', 'moderated_by'
+            ).prefetch_related('categories'),
+            request.user,
+        ),
         request.tenant, user=request.user, id=image_id,
     )
 
@@ -1064,10 +1074,13 @@ def image_detail(request, image_id):
         return redirect('content:image_gallery')
     
     # Imágenes relacionadas del mismo partido
-    related_images = Image.objects.for_tenant(request.tenant).filter(
-        match=image.match,
-        status='approved'
-    ).exclude(id=image.id)[:6]
+    related_images = annotate_favorites(
+        Image.objects.for_tenant(request.tenant).filter(
+            match=image.match,
+            status='approved'
+        ).exclude(id=image.id),
+        request.user,
+    )[:6]
     
     context = {
         'image': image,
@@ -1085,21 +1098,32 @@ def match_images(request, match_id):
         request.tenant, user=request.user, id=match_id,
     )
     
-    images = Image.objects.for_tenant(request.tenant).filter(
-        match=match,
-        status='approved'
-    ).select_related('uploaded_by').order_by('-upload_date')
-    
+    images = annotate_favorites(
+        Image.objects.for_tenant(request.tenant).filter(
+            match=match,
+            status='approved'
+        ).select_related('uploaded_by'),
+        request.user,
+    )
+
+    sort = request.GET.get('sort')
+    if sort == 'liked':
+        images = images.order_by('-favorite_count', '-upload_date')
+    else:
+        sort = 'recent'
+        images = images.order_by('-upload_date')
+
     # Paginación
     paginator = Paginator(images, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
     context = {
         'match': match,
         'page_obj': page_obj,
         'all_images': images,
         'total_images': page_obj.paginator.count,
+        'sort': sort,
         'download_zip_url': reverse('content:match_album_zip', args=[match.id]),
     }
 
@@ -1110,17 +1134,28 @@ def match_images(request, match_id):
 def album_group_images(request, album_group_id):
     """Vista de imágenes de un álbum de grupo (sin partido)"""
     # album_group_id ya viene como UUID desde la URL (gracias al path converter <uuid:album_group_id>)
-    images = Image.objects.for_tenant(request.tenant).filter(
-        album_group_id=album_group_id,
-        status='approved'
-    ).select_related('uploaded_by').prefetch_related('categories').order_by('-upload_date')
-    
+    images = annotate_favorites(
+        Image.objects.for_tenant(request.tenant).filter(
+            album_group_id=album_group_id,
+            status='approved'
+        ).select_related('uploaded_by').prefetch_related('categories'),
+        request.user,
+    )
+
     if not images.exists():
         raise Http404(_("Álbum no encontrado"))
-    
-    # Obtener información del álbum desde la primera imagen
-    first_image = images.first()
-    
+
+    # El nombre y la fecha del álbum salen de la subida más reciente, no del
+    # orden elegido para la galería (que puede ser "más gustadas").
+    first_image = images.order_by('-upload_date').first()
+
+    sort = request.GET.get('sort')
+    if sort == 'liked':
+        images = images.order_by('-favorite_count', '-upload_date')
+    else:
+        sort = 'recent'
+        images = images.order_by('-upload_date')
+
     # Paginación
     paginator = Paginator(images, 12)
     page_number = request.GET.get('page')
@@ -1140,6 +1175,7 @@ def album_group_images(request, album_group_id):
         'page_obj': page_obj,
         'all_images': images,
         'total_images': page_obj.paginator.count,
+        'sort': sort,
         'download_zip_url': reverse(
             'content:album_group_zip', args=[album_group_id],
         ),
@@ -1301,6 +1337,57 @@ def moderate_image_api(request, image_id):
         }, status=500)
 
 
+@ratelimit(key='user_or_ip', rate='120/m', block=True)
+@login_required
+@require_POST
+def toggle_image_favorite(request, image_id):
+    """Marca o desmarca una foto como favorita del usuario actual (AJAX).
+
+    Solo se pueden marcar fotos aprobadas y visibles en el tenant resuelto:
+    una foto de otra organización devuelve 404 aunque se conozca su id.
+    """
+    tenant = getattr(request, 'tenant', None)
+    if tenant is None:
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
+
+    image = Image.objects.for_tenant(tenant).filter(
+        id=image_id, status='approved'
+    ).first()
+    if image is None:
+        return JsonResponse({'success': False, 'error': _('Imagen no encontrada')}, status=404)
+
+    favorite, created = ImageFavorite.objects.get_or_create(
+        image=image, user=request.user
+    )
+    if not created:
+        favorite.delete()
+
+    return JsonResponse({
+        'success': True,
+        'favorited': created,
+        'count': image.favorites.count(),
+    })
+
+
+@tenant_access_required()
+def favorite_images(request):
+    """Listado de las fotos favoritas del usuario en el tenant actual."""
+    images = annotate_favorites(
+        Image.objects.for_tenant(request.tenant).filter(
+            status='approved', favorites__user=request.user
+        ).select_related('uploaded_by').prefetch_related('categories'),
+        request.user,
+    ).order_by('-favorites__created_at', '-upload_date')
+
+    paginator = Paginator(images, 12)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    return render(request, 'content/favorite_images.html', {
+        'page_obj': page_obj,
+        'total_images': page_obj.paginator.count,
+    })
+
+
 
 __all__ = [
     'video_list',
@@ -1318,4 +1405,6 @@ __all__ = [
     'image_moderate_action',
     'image_moderate_bulk',
     'moderate_image_api',
+    'toggle_image_favorite',
+    'favorite_images',
 ]

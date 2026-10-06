@@ -2,12 +2,14 @@ from datetime import datetime, timezone as dt_timezone
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match
-from ilovevoley.content.models import Image, Video
-from ilovevoley.core.models import Category, Season
+from ilovevoley.content.favorites import match_top_images
+from ilovevoley.content.models import Image, ImageFavorite, Video
+from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.teams.models import Team
 
 User = get_user_model()
@@ -317,3 +319,67 @@ class VideoEmbedUrlTests(TestCase):
             self._video('https://www.youtube.com/watch?v=AbC').get_video_type(),
             'video',
         )
+
+
+class ImageFavoriteModelTest(TestCase):
+    """Regla de negocio: un usuario solo puede marcar una vez cada foto."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='fav', password='p')
+        self.other = User.objects.create_user(username='fav2', password='p')
+        self.image = Image.objects.create(
+            image=SimpleUploadedFile('fav.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Foto',
+            uploaded_by=self.user,
+        )
+
+    def test_usuario_no_puede_favoritear_dos_veces_la_misma_foto(self):
+        ImageFavorite.objects.create(user=self.user, image=self.image)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ImageFavorite.objects.create(user=self.user, image=self.image)
+
+    def test_dos_usuarios_pueden_favoritear_la_misma_foto(self):
+        ImageFavorite.objects.create(user=self.user, image=self.image)
+        ImageFavorite.objects.create(user=self.other, image=self.image)
+        self.assertEqual(self.image.favorites.count(), 2)
+
+
+class MatchTopImagesTest(TestCase):
+    """El top del partido lista solo fotos con favoritos, de más a menos y limitado."""
+
+    def setUp(self):
+        self.org = Organization.objects.create(slug='top', name='Top Club', is_active=True)
+        self.match = Match.objects.create(match_date=timezone.now())
+        self.users = [
+            get_user_model().objects.create_user(username=f'top{i}', password='p')
+            for i in range(4)
+        ]
+
+    def _image(self, title):
+        return Image.objects.create(
+            image=SimpleUploadedFile(f'{title}.jpg', TINY_GIF, content_type='image/jpeg'),
+            title=title,
+            uploaded_by=self.users[0],
+            organization=self.org,
+            status='approved',
+            match=self.match,
+        )
+
+    def _favorite(self, image, count):
+        for user in self.users[:count]:
+            ImageFavorite.objects.create(user=user, image=image)
+
+    def test_top_ordena_por_favoritos_y_respeta_el_limite(self):
+        mas_gustada = self._image('mas')
+        media = self._image('media')
+        sin_favoritos = self._image('sin')
+        self._favorite(mas_gustada, 3)
+        self._favorite(media, 1)
+
+        top = match_top_images(self.match, self.org, limit=1)
+
+        self.assertEqual([img.id for img in top], [mas_gustada.id])
+        todos = match_top_images(self.match, self.org, limit=5)
+        self.assertEqual([img.id for img in todos], [mas_gustada.id, media.id])
+        self.assertNotIn(sin_favoritos.id, [img.id for img in todos])

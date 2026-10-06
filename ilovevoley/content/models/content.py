@@ -498,3 +498,39 @@ class Image(models.Model):
         # Combinar y eliminar duplicados manteniendo orden
         combined = current_auto_tags + [tag for tag in tags_list if tag not in current_auto_tags]
         self.auto_tags = combined
+
+
+class ImageFavorite(models.Model):
+    """Un "me gusta" de una foto: un registro por usuario y foto.
+
+    El contador de favoritas de cada foto y el top del partido se derivan de
+    estas filas, así que el par (usuario, foto) es único a nivel de BD.
+    """
+
+    image = models.ForeignKey(
+        Image,
+        on_delete=models.CASCADE,
+        related_name='favorites',
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='favorite_images',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'videos_image_favorite'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'image'],
+                name='unique_image_favorite_per_user',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['image']),
+            models.Index(fields=['user', '-created_at'], name='fav_user_date_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.user} ♥ {self.image_id}'

@@ -388,6 +388,7 @@
         <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
             <div class="aspect-square relative">
                 {% include 'content/_thumbnail.html' with image=item.image css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" lightbox=True %}
+                {% include 'content/_favorite_button.html' with image=item.image %}
 
                 <!-- Badge de estado (solo para admins) -->
                 {% if is_tenant_manager and item.image.status != 'approved' %}
@@ -429,6 +430,7 @@
         <div class="bg-surface rounded-[20px] border border-line overflow-hidden hover:-translate-y-0.5 hover:border-accent transition duration-200">
             <div class="aspect-square relative">
                 {% include 'content/_thumbnail.html' with image=item css_class="w-full h-full object-cover cursor-pointer" sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" lightbox=True %}
+                {% include 'content/_favorite_button.html' with image=item %}
 
                 <!-- Badge de estado (solo para admins) -->
                 {% if is_tenant_manager and item.status != 'approved' %}
