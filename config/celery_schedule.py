@@ -43,6 +43,13 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'send_match_reminders_2h',
         'schedule': timedelta(minutes=10),
     },
+    # Push para animar a subir fotos, 1 h después de registrarse el resultado (#361).
+    # Recoge resultados de entre 1 h y 7 días y se apoya en photo_reminder_sent_at,
+    # así que la cadencia solo marca cuánto tarda el aviso tras cumplirse la hora.
+    'send-match-photo-reminders': {
+        'task': 'send_match_photo_reminders',
+        'schedule': timedelta(minutes=15),
+    },
     # --- Scrapers federativos legacy (antes creados a mano en la BD) -----------
     # Nombres normalizados (slug) para que DatabaseScheduler los reconozca; las
     # filas viejas las borra la migración de datos.
