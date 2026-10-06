@@ -335,6 +335,43 @@
         </div>
     </div>
 
+    {% if preview %}
+    <div class="bg-surface rounded-[20px] border border-line overflow-hidden">
+        <div class="bg-tint px-4 sm:px-6 py-3 sm:py-4 border-b border-line">
+            <h2 class="text-lg sm:text-xl font-bold text-ink">{% trans "Previa del partido" %}</h2>
+        </div>
+        <div class="p-4 sm:p-6 space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <div class="font-medium text-ink">{{ match.home_team_display }}</div>
+                    {% if preview.home_position %}<div class="text-sm text-muted">{% blocktrans with position=preview.home_position %}{{ position }}º en la clasificación{% endblocktrans %}</div>{% endif %}
+                    {% if preview.home_form %}{% include 'competitions/_preview_form.html' with form=preview.home_form %}{% endif %}
+                </div>
+                <div>
+                    <div class="font-medium text-ink">{{ match.away_team_display }}</div>
+                    {% if preview.away_position %}<div class="text-sm text-muted">{% blocktrans with position=preview.away_position %}{{ position }}º en la clasificación{% endblocktrans %}</div>{% endif %}
+                    {% if preview.away_form %}{% include 'competitions/_preview_form.html' with form=preview.away_form %}{% endif %}
+                </div>
+            </div>
+            {% if preview.head_to_head %}
+            <div>
+                <h3 class="font-semibold text-ink mb-2">{% trans "Enfrentamientos anteriores" %}</h3>
+                <ul class="divide-y divide-line text-sm">
+                    {% for past in preview.head_to_head %}
+                    <li class="py-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <a href="{% url 'competitions:match_detail' past.id %}" class="text-muted">{{ past.match_date|date:"d/m/Y" }}</a>
+                        <span class="text-ink">{{ past.home_team_display }} <strong>{{ past.home_score }}-{{ past.away_score }}</strong> {{ past.away_team_display }}</span>
+                        {% for set in past.preview_set_scores %}<span class="px-2 py-0.5 rounded bg-tint text-muted">{{ set.0 }}-{{ set.1 }}</span>{% endfor %}
+                        {% if past.league %}<span class="text-xs text-muted">{{ past.league.season }}</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     {% if match.acta_html %}
     <div class="bg-surface rounded-[20px] border border-line overflow-hidden">
         <div class="bg-tint px-4 sm:px-6 py-3 sm:py-4 border-b border-line">

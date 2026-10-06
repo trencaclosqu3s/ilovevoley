@@ -242,11 +242,13 @@ class FederationScraper:
                     league_category = league.categories.first()
                     if not home_team and league_category:
                         home_team = self._find_or_create_team_by_name(
-                            match_data['home_team'], league, league_category
+                            match_data['home_team'], league, league_category,
+                            match_data.get('federation_club_local_id', '')
                         )
                     if not away_team and league_category:
                         away_team = self._find_or_create_team_by_name(
-                            match_data['away_team'], league, league_category
+                            match_data['away_team'], league, league_category,
+                            match_data.get('federation_club_away_id', '')
                         )
                     if not home_team or not away_team:
                         logger.warning(f'No se pudieron encontrar ni crear equipos: {match_data["home_team"]} vs {match_data["away_team"]}')
@@ -378,6 +380,7 @@ class FederationScraper:
         
         # Procesar equipos encontrados en el scraping
         for team_data in teams_data:
+            club_fed_id = team_data.get('federation_club_id', '')
             # Buscar equipo existente por federation_id primero
             team = Team.objects.filter(federation_id=team_data['federation_id']).first()
             
@@ -390,6 +393,8 @@ class FederationScraper:
                     team_data['name'],
                     category=league_category
                 )
+                if duplicate_team and self._is_other_club(duplicate_team, club_fed_id):
+                    duplicate_team = None
                 
                 if duplicate_team:
                     # Si encontramos un duplicado, actualizar su federation_id y usar ese equipo
@@ -406,6 +411,8 @@ class FederationScraper:
                         category=league_category,
                         threshold=0.9  # Alta similitud requerida
                     )
+                    if similar_team and self._is_other_club(similar_team, club_fed_id):
+                        similar_team = None
                     
                     if similar_team:
                         logger.info(f"Found similar team ({score:.2f}): '{team_data['name']}' -> '{similar_team.name}'")
@@ -446,6 +453,9 @@ class FederationScraper:
                 updated = True
                 logger.info(f"Assigned category '{league_category}' to team: {team.name}")
             
+            if self._assign_federation_club(team, club_fed_id):
+                updated = True
+
             # Reactivar equipo si había sido marcado como inactivo y ahora aparece de nuevo
             if not team.is_active:
                 team.is_active = True
@@ -1468,7 +1478,8 @@ class FederationScraper:
 
         return None
 
-    def _find_or_create_team_by_name(self, team_name: str, league: League, league_category) -> Team:
+    def _find_or_create_team_by_name(self, team_name: str, league: League, league_category,
+                                     club_fed_id: str = '') -> Team:
         """
         Busca un equipo por nombre difuso antes de crear uno nuevo, para no fragmentar
         el mismo equipo real en varias filas cuando cambia de liga/fase (y por tanto de
@@ -1477,19 +1488,45 @@ class FederationScraper:
         from ilovevoley.videos.utils import find_duplicate_team_by_name, find_similar_team_by_name
 
         team = find_duplicate_team_by_name(team_name, category=league_category)
-        if not team:
+        if not team or self._is_other_club(team, club_fed_id):
             team, score = find_similar_team_by_name(team_name, category=league_category, threshold=0.9)
+        if team and self._is_other_club(team, club_fed_id):
+            team = None
 
         if team:
             logger.info(f"Equipo reutilizado por nombre: '{team_name}' -> '{team.name}' (ID: {team.id})")
-            return team
+        else:
+            fed_id = f"{league.federation_id}_{team_name.replace(' ', '_').lower()}"
+            team = Team.objects.create(
+                name=team_name, federation_id=fed_id, category=league_category, is_active=True
+            )
+            logger.info(f"Equipo creado automáticamente: {team.name} para liga {league.name}")
 
-        fed_id = f"{league.federation_id}_{team_name.replace(' ', '_').lower()}"
-        team = Team.objects.create(
-            name=team_name, federation_id=fed_id, category=league_category, is_active=True
-        )
-        logger.info(f"Equipo creado automáticamente: {team.name} para liga {league.name}")
+        if self._assign_federation_club(team, club_fed_id):
+            team.save(update_fields=['club'])
         return team
+
+    @staticmethod
+    def _is_other_club(team: Team, club_fed_id: str) -> bool:
+        """El equipo encontrado por nombre es de otro club según la federación (#380)."""
+        from ilovevoley.teams.services import EMPTY_CLUB_IDS
+        if club_fed_id in EMPTY_CLUB_IDS or team.club_id is None:
+            return False
+        return team.club.federation_id != club_fed_id
+
+    @staticmethod
+    def _assign_federation_club(team: Team, club_fed_id: str) -> bool:
+        """Asigna a un equipo sin club el club federativo que trae el partido.
+
+        El id de club de voleibolib es fiable e independiente del nombre, así que un
+        equipo que cambia de patrocinador (y de fila ``Team``) sigue en su club.
+        """
+        from ilovevoley.teams.services import EMPTY_CLUB_IDS
+        from ilovevoley.teams.models import Club
+        if team.club_id is not None or club_fed_id in EMPTY_CLUB_IDS:
+            return False
+        team.club = Club.objects.filter(federation_id=club_fed_id).first()
+        return team.club is not None
 
     def _normalize_team_name(self, name: str) -> str:
         """Normaliza nombres de equipos para búsqueda flexible"""

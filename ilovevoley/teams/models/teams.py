@@ -22,6 +22,7 @@ class Club(models.Model):
         related_name='clubs',
         verbose_name=_('Pabellón habitual')
     )
+    municipality = models.CharField(max_length=100, blank=True)
     province = models.CharField(max_length=100, blank=True)
     instagram = models.URLField(blank=True)
     facebook = models.URLField(blank=True)

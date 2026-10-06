@@ -193,6 +193,14 @@ class CategoryPreference(models.Model):
         verbose_name=_('Categorías de Interés'),
         help_text=_('Categorías de contenido que deseas ver en este club'),
     )
+    # Con equipos elegidos, los avisos de partido y el iCal de este club se limitan a ellos
+    # y las categorías dejan de aplicarse a partidos (siguen filtrando álbumes y contenido).
+    teams = models.ManyToManyField(
+        'teams.Team',
+        blank=True,
+        related_name='followers',
+        verbose_name=_('Mis equipos'),
+    )
 
     class Meta:
         unique_together = ('user', 'organization')

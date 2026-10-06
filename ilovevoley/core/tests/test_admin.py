@@ -1,8 +1,10 @@
 from django.contrib import admin as django_admin
 from django.test import TestCase
+from django.utils import timezone
 
+from ilovevoley.competitions.models import League, Match
 from ilovevoley.core.admin import OrganizationAdmin
-from ilovevoley.core.models import Organization
+from ilovevoley.core.models import Organization, Season
 from ilovevoley.teams.models import Club, Team
 
 
@@ -31,9 +33,18 @@ class OrganizationAdminClubHelpersTest(TestCase):
         Team.objects.create(name='CV SANT JOSEP', federation_id='t-6', club=self.club)
         self.assertIn('Sin club_team_names', self.admin.club_names_status(org))
 
-    def test_assign_club_action_fills_matching_orphan_teams(self):
-        orphan = Team.objects.create(name='SANT JOSEP OBRER', federation_id='t-4', club=None)
-        unrelated = Team.objects.create(name='CV ALTRES ESCOLA', federation_id='t-5', club=None)
+    def test_assign_club_action_fills_orphan_teams_by_match_club_ids(self):
+        """Asigna por el id de club de los partidos, no por el nombre (#380)."""
+        orphan = Team.objects.create(name='PORTOL ROJO', federation_id='t-4', club=None)
+        unrelated = Team.objects.create(name='SANT JOSEP OBRER B', federation_id='t-5', club=None)
+        league = League.objects.create(
+            name='Liga', federation_id='1', season=Season.objects.resolve('2026-27'),
+            competition_type='regular', match_format='standard', visibility_type='main',
+        )
+        Match.objects.create(
+            league=league, home_team=orphan, away_team=unrelated, match_date=timezone.now(),
+            federation_club_local_id='c-1', federation_club_away_id='c-2',
+        )
         self.admin.message_user = lambda *args, **kwargs: None
 
         self.admin.assign_club_to_orphan_teams(None, Organization.objects.filter(pk=self.org.pk))

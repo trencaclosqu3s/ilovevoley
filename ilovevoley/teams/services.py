@@ -1,11 +1,42 @@
 """Matching de equipos con su club federativo.
 
-La lógica es pura (no toca el ORM) para poder reutilizarla desde el scraping,
-el admin y las migraciones de backfill.
+El club de un equipo sale de los ids de club que la federación (voleibolib) manda
+en sus partidos, nunca del nombre (#380). Las funciones reciben los modelos para
+poder reutilizarse con los modelos históricos de una migración.
 """
+from collections import defaultdict
 from difflib import SequenceMatcher
 
 from ilovevoley.videos.utils import normalize_team_name
+
+# Ids de club vacíos tal como los guarda el parser (``str(None)`` incluido).
+EMPTY_CLUB_IDS = {'', 'None', '0'}
+
+
+def federation_club_ids_by_team(match_model):
+    """``{team_id: federation_id del club}`` según los partidos de cada equipo.
+
+    Un equipo cuyos partidos apuntan a más de un club se descarta: ante la duda,
+    sin club y revisión manual.
+    """
+    club_ids = defaultdict(set)
+    matches = match_model._base_manager.all()
+    for side, field in (('home_team_id', 'federation_club_local_id'), ('away_team_id', 'federation_club_away_id')):
+        for team_id, club_id in matches.values_list(side, field).distinct():
+            if team_id and club_id not in EMPTY_CLUB_IDS:
+                club_ids[team_id].add(club_id)
+    return {team_id: ids.pop() for team_id, ids in club_ids.items() if len(ids) == 1}
+
+
+def resolve_team_clubs(match_model, club_model):
+    """``{team_id: Club}`` de los equipos con un club federativo inequívoco."""
+    club_ids = federation_club_ids_by_team(match_model)
+    clubs = club_model._base_manager.in_bulk(set(club_ids.values()), field_name='federation_id')
+    return {team_id: clubs[club_id] for team_id, club_id in club_ids.items() if club_id in clubs}
+
+
+# Matching difuso por nombre: solo lo usa la migración 0003, que no se puede
+# editar. No usarlo para asignar clubes (emparejaba CV Mataró con Club Mayurqa).
 
 # Umbral a partir del cual se aplica automáticamente un match.
 MATCH_THRESHOLD = 0.55

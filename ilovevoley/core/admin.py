@@ -4,8 +4,9 @@ from django.db.models import Count, Q
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin
-from ilovevoley.teams.models import Team
-from ilovevoley.teams.services import MATCH_THRESHOLD, find_best_club
+from ilovevoley.teams.models import Club, Team
+from ilovevoley.competitions.models import Match
+from ilovevoley.teams.services import resolve_team_clubs
 from .models import Category, Organization, Season
 
 
@@ -61,31 +62,27 @@ class OrganizationAdmin(ModelAdmin):
         )
     club_names_status.short_description = _('Consistencia de nombres')
 
-    @admin.action(description=_('Asignar club a equipos huérfanos por coincidencia de nombre'))
+    @admin.action(description=_('Asignar club a equipos huérfanos según sus partidos'))
     def assign_club_to_orphan_teams(self, request, queryset):
-        """Rellena Team.club en equipos sin club que casan con el club de la org."""
+        """Rellena Team.club en equipos sin club cuyos partidos los sitúan en el club de la org."""
         total = 0
+        team_clubs = resolve_team_clubs(Match, Club)
         with transaction.atomic():
             for org in queryset.filter(club__isnull=False).select_related('club'):
-                matched = []
-                for team in Team.objects.filter(club__isnull=True):
-                    match = find_best_club(team.name, [org.club])
-                    if match and match[1] >= MATCH_THRESHOLD:
-                        team.club = org.club
-                        matched.append(team)
-                if matched:
-                    Team.objects.bulk_update(matched, ['club'])
-                    total += len(matched)
+                team_ids = [team_id for team_id, club in team_clubs.items() if club.pk == org.club_id]
+                count = Team.objects.filter(club__isnull=True, pk__in=team_ids).update(club=org.club)
+                if count:
+                    total += count
                     self.message_user(
                         request,
                         _('%(slug)s: %(count)s equipo(s) asignado(s) a %(club)s.') % {
                             'slug': org.slug,
-                            'count': len(matched),
+                            'count': count,
                             'club': org.club,
                         },
                     )
         if not total:
-            self.message_user(request, _('No se encontraron equipos huérfanos por coincidencia de nombre.'))
+            self.message_user(request, _('No se encontraron equipos huérfanos con partidos de ese club.'))
 
 
 @admin.register(Category)
