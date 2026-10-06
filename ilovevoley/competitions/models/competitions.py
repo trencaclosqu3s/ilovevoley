@@ -495,6 +495,10 @@ class Match(models.Model):
         null=True, blank=True, verbose_name=_('Recordatorio 2h enviado el'),
         help_text=_('Fecha y hora en que se envió el recordatorio push 2h antes del partido para evitar duplicados.'),
     )
+    photo_reminder_sent_at = models.DateTimeField(
+        null=True, blank=True, verbose_name=_('Recordatorio de fotos enviado el'),
+        help_text=_('Fecha y hora en que se envió el push para animar a subir fotos del partido, para evitar duplicados.'),
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

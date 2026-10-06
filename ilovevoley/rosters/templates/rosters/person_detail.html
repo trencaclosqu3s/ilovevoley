@@ -174,6 +174,8 @@
     </div>
     {% endif %}
 
+    {% include 'rosters/_tagged_photos.html' with person=person tagged_images=tagged_images tagged_images_count=tagged_images_count %}
+
     <!-- Roles de Jugador -->
     <div class="bg-surface rounded-[20px] border border-line p-6 mb-6">
         <div class="flex justify-between items-center mb-4">

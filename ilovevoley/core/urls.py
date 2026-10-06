@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/users/<int:user_id>/dismiss-reactivation/', views.dismiss_reactivation_api, name='dismiss_reactivation_api'),
     path('api/callups/<int:player_id>/confirm/', views.confirm_callup_api, name='confirm_callup_api'),
     path('api/callups/<int:player_id>/reject/', views.reject_callup_api, name='reject_callup_api'),
+    path('api/image-removals/<int:request_id>/resolve/', views.resolve_image_removal, name='resolve_image_removal'),
 
     # Wizard de nueva temporada (plataforma, solo superusers)
     path('temporadas/nueva/', views.season_wizard, name='season_wizard'),

@@ -33,6 +33,10 @@ from .parsers import (
 
 logger = logging.getLogger(__name__)
 
+# Jornadas a cada lado de la actual en las que se busca un partido que no está en ella.
+MAX_ROUND_DISTANCE = 2
+MAX_LEAGUE_ROUNDS = 60  # tope de seguridad al recorrer una liga entera
+
 
 
 class FederationScraper:
@@ -96,6 +100,57 @@ class FederationScraper:
         
         return parser.parse_content(content)
     
+    def _fetch_round_map(self, league: League, needed: Optional[set] = None, delay: float = 0) -> Dict[tuple, int]:
+        """
+        Devuelve {(club_local_id, club_visitante_id): jornada} para los pares de ``needed``.
+        Sin ``needed`` recorre todas las jornadas de la liga (backfill), con ``delay``
+        segundos entre peticiones.
+
+        El JSON unificado no trae jornada ni es el calendario completo (solo una ventana
+        de partidos próximos o recientes), pero el HTML de resultados sí: lleva la
+        jornada y el id de club de cada equipo en la URL del escudo. Sin ``jor`` devuelve
+        la jornada actual; los pares que no estén ahí (adelantados, aplazados, resultados
+        de la jornada anterior) se buscan en las contiguas, hasta ``MAX_ROUND_DISTANCE``.
+        En una liga a doble vuelta el par (local, visitante) es único; si un club tuviera
+        dos equipos en el mismo grupo se pisaría y habría que desempatar por fecha.
+        Un fallo de red devuelve lo recogido hasta ese momento: la jornada es un
+        enriquecimiento y no debe impedir importar los partidos.
+        """
+        url = f'https://www.voleibolib.net/JSON/get_resultados.asp?id={league.federation_id}'
+        round_map: Dict[tuple, int] = {}
+
+        def fetch(round_number=None):
+            suffix = f'&jor={round_number}' if round_number else ''
+            html = self._fetch_json_with_retry(url + suffix).text
+            header = re.search(r'<h3>JORNADA (\d+)', html)
+            # Fuera de rango el servidor devuelve la jornada 1, no un error.
+            if not header or (round_number and int(header.group(1)) != round_number):
+                return None
+            for block in html.split("class='info_partido")[1:]:
+                clubs = re.findall(r'clubes/(\d+)mini', block)
+                if len(clubs) >= 2:
+                    round_map[(clubs[0], clubs[1])] = int(header.group(1))
+            return int(header.group(1))
+
+        try:
+            if needed is None:
+                for round_number in range(1, MAX_LEAGUE_ROUNDS + 1):
+                    if fetch(round_number) is None:
+                        break
+                    time.sleep(delay)
+                return round_map
+            current = fetch()
+            if current:
+                for distance in range(1, MAX_ROUND_DISTANCE + 1):
+                    if needed <= round_map.keys():
+                        break
+                    for candidate in (current - distance, current + distance):
+                        if candidate >= 1:
+                            fetch(candidate)
+        except Exception as e:
+            logger.warning(f'No se pudo obtener el número de jornada de {league.name}: {e}')
+        return round_map
+
     def process_json_unified(self, json_url: str, op_type: str = '1', filter_by_db_leagues: bool = True) -> Dict[str, Any]:
         """
         Procesa datos JSON de forma unificada y eficiente.
@@ -177,7 +232,11 @@ class FederationScraper:
                                     
                                     # Procesar partidos usando el parser unificado
                                     matches_created, matches_updated = self._process_json_matches_unified(
-                                        league, partidos, categoria_name, grupo_id, op_type
+                                        league, partidos, categoria_name, grupo_id, op_type,
+                                        round_map=self._fetch_round_map(league, {
+                                            (str(p.get('ID_CLUB_LOCAL', '')), str(p.get('ID_CLUB_VISITANTE', '')))
+                                            for p in partidos
+                                        }),
                                     )
                                     
                                     total_results['matches_created'] += matches_created
@@ -216,7 +275,7 @@ class FederationScraper:
             logger.error(error_msg, exc_info=True)
             return {'status': 'error', 'message': error_msg}
     
-    def _process_json_matches_unified(self, league, partidos_data, categoria_name, grupo_id, op_type):
+    def _process_json_matches_unified(self, league, partidos_data, categoria_name, grupo_id, op_type, round_map=None):
         """Procesa los partidos encontrados en un grupo específico del JSON usando el parser unificado"""
         from unidecode import unidecode
         from datetime import datetime
@@ -233,7 +292,11 @@ class FederationScraper:
                 
                 if not match_data:
                     continue
-                
+
+                round_number = (round_map or {}).get(
+                    (match_data['federation_club_local_id'], match_data['federation_club_away_id'])
+                )
+
                 # Buscar equipos
                 home_team = self._find_team_by_name(match_data['home_team'], league)
                 away_team = self._find_team_by_name(match_data['away_team'], league)
@@ -315,6 +378,8 @@ class FederationScraper:
                     if fed_id:
                         match.federation_id = fed_id
                     match.match_date = match_data['match_date']
+                    if round_number:
+                        match.round_number = round_number
                     incoming_acta = build_acta_url(
                         match_data.get('acta_html', ''),
                         fed_id or match.federation_id,
@@ -362,7 +427,7 @@ class FederationScraper:
                         federation_id=fed_id or None,
                         acta_html=build_acta_url(match_data.get('acta_html', ''), fed_id),
                         federation_comment=(match_data.get('comentario') or ''),
-                        round_number=match_data.get('round_number', 1)
+                        round_number=round_number or 1
                     )
                     matches_created += 1
                     
@@ -846,6 +911,8 @@ class FederationScraper:
                 for key, value in match_data.items():
                     if hasattr(Match, key):
                         valid_match_data[key] = value
+                if valid_match_data.get('round_number') is None:
+                    valid_match_data.pop('round_number', None)  # el JSON no la trae: default del modelo
                 if valid_match_data.get('acta_html'):
                     valid_match_data['acta_html'] = build_acta_url(
                         valid_match_data['acta_html'],

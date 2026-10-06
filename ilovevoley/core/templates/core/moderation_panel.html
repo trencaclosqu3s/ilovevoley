@@ -18,8 +18,8 @@
                 <p class="text-muted">{% if can_moderate_images %}{% trans "Gestiona usuarios e imágenes pendientes de aprobación" %}{% else %}{% trans "Gestiona las solicitudes de membresía pendientes de tu club" %}{% endif %}</p>
             </div>
             <div class="text-right">
-                <div class="text-3xl font-bold text-brand-text">{{ pending_users_count|add:pending_images_count|add:pending_callups_count|add:pending_reactivations_count }}</div>
-                <div class="text-sm text-muted">{% blocktrans count counter=pending_users_count|add:pending_images_count|add:pending_callups_count|add:pending_reactivations_count %}elemento pendiente{% plural %}elementos pendientes{% endblocktrans %}</div>
+                <div class="text-3xl font-bold text-brand-text">{{ pending_users_count|add:pending_images_count|add:pending_callups_count|add:pending_reactivations_count|add:pending_removals_count }}</div>
+                <div class="text-sm text-muted">{% blocktrans count counter=pending_users_count|add:pending_images_count|add:pending_callups_count|add:pending_reactivations_count|add:pending_removals_count %}elemento pendiente{% plural %}elementos pendientes{% endblocktrans %}</div>
             </div>
         </div>
     </div>
@@ -71,6 +71,19 @@
                 </div>
             </div>
         </div>
+
+        {% if can_moderate_images %}
+        <div class="bg-gradient-to-r from-red-50 to-red-100 rounded-lg p-6 border-l-4 border-red-500">
+            <div class="flex items-center">
+                <div class="text-3xl mr-4">{% icon 'camera' %}</div>
+                <div>
+                    <h3 class="text-lg font-semibold text-ink">{% trans "Retiradas de fotos" %}</h3>
+                    <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ pending_removals_count }}</p>
+                    <p class="text-sm text-muted">{% trans "Peticiones de las familias" %}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Token CSRF para AJAX -->
@@ -298,6 +311,61 @@
     </div>
     {% endif %}
 
+    <!-- Solicitudes de retirada de fotos -->
+    {% if can_moderate_images and pending_removals %}
+    <div id="retiradas" class="mb-8">
+        <div class="flex items-center mb-6">
+            <h2 class="text-xl lg:text-2xl font-bold text-ink mr-3">{% icon 'camera' %} {% trans "Solicitudes de retirada de fotos" %}</h2>
+            <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_removals_count }}</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {% for removal in pending_removals %}
+            <div class="bg-surface rounded-lg shadow-lg border border-line p-6">
+                <div class="flex gap-4 mb-4">
+                    {% if removal.image %}
+                        <div class="w-28 h-28 flex-shrink-0 rounded-lg overflow-hidden border border-line">
+                            {% include 'content/_thumbnail.html' with image=removal.image css_class="w-full h-full object-cover" sizes="112px" %}
+                        </div>
+                    {% endif %}
+                    <div class="min-w-0">
+                        <h3 class="text-lg font-bold text-ink truncate">{{ removal.image_title }}</h3>
+                        {% if removal.person %}
+                            <p class="text-sm text-muted">{% trans "Deportista:" %} <span class="font-medium text-ink">{{ removal.person.full_name }}</span></p>
+                        {% endif %}
+                        <p class="text-sm text-muted">{% trans "Solicitada por:" %} {{ removal.requested_by.get_full_name|default:removal.requested_by.username }}</p>
+                        <p class="text-xs text-muted">{{ removal.created_at|date:"d/m/Y H:i" }}</p>
+                    </div>
+                </div>
+
+                {% if removal.reason %}
+                    <div class="p-3 bg-tint rounded-lg border border-line mb-4 text-sm">
+                        <span class="text-muted">{% trans "Motivo:" %}</span> <span class="text-ink">{{ removal.reason }}</span>
+                    </div>
+                {% endif %}
+
+                <div class="flex space-x-3">
+                    <form method="post" action="{% url 'core:resolve_image_removal' removal.id %}" class="flex-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="remove">
+                        <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm touch-manipulation">
+                            {% icon 'ban' %} {% trans "Eliminar foto" %}
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'core:resolve_image_removal' removal.id %}" class="flex-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="dismiss">
+                        <button type="submit" class="w-full bg-tint hover:opacity-80 text-muted font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm touch-manipulation">
+                            {% icon 'x-circle' %} {% trans "Descartar" %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Sección de Imágenes Pendientes -->
     {% if can_moderate_images and pending_images %}
     <div class="mb-8">
@@ -444,7 +512,7 @@
     {% endif %}
 
     <!-- Mensaje cuando no hay elementos pendientes -->
-    {% if not pending_users and not pending_images and not reactivation_users %}
+    {% if not pending_users and not pending_images and not reactivation_users and not pending_removals and not pending_callups %}
     <div class="bg-surface rounded-3xl border border-line p-12 text-center border-t-4 border-green-500">
         <div class="text-6xl mb-4">{% icon 'sparkles' %}</div>
         <h2 class="text-2xl font-bold text-ink mb-2">{% trans "¡Todo al día!" %}</h2>
