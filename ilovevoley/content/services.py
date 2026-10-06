@@ -97,13 +97,10 @@ def moderate_image(actor, tenant, image, decision, notes='', validate_permission
 
 def delete_image_with_files(image):
     """Elimina una imagen y sus ficheros (original y miniaturas) de forma definitiva."""
-    for field_name in (
-        'image',
-        'thumbnail_small',
-        'thumbnail_large',
-        'thumbnail_small_avif',
-        'thumbnail_large_avif',
-    ):
+    from ilovevoley.content.thumbnails import THUMBNAIL_VARIANTS
+
+    fields = ('image',) + tuple(name for name, _width, _fmt in THUMBNAIL_VARIANTS)
+    for field_name in fields:
         field = getattr(image, field_name, None)
         if field:
             field.delete(save=False)

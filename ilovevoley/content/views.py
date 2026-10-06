@@ -14,6 +14,7 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
@@ -1176,9 +1177,10 @@ def image_tag_bulk(request):
     album_id = request.GET.get('album') or request.POST.get('album')
 
     if match_id and match_id.isdigit():
-        match = Match.objects.filter(pk=match_id).first()
-        if match is None:
-            raise Http404(_('Partido no encontrado'))
+        # Acotado al club: un partido de otro tenant devuelve 404, no revela datos.
+        match = get_tenant_object_or_404(
+            Match.objects, request.tenant, user=request.user, id=match_id
+        )
         images = images.filter(match=match)
         title = f'{match.home_team_display} vs {match.away_team_display}'
     elif album_id:
@@ -1201,17 +1203,21 @@ def image_tag_bulk(request):
             _('Etiquetas actualizadas en %(count)s imágenes.') % {'count': changed},
         )
         next_url = request.POST.get('next')
-        if next_url:
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
             return redirect(next_url)
         if match is not None:
             return redirect('content:match_images', match_id=match.id)
         return redirect('content:album_group_images', album_group_id=album_id)
 
+    page_obj = Paginator(images, 24).get_page(request.GET.get('page'))
     context = {
         'title': title,
         'match': match,
         'album_group_id': album_id,
-        'images': images,
+        'page_obj': page_obj,
+        'total_images': page_obj.paginator.count,
         'taggable_persons': taggable_persons(match, request.tenant),
         'next': request.get_full_path(),
     }

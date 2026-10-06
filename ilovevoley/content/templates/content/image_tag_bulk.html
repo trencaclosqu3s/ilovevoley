@@ -41,9 +41,9 @@
                         </button>
                     </div>
 
-                    {% if images %}
+                    {% if page_obj %}
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[32rem] overflow-y-auto pr-1">
-                            {% for image in images %}
+                            {% for image in page_obj %}
                                 <label class="block bg-tint rounded-xl border border-line overflow-hidden cursor-pointer hover:border-accent transition">
                                     <div class="aspect-square relative">
                                         {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover" sizes="(min-width: 1024px) 20vw, 33vw" %}
@@ -55,6 +55,20 @@
                                 </label>
                             {% endfor %}
                         </div>
+
+                        {% if page_obj.has_other_pages %}
+                            <nav class="flex items-center justify-center gap-2 mt-4 text-sm">
+                                {% if page_obj.has_previous %}
+                                    <a href="?{% if match %}match={{ match.id }}{% else %}album={{ album_group_id }}{% endif %}&page={{ page_obj.previous_page_number }}"
+                                       class="px-3 py-1.5 bg-tint rounded-full text-ink hover:opacity-80">{% trans "Anterior" %}</a>
+                                {% endif %}
+                                <span class="text-muted">{% blocktrans with number=page_obj.number total=page_obj.paginator.num_pages %}Página {{ number }} de {{ total }}{% endblocktrans %}</span>
+                                {% if page_obj.has_next %}
+                                    <a href="?{% if match %}match={{ match.id }}{% else %}album={{ album_group_id }}{% endif %}&page={{ page_obj.next_page_number }}"
+                                       class="px-3 py-1.5 bg-tint rounded-full text-ink hover:opacity-80">{% trans "Siguiente" %}</a>
+                                {% endif %}
+                            </nav>
+                        {% endif %}
                     {% else %}
                         <p class="text-sm text-muted italic">{% trans "No hay imágenes disponibles." %}</p>
                     {% endif %}

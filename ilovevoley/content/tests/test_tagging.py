@@ -231,6 +231,38 @@ class ImageTaggingTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(self.image.persons.filter(id=self.person_a.id).exists())
 
+    def test_bulk_page_rejects_match_from_another_club(self):
+        league = League.objects.create(
+            name='Liga B', federation_id='L-B', season=self.season,
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+        foreign_match = Match.objects.create(
+            league=league, home_team=self.team_b, away_team=self.team_b,
+            match_date=timezone.now(), round_number=1, status='scheduled',
+        )
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('content:image_tag_bulk'), {'match': foreign_match.id},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_bulk_ignores_external_next(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('content:image_tag_bulk'),
+            {
+                'album': self.album_group_id,
+                'image_ids': [self.image.id],
+                'person_ids': [self.person_a.id],
+                'action': 'add',
+                'next': 'https://evil.example.com/',
+            },
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn('evil.example.com', response.url)
+
     @patch('ilovevoley.content.tasks.notify_image_tagged_push_task.delay')
     def test_tagging_enqueues_push_only_for_new_tags(self, mock_delay):
         self.client.force_login(self.uploader)
