@@ -106,3 +106,52 @@ class MatchPreviewTests(TestCase):
         with CaptureQueriesContext(connection) as ctx:
             build_match_preview(self.match)
         self.assertLessEqual(len(ctx.captured_queries), 4)
+
+    def test_head_to_head_strictly_excludes_matches_from_other_categories_even_for_same_teams(self):
+        other_cat = Category.objects.create(name='Juvenil Femenino')
+        other_league = League.objects.create(
+            name='Liga Juvenil', federation_id='L_JUV', season=self.league.season,
+        )
+        other_league.categories.add(other_cat)
+
+        # Mismo enfrentamiento entre los dos mismos equipos, pero en otra liga/categoría
+        Match.objects.create(
+            league=other_league, home_team=self.home, away_team=self.away,
+            status='finished', match_date=self.now - timedelta(days=20),
+            home_score=3, away_score=0,
+            federation_club_local_id='C1', federation_club_away_id='C2',
+        )
+        # Partido en la misma categoría (debe incluirse)
+        same_cat_match = self._match(self.home, self.away, days=-10, score=(3, 2))
+
+        preview = build_match_preview(self.match)
+
+        self.assertEqual(preview['head_to_head'], [same_cat_match])
+
+    def test_head_to_head_annotates_media_counts_and_set_scores(self):
+        from ilovevoley.content.models import Image, Video
+        from ilovevoley.core.models import Organization
+        from ilovevoley.users.models import User
+
+        past = self._match(self.home, self.away, days=-15, score=(3, 1))
+        past.set_scores = [[25, 20], [23, 25], [25, 18], [25, 22]]
+        past.save()
+
+        org = Organization.objects.create(name='Club', slug='club')
+        user = User.objects.create(username='uploader')
+        Video.objects.create(
+            title='Resumen', youtube_url='https://youtu.be/xyz',
+            created_by=user, organization=org, match=past,
+        )
+        Image.objects.create(
+            title='Celebración', image='match_photo.jpg',
+            uploaded_by=user, organization=org, match=past,
+        )
+
+        preview = build_match_preview(self.match)
+
+        h2h_match = preview['head_to_head'][0]
+        self.assertEqual(h2h_match.videos_count, 1)
+        self.assertEqual(h2h_match.images_count, 1)
+        self.assertEqual(h2h_match.preview_set_scores, [(25, 20), (23, 25), (25, 18), (25, 22)])
+

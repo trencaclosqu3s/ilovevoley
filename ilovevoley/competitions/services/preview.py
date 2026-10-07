@@ -4,7 +4,7 @@ Todo sale de ``Match`` y ``Standing`` ya scrapeados. El número de consultas es
 fijo (historial, clasificación y forma de cada equipo), sin N+1.
 """
 
-from django.db.models import Q
+from django.db.models import Count, Q
 
 from ilovevoley.competitions.models import Match, Standing
 from ilovevoley.competitions.services.sets import match_set_scores
@@ -52,6 +52,14 @@ def _head_to_head_filter(match):
         Q(home_team_id=home_id, away_team_id=away_id)
         | Q(home_team_id=away_id, away_team_id=home_id)
     )
+    if match.league_id:
+        categories_pks = match.league.categories.values('pk')
+        by_team = by_team & (
+            Q(league_id=match.league_id)
+            | Q(league__categories__in=categories_pks)
+            | Q(league__isnull=True)
+        )
+
     local, away = match.federation_club_local_id, match.federation_club_away_id
     # El parser guarda str(None) cuando la federación envía null: no es un club.
     if not (local and away and match.league_id) or {local, away} & {'None', '0'}:
@@ -74,6 +82,10 @@ def build_match_preview(match):
         .filter(_head_to_head_filter(match))
         .exclude(pk=match.pk)
         .select_related('home_team', 'away_team', 'league__season')
+        .annotate(
+            videos_count=Count('videos', distinct=True),
+            images_count=Count('images', distinct=True),
+        )
         .distinct()
         .order_by('-match_date')[:MAX_HEAD_TO_HEAD]
     )
