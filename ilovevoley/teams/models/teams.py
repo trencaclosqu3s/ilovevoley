@@ -128,9 +128,15 @@ class Team(models.Model):
 
     @property
     def display_logo_file(self):
-        """Copia local del escudo (del equipo o, si no tiene, del club), o None."""
+        """Copia local del escudo, o None.
+
+        Un equipo con ``logo_url`` propio no hereda el escudo del club: hasta que
+        se copie el suyo, ``display_logo`` y la story usan esa URL.
+        """
         if self.logo:
             return self.logo
+        if self.logo_url:
+            return None
         if self.club and self.club.logo:
             return self.club.logo
         return None

@@ -81,6 +81,13 @@ class DisplayLogoTests(SimpleTestCase):
         self.assertEqual(team.display_logo_file.name, 'clubs/logos/7.png')
         self.assertTrue(team.display_logo.endswith('clubs/logos/7.png'))
 
+    def test_team_with_own_logo_url_does_not_inherit_club_local_copy(self):
+        club = Club(federation_id='7', logo='clubs/logos/7.png')
+        team = Team(club=club, logo_url='https://fed.example/team.jpg')
+
+        self.assertIsNone(team.display_logo_file)
+        self.assertEqual(team.display_logo, 'https://fed.example/team.jpg')
+
     def test_falls_back_to_federation_url_without_local_copy(self):
         club = Club(federation_id='7')
 
