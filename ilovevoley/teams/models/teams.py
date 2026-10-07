@@ -50,6 +50,46 @@ class Club(models.Model):
         return None
 
 
+class TeamIdentity(models.Model):
+    """Identidad estable de un equipo entre temporadas (#428).
+
+    No confundir con ``federation_id`` (aparición federativa) ni con
+    ``parent_team`` / variantes (A/B, color).
+    """
+    club = models.ForeignKey(
+        Club,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='team_identities',
+    )
+    category = models.ForeignKey(
+        'core.Category',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='team_identities',
+    )
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, default='')
+    core_name = models.CharField(max_length=200)
+    core_name_normalized = models.CharField(max_length=200, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('Identidad de equipo')
+        verbose_name_plural = _('Identidades de equipo')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['club', 'category', 'gender', 'core_name_normalized'],
+                condition=models.Q(club__isnull=False),
+                name='unique_team_identity_per_club_category_gender_name',
+            ),
+        ]
+
+    def __str__(self):
+        return self.core_name
+
+
 class Team(models.Model):
     name = models.CharField(max_length=200)
     federation_id = models.CharField(max_length=200, unique=True)
@@ -72,6 +112,17 @@ class Team(models.Model):
         default='',
         verbose_name=_('Género / Rama'),
         help_text=_('Vacío = hereda el género de la categoría.'),
+    )
+    identity = models.ForeignKey(
+        'teams.TeamIdentity',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='teams',
+        help_text=_(
+            'Identidad estable entre temporadas '
+            '(no confundir con federation_id ni con variantes)'
+        ),
     )
     is_active = models.BooleanField(default=True, help_text=_('Indica si el equipo sigue activo en las competiciones'))
     created_at = models.DateTimeField(auto_now_add=True)
@@ -189,3 +240,80 @@ class Team(models.Model):
             if include_self:
                 variants.insert(0, self)
             return variants
+
+
+class TeamIdentityCandidate(models.Model):
+    """Vínculo de identidad dudoso pendiente de confirmación manual (#428)."""
+
+    STATUS_CHOICES = [
+        ('pending', _('Pendiente')),
+        ('approved', _('Aprobada')),
+        ('rejected', _('Rechazada')),
+    ]
+
+    new_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='identity_candidates')
+    suggested_identity = models.ForeignKey(
+        TeamIdentity,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+    suggested_team = models.ForeignKey(
+        Team,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+    score = models.FloatField(null=True, blank=True)
+    reason = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('Candidata de identidad de equipo')
+        verbose_name_plural = _('Candidatas de identidad de equipo')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.new_team} → {self.suggested_identity} ({self.status})'
+
+    def approve(self):
+        if self.status != 'pending' or not self.suggested_identity_id:
+            return self.new_team
+        from django.db import transaction
+
+        with transaction.atomic():
+            team = self.new_team
+            old_identity_id = team.identity_id
+            suggested = self.suggested_identity
+            if old_identity_id and old_identity_id != suggested.pk:
+                # Candidata de backfill: mover todas las apariciones de la identidad origen
+                Team.objects.filter(identity_id=old_identity_id).update(identity=suggested)
+            else:
+                team.identity = suggested
+                team.save(update_fields=['identity'])
+            self.status = 'approved'
+            self.save(update_fields=['status'])
+        return team
+
+    def reject(self):
+        if self.status != 'pending':
+            return self.new_team
+        from django.db import transaction
+
+        from ilovevoley.teams.identity import create_identity_for_team
+
+        with transaction.atomic():
+            team = self.new_team
+            if team.identity_id:
+                # Ya tiene identidad (p. ej. candidata del backfill): solo descartar el vínculo
+                self.status = 'rejected'
+                self.save(update_fields=['status'])
+                return team
+            team.identity = create_identity_for_team(team)
+            team.save(update_fields=['identity'])
+            self.status = 'rejected'
+            self.save(update_fields=['status'])
+        return team
