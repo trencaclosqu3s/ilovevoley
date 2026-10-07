@@ -52,21 +52,21 @@
 
                 <fieldset class="space-y-1" data-se-gradient="top">
                     <legend class="text-xs text-muted">{% trans "Degradado superior" %}</legend>
-                    <div class="flex items-center gap-3">
-                        <input type="color" data-se-prop="color" class="w-10 h-8 rounded border border-line bg-transparent" aria-label="{% trans 'Color' %}">
-                        <input type="range" data-se-prop="alpha" min="0" max="255" step="1" class="flex-1" aria-label="{% trans 'Intensidad' %}">
-                        <input type="range" data-se-prop="height" min="0" max="0.6" step="0.01" class="flex-1" aria-label="{% trans 'Altura' %}">
+                    <div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1">
+                        <input type="color" data-se-prop="color" class="row-span-2 w-10 h-10 rounded border border-line bg-transparent" aria-label="{% trans 'Color' %}">
+                        <input type="range" data-se-prop="alpha" min="0" max="255" step="1" class="w-full min-w-0" aria-label="{% trans 'Intensidad' %}" title="{% trans 'Intensidad' %}">
+                        <input type="range" data-se-prop="height" min="0" max="0.6" step="0.01" class="w-full min-w-0" aria-label="{% trans 'Altura' %}" title="{% trans 'Altura' %}">
                     </div>
                 </fieldset>
                 <fieldset class="space-y-1" data-se-gradient="bottom">
                     <legend class="text-xs text-muted">{% trans "Degradado inferior" %}</legend>
-                    <div class="flex items-center gap-3">
-                        <input type="color" data-se-prop="color" class="w-10 h-8 rounded border border-line bg-transparent" aria-label="{% trans 'Color' %}">
-                        <input type="range" data-se-prop="alpha" min="0" max="255" step="1" class="flex-1" aria-label="{% trans 'Intensidad' %}">
-                        <input type="range" data-se-prop="height" min="0" max="0.6" step="0.01" class="flex-1" aria-label="{% trans 'Altura' %}">
+                    <div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1">
+                        <input type="color" data-se-prop="color" class="row-span-2 w-10 h-10 rounded border border-line bg-transparent" aria-label="{% trans 'Color' %}">
+                        <input type="range" data-se-prop="alpha" min="0" max="255" step="1" class="w-full min-w-0" aria-label="{% trans 'Intensidad' %}" title="{% trans 'Intensidad' %}">
+                        <input type="range" data-se-prop="height" min="0" max="0.6" step="0.01" class="w-full min-w-0" aria-label="{% trans 'Altura' %}" title="{% trans 'Altura' %}">
                     </div>
                 </fieldset>
-                <p class="text-xs text-muted">{% trans "Color, intensidad y altura de cada degradado. La cabecera y el pie son fijos." %}</p>
+                <p class="text-xs text-muted">{% trans "Color, intensidad (primera barra) y altura (segunda) de cada degradado. La cabecera y el pie son fijos." %}</p>
             </div>
         </div>
 
