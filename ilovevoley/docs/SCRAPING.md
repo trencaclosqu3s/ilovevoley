@@ -563,6 +563,35 @@ misma categoría, a veces cuelga de la liga existente). Se sugiere como
 el superuser la confirma, cambia o vacía. Las ligas dadas de alta a mano que aparecen en el menú (mismo `federation_id`) se enlazan solas con una candidata `approved`, así que también valen como padre. Si sección o fase contienen
 "copa", "campeonato" o "torneo" se crea con `competition_type='cup'`.
 
+## Circulares federativas (#368)
+
+Además de las convocatorias (tipos 7 y 22, con PDF parseado), se indexan otras
+circulares de `JSON/get_circulares.asp?tipo={N}&pag={P}&temp={YYZZ}` como
+`FederationCircular`: tipo, título, fecha y nombre del PDF. **No se descarga ni
+se parsea el PDF** (los disciplinarios pueden incluir datos de menores); el
+enlace `pdf_url` apunta al original en la federación.
+
+| tipo | Contenido |
+|------|-----------|
+| 1 | Competiciones |
+| 6 | Comité de competición / expedientes disciplinarios |
+| 8 | Vóley playa |
+| 9 | Formación |
+| 11 | Normas y reglamentos |
+| 12 | Árbitros |
+| 13 | Documentos FVBIB |
+| 15 | Transparencia |
+
+**Flujo:** la tarea `scrape_federation_circulars` (`config/celery_schedule.py`,
+diaria 09:00) o `manage.py scrape_federation_circulars [--season 2026-27]
+[--tipo 6 --tipo 11] [--dry-run]` indexa por defecto los tipos 6 y 11; el resto
+se piden con `--tipo`. Es idempotente (clave: tipo + título + fecha) y también
+guarda circulares sin PDF o sin fecha válida. Hoy solo se consultan desde el
+admin (*Circulares federativas*); no hay vista pública ni push.
+
+Algunas combinaciones tipo/temporada devuelven `items: []` (p. ej. tipo 6 en
+2627 al empezar la temporada).
+
 ## Notas Importantes
 
 - ⚠️ **Respetar rate limiting**: No hacer requests muy frecuentes (usar --delay)

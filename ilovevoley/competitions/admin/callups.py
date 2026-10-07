@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
-from ilovevoley.competitions.models import FederationCallUp, CallUpPlayer
+from ilovevoley.competitions.models import FederationCallUp, FederationCircular, CallUpPlayer
 from ilovevoley.competitions.services.callup_matcher import match_callup_player
 
 
@@ -138,3 +138,10 @@ class CallUpPlayerAdmin(ModelAdmin):
 
         if request:
             self.message_user(request, f"{updated} jugadores reevaluados.")
+
+
+@admin.register(FederationCircular)
+class FederationCircularAdmin(ModelAdmin):
+    list_display = ('title', 'tipo', 'circular_date', 'season', 'file_name')
+    list_filter = ('tipo', 'season')
+    search_fields = ('title',)

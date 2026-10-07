@@ -98,6 +98,13 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute=15, hour='*/6'),
         'options': {'expire_seconds': 3600},
     },
+    # --- Circulares federativas: comité de competición y normas (#368) --------
+    # Solo indexa metadatos y enlace al PDF; la federación las publica de forma esporádica.
+    'scrape-federation-circulars': {
+        'task': 'scrape_federation_circulars',
+        'schedule': crontab(minute=0, hour=9),
+        'options': {'expire_seconds': 3600},
+    },
     # --- Descubrimiento de ligas (#377) ----------------------------------------
     # La federación publica competiciones escalonadas todo el año (categorías que
     # llegan tarde, fases, copas); cada pasada solo consulta lo aún no conocido.
