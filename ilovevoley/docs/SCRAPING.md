@@ -617,7 +617,8 @@ Se guardan como `FederationNews`: solo metadatos y enlace a la web oficial
 mezclar catalán y castellano. La tarea `scrape_federation_news`
 (`config/celery_schedule.py`, diaria 09:15) o `manage.py scrape_federation_news
 [--pages 5]` pagina hasta una página sin noticias nuevas: en régimen diario es una
-petición y la primera pasada rellena hasta 500. Hoy solo se consulta desde el admin
+petición y la primera pasada rellena hasta 500. Si esa primera pasada se interrumpe,
+`--full` recorre todas las páginas aunque no haya novedades. Hoy solo se consulta desde el admin
 (*Noticias federativas*); qué mostrar al front se decidirá viendo el flujo real.
 
 ## Notas Importantes
