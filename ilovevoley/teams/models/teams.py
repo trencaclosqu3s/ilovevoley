@@ -29,6 +29,7 @@ class Club(models.Model):
     twitter = models.URLField(blank=True)
     website = models.URLField(blank=True)
     logo_url = models.URLField(blank=True, null=True)
+    logo = models.ImageField(upload_to='clubs/logos/', blank=True, verbose_name=_('Escudo (copia local)'))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -95,6 +96,7 @@ class Team(models.Model):
     club = models.ForeignKey(Club, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams')
     sponsor_name = models.CharField(max_length=200, blank=True, help_text=_('Nombre con patrocinador si aplica'))
     logo_url = models.URLField(blank=True, null=True)
+    logo = models.ImageField(upload_to='teams/logos/', blank=True, verbose_name=_('Escudo (copia local)'))
     category = models.ForeignKey(
         'core.Category',
         on_delete=models.SET_NULL,
@@ -176,9 +178,30 @@ class Team(models.Model):
         return self.display_name_with_variant
 
     @property
+    def display_logo_file(self):
+        """Copia local del escudo, o None.
+
+        Un equipo con ``logo_url`` propio no hereda el escudo del club: hasta que
+        se copie el suyo, ``display_logo`` y la story usan esa URL.
+        """
+        if self.logo:
+            return self.logo
+        if self.logo_url:
+            return None
+        if self.club and self.club.logo:
+            return self.club.logo
+        return None
+
+    @property
     def display_logo(self):
-        """Devuelve logo del equipo o del club si no tiene"""
-        return self.logo_url or (self.club.logo_federation_url if self.club else None)
+        """URL del escudo: copia local si existe; si no, la de la federación."""
+        if self.logo:
+            return self.logo.url
+        if self.logo_url:
+            return self.logo_url
+        if self.club:
+            return self.club.logo.url if self.club.logo else self.club.logo_federation_url
+        return None
 
     @property
     def effective_gender(self):

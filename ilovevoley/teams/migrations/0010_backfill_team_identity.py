@@ -15,7 +15,7 @@ def forwards(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('teams', '0008_team_identity'),
+        ('teams', '0009_team_identity'),
         ('core', '0014_backfill_santjosep_gradient_color'),
     ]
 

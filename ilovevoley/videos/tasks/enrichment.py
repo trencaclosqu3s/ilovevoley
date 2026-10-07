@@ -578,4 +578,26 @@ __all__ = [
     'scrape_json_results_task',
     'scrape_json_upcoming_task',
     'process_json_unified_task',
+    'cache_federation_logos_task',
 ]
+
+
+@shared_task(name='cache_federation_logos')
+def cache_federation_logos_task():
+    """Guarda en local el escudo de los clubes y equipos que aún no tienen copia.
+
+    Idempotente: solo toca los que tienen ``logo`` vacío, así que los fallos de
+    red se reintentan en la siguiente ejecución. Para refrescar un escudo basta
+    con vaciar su campo ``logo``.
+    """
+    from ilovevoley.teams.services import cache_logo
+
+    saved = failed = 0
+    clubs = Club.objects.filter(logo='').exclude(federation_id='')
+    teams = Team.objects.filter(logo='').exclude(logo_url__isnull=True).exclude(logo_url='')
+    for obj in [*clubs, *teams]:
+        if cache_logo(obj):
+            saved += 1
+        else:
+            failed += 1
+    return {'saved': saved, 'failed': failed}

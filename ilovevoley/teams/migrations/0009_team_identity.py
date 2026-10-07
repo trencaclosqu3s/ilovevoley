@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0014_backfill_santjosep_gradient_color'),
-        ('teams', '0007_merge_20261006_0145'),
+        ('teams', '0008_club_logo_team_logo'),
     ]
 
     operations = [

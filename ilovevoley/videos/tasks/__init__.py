@@ -18,7 +18,7 @@ __all__ = [
     'scrape_clubs_task',
     'handle_withdrawn_teams_task',
     'scrape_teams_task',
-    # enrichment (7)
+    # enrichment (8)
     'enrich_matches_json_task',
     'enrich_single_league_json_task',
     'enrich_upcoming_matches_task',
@@ -26,6 +26,7 @@ __all__ = [
     'scrape_json_results_task',
     'scrape_json_upcoming_task',
     'process_json_unified_task',
+    'cache_federation_logos_task',
     # rfevb (2 + 1 service re-export)
     'scrape_rfevb_competition',
     'scrape_rfevb_final_classification',
