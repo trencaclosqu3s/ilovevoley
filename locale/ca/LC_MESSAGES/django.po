@@ -10777,6 +10777,18 @@ msgstr "Els meus equips"
 msgid "Tipos de Notificaciones Push"
 msgstr "Tipus de Notificacions Push"
 
+#: ilovevoley/templates/includes/navbar.html
+msgid "¿Quieres recibir avisos?"
+msgstr "Vols rebre avisos?"
+
+#: ilovevoley/templates/includes/navbar.html
+msgid "Activa las notificaciones para enterarte de partidos y novedades de tus categorías."
+msgstr "Activa les notificacions per assabentar-te de partits i novetats de les teves categories."
+
+#: ilovevoley/templates/includes/navbar.html
+msgid "Activar"
+msgstr "Activar"
+
 #: ilovevoley/templates/users/profile_edit.html:283
 msgid ""
 "Las categorías de interés te permiten personalizar el contenido que ves, "

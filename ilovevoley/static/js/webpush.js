@@ -1,6 +1,8 @@
 (function () {
     "use strict";
 
+    var PROMPT_KEY = "ilovevoley.webpush.prompt_seen";
+
     function urlB64ToUint8Array(base64String) {
         var padding = '='.repeat((4 - (base64String.length % 4)) % 4);
         var base64 = (base64String + padding)
@@ -73,6 +75,40 @@
                 navigator.clearAppBadge().catch(function () {});
             }
             this.updateUI();
+            this.maybeShowPrompt();
+        },
+
+        // Aviso único (#412): solo en la PWA instalada, con sesión y sin suscripción.
+        maybeShowPrompt: function () {
+            var banner = document.getElementById('webpush-prompt');
+            var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            if (!banner || !standalone || !this.isSupported() || Notification.permission === 'denied' || this.promptSeen()) return;
+            navigator.serviceWorker.ready.then(function (reg) {
+                return reg.pushManager.getSubscription();
+            }).then(function (sub) {
+                if (!sub) banner.classList.remove('hidden');
+            }).catch(function () {});
+        },
+
+        promptSeen: function () {
+            try { return localStorage.getItem(PROMPT_KEY) === '1'; } catch (e) { return false; }
+        },
+
+        closePrompt: function () {
+            try { localStorage.setItem(PROMPT_KEY, '1'); } catch (e) { /* almacenamiento no disponible */ }
+            var banner = document.getElementById('webpush-prompt');
+            if (banner) banner.classList.add('hidden');
+        },
+
+        acceptPrompt: function () {
+            var self = this;
+            var target = document.getElementById('webpush-prompt').getAttribute('data-target-url');
+            self.closePrompt();
+            navigator.serviceWorker.ready.then(function (reg) {
+                return self.subscribe(reg);
+            }).catch(function () {}).finally(function () {
+                window.location.href = target;
+            });
         },
 
         updateUI: function () {
@@ -201,6 +237,9 @@
             });
         }
     };
+
+    window.acceptWebPushPrompt = function () { window.WebPushManager.acceptPrompt(); };
+    window.dismissWebPushPrompt = function () { window.WebPushManager.closePrompt(); };
 
     window.toggleWebPush = function () {
         window.WebPushManager.toggle();
