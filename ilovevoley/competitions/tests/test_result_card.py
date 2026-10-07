@@ -454,6 +454,17 @@ class FetchLogoBytesTests(SimpleTestCase):
         )
 
     @patch('ilovevoley.competitions.result_card.safe_get')
+    def test_upgrades_http_urls_to_https(self, safe_get):
+        safe_get.return_value = b'logo bytes'
+
+        result_card.fetch_logo_bytes('http://intranet.rfevb.com/clubes/logos/web/cl00436.jpg')
+
+        self.assertEqual(
+            safe_get.call_args.args[0],
+            'https://intranet.rfevb.com/clubes/logos/web/cl00436.jpg',
+        )
+
+    @patch('ilovevoley.competitions.result_card.safe_get')
     def test_returns_none_when_download_fails(self, safe_get):
         for error in (UnsafeURL('host no permitido'), OSError('red caída')):
             with self.subTest(error=type(error).__name__):

@@ -135,6 +135,9 @@ LogoFetcher = Callable[[str | None], bytes | None]
 def fetch_logo_bytes(url: str | None, *, timeout: float = 5) -> bytes | None:
     if not url:
         return None
+    # La RFEVB guarda sus escudos con http:// y redirige a https; safe_get solo admite https.
+    if url.startswith('http://'):
+        url = 'https://' + url[len('http://'):]
     try:
         return safe_get(
             url,
