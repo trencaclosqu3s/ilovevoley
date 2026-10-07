@@ -110,7 +110,7 @@ def profile_view(request):
 
         story_compositions = list(
             StoryComposition.objects.filter(user=user, organization=tenant)
-            .select_related('match__home_team', 'match__away_team')[:24]
+            .select_related('match__home_team', 'match__away_team')[:12]
         )
 
     return render(request, 'users/profile.html', {

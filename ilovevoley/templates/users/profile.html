@@ -268,7 +268,7 @@
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {% for composition in story_compositions %}
                         <div class="rounded-xl border border-line overflow-hidden flex flex-col">
-                            <img src="{% url 'competitions:match_result_card' composition.match_id %}?composition={{ composition.id }}&preview=1"
+                            <img src="{% url 'competitions:match_result_card' composition.match_id %}?composition={{ composition.id }}&preview=1&v={{ composition.updated|date:'U' }}"
                                  alt="{{ composition.match.home_team_display }} - {{ composition.match.away_team_display }}"
                                  loading="lazy" class="w-full aspect-[9/16] object-cover bg-tint">
                             <div class="p-2 text-xs text-ink space-y-2">

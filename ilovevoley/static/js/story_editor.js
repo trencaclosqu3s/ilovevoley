@@ -142,15 +142,19 @@
         });
     });
 
+    function syncFormatButtons() {
+        modal.querySelectorAll('.se-format').forEach(function (button) {
+            const active = button.dataset.seFormat === state.format;
+            button.classList.toggle('bg-csj-purple-dark', active);
+            button.classList.toggle('text-white', active);
+            button.classList.toggle('text-muted', !active);
+        });
+    }
+
     modal.querySelectorAll('.se-format').forEach(function (button) {
         button.addEventListener('click', function () {
             state.format = button.dataset.seFormat;
-            modal.querySelectorAll('.se-format').forEach(function (other) {
-                const active = other === button;
-                other.classList.toggle('bg-csj-purple-dark', active);
-                other.classList.toggle('text-white', active);
-                other.classList.toggle('text-muted', !active);
-            });
+            syncFormatButtons();
             state.info = null;
             // La caja del marcador depende del formato: se vuelve al anclaje por defecto.
             state.layout.score.y = null;
@@ -442,6 +446,7 @@
             if (saved) {
                 state.compositionId = saved.id;
                 state.format = saved.format;
+                syncFormatButtons();
                 state.photoId = String(saved.photo_id);
                 state.layout = saved.layout;
                 if (state.layout.photo.zoom == null) state.layout.photo.zoom = 1;

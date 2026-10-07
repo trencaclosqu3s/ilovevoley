@@ -508,7 +508,10 @@ def match_result_card(request, match_id):
         # Se renderiza a tamaño completo y se reduce; si el editor pide muchas
         # previews, habrá que renderizar directamente a escala en el renderer.
         response = HttpResponse(_downscale_png(png), content_type='image/png')
-        response['Cache-Control'] = 'no-store'
+        # Las miniaturas de "Mis creaciones" llevan ?v=<updated>: se pueden cachear.
+        response['Cache-Control'] = (
+            'private, max-age=86400' if composition else 'no-store'
+        )
         response['X-Layout-Info'] = json.dumps(report)
         return response
     response = HttpResponse(png, content_type='image/png')
