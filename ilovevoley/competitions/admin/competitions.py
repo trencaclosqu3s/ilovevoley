@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin import helpers
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -189,6 +189,11 @@ class LeagueAdmin(ModelAdmin):
                 'mark_as_external',
                 'Marcar como ligas externas'
             )
+            actions['scrape_historical'] = (
+                self.scrape_historical,
+                'scrape_historical',
+                'Sincronizar resultados históricos (una pasada)'
+            )
 
         return actions
 
@@ -248,14 +253,31 @@ class LeagueAdmin(ModelAdmin):
                 scraped_count += 1
             except Exception as e:
                 error_count += 1
-                self.message_user(request, f'Error en {league.name}: {e}', level='ERROR')
+                self.message_user(request, f'Error en {league.name}: {e}', level=messages.ERROR)
 
         if scraped_count > 0:
             self.message_user(request, f'Scraping completado para {scraped_count} liga(s)')
         if error_count > 0:
-            self.message_user(request, f'{error_count} liga(s) con errores', level='WARNING')
+            self.message_user(request, f'{error_count} liga(s) con errores', level=messages.WARNING)
 
     scrape_selected_leagues.short_description = "Hacer scraping de ligas seleccionadas"
+
+    def scrape_historical(self, request, queryset):
+        """Encola la ingesta one-off de las ligas históricas seleccionadas (#404).
+
+        Va en background: una liga pasada implica leer todas sus jornadas y
+        excedería el timeout de la petición.
+        """
+        from ..tasks import scrape_historical_leagues_task
+
+        league_ids = list(queryset.filter(is_historical=True).values_list('pk', flat=True))
+        if not league_ids:
+            self.message_user(request, 'Ninguna de las ligas seleccionadas es histórica.', level=messages.WARNING)
+            return
+        scrape_historical_leagues_task.delay(league_ids)
+        self.message_user(request, f'Sincronización lanzada para {len(league_ids)} liga(s) histórica(s).')
+
+    scrape_historical.short_description = "Sincronizar resultados históricos (una pasada)"
 
 
 class ScrapingEndpointInline(TabularInline):
@@ -530,14 +552,14 @@ class MatchChangeLogAdmin(ModelAdmin):
 
 @admin.register(LeagueCandidate)
 class LeagueCandidateAdmin(ModelAdmin):
-    list_display = ('category_label', 'phase_label', 'section', 'category', 'season', 'status', 'federation_id', 'created_at')
-    list_filter = ('status', 'season', 'section')
+    list_display = ('category_label', 'phase_label', 'section', 'category', 'season', 'is_historical', 'status', 'federation_id', 'created_at')
+    list_filter = ('status', 'season', 'section', 'is_historical')
     search_fields = ('category_label', 'federation_id')
     readonly_fields = ('federation_id', 'season', 'section', 'category_label', 'phase_label', 'matched_teams', 'league', 'status')
     list_select_related = ('category', 'season')
     autocomplete_fields = ('parent_league',)
     actions = ['approve', 'reject', 'reopen']
-    actions_list = ['discover_now']
+    actions_list = ['discover_now', 'discover_historical_now']
 
     @admin.action(description='Aprobar y crear liga')
     def approve(self, request, queryset):
@@ -563,4 +585,12 @@ class LeagueCandidateAdmin(ModelAdmin):
         from ..tasks import discover_leagues_task
         discover_leagues_task.delay()
         self.message_user(request, 'Búsqueda lanzada: las candidatas nuevas aparecerán aquí en un minuto (y llegará el aviso por email).')
+        return redirect('admin:competitions_leaguecandidate_changelist')
+
+    @action(description='Buscar ligas históricas (últimos 5 años)', permissions=['discover_now'])
+    def discover_historical_now(self, request):
+        # Igual que discover_now: consulta los menús y clasificaciones de 5 temporadas, va en background
+        from ..tasks import discover_historical_leagues_task
+        discover_historical_leagues_task.delay()
+        self.message_user(request, 'Búsqueda histórica lanzada: las candidatas de los últimos 5 años aparecerán aquí como pendientes.')
         return redirect('admin:competitions_leaguecandidate_changelist')
