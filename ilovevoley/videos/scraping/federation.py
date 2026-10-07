@@ -1603,6 +1603,8 @@ class FederationScraper:
         if created or team.identity_id is None:
             _, candidate = resolve_team_identity(team, sponsor_name=sponsor or team.sponsor_name)
             if candidate:
+                if not hasattr(self, '_new_identity_candidates') or self._new_identity_candidates is None:
+                    self._new_identity_candidates = []
                 self._new_identity_candidates.append(candidate)
         return team
 

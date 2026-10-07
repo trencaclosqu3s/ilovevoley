@@ -69,11 +69,7 @@ def create_identity_for_team(team, *, sponsor_name: str = ''):
                 category_id=team.category_id,
                 gender=gender,
                 core_name_normalized=core,
-                defaults={
-                    'club_id': team.club_id,
-                    'category_id': team.category_id,
-                    'core_name': core,
-                },
+                defaults={'core_name': core},
             )
             return identity
         except IntegrityError:
@@ -106,7 +102,8 @@ def resolve_team_identity(team, *, sponsor_name: str = ''):
     root = _root_team(team)
     if root is not team:
         if not root.identity_id:
-            resolve_team_identity(root, sponsor_name=sponsor)
+            # Resolver el root con su propia señal de patrocinio, no la de la variante
+            resolve_team_identity(root)
             root.refresh_from_db()
         if root.identity_id:
             team.identity = root.identity
@@ -274,18 +271,15 @@ def backfill_team_identities(
             stats['linked_exact'] += 1
 
     # Variantes: heredar del root ya resuelto en esta pasada
+    root_ids = {_root_team(team).pk for team in variants}
+    identity_by_root = dict(
+        TeamModel.objects.filter(pk__in=root_ids).values_list('pk', 'identity_id')
+    )
     for team in variants:
-        root = team
-        seen = set()
-        while getattr(root, 'parent_team_id', None) and root.pk not in seen:
-            seen.add(root.pk)
-            parent = getattr(root, 'parent_team', None)
-            if parent is None:
-                break
-            root = parent
-        root = TeamModel.objects.filter(pk=root.pk).first() or root
-        if getattr(root, 'identity_id', None):
-            team.identity_id = root.identity_id
+        root_id = _root_team(team).pk
+        identity_id = identity_by_root.get(root_id)
+        if identity_id:
+            team.identity_id = identity_id
             team.save(update_fields=['identity'])
             stats['linked_exact'] += 1
 
