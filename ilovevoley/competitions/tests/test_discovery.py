@@ -99,6 +99,19 @@ def test_approve_creates_league_with_endpoints_once():
 
 
 @pytest.mark.django_db
+def test_approve_links_league_already_created_for_same_federation_id():
+    season = Season.objects.resolve('2023-24')
+    existing = League.objects.create(name='Manual', federation_id='4472', season=season)
+    candidate = LeagueCandidate.objects.create(
+        federation_id='4472', season=season, category_label='Infantil Masculina', phase_label='Liga Regular',
+    )
+    assert candidate.approve() == existing
+    candidate.refresh_from_db()
+    assert (candidate.status, candidate.league) == ('approved', existing)
+    assert League.objects.filter(federation_id='4472').count() == 1
+
+
+@pytest.mark.django_db
 def test_discover_suggests_parent_by_category_across_sections():
     season = Season.objects.resolve('2026-27')
     Organization.objects.create(slug='sj', name='SJ', club_team_names={'a': 'SANT JOSEP'})
