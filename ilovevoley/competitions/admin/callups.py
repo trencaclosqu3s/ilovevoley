@@ -142,6 +142,12 @@ class CallUpPlayerAdmin(ModelAdmin):
 
 @admin.register(FederationCircular)
 class FederationCircularAdmin(ModelAdmin):
-    list_display = ('title', 'tipo', 'circular_date', 'season', 'file_name')
+    list_display = ('title', 'tipo', 'circular_date', 'season', 'pdf_link')
     list_filter = ('tipo', 'season')
     search_fields = ('title',)
+
+    @admin.display(description='PDF')
+    def pdf_link(self, obj):
+        if not obj.pdf_url:
+            return '-'
+        return format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', obj.pdf_url, obj.file_name)
