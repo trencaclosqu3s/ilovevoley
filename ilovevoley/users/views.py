@@ -104,17 +104,20 @@ def profile_view(request):
         })
 
 
-    story_compositions = []
+    story_page = None
     if tenant is not None:
+        from django.core.paginator import Paginator
+
         from ilovevoley.competitions.models import StoryComposition
 
-        story_compositions = list(
+        story_page = Paginator(
             StoryComposition.objects.filter(user=user, organization=tenant)
-            .select_related('match__home_team', 'match__away_team')[:12]
-        )
+            .select_related('match__home_team', 'match__away_team'),
+            12,
+        ).get_page(request.GET.get('creaciones'))
 
     return render(request, 'users/profile.html', {
-        'story_compositions': story_compositions,
+        'story_page': story_page,
         'user': user,
         'organization_preferences': organization_preferences,
         'has_any_preferences': has_any_preferences,

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-08 00:41+0200\n"
+"POT-Creation-Date: 2026-10-08 01:02+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -711,7 +711,9 @@ msgstr "Files extretes"
 msgid ""
 "Solo en circulares disciplinarias: cuándo se leyó el PDF para extraer las "
 "filas de los tenants."
-msgstr "Només en circulars disciplinàries: quan es va llegir el PDF per extreure les files dels tenants."
+msgstr ""
+"Només en circulars disciplinàries: quan es va llegir el PDF per extreure les "
+"files dels tenants."
 
 #: ilovevoley/competitions/models/circulars.py:55
 msgid "Circular federativa"
@@ -1180,7 +1182,9 @@ msgstr "{slug del tenant: [equips que juguen]}"
 msgid ""
 "Detectada en una temporada pasada: al aprobar se crea como liga histórica "
 "inactiva."
-msgstr "Detectada en una temporada passada: en aprovar-la es crea com a lliga històrica inactiva."
+msgstr ""
+"Detectada en una temporada passada: en aprovar-la es crea com a lliga "
+"històrica inactiva."
 
 #: ilovevoley/competitions/models/competitions.py:634
 msgid "Liga candidata"
@@ -1405,7 +1409,9 @@ msgstr "Titular"
 msgid ""
 "Etiqueta de la federación (Generales, Arbitros…); la playa reciente llega "
 "como Generales."
-msgstr "Etiqueta de la federació (Generals, Àrbitres…); la platja recent arriba com a Generals."
+msgstr ""
+"Etiqueta de la federació (Generals, Àrbitres…); la platja recent arriba com "
+"a Generals."
 
 #: ilovevoley/competitions/models/news.py:23
 #: ilovevoley/teams/admin/teams.py:115 ilovevoley/teams/models/teams.py:39
@@ -1416,7 +1422,9 @@ msgstr "Club"
 msgid ""
 "Solo en actividades de clubes (campus, eventos), tal como lo publica la "
 "federación."
-msgstr "Només en activitats de clubs (campus, esdeveniments), tal com les publica la federació."
+msgstr ""
+"Només en activitats de clubs (campus, esdeveniments), tal com les publica la "
+"federació."
 
 #: ilovevoley/competitions/models/news.py:26
 msgid "Imagen remota"
@@ -1706,7 +1714,9 @@ msgstr "Tanca"
 msgid ""
 "Arrastra la foto para encuadrarla, pellizca para el zoom y mueve o escala el "
 "marcador."
-msgstr "Arrossega la foto per enquadrar-la, pessiga per fer zoom i mou o escala el marcador."
+msgstr ""
+"Arrossega la foto per enquadrar-la, pessiga per fer zoom i mou o escala el "
+"marcador."
 
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:39
 msgid "1:1"
@@ -1746,7 +1756,9 @@ msgstr "Degradat inferior"
 msgid ""
 "Color, intensidad (primera barra) y altura (segunda) de cada degradado. La "
 "cabecera y el pie son fijos."
-msgstr "Color, intensitat (primera barra) i alçada (segona) de cada degradat. La capçalera i el peu són fixos."
+msgstr ""
+"Color, intensitat (primera barra) i alçada (segona) de cada degradat. La "
+"capçalera i el peu són fixos."
 
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:75
 #: ilovevoley/templates/users/profile.html:280
@@ -2205,6 +2217,7 @@ msgstr "En curs"
 #: ilovevoley/rosters/templates/rosters/person_list.html:329
 #: ilovevoley/rosters/templates/rosters/person_list.html:331
 #: ilovevoley/rosters/templates/rosters/person_list.html:347
+#: ilovevoley/templates/users/profile.html:293
 msgid "Anterior"
 msgstr "Anterior"
 
@@ -2218,6 +2231,7 @@ msgstr "Anterior"
 #: ilovevoley/rosters/templates/rosters/person_list.html:337
 #: ilovevoley/rosters/templates/rosters/person_list.html:339
 #: ilovevoley/rosters/templates/rosters/person_list.html:355
+#: ilovevoley/templates/users/profile.html:297
 msgid "Siguiente"
 msgstr "Següent"
 
@@ -3014,16 +3028,16 @@ msgid "Escribe el nombre de un equipo, club, pabellón o municipio."
 msgstr "Escriu el nom d'un equip, club, pavelló o municipi."
 
 #
-#: ilovevoley/competitions/views.py:442 ilovevoley/competitions/views.py:899
-#: ilovevoley/competitions/views.py:973 ilovevoley/competitions/views.py:1031
+#: ilovevoley/competitions/views.py:442 ilovevoley/competitions/views.py:903
+#: ilovevoley/competitions/views.py:977 ilovevoley/competitions/views.py:1035
 msgid "Partido no encontrado"
 msgstr "Partit no trobat"
 
-#: ilovevoley/competitions/views.py:451 ilovevoley/competitions/views.py:577
+#: ilovevoley/competitions/views.py:451 ilovevoley/competitions/views.py:581
 msgid "Composición no encontrada"
 msgstr "Composició no trobada"
 
-#: ilovevoley/competitions/views.py:455 ilovevoley/competitions/views.py:561
+#: ilovevoley/competitions/views.py:455 ilovevoley/competitions/views.py:565
 msgid "Formato de tarjeta no válido"
 msgstr "Format de targeta no vàlid"
 
@@ -3036,7 +3050,7 @@ msgstr "Estil de targeta no vàlid"
 msgid "No se puede compartir un partido sin resultado finalizado"
 msgstr "No es pot compartir un partit sense resultat finalitzat"
 
-#: ilovevoley/competitions/views.py:475 ilovevoley/competitions/views.py:557
+#: ilovevoley/competitions/views.py:475 ilovevoley/competitions/views.py:561
 msgid "Composición no válida"
 msgstr "Composició no vàlida"
 
@@ -3050,160 +3064,160 @@ msgid "No se pudo leer la foto seleccionada"
 msgstr "No s'ha pogut llegir la foto seleccionada"
 
 #
-#: ilovevoley/competitions/views.py:539
+#: ilovevoley/competitions/views.py:543
 msgid "Composición eliminada"
 msgstr "Composició eliminada"
 
-#: ilovevoley/competitions/views.py:548
+#: ilovevoley/competitions/views.py:552
 msgid "Inicia sesión para guardar"
 msgstr "Inicia sessió per desar"
 
 #
-#: ilovevoley/competitions/views.py:569
+#: ilovevoley/competitions/views.py:573
 msgid "Selecciona una foto del partido"
 msgstr "Selecciona una foto del partit"
 
-#: ilovevoley/competitions/views.py:635
+#: ilovevoley/competitions/views.py:639
 msgid "La fecha solicitada no es válida. Mostrando el mes actual."
 msgstr "La data sol·licitada no és vàlida. Mostrant el mes actual."
 
-#: ilovevoley/competitions/views.py:686
+#: ilovevoley/competitions/views.py:690
 msgid "Enero"
 msgstr "Gener"
 
-#: ilovevoley/competitions/views.py:686
+#: ilovevoley/competitions/views.py:690
 msgid "Febrero"
 msgstr "Febrer"
 
-#: ilovevoley/competitions/views.py:686
+#: ilovevoley/competitions/views.py:690
 msgid "Marzo"
 msgstr "Març"
 
-#: ilovevoley/competitions/views.py:686
+#: ilovevoley/competitions/views.py:690
 msgid "Abril"
 msgstr "Abril"
 
-#: ilovevoley/competitions/views.py:687
+#: ilovevoley/competitions/views.py:691
 msgid "Mayo"
 msgstr "Maig"
 
-#: ilovevoley/competitions/views.py:687
+#: ilovevoley/competitions/views.py:691
 msgid "Junio"
 msgstr "Juny"
 
-#: ilovevoley/competitions/views.py:687
+#: ilovevoley/competitions/views.py:691
 msgid "Julio"
 msgstr "Juliol"
 
-#: ilovevoley/competitions/views.py:687
+#: ilovevoley/competitions/views.py:691
 msgid "Agosto"
 msgstr "Agost"
 
-#: ilovevoley/competitions/views.py:688
+#: ilovevoley/competitions/views.py:692
 msgid "Septiembre"
 msgstr "Setembre"
 
-#: ilovevoley/competitions/views.py:688
+#: ilovevoley/competitions/views.py:692
 msgid "Octubre"
 msgstr "Octubre"
 
 #
-#: ilovevoley/competitions/views.py:688
+#: ilovevoley/competitions/views.py:692
 msgid "Noviembre"
 msgstr "Novembre"
 
-#: ilovevoley/competitions/views.py:688
+#: ilovevoley/competitions/views.py:692
 msgid "Diciembre"
 msgstr "Desembre"
 
-#: ilovevoley/competitions/views.py:808
+#: ilovevoley/competitions/views.py:812
 #, python-format
 msgid "Partido amistoso creado: %(home)s vs %(away)s"
 msgstr "Partit amistós creat: %(home)s vs %(away)s"
 
-#: ilovevoley/competitions/views.py:903
+#: ilovevoley/competitions/views.py:907
 msgid "Este partido ya tiene resultado"
 msgstr "Aquest partit ja té resultat"
 
-#: ilovevoley/competitions/views.py:907
+#: ilovevoley/competitions/views.py:911
 msgid "No se puede agregar resultado a un partido futuro"
 msgstr "No es pot afegir un resultat a un partit futur"
 
 #
-#: ilovevoley/competitions/views.py:913 ilovevoley/competitions/views.py:957
-#: ilovevoley/competitions/views.py:990 ilovevoley/competitions/views.py:997
+#: ilovevoley/competitions/views.py:917 ilovevoley/competitions/views.py:961
+#: ilovevoley/competitions/views.py:994 ilovevoley/competitions/views.py:1001
 msgid "Datos inválidos"
 msgstr "Dades no vàlides"
 
-#: ilovevoley/competitions/views.py:924
+#: ilovevoley/competitions/views.py:928
 msgid "Marcador inválido para el formato de la liga."
 msgstr "Marcador invàlid per al format de la lliga."
 
-#: ilovevoley/competitions/views.py:932 ilovevoley/competitions/views.py:1007
+#: ilovevoley/competitions/views.py:936 ilovevoley/competitions/views.py:1011
 msgid "Error interno al guardar el resultado."
 msgstr "Error intern en desar el resultat."
 
-#: ilovevoley/competitions/views.py:944
+#: ilovevoley/competitions/views.py:948
 #, python-format
 msgid "Resultado guardado: %(result)s"
 msgstr "Resultat desat: %(result)s"
 
 #
-#: ilovevoley/competitions/views.py:953
-#: ilovevoley/templates/users/profile.html:530
+#: ilovevoley/competitions/views.py:957
+#: ilovevoley/templates/users/profile.html:541
 msgid "Error desconocido"
 msgstr "Error desconegut"
 
-#: ilovevoley/competitions/views.py:978
+#: ilovevoley/competitions/views.py:982
 msgid "Este partido tiene acta oficial; los parciales se toman del acta."
 msgstr "Aquest partit té acta oficial; els parcials es prenen de l'acta."
 
-#: ilovevoley/competitions/views.py:984
+#: ilovevoley/competitions/views.py:988
 msgid "El partido todavía no tiene resultado."
 msgstr "El partit encara no té resultat."
 
-#: ilovevoley/competitions/views.py:1012
+#: ilovevoley/competitions/views.py:1016
 #, python-format
 msgid "Resultado actualizado: %(result)s"
 msgstr "Resultat actualitzat: %(result)s"
 
 #
-#: ilovevoley/competitions/views.py:1035
+#: ilovevoley/competitions/views.py:1039
 msgid "Este partido no tiene acta disponible"
 msgstr "Aquest partit no té acta disponible"
 
 #
-#: ilovevoley/competitions/views.py:1051
+#: ilovevoley/competitions/views.py:1055
 msgid "La URL del acta no es válida"
 msgstr "La URL de l'acta no és vàlida"
 
-#: ilovevoley/competitions/views.py:1053
+#: ilovevoley/competitions/views.py:1057
 msgid "Tiempo de espera agotado al obtener el acta"
 msgstr "Temps d'espera exhaurit en obtenir l'acta"
 
 #
-#: ilovevoley/competitions/views.py:1056
+#: ilovevoley/competitions/views.py:1060
 msgid "No se pudo acceder al acta oficial"
 msgstr "No s'ha pogut accedir a l'acta oficial"
 
-#: ilovevoley/competitions/views.py:1064
+#: ilovevoley/competitions/views.py:1068
 msgid "Error al procesar el acta"
 msgstr "Error en processar l'acta"
 
-#: ilovevoley/competitions/views.py:1248
+#: ilovevoley/competitions/views.py:1252
 msgid "Otras"
 msgstr "Altres"
 
-#: ilovevoley/competitions/views.py:1319
+#: ilovevoley/competitions/views.py:1323
 msgid "Sin liga"
 msgstr "Sense lliga"
 
-#: ilovevoley/competitions/views.py:1380
+#: ilovevoley/competitions/views.py:1384
 msgid "Enlace para compartir creado."
 msgstr "Enllaç per compartir creat."
 
 #
-#: ilovevoley/competitions/views.py:1395
+#: ilovevoley/competitions/views.py:1399
 msgid "Enlace revocado."
 msgstr "Enllaç revocat."
 
@@ -5181,7 +5195,9 @@ msgstr "Lligues i partits"
 msgid ""
 "Color final del degradado de la cabecera del perfil. Vacío: usa el color "
 "secundario."
-msgstr "Color final del degradat de la capçalera del perfil. Buit: utilitza el color secundari."
+msgstr ""
+"Color final del degradat de la capçalera del perfil. Buit: utilitza el color "
+"secundari."
 
 #: ilovevoley/core/models.py:204
 msgid "URL del perfil de Instagram del club"
@@ -6924,7 +6940,7 @@ msgstr "Desar canvis"
 msgid "¡Información actualizada correctamente!"
 msgstr "Informació actualitzada correctament!"
 
-#: ilovevoley/rosters/views.py:362 ilovevoley/users/views.py:148
+#: ilovevoley/rosters/views.py:362 ilovevoley/users/views.py:151
 msgid "Por favor corrige los errores en el formulario."
 msgstr "Si us plau, corregeix els errors del formulari."
 
@@ -8207,7 +8223,7 @@ msgstr ""
 "afectar el funcionament del lloc."
 
 #: ilovevoley/templates/cookies_banner.html:61
-#: ilovevoley/templates/users/profile.html:435
+#: ilovevoley/templates/users/profile.html:446
 msgid "Entendido"
 msgstr "Entesos"
 
@@ -10019,7 +10035,7 @@ msgstr "Navegació principal"
 
 #: ilovevoley/templates/includes/language_selector.html:6
 #: ilovevoley/templates/includes/navbar.html:489
-#: ilovevoley/templates/users/profile.html:295
+#: ilovevoley/templates/users/profile.html:306
 msgid "Idioma"
 msgstr "Idioma"
 
@@ -10760,33 +10776,37 @@ msgstr "Les meves creacions"
 msgid "Stories que has personalizado y guardado."
 msgstr "Stories que has personalitzat i desat."
 
+#: ilovevoley/templates/users/profile.html:291
+msgid "Paginación"
+msgstr "Paginació"
+
 #
-#: ilovevoley/templates/users/profile.html:296
+#: ilovevoley/templates/users/profile.html:307
 msgid "Elige el idioma de la interfaz."
 msgstr "Tria l'idioma de la interfície."
 
-#: ilovevoley/templates/users/profile.html:306
+#: ilovevoley/templates/users/profile.html:317
 #: ilovevoley/templates/users/profile_edit.html:4
 #: ilovevoley/templates/users/profile_edit.html:12
 msgid "Editar Perfil"
 msgstr "Editar perfil"
 
 #
-#: ilovevoley/templates/users/profile.html:319
+#: ilovevoley/templates/users/profile.html:330
 msgid "Cómo suscribirte al calendario"
 msgstr "Com subscriure't al calendari"
 
 #
-#: ilovevoley/templates/users/profile.html:339
+#: ilovevoley/templates/users/profile.html:350
 msgid "Copia la URL de suscripción (botón \"Copiar\" arriba)"
 msgstr "Copia la URL de subscripció (botó \"Copiar\" a dalt)"
 
-#: ilovevoley/templates/users/profile.html:340
-#: ilovevoley/templates/users/profile.html:376
+#: ilovevoley/templates/users/profile.html:351
+#: ilovevoley/templates/users/profile.html:387
 msgid "Abre"
 msgstr "Obre"
 
-#: ilovevoley/templates/users/profile.html:341
+#: ilovevoley/templates/users/profile.html:352
 msgid ""
 "En la barra lateral izquierda, busca \"Otros calendarios\" y haz clic en el "
 "<strong>+</strong>"
@@ -10794,28 +10814,28 @@ msgstr ""
 "A la barra lateral esquerra, cerca \"Altres calendaris\" i fes clic al "
 "<strong>+</strong>"
 
-#: ilovevoley/templates/users/profile.html:342
+#: ilovevoley/templates/users/profile.html:353
 msgid "Selecciona <strong>\"Desde URL\"</strong>"
 msgstr "Selecciona <strong>\"Des d'URL\"</strong>"
 
 #
-#: ilovevoley/templates/users/profile.html:343
+#: ilovevoley/templates/users/profile.html:354
 msgid ""
 "Pega la URL copiada y haz clic en <strong>\"Agregar calendario\"</strong>"
 msgstr ""
 "Enganxa la URL copiada i fes clic a <strong>\"Afegir calendari\"</strong>"
 
-#: ilovevoley/templates/users/profile.html:344
+#: ilovevoley/templates/users/profile.html:355
 msgid "¡Listo! Los partidos aparecerán automáticamente 🎉"
 msgstr "A punt! Els partits apareixeran automàticament 🎉"
 
-#: ilovevoley/templates/users/profile.html:357
-#: ilovevoley/templates/users/profile.html:375
+#: ilovevoley/templates/users/profile.html:368
+#: ilovevoley/templates/users/profile.html:386
 msgid "Copia la URL de suscripción"
 msgstr "Copia l'URL de subscripció"
 
 #
-#: ilovevoley/templates/users/profile.html:358
+#: ilovevoley/templates/users/profile.html:369
 msgid ""
 "<strong>En iPhone/iPad:</strong> Ve a Ajustes → Calendario → Cuentas → "
 "Añadir cuenta → Otra → Añadir calendario por suscripción"
@@ -10824,7 +10844,7 @@ msgstr ""
 "Afegir compte → Una altra → Afegir calendari per subscripció"
 
 #
-#: ilovevoley/templates/users/profile.html:359
+#: ilovevoley/templates/users/profile.html:370
 msgid ""
 "<strong>En Mac:</strong> Abre Calendar → Archivo → Nueva suscripción a "
 "calendario"
@@ -10832,11 +10852,11 @@ msgstr ""
 "<strong>A Mac:</strong> Obre Calendar → Arxiu → Nova subscripció a calendari"
 
 #
-#: ilovevoley/templates/users/profile.html:360
+#: ilovevoley/templates/users/profile.html:371
 msgid "Pega la URL y haz clic en <strong>\"Suscribirse\"</strong>"
 msgstr "Enganxa la URL i fes clic a <strong>\"Subscriure's\"</strong>"
 
-#: ilovevoley/templates/users/profile.html:361
+#: ilovevoley/templates/users/profile.html:372
 msgid ""
 "Configura la frecuencia de actualización (recomendado: cada 12 horas o "
 "diariamente)"
@@ -10844,44 +10864,44 @@ msgstr ""
 "Configura la freqüència d'actualització (recomanat: cada 12 hores o "
 "diàriament)"
 
-#: ilovevoley/templates/users/profile.html:362
+#: ilovevoley/templates/users/profile.html:373
 msgid "¡Listo! Los partidos se sincronizarán automáticamente 🎉"
 msgstr "A punt! Els partits se sincronitzaran automàticament 🎉"
 
-#: ilovevoley/templates/users/profile.html:377
+#: ilovevoley/templates/users/profile.html:388
 msgid "Haz clic en <strong>\"Agregar calendario\"</strong> en la barra lateral"
 msgstr "Fes clic a <strong>\"Afegir calendari\"</strong> a la barra lateral"
 
-#: ilovevoley/templates/users/profile.html:378
+#: ilovevoley/templates/users/profile.html:389
 msgid "Selecciona <strong>\"Suscribirse desde web\"</strong>"
 msgstr "Selecciona <strong>\"Subscriure's des de la web\"</strong>"
 
-#: ilovevoley/templates/users/profile.html:379
+#: ilovevoley/templates/users/profile.html:390
 msgid "Pega la URL y dale un nombre al calendario"
 msgstr "Enganxa l'URL i posa un nom al calendari"
 
-#: ilovevoley/templates/users/profile.html:380
+#: ilovevoley/templates/users/profile.html:391
 msgid "Haz clic en <strong>\"Importar\"</strong>"
 msgstr "Fes clic a <strong>\"Importar\"</strong>"
 
-#: ilovevoley/templates/users/profile.html:381
+#: ilovevoley/templates/users/profile.html:392
 msgid "¡Listo! Los eventos se actualizarán automáticamente 🎉"
 msgstr "A punt! Els esdeveniments s'actualitzaran automàticament 🎉"
 
 #
-#: ilovevoley/templates/users/profile.html:394
+#: ilovevoley/templates/users/profile.html:405
 msgid "Notas importantes:"
 msgstr "Notes importants:"
 
 #
-#: ilovevoley/templates/users/profile.html:396
+#: ilovevoley/templates/users/profile.html:407
 msgid ""
 "<strong>Privacidad:</strong> La URL es única y personal. No la compartas."
 msgstr ""
 "<strong>Privacitat:</strong> La URL és única i personal. No la comparteixis."
 
 #
-#: ilovevoley/templates/users/profile.html:397
+#: ilovevoley/templates/users/profile.html:408
 msgid ""
 "<strong>Actualizaciones:</strong> Los calendarios se actualizan cada 12 "
 "horas aproximadamente (configurable en tu app de calendario)."
@@ -10890,7 +10910,7 @@ msgstr ""
 "aproximadament cada 12 hores (configurable a la teva app de calendari)."
 
 #
-#: ilovevoley/templates/users/profile.html:398
+#: ilovevoley/templates/users/profile.html:409
 msgid ""
 "<strong>Cambios de categorías:</strong> Si cambias tus categorías "
 "preferidas, el calendario se actualizará automáticamente en la siguiente "
@@ -10901,7 +10921,7 @@ msgstr ""
 "sincronització."
 
 #
-#: ilovevoley/templates/users/profile.html:399
+#: ilovevoley/templates/users/profile.html:410
 msgid ""
 "<strong>Solo lectura:</strong> No puedes editar los eventos desde tu "
 "calendario, son solo de consulta."
@@ -10909,17 +10929,17 @@ msgstr ""
 "<strong>Només lectura:</strong> No pots editar els esdeveniments des del teu "
 "calendari, són només de consulta."
 
-#: ilovevoley/templates/users/profile.html:411
+#: ilovevoley/templates/users/profile.html:422
 msgid "¿Cómo dejar de recibir partidos?"
 msgstr "Com deixar de rebre partits?"
 
 #
-#: ilovevoley/templates/users/profile.html:415
+#: ilovevoley/templates/users/profile.html:426
 msgid "Forma más fácil (Recomendada):"
 msgstr "Forma més fàcil (Recomanada):"
 
 #
-#: ilovevoley/templates/users/profile.html:416
+#: ilovevoley/templates/users/profile.html:427
 msgid ""
 "Haz clic en <strong>\"Regenerar URL\"</strong> arriba y simplemente no "
 "vuelvas a suscribirte. La URL antigua dejará de funcionar automáticamente y "
@@ -10930,11 +10950,11 @@ msgstr ""
 "teu calendari deixarà de rebre actualitzacions."
 
 #
-#: ilovevoley/templates/users/profile.html:420
+#: ilovevoley/templates/users/profile.html:431
 msgid "Alternativa: Borrar desde tu app de calendario"
 msgstr "Alternativa: Eliminar des de la teva app de calendari"
 
-#: ilovevoley/templates/users/profile.html:422
+#: ilovevoley/templates/users/profile.html:433
 msgid ""
 "<strong>Google Calendar:</strong> Busca \"I Love Voley - Partidos\" en "
 "\"Otros calendarios\" → Opciones (⋮) → Darse de baja"
@@ -10943,7 +10963,7 @@ msgstr ""
 "\"Altres calendaris\" → Opcions (⋮) → Donar-se de baixa"
 
 #
-#: ilovevoley/templates/users/profile.html:423
+#: ilovevoley/templates/users/profile.html:434
 msgid ""
 "<strong>iPhone/iPad:</strong> Ajustes → Calendario → Cuentas → Busca el "
 "calendario → Eliminar cuenta"
@@ -10952,7 +10972,7 @@ msgstr ""
 "calendari → Eliminar compte"
 
 #
-#: ilovevoley/templates/users/profile.html:424
+#: ilovevoley/templates/users/profile.html:435
 msgid ""
 "<strong>Mac:</strong> Abre Calendar → Click derecho en el calendario → "
 "Cancelar suscripción"
@@ -10961,49 +10981,49 @@ msgstr ""
 "subscripció"
 
 #
-#: ilovevoley/templates/users/profile.html:425
+#: ilovevoley/templates/users/profile.html:436
 msgid "<strong>Outlook:</strong> Click derecho en el calendario → Eliminar"
 msgstr "<strong>Outlook:</strong> Clic dret al calendari → Eliminar"
 
 #
-#: ilovevoley/templates/users/profile.html:472
+#: ilovevoley/templates/users/profile.html:483
 msgid "¡Copiado!"
 msgstr "Copiat!"
 
 #
-#: ilovevoley/templates/users/profile.html:502
+#: ilovevoley/templates/users/profile.html:513
 msgid "⚠️ ¿Estás seguro de que quieres regenerar la URL?"
 msgstr "⚠️ Estàs segur que vols regenerar la URL?"
 
 #
-#: ilovevoley/templates/users/profile.html:503
+#: ilovevoley/templates/users/profile.html:514
 msgid "• La URL actual dejará de funcionar"
 msgstr "• La URL actual deixarà de funcionar"
 
-#: ilovevoley/templates/users/profile.html:504
+#: ilovevoley/templates/users/profile.html:515
 msgid "• Tendrás que volver a suscribirte con la nueva URL"
 msgstr "• Hauràs de tornar-te a subscriure amb la nova URL"
 
-#: ilovevoley/templates/users/profile.html:505
+#: ilovevoley/templates/users/profile.html:516
 msgid ""
 "• Esto es útil si cambiaste de categorías o quieres dejar de recibir partidos"
 msgstr ""
 "• Això és útil si vas canviar de categories o vols deixar de rebre partits"
 
-#: ilovevoley/templates/users/profile.html:506
+#: ilovevoley/templates/users/profile.html:517
 msgid "¿Continuar?"
 msgstr "Continuar?"
 
-#: ilovevoley/templates/users/profile.html:526
+#: ilovevoley/templates/users/profile.html:537
 msgid "✅ URL regenerada correctamente."
 msgstr "✅ URL regenerada correctament."
 
-#: ilovevoley/templates/users/profile.html:527
+#: ilovevoley/templates/users/profile.html:538
 msgid "La URL anterior ya no funciona."
 msgstr "La URL anterior ja no funciona."
 
 #
-#: ilovevoley/templates/users/profile.html:528
+#: ilovevoley/templates/users/profile.html:539
 msgid ""
 "Si quieres seguir recibiendo partidos, copia la nueva URL y vuelve a "
 "suscribirte en tu calendario."
@@ -11012,11 +11032,11 @@ msgstr ""
 "al teu calendari."
 
 #
-#: ilovevoley/templates/users/profile.html:530
+#: ilovevoley/templates/users/profile.html:541
 msgid "❌ Error al regenerar la URL: "
 msgstr "❌ Error en regenerar la URL: "
 
-#: ilovevoley/templates/users/profile.html:535
+#: ilovevoley/templates/users/profile.html:546
 msgid "❌ Error al regenerar la URL. Por favor, inténtalo de nuevo."
 msgstr "❌ Error en regenerar la URL. Si us plau, torna-ho a intentar."
 
@@ -11433,32 +11453,32 @@ msgid ""
 msgstr ""
 "Informació familiar desada correctament. El teu compte serà revisat aviat."
 
-#: ilovevoley/users/views.py:145
+#: ilovevoley/users/views.py:148
 msgid "Tu perfil ha sido actualizado correctamente."
 msgstr "El teu perfil s'ha actualitzat correctament."
 
 #
-#: ilovevoley/users/views.py:364 ilovevoley/users/views.py:424
+#: ilovevoley/users/views.py:367 ilovevoley/users/views.py:427
 msgid "JSON inválido"
 msgstr "JSON no vàlid"
 
-#: ilovevoley/users/views.py:374
+#: ilovevoley/users/views.py:377
 msgid ""
 "Faltan parámetros obligatorios de la suscripción (endpoint, p256dh, auth)"
 msgstr ""
 "Falten paràmetres obligatoris de la subscripció (endpoint, p256dh, auth)"
 
-#: ilovevoley/users/views.py:379
+#: ilovevoley/users/views.py:382
 msgid "Endpoint de suscripción no válido"
 msgstr "Endpoint de subscripció no vàlid"
 
 #
-#: ilovevoley/users/views.py:398
+#: ilovevoley/users/views.py:401
 msgid "No hay club activo"
 msgstr "No hi ha cap club actiu"
 
 #
-#: ilovevoley/users/views.py:403
+#: ilovevoley/users/views.py:406
 msgid "Suscripción de otro usuario"
 msgstr "Subscripció d'un altre usuari"
 

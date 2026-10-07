@@ -917,7 +917,7 @@ class MatchResultCardViewTests(TestCase):
                 f'{url}?composition={composition_id}&preview=1', HTTP_HOST='testclub.ilovevoley.es'
             )
         # Las miniaturas de composiciones guardadas son cacheables (perfil); la preview del editor no.
-        self.assertIn('max-age=86400', thumb['Cache-Control'])
+        self.assertIn('max-age=2592000', thumb['Cache-Control'])
 
         other = get_user_model().objects.create_user(username='other', password='pass')
         from ilovevoley.users.models import Membership

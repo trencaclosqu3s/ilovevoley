@@ -260,13 +260,13 @@
             </div>
 
 
-            {% if story_compositions %}
+            {% if story_page %}
             <!-- Mis creaciones -->
-            <div class="mt-6 bg-surface rounded-[20px] border border-line p-4">
+            <div id="mis-creaciones" class="mt-6 bg-surface rounded-[20px] border border-line p-4">
                 <h2 class="text-lg font-semibold text-ink mb-1">{% trans "Mis creaciones" %}</h2>
                 <p class="text-sm text-muted mb-3">{% trans "Stories que has personalizado y guardado." %}</p>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {% for composition in story_compositions %}
+                    {% for composition in story_page %}
                         <div class="rounded-xl border border-line overflow-hidden flex flex-col">
                             <img src="{% url 'competitions:match_result_card' composition.match_id %}?composition={{ composition.id }}&preview=1&v={{ composition.updated|date:'U' }}"
                                  alt="{{ composition.match.home_team_display }} - {{ composition.match.away_team_display }}"
@@ -287,6 +287,17 @@
                         </div>
                     {% endfor %}
                 </div>
+                {% if story_page.has_other_pages %}
+                    <nav class="mt-4 flex items-center justify-between text-sm" aria-label="{% trans 'Paginación' %}">
+                        {% if story_page.has_previous %}
+                            <a href="?creaciones={{ story_page.previous_page_number }}#mis-creaciones" class="px-3 py-1 rounded-full bg-tint text-ink">{% trans "Anterior" %}</a>
+                        {% else %}<span></span>{% endif %}
+                        <span class="text-muted">{{ story_page.number }} / {{ story_page.paginator.num_pages }}</span>
+                        {% if story_page.has_next %}
+                            <a href="?creaciones={{ story_page.next_page_number }}#mis-creaciones" class="px-3 py-1 rounded-full bg-tint text-ink">{% trans "Siguiente" %}</a>
+                        {% else %}<span></span>{% endif %}
+                    </nav>
+                {% endif %}
             </div>
             {% endif %}
 

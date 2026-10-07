@@ -508,9 +508,10 @@ def match_result_card(request, match_id):
         # Se renderiza a tamaño completo y se reduce; si el editor pide muchas
         # previews, habrá que renderizar directamente a escala en el renderer.
         response = HttpResponse(_downscale_png(png), content_type='image/png')
-        # Las miniaturas de "Mis creaciones" llevan ?v=<updated>: se pueden cachear.
+        # Las miniaturas de "Mis creaciones" llevan ?v=<updated>: la URL cambia al
+        # editar, así que se cachean un mes (resultados y escudos no suelen cambiar).
         response['Cache-Control'] = (
-            'private, max-age=86400' if composition else 'no-store'
+            'private, max-age=2592000, immutable' if composition else 'no-store'
         )
         response['X-Layout-Info'] = json.dumps(report)
         return response
