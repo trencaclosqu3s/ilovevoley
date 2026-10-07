@@ -493,6 +493,19 @@
     </div>
 </nav>
 
+{% if user.is_authenticated %}
+<!-- Aviso único para activar notificaciones: solo lo muestra webpush.js en la PWA instalada -->
+<div id="webpush-prompt" data-target-url="{% url 'profile_edit' %}#push-notifications"
+     class="hidden fixed inset-x-4 bottom-24 md:bottom-6 md:left-auto md:max-w-sm z-50 p-4 rounded-2xl border border-line bg-surface text-ink shadow-lg">
+    <p class="text-sm font-semibold mb-1">{% trans "¿Quieres recibir avisos?" %}</p>
+    <p class="text-sm text-muted mb-3">{% trans "Activa las notificaciones para enterarte de partidos y novedades de tus categorías." %}</p>
+    <div class="flex justify-end gap-2">
+        <button type="button" data-call="dismissWebPushPrompt" class="px-3 py-2 text-sm text-muted hover:bg-tint rounded-lg transition">{% trans "Ahora no" %}</button>
+        <button type="button" data-call="acceptWebPushPrompt" class="px-3 py-2 text-sm font-medium bg-csj-purple-dark text-white rounded-lg transition">{% trans "Activar" %}</button>
+    </div>
+</div>
+{% endif %}
+
 <script nonce="{{ csp_nonce }}">
 // Dropdown functionality for navbar
 document.addEventListener('DOMContentLoaded', function() {
