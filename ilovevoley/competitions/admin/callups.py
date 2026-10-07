@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
-from ilovevoley.competitions.models import FederationCallUp, FederationCircular, CallUpPlayer
+from ilovevoley.competitions.models import FederationCallUp, FederationCircular, FederationSanction, CallUpPlayer
 from ilovevoley.competitions.services.callup_matcher import match_callup_player
 
 
@@ -151,3 +151,10 @@ class FederationCircularAdmin(ModelAdmin):
         if not obj.pdf_url:
             return '-'
         return format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', obj.pdf_url, obj.file_name)
+
+
+@admin.register(FederationSanction)
+class FederationSanctionAdmin(ModelAdmin):
+    list_display = ('sanction_date', 'organization', 'category', 'text', 'circular')
+    list_filter = ('organization', 'category')
+    search_fields = ('text',)

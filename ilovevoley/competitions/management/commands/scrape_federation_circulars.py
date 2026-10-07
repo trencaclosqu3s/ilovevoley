@@ -6,7 +6,7 @@ from ilovevoley.competitions.services.circulars_ingestion import DEFAULT_TIPOS, 
 
 
 class Command(BaseCommand):
-    help = "Indexa circulares federativas (FVBIB): comité de competición y normas por defecto."
+    help = "Indexa circulares federativas (FVBIB): comité de competición, normas y vóley playa por defecto."
 
     def add_arguments(self, parser):
         parser.add_argument('--season', type=str, help="Nombre de la temporada (ej: '2026-27'). Por defecto la activa.")
@@ -16,7 +16,7 @@ class Command(BaseCommand):
             type=int,
             action='append',
             choices=[t for t, _label in FederationCircular.TIPO_CHOICES],
-            help="Tipo de circular; repetible. Por defecto 6 (comité de competición) y 11 (normas).",
+            help="Tipo de circular; repetible. Por defecto 6 (comité de competición), 11 (normas) y 8 (vóley playa).",
         )
         parser.add_argument('--dry-run', action='store_true', help="Cuenta circulares nuevas sin guardar.")
 
@@ -35,5 +35,6 @@ class Command(BaseCommand):
             dry_run=options['dry_run'],
         )
         self.stdout.write(
-            self.style.SUCCESS(f"Circulares nuevas: {result['created']}, ya existentes: {result['existing']}.")
+            self.style.SUCCESS(f"Circulares nuevas: {result['created']}, ya existentes: {result['existing']}, "
+                f"filas de sanciones guardadas: {result['sanctions']}.")
         )

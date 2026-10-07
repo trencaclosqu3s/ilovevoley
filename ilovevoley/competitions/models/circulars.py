@@ -43,6 +43,12 @@ class FederationCircular(models.Model):
         verbose_name=_('Fichero PDF remoto'),
         help_text=_('Vacío si la circular no tiene PDF adjunto.'),
     )
+    rows_extracted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Filas extraídas'),
+        help_text=_('Solo en circulares disciplinarias: cuándo se leyó el PDF para extraer las filas de los tenants.'),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -64,3 +70,47 @@ class FederationCircular(models.Model):
         if not self.file_name:
             return ''
         return f'https://voleibolib.federatio.com/upload/descargas/{self.file_name.lstrip("/")}'
+
+
+class FederationSanction(models.Model):
+    """Fila de una circular disciplinaria que menciona a un equipo de un tenant.
+
+    Solo se guardan las filas que nos atañen; el resto del PDF se descarta. El texto de la
+    fila va tal cual (los PDF ya anonimizan a personas con iniciales) porque las columnas no
+    son parseables de forma fiable: cada PDF las maqueta distinto.
+    """
+
+    circular = models.ForeignKey(FederationCircular, on_delete=models.CASCADE, related_name='sanctions')
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.CASCADE,
+        related_name='federation_sanctions',
+        verbose_name=_('Organización / Tenant'),
+    )
+    category = models.ForeignKey(
+        'core.Category',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='federation_sanctions',
+        verbose_name=_('Categoría'),
+        help_text=_('Categoría guardada cuyo nombre aparece en la fila, si la hay.'),
+    )
+    row_index = models.PositiveSmallIntegerField()
+    sanction_date = models.DateField(null=True, blank=True, verbose_name=_('Fecha'))
+    text = models.TextField(verbose_name=_('Fila de la circular'))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('Sanción federativa')
+        verbose_name_plural = _('Sanciones federativas')
+        ordering = ['-sanction_date', '-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['circular', 'organization', 'row_index'],
+                name='unique_federation_sanction_row',
+            ),
+        ]
+
+    def __str__(self):
+        return self.text[:80]

@@ -584,10 +584,22 @@ enlace `pdf_url` apunta al original en la federación.
 
 **Flujo:** la tarea `scrape_federation_circulars` (`config/celery_schedule.py`,
 diaria 09:00) o `manage.py scrape_federation_circulars [--season 2026-27]
-[--tipo 6 --tipo 11] [--dry-run]` indexa por defecto los tipos 6 y 11; el resto
-se piden con `--tipo`. Es idempotente (clave: tipo + título + fecha) y también
-guarda circulares sin PDF o sin fecha válida. Hoy solo se consultan desde el
-admin (*Circulares federativas*); no hay vista pública ni push.
+[--tipo 6 --tipo 11] [--dry-run]` indexa por defecto los tipos 6, 11 y 8 (vóley
+playa, de momento solo visible en el admin); el resto se piden con `--tipo`. Es
+idempotente (clave: tipo + título + fecha), guarda circulares sin PDF o sin fecha
+válida y refresca `file_name` si el PDF se publica o cambia después. Hoy solo se
+consultan desde el admin (*Circulares federativas*); no hay vista pública ni push.
+
+**Disciplinarias (tipo 6):** los títulos son genéricos ("RESOLUCIONES EXPEDIENTES
+DISCIPLINARIOS 17"), así que la relevancia solo se ve en el PDF. Se descarga una
+vez, se lee con `pypdf` y se descarta; solo se guardan como `FederationSanction`
+las **filas** (una por fecha `dd/mm/aa`) que mencionan algún valor de
+`Organization.club_team_names` de un tenant (subcadena sin acentos ni mayúsculas).
+Si el nombre de una categoría guardada (`Category`, la más larga) aparece en la
+fila se enlaza en `category`. El texto de la fila va sin parsear por columnas
+porque cada PDF las maqueta distinto; los PDF ya anonimizan a las personas con
+iniciales. Un PDF ilegible se reintenta en la siguiente pasada
+(`FederationCircular.rows_extracted_at` vacío). Admin: *Sanciones federativas*.
 
 Algunas combinaciones tipo/temporada devuelven `items: []` (p. ej. tipo 6 en
 2627 al empezar la temporada).
