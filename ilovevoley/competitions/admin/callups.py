@@ -162,9 +162,9 @@ class FederationSanctionAdmin(ModelAdmin):
 
 @admin.register(FederationNews)
 class FederationNewsAdmin(ModelAdmin):
-    list_display = ('published_at', 'title', 'kind', 'news_link')
+    list_display = ('published_at', 'title', 'kind', 'club_name', 'news_link')
     list_filter = ('kind',)
-    search_fields = ('title',)
+    search_fields = ('title', 'club_name')
 
     @admin.display(description='Web oficial')
     def news_link(self, obj):

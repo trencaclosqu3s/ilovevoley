@@ -6,13 +6,14 @@ import requests
 from ilovevoley.competitions.models import FederationNews
 from ilovevoley.competitions.services.balearic_callups_client import DEFAULT_HEADERS
 
-# Variante .dcl: la que usa la propia web; get_noticias.asp?tipo= puede devolver error SQL.
-NEWS_URL = 'https://www.voleibolib.net/JSON/get_noticias.dcl'
+# get_actividades sin ``tipo`` devuelve las mismas noticias que get_noticias.dcl más el campo
+# ``club`` de las actividades de clubes (#371); get_noticias.asp?tipo= puede dar error SQL.
+NEWS_URL = 'https://www.voleibolib.net/JSON/get_actividades'
 PAGE_SIZE = 100
 
 
 def _fetch_page(page, session):
-    resp = session.get(NEWS_URL, params={'n': PAGE_SIZE, 'pag': page, 'tipo': ''}, headers=DEFAULT_HEADERS, timeout=15)
+    resp = session.get(NEWS_URL, params={'n': PAGE_SIZE, 'pag': page, 'tipo': '', 'filtro': '', 'o': ''}, headers=DEFAULT_HEADERS, timeout=15)
     resp.raise_for_status()
     return resp.json().get('items', [])
 
@@ -41,6 +42,7 @@ def run_news_scrape(max_pages=5, session=None, full=False):
                     # Truncado a max_length: un valor largo abortaría el scrape a mitad de página.
                     'title': (item.get('Titular') or '').strip()[:500],
                     'kind': (item.get('tipo') or '').strip()[:50],
+                    'club_name': (item.get('club') or '').strip()[:255],
                     'image_name': (item.get('Imagen') or '').strip()[:255],
                 },
             )

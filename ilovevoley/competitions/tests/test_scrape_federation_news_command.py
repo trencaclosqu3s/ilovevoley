@@ -6,6 +6,8 @@ from ilovevoley.competitions.models import FederationNews
 
 PAGE = [
     {"ID": 18520, "Fecha": "02/10/2026", "Titular": " El vòlei balear comença ", "tipo": "Generales", "Imagen": "a.jpg"},
+    {"ID": 17479, "Fecha": "06/04/2026", "Titular": "CAMPUS SEMANA SANTA", "club": "CLUB VOLEIBOL SON FERRER",
+     "tipo": "Actividades Clubes Pista", "Imagen": None},
     {"ID": 14191, "Fecha": "sin-fecha", "Titular": "Sin tipo ni imagen", "tipo": None, "Imagen": None},
 ]
 
@@ -17,15 +19,17 @@ def test_scrape_news_is_idempotent_and_tolerates_missing_fields(mock_fetch):
     call_command('scrape_federation_news')
     call_command('scrape_federation_news')
 
-    assert FederationNews.objects.count() == 2
+    assert FederationNews.objects.count() == 3
     assert mock_fetch.call_count == 2  # una página por pasada: sin novedades no pide más
     news = FederationNews.objects.get(federation_id=14191)
     assert (news.published_at, news.kind, news.image_url) == (None, '', '')
+    assert FederationNews.objects.get(federation_id=17479).club_name == 'CLUB VOLEIBOL SON FERRER'
+    assert news.club_name == ''
     assert FederationNews.objects.get(federation_id=18520).title == 'El vòlei balear comença'
 
 
 @pytest.mark.django_db
-@patch('ilovevoley.competitions.services.news_ingestion.PAGE_SIZE', 2)
+@patch('ilovevoley.competitions.services.news_ingestion.PAGE_SIZE', 3)
 @patch('ilovevoley.competitions.services.news_ingestion._fetch_page', return_value=PAGE)
 def test_scrape_news_full_keeps_paging_without_new_items(mock_fetch):
     """Sin --full se para en la primera página sin novedades; con --full se recorren todas

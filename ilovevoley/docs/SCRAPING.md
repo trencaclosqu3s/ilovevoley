@@ -606,9 +606,11 @@ Algunas combinaciones tipo/temporada devuelven `items: []` (p. ej. tipo 6 en
 
 ## Noticias federativas (#370)
 
-`JSON/get_noticias.dcl?n=100&pag={P}&tipo=` (la variante `.dcl` es la que usa la
-web; `get_noticias.asp?tipo=` puede devolver error SQL) lista las noticias de la
-FVBIB con `ID`, `Fecha`, `Titular`, `tipo` e `Imagen`. Sin `tipo` trae todas; las de
+`JSON/get_actividades?n=100&pag={P}&tipo=&filtro=&o=` lista las noticias de la
+FVBIB con `ID`, `Fecha`, `Titular`, `tipo`, `Imagen` y `club`. Sin `tipo` devuelve las
+mismas que `get_noticias.dcl` más las actividades de clubes (#371), que solo se
+distinguen por traer `club` (`get_noticias.asp?tipo=` puede dar error SQL). En
+oct 2026 hay una sola con club en todo el histórico (un campus, tipo 11). Sin `tipo` trae todas; las de
 playa recientes llegan etiquetadas como `Generales` (la etiqueta `Voley-Playa` solo
 aparece en las antiguas), así que no se filtra por ella.
 
