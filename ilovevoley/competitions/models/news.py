@@ -17,6 +17,12 @@ class FederationNews(models.Model):
         verbose_name=_('Tipo'),
         help_text=_('Etiqueta de la federación (Generales, Arbitros…); la playa reciente llega como Generales.'),
     )
+    club_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name=_('Club'),
+        help_text=_('Solo en actividades de clubes (campus, eventos), tal como lo publica la federación.'),
+    )
     image_name = models.CharField(max_length=255, blank=True, verbose_name=_('Imagen remota'))
     created_at = models.DateTimeField(auto_now_add=True)
 
