@@ -98,6 +98,21 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute=15, hour='*/6'),
         'options': {'expire_seconds': 3600},
     },
+    # --- Circulares federativas: comité de competición, normas y playa (#368) --
+    # Indexa metadatos y enlace al PDF; en las disciplinarias lee el PDF y guarda solo las
+    # filas de los tenants. La federación las publica de forma esporádica: una pasada diaria basta.
+    'scrape-federation-circulars': {
+        'task': 'scrape_federation_circulars',
+        'schedule': crontab(minute=0, hour=9),
+        'options': {'expire_seconds': 3600},
+    },
+    # --- Noticias federativas (#370) --------------------------------------------
+    # Se publican pocas por semana; la primera pasada tras desplegar rellena el histórico.
+    'scrape-federation-news': {
+        'task': 'scrape_federation_news',
+        'schedule': crontab(minute=15, hour=9),
+        'options': {'expire_seconds': 3600},
+    },
     # --- Descubrimiento de ligas (#377) ----------------------------------------
     # La federación publica competiciones escalonadas todo el año (categorías que
     # llegan tarde, fases, copas); cada pasada solo consulta lo aún no conocido.

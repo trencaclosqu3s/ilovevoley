@@ -149,6 +149,23 @@ def scrape_balearic_tracking_task(
     )
 
 
+@shared_task(name='scrape_federation_circulars')
+def scrape_federation_circulars_task():
+    """Indexa las circulares federativas de comité de competición y normas (FVBIB, #368)."""
+    from ilovevoley.core.models import Season
+    from ilovevoley.competitions.services.circulars_ingestion import run_circulars_scrape
+
+    return run_circulars_scrape(Season.objects.current())
+
+
+@shared_task(name='scrape_federation_news')
+def scrape_federation_news_task():
+    """Sincroniza las noticias federativas (FVBIB, #370)."""
+    from ilovevoley.competitions.services.news_ingestion import run_news_scrape
+
+    return run_news_scrape()
+
+
 @shared_task(name='discover_leagues')
 def discover_leagues_task():
     """Busca en el menú federativo ligas nuevas de la temporada activa (#377).

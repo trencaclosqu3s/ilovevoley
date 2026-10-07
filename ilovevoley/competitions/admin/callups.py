@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
-from ilovevoley.competitions.models import FederationCallUp, CallUpPlayer
+from ilovevoley.competitions.models import FederationCallUp, FederationCircular, FederationNews, FederationSanction, CallUpPlayer
 from ilovevoley.competitions.services.callup_matcher import match_callup_player
 
 
@@ -138,3 +138,34 @@ class CallUpPlayerAdmin(ModelAdmin):
 
         if request:
             self.message_user(request, f"{updated} jugadores reevaluados.")
+
+
+@admin.register(FederationCircular)
+class FederationCircularAdmin(ModelAdmin):
+    list_display = ('title', 'tipo', 'circular_date', 'season', 'pdf_link')
+    list_filter = ('tipo', 'season')
+    search_fields = ('title',)
+
+    @admin.display(description='PDF')
+    def pdf_link(self, obj):
+        if not obj.pdf_url:
+            return '-'
+        return format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', obj.pdf_url, obj.file_name)
+
+
+@admin.register(FederationSanction)
+class FederationSanctionAdmin(ModelAdmin):
+    list_display = ('sanction_date', 'organization', 'category', 'text', 'circular')
+    list_filter = ('organization', 'category')
+    search_fields = ('text',)
+
+
+@admin.register(FederationNews)
+class FederationNewsAdmin(ModelAdmin):
+    list_display = ('published_at', 'title', 'kind', 'news_link')
+    list_filter = ('kind',)
+    search_fields = ('title',)
+
+    @admin.display(description='Web oficial')
+    def news_link(self, obj):
+        return format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', obj.url, obj.federation_id)
