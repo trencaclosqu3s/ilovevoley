@@ -896,6 +896,125 @@ class UpdateTeamsFederationClubTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Identidad estable entre temporadas (#428)
+# ---------------------------------------------------------------------------
+
+class UpdateTeamsIdentityTests(TestCase):
+    """Nueva aparición por federation_id; identidad exacta; colores distintos."""
+
+    def setUp(self):
+        from ilovevoley.teams.models import Club
+        from ilovevoley.videos.scraping import FederationScraper
+
+        self.category = Category.objects.create(name='Infantil', gender='male')
+        self.league = League.objects.create(
+            name='Liga', federation_id='id-428', season=Season.objects.resolve('2026-27'),
+            competition_type='regular', match_format='standard', visibility_type='main',
+        )
+        self.league.categories.add(self.category)
+        self.club = Club.objects.create(federation_id='10', official_name='CV Portol')
+        self.scraper = FederationScraper(self.league)
+
+    def test_new_federation_id_does_not_steal_previous_row(self):
+        old = Team.objects.create(
+            name='ALARO CLINICA', federation_id='fed-old', club=self.club, category=self.category,
+            sponsor_name='CLINICA',
+        )
+        from ilovevoley.teams.identity import resolve_team_identity
+        resolve_team_identity(old, sponsor_name='CLINICA')
+
+        self.scraper.update_teams([
+            {
+                'name': 'ALARO NIU',
+                'federation_id': 'fed-new',
+                'federation_club_id': '10',
+                'sponsor_name': 'NIU',
+            },
+        ])
+        old.refresh_from_db()
+        self.assertEqual(old.federation_id, 'fed-old')
+        self.assertEqual(old.name, 'ALARO CLINICA')
+        new = Team.objects.get(federation_id='fed-new')
+        self.assertNotEqual(new.pk, old.pk)
+
+    def test_exact_sponsor_change_shares_identity(self):
+        self.scraper.update_teams([
+            {
+                'name': 'ALARO CLINICA DENTAL',
+                'federation_id': 'fed-old',
+                'federation_club_id': '10',
+                'sponsor_name': 'CLINICA DENTAL',
+            },
+        ])
+        old = Team.objects.get(federation_id='fed-old')
+        self.scraper.update_teams([
+            {
+                'name': 'ALARO CONSTRUCCIONES NIU',
+                'federation_id': 'fed-new',
+                'federation_club_id': '10',
+                'sponsor_name': 'CONSTRUCCIONES NIU',
+            },
+        ])
+        new = Team.objects.get(federation_id='fed-new')
+        old.refresh_from_db()
+        self.assertNotEqual(new.pk, old.pk)
+        self.assertEqual(new.identity_id, old.identity_id)
+        self.assertIsNotNone(new.identity_id)
+
+    def test_portol_colors_do_not_auto_link(self):
+        self.scraper.update_teams([
+            {'name': 'PORTOL ROJO', 'federation_id': 'r-old', 'federation_club_id': '10'},
+            {'name': 'PORTOL NEGRO', 'federation_id': 'n-new', 'federation_club_id': '10'},
+        ])
+        rojo = Team.objects.get(federation_id='r-old')
+        negro = Team.objects.get(federation_id='n-new')
+        self.assertIsNotNone(rojo.identity_id)
+        self.assertIsNotNone(negro.identity_id)
+        self.assertNotEqual(rojo.identity_id, negro.identity_id)
+
+    def test_previous_appearance_keeps_its_display_name_after_new_season_row(self):
+        """En contexto pasado se ve el nombre de entonces (#428)."""
+        self.scraper.update_teams([
+            {
+                'name': 'ALARO CLINICA DENTAL',
+                'federation_id': 'fed-old',
+                'federation_club_id': '10',
+                'sponsor_name': 'CLINICA DENTAL',
+            },
+        ])
+        self.scraper.update_teams([
+            {
+                'name': 'ALARO CONSTRUCCIONES NIU',
+                'federation_id': 'fed-new',
+                'federation_club_id': '10',
+                'sponsor_name': 'CONSTRUCCIONES NIU',
+            },
+        ])
+        old = Team.objects.get(federation_id='fed-old')
+        new = Team.objects.get(federation_id='fed-new')
+        self.assertEqual(old.name, 'ALARO CLINICA DENTAL')
+        self.assertEqual(new.name, 'ALARO CONSTRUCCIONES NIU')
+        self.assertEqual(old.identity_id, new.identity_id)
+
+    def test_find_or_create_by_name_does_not_reuse_other_color(self):
+        """El camino JSON no debe fusionar PORTOL ROJO con NEGRO por similitud (#428)."""
+        from ilovevoley.teams.identity import resolve_team_identity
+
+        rojo = Team.objects.create(
+            name='PORTOL ROJO', federation_id='r-old', club=self.club, category=self.category,
+        )
+        resolve_team_identity(rojo)
+        negro = self.scraper._find_or_create_team_by_name(
+            'PORTOL NEGRO', self.league, self.category, club_fed_id='10',
+        )
+        rojo.refresh_from_db()
+        self.assertNotEqual(negro.pk, rojo.pk)
+        self.assertEqual(negro.name, 'PORTOL NEGRO')
+        self.assertIsNotNone(negro.identity_id)
+        self.assertNotEqual(negro.identity_id, rojo.identity_id)
+
+
+# ---------------------------------------------------------------------------
 # Parciales: validación manual, parseo del .asp y penalización
 # ---------------------------------------------------------------------------
 

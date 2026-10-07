@@ -1,0 +1,35 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans %}Vínculos de equipo pendientes - {{ site_name }}{% endblocktrans %}{% endblock %}
+
+{% block header_subtitle %}{% trans "Identidad de equipo pendiente de validar" %}{% endblock %}
+
+{% block content %}
+    <div class="alert warning">
+        <h2 style="margin-top: 0;">{% blocktrans count counter=count %}{{ counter }} vínculo de equipo pendiente{% plural %}{{ counter }} vínculos de equipo pendientes{% endblocktrans %}</h2>
+        <p>{% trans "Se han detectado posibles equivalencias entre equipos de temporadas distintas. Revísalas antes de enlazarlas." %}</p>
+    </div>
+
+    <table class="data-table">
+        <tr>
+            <th>{% trans "Equipo nuevo" %}</th>
+            <th>{% trans "Identidad sugerida" %}</th>
+            <th>{% trans "Motivo" %}</th>
+        </tr>
+        {% for candidate in candidates %}
+        <tr>
+            <td><strong>{{ candidate.new_team.name }}</strong></td>
+            <td>{% if candidate.suggested_identity %}{{ candidate.suggested_identity.core_name }}{% else %}—{% endif %}</td>
+            <td>{{ candidate.reason }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{ admin_url }}" class="button"
+           style="background-color: #3498db; text-decoration: none; color: white;
+                  padding: 12px 30px; border-radius: 5px; display: inline-block;
+                  font-weight: bold; font-size: 16px;">{% trans "Revisar vínculos pendientes" %}</a>
+    </div>
+{% endblock %}
