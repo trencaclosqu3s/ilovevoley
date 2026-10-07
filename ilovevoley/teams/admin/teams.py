@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin
 
-from ..models import Club, Team
+from ..models import Club, Team, TeamIdentity, TeamIdentityCandidate
 
 
 @admin.register(Club)
@@ -73,17 +73,55 @@ class ClubAdmin(ModelAdmin):
 
 
 
+@admin.register(TeamIdentity)
+class TeamIdentityAdmin(ModelAdmin):
+    list_display = (
+        'core_name', 'club', 'category', 'gender', 'core_name_normalized',
+        'teams_count', 'created_at',
+    )
+    list_filter = ('category', 'gender', 'club')
+    search_fields = ('core_name', 'core_name_normalized', 'club__official_name')
+    autocomplete_fields = ('club', 'category')
+
+    @admin.display(description=_('Apariciones'))
+    def teams_count(self, obj):
+        return obj.teams.count()
+
+
+@admin.register(TeamIdentityCandidate)
+class TeamIdentityCandidateAdmin(ModelAdmin):
+    list_display = (
+        'new_team', 'suggested_identity', 'suggested_team', 'score', 'reason',
+        'status', 'created_at',
+    )
+    list_filter = ('status',)
+    search_fields = ('new_team__name', 'suggested_identity__core_name', 'reason')
+    autocomplete_fields = ('new_team', 'suggested_identity', 'suggested_team')
+    list_select_related = ('new_team', 'suggested_identity', 'suggested_team')
+    actions = ['approve', 'reject']
+
+    @admin.action(description=_('Aprobar vínculo'))
+    def approve(self, request, queryset):
+        done = [c.approve() for c in queryset.filter(status='pending')]
+        self.message_user(request, _('%(n)s vínculos aprobados') % {'n': len(done)})
+
+    @admin.action(description=_('Rechazar (identidad nueva)'))
+    def reject(self, request, queryset):
+        done = [c.reject() for c in queryset.filter(status='pending')]
+        self.message_user(request, _('%(n)s candidatas rechazadas') % {'n': len(done)})
+
+
 @admin.register(Team)
 class TeamAdmin(ModelAdmin):
-    list_display = ('display_name_admin', 'category', 'gender', 'club_name', 'variant_indicator', 'sponsor_name', 'federation_id', 'is_active', 'logo_preview', 'players_count', 'staff_count')
+    list_display = ('display_name_admin', 'category', 'gender', 'club_name', 'identity', 'variant_indicator', 'sponsor_name', 'federation_id', 'is_active', 'logo_preview', 'players_count', 'staff_count')
     list_filter = ('is_active', 'category', 'gender', 'club', ('parent_team', admin.RelatedOnlyFieldListFilter), 'variant_type', 'is_temporary_variant', 'created_at')
     search_fields = ('name', 'federation_id', 'sponsor_name', 'club__official_name', 'category__name')
     readonly_fields = ('created_at', 'display_logo', 'players_count', 'staff_count')
-    autocomplete_fields = ('club', 'category', 'parent_team')
+    autocomplete_fields = ('club', 'category', 'parent_team', 'identity')
     
     fieldsets = (
         (_('Información Básica'), {
-            'fields': ('name', 'federation_id', 'club', 'category', 'gender', 'is_active')
+            'fields': ('name', 'federation_id', 'club', 'category', 'gender', 'identity', 'is_active')
         }),
         (_('Configuración de Variantes'), {
             'fields': (

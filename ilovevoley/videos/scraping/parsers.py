@@ -392,13 +392,15 @@ class JSONMatchesParser(BaseParser):
                                     teams.append({
                                         'name': match_data['home_team'],
                                         'federation_id': f"{grupo_id}_{match_data['home_team'].replace(' ', '_').lower()}",
-                                        'federation_club_id': str(partido_data.get('ID_CLUB_LOCAL', ''))
+                                        'federation_club_id': str(partido_data.get('ID_CLUB_LOCAL', '')),
+                                        'sponsor_name': match_data.get('home_sponsor_name', ''),
                                     })
                                 if match_data.get('away_team'):
                                     teams.append({
                                         'name': match_data['away_team'],
                                         'federation_id': f"{grupo_id}_{match_data['away_team'].replace(' ', '_').lower()}",
-                                        'federation_club_id': str(partido_data.get('ID_CLUB_VISITANTE', ''))
+                                        'federation_club_id': str(partido_data.get('ID_CLUB_VISITANTE', '')),
+                                        'sponsor_name': match_data.get('away_sponsor_name', ''),
                                     })
         
         return {'matches': matches, 'teams': teams}
@@ -537,13 +539,15 @@ class JSONUnifiedParser(BaseParser):
                                     teams.append({
                                         'name': match_data['home_team'],
                                         'federation_id': f"{grupo_id}_{match_data['home_team'].replace(' ', '_').lower()}",
-                                        'federation_club_id': str(partido_data.get('ID_CLUB_LOCAL', ''))
+                                        'federation_club_id': str(partido_data.get('ID_CLUB_LOCAL', '')),
+                                        'sponsor_name': match_data.get('home_sponsor_name', ''),
                                     })
                                 if match_data.get('away_team'):
                                     teams.append({
                                         'name': match_data['away_team'],
                                         'federation_id': f"{grupo_id}_{match_data['away_team'].replace(' ', '_').lower()}",
-                                        'federation_club_id': str(partido_data.get('ID_CLUB_VISITANTE', ''))
+                                        'federation_club_id': str(partido_data.get('ID_CLUB_VISITANTE', '')),
+                                        'sponsor_name': match_data.get('away_sponsor_name', ''),
                                     })
         
         return {'matches': matches, 'teams': teams}
