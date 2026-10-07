@@ -111,3 +111,44 @@ class MatchAdminResultNotificationTest(TestCase):
         self.admin.save_model(None, self.match, None, change=True)
         self.match.refresh_from_db()
         self.assertEqual(self.match.result_notified_at, first)
+
+
+class LeagueHistoricalScrapeActionTest(TestCase):
+    """#404: la acción de sincronización histórica encola solo ligas históricas."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+
+        self.user = get_user_model().objects.create_superuser(
+            username='hist_admin', email='hist@test.com',
+        )
+        self.factory = RequestFactory()
+        self.admin = LeagueAdmin(League, django_admin.site)
+        self.FallbackStorage = FallbackStorage
+
+    def _request(self):
+        request = self.factory.post('/admin/')
+        request.user = self.user
+        request.session = {}
+        request._messages = self.FallbackStorage(request)
+        return request
+
+    def test_warns_without_crashing_when_no_historical_selected(self):
+        active = League.objects.create(name='Activa', federation_id='sh-act')
+        with patch('ilovevoley.competitions.tasks.scrape_historical_leagues_task.delay') as delay:
+            self.admin.scrape_historical(self._request(), League.objects.filter(pk=active.pk))
+        delay.assert_not_called()
+
+    def test_enqueues_only_the_historical_selection(self):
+        historical = League.objects.create(
+            name='Histórica', federation_id='sh-hist',
+            visibility_type='historical', is_historical=True, is_active=False,
+        )
+        active = League.objects.create(name='Activa', federation_id='sh-act2')
+        with patch('ilovevoley.competitions.tasks.scrape_historical_leagues_task.delay') as delay:
+            self.admin.scrape_historical(
+                self._request(), League.objects.filter(pk__in=[historical.pk, active.pk]),
+            )
+        delay.assert_called_once_with([historical.pk])

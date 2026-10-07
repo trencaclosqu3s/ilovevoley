@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin import helpers
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -253,12 +253,12 @@ class LeagueAdmin(ModelAdmin):
                 scraped_count += 1
             except Exception as e:
                 error_count += 1
-                self.message_user(request, f'Error en {league.name}: {e}', level='ERROR')
+                self.message_user(request, f'Error en {league.name}: {e}', level=messages.ERROR)
 
         if scraped_count > 0:
             self.message_user(request, f'Scraping completado para {scraped_count} liga(s)')
         if error_count > 0:
-            self.message_user(request, f'{error_count} liga(s) con errores', level='WARNING')
+            self.message_user(request, f'{error_count} liga(s) con errores', level=messages.WARNING)
 
     scrape_selected_leagues.short_description = "Hacer scraping de ligas seleccionadas"
 
@@ -272,7 +272,7 @@ class LeagueAdmin(ModelAdmin):
 
         league_ids = list(queryset.filter(is_historical=True).values_list('pk', flat=True))
         if not league_ids:
-            self.message_user(request, 'Ninguna de las ligas seleccionadas es histórica.', level='WARNING')
+            self.message_user(request, 'Ninguna de las ligas seleccionadas es histórica.', level=messages.WARNING)
             return
         scrape_historical_leagues_task.delay(league_ids)
         self.message_user(request, f'Sincronización lanzada para {len(league_ids)} liga(s) histórica(s).')
