@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
@@ -56,6 +57,62 @@ _FORMAT_METRICS = {
         photo_letterbox=True,
     ),
 }
+
+_HEX_COLOR = re.compile(r'^#?[0-9a-fA-F]{6}$')
+
+
+def _num(value, default, low, high):
+    """Número dentro de [low, high]; `default` si no es un número válido."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return default
+    return min(high, max(low, value))
+
+
+def normalize_layout(raw, card_format: str) -> dict:
+    """Completa y acota el layout personalizado del estilo "marco".
+
+    Coordenadas normalizadas (0-1). Los valores por defecto reproducen la
+    composición clásica: `photo.zoom=None` mantiene el encuadre automático,
+    `score.y=None` ancla el bloque sobre el footer y los degradados salen de
+    `_FORMAT_METRICS`. Cabecera y footer no forman parte del layout.
+    """
+    raw = raw if isinstance(raw, dict) else {}
+    photo = raw.get('photo') if isinstance(raw.get('photo'), dict) else {}
+    score = raw.get('score') if isinstance(raw.get('score'), dict) else {}
+    gradients = raw.get('gradients') if isinstance(raw.get('gradients'), dict) else {}
+    metrics = _FORMAT_METRICS[card_format]
+    height = CARD_SIZES[card_format][1]
+    defaults = {
+        'top': (190, metrics['scrim_top'] / height),
+        'bottom': (220, metrics['scrim_bottom'] / height),
+    }
+
+    def gradient(name):
+        item = gradients.get(name) if isinstance(gradients.get(name), dict) else {}
+        alpha, frac = defaults[name]
+        color = item.get('color')
+        return {
+            'color': color if isinstance(color, str) and _HEX_COLOR.match(color) else None,
+            'alpha': round(_num(item.get('alpha'), alpha, 0, 255)),
+            'height': _num(item.get('height'), frac, 0, 0.6),
+        }
+
+    zoom = photo.get('zoom')
+    score_y = score.get('y')
+    return {
+        'photo': {
+            'zoom': None if zoom is None else _num(zoom, None, 0.1, 4.0),
+            'cx': _num(photo.get('cx'), 0.5, 0, 1),
+            'cy': _num(photo.get('cy'), 0.5, 0, 1),
+        },
+        'score': {
+            'x': _num(score.get('x'), 0.5, 0, 1),
+            'y': None if score_y is None else _num(score_y, None, 0, 1),
+            'scale': _num(score.get('scale'), 1.0, 0.5, 1.2),
+        },
+        'gradients': {'top': gradient('top'), 'bottom': gradient('bottom')},
+    }
+
 
 _STATIC = Path(__file__).resolve().parents[1] / 'static'
 _FONT_REGULAR = _STATIC / 'fonts' / 'SourceSans3-Regular.ttf'
@@ -251,31 +308,64 @@ def _draw_background_blobs(image: Image.Image, width: int, height: int, metrics:
     image.paste(Image.new('RGB', (bottom_size, bottom_size), (0, 0, 0)), bottom_pos, bottom_alpha)
 
 
+def _place_photo(
+    source: Image.Image, width: int, height: int, zoom: float, cx: float, cy: float, fill: Image.Image
+) -> Image.Image:
+    """Coloca la foto con zoom sobre `fill` manteniendo siempre su proporción.
+
+    `zoom` es relativo al encuadre cover (1 = cubre el lienzo) y no baja del
+    encuadre contain, donde los huecos se ven con el degradado de `fill`.
+    `cx`/`cy` es el punto de la foto (0-1) que se centra en el lienzo.
+    """
+    cover = max(width / source.width, height / source.height)
+    contain = min(width / source.width, height / source.height)
+    scale = cover * max(zoom, contain / cover)
+    size = (max(1, round(source.width * scale)), max(1, round(source.height * scale)))
+    resized = source.resize(size, Image.Resampling.LANCZOS)
+
+    def offset(dim, canvas, center):
+        if dim <= canvas:
+            return (canvas - dim) // 2
+        return min(0, max(canvas - dim, round(canvas / 2 - center * dim)))
+
+    fill.paste(resized, (offset(size[0], width, cx), offset(size[1], height, cy)))
+    return fill
+
+
 def _photo_background(
-    photo: bytes, width: int, height: int, primary, secondary, metrics: dict
+    photo: bytes, width: int, height: int, primary, secondary, metrics: dict, layout: dict
 ) -> Image.Image:
     with Image.open(BytesIO(photo)) as raw:
         source = raw.convert('RGB')
+        zoom = layout['photo']['zoom']
 
+        if zoom is not None:
+            image = _place_photo(
+                source, width, height, zoom, layout['photo']['cx'], layout['photo']['cy'],
+                _gradient_background(width, height, primary, secondary, metrics),
+            )
         # En vertical (Story) una foto más ancha que el lienzo se encuadra entera
         # (contain) y los márgenes superior/inferior se rellenan con el degradado
         # del tenant, en vez de recortar los laterales (issue #347).
-        if metrics['photo_letterbox'] and source.width / source.height > width / height:
+        elif metrics['photo_letterbox'] and source.width / source.height > width / height:
             image = _gradient_background(width, height, primary, secondary, metrics)
             fitted = _contain_fit(source, width, height)
             image.paste(fitted, ((width - fitted.width) // 2, (height - fitted.height) // 2))
         else:
             image = _cover_crop(source, width, height)
 
-    scrim_top = metrics['scrim_top']
-    scrim_bottom = metrics['scrim_bottom']
-    top_mask = _vertical_alpha_gradient(width, scrim_top, 190, 0)
-    image.paste(Image.new('RGB', (width, scrim_top), primary), (0, 0), top_mask)
+    top, bottom = layout['gradients']['top'], layout['gradients']['bottom']
+    top_h = round(top['height'] * height)
+    if top_h and top['alpha']:
+        color = _hex_to_rgb(top['color'], primary) if top['color'] else primary
+        mask = _vertical_alpha_gradient(width, top_h, top['alpha'], 0)
+        image.paste(Image.new('RGB', (width, top_h), color), (0, 0), mask)
 
-    bottom_mask = _vertical_alpha_gradient(width, scrim_bottom, 0, 220)
-    image.paste(
-        Image.new('RGB', (width, scrim_bottom), primary), (0, height - scrim_bottom), bottom_mask
-    )
+    bottom_h = round(bottom['height'] * height)
+    if bottom_h and bottom['alpha']:
+        color = _hex_to_rgb(bottom['color'], primary) if bottom['color'] else primary
+        mask = _vertical_alpha_gradient(width, bottom_h, 0, bottom['alpha'])
+        image.paste(Image.new('RGB', (width, bottom_h), color), (0, height - bottom_h), mask)
     return image
 
 
@@ -301,14 +391,15 @@ def _draw_header(draw, image, *, organization, match, x, y, font_sm, font_xs, te
     draw.text((text_x, text_y + 40), date_str, font=font_xs, fill=text_color)
 
 
-def _fit_team_names(draw, match, max_width: int):
+def _fit_team_names(draw, match, max_width: int, scale: float = 1.0):
+    size, min_size = round(NAME_FONT_SIZE * scale), round(28 * scale)
     home_name, home_font = _fit_text(
-        draw, match.home_team_display, font_path=_FONT_BOLD, size=NAME_FONT_SIZE,
-        max_width=max_width,
+        draw, match.home_team_display, font_path=_FONT_BOLD, size=size,
+        max_width=max_width, min_size=min_size,
     )
     away_name, away_font = _fit_text(
-        draw, match.away_team_display, font_path=_FONT_BOLD, size=NAME_FONT_SIZE,
-        max_width=max_width,
+        draw, match.away_team_display, font_path=_FONT_BOLD, size=size,
+        max_width=max_width, min_size=min_size,
     )
     row_height = max(_text_height(draw, home_name, home_font), _text_height(draw, away_name, away_font))
     return home_name, home_font, away_name, away_font, row_height
@@ -327,8 +418,8 @@ def _sets_row_size(draw, set_list, font, pad_x: int, pad_y: int, gap: int) -> tu
     return total_width, height
 
 
-def _draw_sets_row(draw, set_list, font, *, center_x, y, bg, text_color):
-    pad_x, pad_y, gap = 20, 9, 14
+def _draw_sets_row(draw, set_list, font, *, center_x, y, bg, text_color, scale: float = 1.0):
+    pad_x, pad_y, gap = round(20 * scale), round(9 * scale), round(14 * scale)
     total_width, height = _sets_row_size(draw, set_list, font, pad_x, pad_y, gap)
     x = center_x - total_width // 2
     for home, away in set_list:
@@ -420,8 +511,10 @@ def render_result_card(
     card_style: str = 'completa',
     sets: Iterable[tuple[int, int]] | None = None,
     photo: bytes | None = None,
+    layout: dict | None = None,
     logo_fetcher: LogoFetcher | None = None,
 ) -> bytes:
+    """Renderiza la tarjeta. `layout` (ver `normalize_layout`) solo aplica al estilo "marco"."""
     if card_format not in CARD_SIZES:
         raise ValueError(_('format inválido: %(format)s') % {'format': card_format})
     if card_style not in CARD_STYLES:
@@ -436,10 +529,12 @@ def render_result_card(
         getattr(organization, 'secondary_color', None) or '', default=primary
     )
 
+    layout = normalize_layout(layout, card_format)
+
     if card_style == 'marco':
         try:
             image = _photo_background(
-                photo, width, height, primary, secondary, metrics
+                photo, width, height, primary, secondary, metrics, layout
             )
         except (OSError, ValueError) as exc:
             logger.warning('Foto de marco no válida, usando degradado: %s', exc)
@@ -450,16 +545,17 @@ def render_result_card(
     draw = ImageDraw.Draw(image)
 
     fetcher = logo_fetcher or fetch_logo_bytes
-    crest_size = metrics['crest_size']
+    scale = layout['score']['scale'] if card_style == 'marco' else 1.0
+    crest_size = round(metrics['crest_size'] * scale)
     home_logo = _team_logo_bytes(getattr(match, 'home_team', None), fetcher)
     away_logo = _team_logo_bytes(getattr(match, 'away_team', None), fetcher)
     home_crest = _open_logo(home_logo, crest_size)
     away_crest = _open_logo(away_logo, crest_size)
 
-    font_lg = _load_font(_FONT_BOLD, metrics['score_font_size'])
+    font_lg = _load_font(_FONT_BOLD, round(metrics['score_font_size'] * scale))
     font_sm = _load_font(_FONT_REGULAR, 32)
     font_xs = _load_font(_FONT_REGULAR, 26)
-    font_pill = _load_font(_FONT_REGULAR, 26)
+    font_pill = _load_font(_FONT_REGULAR, round(26 * scale))
 
     score = f'{match.home_score} - {match.away_score}'
     set_list = list(sets or [])
@@ -470,40 +566,52 @@ def render_result_card(
             x=48, y=metrics['header_y'], font_sm=font_sm, font_xs=font_xs, text_color=WHITE,
         )
 
-        side_x = MARGIN + 20
-        name_max_width = (width - 2 * side_x - NAME_GAP) // 2
+        # Bloque del marcador (escudos, resultado, nombres y sets): crece con `scale`
+        # y se coloca por su centro; sin `y` queda anclado sobre el footer.
+        block_width = round((width - 2 * (MARGIN + 20)) * scale)
+        left = min(max(0, round(layout['score']['x'] * width) - block_width // 2), width - block_width)
+        right = left + block_width
+        name_gap = round(NAME_GAP * scale)
         home_name, home_font, away_name, away_font, name_row_height = _fit_team_names(
-            draw, match, name_max_width
+            draw, match, (block_width - name_gap) // 2, scale
         )
-        _unused_width, sets_height = _sets_row_size(draw, set_list, font_pill, 20, 9, 14)
+        _unused_width, sets_height = _sets_row_size(
+            draw, set_list, font_pill, round(20 * scale), round(9 * scale), round(14 * scale)
+        )
         footer_font = font_xs
         footer_measured = _measure_footer(draw, footer_font)
         _footer_w, footer_height, _isotype, _bbox = footer_measured
 
         content_bottom = height - metrics['card_pad']
         footer_y = content_bottom - footer_height
-        sets_y = footer_y - FOOTER_GAP - sets_height
-        names_y = sets_y - 20 - name_row_height if set_list else sets_y + sets_height - name_row_height
-        crest_top = names_y - 16 - crest_size
-
-        _paste_crest_circle(image, home_crest, crest_size, side_x, crest_top)
-        _paste_crest_circle(
-            image, away_crest, crest_size, width - side_x - crest_size, crest_top
+        names_gap, sets_gap = round(16 * scale), round(20 * scale)
+        block_height = (
+            crest_size + names_gap + name_row_height + (sets_gap + sets_height if set_list else 0)
         )
+        if layout['score']['y'] is None:
+            crest_top = footer_y - FOOTER_GAP - block_height
+        else:
+            crest_top = round(layout['score']['y'] * height - block_height / 2)
+            crest_top = min(max(0, crest_top), height - block_height)
+        names_y = crest_top + crest_size + names_gap
+        sets_y = names_y + name_row_height + sets_gap
+
+        _paste_crest_circle(image, home_crest, crest_size, left, crest_top)
+        _paste_crest_circle(image, away_crest, crest_size, right - crest_size, crest_top)
         _draw_score(
-            draw, score, font_lg, center_x=width // 2,
+            draw, score, font_lg, center_x=(left + right) // 2,
             center_y=crest_top + crest_size // 2, color=WHITE,
         )
-        draw.text((side_x, names_y), home_name, font=home_font, fill=WHITE)
+        draw.text((left, names_y), home_name, font=home_font, fill=WHITE)
         draw.text(
-            (width - side_x - _text_width(draw, away_name, away_font), names_y),
+            (right - _text_width(draw, away_name, away_font), names_y),
             away_name, font=away_font, fill=WHITE,
         )
         if set_list:
             pill_bg_marco = tuple(channel * 55 // 100 for channel in primary)
             _draw_sets_row(
-                draw, set_list, font_pill, center_x=width // 2, y=sets_y,
-                bg=pill_bg_marco, text_color=WHITE,
+                draw, set_list, font_pill, center_x=(left + right) // 2, y=sets_y,
+                bg=pill_bg_marco, text_color=WHITE, scale=scale,
             )
         _draw_footer(
             draw, image, width=width, y=footer_y, font=footer_font, text_color=WHITE,
