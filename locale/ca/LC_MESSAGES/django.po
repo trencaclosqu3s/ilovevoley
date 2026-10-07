@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 09:42+0200\n"
+"POT-Creation-Date: 2026-10-08 01:02+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -79,9 +79,9 @@ msgstr "Totes les fotos"
 #: ilovevoley/competitions/templates/competitions/league_detail.html:65
 #: ilovevoley/competitions/templates/competitions/league_detail.html:378
 #: ilovevoley/competitions/templates/competitions/league_list.html:271
-#: ilovevoley/competitions/templates/competitions/match_detail.html:810
+#: ilovevoley/competitions/templates/competitions/match_detail.html:816
 #: ilovevoley/competitions/templates/competitions/standings.html:327
-#: ilovevoley/templates/base.html:308
+#: ilovevoley/templates/base.html:309
 #: ilovevoley/templates/includes/navbar.html:73
 #: ilovevoley/templates/includes/navbar.html:292
 msgid "Videos"
@@ -108,12 +108,12 @@ msgstr "Persones"
 #: ilovevoley/competitions/templates/competitions/league_detail.html:58
 #: ilovevoley/competitions/templates/competitions/league_list.html:157
 #: ilovevoley/rosters/templates/rosters/roster_overview.html:141
-#: ilovevoley/teams/admin/teams.py:45 ilovevoley/teams/models/teams.py:122
+#: ilovevoley/teams/admin/teams.py:45 ilovevoley/teams/models/teams.py:124
 msgid "Equipos"
 msgstr "Equips"
 
 #
-#: config/settings.py:705 ilovevoley/competitions/models/competitions.py:736
+#: config/settings.py:705 ilovevoley/competitions/models/competitions.py:749
 msgid "Clasificaciones"
 msgstr "Classificacions"
 
@@ -126,14 +126,14 @@ msgid "Categorías"
 msgstr "Categories"
 
 #
-#: config/settings.py:717
+#: config/settings.py:717 ilovevoley/competitions/models/circulars.py:21
 msgid "Competiciones"
 msgstr "Competicions"
 
 #: config/settings.py:721 ilovevoley/competitions/models/competitions.py:183
 #: ilovevoley/competitions/templates/competitions/league_list.html:4
 #: ilovevoley/competitions/templates/competitions/league_list.html:16
-#: ilovevoley/competitions/templates/competitions/match_detail.html:822
+#: ilovevoley/competitions/templates/competitions/match_detail.html:828
 #: ilovevoley/core/admin.py:98 ilovevoley/templates/includes/navbar.html:120
 #: ilovevoley/templates/includes/navbar.html:327
 msgid "Ligas"
@@ -144,7 +144,7 @@ msgstr "Lligues"
 msgid "Temporadas"
 msgstr "Temporades"
 
-#: config/settings.py:731 ilovevoley/teams/models/teams.py:39
+#: config/settings.py:731 ilovevoley/teams/models/teams.py:40
 msgid "Clubes"
 msgstr "Clubs"
 
@@ -300,6 +300,7 @@ msgstr "Equips de la categoria: %(category)s"
 
 #: ilovevoley/competitions/forms.py:82
 #: ilovevoley/competitions/models/callups.py:68
+#: ilovevoley/competitions/models/circulars.py:96
 #: ilovevoley/competitions/templates/competitions/calendar.html:96
 #: ilovevoley/competitions/templates/competitions/results.html:40
 #: ilovevoley/content/forms.py:50 ilovevoley/content/forms.py:421
@@ -383,18 +384,18 @@ msgstr "Has d'especificar un equip visitant"
 
 #: ilovevoley/competitions/forms.py:385
 #: ilovevoley/competitions/templates/competitions/calendar.html:496
-#: ilovevoley/competitions/templates/competitions/match_detail.html:522
-#: ilovevoley/competitions/templates/competitions/match_detail.html:856
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1635
+#: ilovevoley/competitions/templates/competitions/match_detail.html:528
+#: ilovevoley/competitions/templates/competitions/match_detail.html:862
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1643
 #: ilovevoley/competitions/templates/competitions/where_plays.html:87
 msgid "Local"
 msgstr "Local"
 
 #: ilovevoley/competitions/forms.py:386
 #: ilovevoley/competitions/templates/competitions/calendar.html:507
-#: ilovevoley/competitions/templates/competitions/match_detail.html:530
-#: ilovevoley/competitions/templates/competitions/match_detail.html:867
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1637
+#: ilovevoley/competitions/templates/competitions/match_detail.html:536
+#: ilovevoley/competitions/templates/competitions/match_detail.html:873
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1645
 #: ilovevoley/competitions/templates/competitions/where_plays.html:87
 msgid "Visitante"
 msgstr "Visitant"
@@ -483,6 +484,7 @@ msgid "Mixto / No especificado"
 msgstr "Mixt / No especificat"
 
 #: ilovevoley/competitions/models/callups.py:44
+#: ilovevoley/competitions/models/circulars.py:35
 #: ilovevoley/competitions/models/competitions.py:109
 #: ilovevoley/competitions/templates/competitions/league_list.html:162
 #: ilovevoley/competitions/templates/competitions/results.html:31
@@ -507,6 +509,7 @@ msgid "Título de la circular"
 msgstr "Títol de la circular"
 
 #: ilovevoley/competitions/models/callups.py:47
+#: ilovevoley/competitions/models/circulars.py:39
 msgid "Fecha de circular"
 msgstr "Data de circulació"
 
@@ -600,6 +603,7 @@ msgid "Año nacimiento en PDF"
 msgstr "Any de naixement al PDF"
 
 #: ilovevoley/competitions/models/callups.py:132
+#: ilovevoley/competitions/models/circulars.py:88
 msgid "Organización / Tenant"
 msgstr "Organització / Tenant"
 
@@ -642,6 +646,104 @@ msgstr "Jugador Convocat"
 #: ilovevoley/competitions/models/callups.py:164
 msgid "Jugadores Convocados"
 msgstr "Jugadors Convocats"
+
+#: ilovevoley/competitions/models/circulars.py:22
+msgid "Comité de competición"
+msgstr "Comitè de competició"
+
+#: ilovevoley/competitions/models/circulars.py:23
+msgid "Vóley playa"
+msgstr "Vòlei platja"
+
+#
+#: ilovevoley/competitions/models/circulars.py:24
+msgid "Formación"
+msgstr "Formació"
+
+#: ilovevoley/competitions/models/circulars.py:25
+msgid "Normas y reglamentos"
+msgstr "Normes i reglaments"
+
+#: ilovevoley/competitions/models/circulars.py:26
+#: ilovevoley/competitions/templates/competitions/match_detail.html:300
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1618
+msgid "Árbitros"
+msgstr "Àrbitres"
+
+#: ilovevoley/competitions/models/circulars.py:27
+msgid "Documentos FVBIB"
+msgstr "Documents FVBIB"
+
+#: ilovevoley/competitions/models/circulars.py:28
+msgid "Transparencia"
+msgstr "Transparència"
+
+#
+#: ilovevoley/competitions/models/circulars.py:37
+#: ilovevoley/competitions/models/news.py:17
+#: ilovevoley/competitions/templates/competitions/emails/match_change_alert.html:38
+#: ilovevoley/content/forms.py:402
+#: ilovevoley/templates/emails/images_pending_batch.html:21
+msgid "Tipo"
+msgstr "Tipus"
+
+#: ilovevoley/competitions/models/circulars.py:38
+#: ilovevoley/content/forms.py:47 ilovevoley/content/forms.py:198
+#: ilovevoley/content/forms.py:441
+#: ilovevoley/content/templates/content/image_bulk_upload.html:509
+#: ilovevoley/templates/emails/images_pending_batch.html:20
+msgid "Título"
+msgstr "Títol"
+
+#: ilovevoley/competitions/models/circulars.py:43
+msgid "Fichero PDF remoto"
+msgstr "Fitxer PDF remot"
+
+#: ilovevoley/competitions/models/circulars.py:44
+msgid "Vacío si la circular no tiene PDF adjunto."
+msgstr "Buit si la circular no té PDF adjunt."
+
+#: ilovevoley/competitions/models/circulars.py:49
+msgid "Filas extraídas"
+msgstr "Files extretes"
+
+#: ilovevoley/competitions/models/circulars.py:50
+msgid ""
+"Solo en circulares disciplinarias: cuándo se leyó el PDF para extraer las "
+"filas de los tenants."
+msgstr ""
+"Només en circulars disciplinàries: quan es va llegir el PDF per extreure les "
+"files dels tenants."
+
+#: ilovevoley/competitions/models/circulars.py:55
+msgid "Circular federativa"
+msgstr "Circular federativa"
+
+#: ilovevoley/competitions/models/circulars.py:56
+msgid "Circulares federativas"
+msgstr "Circulars federatives"
+
+#: ilovevoley/competitions/models/circulars.py:97
+msgid "Categoría guardada cuyo nombre aparece en la fila, si la hay."
+msgstr "Categoria desada el nom de la qual apareix a la fila, si n'hi ha."
+
+#: ilovevoley/competitions/models/circulars.py:100
+#: ilovevoley/competitions/models/news.py:12 ilovevoley/users/models.py:355
+msgid "Fecha"
+msgstr "Data"
+
+#
+#: ilovevoley/competitions/models/circulars.py:101
+msgid "Fila de la circular"
+msgstr "Fila de la circular"
+
+#: ilovevoley/competitions/models/circulars.py:105
+msgid "Sanción federativa"
+msgstr "Sanció federativa"
+
+#: ilovevoley/competitions/models/circulars.py:106
+msgid "Sanciones federativas"
+msgstr "Sancions federatives"
 
 #: ilovevoley/competitions/models/competitions.py:80
 #: ilovevoley/competitions/templates/competitions/league_detail.html:42
@@ -1005,8 +1107,8 @@ msgstr ""
 "per evitar duplicats."
 
 #: ilovevoley/competitions/models/competitions.py:515
-#: ilovevoley/content/forms.py:364 ilovevoley/content/forms.py:411
-#: ilovevoley/content/models/content.py:181
+#: ilovevoley/competitions/models/story.py:27 ilovevoley/content/forms.py:364
+#: ilovevoley/content/forms.py:411 ilovevoley/content/models/content.py:181
 #: ilovevoley/content/templates/content/image_detail.html:57
 #: ilovevoley/content/templates/content/match_images.html:106
 msgid "Partido"
@@ -1076,20 +1178,28 @@ msgstr ""
 msgid "{slug del tenant: [equipos que juegan]}"
 msgstr "{slug del tenant: [equips que juguen]}"
 
-#: ilovevoley/competitions/models/competitions.py:630
+#: ilovevoley/competitions/models/competitions.py:626
+msgid ""
+"Detectada en una temporada pasada: al aprobar se crea como liga histórica "
+"inactiva."
+msgstr ""
+"Detectada en una temporada passada: en aprovar-la es crea com a lliga "
+"històrica inactiva."
+
+#: ilovevoley/competitions/models/competitions.py:634
 msgid "Liga candidata"
 msgstr "Lliga candidata"
 
 #
-#: ilovevoley/competitions/models/competitions.py:631
+#: ilovevoley/competitions/models/competitions.py:635
 msgid "Ligas candidatas"
 msgstr "Lligues candidates"
 
-#: ilovevoley/competitions/models/competitions.py:658
-#: ilovevoley/competitions/models/competitions.py:735
+#: ilovevoley/competitions/models/competitions.py:671
+#: ilovevoley/competitions/models/competitions.py:748
 #: ilovevoley/competitions/templates/competitions/league_detail.html:82
 #: ilovevoley/competitions/templates/competitions/league_list.html:267
-#: ilovevoley/competitions/templates/competitions/match_detail.html:818
+#: ilovevoley/competitions/templates/competitions/match_detail.html:824
 #: ilovevoley/competitions/templates/competitions/standings.html:4
 #: ilovevoley/competitions/templates/competitions/standings.html:16
 #: ilovevoley/templates/includes/navbar.html:114
@@ -1098,210 +1208,295 @@ msgid "Clasificación"
 msgstr "Classificació"
 
 #
-#: ilovevoley/competitions/models/competitions.py:659
+#: ilovevoley/competitions/models/competitions.py:672
 #: ilovevoley/competitions/templates/competitions/results.html:4
 #: ilovevoley/competitions/templates/competitions/results.html:14
-#: ilovevoley/templates/base.html:320
+#: ilovevoley/templates/base.html:321
 #: ilovevoley/templates/includes/navbar.html:108
 #: ilovevoley/templates/includes/navbar.html:315
 msgid "Resultados"
 msgstr "Resultats"
 
-#: ilovevoley/competitions/models/competitions.py:660
+#: ilovevoley/competitions/models/competitions.py:673
 #: ilovevoley/competitions/templates/competitions/calendar.html:63
 #: ilovevoley/competitions/templates/competitions/league_detail.html:374
 #: ilovevoley/competitions/templates/competitions/league_list.html:263
 #: ilovevoley/competitions/templates/competitions/match_detail.html:38
-#: ilovevoley/competitions/templates/competitions/match_detail.html:814
-#: ilovevoley/templates/base.html:316
+#: ilovevoley/competitions/templates/competitions/match_detail.html:820
+#: ilovevoley/templates/base.html:317
 #: ilovevoley/templates/includes/navbar.html:102
 #: ilovevoley/templates/includes/navbar.html:309
 msgid "Calendario"
 msgstr "Calendari"
 
 #
-#: ilovevoley/competitions/models/competitions.py:661
+#: ilovevoley/competitions/models/competitions.py:674
 msgid "Resultados JSON"
 msgstr "Resultats JSON"
 
 #
-#: ilovevoley/competitions/models/competitions.py:665
+#: ilovevoley/competitions/models/competitions.py:678
 msgid "Tabla de Clasificación"
 msgstr "Taula de Classificació"
 
 #
-#: ilovevoley/competitions/models/competitions.py:666
+#: ilovevoley/competitions/models/competitions.py:679
 msgid "Resultados de Partidos"
 msgstr "Resultats de Partits"
 
-#: ilovevoley/competitions/models/competitions.py:667
+#: ilovevoley/competitions/models/competitions.py:680
 #: ilovevoley/competitions/templates/competitions/calendar.html:4
 #: ilovevoley/competitions/templates/competitions/calendar.html:16
 msgid "Calendario de Partidos"
 msgstr "Calendari"
 
 #
-#: ilovevoley/competitions/models/competitions.py:668
+#: ilovevoley/competitions/models/competitions.py:681
 msgid "Partidos JSON (próximos)"
 msgstr "Partits JSON (pròxims)"
 
-#: ilovevoley/competitions/models/competitions.py:669
+#: ilovevoley/competitions/models/competitions.py:682
 msgid "Resultados JSON (finalizados)"
 msgstr "Resultats JSON (finalitzats)"
 
-#: ilovevoley/competitions/models/competitions.py:670
+#: ilovevoley/competitions/models/competitions.py:683
 msgid "JSON Unificado (configurable)"
 msgstr "JSON Unificat (configurable)"
 
-#: ilovevoley/competitions/models/competitions.py:675
+#: ilovevoley/competitions/models/competitions.py:688
 #, python-brace-format
 msgid "Usar {league_id}, {round}, etc. para parámetros dinámicos"
 msgstr "Usar {league_id}, {round}, etc. per a paràmetres dinàmics"
 
-#: ilovevoley/competitions/models/competitions.py:678
+#: ilovevoley/competitions/models/competitions.py:691
 msgid "Parámetros adicionales como JSON"
 msgstr "Paràmetres addicionals com a JSON"
 
-#: ilovevoley/competitions/models/competitions.py:683
+#: ilovevoley/competitions/models/competitions.py:696
 msgid "Endpoint de Scraping"
 msgstr "Endpoint d'Scraping"
 
-#: ilovevoley/competitions/models/competitions.py:684
+#: ilovevoley/competitions/models/competitions.py:697
 msgid "Endpoints de Scraping"
 msgstr "Endpoints de scraping"
 
-#: ilovevoley/competitions/models/competitions.py:724
+#: ilovevoley/competitions/models/competitions.py:737
 msgid "Victorias 3-0"
 msgstr "Victòries 3-0"
 
-#: ilovevoley/competitions/models/competitions.py:725
+#: ilovevoley/competitions/models/competitions.py:738
 msgid "Victorias 3-1"
 msgstr "Victòries 3-1"
 
-#: ilovevoley/competitions/models/competitions.py:726
+#: ilovevoley/competitions/models/competitions.py:739
 msgid "Victorias 3-2"
 msgstr "Victòries 3-2"
 
-#: ilovevoley/competitions/models/competitions.py:727
+#: ilovevoley/competitions/models/competitions.py:740
 msgid "Derrotas 2-3"
 msgstr "Derrotes 2-3"
 
-#: ilovevoley/competitions/models/competitions.py:728
+#: ilovevoley/competitions/models/competitions.py:741
 msgid "Derrotas 1-3"
 msgstr "Derrotes 1-3"
 
-#: ilovevoley/competitions/models/competitions.py:729
+#: ilovevoley/competitions/models/competitions.py:742
 msgid "Derrotas 0-3"
 msgstr "Derrotes 0-3"
 
 #
-#: ilovevoley/competitions/models/competitions.py:771
+#: ilovevoley/competitions/models/competitions.py:784
 msgid "Enlace de partido"
 msgstr "Enllaç de partit"
 
 #
-#: ilovevoley/competitions/models/competitions.py:772
+#: ilovevoley/competitions/models/competitions.py:785
 msgid "Enlaces de partido"
 msgstr "Enllaços de partit"
 
-#: ilovevoley/competitions/models/competitions.py:802
+#: ilovevoley/competitions/models/competitions.py:815
 #: ilovevoley/content/models/content.py:582
 msgid "Deportista"
 msgstr "Esportista"
 
-#: ilovevoley/competitions/models/competitions.py:805
+#: ilovevoley/competitions/models/competitions.py:818
 #: ilovevoley/teams/templates/teams/team_roster.html:239
 msgid "Dorsal"
 msgstr "Dorsal"
 
 #
-#: ilovevoley/competitions/models/competitions.py:806
+#: ilovevoley/competitions/models/competitions.py:819
 msgid "Nombre en acta"
 msgstr "Nom en acta"
 
-#: ilovevoley/competitions/models/competitions.py:808
+#: ilovevoley/competitions/models/competitions.py:821
 msgid "Convocado"
 msgstr "Convocat"
 
 #
-#: ilovevoley/competitions/models/competitions.py:809
+#: ilovevoley/competitions/models/competitions.py:822
 msgid "Sets jugados"
 msgstr "Sets jugats"
 
-#: ilovevoley/competitions/models/competitions.py:810
+#: ilovevoley/competitions/models/competitions.py:823
 #: ilovevoley/rosters/templates/rosters/person_detail.html:171
 msgid "Sets como titular"
 msgstr "Sets com a titular"
 
 #
-#: ilovevoley/competitions/models/competitions.py:818
+#: ilovevoley/competitions/models/competitions.py:831
 msgid "Alineación de partido"
 msgstr "Alineació de partit"
 
 #
-#: ilovevoley/competitions/models/competitions.py:819
+#: ilovevoley/competitions/models/competitions.py:832
 msgid "Alineaciones de partido"
 msgstr "Alineacions de partit"
 
-#: ilovevoley/competitions/models/competitions.py:833
+#: ilovevoley/competitions/models/competitions.py:846
 msgid "Sin identificar"
 msgstr "Sense identificar"
 
-#: ilovevoley/competitions/models/competitions.py:853
+#: ilovevoley/competitions/models/competitions.py:866
 #: ilovevoley/competitions/templates/competitions/match_changes_review.html:113
 msgid "Fecha / Hora"
 msgstr "Data / Hora"
 
-#: ilovevoley/competitions/models/competitions.py:854
+#: ilovevoley/competitions/models/competitions.py:867
 msgid "Sede / Pabellón"
 msgstr "Seu / Pavelló"
 
-#: ilovevoley/competitions/models/competitions.py:855
+#: ilovevoley/competitions/models/competitions.py:868
 #: ilovevoley/competitions/templates/competitions/match_changes_review.html:121
-#: ilovevoley/competitions/templates/competitions/match_detail.html:274
+#: ilovevoley/competitions/templates/competitions/match_detail.html:280
 #: ilovevoley/content/forms.py:430 ilovevoley/content/models/content.py:597
 msgid "Estado"
 msgstr "Estat"
 
 #
-#: ilovevoley/competitions/models/competitions.py:856
+#: ilovevoley/competitions/models/competitions.py:869
 msgid "Tanteo / Resultado"
 msgstr "Tanteig / Resultat"
 
-#: ilovevoley/competitions/models/competitions.py:857
+#: ilovevoley/competitions/models/competitions.py:870
 #: ilovevoley/content/forms.py:369 ilovevoley/content/models/content.py:186
-#: ilovevoley/rosters/models/rosters.py:300 ilovevoley/teams/models/teams.py:92
+#: ilovevoley/rosters/models/rosters.py:300 ilovevoley/teams/models/teams.py:94
 msgid "Otro"
 msgstr "Altre"
 
-#: ilovevoley/competitions/models/competitions.py:867
+#: ilovevoley/competitions/models/competitions.py:880
 msgid ""
 "Indica si el cambio se detectó con menos de 7 días de antelación al partido"
 msgstr ""
 "Indica si el canvi es va detectar amb menys de 7 dies d'antelació al partit"
 
 #
-#: ilovevoley/competitions/models/competitions.py:887
+#: ilovevoley/competitions/models/competitions.py:900
 #: ilovevoley/competitions/templates/competitions/emails/match_change_alert.html:7
 msgid "Modificación de Partido"
 msgstr "Modificació de Partit"
 
 #
-#: ilovevoley/competitions/models/competitions.py:888
+#: ilovevoley/competitions/models/competitions.py:901
 msgid "Modificaciones de Partidos"
 msgstr "Modificacions de Partits"
 
-#: ilovevoley/competitions/result_card.py:406
+#: ilovevoley/competitions/models/news.py:13
+msgid "Titular"
+msgstr "Titular"
+
+#: ilovevoley/competitions/models/news.py:18
+msgid ""
+"Etiqueta de la federación (Generales, Arbitros…); la playa reciente llega "
+"como Generales."
+msgstr ""
+"Etiqueta de la federació (Generals, Àrbitres…); la platja recent arriba com "
+"a Generals."
+
+#: ilovevoley/competitions/models/news.py:23
+#: ilovevoley/teams/admin/teams.py:115 ilovevoley/teams/models/teams.py:39
+msgid "Club"
+msgstr "Club"
+
+#: ilovevoley/competitions/models/news.py:24
+msgid ""
+"Solo en actividades de clubes (campus, eventos), tal como lo publica la "
+"federación."
+msgstr ""
+"Només en activitats de clubs (campus, esdeveniments), tal com les publica la "
+"federació."
+
+#: ilovevoley/competitions/models/news.py:26
+msgid "Imagen remota"
+msgstr "Imatge remota"
+
+#: ilovevoley/competitions/models/news.py:30
+msgid "Noticia federativa"
+msgstr "Notícia federativa"
+
+#: ilovevoley/competitions/models/news.py:31
+msgid "Noticias federativas"
+msgstr "Notícies federatives"
+
+#: ilovevoley/competitions/models/story.py:9
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:38
+msgid "Story 9:16"
+msgstr "Story 9:16"
+
+#: ilovevoley/competitions/models/story.py:9
+msgid "Cuadrado 1:1"
+msgstr "Quadrat 1:1"
+
+#: ilovevoley/competitions/models/story.py:15
+#: ilovevoley/templates/account/signup.html:26 ilovevoley/users/models.py:231
+#: ilovevoley/users/models.py:273
+msgid "Usuario"
+msgstr "Usuari"
+
+#: ilovevoley/competitions/models/story.py:21
+#: ilovevoley/content/models/content.py:64
+#: ilovevoley/content/models/content.py:346
+#: ilovevoley/content/models/content.py:565 ilovevoley/core/models.py:243
+msgid "Organización"
+msgstr "Organització"
+
+#: ilovevoley/competitions/models/story.py:33
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:44
+#: ilovevoley/rosters/forms.py:60 ilovevoley/rosters/models/rosters.py:47
+#: ilovevoley/teams/templates/teams/team_roster.html:237
+#: ilovevoley/teams/templates/teams/team_roster.html:464
+msgid "Foto"
+msgstr "Foto"
+
+#: ilovevoley/competitions/models/story.py:36
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:36
+msgid "Formato"
+msgstr "Format"
+
+#: ilovevoley/competitions/models/story.py:38
+msgid "Composición"
+msgstr "Composició"
+
+#: ilovevoley/competitions/models/story.py:44
+msgid "Composición de story"
+msgstr "Composició de story"
+
+#
+#: ilovevoley/competitions/models/story.py:45
+msgid "Composiciones de story"
+msgstr "Composicions de story"
+
+#: ilovevoley/competitions/result_card.py:532
 #, python-format
 msgid "format inválido: %(format)s"
 msgstr "format invàlid: %(format)s"
 
-#: ilovevoley/competitions/result_card.py:408
+#: ilovevoley/competitions/result_card.py:534
 #, python-format
 msgid "estilo inválido: %(style)s"
 msgstr "estil invàlid: %(style)s"
 
-#: ilovevoley/competitions/result_card.py:410
+#: ilovevoley/competitions/result_card.py:536
 msgid "el estilo \"marco\" requiere una foto"
 msgstr "l'estil \"marc\" requereix una foto"
 
@@ -1448,7 +1643,7 @@ msgstr "Sense set"
 msgid "Set %(number)s"
 msgstr "Set %(number)s"
 
-#: ilovevoley/competitions/tasks.py:172
+#: ilovevoley/competitions/tasks.py:190
 #, python-format
 msgid "%(count)s nuevas ligas pendientes de validar"
 msgstr "%(count)s noves lligues pendents de validar"
@@ -1468,6 +1663,111 @@ msgstr "G"
 #: ilovevoley/competitions/templates/competitions/standings.html:139
 msgid "P"
 msgstr "P"
+
+#
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:4
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:19
+msgid "Personalizar story"
+msgstr "Personalitzar story"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:10
+msgid "Elige una foto del partido"
+msgstr "Tria una foto del partit"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:11
+#: ilovevoley/competitions/templates/competitions/match_detail.html:971
+msgid "No se pudo generar la tarjeta. Inténtalo de nuevo"
+msgstr "No s'ha pogut generar la targeta. Torna-ho a provar"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:12
+msgid "Composición guardada"
+msgstr "Composició desada"
+
+#
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:13
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1035
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1069
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1092
+msgid "Imagen descargada"
+msgstr "Imatge descarregada"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:14
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1049
+msgid "Generando la tarjeta, puede tardar unos segundos…"
+msgstr "S'està generant la targeta, pot trigar uns segons…"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:15
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1084
+msgid "Toca para compartir"
+msgstr "Toca per compartir"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:16
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:74
+msgid "Compartir"
+msgstr "Comparteix"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:20
+msgid "Cerrar"
+msgstr "Tanca"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:31
+msgid ""
+"Arrastra la foto para encuadrarla, pellizca para el zoom y mueve o escala el "
+"marcador."
+msgstr ""
+"Arrossega la foto per enquadrar-la, pessiga per fer zoom i mou o escala el "
+"marcador."
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:39
+msgid "1:1"
+msgstr "1:1"
+
+#
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:49
+msgid "Zoom de la foto"
+msgstr "Zoom de la foto"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:54
+msgid "Degradado superior"
+msgstr "Degradat superior"
+
+#
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:56
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:64
+msgid "Color"
+msgstr "Color"
+
+#
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:57
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:65
+msgid "Intensidad"
+msgstr "Intensitat"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:58
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:66
+msgid "Altura"
+msgstr "Alçada"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:62
+msgid "Degradado inferior"
+msgstr "Degradat inferior"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:69
+msgid ""
+"Color, intensidad (primera barra) y altura (segunda) de cada degradado. La "
+"cabecera y el pie son fijos."
+msgstr ""
+"Color, intensitat (primera barra) i alçada (segona) de cada degradat. La "
+"capçalera i el peu són fixos."
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:75
+#: ilovevoley/templates/users/profile.html:280
+msgid "Descargar"
+msgstr "Descarrega"
+
+#: ilovevoley/competitions/templates/competitions/_story_editor.html:77
+msgid "Guardar en mi perfil"
+msgstr "Desa al meu perfil"
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:19
 msgid "Mostrando todos los equipos"
@@ -1565,12 +1865,12 @@ msgstr "Avui"
 #: ilovevoley/competitions/templates/competitions/league_list.html:212
 #: ilovevoley/competitions/templates/competitions/league_list.html:233
 #: ilovevoley/competitions/templates/competitions/match_detail.html:56
-#: ilovevoley/competitions/views.py:96
+#: ilovevoley/competitions/views.py:99
 msgid "Sin horario confirmado"
 msgstr "Sense horari confirmat"
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:304
-#: ilovevoley/competitions/templates/competitions/match_detail.html:216
+#: ilovevoley/competitions/templates/competitions/match_detail.html:222
 msgid "Agregar resultado"
 msgstr "Afegir resultat"
 
@@ -1588,19 +1888,19 @@ msgid "Árbitro:"
 msgstr "Àrbitre:"
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:375
-#: ilovevoley/competitions/templates/competitions/match_detail.html:309
+#: ilovevoley/competitions/templates/competitions/match_detail.html:315
 msgid "Anotador:"
 msgstr "Anotador:"
 
 #
 #: ilovevoley/competitions/templates/competitions/calendar.html:386
-#: ilovevoley/competitions/templates/competitions/match_detail.html:417
+#: ilovevoley/competitions/templates/competitions/match_detail.html:423
 msgid "Acta oficial"
 msgstr "Acta oficial"
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:399
 #: ilovevoley/competitions/templates/competitions/league_detail.html:221
-#: ilovevoley/competitions/templates/competitions/match_detail.html:407
+#: ilovevoley/competitions/templates/competitions/match_detail.html:413
 #, python-format
 msgid "%(counter)s video"
 msgid_plural "%(counter)s videos"
@@ -1610,7 +1910,7 @@ msgstr[1] "%(counter)s vídeos"
 #: ilovevoley/competitions/templates/competitions/calendar.html:406
 #: ilovevoley/competitions/templates/competitions/calendar.html:617
 #: ilovevoley/competitions/templates/competitions/league_detail.html:228
-#: ilovevoley/competitions/templates/competitions/match_detail.html:462
+#: ilovevoley/competitions/templates/competitions/match_detail.html:468
 #: ilovevoley/content/templates/content/match_images.html:158
 msgid "Ver detalles"
 msgstr "Veure detalls"
@@ -1642,7 +1942,7 @@ msgstr "%(team)s a %(month)s %(year)s"
 #: ilovevoley/competitions/templates/competitions/calendar.html:436
 #: ilovevoley/competitions/templates/competitions/league_detail.html:366
 #: ilovevoley/competitions/templates/competitions/league_list.html:259
-#: ilovevoley/competitions/templates/competitions/match_detail.html:806
+#: ilovevoley/competitions/templates/competitions/match_detail.html:812
 #: ilovevoley/competitions/templates/competitions/standings.html:315
 msgid "Enlaces relacionados"
 msgstr "Enllaços relacionats"
@@ -1661,37 +1961,37 @@ msgid "Ver videos"
 msgstr "Veure vídeos"
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:478
-#: ilovevoley/competitions/templates/competitions/match_detail.html:838
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1196
+#: ilovevoley/competitions/templates/competitions/match_detail.html:844
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1204
 msgid "Agregar Resultado"
 msgstr "Afegir resultat"
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:489
-#: ilovevoley/competitions/templates/competitions/match_detail.html:849
+#: ilovevoley/competitions/templates/competitions/match_detail.html:855
 msgid "Introduce el marcador final"
 msgstr "Introdueix el marcador final"
 
 #
 #: ilovevoley/competitions/templates/competitions/calendar.html:517
-#: ilovevoley/competitions/templates/competitions/match_detail.html:877
+#: ilovevoley/competitions/templates/competitions/match_detail.html:883
 msgid "Parciales (opcional)"
 msgstr "Parcials (opcional)"
 
 #
 #: ilovevoley/competitions/templates/competitions/calendar.html:520
-#: ilovevoley/competitions/templates/competitions/match_detail.html:880
+#: ilovevoley/competitions/templates/competitions/match_detail.html:886
 msgid "Añadir set"
 msgstr "Afegir set"
 
 #
 #: ilovevoley/competitions/templates/competitions/calendar.html:525
-#: ilovevoley/competitions/templates/competitions/match_detail.html:885
+#: ilovevoley/competitions/templates/competitions/match_detail.html:891
 msgid "Si rellenas los parciales, el marcador se calcula automáticamente."
 msgstr "Si omplís els parcials, el marcador es calcula automàticament."
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:536
 #: ilovevoley/competitions/templates/competitions/friendly_match_form.html:213
-#: ilovevoley/competitions/templates/competitions/match_detail.html:896
+#: ilovevoley/competitions/templates/competitions/match_detail.html:902
 #: ilovevoley/content/templates/content/image_moderate.html:52
 #: ilovevoley/content/templates/content/video_bulk_form.html:81
 #: ilovevoley/content/templates/content/video_bulk_form.html:85
@@ -1710,7 +2010,7 @@ msgstr "Cancel·lar"
 
 #
 #: ilovevoley/competitions/templates/competitions/calendar.html:540
-#: ilovevoley/competitions/templates/competitions/match_detail.html:900
+#: ilovevoley/competitions/templates/competitions/match_detail.html:906
 msgid "Guardar Resultado"
 msgstr "Desar Resultat"
 
@@ -1728,33 +2028,33 @@ msgid "Resultado:"
 msgstr "Resultat:"
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:752
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1237
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1245
 msgid "Completa o elimina las filas de parciales a medias"
 msgstr "Completa o elimina les files de parcials a mitges"
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:759
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1244
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1252
 msgid "Por favor, introduce ambos marcadores"
 msgstr "Si us plau, introdueix tots dos marcadors"
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:764
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1248
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1256
 msgid "Los marcadores no pueden ser negativos"
 msgstr "Els marcadors no poden ser negatius"
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:769
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1252
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1260
 msgid "En voleibol no puede haber empate"
 msgstr "En voleibol no hi pot haver empat"
 
 #
 #: ilovevoley/competitions/templates/competitions/calendar.html:807
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1294
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1302
 msgid "Error al guardar el resultado"
 msgstr "Error en desar el resultat"
 
 #: ilovevoley/competitions/templates/competitions/calendar.html:811
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1298
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1306
 msgid "Error de conexión. Inténtalo de nuevo."
 msgstr "Error de connexió. Torna-ho a intentar."
 
@@ -1784,13 +2084,6 @@ msgstr "Competició:"
 msgid "Se han detectado variaciones federativas oficiales para este encuentro:"
 msgstr ""
 "S'han detectat variacions federatives oficials per a aquest enfrontament:"
-
-#
-#: ilovevoley/competitions/templates/competitions/emails/match_change_alert.html:38
-#: ilovevoley/content/forms.py:402
-#: ilovevoley/templates/emails/images_pending_batch.html:21
-msgid "Tipo"
-msgstr "Tipus"
 
 #
 #: ilovevoley/competitions/templates/competitions/emails/match_change_alert.html:39
@@ -1924,6 +2217,7 @@ msgstr "En curs"
 #: ilovevoley/rosters/templates/rosters/person_list.html:329
 #: ilovevoley/rosters/templates/rosters/person_list.html:331
 #: ilovevoley/rosters/templates/rosters/person_list.html:347
+#: ilovevoley/templates/users/profile.html:293
 msgid "Anterior"
 msgstr "Anterior"
 
@@ -1937,6 +2231,7 @@ msgstr "Anterior"
 #: ilovevoley/rosters/templates/rosters/person_list.html:337
 #: ilovevoley/rosters/templates/rosters/person_list.html:339
 #: ilovevoley/rosters/templates/rosters/person_list.html:355
+#: ilovevoley/templates/users/profile.html:297
 msgid "Siguiente"
 msgstr "Següent"
 
@@ -1970,7 +2265,7 @@ msgstr "Pos"
 #: ilovevoley/rosters/forms.py:234 ilovevoley/rosters/forms.py:257
 #: ilovevoley/rosters/models/rosters.py:214
 #: ilovevoley/rosters/models/rosters.py:314
-#: ilovevoley/teams/models/teams.py:121
+#: ilovevoley/teams/models/teams.py:123
 #: ilovevoley/templates/includes/navbar.html:139
 #: ilovevoley/templates/includes/navbar.html:340
 msgid "Equipo"
@@ -2044,11 +2339,11 @@ msgstr "Encara no s'han configurat lligues al sistema."
 #: ilovevoley/competitions/templates/competitions/league_list.html:263
 #: ilovevoley/competitions/templates/competitions/league_list.html:267
 #: ilovevoley/competitions/templates/competitions/league_list.html:271
-#: ilovevoley/competitions/templates/competitions/match_detail.html:810
-#: ilovevoley/competitions/templates/competitions/match_detail.html:814
-#: ilovevoley/competitions/templates/competitions/match_detail.html:818
-#: ilovevoley/competitions/templates/competitions/match_detail.html:822
-#: ilovevoley/competitions/templates/competitions/match_detail.html:826
+#: ilovevoley/competitions/templates/competitions/match_detail.html:816
+#: ilovevoley/competitions/templates/competitions/match_detail.html:820
+#: ilovevoley/competitions/templates/competitions/match_detail.html:824
+#: ilovevoley/competitions/templates/competitions/match_detail.html:828
+#: ilovevoley/competitions/templates/competitions/match_detail.html:832
 #: ilovevoley/competitions/templates/competitions/standings.html:327
 msgid "Ver"
 msgstr "Veure"
@@ -2225,141 +2520,141 @@ msgid "Con foto"
 msgstr "Amb foto"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:135
+#: ilovevoley/competitions/templates/competitions/match_detail.html:136
+msgid "Personalizar"
+msgstr "Personalitza"
+
+#
+#: ilovevoley/competitions/templates/competitions/match_detail.html:140
 msgid "Elige una foto:"
 msgstr "Tria una foto:"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:163
+#: ilovevoley/competitions/templates/competitions/match_detail.html:168
 msgid "Compartir 1:1"
 msgstr "Compartir 1:1"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:168
+#: ilovevoley/competitions/templates/competitions/match_detail.html:173
 msgid "Compartir Story"
 msgstr "Compartir Story"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:173
+#: ilovevoley/competitions/templates/competitions/match_detail.html:178
 msgid "Descargar 1:1"
 msgstr "Descarregar 1:1"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:178
+#: ilovevoley/competitions/templates/competitions/match_detail.html:183
 msgid "Descargar Story"
 msgstr "Descarregar Story"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:186
+#: ilovevoley/competitions/templates/competitions/match_detail.html:191
 msgid "Elige una foto"
 msgstr "Tria una foto"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:287
+#: ilovevoley/competitions/templates/competitions/match_detail.html:293
 msgid "Personal Oficial"
 msgstr "Personal oficial"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:294
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1610
-msgid "Árbitros"
-msgstr "Àrbitres"
-
-#: ilovevoley/competitions/templates/competitions/match_detail.html:307
+#: ilovevoley/competitions/templates/competitions/match_detail.html:313
 msgid "Personal Técnico"
 msgstr "Personal tècnic"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:312
+#: ilovevoley/competitions/templates/competitions/match_detail.html:318
 msgid "Cronometrador:"
 msgstr "Cronometrador:"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:315
+#: ilovevoley/competitions/templates/competitions/match_detail.html:321
 msgid "Delegado:"
 msgstr "Delegat:"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:323
+#: ilovevoley/competitions/templates/competitions/match_detail.html:329
 msgid "Acta Oficial"
 msgstr "Acta oficial"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:328
+#: ilovevoley/competitions/templates/competitions/match_detail.html:334
 msgid "Ver acta oficial"
 msgstr "Veure acta oficial"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:342
+#: ilovevoley/competitions/templates/competitions/match_detail.html:348
 msgid "Previa del partido"
 msgstr "Prèvia del partit"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:357
-#: ilovevoley/competitions/templates/competitions/match_detail.html:371
+#: ilovevoley/competitions/templates/competitions/match_detail.html:363
+#: ilovevoley/competitions/templates/competitions/match_detail.html:377
 #, python-format
 msgid "%(position)sº en la clasificación"
 msgstr "Posició %(position)s a la classificació"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:382
+#: ilovevoley/competitions/templates/competitions/match_detail.html:388
 msgid "Enfrentamientos anteriores"
 msgstr "Enfrontaments anteriors"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:388
+#: ilovevoley/competitions/templates/competitions/match_detail.html:394
 msgid "Ver resultados"
 msgstr "Veure resultats"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:389
+#: ilovevoley/competitions/templates/competitions/match_detail.html:395
 msgid "Ocultar"
 msgstr "Amagar"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:412
+#: ilovevoley/competitions/templates/competitions/match_detail.html:418
 #, python-format
 msgid "%(counter)s foto"
 msgid_plural "%(counter)s fotos"
 msgstr[0] "%(counter)s foto"
 msgstr[1] "%(counter)s fotos"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:450
+#: ilovevoley/competitions/templates/competitions/match_detail.html:456
 msgid "Parciales:"
 msgstr "Parcials:"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:485
+#: ilovevoley/competitions/templates/competitions/match_detail.html:491
 msgid "Acta del partido"
 msgstr "Acta del partit"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:496
+#: ilovevoley/competitions/templates/competitions/match_detail.html:502
 msgid "Cargando alineación desde el acta oficial..."
 msgstr "Carregant alineació des de l'acta oficial..."
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:508
+#: ilovevoley/competitions/templates/competitions/match_detail.html:514
 msgid "No se pudo cargar la alineación."
 msgstr "No s'ha pogut carregar l'alineació."
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:518
+#: ilovevoley/competitions/templates/competitions/match_detail.html:524
 msgid "Convocados"
 msgstr "Convocats"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:523
-#: ilovevoley/competitions/templates/competitions/match_detail.html:531
+#: ilovevoley/competitions/templates/competitions/match_detail.html:529
+#: ilovevoley/competitions/templates/competitions/match_detail.html:537
 msgid "Cap:"
 msgstr "Capità:"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:524
-#: ilovevoley/competitions/templates/competitions/match_detail.html:532
+#: ilovevoley/competitions/templates/competitions/match_detail.html:530
+#: ilovevoley/competitions/templates/competitions/match_detail.html:538
 msgid "Entr:"
 msgstr "Entr:"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:541
+#: ilovevoley/competitions/templates/competitions/match_detail.html:547
 msgid "Desarrollo por sets"
 msgstr "Desenvolupament per sets"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:547
+#: ilovevoley/competitions/templates/competitions/match_detail.html:553
 msgid "Árbitros y oficiales"
 msgstr "Àrbitres i oficials"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:554
+#: ilovevoley/competitions/templates/competitions/match_detail.html:560
 msgid "Observaciones"
 msgstr "Observacions"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:560
+#: ilovevoley/competitions/templates/competitions/match_detail.html:566
 msgid "* Datos extraídos del acta oficial. ↑N = sustituido por dorsal N."
 msgstr "* Dades extretes de l'acta oficial. ↑N = substituït pel dorsal N."
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:573
+#: ilovevoley/competitions/templates/competitions/match_detail.html:579
 #, python-format
 msgid "Videos del partido (%(counter)s)"
 msgid_plural "Videos del partido (%(counter)s)"
@@ -2367,43 +2662,43 @@ msgstr[0] "Vídeos del partit (%(counter)s)"
 msgstr[1] "Vídeos del partit (%(counter)s)"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:578
+#: ilovevoley/competitions/templates/competitions/match_detail.html:584
 msgid "Añadir vídeos"
 msgstr "Afegir vídeos"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:619
+#: ilovevoley/competitions/templates/competitions/match_detail.html:625
 #, python-format
 msgid "Por %(author)s"
 msgstr "Per %(author)s"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:632
+#: ilovevoley/competitions/templates/competitions/match_detail.html:638
 msgid "No hay videos para este partido"
 msgstr "No hi ha vídeos per a aquest partit"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:634
+#: ilovevoley/competitions/templates/competitions/match_detail.html:640
 msgid "Aún no se han subido videos para este enfrentamiento."
 msgstr "Encara no s'han pujat vídeos per a aquest enfrontament."
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:637
+#: ilovevoley/competitions/templates/competitions/match_detail.html:643
 msgid "¡Sé el primero en añadir uno!"
 msgstr "Sigues el primer a afegir-ne un!"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:649
+#: ilovevoley/competitions/templates/competitions/match_detail.html:655
 msgid "Top del partido"
 msgstr "Top del partit"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:674
+#: ilovevoley/competitions/templates/competitions/match_detail.html:680
 msgid "Galería del partido"
 msgstr "Galeria del partit"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:678
+#: ilovevoley/competitions/templates/competitions/match_detail.html:684
 msgid "Ver todas →"
 msgstr "Veure totes →"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:702
+#: ilovevoley/competitions/templates/competitions/match_detail.html:708
 #, python-format
 msgid "Ver la %(counter)s imagen →"
 msgid_plural "Ver las %(counter)s imágenes →"
@@ -2411,166 +2706,147 @@ msgstr[0] "Veure la %(counter)s imatge →"
 msgstr[1] "Veure les %(counter)s imatges →"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:710
+#: ilovevoley/competitions/templates/competitions/match_detail.html:716
 msgid "No hay imágenes para este partido"
 msgstr "No hi ha imatges per a aquest partit"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:712
+#: ilovevoley/competitions/templates/competitions/match_detail.html:718
 msgid "Aún no se han subido imágenes para este enfrentamiento."
 msgstr "Encara no s'han pujat imatges per a aquest enfrontament."
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:721
+#: ilovevoley/competitions/templates/competitions/match_detail.html:727
 #: ilovevoley/content/templates/content/match_images.html:51
 msgid "Subir imagen"
 msgstr "Pujar imatge"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:735
+#: ilovevoley/competitions/templates/competitions/match_detail.html:741
 #: ilovevoley/content/templates/content/image_gallery.html:100
 #: ilovevoley/content/templates/content/match_images.html:65
 msgid "Subir una imagen"
 msgstr "Pujar una imatge"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:742
+#: ilovevoley/competitions/templates/competitions/match_detail.html:748
 #: ilovevoley/content/templates/content/image_gallery.html:110
 #: ilovevoley/content/templates/content/match_images.html:72
 msgid "Subir múltiples imágenes"
 msgstr "Pujar múltiples imatges"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:755
+#: ilovevoley/competitions/templates/competitions/match_detail.html:761
 msgid "Compartir galería"
 msgstr "Compartir galeria"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:761
+#: ilovevoley/competitions/templates/competitions/match_detail.html:767
 msgid "Caducidad del enlace"
 msgstr "Caducitat de l'enllaç"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:765
+#: ilovevoley/competitions/templates/competitions/match_detail.html:771
 msgid "7 días"
 msgstr "7 dies"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:765
+#: ilovevoley/competitions/templates/competitions/match_detail.html:771
 #, python-format
 msgid "%(hours)s horas"
 msgstr "%(hours)s hores"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:771
+#: ilovevoley/competitions/templates/competitions/match_detail.html:777
 msgid "Generar enlace"
 msgstr "Generar enllaç"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:783
+#: ilovevoley/competitions/templates/competitions/match_detail.html:789
 msgid "Revocado"
 msgstr "Revocat"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:783
+#: ilovevoley/competitions/templates/competitions/match_detail.html:789
 #, python-format
 msgid "Caduca %(expires)s"
 msgstr "Caduca %(expires)s"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:783
+#: ilovevoley/competitions/templates/competitions/match_detail.html:789
 msgid "Caducado"
 msgstr "Caducat"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:790
+#: ilovevoley/competitions/templates/competitions/match_detail.html:796
 msgid "Revocar"
 msgstr "Revocar"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:798
+#: ilovevoley/competitions/templates/competitions/match_detail.html:804
 msgid "No hay enlaces activos para este partido."
 msgstr "No hi ha enllaços actius per a aquest partit."
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:826
+#: ilovevoley/competitions/templates/competitions/match_detail.html:832
 #: ilovevoley/content/templates/content/match_images.html:98
-#: ilovevoley/templates/base.html:312
+#: ilovevoley/templates/base.html:313
 #: ilovevoley/templates/includes/navbar.html:79
 #: ilovevoley/templates/includes/navbar.html:298
 msgid "Galería"
 msgstr "Galeria"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:912
+#: ilovevoley/competitions/templates/competitions/match_detail.html:918
 msgid "Ficha del jugador"
 msgstr "Fitxa del jugador"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:935
+#: ilovevoley/competitions/templates/competitions/match_detail.html:941
 #: ilovevoley/rosters/templates/rosters/my_profile.html:16
 msgid "Ver ficha completa"
 msgstr "Veure fitxa completa"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:963
-msgid "No se pudo generar la tarjeta. Inténtalo de nuevo"
-msgstr "No s'ha pogut generar la targeta. Torna-ho a provar"
-
-#: ilovevoley/competitions/templates/competitions/match_detail.html:969
+#: ilovevoley/competitions/templates/competitions/match_detail.html:977
 msgid "Elige una foto del partido para el estilo \\"
 msgstr "Tria una foto del partit per a l'estil \\"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:988
+#: ilovevoley/competitions/templates/competitions/match_detail.html:996
 msgid "No se pudo generar la tarjeta"
 msgstr "No s'ha pogut generar la targeta"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1027
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1061
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1084
-msgid "Imagen descargada"
-msgstr "Imatge descarregada"
-
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1041
-msgid "Generando la tarjeta, puede tardar unos segundos…"
-msgstr "S'està generant la targeta, pot trigar uns segons…"
-
-#
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1058
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1066
 msgid "Resultado"
 msgstr "Resultat"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1076
-msgid "Toca para compartir"
-msgstr "Toca per compartir"
-
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1078
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1086
 msgid "Imagen lista: vuelve a tocar \\"
 msgstr "Imatge a punt: torna a tocar \\"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1196
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1204
 msgid "Editar Parciales"
 msgstr "Editar Parcials"
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1428
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1436
 msgid "Sin datos"
 msgstr "Sense dades"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1511
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1519
 msgid "Sin datos de sets."
 msgstr "Sense dades de sets."
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1626
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1634
 msgid "Oficiales"
 msgstr "Oficials"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1636
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1644
 #: ilovevoley/rosters/models/rosters.py:328
 #: ilovevoley/teams/templates/teams/team_roster.html:466
 msgid "Rol"
 msgstr "Rol"
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1684
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1692
 msgid "No se pudo cargar el acta."
 msgstr "No s'ha pogut carregar l'acta."
 
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1701
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1709
 msgid "Error de conexión al cargar el acta."
 msgstr "Error de connexió en carregar l'acta."
 
 #
-#: ilovevoley/competitions/templates/competitions/match_detail.html:1712
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1720
 msgid "Dorsal:"
 msgstr "Dorsal:"
 
@@ -2683,7 +2959,7 @@ msgstr "Veure calendari"
 
 #: ilovevoley/competitions/templates/competitions/where_plays.html:4
 #: ilovevoley/competitions/templates/competitions/where_plays.html:11
-#: ilovevoley/templates/base.html:302
+#: ilovevoley/templates/base.html:303
 #: ilovevoley/templates/includes/navbar.html:127
 #: ilovevoley/templates/includes/navbar.html:334
 msgid "Sedes y pabellones"
@@ -2752,174 +3028,196 @@ msgid "Escribe el nombre de un equipo, club, pabellón o municipio."
 msgstr "Escriu el nom d'un equip, club, pavelló o municipi."
 
 #
-#: ilovevoley/competitions/views.py:425 ilovevoley/competitions/views.py:789
-#: ilovevoley/competitions/views.py:863 ilovevoley/competitions/views.py:921
+#: ilovevoley/competitions/views.py:442 ilovevoley/competitions/views.py:903
+#: ilovevoley/competitions/views.py:977 ilovevoley/competitions/views.py:1035
 msgid "Partido no encontrado"
 msgstr "Partit no trobat"
 
-#: ilovevoley/competitions/views.py:429
+#: ilovevoley/competitions/views.py:451 ilovevoley/competitions/views.py:581
+msgid "Composición no encontrada"
+msgstr "Composició no trobada"
+
+#: ilovevoley/competitions/views.py:455 ilovevoley/competitions/views.py:565
 msgid "Formato de tarjeta no válido"
 msgstr "Format de targeta no vàlid"
 
-#: ilovevoley/competitions/views.py:432
+#: ilovevoley/competitions/views.py:459
 msgid "Estilo de tarjeta no válido"
 msgstr "Estil de targeta no vàlid"
 
 #
-#: ilovevoley/competitions/views.py:439
+#: ilovevoley/competitions/views.py:466
 msgid "No se puede compartir un partido sin resultado finalizado"
 msgstr "No es pot compartir un partit sense resultat finalitzat"
 
-#: ilovevoley/competitions/views.py:453
+#: ilovevoley/competitions/views.py:475 ilovevoley/competitions/views.py:561
+msgid "Composición no válida"
+msgstr "Composició no vàlida"
+
+#: ilovevoley/competitions/views.py:487
 msgid "Selecciona una foto del partido para el estilo \"marco\""
 msgstr "Selecciona una foto del partit per a l'estil \"marc\""
 
 #
-#: ilovevoley/competitions/views.py:459
+#: ilovevoley/competitions/views.py:493
 msgid "No se pudo leer la foto seleccionada"
 msgstr "No s'ha pogut llegir la foto seleccionada"
 
-#: ilovevoley/competitions/views.py:525
+#
+#: ilovevoley/competitions/views.py:543
+msgid "Composición eliminada"
+msgstr "Composició eliminada"
+
+#: ilovevoley/competitions/views.py:552
+msgid "Inicia sesión para guardar"
+msgstr "Inicia sessió per desar"
+
+#
+#: ilovevoley/competitions/views.py:573
+msgid "Selecciona una foto del partido"
+msgstr "Selecciona una foto del partit"
+
+#: ilovevoley/competitions/views.py:639
 msgid "La fecha solicitada no es válida. Mostrando el mes actual."
 msgstr "La data sol·licitada no és vàlida. Mostrant el mes actual."
 
-#: ilovevoley/competitions/views.py:576
+#: ilovevoley/competitions/views.py:690
 msgid "Enero"
 msgstr "Gener"
 
-#: ilovevoley/competitions/views.py:576
+#: ilovevoley/competitions/views.py:690
 msgid "Febrero"
 msgstr "Febrer"
 
-#: ilovevoley/competitions/views.py:576
+#: ilovevoley/competitions/views.py:690
 msgid "Marzo"
 msgstr "Març"
 
-#: ilovevoley/competitions/views.py:576
+#: ilovevoley/competitions/views.py:690
 msgid "Abril"
 msgstr "Abril"
 
-#: ilovevoley/competitions/views.py:577
+#: ilovevoley/competitions/views.py:691
 msgid "Mayo"
 msgstr "Maig"
 
-#: ilovevoley/competitions/views.py:577
+#: ilovevoley/competitions/views.py:691
 msgid "Junio"
 msgstr "Juny"
 
-#: ilovevoley/competitions/views.py:577
+#: ilovevoley/competitions/views.py:691
 msgid "Julio"
 msgstr "Juliol"
 
-#: ilovevoley/competitions/views.py:577
+#: ilovevoley/competitions/views.py:691
 msgid "Agosto"
 msgstr "Agost"
 
-#: ilovevoley/competitions/views.py:578
+#: ilovevoley/competitions/views.py:692
 msgid "Septiembre"
 msgstr "Setembre"
 
-#: ilovevoley/competitions/views.py:578
+#: ilovevoley/competitions/views.py:692
 msgid "Octubre"
 msgstr "Octubre"
 
 #
-#: ilovevoley/competitions/views.py:578
+#: ilovevoley/competitions/views.py:692
 msgid "Noviembre"
 msgstr "Novembre"
 
-#: ilovevoley/competitions/views.py:578
+#: ilovevoley/competitions/views.py:692
 msgid "Diciembre"
 msgstr "Desembre"
 
-#: ilovevoley/competitions/views.py:698
+#: ilovevoley/competitions/views.py:812
 #, python-format
 msgid "Partido amistoso creado: %(home)s vs %(away)s"
 msgstr "Partit amistós creat: %(home)s vs %(away)s"
 
-#: ilovevoley/competitions/views.py:793
+#: ilovevoley/competitions/views.py:907
 msgid "Este partido ya tiene resultado"
 msgstr "Aquest partit ja té resultat"
 
-#: ilovevoley/competitions/views.py:797
+#: ilovevoley/competitions/views.py:911
 msgid "No se puede agregar resultado a un partido futuro"
 msgstr "No es pot afegir un resultat a un partit futur"
 
 #
-#: ilovevoley/competitions/views.py:803 ilovevoley/competitions/views.py:847
-#: ilovevoley/competitions/views.py:880 ilovevoley/competitions/views.py:887
+#: ilovevoley/competitions/views.py:917 ilovevoley/competitions/views.py:961
+#: ilovevoley/competitions/views.py:994 ilovevoley/competitions/views.py:1001
 msgid "Datos inválidos"
 msgstr "Dades no vàlides"
 
-#: ilovevoley/competitions/views.py:814
+#: ilovevoley/competitions/views.py:928
 msgid "Marcador inválido para el formato de la liga."
 msgstr "Marcador invàlid per al format de la lliga."
 
-#: ilovevoley/competitions/views.py:822 ilovevoley/competitions/views.py:897
+#: ilovevoley/competitions/views.py:936 ilovevoley/competitions/views.py:1011
 msgid "Error interno al guardar el resultado."
 msgstr "Error intern en desar el resultat."
 
-#: ilovevoley/competitions/views.py:834
+#: ilovevoley/competitions/views.py:948
 #, python-format
 msgid "Resultado guardado: %(result)s"
 msgstr "Resultat desat: %(result)s"
 
 #
-#: ilovevoley/competitions/views.py:843
-#: ilovevoley/templates/users/profile.html:500
+#: ilovevoley/competitions/views.py:957
+#: ilovevoley/templates/users/profile.html:541
 msgid "Error desconocido"
 msgstr "Error desconegut"
 
-#: ilovevoley/competitions/views.py:868
+#: ilovevoley/competitions/views.py:982
 msgid "Este partido tiene acta oficial; los parciales se toman del acta."
 msgstr "Aquest partit té acta oficial; els parcials es prenen de l'acta."
 
-#: ilovevoley/competitions/views.py:874
+#: ilovevoley/competitions/views.py:988
 msgid "El partido todavía no tiene resultado."
 msgstr "El partit encara no té resultat."
 
-#: ilovevoley/competitions/views.py:902
+#: ilovevoley/competitions/views.py:1016
 #, python-format
 msgid "Resultado actualizado: %(result)s"
 msgstr "Resultat actualitzat: %(result)s"
 
 #
-#: ilovevoley/competitions/views.py:925
+#: ilovevoley/competitions/views.py:1039
 msgid "Este partido no tiene acta disponible"
 msgstr "Aquest partit no té acta disponible"
 
 #
-#: ilovevoley/competitions/views.py:941
+#: ilovevoley/competitions/views.py:1055
 msgid "La URL del acta no es válida"
 msgstr "La URL de l'acta no és vàlida"
 
-#: ilovevoley/competitions/views.py:943
+#: ilovevoley/competitions/views.py:1057
 msgid "Tiempo de espera agotado al obtener el acta"
 msgstr "Temps d'espera exhaurit en obtenir l'acta"
 
 #
-#: ilovevoley/competitions/views.py:946
+#: ilovevoley/competitions/views.py:1060
 msgid "No se pudo acceder al acta oficial"
 msgstr "No s'ha pogut accedir a l'acta oficial"
 
-#: ilovevoley/competitions/views.py:954
+#: ilovevoley/competitions/views.py:1068
 msgid "Error al procesar el acta"
 msgstr "Error en processar l'acta"
 
-#: ilovevoley/competitions/views.py:1138
+#: ilovevoley/competitions/views.py:1252
 msgid "Otras"
 msgstr "Altres"
 
-#: ilovevoley/competitions/views.py:1209
+#: ilovevoley/competitions/views.py:1323
 msgid "Sin liga"
 msgstr "Sense lliga"
 
-#: ilovevoley/competitions/views.py:1270
+#: ilovevoley/competitions/views.py:1384
 msgid "Enlace para compartir creado."
 msgstr "Enllaç per compartir creat."
 
 #
-#: ilovevoley/competitions/views.py:1285
+#: ilovevoley/competitions/views.py:1399
 msgid "Enlace revocado."
 msgstr "Enllaç revocat."
 
@@ -2956,8 +3254,8 @@ msgid "Información de verificación automática de contenido"
 msgstr "Informació de verificació automàtica de contingut"
 
 #: ilovevoley/content/admin/content.py:93 ilovevoley/content/views.py:209
-#: ilovevoley/content/views.py:812 ilovevoley/content/views.py:1019
-#: ilovevoley/content/views.py:1201 ilovevoley/content/views.py:1314
+#: ilovevoley/content/views.py:818 ilovevoley/content/views.py:1025
+#: ilovevoley/content/views.py:1207 ilovevoley/content/views.py:1320
 msgid "Álbum"
 msgstr "Àlbum"
 
@@ -3125,13 +3423,6 @@ msgstr "Descripció opcional del partit"
 #: ilovevoley/content/forms.py:40 ilovevoley/content/forms.py:189
 msgid "Ej: 1 (opcional)"
 msgstr "Ex: 1 (opcional)"
-
-#: ilovevoley/content/forms.py:47 ilovevoley/content/forms.py:198
-#: ilovevoley/content/forms.py:441
-#: ilovevoley/content/templates/content/image_bulk_upload.html:509
-#: ilovevoley/templates/emails/images_pending_batch.html:20
-msgid "Título"
-msgstr "Títol"
 
 #: ilovevoley/content/forms.py:48 ilovevoley/content/forms.py:448
 msgid "URL de YouTube"
@@ -3339,12 +3630,6 @@ msgstr "Set"
 #: ilovevoley/content/models/content.py:54
 msgid "Temporada a la que pertenece el vídeo"
 msgstr "Temporada a la qual pertany el vídeo"
-
-#: ilovevoley/content/models/content.py:64
-#: ilovevoley/content/models/content.py:346
-#: ilovevoley/content/models/content.py:565 ilovevoley/core/models.py:243
-msgid "Organización"
-msgstr "Organització"
 
 #: ilovevoley/content/models/content.py:71
 msgid "Número de set al que pertenece (opcional, solo para vídeos de partido)"
@@ -3903,6 +4188,7 @@ msgstr "Màxim 20 imatges permeses. Se seleccionaran les primeres 20."
 
 #: ilovevoley/content/templates/content/image_bulk_upload.html:466
 #: ilovevoley/content/templates/content/video_bulk_form.html:43
+#: ilovevoley/templates/users/profile.html:283
 msgid "Eliminar"
 msgstr "Eliminar"
 
@@ -4345,7 +4631,7 @@ msgstr "Error carregant partits"
 msgid "Volver a videos"
 msgstr "Tornar a vídeos"
 
-#: ilovevoley/content/templates/content/video_detail.html:41
+#: ilovevoley/content/templates/content/video_detail.html:40
 msgid "Ver acta, fotos y más del partido"
 msgstr "Veure acta, fotos i més del partit"
 
@@ -4546,158 +4832,158 @@ msgid "¡Comentario añadido correctamente!"
 msgstr "Comentari afegit correctament!"
 
 #
-#: ilovevoley/content/views.py:658 ilovevoley/content/views.py:874
+#: ilovevoley/content/views.py:664 ilovevoley/content/views.py:880
 msgid "Aprobada automáticamente por superusuario"
 msgstr "Aprovada automàticament per superusuari"
 
-#: ilovevoley/content/views.py:706 ilovevoley/content/views.py:711
+#: ilovevoley/content/views.py:712 ilovevoley/content/views.py:717
 #, python-format
 msgid " Se detectaron automáticamente las etiquetas: %(tags)s."
 msgstr " S'han detectat automàticament les etiquetes: %(tags)s."
 
 #
-#: ilovevoley/content/views.py:708
+#: ilovevoley/content/views.py:714
 msgid "Imagen subida y aprobada automáticamente."
 msgstr "Imatge pujada i aprovada automàticament."
 
 #
-#: ilovevoley/content/views.py:713
+#: ilovevoley/content/views.py:719
 msgid "Imagen subida correctamente. Está pendiente de moderación."
 msgstr "Imatge pujada correctament. Està pendent de moderació."
 
-#: ilovevoley/content/views.py:726
+#: ilovevoley/content/views.py:732
 #, python-format
 msgid "%(field)s: %(error)s"
 msgstr "%(field)s: %(error)s"
 
 #
-#: ilovevoley/content/views.py:779
+#: ilovevoley/content/views.py:785
 msgid "No se seleccionaron imágenes."
 msgstr "No s'han seleccionat imatges."
 
-#: ilovevoley/content/views.py:816
+#: ilovevoley/content/views.py:822
 msgid "El álbum especificado no existe."
 msgstr "L'àlbum especificat no existeix."
 
-#: ilovevoley/content/views.py:819
+#: ilovevoley/content/views.py:825
 msgid "ID de álbum inválido."
 msgstr "ID d'àlbum invàlid."
 
-#: ilovevoley/content/views.py:827
+#: ilovevoley/content/views.py:833
 msgid "El nombre del álbum es obligatorio cuando se agrupan imágenes."
 msgstr "El nom de l'àlbum és obligatori quan s'agrupen imatges."
 
-#: ilovevoley/content/views.py:848
+#: ilovevoley/content/views.py:854
 #, python-format
 msgid "%(name)s: No es una imagen válida"
 msgstr "%(name)s: No és una imatge vàlida"
 
-#: ilovevoley/content/views.py:852
+#: ilovevoley/content/views.py:858
 #, python-format
 msgid "%(name)s: Archivo demasiado grande (máx 10MB)"
 msgstr "%(name)s: Fitxer massa gran (màx 10MB)"
 
-#: ilovevoley/content/views.py:929
+#: ilovevoley/content/views.py:935
 #, python-format
 msgid "%(name)s: %(error)s"
 msgstr "%(name)s: %(error)s"
 
-#: ilovevoley/content/views.py:949
+#: ilovevoley/content/views.py:955
 #, python-format
 msgid "✅ %(count)s imagen(es) subida(s) correctamente."
 msgstr "✅ %(count)s imatge(s) pujada(s) correctament."
 
-#: ilovevoley/content/views.py:955
+#: ilovevoley/content/views.py:961
 #, python-format
 msgid "... y %(count)s error(es) más."
 msgstr "... i %(count)s error(s) més."
 
-#: ilovevoley/content/views.py:971
+#: ilovevoley/content/views.py:977
 msgid "Nuevo Álbum"
 msgstr "Nou àlbum"
 
-#: ilovevoley/content/views.py:972
+#: ilovevoley/content/views.py:978
 #, python-format
 msgid "Se han subido nuevas fotos: %(album)s"
 msgstr "S'han pujat fotos noves: %(album)s"
 
 #
-#: ilovevoley/content/views.py:973
+#: ilovevoley/content/views.py:979
 msgid "Se han subido nuevas fotos"
 msgstr "S'han pujat fotos noves"
 
-#: ilovevoley/content/views.py:993
+#: ilovevoley/content/views.py:999
 #, python-format
 msgid "✅ %(count)s imagen(es) agregada(s) al álbum correctamente."
 msgstr "✅ %(count)s imatge(s) afegida(es) a l'àlbum correctament."
 
 #
-#: ilovevoley/content/views.py:1095
+#: ilovevoley/content/views.py:1101
 msgid "Imagen no disponible."
 msgstr "Imatge no disponible."
 
-#: ilovevoley/content/views.py:1147
+#: ilovevoley/content/views.py:1153
 msgid "Ya hay una solicitud de retirada pendiente para esta foto."
 msgstr "Ja hi ha una sol·licitud de retirada pendent per a aquesta foto."
 
-#: ilovevoley/content/views.py:1158
+#: ilovevoley/content/views.py:1164
 msgid "Solicitud enviada. Un administrador la revisará."
 msgstr "Sol·licitud enviada. Un administrador la revisarà."
 
-#: ilovevoley/content/views.py:1179
+#: ilovevoley/content/views.py:1185
 msgid "Etiquetas actualizadas."
 msgstr "Etiquetes actualitzades."
 
-#: ilovevoley/content/views.py:1203
+#: ilovevoley/content/views.py:1209
 msgid "No se indicó álbum ni partido"
 msgstr "No s'ha indicat àlbum ni partit"
 
-#: ilovevoley/content/views.py:1216
+#: ilovevoley/content/views.py:1222
 #, python-format
 msgid "Etiquetas actualizadas en %(count)s imágenes."
 msgstr "Etiquetes actualitzades en %(count)s imatges."
 
-#: ilovevoley/content/views.py:1293 ilovevoley/content/views_album_zip.py:75
+#: ilovevoley/content/views.py:1299 ilovevoley/content/views_album_zip.py:75
 msgid "Álbum no encontrado"
 msgstr "Àlbum no trobat"
 
 #
-#: ilovevoley/content/views.py:1382 ilovevoley/content/views.py:1465
+#: ilovevoley/content/views.py:1388 ilovevoley/content/views.py:1471
 #: ilovevoley/core/moderation_views.py:362
 #: ilovevoley/core/moderation_views.py:409 ilovevoley/core/tasks.py:324
 msgid "aprobada"
 msgstr "aprovada"
 
 #
-#: ilovevoley/content/views.py:1382 ilovevoley/content/views.py:1465
+#: ilovevoley/content/views.py:1388 ilovevoley/content/views.py:1471
 #: ilovevoley/core/moderation_views.py:362
 #: ilovevoley/core/moderation_views.py:433 ilovevoley/core/tasks.py:324
 msgid "rechazada"
 msgstr "rebutjada"
 
-#: ilovevoley/content/views.py:1383
+#: ilovevoley/content/views.py:1389
 #, python-format
 msgid "Imagen %(action)s correctamente."
 msgstr "Imatge %(action)s correctament."
 
 #
-#: ilovevoley/content/views.py:1423
+#: ilovevoley/content/views.py:1429
 msgid "aprobadas"
 msgstr "aprovades"
 
 #
-#: ilovevoley/content/views.py:1423
+#: ilovevoley/content/views.py:1429
 msgid "rechazadas"
 msgstr "rebutjades"
 
-#: ilovevoley/content/views.py:1424
+#: ilovevoley/content/views.py:1430
 #, python-format
 msgid "%(count)s imágenes %(action)s."
 msgstr "%(count)s imatges %(action)s."
 
 #
-#: ilovevoley/content/views.py:1438 ilovevoley/content/views.py:1446
-#: ilovevoley/content/views.py:1498 ilovevoley/core/moderation_views.py:211
+#: ilovevoley/content/views.py:1444 ilovevoley/content/views.py:1452
+#: ilovevoley/content/views.py:1504 ilovevoley/core/moderation_views.py:211
 #: ilovevoley/core/moderation_views.py:351 ilovevoley/core/views.py:406
 #: ilovevoley/core/views.py:578 ilovevoley/core/views.py:624
 #: ilovevoley/core/views.py:728 ilovevoley/core/views.py:760
@@ -4706,26 +4992,26 @@ msgstr "%(count)s imatges %(action)s."
 msgid "Permiso denegado"
 msgstr "Permís denegat"
 
-#: ilovevoley/content/views.py:1454
+#: ilovevoley/content/views.py:1460
 msgid "Acción no válida"
 msgstr "Acció no vàlida"
 
-#: ilovevoley/content/views.py:1469
+#: ilovevoley/content/views.py:1475
 #, python-format
 msgid "Imagen \"%(title)s\" %(action)s correctamente"
 msgstr "Imatge \"%(title)s\" %(action)s correctament"
 
-#: ilovevoley/content/views.py:1477
+#: ilovevoley/content/views.py:1483
 msgid "Imagen no encontrada o ya moderada"
 msgstr "Imatge no trobada o ja moderada"
 
-#: ilovevoley/content/views.py:1483 ilovevoley/core/views.py:615
+#: ilovevoley/content/views.py:1489 ilovevoley/core/views.py:615
 #: ilovevoley/core/views.py:668 ilovevoley/core/views.py:752
 #: ilovevoley/core/views.py:776
 msgid "Error interno del servidor"
 msgstr "Error intern del servidor"
 
-#: ilovevoley/content/views.py:1504
+#: ilovevoley/content/views.py:1510
 msgid "Imagen no encontrada"
 msgstr "Imatge no trobada"
 
@@ -4887,7 +5173,7 @@ msgstr "Any de fi, ex: 2026"
 msgid "Temporada activa (solo puede haber una)"
 msgstr "Temporada activa (només n'hi pot haver una)"
 
-#: ilovevoley/core/models.py:166 ilovevoley/teams/models/teams.py:71
+#: ilovevoley/core/models.py:166 ilovevoley/teams/models/teams.py:73
 msgid "Género / Rama"
 msgstr "Gènere / Branca"
 
@@ -4910,6 +5196,8 @@ msgid ""
 "Color final del degradado de la cabecera del perfil. Vacío: usa el color "
 "secundario."
 msgstr ""
+"Color final del degradat de la capçalera del perfil. Buit: utilitza el color "
+"secundari."
 
 #: ilovevoley/core/models.py:204
 msgid "URL del perfil de Instagram del club"
@@ -5148,7 +5436,7 @@ msgstr "La teva imatge \"%(title)s\" ha estat %(status)s"
 
 #: ilovevoley/core/templates/core/about.html:4
 #: ilovevoley/core/templates/core/about.html:11
-#: ilovevoley/templates/base.html:297 ilovevoley/templates/base_auth.html:120
+#: ilovevoley/templates/base.html:298 ilovevoley/templates/base_auth.html:120
 msgid "Quiénes Somos"
 msgstr "Qui Som"
 
@@ -5911,12 +6199,6 @@ msgstr "Data de Naixement"
 msgid "Año de Nacimiento"
 msgstr "Any de Naixement"
 
-#: ilovevoley/rosters/forms.py:60 ilovevoley/rosters/models/rosters.py:47
-#: ilovevoley/teams/templates/teams/team_roster.html:237
-#: ilovevoley/teams/templates/teams/team_roster.html:464
-msgid "Foto"
-msgstr "Foto"
-
 #
 #: ilovevoley/rosters/forms.py:61
 msgid "Email de Contacto"
@@ -6278,6 +6560,7 @@ msgstr "El teu fill"
 #: ilovevoley/rosters/templates/rosters/person_detail.html:235
 #: ilovevoley/rosters/templates/rosters/person_detail.html:298
 #: ilovevoley/teams/templates/teams/team_roster.html:48
+#: ilovevoley/templates/users/profile.html:278
 msgid "Editar"
 msgstr "Editar"
 
@@ -6657,7 +6940,7 @@ msgstr "Desar canvis"
 msgid "¡Información actualizada correctamente!"
 msgstr "Informació actualitzada correctament!"
 
-#: ilovevoley/rosters/views.py:362 ilovevoley/users/views.py:138
+#: ilovevoley/rosters/views.py:362 ilovevoley/users/views.py:151
 msgid "Por favor corrige los errores en el formulario."
 msgstr "Si us plau, corregeix els errors del formulari."
 
@@ -6771,10 +7054,6 @@ msgstr "Patrocini"
 msgid "Nombre completo del equipo incluyendo patrocinadores"
 msgstr "Nom complet de l'equip incloent-hi patrocinadors"
 
-#: ilovevoley/teams/admin/teams.py:115 ilovevoley/teams/models/teams.py:38
-msgid "Club"
-msgstr "Club"
-
 #
 #: ilovevoley/teams/admin/teams.py:137
 msgid "Variante"
@@ -6842,61 +7121,65 @@ msgstr "Desactivar equips seleccionats"
 msgid "Pabellón habitual"
 msgstr "Pavelló habitual"
 
-#: ilovevoley/teams/models/teams.py:56
+#: ilovevoley/teams/models/teams.py:32 ilovevoley/teams/models/teams.py:59
+msgid "Escudo (copia local)"
+msgstr "Escut (còpia local)"
+
+#: ilovevoley/teams/models/teams.py:57
 msgid "Nombre con patrocinador si aplica"
 msgstr "Nom amb patrocinador si escau"
 
 #
-#: ilovevoley/teams/models/teams.py:64
+#: ilovevoley/teams/models/teams.py:66
 msgid "Categoría asignada automáticamente durante el scraping"
 msgstr "Categoria assignada automàticament durant el scraping"
 
-#: ilovevoley/teams/models/teams.py:72
+#: ilovevoley/teams/models/teams.py:74
 msgid "Vacío = hereda el género de la categoría."
 msgstr "Buit = hereta el gènere de la categoria."
 
-#: ilovevoley/teams/models/teams.py:74
+#: ilovevoley/teams/models/teams.py:76
 msgid "Indica si el equipo sigue activo en las competiciones"
 msgstr "Indica si l'equip continua actiu a les competicions"
 
-#: ilovevoley/teams/models/teams.py:84
+#: ilovevoley/teams/models/teams.py:86
 msgid ""
 "Equipo principal si este es una variante (ej: Sant Josep A, Sant Josep Groc)"
 msgstr ""
 "Equip principal si aquest és una variant (ex: Sant Josep A, Sant Josep Groc)"
 
-#: ilovevoley/teams/models/teams.py:89
+#: ilovevoley/teams/models/teams.py:91
 msgid "División de Equipo (A/B)"
 msgstr "Divisió d'Equip (A/B)"
 
-#: ilovevoley/teams/models/teams.py:90
+#: ilovevoley/teams/models/teams.py:92
 msgid "Variante de Color (Groc/Lila)"
 msgstr "Variant de Color (Groc/Lila)"
 
 #
-#: ilovevoley/teams/models/teams.py:91
+#: ilovevoley/teams/models/teams.py:93
 msgid "Temporal (Torneo)"
 msgstr "Temporal (Torneig)"
 
 #
-#: ilovevoley/teams/models/teams.py:95
+#: ilovevoley/teams/models/teams.py:97
 msgid "Tipo de variante"
 msgstr "Tipus de variant"
 
-#: ilovevoley/teams/models/teams.py:100
+#: ilovevoley/teams/models/teams.py:102
 msgid "Nombre de la variante (ej: \"A\", \"B\", \"Groc\", \"Lila\")"
 msgstr "Nom de la variant (ex: \"A\", \"B\", \"Groc\", \"Lila\")"
 
 #
-#: ilovevoley/teams/models/teams.py:104
+#: ilovevoley/teams/models/teams.py:106
 msgid "Descripción de la variante"
 msgstr "Descripció de la variant"
 
-#: ilovevoley/teams/models/teams.py:108
+#: ilovevoley/teams/models/teams.py:110
 msgid "Marca si es una variante temporal (ej: para un torneo específico)"
 msgstr "Marca si és una variant temporal (ex: per a un torneig específic)"
 
-#: ilovevoley/teams/models/teams.py:113
+#: ilovevoley/teams/models/teams.py:115
 msgid "Fecha estimada de finalización si es variante temporal"
 msgstr "Data estimada de finalització si és variant temporal"
 
@@ -7533,11 +7816,6 @@ msgstr ""
 msgid "Crear Cuenta"
 msgstr "Crear compte"
 
-#: ilovevoley/templates/account/signup.html:26 ilovevoley/users/models.py:231
-#: ilovevoley/users/models.py:273
-msgid "Usuario"
-msgstr "Usuari"
-
 #: ilovevoley/templates/account/signup.html:30
 msgid "Tu nombre de usuario"
 msgstr "El teu nom d'usuari"
@@ -7758,36 +8036,36 @@ msgid "Vídeos y resultados de tu club en I Love Voley."
 msgstr "Vídeos i resultats del teu club a I Love Voley."
 
 #
-#: ilovevoley/templates/base.html:231
+#: ilovevoley/templates/base.html:232
 msgid "Galería del Club"
 msgstr "Galeria del Club"
 
 #
-#: ilovevoley/templates/base.html:248
+#: ilovevoley/templates/base.html:249
 msgid "No hay fotos recientes"
 msgstr "No hi ha fotos recents"
 
 #
-#: ilovevoley/templates/base.html:257
+#: ilovevoley/templates/base.html:258
 msgid "Ver galería completa"
 msgstr "Veure galeria completa"
 
 #
-#: ilovevoley/templates/base.html:287
+#: ilovevoley/templates/base.html:288
 msgid ""
 "Plataforma comunitaria para compartir partidos, fotos y momentos especiales."
 msgstr ""
 "Plataforma comunitària per compartir partits, fotos i moments especials."
 
-#: ilovevoley/templates/base.html:293
+#: ilovevoley/templates/base.html:294
 msgid "Enlaces"
 msgstr "Enllaços"
 
-#: ilovevoley/templates/base.html:329
+#: ilovevoley/templates/base.html:330
 msgid "Sigue al club"
 msgstr "Segueix el club"
 
-#: ilovevoley/templates/base.html:353
+#: ilovevoley/templates/base.html:354
 #, python-format
 msgid ""
 "© %(year)s Desarrollado con 💜 por <a href=\"https://www.instagram.com/"
@@ -7803,7 +8081,7 @@ msgstr ""
 "underline-offset-2 hover:opacity-80 transition-colors\">trencaclosques</a>"
 
 #
-#: ilovevoley/templates/base.html:360 ilovevoley/templates/base_auth.html:127
+#: ilovevoley/templates/base.html:361 ilovevoley/templates/base_auth.html:127
 msgid "Proyecto sin ánimo de lucro · Para la comunidad del voley balear"
 msgstr "Projecte sense ànim de lucre · Per a la comunitat del vòlei balear"
 
@@ -7849,6 +8127,7 @@ msgid "Configurar Ahora"
 msgstr "Configurar ara"
 
 #: ilovevoley/templates/category_preferences_banner.html:25
+#: ilovevoley/templates/includes/navbar.html:503
 msgid "Ahora no"
 msgstr "Ara no"
 
@@ -7944,7 +8223,7 @@ msgstr ""
 "afectar el funcionament del lloc."
 
 #: ilovevoley/templates/cookies_banner.html:61
-#: ilovevoley/templates/users/profile.html:405
+#: ilovevoley/templates/users/profile.html:446
 msgid "Entendido"
 msgstr "Entesos"
 
@@ -9756,7 +10035,7 @@ msgstr "Navegació principal"
 
 #: ilovevoley/templates/includes/language_selector.html:6
 #: ilovevoley/templates/includes/navbar.html:489
-#: ilovevoley/templates/users/profile.html:265
+#: ilovevoley/templates/users/profile.html:306
 msgid "Idioma"
 msgstr "Idioma"
 
@@ -9837,6 +10116,22 @@ msgstr "El meu perfil"
 #: ilovevoley/templates/includes/navbar.html:431
 msgid "Añadir Video"
 msgstr "Afegir vídeo"
+
+#: ilovevoley/templates/includes/navbar.html:500
+msgid "¿Quieres recibir avisos?"
+msgstr "Vols rebre avisos?"
+
+#: ilovevoley/templates/includes/navbar.html:501
+msgid ""
+"Activa las notificaciones para enterarte de partidos y novedades de tus "
+"categorías."
+msgstr ""
+"Activa les notificacions per assabentar-te de partits i novetats de les "
+"teves categories."
+
+#: ilovevoley/templates/includes/navbar.html:504
+msgid "Activar"
+msgstr "Activar"
 
 #: ilovevoley/templates/landing.html:4
 msgid "Tu plataforma de voleibol"
@@ -10473,33 +10768,45 @@ msgstr "Avisos actius per club:"
 msgid "Ningún aviso activo"
 msgstr "Cap avís actiu"
 
-#
 #: ilovevoley/templates/users/profile.html:266
+msgid "Mis creaciones"
+msgstr "Les meves creacions"
+
+#: ilovevoley/templates/users/profile.html:267
+msgid "Stories que has personalizado y guardado."
+msgstr "Stories que has personalitzat i desat."
+
+#: ilovevoley/templates/users/profile.html:291
+msgid "Paginación"
+msgstr "Paginació"
+
+#
+#: ilovevoley/templates/users/profile.html:307
 msgid "Elige el idioma de la interfaz."
 msgstr "Tria l'idioma de la interfície."
 
-#: ilovevoley/templates/users/profile.html:276
+#: ilovevoley/templates/users/profile.html:317
 #: ilovevoley/templates/users/profile_edit.html:4
 #: ilovevoley/templates/users/profile_edit.html:12
 msgid "Editar Perfil"
 msgstr "Editar perfil"
 
 #
-#: ilovevoley/templates/users/profile.html:289
+#: ilovevoley/templates/users/profile.html:330
 msgid "Cómo suscribirte al calendario"
 msgstr "Com subscriure't al calendari"
 
 #
-#: ilovevoley/templates/users/profile.html:309
+#: ilovevoley/templates/users/profile.html:350
 msgid "Copia la URL de suscripción (botón \"Copiar\" arriba)"
 msgstr "Copia la URL de subscripció (botó \"Copiar\" a dalt)"
 
-#: ilovevoley/templates/users/profile.html:310
-#: ilovevoley/templates/users/profile.html:346
+#: ilovevoley/templates/users/profile.html:351
+#: ilovevoley/templates/users/profile.html:387
 msgid "Abre"
 msgstr "Obre"
 
-#: ilovevoley/templates/users/profile.html:311
+#: ilovevoley/templates/users/profile.html:352
 msgid ""
 "En la barra lateral izquierda, busca \"Otros calendarios\" y haz clic en el "
 "<strong>+</strong>"
@@ -10507,28 +10814,28 @@ msgstr ""
 "A la barra lateral esquerra, cerca \"Altres calendaris\" i fes clic al "
 "<strong>+</strong>"
 
-#: ilovevoley/templates/users/profile.html:312
+#: ilovevoley/templates/users/profile.html:353
 msgid "Selecciona <strong>\"Desde URL\"</strong>"
 msgstr "Selecciona <strong>\"Des d'URL\"</strong>"
 
 #
-#: ilovevoley/templates/users/profile.html:313
+#: ilovevoley/templates/users/profile.html:354
 msgid ""
 "Pega la URL copiada y haz clic en <strong>\"Agregar calendario\"</strong>"
 msgstr ""
 "Enganxa la URL copiada i fes clic a <strong>\"Afegir calendari\"</strong>"
 
-#: ilovevoley/templates/users/profile.html:314
+#: ilovevoley/templates/users/profile.html:355
 msgid "¡Listo! Los partidos aparecerán automáticamente 🎉"
 msgstr "A punt! Els partits apareixeran automàticament 🎉"
 
-#: ilovevoley/templates/users/profile.html:327
-#: ilovevoley/templates/users/profile.html:345
+#: ilovevoley/templates/users/profile.html:368
+#: ilovevoley/templates/users/profile.html:386
 msgid "Copia la URL de suscripción"
 msgstr "Copia l'URL de subscripció"
 
 #
-#: ilovevoley/templates/users/profile.html:328
+#: ilovevoley/templates/users/profile.html:369
 msgid ""
 "<strong>En iPhone/iPad:</strong> Ve a Ajustes → Calendario → Cuentas → "
 "Añadir cuenta → Otra → Añadir calendario por suscripción"
@@ -10537,7 +10844,7 @@ msgstr ""
 "Afegir compte → Una altra → Afegir calendari per subscripció"
 
 #
-#: ilovevoley/templates/users/profile.html:329
+#: ilovevoley/templates/users/profile.html:370
 msgid ""
 "<strong>En Mac:</strong> Abre Calendar → Archivo → Nueva suscripción a "
 "calendario"
@@ -10545,11 +10852,11 @@ msgstr ""
 "<strong>A Mac:</strong> Obre Calendar → Arxiu → Nova subscripció a calendari"
 
 #
-#: ilovevoley/templates/users/profile.html:330
+#: ilovevoley/templates/users/profile.html:371
 msgid "Pega la URL y haz clic en <strong>\"Suscribirse\"</strong>"
 msgstr "Enganxa la URL i fes clic a <strong>\"Subscriure's\"</strong>"
 
-#: ilovevoley/templates/users/profile.html:331
+#: ilovevoley/templates/users/profile.html:372
 msgid ""
 "Configura la frecuencia de actualización (recomendado: cada 12 horas o "
 "diariamente)"
@@ -10557,44 +10864,44 @@ msgstr ""
 "Configura la freqüència d'actualització (recomanat: cada 12 hores o "
 "diàriament)"
 
-#: ilovevoley/templates/users/profile.html:332
+#: ilovevoley/templates/users/profile.html:373
 msgid "¡Listo! Los partidos se sincronizarán automáticamente 🎉"
 msgstr "A punt! Els partits se sincronitzaran automàticament 🎉"
 
-#: ilovevoley/templates/users/profile.html:347
+#: ilovevoley/templates/users/profile.html:388
 msgid "Haz clic en <strong>\"Agregar calendario\"</strong> en la barra lateral"
 msgstr "Fes clic a <strong>\"Afegir calendari\"</strong> a la barra lateral"
 
-#: ilovevoley/templates/users/profile.html:348
+#: ilovevoley/templates/users/profile.html:389
 msgid "Selecciona <strong>\"Suscribirse desde web\"</strong>"
 msgstr "Selecciona <strong>\"Subscriure's des de la web\"</strong>"
 
-#: ilovevoley/templates/users/profile.html:349
+#: ilovevoley/templates/users/profile.html:390
 msgid "Pega la URL y dale un nombre al calendario"
 msgstr "Enganxa l'URL i posa un nom al calendari"
 
-#: ilovevoley/templates/users/profile.html:350
+#: ilovevoley/templates/users/profile.html:391
 msgid "Haz clic en <strong>\"Importar\"</strong>"
 msgstr "Fes clic a <strong>\"Importar\"</strong>"
 
-#: ilovevoley/templates/users/profile.html:351
+#: ilovevoley/templates/users/profile.html:392
 msgid "¡Listo! Los eventos se actualizarán automáticamente 🎉"
 msgstr "A punt! Els esdeveniments s'actualitzaran automàticament 🎉"
 
 #
-#: ilovevoley/templates/users/profile.html:364
+#: ilovevoley/templates/users/profile.html:405
 msgid "Notas importantes:"
 msgstr "Notes importants:"
 
 #
-#: ilovevoley/templates/users/profile.html:366
+#: ilovevoley/templates/users/profile.html:407
 msgid ""
 "<strong>Privacidad:</strong> La URL es única y personal. No la compartas."
 msgstr ""
 "<strong>Privacitat:</strong> La URL és única i personal. No la comparteixis."
 
 #
-#: ilovevoley/templates/users/profile.html:367
+#: ilovevoley/templates/users/profile.html:408
 msgid ""
 "<strong>Actualizaciones:</strong> Los calendarios se actualizan cada 12 "
 "horas aproximadamente (configurable en tu app de calendario)."
@@ -10603,7 +10910,7 @@ msgstr ""
 "aproximadament cada 12 hores (configurable a la teva app de calendari)."
 
 #
-#: ilovevoley/templates/users/profile.html:368
+#: ilovevoley/templates/users/profile.html:409
 msgid ""
 "<strong>Cambios de categorías:</strong> Si cambias tus categorías "
 "preferidas, el calendario se actualizará automáticamente en la siguiente "
@@ -10614,7 +10921,7 @@ msgstr ""
 "sincronització."
 
 #
-#: ilovevoley/templates/users/profile.html:369
+#: ilovevoley/templates/users/profile.html:410
 msgid ""
 "<strong>Solo lectura:</strong> No puedes editar los eventos desde tu "
 "calendario, son solo de consulta."
@@ -10622,17 +10929,17 @@ msgstr ""
 "<strong>Només lectura:</strong> No pots editar els esdeveniments des del teu "
 "calendari, són només de consulta."
 
-#: ilovevoley/templates/users/profile.html:381
+#: ilovevoley/templates/users/profile.html:422
 msgid "¿Cómo dejar de recibir partidos?"
 msgstr "Com deixar de rebre partits?"
 
 #
-#: ilovevoley/templates/users/profile.html:385
+#: ilovevoley/templates/users/profile.html:426
 msgid "Forma más fácil (Recomendada):"
 msgstr "Forma més fàcil (Recomanada):"
 
 #
-#: ilovevoley/templates/users/profile.html:386
+#: ilovevoley/templates/users/profile.html:427
 msgid ""
 "Haz clic en <strong>\"Regenerar URL\"</strong> arriba y simplemente no "
 "vuelvas a suscribirte. La URL antigua dejará de funcionar automáticamente y "
@@ -10643,11 +10950,11 @@ msgstr ""
 "teu calendari deixarà de rebre actualitzacions."
 
 #
-#: ilovevoley/templates/users/profile.html:390
+#: ilovevoley/templates/users/profile.html:431
 msgid "Alternativa: Borrar desde tu app de calendario"
 msgstr "Alternativa: Eliminar des de la teva app de calendari"
 
-#: ilovevoley/templates/users/profile.html:392
+#: ilovevoley/templates/users/profile.html:433
 msgid ""
 "<strong>Google Calendar:</strong> Busca \"I Love Voley - Partidos\" en "
 "\"Otros calendarios\" → Opciones (⋮) → Darse de baja"
@@ -10656,7 +10963,7 @@ msgstr ""
 "\"Altres calendaris\" → Opcions (⋮) → Donar-se de baixa"
 
 #
-#: ilovevoley/templates/users/profile.html:393
+#: ilovevoley/templates/users/profile.html:434
 msgid ""
 "<strong>iPhone/iPad:</strong> Ajustes → Calendario → Cuentas → Busca el "
 "calendario → Eliminar cuenta"
@@ -10665,7 +10972,7 @@ msgstr ""
 "calendari → Eliminar compte"
 
 #
-#: ilovevoley/templates/users/profile.html:394
+#: ilovevoley/templates/users/profile.html:435
 msgid ""
 "<strong>Mac:</strong> Abre Calendar → Click derecho en el calendario → "
 "Cancelar suscripción"
@@ -10674,49 +10981,49 @@ msgstr ""
 "subscripció"
 
 #
-#: ilovevoley/templates/users/profile.html:395
+#: ilovevoley/templates/users/profile.html:436
 msgid "<strong>Outlook:</strong> Click derecho en el calendario → Eliminar"
 msgstr "<strong>Outlook:</strong> Clic dret al calendari → Eliminar"
 
 #
-#: ilovevoley/templates/users/profile.html:442
+#: ilovevoley/templates/users/profile.html:483
 msgid "¡Copiado!"
 msgstr "Copiat!"
 
 #
-#: ilovevoley/templates/users/profile.html:472
+#: ilovevoley/templates/users/profile.html:513
 msgid "⚠️ ¿Estás seguro de que quieres regenerar la URL?"
 msgstr "⚠️ Estàs segur que vols regenerar la URL?"
 
 #
-#: ilovevoley/templates/users/profile.html:473
+#: ilovevoley/templates/users/profile.html:514
 msgid "• La URL actual dejará de funcionar"
 msgstr "• La URL actual deixarà de funcionar"
 
-#: ilovevoley/templates/users/profile.html:474
+#: ilovevoley/templates/users/profile.html:515
 msgid "• Tendrás que volver a suscribirte con la nueva URL"
 msgstr "• Hauràs de tornar-te a subscriure amb la nova URL"
 
-#: ilovevoley/templates/users/profile.html:475
+#: ilovevoley/templates/users/profile.html:516
 msgid ""
 "• Esto es útil si cambiaste de categorías o quieres dejar de recibir partidos"
 msgstr ""
 "• Això és útil si vas canviar de categories o vols deixar de rebre partits"
 
-#: ilovevoley/templates/users/profile.html:476
+#: ilovevoley/templates/users/profile.html:517
 msgid "¿Continuar?"
 msgstr "Continuar?"
 
-#: ilovevoley/templates/users/profile.html:496
+#: ilovevoley/templates/users/profile.html:537
 msgid "✅ URL regenerada correctamente."
 msgstr "✅ URL regenerada correctament."
 
-#: ilovevoley/templates/users/profile.html:497
+#: ilovevoley/templates/users/profile.html:538
 msgid "La URL anterior ya no funciona."
 msgstr "La URL anterior ja no funciona."
 
 #
-#: ilovevoley/templates/users/profile.html:498
+#: ilovevoley/templates/users/profile.html:539
 msgid ""
 "Si quieres seguir recibiendo partidos, copia la nueva URL y vuelve a "
 "suscribirte en tu calendario."
@@ -10725,11 +11032,11 @@ msgstr ""
 "al teu calendari."
 
 #
-#: ilovevoley/templates/users/profile.html:500
+#: ilovevoley/templates/users/profile.html:541
 msgid "❌ Error al regenerar la URL: "
 msgstr "❌ Error en regenerar la URL: "
 
-#: ilovevoley/templates/users/profile.html:505
+#: ilovevoley/templates/users/profile.html:546
 msgid "❌ Error al regenerar la URL. Por favor, inténtalo de nuevo."
 msgstr "❌ Error en regenerar la URL. Si us plau, torna-ho a intentar."
 
@@ -10780,18 +11087,6 @@ msgstr "Els meus equips"
 #: ilovevoley/templates/users/profile_edit.html:241
 msgid "Tipos de Notificaciones Push"
 msgstr "Tipus de Notificacions Push"
-
-#: ilovevoley/templates/includes/navbar.html
-msgid "¿Quieres recibir avisos?"
-msgstr "Vols rebre avisos?"
-
-#: ilovevoley/templates/includes/navbar.html
-msgid "Activa las notificaciones para enterarte de partidos y novedades de tus categorías."
-msgstr "Activa les notificacions per assabentar-te de partits i novetats de les teves categories."
-
-#: ilovevoley/templates/includes/navbar.html
-msgid "Activar"
-msgstr "Activar"
 
 #: ilovevoley/templates/users/profile_edit.html:283
 msgid ""
@@ -10995,7 +11290,7 @@ msgstr "Sol·licitud de reactivació"
 
 #: ilovevoley/users/models.py:68
 msgid "Fecha en que una cuenta desactivada pidió volver a ser revisada."
-msgstr ""
+msgstr "Data en què un compte desactivat va demanar tornar a ser revisat."
 
 #: ilovevoley/users/models.py:153
 msgid "Manager"
@@ -11128,10 +11423,6 @@ msgstr "Enviats"
 msgid "Fallidos"
 msgstr "Fallits"
 
-#: ilovevoley/users/models.py:355
-msgid "Fecha"
-msgstr "Data"
-
 #: ilovevoley/users/models.py:360
 msgid "Auditoría de aviso push"
 msgstr "Auditoria d'avís push"
@@ -11162,32 +11453,32 @@ msgid ""
 msgstr ""
 "Informació familiar desada correctament. El teu compte serà revisat aviat."
 
-#: ilovevoley/users/views.py:135
+#: ilovevoley/users/views.py:148
 msgid "Tu perfil ha sido actualizado correctamente."
 msgstr "El teu perfil s'ha actualitzat correctament."
 
 #
-#: ilovevoley/users/views.py:354 ilovevoley/users/views.py:414
+#: ilovevoley/users/views.py:367 ilovevoley/users/views.py:427
 msgid "JSON inválido"
 msgstr "JSON no vàlid"
 
-#: ilovevoley/users/views.py:364
+#: ilovevoley/users/views.py:377
 msgid ""
 "Faltan parámetros obligatorios de la suscripción (endpoint, p256dh, auth)"
 msgstr ""
 "Falten paràmetres obligatoris de la subscripció (endpoint, p256dh, auth)"
 
-#: ilovevoley/users/views.py:369
+#: ilovevoley/users/views.py:382
 msgid "Endpoint de suscripción no válido"
 msgstr "Endpoint de subscripció no vàlid"
 
 #
-#: ilovevoley/users/views.py:388
+#: ilovevoley/users/views.py:401
 msgid "No hay club activo"
 msgstr "No hi ha cap club actiu"
 
 #
-#: ilovevoley/users/views.py:393
+#: ilovevoley/users/views.py:406
 msgid "Suscripción de otro usuario"
 msgstr "Subscripció d'un altre usuari"
 

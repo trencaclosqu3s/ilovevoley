@@ -327,6 +327,76 @@ class RenderResultCardTests(SimpleTestCase):
         self.assertNotIn('ilovevoley', drawn)
 
 
+class NormalizeLayoutTests(SimpleTestCase):
+    def test_defaults_reproduce_classic_composition(self):
+        layout = result_card.normalize_layout(None, 'story')
+        metrics = result_card._FORMAT_METRICS['story']
+
+        self.assertIsNone(layout['photo']['zoom'])
+        self.assertIsNone(layout['score']['y'])
+        self.assertEqual(layout['score']['scale'], 1.0)
+        self.assertEqual(layout['gradients']['top']['alpha'], 190)
+        self.assertEqual(layout['gradients']['bottom']['alpha'], 220)
+        self.assertEqual(round(layout['gradients']['top']['height'] * 1920), metrics['scrim_top'])
+        self.assertEqual(round(layout['gradients']['bottom']['height'] * 1920), metrics['scrim_bottom'])
+
+    def test_out_of_range_and_invalid_values_are_clamped_or_defaulted(self):
+        layout = result_card.normalize_layout(
+            {
+                'photo': {'zoom': 99, 'cx': -3, 'cy': 'x'},
+                'score': {'scale': True, 'x': 5, 'y': 2},
+                'gradients': {'top': {'color': 'rojo', 'alpha': 999}, 'bottom': 'basura'},
+            },
+            'square',
+        )
+
+        self.assertEqual(layout['photo'], {'zoom': 4.0, 'cx': 0, 'cy': 0.5})
+        self.assertEqual(layout['score'], {'x': 1, 'y': 1, 'scale': 1.0})
+        self.assertIsNone(layout['gradients']['top']['color'])
+        self.assertEqual(layout['gradients']['top']['alpha'], 255)
+        self.assertEqual(layout['gradients']['bottom']['alpha'], 220)
+
+
+class CustomLayoutRenderTests(SimpleTestCase):
+    def _render(self, layout, photo=None, card_format='square'):
+        png = result_card.render_result_card(
+            match=_fake_match(),
+            organization=_fake_org(),
+            card_format=card_format,
+            card_style='marco',
+            photo=photo or _fake_photo_bytes(),
+            sets=[],
+            layout=layout,
+            logo_fetcher=lambda url: None,
+        )
+        return Image.open(BytesIO(png)).convert('RGB')
+
+    def test_photo_zoom_keeps_proportion_and_follows_focus_point(self):
+        photo = _edge_photo(1600, 600, (255, 0, 0), (0, 0, 255))
+
+        left = self._render({'photo': {'zoom': 1, 'cx': 0}}, photo)
+        contain = self._render({'photo': {'zoom': 0.1}}, photo)
+
+        # Con zoom 1 y foco a la izquierda se ve el borde rojo y no el azul.
+        self.assertTrue(_is_red(left.getpixel((30, 540))), left.getpixel((30, 540)))
+        self.assertFalse(_is_blue(left.getpixel((1049, 540))))
+        # Zoom mínimo = foto entera sin deformar: ambos bordes visibles.
+        self.assertTrue(_is_red(contain.getpixel((30, 540))), contain.getpixel((30, 540)))
+        self.assertTrue(_is_blue(contain.getpixel((1049, 540))), contain.getpixel((1049, 540)))
+
+    def test_score_block_moves_to_requested_height(self):
+        def brightness(img, y):
+            box = img.crop((100, y - 5, 290, y + 5)).resize((1, 1), Image.Resampling.BOX)
+            return sum(box.getpixel((0, 0)))
+
+        default = self._render(None)
+        moved = self._render({'score': {'y': 0.2}})
+
+        # Escudos (disco blanco) arriba solo cuando se pide; por defecto van abajo.
+        self.assertLess(brightness(default, 216), 300)
+        self.assertGreater(brightness(moved, 216), 450)
+
+
 class FooterAssetTests(SimpleTestCase):
     def test_isotype_asset_exists_and_is_valid_transparent_png(self):
         asset_path = result_card._LOGO_ISOTYPE

@@ -130,6 +130,11 @@
                                         class="result-card-style-btn px-3 py-1 rounded-full font-medium transition text-muted">
                                     {% trans "Con foto" %}
                                 </button>
+                                <button type="button"
+                                        id="story-editor-open"
+                                        class="px-3 py-1 rounded-full font-medium transition text-muted">
+                                    {% trans "Personalizar" %}
+                                </button>
                             </div>
                             <div id="result-card-photo-picker" class="hidden flex flex-wrap items-center gap-2">
                                 <span class="text-xs text-muted">{% trans "Elige una foto:" %}</span>
@@ -206,6 +211,7 @@
                             </div>
                         </div>
                     {% endif %}
+                    {% if images %}{% include 'competitions/_story_editor.html' %}{% endif %}
                 {% elif can_edit_result %}
                     {% if match.match_date.date <= today %}
                         <button data-call="openResultModal" data-call-args='[{{ match.id }}, "{{ match.home_team_display|escapejs }}", "{{ match.away_team_display|escapejs }}"]' 
@@ -944,6 +950,8 @@
 
 {{ match.set_scores|json_script:"match-set-scores" }}
 <script src="{% static 'js/match_result_sets.js' %}"></script>
+<script src="{% static 'js/vendor/interact.min.js' %}"></script>
+<script src="{% static 'js/story_editor.js' %}"></script>
 <script nonce="{{ csp_nonce }}">
 // Alias para compatibilidad con el código existente
 function openImageLightbox(imageUrl, title, imageId) {
