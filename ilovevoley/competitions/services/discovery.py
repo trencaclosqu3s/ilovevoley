@@ -26,9 +26,12 @@ logger = logging.getLogger(__name__)
 
 _MENU_TOKEN = re.compile(
     r'<a data-toggle="collapse"[^>]*?href="#\d+"[^>]*?(?P<is_category>class="category")?>\s*(?P<label>.*?)\s*(?:<i class|</a>)'
-    r'|<a href="clasificaciones\?id=(?P<id>\d+)[^"]*">(?P<phase>.*?)</a>',
+    r'|<p class="fase">(?P<fase>[^<]*)</p>'
+    # Con grupos el enlace lleva ``title=`` y un icono dentro: ``<a href="…" title="…"><i></i> GRUP A</a>``
+    r'|<a href="clasificaciones\?id=(?P<id>\d+)[^"]*"[^>]*>(?P<phase>.*?)</a>',
     re.S,
 )
+_TAG = re.compile(r'<[^>]+>')
 _TEAM_CELL = re.compile(r"<tr><td>\d+\.</td><td>(.*?)</td>", re.S)
 _CATEGORY_KEYWORDS = ('benjamin', 'alevin', 'infantil', 'cadete', 'juvenil', 'junior', 'senior')
 # Categorías de formación cuyo histórico alimenta el H2H (#404).
@@ -45,21 +48,26 @@ def _normalize(text):
 
 def parse_menu(menu_html):
     """Lista de dicts ``section, category_label, phase_label, federation_id``."""
-    section = category = ''
+    section = category = fase = ''
     rows = []
     for match in _MENU_TOKEN.finditer(menu_html):
-        if match['id']:
+        if match['fase'] is not None:
+            fase = html.unescape(match['fase']).strip()
+        elif match['id']:
+            label = html.unescape(_TAG.sub('', match['phase'])).strip()
             rows.append({
                 'section': section,
                 'category_label': category,
-                'phase_label': html.unescape(match['phase']).strip(),
+                # Fase con grupos: "Liga Regular - GRUP A"; con un solo enlace, la fase es el propio enlace
+                'phase_label': f'{fase} - {label}' if fase and match['phase'].lstrip().startswith('<i') else label,
                 'federation_id': match['id'],
             })
         elif match['is_category']:
             category = html.unescape(match['label']).strip()
+            fase = ''
         else:
             section = html.unescape(match['label']).strip()
-            category = ''
+            category = fase = ''
     return rows
 
 

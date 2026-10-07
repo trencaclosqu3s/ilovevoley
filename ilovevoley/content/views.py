@@ -409,11 +409,17 @@ def video_detail(request, video_id):
     
     # Cargar comentarios con información del usuario
     comments = video.comments.select_related('user').all()
-    
+
+    # Match.objects excluye withdrawn: no enlazar partidos no visibles (#411)
+    linked_match = (
+        Match.objects.filter(pk=video.match_id).first() if video.match_id else None
+    )
+
     return render(request, 'content/video_detail.html', {
         'video': video,
         'comments': comments,
-        'comment_form': comment_form
+        'comment_form': comment_form,
+        'linked_match': linked_match,
     })
 
 

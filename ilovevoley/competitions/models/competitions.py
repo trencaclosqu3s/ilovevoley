@@ -642,6 +642,12 @@ class LeagueCandidate(models.Model):
         if self.status != 'pending':
             return self.league
         with transaction.atomic():
+            # Liga ya dada de alta (a mano o por una sincronización) tras crearse la candidata
+            existing = League.objects.filter(federation_id=self.federation_id).first()
+            if existing:
+                self.league, self.status = existing, 'approved'
+                self.save(update_fields=['league', 'status'])
+                return existing
             name = ' '.join(filter(None, [self.category_label.title(), self.phase_label]))
             is_cup = re.search(r'copa|campeonato|torneo', f'{self.section} {self.phase_label}', re.I)
             league = League.objects.create(
