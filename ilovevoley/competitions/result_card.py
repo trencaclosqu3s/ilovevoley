@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
+from ilovevoley.core.image_utils import normalize_crest
 from ilovevoley.core.security import safe_get
 
 from .services.sets import extract_set_scores
@@ -161,6 +162,20 @@ def _open_logo(data: bytes | None, size: int) -> Image.Image:
         placeholder = placeholder_raw.convert('RGBA')
     placeholder.thumbnail((size, size), Image.Resampling.LANCZOS)
     return placeholder
+
+
+def _team_logo_bytes(team, fetcher: LogoFetcher) -> bytes | None:
+    """Escudo del equipo: copia local si existe; si no, descarga y normaliza el de la federación."""
+    if team is None:
+        return None
+    local = _file_field_bytes(getattr(team, 'display_logo_file', None))
+    if local:
+        return local
+    try:
+        raw = fetcher(getattr(team, 'display_logo', None))
+    except Exception:
+        return None
+    return normalize_crest(raw) if raw else None
 
 
 def _org_logo_bytes(organization) -> bytes | None:
@@ -431,16 +446,8 @@ def render_result_card(
 
     fetcher = logo_fetcher or fetch_logo_bytes
     crest_size = metrics['crest_size']
-    home_logo_url = getattr(getattr(match, 'home_team', None), 'display_logo', None)
-    away_logo_url = getattr(getattr(match, 'away_team', None), 'display_logo', None)
-    try:
-        home_logo = fetcher(home_logo_url)
-    except Exception:
-        home_logo = None
-    try:
-        away_logo = fetcher(away_logo_url)
-    except Exception:
-        away_logo = None
+    home_logo = _team_logo_bytes(getattr(match, 'home_team', None), fetcher)
+    away_logo = _team_logo_bytes(getattr(match, 'away_team', None), fetcher)
     home_crest = _open_logo(home_logo, crest_size)
     away_crest = _open_logo(away_logo, crest_size)
 

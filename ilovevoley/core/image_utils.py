@@ -4,7 +4,7 @@ import uuid
 from io import BytesIO
 
 from django.core.files.base import ContentFile
-from PIL import Image
+from PIL import Image, ImageChops, ImageDraw
 
 ALLOWED_IMAGE_MIME_TYPES = {
     'image/jpeg': 'JPEG',
@@ -14,6 +14,10 @@ ALLOWED_IMAGE_MIME_TYPES = {
 }
 
 MAX_IMAGE_UPLOAD_SIZE = 5 * 1024 * 1024
+
+CREST_SIZE = 256
+CREST_PADDING = 0.14
+CREST_WHITE_THRESHOLD = 215
 
 
 class InvalidImageError(ValueError):
@@ -95,3 +99,43 @@ def image_to_data_uri(file_or_field):
     except Exception:
         return None
 
+
+
+def normalize_crest(data):
+    """
+    Normaliza el escudo de un club a un PNG cuadrado con fondo exterior transparente.
+
+    Los escudos de la federación son JPEG con fondo blanco opaco y proporciones
+    y márgenes dispares. Se hace transparente solo el blanco conectado con las
+    esquinas (el blanco interior del escudo se conserva), se recorta al
+    contenido y se centra con margen para que quepa en un círculo.
+    Devuelve ``None`` si los bytes no son una imagen o solo hay fondo.
+    """
+    try:
+        with Image.open(BytesIO(data)) as raw:
+            image = raw.convert('RGBA')
+    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
+        return None
+
+    r, g, b, a = image.split()
+    lightest_channel = ImageChops.darker(ImageChops.darker(r, g), b)
+    mask = lightest_channel.point(lambda v: 255 if v >= CREST_WHITE_THRESHOLD else 0)
+    last = (image.width - 1, image.height - 1)
+    for corner in ((0, 0), (last[0], 0), (0, last[1]), last):
+        if mask.getpixel(corner) == 255:
+            ImageDraw.floodfill(mask, corner, 128)
+    alpha = ImageChops.multiply(mask.point(lambda v: 0 if v == 128 else 255), a)
+
+    box = alpha.getbbox()
+    if box is None:
+        return None
+    image.putalpha(alpha)
+    image = image.crop(box)
+
+    side = round(max(image.size) / (1 - 2 * CREST_PADDING))
+    canvas = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+    canvas.paste(image, ((side - image.width) // 2, (side - image.height) // 2))
+    canvas.thumbnail((CREST_SIZE, CREST_SIZE), Image.Resampling.LANCZOS)
+    output = BytesIO()
+    canvas.save(output, format='PNG', optimize=True)
+    return output.getvalue()
