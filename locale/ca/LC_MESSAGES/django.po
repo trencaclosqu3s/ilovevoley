@@ -649,20 +649,20 @@ msgstr "Jugadors Convocats"
 
 #: ilovevoley/competitions/models/circulars.py:22
 msgid "Comité de competición"
-msgstr ""
+msgstr "Comitè de competició"
 
 #: ilovevoley/competitions/models/circulars.py:23
 msgid "Vóley playa"
-msgstr ""
+msgstr "Vòlei platja"
 
 #
 #: ilovevoley/competitions/models/circulars.py:24
 msgid "Formación"
-msgstr ""
+msgstr "Formació"
 
 #: ilovevoley/competitions/models/circulars.py:25
 msgid "Normas y reglamentos"
-msgstr ""
+msgstr "Normes i reglaments"
 
 #: ilovevoley/competitions/models/circulars.py:26
 #: ilovevoley/competitions/templates/competitions/match_detail.html:300
@@ -672,11 +672,11 @@ msgstr "Àrbitres"
 
 #: ilovevoley/competitions/models/circulars.py:27
 msgid "Documentos FVBIB"
-msgstr ""
+msgstr "Documents FVBIB"
 
 #: ilovevoley/competitions/models/circulars.py:28
 msgid "Transparencia"
-msgstr ""
+msgstr "Transparència"
 
 #
 #: ilovevoley/competitions/models/circulars.py:37
@@ -697,33 +697,33 @@ msgstr "Títol"
 
 #: ilovevoley/competitions/models/circulars.py:43
 msgid "Fichero PDF remoto"
-msgstr ""
+msgstr "Fitxer PDF remot"
 
 #: ilovevoley/competitions/models/circulars.py:44
 msgid "Vacío si la circular no tiene PDF adjunto."
-msgstr ""
+msgstr "Buit si la circular no té PDF adjunt."
 
 #: ilovevoley/competitions/models/circulars.py:49
 msgid "Filas extraídas"
-msgstr ""
+msgstr "Files extretes"
 
 #: ilovevoley/competitions/models/circulars.py:50
 msgid ""
 "Solo en circulares disciplinarias: cuándo se leyó el PDF para extraer las "
 "filas de los tenants."
-msgstr ""
+msgstr "Només en circulars disciplinàries: quan es va llegir el PDF per extreure les files dels tenants."
 
 #: ilovevoley/competitions/models/circulars.py:55
 msgid "Circular federativa"
-msgstr ""
+msgstr "Circular federativa"
 
 #: ilovevoley/competitions/models/circulars.py:56
 msgid "Circulares federativas"
-msgstr ""
+msgstr "Circulars federatives"
 
 #: ilovevoley/competitions/models/circulars.py:97
 msgid "Categoría guardada cuyo nombre aparece en la fila, si la hay."
-msgstr ""
+msgstr "Categoria desada el nom de la qual apareix a la fila, si n'hi ha."
 
 #: ilovevoley/competitions/models/circulars.py:100
 #: ilovevoley/competitions/models/news.py:12 ilovevoley/users/models.py:355
@@ -733,15 +733,15 @@ msgstr "Data"
 #
 #: ilovevoley/competitions/models/circulars.py:101
 msgid "Fila de la circular"
-msgstr ""
+msgstr "Fila de la circular"
 
 #: ilovevoley/competitions/models/circulars.py:105
 msgid "Sanción federativa"
-msgstr ""
+msgstr "Sanció federativa"
 
 #: ilovevoley/competitions/models/circulars.py:106
 msgid "Sanciones federativas"
-msgstr ""
+msgstr "Sancions federatives"
 
 #: ilovevoley/competitions/models/competitions.py:80
 #: ilovevoley/competitions/templates/competitions/league_detail.html:42
@@ -1180,7 +1180,7 @@ msgstr "{slug del tenant: [equips que juguen]}"
 msgid ""
 "Detectada en una temporada pasada: al aprobar se crea como liga histórica "
 "inactiva."
-msgstr ""
+msgstr "Detectada en una temporada passada: en aprovar-la es crea com a lliga històrica inactiva."
 
 #: ilovevoley/competitions/models/competitions.py:634
 msgid "Liga candidata"
@@ -1399,13 +1399,13 @@ msgstr "Modificacions de Partits"
 
 #: ilovevoley/competitions/models/news.py:13
 msgid "Titular"
-msgstr ""
+msgstr "Titular"
 
 #: ilovevoley/competitions/models/news.py:18
 msgid ""
 "Etiqueta de la federación (Generales, Arbitros…); la playa reciente llega "
 "como Generales."
-msgstr ""
+msgstr "Etiqueta de la federació (Generals, Àrbitres…); la platja recent arriba com a Generals."
 
 #: ilovevoley/competitions/models/news.py:23
 #: ilovevoley/teams/admin/teams.py:115 ilovevoley/teams/models/teams.py:39
@@ -1416,19 +1416,19 @@ msgstr "Club"
 msgid ""
 "Solo en actividades de clubes (campus, eventos), tal como lo publica la "
 "federación."
-msgstr ""
+msgstr "Només en activitats de clubs (campus, esdeveniments), tal com les publica la federació."
 
 #: ilovevoley/competitions/models/news.py:26
 msgid "Imagen remota"
-msgstr ""
+msgstr "Imatge remota"
 
 #: ilovevoley/competitions/models/news.py:30
 msgid "Noticia federativa"
-msgstr ""
+msgstr "Notícia federativa"
 
 #: ilovevoley/competitions/models/news.py:31
 msgid "Noticias federativas"
-msgstr ""
+msgstr "Notícies federatives"
 
 #: ilovevoley/competitions/models/story.py:9
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:38
@@ -1706,7 +1706,7 @@ msgstr "Tanca"
 msgid ""
 "Arrastra la foto para encuadrarla, pellizca para el zoom y mueve o escala el "
 "marcador."
-msgstr ""
+msgstr "Arrossega la foto per enquadrar-la, pessiga per fer zoom i mou o escala el marcador."
 
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:39
 msgid "1:1"
@@ -1746,7 +1746,7 @@ msgstr "Degradat inferior"
 msgid ""
 "Color, intensidad (primera barra) y altura (segunda) de cada degradado. La "
 "cabecera y el pie son fijos."
-msgstr ""
+msgstr "Color, intensitat (primera barra) i alçada (segona) de cada degradat. La capçalera i el peu són fixos."
 
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:75
 #: ilovevoley/templates/users/profile.html:280
@@ -5181,7 +5181,7 @@ msgstr "Lligues i partits"
 msgid ""
 "Color final del degradado de la cabecera del perfil. Vacío: usa el color "
 "secundario."
-msgstr ""
+msgstr "Color final del degradat de la capçalera del perfil. Buit: utilitza el color secundari."
 
 #: ilovevoley/core/models.py:204
 msgid "URL del perfil de Instagram del club"
@@ -7107,7 +7107,7 @@ msgstr "Pavelló habitual"
 
 #: ilovevoley/teams/models/teams.py:32 ilovevoley/teams/models/teams.py:59
 msgid "Escudo (copia local)"
-msgstr ""
+msgstr "Escut (còpia local)"
 
 #: ilovevoley/teams/models/teams.py:57
 msgid "Nombre con patrocinador si aplica"
@@ -11270,7 +11270,7 @@ msgstr "Sol·licitud de reactivació"
 
 #: ilovevoley/users/models.py:68
 msgid "Fecha en que una cuenta desactivada pidió volver a ser revisada."
-msgstr ""
+msgstr "Data en què un compte desactivat va demanar tornar a ser revisat."
 
 #: ilovevoley/users/models.py:153
 msgid "Manager"
