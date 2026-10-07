@@ -2,6 +2,8 @@
 
 from difflib import SequenceMatcher
 
+from django.db import IntegrityError
+
 from ilovevoley.core.email_utils import send_notification_email
 from ilovevoley.videos.utils import normalize_team_name
 
@@ -19,22 +21,39 @@ def effective_gender(team) -> str:
 
 
 def extract_core_name(display_name: str, sponsor_name: str = '') -> str:
-    """Nombre núcleo: quita patrocinador solo con señal; conserva color/letra."""
+    """Nombre núcleo: quita patrocinador solo con señal; conserva color/letra.
+
+    ``sponsor_name`` es la señal ELOCALPAT cuando difiere del nombre base. Si el
+    PAT es un fragmento del nombre, se recorta; si es otra cadena de marca
+    (p. ej. nombre corto en ELOCAL y branding en PAT), el núcleo es el nombre base.
+    """
     name = (display_name or '').strip()
     sponsor = (sponsor_name or '').strip()
     if not name:
         return ''
     norm_name = normalize_team_name(name)
-    if sponsor:
-        norm_sponsor = normalize_team_name(sponsor)
-        if norm_sponsor and norm_sponsor in norm_name:
-            parts = norm_name.replace(norm_sponsor, ' ').split()
-            return ' '.join(parts) if parts else norm_name
+    if not sponsor:
+        return norm_name
+    norm_sponsor = normalize_team_name(sponsor)
+    if not norm_sponsor or norm_sponsor == norm_name:
+        return norm_name
+    if norm_sponsor in norm_name:
+        parts = norm_name.replace(norm_sponsor, ' ').split()
+        return ' '.join(parts) if parts else norm_name
+    # PAT distinto y no contenido: el nombre federativo base ya es el núcleo.
     return norm_name
 
 
-def normalize_core_name(display_name: str, sponsor_name: str = '') -> str:
-    return extract_core_name(display_name, sponsor_name)
+def _root_team(team):
+    root = team
+    seen = set()
+    while getattr(root, 'parent_team_id', None) and root.pk not in seen:
+        seen.add(root.pk)
+        parent = getattr(root, 'parent_team', None)
+        if parent is None:
+            break
+        root = parent
+    return root
 
 
 def create_identity_for_team(team, *, sponsor_name: str = ''):
@@ -44,14 +63,26 @@ def create_identity_for_team(team, *, sponsor_name: str = ''):
     core = extract_core_name(team.name, sponsor)
     gender = effective_gender(team)
     if team.club_id and team.category_id and core:
-        existing = TeamIdentity.objects.filter(
-            club_id=team.club_id,
-            category_id=team.category_id,
-            gender=gender,
-            core_name_normalized=core,
-        ).first()
-        if existing:
-            return existing
+        try:
+            identity, _ = TeamIdentity.objects.get_or_create(
+                club_id=team.club_id,
+                category_id=team.category_id,
+                gender=gender,
+                core_name_normalized=core,
+                defaults={
+                    'club_id': team.club_id,
+                    'category_id': team.category_id,
+                    'core_name': core,
+                },
+            )
+            return identity
+        except IntegrityError:
+            return TeamIdentity.objects.get(
+                club_id=team.club_id,
+                category_id=team.category_id,
+                gender=gender,
+                core_name_normalized=core,
+            )
     return TeamIdentity.objects.create(
         club=team.club,
         category=team.category,
@@ -66,11 +97,23 @@ def resolve_team_identity(team, *, sponsor_name: str = ''):
 
     Exacto → asigna identity. Duda → candidata con identity NULL.
     Ninguno → crea identity nueva y la asigna.
+    Variantes: heredan la identidad del root.
     """
     from ilovevoley.teams.models import TeamIdentity, TeamIdentityCandidate
 
     sponsor = sponsor_name or getattr(team, 'sponsor_name', '') or ''
-    core = normalize_core_name(team.name, sponsor)
+
+    root = _root_team(team)
+    if root is not team:
+        if not root.identity_id:
+            resolve_team_identity(root, sponsor_name=sponsor)
+            root.refresh_from_db()
+        if root.identity_id:
+            team.identity = root.identity
+            team.save(update_fields=['identity'])
+            return root.identity, None
+
+    core = extract_core_name(team.name, sponsor)
     gender = effective_gender(team)
 
     # Sin club/categoría no hay clave fiable: dejar NULL para reintentar luego
@@ -189,31 +232,23 @@ def backfill_team_identities(
         ).select_related('parent_team')
     )
 
-    # Variantes: heredar identidad del root si ya la tiene
-    remaining = []
+    roots = []
+    variants = []
     for team in pending:
-        parent = getattr(team, 'parent_team', None)
-        root = team
-        while parent is not None:
-            root = parent
-            parent = getattr(root, 'parent_team', None)
-        if root is not team and getattr(root, 'identity_id', None):
-            team.identity_id = root.identity_id
-            team.save(update_fields=['identity'])
-            stats['linked_exact'] += 1
+        if getattr(team, 'parent_team_id', None):
+            variants.append(team)
         else:
-            remaining.append(team)
+            roots.append(team)
 
     groups = defaultdict(list)
-    for team in remaining:
-        core = normalize_core_name(team.name, getattr(team, 'sponsor_name', '') or '')
+    for team in roots:
+        core = extract_core_name(team.name, getattr(team, 'sponsor_name', '') or '')
         if not core:
             stats['skipped'] += 1
             continue
         key = (team.club_id, team.category_id, _gender_for_backfill(team, categories), core)
         groups[key].append(team)
 
-    identity_by_key = {}
     for key, members in groups.items():
         club_id, category_id, gender, core = key
         identity = IdentityModel.objects.filter(
@@ -231,11 +266,26 @@ def backfill_team_identities(
                 core_name_normalized=core,
             )
             stats['identities_created'] += 1
-        identity_by_key[key] = identity
         for team in members:
             if team.identity_id:
                 continue
             team.identity_id = identity.pk
+            team.save(update_fields=['identity'])
+            stats['linked_exact'] += 1
+
+    # Variantes: heredar del root ya resuelto en esta pasada
+    for team in variants:
+        root = team
+        seen = set()
+        while getattr(root, 'parent_team_id', None) and root.pk not in seen:
+            seen.add(root.pk)
+            parent = getattr(root, 'parent_team', None)
+            if parent is None:
+                break
+            root = parent
+        root = TeamModel.objects.filter(pk=root.pk).first() or root
+        if getattr(root, 'identity_id', None):
+            team.identity_id = root.identity_id
             team.save(update_fields=['identity'])
             stats['linked_exact'] += 1
 

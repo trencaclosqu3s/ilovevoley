@@ -282,9 +282,12 @@ class FederationScraper:
         from datetime import datetime
         from django.utils import timezone
         
+        from ilovevoley.teams.identity import notify_new_identity_candidates
+
         matches_created = 0
         matches_updated = 0
-        
+        self._new_identity_candidates = []
+
         for partido_data in partidos_data:
             try:
                 # Usar el parser unificado para procesar el partido
@@ -307,12 +310,14 @@ class FederationScraper:
                     if not home_team and league_category:
                         home_team = self._find_or_create_team_by_name(
                             match_data['home_team'], league, league_category,
-                            match_data.get('federation_club_local_id', '')
+                            match_data.get('federation_club_local_id', ''),
+                            sponsor_name=match_data.get('home_sponsor_name', ''),
                         )
                     if not away_team and league_category:
                         away_team = self._find_or_create_team_by_name(
                             match_data['away_team'], league, league_category,
-                            match_data.get('federation_club_away_id', '')
+                            match_data.get('federation_club_away_id', ''),
+                            sponsor_name=match_data.get('away_sponsor_name', ''),
                         )
                     if not home_team or not away_team:
                         logger.warning(f'No se pudieron encontrar ni crear equipos: {match_data["home_team"]} vs {match_data["away_team"]}')
@@ -437,7 +442,10 @@ class FederationScraper:
             except Exception as e:
                 logger.error(f'Error procesando partido {partido_data.get("ELOCAL", "Unknown")} vs {partido_data.get("EVISITANTE", "Unknown")}: {str(e)}')
                 continue
-        
+
+        if self._new_identity_candidates:
+            notify_new_identity_candidates(self._new_identity_candidates)
+
         return matches_created, matches_updated
     
     @transaction.atomic
@@ -445,8 +453,12 @@ class FederationScraper:
         """Actualiza o crea los equipos vistos en la federación.
 
         Un ``federation_id`` nuevo crea siempre una aparición ``Team`` nueva; la
-        continuidad entre temporadas va por ``TeamIdentity`` (#428), no reescribiendo
-        el ``federation_id`` de filas anteriores.
+        continuidad entre temporadas (y entre fases/grupos de la misma temporada)
+        va por ``TeamIdentity`` (#428), no reescribiendo el ``federation_id`` de
+        filas anteriores ni reutilizando por nombre (eso mezclaba Portol Rojo/Negro).
+
+        Los consumidores que aún miran un solo ``Team`` por temporada no agregan
+        por identidad: es deuda conocida; la identidad es el hilo, no un merge de PK.
 
         La detección de retiradas no se hace aquí (un scrape parcial no es una foto
         completa de la liga): ver ``detect_withdrawn_teams()``.
@@ -460,6 +472,9 @@ class FederationScraper:
         for team_data in teams_data:
             club_fed_id = team_data.get('federation_club_id', '')
             sponsor_name = (team_data.get('sponsor_name') or '').strip()
+            # PAT igual al nombre base = sin patrocinio (misma regla que _sync_sponsor_name)
+            if sponsor_name == (team_data.get('name') or '').strip():
+                sponsor_name = ''
             league_category = self.league.categories.first()
             team = Team.objects.filter(federation_id=team_data['federation_id']).first()
             created = False
@@ -1557,19 +1572,27 @@ class FederationScraper:
         return None
 
     def _find_or_create_team_by_name(self, team_name: str, league: League, league_category,
-                                     club_fed_id: str = '') -> Team:
+                                     club_fed_id: str = '', sponsor_name: str = '') -> Team:
         """Crea o reutiliza por ``federation_id`` sintético; la continuidad va por identidad (#428).
 
         Ya no reutiliza filas por nombre/similitud (confundía colores del mismo club).
+        Las candidatas se acumulan en ``_new_identity_candidates`` para un solo email.
         """
-        from ilovevoley.teams.identity import notify_new_identity_candidates, resolve_team_identity
+        from ilovevoley.teams.identity import resolve_team_identity
 
         fed_id = f"{league.federation_id}_{team_name.replace(' ', '_').lower()}"
         team = Team.objects.filter(federation_id=fed_id).first()
         created = False
+        sponsor = (sponsor_name or '').strip()
+        if sponsor == team_name:
+            sponsor = ''
         if not team:
             team = Team.objects.create(
-                name=team_name, federation_id=fed_id, category=league_category, is_active=True,
+                name=team_name,
+                federation_id=fed_id,
+                category=league_category,
+                sponsor_name=sponsor,
+                is_active=True,
             )
             created = True
             logger.info(f"Equipo creado automáticamente: {team.name} para liga {league.name}")
@@ -1578,9 +1601,9 @@ class FederationScraper:
             team.save(update_fields=['club'])
 
         if created or team.identity_id is None:
-            _, candidate = resolve_team_identity(team)
+            _, candidate = resolve_team_identity(team, sponsor_name=sponsor or team.sponsor_name)
             if candidate:
-                notify_new_identity_candidates([candidate])
+                self._new_identity_candidates.append(candidate)
         return team
 
     @staticmethod

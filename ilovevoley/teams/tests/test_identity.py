@@ -7,7 +7,6 @@ from ilovevoley.core.models import Category
 from ilovevoley.teams.identity import (
     backfill_team_identities,
     extract_core_name,
-    normalize_core_name,
     notify_new_identity_candidates,
     resolve_team_identity,
 )
@@ -56,6 +55,22 @@ class BackfillTeamIdentityTests(TestCase):
         Team.objects.create(name='HUERFANO', federation_id='h')
         backfill_team_identities()
         self.assertIsNone(Team.objects.get(federation_id='h').identity_id)
+
+    def test_variant_inherits_root_identity_on_first_backfill(self):
+        club = Club.objects.create(federation_id='c1', official_name='Portol')
+        cat = Category.objects.create(name='Infantil')
+        root = Team.objects.create(
+            name='PORTOL', federation_id='root', club=club, category=cat,
+        )
+        variant = Team.objects.create(
+            name='PORTOL A', federation_id='var', club=club, category=cat,
+            parent_team=root, variant_type='split', variant_name='A',
+        )
+        backfill_team_identities()
+        root.refresh_from_db()
+        variant.refresh_from_db()
+        self.assertIsNotNone(root.identity_id)
+        self.assertEqual(variant.identity_id, root.identity_id)
 
 
 class NotifyIdentityCandidatesTests(TestCase):
@@ -151,6 +166,19 @@ class ResolveTeamIdentityTests(TestCase):
         self.assertIsNone(candidate)
         self.assertIsNone(team.identity_id)
 
+    def test_variant_inherits_root_identity_at_resolve(self):
+        root = self._team('PORTOL', 'root')
+        id_root, _ = resolve_team_identity(root)
+        variant = Team.objects.create(
+            name='PORTOL A', federation_id='var', club=self.club, category=self.category,
+            parent_team=root, variant_type='split', variant_name='A',
+        )
+        linked, candidate = resolve_team_identity(variant)
+        variant.refresh_from_db()
+        self.assertEqual(linked.pk, id_root.pk)
+        self.assertEqual(variant.identity_id, id_root.pk)
+        self.assertIsNone(candidate)
+
     def test_reject_when_team_already_has_identity_just_marks_rejected(self):
         a = self._team('EQUIPO ALPHA', 'a')
         b = self._team('EQUIPO BETA', 'b')
@@ -198,8 +226,8 @@ class CoreNameTests(TestCase):
         self.assertEqual(extract_core_name('PORTOL ROJO'), 'PORTOL ROJO')
         self.assertEqual(extract_core_name('PORTOL NEGRO'), 'PORTOL NEGRO')
         self.assertNotEqual(
-            normalize_core_name('PORTOL ROJO'),
-            normalize_core_name('PORTOL NEGRO'),
+            extract_core_name('PORTOL ROJO'),
+            extract_core_name('PORTOL NEGRO'),
         )
 
     def test_no_blind_strip_without_sponsor_signal(self):
