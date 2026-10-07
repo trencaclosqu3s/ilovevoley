@@ -75,6 +75,26 @@ class MatchPreviewTests(TestCase):
 
         self.assertEqual(preview['head_to_head'], [same_clubs])
 
+    def test_head_to_head_includes_matches_from_inactive_historical_leagues(self):
+        # #404: las ligas históricas se crean inactivas (fuera de navegación y de
+        # Celery); el H2H debe seguir leyéndolas, sin filtrar por is_active.
+        historical = League.objects.create(
+            name='Alevín 24-25', federation_id='L_HIST', season=Season.objects.resolve('2024-2025'),
+            visibility_type='historical', is_historical=True, is_active=False,
+        )
+        historical.categories.add(self.category)
+        old_home = Team.objects.create(name='Local 24-25', federation_id='T4')
+        old_away = Team.objects.create(name='Visitante 24-25', federation_id='T5')
+        past = Match.objects.create(
+            league=historical, home_team=old_away, away_team=old_home, status='finished',
+            match_date=self.now - timedelta(days=400), home_score=3, away_score=0,
+            federation_club_local_id='C2', federation_club_away_id='C1',
+        )
+
+        preview = build_match_preview(self.match)
+
+        self.assertEqual(preview['head_to_head'], [past])
+
     def test_null_federation_club_ids_do_not_match_unrelated_teams(self):
         # El parser guarda 'None' si la federación envía null en ID_CLUB_*.
         self.match.federation_club_local_id = self.match.federation_club_away_id = 'None'

@@ -31,6 +31,8 @@ _MENU_TOKEN = re.compile(
 )
 _TEAM_CELL = re.compile(r"<tr><td>\d+\.</td><td>(.*?)</td>", re.S)
 _CATEGORY_KEYWORDS = ('benjamin', 'alevin', 'infantil', 'cadete', 'juvenil', 'junior', 'senior')
+# Categorías de formación cuyo histórico alimenta el H2H (#404).
+BASE_CATEGORY_KEYWORDS = ('alevin', 'infantil', 'cadete', 'juvenil')
 
 
 def _strip_accents(text):
@@ -170,4 +172,64 @@ def discover(season):
             )
             created.append(candidate)
             known.add(row['federation_id'])
+    return created
+
+
+def is_base_category(category_label):
+    """True si la etiqueta es una categoría de formación (Alevín/Infantil/Cadete/Juvenil).
+
+    No exige género: el histórico puede incluir masculino, femenino o mixto, y
+    es el superuser quien decide en la cola qué candidatas valida.
+    """
+    normalized = _normalize(category_label)
+    return any(keyword in normalized for keyword in BASE_CATEGORY_KEYWORDS)
+
+
+def discover_historical(seasons):
+    """Propone como candidatas las ligas base de temporadas pasadas con equipos de un tenant.
+
+    A diferencia de ``discover``, marca las candidatas con ``is_historical=True``
+    para que al aprobarlas se creen como ligas históricas inactivas (fuera de la
+    navegación y de las tareas periódicas). No crea ligas: el superuser elige en
+    la cola cuáles sincroniza. Omite federaciones ya conocidas (liga o candidata),
+    así la ingesta histórica no colisiona con las de la temporada activa.
+
+    Devuelve las candidatas nuevas (idempotente entre ejecuciones).
+    """
+    if not seasons:
+        return []
+
+    from ..models import League, LeagueCandidate
+
+    organizations = list(Organization.objects.filter(is_active=True))
+    known = set(League.objects.values_list('federation_id', flat=True))
+    known |= set(LeagueCandidate.objects.values_list('federation_id', flat=True))
+
+    created = []
+    with requests.Session() as session:
+        for season in seasons:
+            try:
+                menu = parse_menu(fetch_menu(calculate_federation_temp(season), session))
+            except requests.RequestException:
+                logger.warning('No se pudo leer el menú federativo de %s', season)
+                continue
+            for row in menu:
+                if row['federation_id'] in known or not is_base_category(row['category_label']):
+                    continue
+                try:
+                    team_names = fetch_team_names(row['federation_id'], session)
+                except requests.RequestException:
+                    logger.warning('No se pudo leer la clasificación federativa %s', row['federation_id'])
+                    continue
+                tenants = matching_tenants(team_names, organizations)
+                if not tenants:
+                    continue
+                candidate = LeagueCandidate.objects.create(
+                    season=season, status='pending', is_historical=True,
+                    category=detect_category(row['category_label']),
+                    matched_teams={org.slug: teams for org, teams in tenants.items()},
+                    **row,
+                )
+                created.append(candidate)
+                known.add(row['federation_id'])
     return created

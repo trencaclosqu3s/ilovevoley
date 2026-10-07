@@ -621,6 +621,10 @@ class LeagueCandidate(models.Model):
         help_text=_('Si es una fase de otra liga (Oro/Plata, copas). Sugerida por categoría; la federación no es consistente'),
     )
     matched_teams = models.JSONField(default=dict, help_text=_('{slug del tenant: [equipos que juegan]}'))
+    is_historical = models.BooleanField(
+        default=False,
+        help_text=_('Detectada en una temporada pasada: al aprobar se crea como liga histórica inactiva.'),
+    )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True)
     league = models.OneToOneField(League, on_delete=models.SET_NULL, null=True, blank=True, related_name='candidate')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -645,6 +649,9 @@ class LeagueCandidate(models.Model):
                 competition_type='cup' if is_cup else 'regular',
                 parent_league_id=self.parent_league_id, phase_name=self.phase_label if self.parent_league_id else '',
                 phase_order=1 if self.parent_league_id else 0,
+                visibility_type='historical' if self.is_historical else 'main',
+                is_historical=self.is_historical,
+                is_active=not self.is_historical,
             )
             if self.category_id:
                 league.categories.add(self.category_id)

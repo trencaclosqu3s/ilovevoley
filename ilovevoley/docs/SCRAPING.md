@@ -563,6 +563,66 @@ misma categoría, a veces cuelga de la liga existente). Se sugiere como
 el superuser la confirma, cambia o vacía. Las ligas dadas de alta a mano que aparecen en el menú (mismo `federation_id`) se enlazan solas con una candidata `approved`, así que también valen como padre. Si sección o fase contienen
 "copa", "campeonato" o "torneo" se crea con `competition_type='cup'`.
 
+## Circulares federativas (#368)
+
+Además de las convocatorias (tipos 7 y 22, con PDF parseado), se indexan otras
+circulares de `JSON/get_circulares.asp?tipo={N}&pag={P}&temp={YYZZ}` como
+`FederationCircular`: tipo, título, fecha y nombre del PDF. **No se descarga ni
+se parsea el PDF** (los disciplinarios pueden incluir datos de menores); el
+enlace `pdf_url` apunta al original en la federación.
+
+| tipo | Contenido |
+|------|-----------|
+| 1 | Competiciones |
+| 6 | Comité de competición / expedientes disciplinarios |
+| 8 | Vóley playa |
+| 9 | Formación |
+| 11 | Normas y reglamentos |
+| 12 | Árbitros |
+| 13 | Documentos FVBIB |
+| 15 | Transparencia |
+
+**Flujo:** la tarea `scrape_federation_circulars` (`config/celery_schedule.py`,
+diaria 09:00) o `manage.py scrape_federation_circulars [--season 2026-27]
+[--tipo 6 --tipo 11] [--dry-run]` indexa por defecto los tipos 6, 11 y 8 (vóley
+playa, de momento solo visible en el admin); el resto se piden con `--tipo`. Es
+idempotente (clave: tipo + título + fecha), guarda circulares sin PDF o sin fecha
+válida y refresca `file_name` si el PDF se publica o cambia después. Hoy solo se
+consultan desde el admin (*Circulares federativas*); no hay vista pública ni push.
+
+**Disciplinarias (tipo 6):** los títulos son genéricos ("RESOLUCIONES EXPEDIENTES
+DISCIPLINARIOS 17"), así que la relevancia solo se ve en el PDF. Se descarga una
+vez, se lee con `pypdf` y se descarta; solo se guardan como `FederationSanction`
+las **filas** (una por fecha `dd/mm/aa`) que mencionan algún valor de
+`Organization.club_team_names` de un tenant (subcadena sin acentos ni mayúsculas).
+Si el nombre de una categoría guardada (`Category`, la más larga) aparece en la
+fila se enlaza en `category`. El texto de la fila va sin parsear por columnas
+porque cada PDF las maqueta distinto; los PDF ya anonimizan a las personas con
+iniciales. Un PDF ilegible se reintenta en la siguiente pasada
+(`FederationCircular.rows_extracted_at` vacío). Admin: *Sanciones federativas*.
+
+Algunas combinaciones tipo/temporada devuelven `items: []` (p. ej. tipo 6 en
+2627 al empezar la temporada).
+
+## Noticias federativas (#370)
+
+`JSON/get_actividades?n=100&pag={P}&tipo=&filtro=&o=` lista las noticias de la
+FVBIB con `ID`, `Fecha`, `Titular`, `tipo`, `Imagen` y `club`. Sin `tipo` devuelve las
+mismas que `get_noticias.dcl` más las actividades de clubes (#371), que solo se
+distinguen por traer `club` (`get_noticias.asp?tipo=` puede dar error SQL). En
+oct 2026 hay una sola con club en todo el histórico (un campus, tipo 11). Sin `tipo` trae todas; las de
+playa recientes llegan etiquetadas como `Generales` (la etiqueta `Voley-Playa` solo
+aparece en las antiguas), así que no se filtra por ella.
+
+Se guardan como `FederationNews`: solo metadatos y enlace a la web oficial
+(`noticia?id=`), sin el cuerpo HTML (`get_noticia.asp`), para no sanitizarlo ni
+mezclar catalán y castellano. La tarea `scrape_federation_news`
+(`config/celery_schedule.py`, diaria 09:15) o `manage.py scrape_federation_news
+[--pages 5]` pagina hasta una página sin noticias nuevas: en régimen diario es una
+petición y la primera pasada rellena hasta 500. Si esa primera pasada se interrumpe,
+`--full` recorre todas las páginas aunque no haya novedades. Hoy solo se consulta desde el admin
+(*Noticias federativas*); qué mostrar al front se decidirá viendo el flujo real.
+
 ## Notas Importantes
 
 - ⚠️ **Respetar rate limiting**: No hacer requests muy frecuentes (usar --delay)

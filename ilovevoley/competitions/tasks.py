@@ -1,11 +1,12 @@
 """Tareas Celery de la app competitions."""
 import logging
 from datetime import time, timedelta
+from time import sleep
 
 from celery import shared_task
 from django.utils import timezone
 
-from ilovevoley.competitions.models import Match
+from ilovevoley.competitions.models import League, Match
 from ilovevoley.competitions.services.notifications import notify_match_photo_reminder, notify_match_reminder
 
 logger = logging.getLogger(__name__)
@@ -149,6 +150,23 @@ def scrape_balearic_tracking_task(
     )
 
 
+@shared_task(name='scrape_federation_circulars')
+def scrape_federation_circulars_task():
+    """Indexa las circulares federativas de comité de competición y normas (FVBIB, #368)."""
+    from ilovevoley.core.models import Season
+    from ilovevoley.competitions.services.circulars_ingestion import run_circulars_scrape
+
+    return run_circulars_scrape(Season.objects.current())
+
+
+@shared_task(name='scrape_federation_news')
+def scrape_federation_news_task():
+    """Sincroniza las noticias federativas (FVBIB, #370)."""
+    from ilovevoley.competitions.services.news_ingestion import run_news_scrape
+
+    return run_news_scrape()
+
+
 @shared_task(name='discover_leagues')
 def discover_leagues_task():
     """Busca en el menú federativo ligas nuevas de la temporada activa (#377).
@@ -182,3 +200,50 @@ def discover_leagues_task():
             recipient_list=get_technical_alert_emails(),
         )
     return len(candidates)
+
+
+@shared_task(name='discover_historical_leagues')
+def discover_historical_leagues_task(seasons=5):
+    """Propone candidatas históricas de las últimas ``seasons`` temporadas (#404).
+
+    No crea ligas: deja ``LeagueCandidate`` pendientes con ``is_historical=True``
+    para que el superuser elija en la cola cuáles sincroniza.
+    """
+    from ilovevoley.competitions.services.discovery import discover_historical
+    from ilovevoley.core.models import Season
+
+    base = Season.objects.current()
+    if base is None:
+        return 0
+    past_seasons = [
+        Season.objects.resolve(f'{base.start_year - i}-{base.start_year - i + 1}')
+        for i in range(1, seasons + 1)
+    ]
+    return len(discover_historical(past_seasons))
+
+
+@shared_task(name='scrape_historical_leagues')
+def scrape_historical_leagues_task(league_ids, delay=2.0):
+    """Scrapea una sola vez clasificación, calendario y resultados de ligas históricas (#404).
+
+    Acepta ligas inactivas (las históricas lo son) y trae los marcadores con
+    ``scrape_all_results_rounds``, que es lo que alimenta el H2H. Una liga caída
+    no aborta el resto.
+    """
+    from ilovevoley.videos.scraping import FederationScraper
+
+    summary = []
+    leagues = list(League.objects.filter(pk__in=league_ids, is_historical=True))
+    for i, league in enumerate(leagues):
+        matches = 0
+        try:
+            scraper = FederationScraper(league)
+            results = scraper.scrape_all_endpoints()
+            matches += sum(len(data.get('matches', [])) for data in results.values() if 'error' not in data)
+            matches += scraper.scrape_all_results_rounds(delay=delay).get('total_matches', 0)
+        except Exception:  # noqa: BLE001 - una liga caída no debe abortar la ingesta
+            logger.error('Error scrapeando la liga histórica %s', league.pk, exc_info=True)
+        summary.append({'league_id': league.pk, 'matches': matches})
+        if i < len(leagues) - 1:
+            sleep(delay)
+    return summary

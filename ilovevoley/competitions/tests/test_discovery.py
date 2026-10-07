@@ -17,6 +17,17 @@ MENU = """
 """
 
 
+HISTORICAL_MENU = """
+<a data-toggle="collapse" data-parent="#accordion" href="#1" aria-expanded="true" aria-controls="1" >
+  INSULAR ESCOLAR MALLORCA
+</a>
+<a data-toggle="collapse" data-parent="#accordion" href="#100" aria-expanded="true" aria-controls="100" class="category">ALEVIN MASCULINO 4X4 <i class="fa fa-angle-down"></i> </a>
+<p class="fase"><i class="fa fa-angle-right"></i> <a href="clasificaciones?id=8020&desp=1001">Liga Regular </a>
+<a data-toggle="collapse" data-parent="#accordion" href="#101" aria-expanded="true" aria-controls="101" class="category">BENJAMIN MASCULINO <i class="fa fa-angle-down"></i> </a>
+<p class="fase"><i class="fa fa-angle-right"></i> <a href="clasificaciones?id=8090&desp=1002">Liga Regular </a>
+"""
+
+
 def test_parse_menu_keeps_section_category_and_phase():
     assert discovery.parse_menu(MENU) == [
         {'section': 'INSULAR ESCOLAR MALLORCA', 'category_label': 'ALEVIN MASCULINO 4X4',
@@ -137,6 +148,126 @@ def test_discover_now_button_is_superuser_only(client):
     root = users.create_superuser('root', 'root@example.com', 'x')
     url = reverse('admin:competitions_leaguecandidate_discover_now')
     with mock.patch('ilovevoley.competitions.tasks.discover_leagues_task.delay') as delay:
+        client.force_login(staff)
+        client.get(url)
+        delay.assert_not_called()
+        client.force_login(root)
+        client.get(url)
+        delay.assert_called_once_with()
+
+
+def test_is_base_category_matches_only_base_keywords():
+    assert discovery.is_base_category('ALEVIN MASCULINO 4X4')
+    assert discovery.is_base_category('Cadete Femenino')
+    assert discovery.is_base_category('ALEVIN MIXTO')  # sin género claro también vale: decide el superuser
+    assert not discovery.is_base_category('BENJAMIN MASCULINO')
+    assert not discovery.is_base_category('SENIOR MASCULINO')
+    assert not discovery.is_base_category('JUNIOR FEMENINO')
+
+
+@pytest.mark.django_db
+def test_discover_historical_proposes_pending_candidates_without_creating_leagues():
+    season = Season.objects.resolve('2023-24')
+    alevin = Category.objects.create(name='Alevín Masculino', gender='male')
+    Organization.objects.create(slug='sj', name='SJ', club_team_names={'a': 'CLUB TEST'})
+    with mock.patch.object(discovery, 'fetch_menu', return_value=HISTORICAL_MENU), \
+            mock.patch.object(discovery, 'fetch_team_names', return_value=['CLUB TEST A']):
+        created = discovery.discover_historical([season])
+
+    # Solo la candidata de categoría base; benjamín queda fuera
+    assert [candidate.federation_id for candidate in created] == ['8020']
+    candidate = created[0]
+    assert candidate.status == 'pending'
+    assert candidate.is_historical is True
+    assert candidate.season == season
+    assert candidate.category == alevin
+    assert candidate.matched_teams == {'sj': ['CLUB TEST A']}
+    assert League.objects.count() == 0  # el superuser decide en la cola
+
+
+@pytest.mark.django_db
+def test_approve_historical_candidate_creates_inactive_historical_league():
+    season = Season.objects.resolve('2023-24')
+    candidate = LeagueCandidate.objects.create(
+        federation_id='8020', season=season, category_label='ALEVIN MASCULINO 4X4',
+        phase_label='Liga Regular', is_historical=True,
+    )
+    league = candidate.approve()
+    assert (league.visibility_type, league.is_historical, league.is_active) == ('historical', True, False)
+
+
+@pytest.mark.django_db
+def test_discover_historical_skips_known_leagues_and_candidates_without_colliding():
+    season = Season.objects.resolve('2023-24')
+    Organization.objects.create(slug='sj', name='SJ', club_team_names={'a': 'SANT JOSEP'})
+    current = League.objects.create(name='Alevín vigente', federation_id='8020', season=season)
+    LeagueCandidate.objects.create(federation_id='8090', season=season, category_label='BENJAMIN')
+    with mock.patch.object(discovery, 'fetch_menu', return_value=HISTORICAL_MENU), \
+            mock.patch.object(discovery, 'fetch_team_names', return_value=['CV SANT JOSEP A']):
+        created = discovery.discover_historical([season])
+
+    assert created == []
+    current.refresh_from_db()
+    assert (current.visibility_type, current.is_historical) == ('main', False)
+    assert League.objects.filter(federation_id='8020').count() == 1
+
+
+@pytest.mark.django_db
+def test_command_windows_previous_seasons_and_leaves_candidates_pending():
+    from ilovevoley.competitions.management.commands.discover_historical_leagues import Command
+
+    root = Season.objects.resolve('2026-27')
+    root.is_current = True
+    root.save()
+    Organization.objects.create(slug='sj', name='SJ', club_team_names={'a': 'CLUB TEST'})
+    Category.objects.create(name='Alevín Masculino', gender='male')
+
+    def menu(temp, session):
+        return HISTORICAL_MENU.replace('8020', f'80{temp}')
+
+    with mock.patch.object(discovery, 'fetch_menu', side_effect=menu), \
+            mock.patch.object(discovery, 'fetch_team_names', return_value=['CLUB TEST A']):
+        Command().handle(seasons=3, season=None)
+
+    assert sorted(LeagueCandidate.objects.values_list('season__name', flat=True)) == ['2023-24', '2024-25', '2025-26']
+    assert LeagueCandidate.objects.filter(is_historical=True, status='pending').count() == 3
+    assert League.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_scrape_historical_task_only_touches_historical_leagues():
+    from ilovevoley.competitions.tasks import scrape_historical_leagues_task
+
+    season = Season.objects.resolve('2023-24')
+    first = League.objects.create(
+        name='Histórica 1', federation_id='H1', season=season,
+        visibility_type='historical', is_historical=True, is_active=False,
+    )
+    second = League.objects.create(
+        name='Histórica 2', federation_id='H2', season=season,
+        visibility_type='historical', is_historical=True, is_active=False,
+    )
+    active = League.objects.create(name='Activa', federation_id='A1', season=season)
+    with mock.patch('ilovevoley.videos.scraping.FederationScraper') as scraper_cls:
+        scraper_cls.return_value.scrape_all_endpoints.return_value = {}
+        scraper_cls.return_value.scrape_all_results_rounds.return_value = {'total_matches': 4}
+        summary = scrape_historical_leagues_task([first.pk, second.pk, active.pk], delay=0)
+
+    assert {item['league_id'] for item in summary} == {first.pk, second.pk}
+    assert all(item['matches'] == 4 for item in summary)
+    assert {call.args[0].pk for call in scraper_cls.call_args_list} == {first.pk, second.pk}
+
+
+@pytest.mark.django_db
+def test_discover_historical_button_is_superuser_only(client):
+    from django.contrib.auth import get_user_model
+    from django.urls import reverse
+
+    users = get_user_model().objects
+    staff = users.create_user('staff', 'staff@example.com', 'x', is_staff=True)
+    root = users.create_superuser('root', 'root@example.com', 'x')
+    url = reverse('admin:competitions_leaguecandidate_discover_historical_now')
+    with mock.patch('ilovevoley.competitions.tasks.discover_historical_leagues_task.delay') as delay:
         client.force_login(staff)
         client.get(url)
         delay.assert_not_called()
