@@ -109,6 +109,8 @@ def resolve_team_identity(team, *, sponsor_name: str = ''):
             team.identity = root.identity
             team.save(update_fields=['identity'])
             return root.identity, None
+        # Root aún dudoso/huérfano: no crear identidad propia de la variante
+        return None, None
 
     core = extract_core_name(team.name, sponsor)
     gender = effective_gender(team)
