@@ -26,6 +26,21 @@ def test_parse_menu_keeps_section_category_and_phase():
     ]
 
 
+def test_parse_menu_reads_phases_split_in_groups():
+    # Con grupos el enlace lleva title= e icono; antes la regex los descartaba (ligas sin descubrir)
+    menu = '''
+<a data-toggle="collapse" data-parent="#accordion" href="#1" aria-expanded="true" aria-controls="1" >INSULAR ESCOLAR MALLORCA</a>
+<a data-toggle="collapse" data-parent="#accordion" href="#305" aria-expanded="true" aria-controls="305" class="category">Infantil Masculina <i class="fa fa-angle-down"></i> </a>
+<p class="fase">Liga Regular</p>
+<ul><li><a href="clasificaciones?id=7998&desp=30545" title="Competición"><i class="fa fa-angle-right"></i> GRUP A</a></li>
+<li><a href="eliminatoria?id=8163&desp=30546" title="Competición"><i class="fa fa-angle-right"></i> 5è-6è</a></li>
+<li><a href="clasificaciones?id=7999&desp=30545" title="Competición"><i class="fa fa-angle-right"></i> GRUP B</a></li></ul>
+'''
+    assert [(r['federation_id'], r['phase_label']) for r in discovery.parse_menu(menu)] == [
+        ('7998', 'Liga Regular - GRUP A'), ('7999', 'Liga Regular - GRUP B'),
+    ]
+
+
 @pytest.mark.django_db
 def test_detect_category_needs_clear_keyword_and_gender():
     alevin = Category.objects.create(name='Alevín Masculino', gender='male')
