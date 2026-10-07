@@ -10,6 +10,7 @@ import requests as http_requests
 from PIL import Image as Image_
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.core.cache import cache
 from django.db import transaction
@@ -350,7 +351,21 @@ def match_detail(request, match_id):
                 ),
             })
 
+    edit_story = None
+    if request.user.is_authenticated and request.GET.get('story', '').isdecimal():
+        saved = StoryComposition.objects.filter(
+            id=request.GET['story'], user=request.user, organization=request.tenant, match=match
+        ).first()
+        if saved:
+            edit_story = {
+                'id': saved.id,
+                'photo_id': saved.image_id,
+                'format': saved.card_format,
+                'layout': saved.layout,
+            }
+
     return render(request, 'competitions/match_detail.html', {
+        'edit_story': edit_story,
         'match': match,
         'videos': videos,
         'images': images,
@@ -510,6 +525,19 @@ def _downscale_png(png: bytes, width: int = 540) -> bytes:
         buffer = BytesIO()
         small.save(buffer, format='PNG')
         return buffer.getvalue()
+
+
+@login_required
+@tenant_access_required()
+@require_POST
+def story_composition_delete(request, composition_id):
+    deleted, _count = StoryComposition.objects.filter(
+        id=composition_id, user=request.user, organization=request.tenant
+    ).delete()
+    if not deleted:
+        raise Http404
+    messages.success(request, _('Composición eliminada'))
+    return redirect('profile')
 
 
 @tenant_access_required()

@@ -260,6 +260,36 @@
             </div>
 
 
+            {% if story_compositions %}
+            <!-- Mis creaciones -->
+            <div class="mt-6 bg-surface rounded-[20px] border border-line p-4">
+                <h2 class="text-lg font-semibold text-ink mb-1">{% trans "Mis creaciones" %}</h2>
+                <p class="text-sm text-muted mb-3">{% trans "Stories que has personalizado y guardado." %}</p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {% for composition in story_compositions %}
+                        <div class="rounded-xl border border-line overflow-hidden flex flex-col">
+                            <img src="{% url 'competitions:match_result_card' composition.match_id %}?composition={{ composition.id }}&preview=1"
+                                 alt="{{ composition.match.home_team_display }} - {{ composition.match.away_team_display }}"
+                                 loading="lazy" class="w-full aspect-[9/16] object-cover bg-tint">
+                            <div class="p-2 text-xs text-ink space-y-2">
+                                <p class="font-medium truncate">{{ composition.match.home_team_display }} - {{ composition.match.away_team_display }}</p>
+                                <div class="flex flex-wrap gap-1">
+                                    <a href="{% url 'competitions:match_detail' composition.match_id %}?story={{ composition.id }}"
+                                       class="px-2 py-1 rounded-full bg-csj-purple-dark text-white">{% trans "Editar" %}</a>
+                                    <a href="{% url 'competitions:match_result_card' composition.match_id %}?composition={{ composition.id }}"
+                                       class="px-2 py-1 rounded-full bg-tint text-ink">{% trans "Descargar" %}</a>
+                                    <form method="post" action="{% url 'competitions:story_composition_delete' composition.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="px-2 py-1 rounded-full bg-tint text-ink">{% trans "Eliminar" %}</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Idioma -->
             <div class="mt-6 bg-surface rounded-[20px] border border-line p-4">
                 <h2 class="text-lg font-semibold text-ink mb-1">{% trans "Idioma" %}</h2>

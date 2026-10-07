@@ -79,3 +79,4 @@
         </div>
     </div>
 </div>
+{% if edit_story %}{{ edit_story|json_script:"story-editor-saved" }}{% endif %}

@@ -104,7 +104,17 @@ def profile_view(request):
         })
 
 
+    story_compositions = []
+    if tenant is not None:
+        from ilovevoley.competitions.models import StoryComposition
+
+        story_compositions = list(
+            StoryComposition.objects.filter(user=user, organization=tenant)
+            .select_related('match__home_team', 'match__away_team')[:24]
+        )
+
     return render(request, 'users/profile.html', {
+        'story_compositions': story_compositions,
         'user': user,
         'organization_preferences': organization_preferences,
         'has_any_preferences': has_any_preferences,

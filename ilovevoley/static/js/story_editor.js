@@ -444,8 +444,12 @@
                 state.format = saved.format;
                 state.photoId = String(saved.photo_id);
                 state.layout = saved.layout;
+                if (state.layout.photo.zoom == null) state.layout.photo.zoom = 1;
             }
             open(Boolean(saved));
         },
     };
+
+    const savedElement = document.getElementById('story-editor-saved');
+    if (savedElement) window.StoryEditor.open(JSON.parse(savedElement.textContent));
 }());

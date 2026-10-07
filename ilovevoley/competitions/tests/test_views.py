@@ -925,6 +925,26 @@ class MatchResultCardViewTests(TestCase):
         overwrite = self._save_composition(photo_id=photo.id, id=composition_id)
         self.assertEqual(overwrite.status_code, 404)
 
+    def test_only_owner_can_delete_composition(self):
+        from ilovevoley.competitions.models import StoryComposition
+        from ilovevoley.users.models import Membership
+
+        photo = self._approved_photo()
+        composition_id = self._save_composition(photo_id=photo.id).json()['id']
+        url = reverse('competitions:story_composition_delete', args=[composition_id])
+
+        other = get_user_model().objects.create_user(username='other-del', password='pass')
+        Membership.objects.create(user=other, organization=self.org, is_approved=True, role='member')
+        self.client.force_login(other)
+        denied = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(denied.status_code, 404)
+        self.assertTrue(StoryComposition.objects.filter(id=composition_id).exists())
+
+        self.client.force_login(self.user)
+        deleted = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(deleted.status_code, 302)
+        self.assertFalse(StoryComposition.objects.filter(id=composition_id).exists())
+
     def test_save_rejects_photo_from_other_organization(self):
         other_org = Organization.objects.create(slug='otherclub', name='Other Club', is_active=True)
         photo = self._approved_photo(organization=other_org)
