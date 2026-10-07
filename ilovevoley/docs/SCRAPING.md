@@ -604,6 +604,22 @@ iniciales. Un PDF ilegible se reintenta en la siguiente pasada
 Algunas combinaciones tipo/temporada devuelven `items: []` (p. ej. tipo 6 en
 2627 al empezar la temporada).
 
+## Noticias federativas (#370)
+
+`JSON/get_noticias.dcl?n=100&pag={P}&tipo=` (la variante `.dcl` es la que usa la
+web; `get_noticias.asp?tipo=` puede devolver error SQL) lista las noticias de la
+FVBIB con `ID`, `Fecha`, `Titular`, `tipo` e `Imagen`. Sin `tipo` trae todas; las de
+playa recientes llegan etiquetadas como `Generales` (la etiqueta `Voley-Playa` solo
+aparece en las antiguas), así que no se filtra por ella.
+
+Se guardan como `FederationNews`: solo metadatos y enlace a la web oficial
+(`noticia?id=`), sin el cuerpo HTML (`get_noticia.asp`), para no sanitizarlo ni
+mezclar catalán y castellano. La tarea `scrape_federation_news`
+(`config/celery_schedule.py`, diaria 09:15) o `manage.py scrape_federation_news
+[--pages 5]` pagina hasta una página sin noticias nuevas: en régimen diario es una
+petición y la primera pasada rellena hasta 500. Hoy solo se consulta desde el admin
+(*Noticias federativas*); qué mostrar al front se decidirá viendo el flujo real.
+
 ## Notas Importantes
 
 - ⚠️ **Respetar rate limiting**: No hacer requests muy frecuentes (usar --delay)

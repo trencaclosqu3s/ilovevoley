@@ -1,4 +1,5 @@
 from .callups import CallUpPlayer, FederationCallUp
+from .news import FederationNews
 from .circulars import FederationCircular, FederationSanction
 from .competitions import (
     League,
@@ -21,6 +22,7 @@ __all__ = [
     'CallUpPlayer',
     'FederationCallUp',
     'FederationCircular',
+    'FederationNews',
     'FederationSanction',
     'League',
     'LeagueCandidate',

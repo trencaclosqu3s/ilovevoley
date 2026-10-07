@@ -106,6 +106,13 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute=0, hour=9),
         'options': {'expire_seconds': 3600},
     },
+    # --- Noticias federativas (#370) --------------------------------------------
+    # Se publican pocas por semana; la primera pasada tras desplegar rellena el histórico.
+    'scrape-federation-news': {
+        'task': 'scrape_federation_news',
+        'schedule': crontab(minute=15, hour=9),
+        'options': {'expire_seconds': 3600},
+    },
     # --- Descubrimiento de ligas (#377) ----------------------------------------
     # La federación publica competiciones escalonadas todo el año (categorías que
     # llegan tarde, fases, copas); cada pasada solo consulta lo aún no conocido.
