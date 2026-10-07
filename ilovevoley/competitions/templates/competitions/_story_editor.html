@@ -1,0 +1,82 @@
+{% load i18n %}
+<div id="story-editor"
+     class="hidden fixed inset-0 z-50 items-center justify-center sm:p-4 bg-black bg-opacity-60"
+     role="dialog" aria-modal="true" aria-label="{% trans 'Personalizar story' %}"
+     data-card-url="{% url 'competitions:match_result_card' match.id %}"
+     data-save-url="{% url 'competitions:story_composition_save' match.id %}"
+     data-primary="{{ request.tenant.primary_color|default:'#7B5FA0' }}"
+     data-filename="resultado-{{ match.id }}"
+     data-share-text="{{ match.home_team_display }} {{ match.result_display }} {{ match.away_team_display }}"
+     data-msg-no-photo="{% trans 'Elige una foto del partido' %}"
+     data-msg-error="{% trans 'No se pudo generar la tarjeta. Inténtalo de nuevo' %}"
+     data-msg-saved="{% trans 'Composición guardada' %}"
+     data-msg-downloaded="{% trans 'Imagen descargada' %}"
+     data-msg-generating="{% trans 'Generando la tarjeta, puede tardar unos segundos…' %}"
+     data-msg-tap-share="{% trans 'Toca para compartir' %}"
+     data-msg-share="{% trans 'Compartir' %}">
+    <div class="bg-surface w-full h-full sm:h-auto sm:max-w-3xl sm:max-h-[92vh] overflow-y-auto sm:rounded-[20px] sm:border border-line-xl flex flex-col">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-line">
+            <h3 class="font-semibold text-ink">{% trans "Personalizar story" %}</h3>
+            <button type="button" id="se-close" class="text-muted hover:text-ink text-2xl leading-none px-2" aria-label="{% trans 'Cerrar' %}">&times;</button>
+        </div>
+
+        <div class="p-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]">
+            <div id="se-stage-wrap" class="flex flex-col items-center gap-2">
+                <div id="se-stage" class="relative bg-tint rounded-lg overflow-hidden touch-none select-none">
+                    <img id="se-preview" alt="" class="absolute inset-0 w-full h-full pointer-events-none" draggable="false">
+                    <div id="se-score-box" class="hidden absolute border-2 border-dashed border-white rounded-lg touch-none cursor-move">
+                        <div id="se-score-handle" class="absolute -right-3 -bottom-3 w-7 h-7 rounded-full bg-white border-2 border-csj-purple shadow touch-none cursor-nwse-resize"></div>
+                    </div>
+                </div>
+                <p class="text-xs text-muted text-center">{% trans "Arrastra la foto para encuadrarla, pellizca para el zoom y mueve o escala el marcador." %}</p>
+            </div>
+
+            <div class="space-y-4 text-sm text-ink">
+                <div>
+                    <span class="block text-xs text-muted mb-1">{% trans "Formato" %}</span>
+                    <div class="inline-flex rounded-full bg-tint p-1">
+                        <button type="button" data-se-format="story" class="se-format px-3 py-1 rounded-full font-medium transition bg-csj-purple-dark text-white">{% trans "Story 9:16" %}</button>
+                        <button type="button" data-se-format="square" class="se-format px-3 py-1 rounded-full font-medium transition text-muted">{% trans "1:1" %}</button>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="block text-xs text-muted mb-1">{% trans "Foto" %}</span>
+                    <div id="se-photos" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <label class="block">
+                    <span class="block text-xs text-muted mb-1">{% trans "Zoom de la foto" %}</span>
+                    <input id="se-zoom" type="range" min="0.5" max="4" step="0.01" value="1" class="w-full">
+                </label>
+
+                <fieldset class="space-y-1" data-se-gradient="top">
+                    <legend class="text-xs text-muted">{% trans "Degradado superior" %}</legend>
+                    <div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1">
+                        <input type="color" data-se-prop="color" class="row-span-2 w-10 h-10 rounded border border-line bg-transparent" aria-label="{% trans 'Color' %}">
+                        <input type="range" data-se-prop="alpha" min="0" max="255" step="1" class="w-full min-w-0" aria-label="{% trans 'Intensidad' %}" title="{% trans 'Intensidad' %}">
+                        <input type="range" data-se-prop="height" min="0" max="0.6" step="0.01" class="w-full min-w-0" aria-label="{% trans 'Altura' %}" title="{% trans 'Altura' %}">
+                    </div>
+                </fieldset>
+                <fieldset class="space-y-1" data-se-gradient="bottom">
+                    <legend class="text-xs text-muted">{% trans "Degradado inferior" %}</legend>
+                    <div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1">
+                        <input type="color" data-se-prop="color" class="row-span-2 w-10 h-10 rounded border border-line bg-transparent" aria-label="{% trans 'Color' %}">
+                        <input type="range" data-se-prop="alpha" min="0" max="255" step="1" class="w-full min-w-0" aria-label="{% trans 'Intensidad' %}" title="{% trans 'Intensidad' %}">
+                        <input type="range" data-se-prop="height" min="0" max="0.6" step="0.01" class="w-full min-w-0" aria-label="{% trans 'Altura' %}" title="{% trans 'Altura' %}">
+                    </div>
+                </fieldset>
+                <p class="text-xs text-muted">{% trans "Color, intensidad (primera barra) y altura (segunda) de cada degradado. La cabecera y el pie son fijos." %}</p>
+            </div>
+        </div>
+
+        <div class="mt-auto flex flex-wrap items-center gap-2 px-4 py-3 border-t border-line">
+            <button type="button" id="se-share" class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple-dark hover:opacity-90 text-white transition">{% trans "Compartir" %}</button>
+            <button type="button" id="se-download" class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-tint text-ink hover:opacity-80 transition">{% trans "Descargar" %}</button>
+            {% if user.is_authenticated %}
+                <button type="button" id="se-save" class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-tint text-ink hover:opacity-80 transition">{% trans "Guardar en mi perfil" %}</button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% if edit_story %}{{ edit_story|json_script:"story-editor-saved" }}{% endif %}

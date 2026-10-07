@@ -1,5 +1,6 @@
 from .callups import CallUpPlayer, FederationCallUp
 from .news import FederationNews
+from .story import StoryComposition
 from .circulars import FederationCircular, FederationSanction
 from .competitions import (
     League,
@@ -37,6 +38,7 @@ __all__ = [
     'MatchShareLink',
     'ScrapingEndpoint',
     'Standing',
+    'StoryComposition',
     'Venue',
 ]
 

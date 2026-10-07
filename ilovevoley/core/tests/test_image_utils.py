@@ -2,9 +2,9 @@ import base64
 from io import BytesIO
 
 from django.test import SimpleTestCase
-from PIL import Image
+from PIL import Image, ImageDraw
 
-from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
+from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image, normalize_crest
 
 
 def _data_uri(image_format, mime_type, size=(10, 10)):
@@ -71,3 +71,35 @@ class ImageToDataUriTests(SimpleTestCase):
 
         self.assertIsNone(image_to_data_uri(None))
 
+
+
+class NormalizeCrestTests(SimpleTestCase):
+    """Los escudos de la federación son JPEG con fondo blanco y proporciones dispares."""
+
+    @staticmethod
+    def _federation_crest():
+        image = Image.new('RGB', (300, 200), (255, 255, 255))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([100, 40, 200, 160], fill=(20, 40, 120))
+        draw.rectangle([140, 80, 160, 120], fill=(255, 255, 255))  # blanco interior
+        buffer = BytesIO()
+        image.save(buffer, format='JPEG', quality=95)
+        return buffer.getvalue()
+
+    def test_crops_to_centered_square_with_transparent_background(self):
+        result = Image.open(BytesIO(normalize_crest(self._federation_crest())))
+
+        self.assertEqual(result.width, result.height)
+        self.assertEqual(result.getpixel((0, 0))[3], 0)
+        centre = (result.width // 2, result.height // 2)
+        self.assertEqual(result.getpixel(centre)[3], 255)  # el blanco interior se conserva
+        left, _, right, _ = result.getchannel('A').getbbox()
+        self.assertGreater(left, result.width * 0.1)
+        self.assertLess(right, result.width * 0.9)
+
+    def test_returns_none_for_non_images_and_blank_images(self):
+        blank = BytesIO()
+        Image.new('RGB', (50, 50), (255, 255, 255)).save(blank, format='PNG')
+
+        self.assertIsNone(normalize_crest(b'<html>no soy una imagen</html>'))
+        self.assertIsNone(normalize_crest(blank.getvalue()))
