@@ -66,6 +66,8 @@ _LOGO_ISOTYPE = _STATIC / 'images' / 'logo_isotype_white.png'
 MARGIN = 80
 NAME_GAP = 60
 NAME_FONT_SIZE = 42
+HEADER_LOGO_SIZE = 120
+FOOTER_GAP = 64
 
 DARK_TEXT = (26, 26, 26)
 WHITE = (255, 255, 255)
@@ -288,12 +290,15 @@ def _draw_frame(draw: ImageDraw.ImageDraw, width: int, height: int, outer, inner
 def _draw_header(draw, image, *, organization, match, x, y, font_sm, font_xs, text_color):
     org_bytes = _org_logo_bytes(organization)
     if org_bytes:
-        org_image = _open_logo(org_bytes, 72)
-        image.paste(org_image, (x, y), org_image)
+        # Disco blanco: el logo del club puede coincidir con el color del tenant (p. ej. azul sobre azul).
+        org_image = _open_logo(org_bytes, round(HEADER_LOGO_SIZE * 0.8))
+        _paste_crest_circle(image, org_image, HEADER_LOGO_SIZE, x, y)
     league_name = getattr(getattr(match, 'league', None), 'name', '') or ''
     date_str = timezone.localtime(match.match_date).strftime('%d/%m/%Y')
-    draw.text((x + 92, y + 10), league_name, font=font_sm, fill=text_color)
-    draw.text((x + 92, y + 50), date_str, font=font_xs, fill=text_color)
+    text_x = x + HEADER_LOGO_SIZE + 20
+    text_y = y + (HEADER_LOGO_SIZE - 80) // 2
+    draw.text((text_x, text_y), league_name, font=font_sm, fill=text_color)
+    draw.text((text_x, text_y + 40), date_str, font=font_xs, fill=text_color)
 
 
 def _fit_team_names(draw, match, max_width: int):
@@ -477,8 +482,8 @@ def render_result_card(
 
         content_bottom = height - metrics['card_pad']
         footer_y = content_bottom - footer_height
-        sets_y = footer_y - 24 - sets_height if set_list else footer_y
-        names_y = sets_y - 20 - name_row_height
+        sets_y = footer_y - FOOTER_GAP - sets_height
+        names_y = sets_y - 20 - name_row_height if set_list else sets_y + sets_height - name_row_height
         crest_top = names_y - 16 - crest_size
 
         _paste_crest_circle(image, home_crest, crest_size, side_x, crest_top)
@@ -524,7 +529,7 @@ def render_result_card(
             2 * card_pad + crest_size + 24 + name_row_height
             + (24 + sets_height if set_list else 0)
         )
-        header_bottom = metrics['header_y'] + 100
+        header_bottom = metrics['header_y'] + HEADER_LOGO_SIZE + 28
         footer_top = height - metrics['card_pad']
         card_top = header_bottom + (footer_top - header_bottom - card_height) // 2
         card_left, card_right = MARGIN, width - MARGIN

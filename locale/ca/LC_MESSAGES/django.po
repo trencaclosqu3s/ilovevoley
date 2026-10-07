@@ -4345,15 +4345,19 @@ msgstr "Error carregant partits"
 msgid "Volver a videos"
 msgstr "Tornar a vídeos"
 
-#: ilovevoley/content/templates/content/video_detail.html:42
+#: ilovevoley/content/templates/content/video_detail.html:41
+msgid "Ver acta, fotos y más del partido"
+msgstr "Veure acta, fotos i més del partit"
+
+#: ilovevoley/content/templates/content/video_detail.html:50
 msgid "Comentarios"
 msgstr "Comentaris"
 
-#: ilovevoley/content/templates/content/video_detail.html:55
+#: ilovevoley/content/templates/content/video_detail.html:63
 msgid "Añadir Comentario"
 msgstr "Afegir comentari"
 
-#: ilovevoley/content/templates/content/video_detail.html:86
+#: ilovevoley/content/templates/content/video_detail.html:94
 msgid "Aún no hay comentarios. ¡Sé el primero en comentar!"
 msgstr "Encara no hi ha comentaris. Sigues el primer a comentar!"
 
@@ -10776,6 +10780,18 @@ msgstr "Els meus equips"
 #: ilovevoley/templates/users/profile_edit.html:241
 msgid "Tipos de Notificaciones Push"
 msgstr "Tipus de Notificacions Push"
+
+#: ilovevoley/templates/includes/navbar.html
+msgid "¿Quieres recibir avisos?"
+msgstr "Vols rebre avisos?"
+
+#: ilovevoley/templates/includes/navbar.html
+msgid "Activa las notificaciones para enterarte de partidos y novedades de tus categorías."
+msgstr "Activa les notificacions per assabentar-te de partits i novetats de les teves categories."
+
+#: ilovevoley/templates/includes/navbar.html
+msgid "Activar"
+msgstr "Activar"
 
 #: ilovevoley/templates/users/profile_edit.html:283
 msgid ""
