@@ -86,7 +86,11 @@
             navigator.serviceWorker.ready.then(function (reg) {
                 return reg.pushManager.getSubscription();
             }).then(function (sub) {
-                if (!sub) banner.classList.remove('hidden');
+                if (!sub) {
+                    banner.classList.remove('hidden');
+                } else {
+                    try { localStorage.setItem(PROMPT_KEY, '1'); } catch (e) { /* almacenamiento no disponible */ }
+                }
             }).catch(function () {});
         },
 
@@ -102,12 +106,16 @@
 
         acceptPrompt: function () {
             var self = this;
-            var target = document.getElementById('webpush-prompt').getAttribute('data-target-url');
-            self.closePrompt();
+            var banner = document.getElementById('webpush-prompt');
+            var target = banner.getAttribute('data-target-url');
             navigator.serviceWorker.ready.then(function (reg) {
                 return self.subscribe(reg);
-            }).catch(function () {}).finally(function () {
+            }).then(function () {
+                self.closePrompt();
                 window.location.href = target;
+            }).catch(function () {
+                // Fallo transitorio o permiso no concedido: se oculta sin marcarlo como visto ni navegar.
+                banner.classList.add('hidden');
             });
         },
 
