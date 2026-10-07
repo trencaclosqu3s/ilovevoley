@@ -12,6 +12,7 @@ urlpatterns = [
     path('partidos/<int:match_id>/compartir/', views.match_share_create, name='match_share_create'),
     path('partidos/<int:match_id>/compartir/<int:link_id>/revocar/', views.match_share_revoke, name='match_share_revoke'),
     path('partidos/<int:match_id>/tarjeta/', views.match_result_card, name='match_result_card'),
+    path('partidos/<int:match_id>/tarjeta/guardar/', views.story_composition_save, name='story_composition_save'),
     path('calendario/', views.calendar_view, name='calendar_view'),
     path('resultados/', views.results_view, name='results_view'),
     path('clasificacion/', views.standings_view, name='standings_view'),
