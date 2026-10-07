@@ -478,6 +478,7 @@ def match_result_card(request, match_id):
                 {'error': _('No se pudo leer la foto seleccionada')}, status=400
             )
 
+    report = {}
     png = render_result_card(
         match=match,
         organization=request.tenant,
@@ -485,6 +486,7 @@ def match_result_card(request, match_id):
         card_style='marco' if card_style == 'personalizada' else card_style,
         photo=photo_bytes,
         layout=layout,
+        report=report,
         sets=_load_set_scores_for_card(match),
     )
     if request.GET.get('preview') == '1':
@@ -492,6 +494,7 @@ def match_result_card(request, match_id):
         # previews, habrá que renderizar directamente a escala en el renderer.
         response = HttpResponse(_downscale_png(png), content_type='image/png')
         response['Cache-Control'] = 'no-store'
+        response['X-Layout-Info'] = json.dumps(report)
         return response
     response = HttpResponse(png, content_type='image/png')
     response['Content-Disposition'] = (

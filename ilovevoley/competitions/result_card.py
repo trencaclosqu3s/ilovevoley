@@ -309,7 +309,8 @@ def _draw_background_blobs(image: Image.Image, width: int, height: int, metrics:
 
 
 def _place_photo(
-    source: Image.Image, width: int, height: int, zoom: float, cx: float, cy: float, fill: Image.Image
+    source: Image.Image, width: int, height: int, zoom: float, cx: float, cy: float,
+    fill: Image.Image, report: dict | None = None,
 ) -> Image.Image:
     """Coloca la foto con zoom sobre `fill` manteniendo siempre su proporción.
 
@@ -320,6 +321,12 @@ def _place_photo(
     cover = max(width / source.width, height / source.height)
     contain = min(width / source.width, height / source.height)
     scale = cover * max(zoom, contain / cover)
+    if report is not None:
+        report['photo'] = {
+            'min_zoom': contain / cover,
+            'w': source.width * scale / width,
+            'h': source.height * scale / height,
+        }
     size = (max(1, round(source.width * scale)), max(1, round(source.height * scale)))
     resized = source.resize(size, Image.Resampling.LANCZOS)
 
@@ -333,7 +340,8 @@ def _place_photo(
 
 
 def _photo_background(
-    photo: bytes, width: int, height: int, primary, secondary, metrics: dict, layout: dict
+    photo: bytes, width: int, height: int, primary, secondary, metrics: dict, layout: dict,
+    report: dict | None = None,
 ) -> Image.Image:
     with Image.open(BytesIO(photo)) as raw:
         source = raw.convert('RGB')
@@ -342,7 +350,7 @@ def _photo_background(
         if zoom is not None:
             image = _place_photo(
                 source, width, height, zoom, layout['photo']['cx'], layout['photo']['cy'],
-                _gradient_background(width, height, primary, secondary, metrics),
+                _gradient_background(width, height, primary, secondary, metrics), report,
             )
         # En vertical (Story) una foto más ancha que el lienzo se encuadra entera
         # (contain) y los márgenes superior/inferior se rellenan con el degradado
@@ -512,9 +520,14 @@ def render_result_card(
     sets: Iterable[tuple[int, int]] | None = None,
     photo: bytes | None = None,
     layout: dict | None = None,
+    report: dict | None = None,
     logo_fetcher: LogoFetcher | None = None,
 ) -> bytes:
-    """Renderiza la tarjeta. `layout` (ver `normalize_layout`) solo aplica al estilo "marco"."""
+    """Renderiza la tarjeta. `layout` (ver `normalize_layout`) solo aplica al estilo "marco".
+
+    Si se pasa `report`, se rellena con la geometría normalizada (0-1) que necesita
+    el editor: `layout` normalizado, `score_box` [x, y, w, h] y `photo` {min_zoom, w, h}.
+    """
     if card_format not in CARD_SIZES:
         raise ValueError(_('format inválido: %(format)s') % {'format': card_format})
     if card_style not in CARD_STYLES:
@@ -530,11 +543,13 @@ def render_result_card(
     )
 
     layout = normalize_layout(layout, card_format)
+    if report is not None:
+        report['layout'] = layout
 
     if card_style == 'marco':
         try:
             image = _photo_background(
-                photo, width, height, primary, secondary, metrics, layout
+                photo, width, height, primary, secondary, metrics, layout, report
             )
         except (OSError, ValueError) as exc:
             logger.warning('Foto de marco no válida, usando degradado: %s', exc)
@@ -593,6 +608,10 @@ def render_result_card(
         else:
             crest_top = round(layout['score']['y'] * height - block_height / 2)
             crest_top = min(max(0, crest_top), height - block_height)
+        if report is not None:
+            report['score_box'] = [
+                left / width, crest_top / height, block_width / width, block_height / height
+            ]
         names_y = crest_top + crest_size + names_gap
         sets_y = names_y + name_row_height + sets_gap
 
