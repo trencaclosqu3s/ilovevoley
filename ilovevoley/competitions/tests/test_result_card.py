@@ -22,8 +22,10 @@ def _fake_match(**overrides):
     m.league.name = 'Liga Test'
     m.home_team = MagicMock()
     m.home_team.display_logo = None
+    m.home_team.display_logo_file = None
     m.away_team = MagicMock()
     m.away_team.display_logo = None
+    m.away_team.display_logo_file = None
     for k, v in overrides.items():
         setattr(m, k, v)
     return m

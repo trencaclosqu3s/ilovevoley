@@ -1,7 +1,10 @@
-from django.test import TestCase
+from unittest.mock import patch
+
+from django.test import SimpleTestCase, TestCase
 
 from ilovevoley.core.models import GENDER_FEMALE, GENDER_MALE, Category
 from ilovevoley.teams.models import Club, Team
+from ilovevoley.teams.services import cache_logo
 
 
 class TeamEffectiveGenderTest(TestCase):
@@ -66,3 +69,41 @@ class TeamVariantTests(TestCase):
 
     def test_display_name_with_variant_no_anade_nada_al_principal(self):
         self.assertEqual(self.principal.display_name_with_variant, 'Sant Josep')
+
+
+class DisplayLogoTests(SimpleTestCase):
+    """Precedencia del escudo: copia local antes que la URL de la federación."""
+
+    def test_local_copy_wins_over_remote_urls(self):
+        club = Club(federation_id='7', logo='clubs/logos/7.png')
+        team = Team(club=club)
+
+        self.assertEqual(team.display_logo_file.name, 'clubs/logos/7.png')
+        self.assertTrue(team.display_logo.endswith('clubs/logos/7.png'))
+
+    def test_team_with_own_logo_url_does_not_inherit_club_local_copy(self):
+        club = Club(federation_id='7', logo='clubs/logos/7.png')
+        team = Team(club=club, logo_url='https://fed.example/team.jpg')
+
+        self.assertIsNone(team.display_logo_file)
+        self.assertEqual(team.display_logo, 'https://fed.example/team.jpg')
+
+    def test_falls_back_to_federation_url_without_local_copy(self):
+        club = Club(federation_id='7')
+
+        self.assertIsNone(Team(club=club).display_logo_file)
+        self.assertEqual(Team(club=club).display_logo, club.logo_federation_url)
+        self.assertEqual(
+            Team(club=club, logo_url='https://fed.example/team.jpg').display_logo,
+            'https://fed.example/team.jpg',
+        )
+
+
+class CacheLogoTests(SimpleTestCase):
+    @patch('ilovevoley.competitions.result_card.fetch_logo_bytes')
+    def test_failed_download_or_invalid_image_leaves_logo_empty(self, fetch):
+        club = Club(federation_id='7')
+        for payload in (None, b'<html>no es una imagen</html>'):
+            fetch.return_value = payload
+            self.assertFalse(cache_logo(club))
+            self.assertFalse(club.logo)

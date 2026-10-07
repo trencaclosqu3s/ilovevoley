@@ -83,3 +83,25 @@ def find_best_club(team_name, clubs):
     if best_club is None or best_score < MIN_CANDIDATE_SCORE:
         return None
     return best_club, best_score
+
+
+def cache_logo(obj):
+    """Descarga el escudo de un ``Club``/``Team``, lo normaliza y lo guarda en ``obj.logo``.
+
+    Devuelve True si guardó la copia. Si la descarga falla o la imagen no es
+    válida no toca nada: ``display_logo`` sigue sirviendo la URL de la federación.
+    Un equipo sin ``logo_url`` hereda el escudo de su club y no se descarga nada.
+    """
+    from django.core.files.base import ContentFile
+
+    from ilovevoley.competitions.result_card import fetch_logo_bytes
+    from ilovevoley.core.image_utils import normalize_crest
+
+    url = obj.logo_url or getattr(obj, 'logo_federation_url', None)
+    raw = fetch_logo_bytes(url, timeout=15)
+    png = normalize_crest(raw) if raw else None
+    if png is None:
+        return False
+    obj.logo.save(f'{obj.pk}.png', ContentFile(png), save=False)
+    obj.save(update_fields=['logo'])
+    return True
