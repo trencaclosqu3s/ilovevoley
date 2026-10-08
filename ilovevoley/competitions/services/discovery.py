@@ -13,13 +13,14 @@ import unicodedata
 
 import requests
 
-from ilovevoley.core.models import Category, Organization, infer_gender_from_name
+from ilovevoley.core.models import Category, Organization, Season, infer_gender_from_name
 
 from .balearic_callups_client import DEFAULT_HEADERS, calculate_federation_temp
 
 BASE_URL = 'https://www.voleibolib.net'
 MENU_URL = BASE_URL + '/JSON/get_Menu_Competiciones.asp?temp={temp}'
 STANDINGS_URL = BASE_URL + '/JSON/get_clasificacion.asp?id={federation_id}'
+CALENDAR_URL = BASE_URL + '/JSON/get_calendario.asp?id={federation_id}'
 TIMEOUT = 20
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ _MENU_TOKEN = re.compile(
 )
 _TAG = re.compile(r'<[^>]+>')
 _TEAM_CELL = re.compile(r"<tr><td>\d+\.</td><td>(.*?)</td>", re.S)
+_CALENDAR_TEAM_CELL = re.compile(r'<tr[^>]*>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td><strong>', re.S | re.I)
 _CATEGORY_KEYWORDS = ('benjamin', 'alevin', 'infantil', 'cadete', 'juvenil', 'junior', 'senior')
 # Categorías de formación cuyo histórico alimenta el H2H (#404).
 BASE_CATEGORY_KEYWORDS = ('alevin', 'infantil', 'cadete', 'juvenil')
@@ -44,6 +46,16 @@ def _strip_accents(text):
 
 def _normalize(text):
     return re.sub(r'\s+', ' ', _strip_accents(html.unescape(text or '')).lower()).strip()
+
+
+def detect_modality(section='', category_label='', phase_label=''):
+    """Detecta si la competición es vóley playa o pista."""
+    full_text = f'{section} {category_label} {phase_label}'
+    normalized = _normalize(full_text)
+    if 'playa' in normalized or 'platja' in normalized:
+        return 'beach'
+    return 'indoor'
+
 
 
 def parse_menu(menu_html):
@@ -94,10 +106,35 @@ def fetch_menu(temp, session=requests):
     return response.text
 
 
-def fetch_team_names(federation_id, session=requests):
+def fetch_standings_html(federation_id, session=requests):
     response = session.get(STANDINGS_URL.format(federation_id=federation_id), headers=DEFAULT_HEADERS, timeout=TIMEOUT)
     response.raise_for_status()
-    return [html.unescape(name).strip() for name in _TEAM_CELL.findall(response.text)]
+    return response.text
+
+
+def fetch_calendar_html(federation_id, session=requests):
+    response = session.get(CALENDAR_URL.format(federation_id=federation_id), headers=DEFAULT_HEADERS, timeout=TIMEOUT)
+    response.raise_for_status()
+    return response.text
+
+
+def fetch_team_names_from_calendar(federation_id, session=requests):
+    html_text = fetch_calendar_html(federation_id, session)
+    teams = set()
+    for home, away in _CALENDAR_TEAM_CELL.findall(html_text):
+        for raw in (home, away):
+            clean = html.unescape(_TAG.sub('', raw)).strip()
+            if clean and clean.lower() != 'descansa':
+                teams.add(clean)
+    return sorted(teams)
+
+
+def fetch_team_names(federation_id, session=requests):
+    html_text = fetch_standings_html(federation_id, session)
+    teams = [html.unescape(name).strip() for name in _TEAM_CELL.findall(html_text)]
+    if not teams:
+        teams = fetch_team_names_from_calendar(federation_id, session)
+    return teams
 
 
 def matching_tenants(team_names, organizations):
@@ -138,6 +175,7 @@ def discover(season):
     created = []
     with requests.Session() as session:
         for row in parse_menu(fetch_menu(calculate_federation_temp(season), session)):
+            row_modality = detect_modality(row['section'], row['category_label'], row['phase_label'])
             if row['federation_id'] in manual:
                 # update_or_create: si antes se guardó como rechazada (ajena), ya existe la fila
                 LeagueCandidate.objects.update_or_create(
@@ -146,6 +184,7 @@ def discover(season):
                         **row, 'season': season, 'status': 'approved',
                         'league': manual.pop(row['federation_id']),
                         'category': detect_category(row['category_label']),
+                        'modality': row_modality,
                     },
                 )
                 continue
@@ -160,7 +199,7 @@ def discover(season):
                 continue
             tenants = matching_tenants(team_names, organizations)
             if not tenants:
-                LeagueCandidate.objects.create(season=season, status='rejected', **row)
+                LeagueCandidate.objects.create(season=season, status='rejected', modality=row_modality, **row)
                 known.add(row['federation_id'])
                 continue
             # La federación a veces crea otra sección con la misma categoría y a veces
@@ -175,6 +214,7 @@ def discover(season):
             candidate = LeagueCandidate.objects.create(
                 season=season, parent_league=parent,
                 category=detect_category(row['category_label']),
+                modality=row_modality,
                 matched_teams={org.slug: teams for org, teams in tenants.items()},
                 **row,
             )
@@ -235,9 +275,100 @@ def discover_historical(seasons):
                 candidate = LeagueCandidate.objects.create(
                     season=season, status='pending', is_historical=True,
                     category=detect_category(row['category_label']),
+                    modality=detect_modality(row['section'], row['category_label'], row['phase_label']),
                     matched_teams={org.slug: teams for org, teams in tenants.items()},
                     **row,
                 )
                 created.append(candidate)
                 known.add(row['federation_id'])
+    return created
+
+
+DESGLOSE_URL = BASE_URL + '/JSON/get_partidos_desglose_competiciones.asp'
+
+
+def fetch_desglose_json(fini, ffin, session=requests):
+    response = session.get(
+        DESGLOSE_URL,
+        params={'op': '2', 'fini': fini, 'ffin': ffin},
+        headers=DEFAULT_HEADERS,
+        timeout=TIMEOUT,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def discover_seasonal_beach(season, fini=None, ffin=None, session=requests):
+    """Descubre competiciones de vóley playa en el desglose de partidos por fechas de verano.
+
+    Por defecto consulta del 01/06 al 31/08 del año final de la temporada.
+    Crea ``LeagueCandidate`` pendientes (o rechazadas si no participan tenants) con ``modality='beach'``.
+    """
+    if season is None:
+        return []
+
+    from ..models import League, LeagueCandidate
+
+    end_year = season.end_year or (season.start_year + 1)
+    fini = fini or f'01/06/{end_year}'
+    ffin = ffin or f'31/08/{end_year}'
+
+    organizations = list(Organization.objects.filter(is_active=True))
+    known = set(League.objects.values_list('federation_id', flat=True))
+    known |= set(LeagueCandidate.objects.values_list('federation_id', flat=True))
+
+    try:
+        data = fetch_desglose_json(fini, ffin, session)
+    except (requests.RequestException, ValueError) as e:
+        logger.warning('No se pudo obtener el desglose de competiciones (%s - %s): %s', fini, ffin, e)
+        return []
+
+    if not isinstance(data, dict):
+        logger.warning('Respuesta inesperada al obtener el desglose de competiciones (%s - %s): tipo %s', fini, ffin, type(data))
+        return []
+
+
+    created = []
+    is_historical = not season.is_current
+
+    for cat in data.get('categorias', []):
+        cat_name = cat.get('nombre', '')
+        if detect_modality('', cat_name, '') != 'beach':
+            continue
+
+        for comp in cat.get('competiciones', []):
+            comp_name = comp.get('nombre', '') or 'VOLEYPLAYA'
+            for fase in comp.get('fases', []):
+                fase_name = fase.get('nombre', '')
+                for grupo in fase.get('grupos', []):
+                    grupo_id = str(grupo.get('id', ''))
+                    if not grupo_id or grupo_id in known:
+                        continue
+
+                    phase_label = f'{fase_name} - {grupo.get("nombre", "")}'.strip(' -')
+                    partidos = grupo.get('partidos', [])
+                    teams = set()
+                    for p in partidos:
+                        for key in ('ELOCAL', 'EVISITANTE'):
+                            name = (p.get(key) or '').strip()
+                            if name and name.lower() != 'descansa':
+                                teams.add(name)
+
+                    tenants = matching_tenants(teams, organizations)
+                    candidate = LeagueCandidate.objects.create(
+                        federation_id=grupo_id,
+                        season=season,
+                        section=comp_name,
+                        category_label=cat_name,
+                        phase_label=phase_label,
+                        category=detect_category(cat_name) if tenants else None,
+                        modality='beach',
+                        status='pending' if tenants else 'rejected',
+                        is_historical=is_historical,
+                        matched_teams={org.slug: sorted(t) for org, t in tenants.items()} if tenants else {},
+                    )
+                    if tenants:
+                        created.append(candidate)
+                    known.add(grupo_id)
+
     return created
