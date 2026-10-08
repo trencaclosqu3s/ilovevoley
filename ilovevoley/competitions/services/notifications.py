@@ -665,3 +665,65 @@ def notify_callup_suspected(player: CallUpPlayer) -> bool:
     return True
 
 
+def notify_match_live_stream(match: Match, tenant=None) -> bool:
+    """Envía notificación Web Push de retransmisión en directo (#359).
+
+    - Idempotente: comprueba y actualiza `stream_notified_at` para no repetir el aviso.
+    - Excluye partidos sin stream_url o que no estén en la ventana temporal de directo.
+    - Respeta categorías y el tipo de notificación NotificationType.LIVE_STREAM.
+    - Envía a las organizaciones activas asociadas a los clubes del partido (o `tenant` si se especifica).
+    - Envío en `transaction.on_commit(..., robust=True)`.
+    """
+    if not match.stream_url or not match.is_live_window:
+        return False
+
+    from django.db import transaction
+    from ilovevoley.core.models import Organization
+    from ilovevoley.users.models import NotificationType
+
+    if tenant:
+        orgs = Organization.objects.filter(pk=tenant.pk, is_active=True)
+    else:
+        club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
+        if not club_ids:
+            return False
+        orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
+
+    q = organization_branch_q(match_branches(match))
+    if q is not None:
+        orgs = orgs.filter(q)
+
+    if not orgs.exists():
+        return False
+
+    with transaction.atomic():
+        updated = Match.objects.filter(pk=match.pk, stream_notified_at__isnull=True).update(
+            stream_notified_at=timezone.now()
+        )
+        if not updated:
+            return False
+
+        match.stream_notified_at = timezone.now()
+
+        home_name = match.home_team_display
+        away_name = match.away_team_display
+
+        def build():
+            return (
+                _("🔴 En directo: %(home)s vs %(away)s") % {'home': home_name, 'away': away_name},
+                _("¡El partido %(home)s vs %(away)s se está emitiendo en directo! Toca para ver la retransmisión.")
+                % {'home': home_name, 'away': away_name},
+            )
+
+        _dispatch_organization_push(
+            orgs,
+            build=build,
+            url=reverse('competitions:match_detail', args=[match.id]),
+            category_ids=match_category_ids(match),
+            notification_type=NotificationType.LIVE_STREAM,
+            match_id=match.id,
+        )
+
+    return True
+
+

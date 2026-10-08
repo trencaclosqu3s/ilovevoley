@@ -1,7 +1,9 @@
+from datetime import timedelta
 import re
 import uuid
 
 from django.conf import settings
+from django.core.validators import URLValidator
 from django.db import models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -500,6 +502,20 @@ class Match(models.Model):
         null=True, blank=True, verbose_name=_('Recordatorio de fotos enviado el'),
         help_text=_('Fecha y hora en que se envió el push para animar a subir fotos del partido, para evitar duplicados.'),
     )
+    stream_url = models.URLField(
+        max_length=500,
+        blank=True,
+        default='',
+        validators=[URLValidator(schemes=['http', 'https'])],
+        verbose_name=_('Enlace de retransmisión'),
+        help_text=_('Enlace de la emisión en directo (YouTube, Instagram, etc.). Solo http y https.'),
+    )
+    stream_notified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Aviso de directo enviado el'),
+        help_text=_('Fecha y hora en que se envió la notificación push del directo para evitar duplicados.'),
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -530,6 +546,21 @@ class Match(models.Model):
     @property
     def is_finished(self):
         return self.status == 'finished'
+
+    @property
+    def is_live_window(self) -> bool:
+        """Indica si el partido está en la ventana temporal de directo (-30 min a +3 h)."""
+        if self.status in ['finished', 'cancelled', 'postponed', 'withdrawn']:
+            return False
+        if not self.match_date:
+            return False
+        now = timezone.now()
+        return (self.match_date - timedelta(minutes=30)) <= now <= (self.match_date + timedelta(hours=3))
+
+    @property
+    def is_live(self) -> bool:
+        """Indica si el partido tiene retransmisión activa en directo."""
+        return bool(self.stream_url) and self.is_live_window
 
     @property
     def result_display(self):

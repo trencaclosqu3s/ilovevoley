@@ -1356,6 +1356,117 @@ class CompetitionsTenantIsolationTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_match_detail_isolates_stream_url_for_foreign_match(self):
+        """El enlace de retransmisión solo es visible para el tenant dueño del partido (#345, #359)."""
+        self.other_match.stream_url = 'https://youtube.com/live/foreign123'
+        self.other_match.save()
+        self.match.stream_url = 'https://youtube.com/live/own123'
+        self.match.save()
+
+        self.client.force_login(self.manager)
+
+        # Partido ajeno: stream_url oculto
+        foreign = self.client.get(
+            reverse('competitions:match_detail', args=[self.other_match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(foreign.status_code, 200)
+        self.assertEqual(foreign.context.get('stream_url', ''), '')
+        self.assertFalse(foreign.context.get('can_edit_stream', False))
+        self.assertNotIn('https://youtube.com/live/foreign123', foreign.content.decode())
+
+        # Partido propio: stream_url accesible y can_edit_stream activo para manager
+        own = self.client.get(
+            reverse('competitions:match_detail', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(own.status_code, 200)
+        self.assertEqual(own.context.get('stream_url'), 'https://youtube.com/live/own123')
+        self.assertTrue(own.context.get('can_edit_stream'))
+        self.assertIn('https://youtube.com/live/own123', own.content.decode())
+
+    def test_update_stream_url_blocks_foreign_match(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_update_stream_url', args=[self.other_match.id]),
+            data={'stream_url': 'https://youtube.com/live/new'},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_update_stream_url_requires_manager(self):
+        from ilovevoley.users.models import Membership
+        normal_user = get_user_model().objects.create_user(username='regular', password='pwd')
+        Membership.objects.create(user=normal_user, organization=self.org, is_approved=True, role='member')
+        self.client.force_login(normal_user)
+        response = self.client.post(
+            reverse('competitions:ajax_update_stream_url', args=[self.match.id]),
+            data={'stream_url': 'https://youtube.com/live/new'},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_update_stream_url_rejects_invalid_url(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_update_stream_url', args=[self.match.id]),
+            data={'stream_url': 'javascript:alert(1)'},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['success'])
+
+    @patch('ilovevoley.competitions.views.notify_match_live_stream')
+    def test_update_stream_url_success_and_triggers_push(self, mock_notify):
+        mock_notify.return_value = True
+        self.match.match_date = timezone.now() + timedelta(minutes=15)
+        self.match.save()
+
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_update_stream_url', args=[self.match.id]),
+            data={'stream_url': 'https://youtube.com/live/valid'},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['stream_url'], 'https://youtube.com/live/valid')
+        self.assertTrue(data['notified'])
+
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.stream_url, 'https://youtube.com/live/valid')
+        mock_notify.assert_called_once()
+
+    def test_calendar_displays_live_stream_button_only_for_own_matches(self):
+        """El botón 'En directo' en el calendario solo se muestra para partidos propios (#345, #359)."""
+        now = timezone.now()
+        # Partido propio en directo
+        self.match.match_date = now
+        self.match.stream_url = 'https://youtube.com/live/own_cal'
+        self.match.save()
+
+        # Partido ajeno en directo
+        self.other_match.match_date = now
+        self.other_match.stream_url = 'https://youtube.com/live/foreign_cal'
+        self.other_match.save()
+
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('competitions:calendar_view'),
+            {'year': str(now.year), 'month': str(now.month), 'all_teams': '1'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn('https://youtube.com/live/own_cal', content)
+        self.assertNotIn('https://youtube.com/live/foreign_cal', content)
+
+
     def test_acta_lineup_allows_foreign_match_and_isolates_persons(self):
         """Permite cargar el acta de un partido ajeno, la persiste y no resuelve personas de otros clubes."""
         self.client.force_login(self.manager)
