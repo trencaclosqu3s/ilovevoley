@@ -5,6 +5,8 @@ from django.test import TestCase, override_settings
 
 from ilovevoley.core.models import Category
 from ilovevoley.teams.identity import (
+    IdentityAssignError,
+    assign_common_identity,
     backfill_team_identities,
     extract_core_name,
     notify_new_identity_candidates,
@@ -290,3 +292,56 @@ class TeamIdentityModelTests(TestCase):
         self.assertIsNotNone(team.identity_id)
         self.assertNotEqual(team.identity_id, suggested.pk)
         self.assertEqual(candidate.status, 'rejected')
+
+
+class AssignCommonIdentityTests(TestCase):
+    """Acción admin "asignar identidad común": una identidad por club+categoría+género."""
+
+    def setUp(self):
+        self.club = Club.objects.create(federation_id='c1', official_name='Sant Josep')
+        self.cat = Category.objects.create(name='Cadete')
+
+    def _team(self, fid, name='SANT JOSEP GROC', **kw):
+        kw.setdefault('club', self.club)
+        kw.setdefault('category', self.cat)
+        return Team.objects.create(name=name, federation_id=fid, **kw)
+
+    def test_merges_distinct_identities_and_propagates_to_variants(self):
+        a, b, c = self._team('a'), self._team('b', 'ALFA'), self._team('c', 'GAMMA')
+        variant = self._team('v', 'SANT JOSEP GROC', parent_team=a)
+        for t in (a, b, c):
+            resolve_team_identity(t)
+        self.assertEqual(TeamIdentity.objects.count(), 3)
+
+        identity, n = assign_common_identity([a, b, c])
+
+        self.assertEqual(n, 4)
+        self.assertEqual(TeamIdentity.objects.count(), 1)
+        self.assertEqual(set(Team.objects.values_list('identity_id', flat=True)), {identity.pk})
+
+    def test_selecting_variant_assigns_root_and_siblings(self):
+        root = self._team('r')
+        v1 = self._team('v1', parent_team=root)
+        v2 = self._team('v2', parent_team=root)
+        identity, n = assign_common_identity([v1])
+        self.assertEqual(n, 3)
+        for t in (root, v1, v2):
+            t.refresh_from_db()
+            self.assertEqual(t.identity_id, identity.pk)
+
+    def test_rejects_mixed_categories(self):
+        infantil = Category.objects.create(name='Infantil')
+        with self.assertRaises(IdentityAssignError):
+            assign_common_identity([self._team('a'), self._team('b', category=infantil)])
+        self.assertEqual(TeamIdentity.objects.count(), 0)
+
+    def test_closes_pending_candidates(self):
+        base = self._team('a', 'PORTOL')
+        resolve_team_identity(base)
+        new = self._team('b', 'PORTOL CLINICA')
+        cand = TeamIdentityCandidate.objects.create(
+            new_team=new, suggested_identity=base.identity, status='pending',
+        )
+        assign_common_identity([base, new])
+        cand.refresh_from_db()
+        self.assertEqual(cand.status, 'approved')
