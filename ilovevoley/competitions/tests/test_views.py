@@ -852,6 +852,113 @@ class MatchResultCardViewTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def _approved_photo(self, organization=None):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from ilovevoley.content.models import Image
+
+        tiny_gif = (
+            b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
+            b'\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00'
+            b'\x00\x02\x02D\x01\x00;'
+        )
+        return Image.objects.create(
+            image=SimpleUploadedFile('x.jpg', tiny_gif, content_type='image/jpeg'),
+            title='Foto', match=self.finished, organization=organization or self.org,
+            status='approved', uploaded_by=self.user,
+        )
+
+    def _save_composition(self, **payload):
+        import json
+
+        return self.client.post(
+            reverse('competitions:story_composition_save', args=[self.finished.id]),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+    def test_custom_style_preview_is_downscaled_png(self):
+        from io import BytesIO
+
+        from PIL import Image as PILImage
+
+        photo = self._approved_photo()
+        with patch('ilovevoley.competitions.result_card.fetch_logo_bytes', return_value=None):
+            response = self.client.get(
+                self._url(self.finished.id, 'story')
+                + f'&style=personalizada&photo_id={photo.id}&preview=1'
+                + '&layout={"score":{"y":0.3},"photo":{"zoom":1.5}}',
+                HTTP_HOST='testclub.ilovevoley.es',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('Content-Disposition', response)
+        self.assertEqual(PILImage.open(BytesIO(response.content)).size, (540, 960))
+
+    def test_saved_composition_is_normalized_and_renders_for_its_owner_only(self):
+        photo = self._approved_photo()
+        saved = self._save_composition(
+            photo_id=photo.id, format='story', layout={'score': {'scale': 99}}
+        )
+        self.assertEqual(saved.status_code, 200)
+        composition_id = saved.json()['id']
+        self.assertEqual(saved.json()['layout']['score']['scale'], 1.2)
+
+        url = reverse('competitions:match_result_card', args=[self.finished.id])
+        with patch('ilovevoley.competitions.result_card.fetch_logo_bytes', return_value=None):
+            own = self.client.get(
+                f'{url}?composition={composition_id}', HTTP_HOST='testclub.ilovevoley.es'
+            )
+        self.assertEqual(own.status_code, 200)
+        self.assertTrue(own.content.startswith(b'\x89PNG'))
+        with patch('ilovevoley.competitions.result_card.fetch_logo_bytes', return_value=None):
+            thumb = self.client.get(
+                f'{url}?composition={composition_id}&preview=1', HTTP_HOST='testclub.ilovevoley.es'
+            )
+        # Las miniaturas de composiciones guardadas son cacheables (perfil); la preview del editor no.
+        self.assertIn('max-age=2592000', thumb['Cache-Control'])
+
+        other = get_user_model().objects.create_user(username='other', password='pass')
+        from ilovevoley.users.models import Membership
+
+        Membership.objects.create(user=other, organization=self.org, is_approved=True, role='member')
+        self.client.force_login(other)
+        stolen = self.client.get(
+            f'{url}?composition={composition_id}', HTTP_HOST='testclub.ilovevoley.es'
+        )
+        self.assertEqual(stolen.status_code, 404)
+        overwrite = self._save_composition(photo_id=photo.id, id=composition_id)
+        self.assertEqual(overwrite.status_code, 404)
+
+    def test_only_owner_can_delete_composition(self):
+        from ilovevoley.competitions.models import StoryComposition
+        from ilovevoley.users.models import Membership
+
+        photo = self._approved_photo()
+        composition_id = self._save_composition(photo_id=photo.id).json()['id']
+        url = reverse('competitions:story_composition_delete', args=[composition_id])
+
+        other = get_user_model().objects.create_user(username='other-del', password='pass')
+        Membership.objects.create(user=other, organization=self.org, is_approved=True, role='member')
+        self.client.force_login(other)
+        denied = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(denied.status_code, 404)
+        self.assertTrue(StoryComposition.objects.filter(id=composition_id).exists())
+
+        self.client.force_login(self.user)
+        deleted = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(deleted.status_code, 302)
+        self.assertFalse(StoryComposition.objects.filter(id=composition_id).exists())
+
+    def test_save_rejects_photo_from_other_organization(self):
+        other_org = Organization.objects.create(slug='otherclub', name='Other Club', is_active=True)
+        photo = self._approved_photo(organization=other_org)
+
+        response = self._save_composition(photo_id=photo.id, format='story')
+
+        self.assertEqual(response.status_code, 400)
+
     def test_missing_match_returns_json_404(self):
         response = self.client.get(
             self._url(999999),

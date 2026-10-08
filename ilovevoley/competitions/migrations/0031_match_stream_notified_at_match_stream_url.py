@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('competitions', '0029_merge_20261007_1612'),
+        ('competitions', '0030_storycomposition'),
     ]
 
     operations = [

@@ -51,6 +51,7 @@ class FederationScraper:
             'json_matches': JSONUnifiedParser(league, op_type='1'),  # Próximos
             'json_results': JSONUnifiedParser(league, op_type='2'),  # Resultados
         }
+        self._new_identity_candidates = []
     
     def _fetch_json_with_retry(self, json_url: str, max_attempts: int = 3) -> requests.Response:
         """
@@ -281,9 +282,12 @@ class FederationScraper:
         from datetime import datetime
         from django.utils import timezone
         
+        from ilovevoley.teams.identity import notify_new_identity_candidates
+
         matches_created = 0
         matches_updated = 0
-        
+        self._new_identity_candidates = []
+
         for partido_data in partidos_data:
             try:
                 # Usar el parser unificado para procesar el partido
@@ -306,12 +310,14 @@ class FederationScraper:
                     if not home_team and league_category:
                         home_team = self._find_or_create_team_by_name(
                             match_data['home_team'], league, league_category,
-                            match_data.get('federation_club_local_id', '')
+                            match_data.get('federation_club_local_id', ''),
+                            sponsor_name=match_data.get('home_sponsor_name', ''),
                         )
                     if not away_team and league_category:
                         away_team = self._find_or_create_team_by_name(
                             match_data['away_team'], league, league_category,
-                            match_data.get('federation_club_away_id', '')
+                            match_data.get('federation_club_away_id', ''),
+                            sponsor_name=match_data.get('away_sponsor_name', ''),
                         )
                     if not home_team or not away_team:
                         logger.warning(f'No se pudieron encontrar ni crear equipos: {match_data["home_team"]} vs {match_data["away_team"]}')
@@ -436,113 +442,98 @@ class FederationScraper:
             except Exception as e:
                 logger.error(f'Error procesando partido {partido_data.get("ELOCAL", "Unknown")} vs {partido_data.get("EVISITANTE", "Unknown")}: {str(e)}')
                 continue
-        
+
+        if self._new_identity_candidates:
+            notify_new_identity_candidates(self._new_identity_candidates)
+
         return matches_created, matches_updated
     
     @transaction.atomic
     def update_teams(self, teams_data: List[Dict[str, Any]]) -> Dict[str, Team]:
         """Actualiza o crea los equipos vistos en la federación.
 
+        Un ``federation_id`` nuevo crea siempre una aparición ``Team`` nueva; la
+        continuidad entre temporadas (y entre fases/grupos de la misma temporada)
+        va por ``TeamIdentity`` (#428), no reescribiendo el ``federation_id`` de
+        filas anteriores ni reutilizando por nombre (eso mezclaba Portol Rojo/Negro).
+
+        Los consumidores que aún miran un solo ``Team`` por temporada no agregan
+        por identidad: es deuda conocida; la identidad es el hilo, no un merge de PK.
+
         La detección de retiradas no se hace aquí (un scrape parcial no es una foto
         completa de la liga): ver ``detect_withdrawn_teams()``.
         """
+        from ilovevoley.teams.identity import notify_new_identity_candidates, resolve_team_identity
+        from ilovevoley.videos.utils import normalize_team_name
+
+        self._new_identity_candidates = []
         team_objects = {}
-        
-        # Procesar equipos encontrados en el scraping
+
         for team_data in teams_data:
             club_fed_id = team_data.get('federation_club_id', '')
-            # Buscar equipo existente por federation_id primero
+            sponsor_name = (team_data.get('sponsor_name') or '').strip()
+            # PAT igual al nombre base = sin patrocinio (misma regla que _sync_sponsor_name)
+            if sponsor_name == (team_data.get('name') or '').strip():
+                sponsor_name = ''
+            league_category = self.league.categories.first()
             team = Team.objects.filter(federation_id=team_data['federation_id']).first()
-            
+            created = False
+
             if not team:
-                # Si no existe por federation_id, buscar por nombre normalizado para evitar duplicados
-                from ilovevoley.videos.utils import find_duplicate_team_by_name, find_similar_team_by_name
-                # Usar la primera categoría de la liga (para compatibilidad con ligas multi-categoría)
-                league_category = self.league.categories.first()
-                duplicate_team = find_duplicate_team_by_name(
-                    team_data['name'],
-                    category=league_category
+                team = Team.objects.create(
+                    name=team_data['name'],
+                    federation_id=team_data['federation_id'],
+                    category=league_category,
+                    sponsor_name=sponsor_name,
+                    is_active=True,
                 )
-                if duplicate_team and self._is_other_club(duplicate_team, club_fed_id):
-                    duplicate_team = None
-                
-                if duplicate_team:
-                    # Si encontramos un duplicado, actualizar su federation_id y usar ese equipo
-                    logger.info(f"Found duplicate team by name: '{team_data['name']}' -> '{duplicate_team.name}' (ID: {duplicate_team.id})")
-                    duplicate_team.federation_id = team_data['federation_id']
-                    duplicate_team.is_active = True
-                    duplicate_team.save()
-                    team = duplicate_team
-                    created = False
-                else:
-                    # Intentar búsqueda difusa para typos (ej: LUCI'S WORD vs LUCI'S WORK)
-                    similar_team, score = find_similar_team_by_name(
-                        team_data['name'],
-                        category=league_category,
-                        threshold=0.9  # Alta similitud requerida
-                    )
-                    if similar_team and self._is_other_club(similar_team, club_fed_id):
-                        similar_team = None
-                    
-                    if similar_team:
-                        logger.info(f"Found similar team ({score:.2f}): '{team_data['name']}' -> '{similar_team.name}'")
-                        similar_team.federation_id = team_data['federation_id']
-                        similar_team.is_active = True
-                        similar_team.save()
-                        team = similar_team
-                        created = False
-                    else:
-                        # Crear nuevo equipo
-                        # Usar la primera categoría de la liga (para compatibilidad con ligas multi-categoría)
-                        league_category = self.league.categories.first()
-                        team = Team.objects.create(
-                            name=team_data['name'],
-                            federation_id=team_data['federation_id'],
-                            category=league_category,
-                            is_active=True
-                        )
-                        created = True
-            else:
-                created = False
-            
-            # Actualizar nombre, categoría y estado si el equipo ya existía
+                created = True
+
             updated = False
             if not created and team.name != team_data['name']:
-                # Solo actualizar el nombre si no es un duplicado por nombre normalizado
-                from ilovevoley.videos.utils import normalize_team_name
                 if normalize_team_name(team.name) != normalize_team_name(team_data['name']):
                     team.name = team_data['name']
                     updated = True
                 else:
-                    logger.info(f"Team name variation detected but keeping original: '{team.name}' vs '{team_data['name']}'")
-            
-            # Asignar/actualizar categoría si la liga tiene categorías y el equipo no la tiene o es diferente
-            league_category = self.league.categories.first()
+                    logger.info(
+                        f"Team name variation detected but keeping original: "
+                        f"'{team.name}' vs '{team_data['name']}'"
+                    )
+
+            if sponsor_name and team.sponsor_name != sponsor_name:
+                team.sponsor_name = sponsor_name
+                updated = True
+
             if league_category and team.category != league_category:
                 team.category = league_category
                 updated = True
                 logger.info(f"Assigned category '{league_category}' to team: {team.name}")
-            
+
             if self._assign_federation_club(team, club_fed_id):
                 updated = True
 
-            # Reactivar equipo si había sido marcado como inactivo y ahora aparece de nuevo
             if not team.is_active:
                 team.is_active = True
                 updated = True
                 logger.info(f"Reactivated team: {team.name} - now appears in federation data again")
-            
+
             if updated:
                 team.save()
-            
-            # Agregar tanto el nombre original como normalizado para buscar
+
+            if created or team.identity_id is None:
+                _, candidate = resolve_team_identity(team, sponsor_name=sponsor_name or team.sponsor_name)
+                if candidate:
+                    self._new_identity_candidates.append(candidate)
+
             team_objects[team_data['name']] = team
             team_objects[self._normalize_team_name(team_data['name'])] = team
-            
+
             if created:
-                league_category = self.league.categories.first()
                 logger.info(f"Created new team: {team.name} with category: {league_category}")
-        
+
+        if self._new_identity_candidates:
+            notify_new_identity_candidates(self._new_identity_candidates)
+
         return team_objects
     
     @transaction.atomic
@@ -1581,31 +1572,40 @@ class FederationScraper:
         return None
 
     def _find_or_create_team_by_name(self, team_name: str, league: League, league_category,
-                                     club_fed_id: str = '') -> Team:
-        """
-        Busca un equipo por nombre difuso antes de crear uno nuevo, para no fragmentar
-        el mismo equipo real en varias filas cuando cambia de liga/fase (y por tanto de
-        federation_id) y el nombre exacto no coincide.
-        """
-        from ilovevoley.videos.utils import find_duplicate_team_by_name, find_similar_team_by_name
+                                     club_fed_id: str = '', sponsor_name: str = '') -> Team:
+        """Crea o reutiliza por ``federation_id`` sintético; la continuidad va por identidad (#428).
 
-        team = find_duplicate_team_by_name(team_name, category=league_category)
-        if not team or self._is_other_club(team, club_fed_id):
-            team, score = find_similar_team_by_name(team_name, category=league_category, threshold=0.9)
-        if team and self._is_other_club(team, club_fed_id):
-            team = None
+        Ya no reutiliza filas por nombre/similitud (confundía colores del mismo club).
+        Las candidatas se acumulan en ``_new_identity_candidates`` para un solo email.
+        """
+        from ilovevoley.teams.identity import resolve_team_identity
 
-        if team:
-            logger.info(f"Equipo reutilizado por nombre: '{team_name}' -> '{team.name}' (ID: {team.id})")
-        else:
-            fed_id = f"{league.federation_id}_{team_name.replace(' ', '_').lower()}"
+        fed_id = f"{league.federation_id}_{team_name.replace(' ', '_').lower()}"
+        team = Team.objects.filter(federation_id=fed_id).first()
+        created = False
+        sponsor = (sponsor_name or '').strip()
+        if sponsor == team_name:
+            sponsor = ''
+        if not team:
             team = Team.objects.create(
-                name=team_name, federation_id=fed_id, category=league_category, is_active=True
+                name=team_name,
+                federation_id=fed_id,
+                category=league_category,
+                sponsor_name=sponsor,
+                is_active=True,
             )
+            created = True
             logger.info(f"Equipo creado automáticamente: {team.name} para liga {league.name}")
 
         if self._assign_federation_club(team, club_fed_id):
             team.save(update_fields=['club'])
+
+        if created or team.identity_id is None:
+            _, candidate = resolve_team_identity(team, sponsor_name=sponsor or team.sponsor_name)
+            if candidate:
+                if not hasattr(self, '_new_identity_candidates') or self._new_identity_candidates is None:
+                    self._new_identity_candidates = []
+                self._new_identity_candidates.append(candidate)
         return team
 
     @staticmethod

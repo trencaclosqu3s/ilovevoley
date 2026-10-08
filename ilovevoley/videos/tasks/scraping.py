@@ -575,6 +575,8 @@ def scrape_clubs_task(self, match_teams=True, delay=1.0):
     import requests
     import unicodedata
     import re
+
+    from ilovevoley.teams.services import cache_logo
     
     logger.info("Iniciando scraping de clubes desde voleibolib.net")
     
@@ -643,6 +645,9 @@ def scrape_clubs_task(self, match_teams=True, delay=1.0):
                         }
                     )
                     
+                    if not club.logo:
+                        cache_logo(club)
+
                     if created:
                         created_count += 1
                         logger.info(f'Creado: {club.official_name}')

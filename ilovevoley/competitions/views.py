@@ -3,11 +3,14 @@ import hashlib
 import json
 import logging
 import re as _re
+from io import BytesIO
 from datetime import datetime, timedelta
 
 import requests as http_requests
+from PIL import Image as Image_
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.cache import cache
@@ -51,7 +54,7 @@ from ilovevoley.videos.scraping import (
     validate_volleyball_score,
 )
 from .forms import FriendlyMatchForm, MatchResultForm
-from .models import League, Match, MatchChangeLog, MatchShareLink, Standing
+from .models import League, Match, MatchChangeLog, MatchShareLink, Standing, StoryComposition
 from .services.lineups import resolve_acta_team, store_match_lineups
 from .services.notifications import notify_match_live_stream, notify_match_result
 from .services.preview import build_match_preview
@@ -353,7 +356,21 @@ def match_detail(request, match_id):
                 ),
             })
 
+    edit_story = None
+    if request.user.is_authenticated and request.GET.get('story', '').isdecimal():
+        saved = StoryComposition.objects.filter(
+            id=request.GET['story'], user=request.user, organization=request.tenant, match=match
+        ).first()
+        if saved:
+            edit_story = {
+                'id': saved.id,
+                'photo_id': saved.image_id,
+                'format': saved.card_format,
+                'layout': saved.layout,
+            }
+
     return render(request, 'competitions/match_detail.html', {
+        'edit_story': edit_story,
         'match': match,
         'videos': videos,
         'images': images,
@@ -433,11 +450,21 @@ def match_result_card(request, match_id):
     except Http404:
         return JsonResponse({'error': _('Partido no encontrado')}, status=404)
 
-    card_format = request.GET.get('format', 'square')
+    composition = None
+    if request.GET.get('composition', '').isdecimal():
+        composition = StoryComposition.objects.filter(
+            id=request.GET['composition'], user=request.user if request.user.is_authenticated else None,
+            organization=request.tenant, match=match,
+        ).first()
+        if composition is None:
+            return JsonResponse({'error': _('Composición no encontrada')}, status=404)
+
+    card_format = composition.card_format if composition else request.GET.get('format', 'square')
     if card_format not in ('square', 'story'):
         return JsonResponse({'error': _('Formato de tarjeta no válido')}, status=400)
-    card_style = request.GET.get('style', 'completa')
-    if card_style not in CARD_STYLES:
+    # "personalizada" = estilo marco con el layout elegido en el editor.
+    card_style = 'personalizada' if composition else request.GET.get('style', 'completa')
+    if card_style not in (*CARD_STYLES, 'personalizada'):
         return JsonResponse({'error': _('Estilo de tarjeta no válido')}, status=400)
     if (
         match.status != 'finished'
@@ -449,9 +476,16 @@ def match_result_card(request, match_id):
             status=400,
         )
 
+    layout = composition.layout if composition else None
+    if card_style == 'personalizada' and not composition:
+        try:
+            layout = json.loads(request.GET.get('layout') or '{}')
+        except ValueError:
+            return JsonResponse({'error': _('Composición no válida')}, status=400)
+
     photo_bytes = None
-    if card_style == 'marco':
-        photo_id = request.GET.get('photo_id', '')
+    if card_style in ('marco', 'personalizada'):
+        photo_id = str(composition.image_id) if composition else request.GET.get('photo_id', '')
         photo = None
         if photo_id.isdecimal():
             photo = match.images.filter(
@@ -468,19 +502,99 @@ def match_result_card(request, match_id):
                 {'error': _('No se pudo leer la foto seleccionada')}, status=400
             )
 
+    report = {}
     png = render_result_card(
         match=match,
         organization=request.tenant,
         card_format=card_format,
-        card_style=card_style,
+        card_style='marco' if card_style == 'personalizada' else card_style,
         photo=photo_bytes,
+        layout=layout,
+        report=report,
         sets=_load_set_scores_for_card(match),
     )
+    if request.GET.get('preview') == '1':
+        # Se renderiza a tamaño completo y se reduce; si el editor pide muchas
+        # previews, habrá que renderizar directamente a escala en el renderer.
+        response = HttpResponse(_downscale_png(png), content_type='image/png')
+        # Las miniaturas de "Mis creaciones" llevan ?v=<updated>: la URL cambia al
+        # editar, así que se cachean un mes (resultados y escudos no suelen cambiar).
+        response['Cache-Control'] = (
+            'private, max-age=2592000, immutable' if composition else 'no-store'
+        )
+        response['X-Layout-Info'] = json.dumps(report)
+        return response
     response = HttpResponse(png, content_type='image/png')
     response['Content-Disposition'] = (
         f'attachment; filename="resultado-{match.id}-{card_format}.png"'
     )
     return response
+
+
+def _downscale_png(png: bytes, width: int = 540) -> bytes:
+    with Image_.open(BytesIO(png)) as image:
+        ratio = width / image.width
+        small = image.resize((width, round(image.height * ratio)), Image_.Resampling.LANCZOS)
+        buffer = BytesIO()
+        small.save(buffer, format='PNG')
+        return buffer.getvalue()
+
+
+@login_required
+@tenant_access_required()
+@require_POST
+def story_composition_delete(request, composition_id):
+    deleted, _count = StoryComposition.objects.filter(
+        id=composition_id, user=request.user, organization=request.tenant
+    ).delete()
+    if not deleted:
+        raise Http404
+    messages.success(request, _('Composición eliminada'))
+    return redirect('profile')
+
+
+@tenant_access_required()
+@require_POST
+def story_composition_save(request, match_id):
+    """Crea o actualiza la composición personalizada del usuario para un partido."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': _('Inicia sesión para guardar')}, status=403)
+    match = get_tenant_object_or_404(
+        Match.objects, request.tenant, user=request.user, id=match_id
+    )
+    try:
+        data = json.loads(request.body or '{}')
+        if not isinstance(data, dict):
+            raise ValueError
+    except ValueError:
+        return JsonResponse({'error': _('Composición no válida')}, status=400)
+
+    card_format = data.get('format', 'story')
+    if card_format not in ('square', 'story'):
+        return JsonResponse({'error': _('Formato de tarjeta no válido')}, status=400)
+    photo_id = str(data.get('photo_id', ''))
+    photo = (
+        match.images.filter(status='approved', organization=request.tenant, id=photo_id).first()
+        if photo_id.isdecimal()
+        else None
+    )
+    if photo is None:
+        return JsonResponse({'error': _('Selecciona una foto del partido')}, status=400)
+
+    composition = None
+    if str(data.get('id', '')).isdecimal():
+        composition = StoryComposition.objects.filter(
+            id=data['id'], user=request.user, organization=request.tenant, match=match
+        ).first()
+        if composition is None:
+            return JsonResponse({'error': _('Composición no encontrada')}, status=404)
+    else:
+        composition = StoryComposition(user=request.user, organization=request.tenant, match=match)
+    composition.image = photo
+    composition.card_format = card_format
+    composition.layout = data.get('layout')
+    composition.save()
+    return JsonResponse({'id': composition.id, 'layout': composition.layout})
 
 
 @tenant_access_required()
