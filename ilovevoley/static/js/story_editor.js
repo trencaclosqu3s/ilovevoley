@@ -1,5 +1,6 @@
 // Editor táctil de la story personalizada (modo "Personalizar" de la tarjeta de resultado).
-// El navegador solo edita un layout JSON normalizado (0-1); el PNG lo renderiza siempre el servidor.
+// El navegador solo edita un layout JSON normalizado (0-1); el servidor renderiza las capas
+// del preview (fondo y marcador) y la imagen final.
 (function () {
     'use strict';
 
@@ -12,6 +13,7 @@
     const wrap = document.getElementById('se-stage-wrap');
     const preview = document.getElementById('se-preview');
     const scoreBox = document.getElementById('se-score-box');
+    const scoreLayer = document.getElementById('se-score-layer');
     const zoomInput = document.getElementById('se-zoom');
     const photosBox = document.getElementById('se-photos');
     const MAX_ZOOM = 4;
@@ -36,17 +38,22 @@
         return match ? decodeURIComponent(match[1]) : '';
     }
 
-    // ---- Vista previa (render del servidor a 540 px, con debounce) ----
+    // ---- Vista previa: dos capas del servidor (fondo y bloque del marcador) ----
+    // El marcador es una imagen dentro de su caja: moverlo no pide nada al servidor y
+    // escalarlo solo repide su capa (una imagen pequeña) al soltar. Foto, zoom y degradados
+    // repiden el fondo. Cada capa tiene una sola petición en vuelo.
 
-    let timer = null;
-    let inflight = false;
-    let stale = false;
+    const timers = {};
     let objectUrl = null;
+    let scoreUrl = null;
+    let scoreBusy = false;
 
     // Los sliders esperan 250 ms; los gestos piden el render nada más soltar (delay 0).
-    function schedule(delay) {
-        clearTimeout(timer);
-        timer = setTimeout(refresh, delay === undefined ? 250 : delay);
+    function schedule(delay, layers) {
+        (layers || ['background']).forEach(function (name) {
+            clearTimeout(timers[name]);
+            timers[name] = setTimeout(loaders[name], delay === undefined ? 250 : delay);
+        });
     }
 
     function cardParams(extra) {
@@ -65,38 +72,47 @@
         stage.style.aspectRatio = state.format === 'story' ? '9 / 16' : '1 / 1';
     }
 
-    // Una sola petición en vuelo: abortar en el cliente no cancela el render del servidor,
-    // así que los cambios que llegan mientras tanto se juntan en un único render posterior.
-    async function refresh() {
-        if (!state.photoId) {
-            toast('error', msg.msgNoPhoto);
-            return;
+    // Abortar en el cliente no cancela el render del servidor: los cambios que llegan con una
+    // petición en vuelo se juntan en un único render posterior.
+    function layerLoader(layer, apply) {
+        let inflight = false;
+        let stale = false;
+
+        async function load() {
+            if (!state.photoId) {
+                toast('error', msg.msgNoPhoto);
+                return;
+            }
+            if (inflight) {
+                stale = true;
+                return;
+            }
+            inflight = true;
+            stale = false;
+            try {
+                await fetchLayer(layer, apply);
+            } finally {
+                inflight = false;
+                if (stale) load();
+            }
         }
-        if (inflight) {
-            stale = true;
-            return;
-        }
-        inflight = true;
-        stale = false;
-        try {
-            await renderPreview();
-        } finally {
-            inflight = false;
-            if (stale) refresh();
-        }
+        return load;
     }
 
-    async function renderPreview() {
-        sizeStage();
-        stage.classList.add('opacity-80');
+    async function fetchLayer(layer, apply) {
+        const dim = layer === 'background';
+        if (dim) {
+            sizeStage();
+            stage.classList.add('opacity-80');
+        }
         let response;
         try {
-            response = await fetch(`${msg.cardUrl}?${cardParams({ preview: '1' })}`);
+            response = await fetch(`${msg.cardUrl}?${cardParams({ preview: '1', layer })}`);
         } catch (error) {
             toast('error', msg.msgError);
             return;
         } finally {
-            stage.classList.remove('opacity-80');
+            if (dim) stage.classList.remove('opacity-80');
         }
         if (!response.ok) {
             let text = msg.msgError;
@@ -104,8 +120,14 @@
             toast('error', text);
             return;
         }
-        state.info = JSON.parse(response.headers.get('X-Layout-Info') || '{}');
-        const blob = await response.blob();
+        apply(JSON.parse(response.headers.get('X-Layout-Info') || '{}'), await response.blob());
+    }
+
+    function applyBackground(info, blob) {
+        // El tamaño del marcador lo manda su propia capa; del fondo solo vale si aún no hay.
+        const box = state.info && state.info.score_box;
+        state.info = Object.assign({}, state.info, info);
+        if (box) state.info.score_box = box;
         if (objectUrl) URL.revokeObjectURL(objectUrl);
         objectUrl = URL.createObjectURL(blob);
         preview.onload = function () {
@@ -114,13 +136,42 @@
         };
         preview.src = objectUrl;
         syncControls();
-        placeScoreBox();
+    }
+
+    function applyScore(info, blob) {
+        state.info = Object.assign({}, state.info, { score_box: info.score_box });
+        if (scoreUrl) URL.revokeObjectURL(scoreUrl);
+        scoreUrl = URL.createObjectURL(blob);
+        scoreLayer.src = scoreUrl;
+        scoreBox.classList.remove('hidden');
+        // Si el usuario está moviendo o escalando la caja, no se la pisa con un tamaño antiguo.
+        if (!scoreBusy) placeScoreBox();
+    }
+
+    const loaders = {
+        background: layerLoader('background', applyBackground),
+        score: layerLoader('score', applyScore),
+    };
+
+    // Caja del marcador (0-1): el tamaño viene de su capa y la posición del layout del cliente,
+    // que es la que manda mientras no se pida otra capa. Misma regla de límites que el servidor.
+    function scoreRect() {
+        const base = state.info && state.info.score_box;
+        if (!base) return null;
+        const score = state.layout.score;
+        const width = base[2];
+        const height = base[3];
+        return [
+            clamp(score.x - width / 2, 0, 1 - width),
+            score.y === null ? base[1] : clamp(score.y - height / 2, 0, 1 - height),
+            width,
+            height,
+        ];
     }
 
     function placeScoreBox() {
-        const box = state.info && state.info.score_box;
+        const box = scoreRect();
         if (!box) return;
-        scoreBox.classList.remove('hidden');
         scoreBox.style.transform = '';
         scoreBox.style.left = `${box[0] * 100}%`;
         scoreBox.style.top = `${box[1] * 100}%`;
@@ -180,7 +231,8 @@
             // La caja del marcador depende del formato: se vuelve al anclaje por defecto.
             state.layout.score.y = null;
             scoreBox.classList.add('hidden');
-            refresh();
+            scoreLayer.removeAttribute('src');
+            schedule(0, ['background', 'score']);
         });
     });
 
@@ -204,7 +256,8 @@
             button.classList.toggle('border-transparent', !selected);
             button.setAttribute('aria-pressed', selected ? 'true' : 'false');
         });
-        schedule(0);
+        // La capa del marcador no depende de la foto: solo se pide la primera vez.
+        schedule(0, state.info && state.info.score_box ? ['background'] : ['background', 'score']);
     }
 
     function buildPhotoStrip() {
@@ -290,18 +343,23 @@
     interact(scoreBox)
         .draggable({
             listeners: {
-                start() { drag = { x: 0, y: 0 }; },
+                start() {
+                    drag = { x: 0, y: 0 };
+                    scoreBusy = true;
+                },
                 move(event) {
                     drag.x += event.dx;
                     drag.y += event.dy;
                     scoreBox.style.transform = `translate(${drag.x}px, ${drag.y}px)`;
                 },
                 end() {
+                    scoreBusy = false;
+                    // Sin petición: la capa ya está en pantalla, solo cambian las coordenadas.
                     commitScoreBox(
                         scoreBox.offsetLeft + drag.x, scoreBox.offsetTop + drag.y,
                         scoreBox.offsetWidth, scoreBox.offsetHeight
                     );
-                    schedule(0);
+                    placeScoreBox();
                 },
             },
         })
@@ -309,22 +367,30 @@
             edges: { right: '#se-score-handle', bottom: '#se-score-handle' },
             modifiers: [interact.modifiers.aspectRatio({ ratio: 'preserve' })],
             listeners: {
+                start() { scoreBusy = true; },
                 move(event) {
                     scoreBox.style.width = `${event.rect.width}px`;
                     scoreBox.style.height = `${event.rect.height}px`;
                 },
                 end() {
+                    scoreBusy = false;
                     const base = state.info && state.info.score_box;
                     if (base) {
-                        const ratio = (scoreBox.offsetWidth / stage.clientWidth) / base[2];
-                        state.layout.score.scale = clamp(state.layout.score.scale * ratio, 0.5, 1.2);
+                        const score = state.layout.score;
+                        const next = clamp(score.scale * (scoreBox.offsetWidth / stage.clientWidth) / base[2], 0.5, 1.2);
+                        const factor = next / score.scale;
+                        score.scale = next;
+                        state.info.score_box = [base[0], base[1], base[2] * factor, base[3] * factor];
+                        // La esquina superior izquierda se mantiene fija al escalar.
+                        commitScoreBox(
+                            scoreBox.offsetLeft, scoreBox.offsetTop,
+                            state.info.score_box[2] * stage.clientWidth,
+                            state.info.score_box[3] * stage.clientHeight
+                        );
                     }
-                    // La esquina superior izquierda se mantiene fija al escalar.
-                    commitScoreBox(
-                        scoreBox.offsetLeft, scoreBox.offsetTop,
-                        scoreBox.offsetWidth, scoreBox.offsetHeight
-                    );
-                    schedule(0);
+                    placeScoreBox();
+                    // Mientras llega, la capa se ve estirada por CSS; al llegar queda nítida.
+                    schedule(0, ['score']);
                 },
             },
         });
@@ -476,6 +542,8 @@
                 syncFormatButtons();
                 state.photoId = String(saved.photo_id);
                 state.layout = saved.layout;
+                state.info = null;
+                scoreBox.classList.add('hidden');
                 if (state.layout.photo.zoom == null) state.layout.photo.zoom = 1;
             }
             open(Boolean(saved));

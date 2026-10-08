@@ -897,6 +897,36 @@ class MatchResultCardViewTests(TestCase):
         self.assertEqual(response['Content-Type'], 'image/webp')
         self.assertEqual(PILImage.open(BytesIO(response.content)).size, (540, 960))
 
+    def test_preview_layers_split_score_block_from_background(self):
+        import json
+        from io import BytesIO
+
+        from PIL import Image as PILImage
+
+        photo = self._approved_photo()
+        base = (
+            self._url(self.finished.id, 'story')
+            + f'&style=personalizada&photo_id={photo.id}&preview=1'
+        )
+        with patch('ilovevoley.competitions.result_card.fetch_logo_bytes', return_value=None):
+            background = self.client.get(base + '&layer=background', HTTP_HOST='testclub.ilovevoley.es')
+            score = self.client.get(base + '&layer=score', HTTP_HOST='testclub.ilovevoley.es')
+            invalid = self.client.get(base + '&layer=nope', HTTP_HOST='testclub.ilovevoley.es')
+            not_preview = self.client.get(
+                base.replace('&preview=1', '') + '&layer=score', HTTP_HOST='testclub.ilovevoley.es'
+            )
+
+        self.assertEqual(PILImage.open(BytesIO(background.content)).size, (540, 960))
+        layer = PILImage.open(BytesIO(score.content))
+        self.assertEqual(layer.mode, 'RGBA')
+        self.assertLess(layer.width, 540)
+        self.assertEqual(
+            json.loads(score['X-Layout-Info'])['score_box'],
+            json.loads(background['X-Layout-Info'])['score_box'],
+        )
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(not_preview.status_code, 400)
+
     def test_final_card_is_cached_until_the_result_changes(self):
         from ilovevoley.competitions.result_card import render_result_card
 

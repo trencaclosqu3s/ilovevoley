@@ -545,11 +545,16 @@ def render_result_card(
     report: dict | None = None,
     logo_fetcher: LogoFetcher | None = None,
     preview_width: int | None = None,
+    layer: str | None = None,
 ) -> bytes:
     """Renderiza la tarjeta. `layout` (ver `normalize_layout`) solo aplica al estilo "marco".
 
     Con `preview_width` devuelve un WebP reducido a ese ancho en vez del PNG completo: se
     dibuja a tamaño completo pero sin codificar el PNG intermedio (el 70 % del coste).
+
+    `layer` (solo con `preview_width` y estilo "marco") separa el preview en dos capas para que
+    el editor mueva el marcador sin pasar por el servidor: "background" es la tarjeta sin el
+    bloque del marcador y "score" es solo ese bloque, en WebP transparente.
 
     Si se pasa `report`, se rellena con la geometría normalizada (0-1) que necesita
     el editor: `layout` normalizado, `score_box` [x, y, w, h] y `photo` {min_zoom, w, h}.
@@ -560,6 +565,8 @@ def render_result_card(
         raise ValueError(_('estilo inválido: %(style)s') % {'style': card_style})
     if card_style == 'marco' and not photo:
         raise ValueError(_('el estilo "marco" requiere una foto'))
+    if layer not in (None, 'background', 'score') or (layer and (card_style != 'marco' or not preview_width)):
+        raise ValueError(_('capa inválida: %(layer)s') % {'layer': layer})
 
     width, height = CARD_SIZES[card_format]
     metrics = _FORMAT_METRICS[card_format]
@@ -572,7 +579,9 @@ def render_result_card(
     if report is not None:
         report['layout'] = layout
 
-    if card_style == 'marco':
+    if card_style == 'marco' and layer == 'score':
+        image = Image.new('RGB', (1, 1))  # solo sirve de lienzo de medida para ImageDraw
+    elif card_style == 'marco':
         try:
             image = _photo_background(
                 photo, width, height, primary, secondary, metrics, layout, report
@@ -601,11 +610,13 @@ def render_result_card(
     score = f'{match.home_score} - {match.away_score}'
     set_list = list(sets or [])
 
+    score_layer = None
     if card_style == 'marco':
-        _draw_header(
-            draw, image, organization=organization, match=match,
-            x=48, y=metrics['header_y'], font_sm=font_sm, font_xs=font_xs, text_color=WHITE,
-        )
+        if layer != 'score':
+            _draw_header(
+                draw, image, organization=organization, match=match,
+                x=48, y=metrics['header_y'], font_sm=font_sm, font_xs=font_xs, text_color=WHITE,
+            )
 
         # Bloque del marcador (escudos, resultado, nombres y sets): crece con `scale`
         # y se coloca por su centro; sin `y` queda anclado sobre el footer.
@@ -641,30 +652,42 @@ def render_result_card(
         names_y = crest_top + crest_size + names_gap
         sets_y = names_y + name_row_height + sets_gap
 
-        _paste_crest_circle(image, home_crest, crest_size, left, crest_top)
-        _paste_crest_circle(image, away_crest, crest_size, right - crest_size, crest_top)
-        _draw_score(
-            draw, score, font_lg, center_x=(left + right) // 2,
-            center_y=crest_top + crest_size // 2, color=WHITE,
-        )
-        draw.text((left, names_y), home_name, font=home_font, fill=WHITE)
-        draw.text(
-            (right - _text_width(draw, away_name, away_font), names_y),
-            away_name, font=away_font, fill=WHITE,
-        )
-        if set_list:
-            pill_bg_marco = tuple(channel * 55 // 100 for channel in primary)
-            _draw_sets_row(
-                draw, set_list, font_pill, center_x=(left + right) // 2, y=sets_y,
-                bg=pill_bg_marco, text_color=WHITE, scale=scale,
+        if layer == 'score':
+            score_layer = Image.new('RGBA', (block_width, block_height), (255, 255, 255, 0))
+            target, tdraw, bx, by = score_layer, ImageDraw.Draw(score_layer), 0, 0
+        else:
+            target, tdraw, bx, by = image, draw, left, crest_top
+        names_y = by + (names_y - crest_top)
+        sets_y = by + (sets_y - crest_top)
+        right = bx + block_width
+
+        if layer != 'background':
+            _paste_crest_circle(target, home_crest, crest_size, bx, by)
+            _paste_crest_circle(target, away_crest, crest_size, right - crest_size, by)
+            _draw_score(
+                tdraw, score, font_lg, center_x=(bx + right) // 2,
+                center_y=by + crest_size // 2, color=WHITE,
             )
-        _draw_footer(
-            draw, image, width=width, y=footer_y, font=footer_font, text_color=WHITE,
-            measured=footer_measured,
-        )
-        _draw_frame(
-            draw, width, height, metrics['frame_outer'], metrics['frame_inner'], secondary, primary
-        )
+            tdraw.text((bx, names_y), home_name, font=home_font, fill=WHITE)
+            tdraw.text(
+                (right - _text_width(tdraw, away_name, away_font), names_y),
+                away_name, font=away_font, fill=WHITE,
+            )
+            if set_list:
+                pill_bg_marco = tuple(channel * 55 // 100 for channel in primary)
+                _draw_sets_row(
+                    tdraw, set_list, font_pill, center_x=(bx + right) // 2, y=sets_y,
+                    bg=pill_bg_marco, text_color=WHITE, scale=scale,
+                )
+        if layer != 'score':
+            _draw_footer(
+                draw, image, width=width, y=footer_y, font=footer_font, text_color=WHITE,
+                measured=footer_measured,
+            )
+            _draw_frame(
+                draw, width, height, metrics['frame_outer'], metrics['frame_inner'], secondary,
+                primary,
+            )
     else:
         _draw_header(
             draw, image, organization=organization, match=match,
@@ -724,10 +747,14 @@ def render_result_card(
         )
 
     buffer = BytesIO()
-    image = image.convert('RGB')
+    if score_layer is not None:
+        image = score_layer  # RGBA: el WebP conserva el alfa
+    else:
+        image = image.convert('RGB')
     if preview_width:
+        ratio = preview_width / width
         image = image.resize(
-            (preview_width, round(image.height * preview_width / image.width)),
+            (max(1, round(image.width * ratio)), max(1, round(image.height * ratio))),
             Image.Resampling.LANCZOS,
         )
         image.save(buffer, format='WEBP', quality=80)
@@ -763,7 +790,11 @@ def _paste_crest_circle(image: Image.Image, crest: Image.Image, size: int, x: in
     circle_mask = Image.new('L', (size, size), 0)
     ImageDraw.Draw(circle_mask).ellipse([0, 0, size, size], fill=255)
     backdrop.putalpha(ImageChops.multiply(backdrop.getchannel('A'), circle_mask))
-    image.paste(backdrop, (x, y), backdrop)
+    if image.mode == 'RGBA':
+        # Lienzo transparente (capa del marcador): paste con máscara elevaría el alfa al cuadrado.
+        image.alpha_composite(backdrop, (x, y))
+    else:
+        image.paste(backdrop, (x, y), backdrop)
 
 
 def _draw_card_shadow(image: Image.Image, box, radius: int):

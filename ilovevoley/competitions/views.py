@@ -497,6 +497,11 @@ def match_result_card(request, match_id):
     report = {}
     is_preview = request.GET.get('preview') == '1'
     sets = _load_set_scores_for_card(match)
+    # El editor pide el preview en dos capas (fondo y bloque del marcador) para mover el
+    # marcador sin round-trip; solo tiene sentido en el preview del estilo personalizado.
+    layer = request.GET.get('layer') or None
+    if layer and (layer not in ('background', 'score') or not is_preview or card_style != 'personalizada'):
+        return JsonResponse({'error': _('Capa no válida')}, status=400)
     # La descarga final se cachea (varias stories seguidas del mismo partido); la preview
     # del editor no, porque su layout cambia a cada gesto.
     cache_key = None if is_preview else card_cache_key(
@@ -516,6 +521,7 @@ def match_result_card(request, match_id):
         report=report,
         sets=sets,
         preview_width=540 if is_preview else None,
+        layer=layer,
     )
     if cache_key and not cached:
         cache.set(cache_key, png, CARD_CACHE_TTL)
