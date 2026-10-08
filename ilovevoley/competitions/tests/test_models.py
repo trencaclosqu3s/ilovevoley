@@ -353,3 +353,67 @@ class MatchCleanTests(TestCase):
             match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
         )
         partido.clean()  # no debe lanzar
+
+
+class MatchStreamUrlTest(TestCase):
+    """Reglas de negocio del enlace de retransmisión en directo (issue #359)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.league = League.objects.create(
+            name='Liga', federation_id='L-STR', season=Season.objects.resolve('2024-25'),
+        )
+        cls.team_a = Team.objects.create(name='A', federation_id='T-STR-A')
+        cls.team_b = Team.objects.create(name='B', federation_id='T-STR-B')
+
+    def test_stream_url_accepts_valid_http_and_https(self):
+        match = Match(
+            league=self.league, home_team=self.team_a, away_team=self.team_b,
+            match_date=timezone.now(),
+            stream_url='https://www.youtube.com/watch?v=12345',
+        )
+        match.full_clean()
+        self.assertEqual(match.stream_url, 'https://www.youtube.com/watch?v=12345')
+
+    def test_stream_url_rejects_non_http_schemes(self):
+        match = Match(
+            league=self.league, home_team=self.team_a, away_team=self.team_b,
+            match_date=timezone.now(),
+            stream_url='javascript:alert(1)',
+        )
+        with self.assertRaises(ValidationError):
+            match.full_clean()
+
+    def test_is_live_window_and_is_live(self):
+        now = timezone.now()
+        # Partido a 15 minutos en el futuro (dentro de ventana -30 min a +3 h)
+        match_live = Match(
+            league=self.league, home_team=self.team_a, away_team=self.team_b,
+            match_date=now + timezone.timedelta(minutes=15),
+            status='scheduled',
+            stream_url='https://youtube.com/live/xyz',
+        )
+        self.assertTrue(match_live.is_live_window)
+        self.assertTrue(match_live.is_live)
+
+        # Sin stream_url no está en directo
+        match_live.stream_url = ''
+        self.assertTrue(match_live.is_live_window)
+        self.assertFalse(match_live.is_live)
+
+        # Partido finalizado nunca está en ventana de directo
+        match_live.stream_url = 'https://youtube.com/live/xyz'
+        match_live.status = 'finished'
+        self.assertFalse(match_live.is_live_window)
+        self.assertFalse(match_live.is_live)
+
+        # Partido fuera de ventana (+4 h en el futuro)
+        match_future = Match(
+            league=self.league, home_team=self.team_a, away_team=self.team_b,
+            match_date=now + timezone.timedelta(hours=4),
+            status='scheduled',
+            stream_url='https://youtube.com/live/xyz',
+        )
+        self.assertFalse(match_future.is_live_window)
+        self.assertFalse(match_future.is_live)
+

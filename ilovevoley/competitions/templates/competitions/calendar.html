@@ -393,6 +393,14 @@
 
                                 <!-- Acciones -->
                                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2 w-full sm:w-auto">
+                                    {% if match.is_live and match.stream_url and match.is_own %}
+                                        <a href="{{ match.stream_url }}" target="_blank" rel="noopener noreferrer"
+                                           class="inline-flex items-center justify-center px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm transition animate-pulse touch-manipulation w-full sm:w-auto">
+                                            <span class="w-2 h-2 rounded-full bg-white mr-1.5 inline-block"></span>
+                                            {% trans "En directo" %}
+                                        </a>
+                                    {% endif %}
+
                                     <!-- Indicador de videos -->
                                     {% if match.videos_count %}
                                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-csj-purple bg-opacity-30 dark:bg-opacity-40 text-brand-text">
