@@ -417,7 +417,7 @@ def _previous_season_initial(team, season):
     Cada fase federativa es una fila de ``Team``, así que se busca por ``identity``
     y no solo por el equipo; sin identidad, solo por el propio equipo.
     """
-    previous = Season.objects.filter(start_year__lt=season.start_year).first()
+    previous = Season.objects.filter(start_year__lt=season.start_year).order_by('-start_year').first()
     if previous is None:
         return {}, None
     teams = Team.objects.filter(identity_id=team.identity_id) if team.identity_id else Team.objects.filter(pk=team.pk)

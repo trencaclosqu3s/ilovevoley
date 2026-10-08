@@ -36,7 +36,7 @@
             <p class="text-sm text-muted mt-2">{% blocktrans with name=previous_season.name %}Precargado con la plantilla de {{ name }}. Revisa casillas, dorsales y posiciones antes de guardar.{% endblocktrans %}</p>
         {% endif %}
 
-        <form method="post" class="mt-6 space-y-4">
+        <form method="post" id="bulk-form" class="mt-6 space-y-4">
             {% csrf_token %}
             <input type="hidden" name="season" value="{{ season.pk }}">
 
@@ -45,7 +45,7 @@
             {% endfor %}
 
             {% if form.rows %}
-                <input type="search" id="person-filter" placeholder="{% trans 'Buscar persona…' %}" class="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                <input type="search" id="person-filter" placeholder="{% trans 'Buscar persona…' %}" aria-label="{% trans 'Buscar persona…' %}" class="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
 
                 <ul class="divide-y divide-line">
                     {% for row in form.rows %}
@@ -74,7 +74,7 @@
                 <a href="{% url 'rosters:person_create' %}" class="text-brand-text font-semibold hover:underline">{% trans "Crear persona" %}</a>
             </p>
 
-            <button type="submit" class="w-full bg-csj-purple-dark hover:opacity-90 text-white py-3 rounded-full font-semibold transition">
+            <button type="submit" id="bulk-submit" class="w-full bg-csj-purple-dark hover:opacity-90 text-white py-3 rounded-full font-semibold transition">
                 {% trans "Guardar jugadores" %}
             </button>
         </form>
@@ -83,6 +83,9 @@
 
 <script nonce="{{ csp_nonce }}">
 document.getElementById('season').addEventListener('change', function () { this.form.submit(); });
+document.getElementById('bulk-form').addEventListener('submit', function () {
+    document.getElementById('bulk-submit').disabled = true;
+});
 document.getElementById('person-filter')?.addEventListener('input', function (e) {
     const q = e.target.value.trim().toLowerCase();
     document.querySelectorAll('li[data-name]').forEach(li => { li.hidden = q && !li.dataset.name.includes(q); });

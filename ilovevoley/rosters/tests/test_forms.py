@@ -80,8 +80,9 @@ class RoleFormTeamChoicesTests(TestCase):
         self.org = Organization.objects.create(
             slug='club', name='Club', club_team_names={'1': 'Club'},
         )
-        self.season = Season.objects.resolve('2025-26')
-        old_season = Season.objects.resolve('2024-25')
+        self.season = Season.objects.resolve('2026-27')
+        Season.objects.filter(pk=self.season.pk).update(is_current=True)
+        old_season = Season.objects.resolve('2025-26')
         self.current = Team.objects.create(name='Club Senior', federation_id='T-CUR')
         self.old = Team.objects.create(name='Club Senior', federation_id='T-OLD')
         for team, season in ((self.current, self.season), (self.old, old_season)):
