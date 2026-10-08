@@ -2,9 +2,10 @@ from datetime import datetime, timezone as dt_timezone
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
+from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw, ImageStat
 
 from ilovevoley.competitions import result_card
 from ilovevoley.core.security import UnsafeURL
@@ -454,6 +455,17 @@ class FetchLogoBytesTests(SimpleTestCase):
         )
 
     @patch('ilovevoley.competitions.result_card.safe_get')
+    def test_upgrades_http_urls_to_https(self, safe_get):
+        safe_get.return_value = b'logo bytes'
+
+        result_card.fetch_logo_bytes('http://intranet.rfevb.com/clubes/logos/web/cl00436.jpg')
+
+        self.assertEqual(
+            safe_get.call_args.args[0],
+            'https://intranet.rfevb.com/clubes/logos/web/cl00436.jpg',
+        )
+
+    @patch('ilovevoley.competitions.result_card.safe_get')
     def test_returns_none_when_download_fails(self, safe_get):
         for error in (UnsafeURL('host no permitido'), OSError('red caída')):
             with self.subTest(error=type(error).__name__):
@@ -463,6 +475,75 @@ class FetchLogoBytesTests(SimpleTestCase):
                 self.assertIsNone(
                     result_card.fetch_logo_bytes('https://logos.example/crest.png')
                 )
+
+
+class ScoreLayerTests(SimpleTestCase):
+    def test_background_plus_score_layer_matches_the_full_preview(self):
+        # El editor mueve el marcador como capa CSS: fondo + capa tiene que dar la misma
+        # imagen que el render completo o lo que se edita no sería lo que se descarga.
+        # Se compara a escala 1:1 para aislar la lógica de dibujo del remuestreo.
+        layout = {'score': {'x': 0.4, 'y': 0.6, 'scale': 0.8}}
+        reports = {name: {} for name in ('full', 'background', 'score')}
+
+        def render(name, **extra):
+            data = result_card.render_result_card(
+                match=_fake_match(), organization=_fake_org(), card_format='story',
+                card_style='marco', photo=_fake_photo_bytes(), layout=layout,
+                sets=[(25, 20), (22, 25), (25, 18)], logo_fetcher=lambda url: None,
+                preview_width=1080, report=reports[name], **extra,
+            )
+            return Image.open(BytesIO(data))
+
+        full = render('full').convert('RGB')
+        background = render('background', layer='background').convert('RGBA')
+        score = render('score', layer='score').convert('RGBA')
+        self.assertEqual(reports['full']['score_box'], reports['score']['score_box'])
+
+        x, y, width, height = reports['full']['score_box']
+        origin = (round(x * 1080), round(y * 1920))
+        self.assertEqual(score.size, (round(width * 1080), round(height * 1920)))
+        background.alpha_composite(score, origin)
+        composed = background.convert('RGB')
+
+        difference = ImageChops.difference(full, composed).convert('L')
+        box = (*origin, origin[0] + score.width, origin[1] + score.height)
+        self.assertLess(ImageStat.Stat(difference.crop(box)).mean[0], 2)  # WebP con pérdida: ~0,9
+        difference.paste(0, box)
+        self.assertLess(ImageStat.Stat(difference).mean[0], 1)  # fuera del bloque, igual
+
+
+class TeamLogoCacheTests(SimpleTestCase):
+    def setUp(self):
+        cache.clear()
+        self.team = MagicMock(display_logo_file=None, display_logo='https://fed.example/a.png')
+
+    def test_remote_crest_is_downloaded_once(self):
+        buffer = BytesIO()
+        Image.new('RGBA', (40, 40), (200, 0, 0, 255)).save(buffer, format='PNG')
+        fetcher = MagicMock(return_value=buffer.getvalue())
+
+        first = result_card._team_logo_bytes(self.team, fetcher)
+        second = result_card._team_logo_bytes(self.team, fetcher)
+
+        self.assertIsNotNone(first)
+        self.assertEqual(first, second)
+        fetcher.assert_called_once()
+
+    def test_download_exception_is_remembered_briefly(self):
+        fetcher = MagicMock(side_effect=TimeoutError)
+
+        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
+        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
+
+        fetcher.assert_called_once()
+
+    def test_failed_download_is_remembered_briefly(self):
+        fetcher = MagicMock(return_value=None)
+
+        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
+        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
+
+        fetcher.assert_called_once()
 
 
 class PasteCrestCircleTests(SimpleTestCase):

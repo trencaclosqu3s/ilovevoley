@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import re
 from functools import lru_cache
@@ -10,6 +12,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
@@ -129,12 +132,21 @@ FOOTER_GAP = 64
 DARK_TEXT = (26, 26, 26)
 WHITE = (255, 255, 255)
 
+# Cambia al desplegar un diseño nuevo, así la caché de PNG finales no sirve el anterior.
+_RENDER_VERSION = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:10]
+CARD_CACHE_TTL = 60 * 60 * 24
+CREST_CACHE_TTL = 60 * 60 * 24
+CREST_FAILURE_TTL = 60 * 5
+
 LogoFetcher = Callable[[str | None], bytes | None]
 
 
 def fetch_logo_bytes(url: str | None, *, timeout: float = 5) -> bytes | None:
     if not url:
         return None
+    # La RFEVB guarda sus escudos con http:// y redirige a https; safe_get solo admite https.
+    if url.startswith('http://'):
+        url = 'https://' + url[len('http://'):]
     try:
         return safe_get(
             url,
@@ -230,11 +242,21 @@ def _team_logo_bytes(team, fetcher: LogoFetcher) -> bytes | None:
     local = _file_field_bytes(getattr(team, 'display_logo_file', None))
     if local:
         return local
+    url = getattr(team, 'display_logo', None)
+    key = f'result-card-crest:{_RENDER_VERSION}:{url}'
+    cached = cache.get(key)
+    if cached is not None:
+        return cached or None
     try:
-        raw = fetcher(getattr(team, 'display_logo', None))
+        raw = fetcher(url)
     except Exception:
+        cache.set(key, b'', CREST_FAILURE_TTL)
         return None
-    return normalize_crest(raw) if raw else None
+    crest = normalize_crest(raw) if raw else None
+    # Varias stories seguidas del mismo partido: un solo viaje a la federación por escudo.
+    # Un fallo se recuerda poco para no repetir el timeout de 5 s en cada preview.
+    cache.set(key, crest or b'', CREST_CACHE_TTL if crest else CREST_FAILURE_TTL)
+    return crest
 
 
 def _org_logo_bytes(organization) -> bytes | None:
@@ -522,8 +544,17 @@ def render_result_card(
     layout: dict | None = None,
     report: dict | None = None,
     logo_fetcher: LogoFetcher | None = None,
+    preview_width: int | None = None,
+    layer: str | None = None,
 ) -> bytes:
     """Renderiza la tarjeta. `layout` (ver `normalize_layout`) solo aplica al estilo "marco".
+
+    Con `preview_width` devuelve un WebP reducido a ese ancho en vez del PNG completo: se
+    dibuja a tamaño completo pero sin codificar el PNG intermedio (el 70 % del coste).
+
+    `layer` (solo con `preview_width` y estilo "marco") separa el preview en dos capas para que
+    el editor mueva el marcador sin pasar por el servidor: "background" es la tarjeta sin el
+    bloque del marcador y "score" es solo ese bloque, en WebP transparente.
 
     Si se pasa `report`, se rellena con la geometría normalizada (0-1) que necesita
     el editor: `layout` normalizado, `score_box` [x, y, w, h] y `photo` {min_zoom, w, h}.
@@ -534,6 +565,8 @@ def render_result_card(
         raise ValueError(_('estilo inválido: %(style)s') % {'style': card_style})
     if card_style == 'marco' and not photo:
         raise ValueError(_('el estilo "marco" requiere una foto'))
+    if layer not in (None, 'background', 'score') or (layer and (card_style != 'marco' or not preview_width)):
+        raise ValueError(_('capa inválida: %(layer)s') % {'layer': layer})
 
     width, height = CARD_SIZES[card_format]
     metrics = _FORMAT_METRICS[card_format]
@@ -546,7 +579,9 @@ def render_result_card(
     if report is not None:
         report['layout'] = layout
 
-    if card_style == 'marco':
+    if card_style == 'marco' and layer == 'score':
+        image = Image.new('RGB', (1, 1))  # solo sirve de lienzo de medida para ImageDraw
+    elif card_style == 'marco':
         try:
             image = _photo_background(
                 photo, width, height, primary, secondary, metrics, layout, report
@@ -575,11 +610,13 @@ def render_result_card(
     score = f'{match.home_score} - {match.away_score}'
     set_list = list(sets or [])
 
+    score_layer = None
     if card_style == 'marco':
-        _draw_header(
-            draw, image, organization=organization, match=match,
-            x=48, y=metrics['header_y'], font_sm=font_sm, font_xs=font_xs, text_color=WHITE,
-        )
+        if layer != 'score':
+            _draw_header(
+                draw, image, organization=organization, match=match,
+                x=48, y=metrics['header_y'], font_sm=font_sm, font_xs=font_xs, text_color=WHITE,
+            )
 
         # Bloque del marcador (escudos, resultado, nombres y sets): crece con `scale`
         # y se coloca por su centro; sin `y` queda anclado sobre el footer.
@@ -615,30 +652,42 @@ def render_result_card(
         names_y = crest_top + crest_size + names_gap
         sets_y = names_y + name_row_height + sets_gap
 
-        _paste_crest_circle(image, home_crest, crest_size, left, crest_top)
-        _paste_crest_circle(image, away_crest, crest_size, right - crest_size, crest_top)
-        _draw_score(
-            draw, score, font_lg, center_x=(left + right) // 2,
-            center_y=crest_top + crest_size // 2, color=WHITE,
-        )
-        draw.text((left, names_y), home_name, font=home_font, fill=WHITE)
-        draw.text(
-            (right - _text_width(draw, away_name, away_font), names_y),
-            away_name, font=away_font, fill=WHITE,
-        )
-        if set_list:
-            pill_bg_marco = tuple(channel * 55 // 100 for channel in primary)
-            _draw_sets_row(
-                draw, set_list, font_pill, center_x=(left + right) // 2, y=sets_y,
-                bg=pill_bg_marco, text_color=WHITE, scale=scale,
+        if layer == 'score':
+            score_layer = Image.new('RGBA', (block_width, block_height), (255, 255, 255, 0))
+            target, tdraw, bx, by = score_layer, ImageDraw.Draw(score_layer), 0, 0
+        else:
+            target, tdraw, bx, by = image, draw, left, crest_top
+        names_y = by + (names_y - crest_top)
+        sets_y = by + (sets_y - crest_top)
+        right = bx + block_width
+
+        if layer != 'background':
+            _paste_crest_circle(target, home_crest, crest_size, bx, by)
+            _paste_crest_circle(target, away_crest, crest_size, right - crest_size, by)
+            _draw_score(
+                tdraw, score, font_lg, center_x=(bx + right) // 2,
+                center_y=by + crest_size // 2, color=WHITE,
             )
-        _draw_footer(
-            draw, image, width=width, y=footer_y, font=footer_font, text_color=WHITE,
-            measured=footer_measured,
-        )
-        _draw_frame(
-            draw, width, height, metrics['frame_outer'], metrics['frame_inner'], secondary, primary
-        )
+            tdraw.text((bx, names_y), home_name, font=home_font, fill=WHITE)
+            tdraw.text(
+                (right - _text_width(tdraw, away_name, away_font), names_y),
+                away_name, font=away_font, fill=WHITE,
+            )
+            if set_list:
+                pill_bg_marco = tuple(channel * 55 // 100 for channel in primary)
+                _draw_sets_row(
+                    tdraw, set_list, font_pill, center_x=(bx + right) // 2, y=sets_y,
+                    bg=pill_bg_marco, text_color=WHITE, scale=scale,
+                )
+        if layer != 'score':
+            _draw_footer(
+                draw, image, width=width, y=footer_y, font=footer_font, text_color=WHITE,
+                measured=footer_measured,
+            )
+            _draw_frame(
+                draw, width, height, metrics['frame_outer'], metrics['frame_inner'], secondary,
+                primary,
+            )
     else:
         _draw_header(
             draw, image, organization=organization, match=match,
@@ -698,8 +747,19 @@ def render_result_card(
         )
 
     buffer = BytesIO()
-
-    image.convert('RGB').save(buffer, format='PNG', optimize=True)
+    if score_layer is not None:
+        image = score_layer  # RGBA: el WebP conserva el alfa
+    else:
+        image = image.convert('RGB')
+    if preview_width:
+        ratio = preview_width / width
+        image = image.resize(
+            (max(1, round(image.width * ratio)), max(1, round(image.height * ratio))),
+            Image.Resampling.LANCZOS,
+        )
+        image.save(buffer, format='WEBP', quality=80)
+    else:
+        image.save(buffer, format='PNG', optimize=True)
     return buffer.getvalue()
 
 
@@ -730,7 +790,11 @@ def _paste_crest_circle(image: Image.Image, crest: Image.Image, size: int, x: in
     circle_mask = Image.new('L', (size, size), 0)
     ImageDraw.Draw(circle_mask).ellipse([0, 0, size, size], fill=255)
     backdrop.putalpha(ImageChops.multiply(backdrop.getchannel('A'), circle_mask))
-    image.paste(backdrop, (x, y), backdrop)
+    if image.mode == 'RGBA':
+        # Lienzo transparente (capa del marcador): paste con máscara elevaría el alfa al cuadrado.
+        image.alpha_composite(backdrop, (x, y))
+    else:
+        image.paste(backdrop, (x, y), backdrop)
 
 
 def _draw_card_shadow(image: Image.Image, box, radius: int):
@@ -739,3 +803,33 @@ def _draw_card_shadow(image: Image.Image, box, radius: int):
     ImageDraw.Draw(shadow).rounded_rectangle(shadow_box, radius=radius, fill=(0, 0, 0, 90))
     shadow = shadow.filter(ImageFilter.GaussianBlur(18))
     image.paste(Image.new('RGB', image.size, (0, 0, 0)), (0, 0), shadow)
+
+
+def card_cache_key(*, match, organization, card_format, card_style, photo, layout, sets) -> str:
+    """Huella de todo lo que cambia el PNG final: si algo varía, la clave también."""
+    def file_identity(field):
+        # Nombre + fecha de modificación: sustituir el fichero sin cambiar su ruta también invalida.
+        if not field:
+            return ''
+        try:
+            return [field.name, str(field.storage.get_modified_time(field.name))]
+        except Exception:
+            return field.name
+
+    def crest(team):
+        return [
+            getattr(team, 'display_name', ''), str(getattr(team, 'display_logo', '')),
+            file_identity(getattr(team, 'display_logo_file', None)),
+        ]
+
+    fields = [
+        _RENDER_VERSION, match.id, card_format, card_style, photo,
+        json.dumps(layout, sort_keys=True), list(sets),
+        match.home_score, match.away_score, str(match.match_date),
+        getattr(getattr(match, 'league', None), 'name', ''),
+        crest(match.home_team), crest(match.away_team),
+        organization.id, organization.primary_color, organization.secondary_color,
+        file_identity(getattr(organization, 'logo', None)),
+    ]
+    digest = hashlib.sha1(json.dumps(fields, default=str).encode()).hexdigest()
+    return f'result-card:{digest}'
