@@ -237,6 +237,38 @@
                         {{ match.get_status_display }}
                     </div>
                 {% endif %}
+
+                {% if is_own_match and stream_url %}
+                    {% if is_live_window %}
+                        <a href="{{ stream_url }}" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center px-3.5 py-1.5 rounded-full text-sm font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm transition animate-pulse">
+                            <span class="w-2.5 h-2.5 rounded-full bg-white mr-2 inline-block"></span>
+                            {% trans "Ver en directo" %}
+                            <svg class="w-4 h-4 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                            </svg>
+                        </a>
+                    {% else %}
+                        <a href="{{ stream_url }}" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border border-line text-ink hover:bg-tint transition">
+                            <svg class="w-4 h-4 mr-1 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
+                            </svg>
+                            {% trans "Directo programado" %}
+                        </a>
+                    {% endif %}
+                {% endif %}
+
+                {% if can_edit_stream %}
+                    <button type="button" data-call="openStreamModal"
+                            class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border border-line text-muted hover:text-ink hover:bg-tint transition"
+                            title="{% if stream_url %}{% trans "Editar enlace en directo" %}{% else %}{% trans "Añadir enlace en directo" %}{% endif %}">
+                        <svg class="w-3.5 h-3.5 mr-1 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
+                        </svg>
+                        {% if stream_url %}{% trans "Editar directo" %}{% else %}{% trans "Añadir directo" %}{% endif %}
+                    </button>
+                {% endif %}
             </div>
 
             <!-- Tercera línea: Información detallada -->
@@ -835,6 +867,49 @@
     </div>
 </div>
 
+{% if can_edit_stream %}
+<!-- Modal para enlace de retransmisión en directo (#359) -->
+<div id="streamModal" class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-surface rounded-2xl max-w-md w-full border border-line shadow-xl">
+        <div class="px-6 py-4 border-b border-line">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-ink">{% trans "Enlace en directo" %}</h3>
+                <button type="button" data-call="closeStreamModal" class="text-muted hover:text-ink">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <form id="streamForm" class="p-6 space-y-4">
+            <div>
+                <label for="streamUrlInput" class="block text-sm font-medium text-ink mb-1">
+                    {% trans "URL de emisión (YouTube, Instagram, etc.)" %}
+                </label>
+                <input type="url" id="streamUrlInput" name="stream_url"
+                       value="{{ stream_url }}"
+                       placeholder="https://www.youtube.com/watch?v=..."
+                       class="w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl text-sm focus:ring-2 focus:ring-accent focus:border-transparent">
+                <p class="text-xs text-muted mt-1">
+                    {% trans "Se notificará automáticamente a los seguidores si el partido está en juego." %}
+                </p>
+                <p id="streamError" class="hidden text-xs text-red-500 font-medium mt-1"></p>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" data-call="closeStreamModal"
+                        class="px-4 py-2 text-sm font-medium rounded-xl border border-line text-ink hover:bg-tint transition">
+                    {% trans "Cancelar" %}
+                </button>
+                <button type="submit" id="streamSubmitBtn"
+                        class="px-4 py-2 text-sm font-medium rounded-xl bg-red-600 hover:bg-red-700 text-white transition">
+                    {% trans "Guardar" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <!-- Modal para agregar resultado -->
 <div id="resultModal" class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 hidden z-50 flex items-center justify-center p-4"
      data-max-sets="{{ max_sets }}">
@@ -1354,7 +1429,73 @@ document.addEventListener('DOMContentLoaded', function() {
     if (resultForm) {
         resultForm.addEventListener('submit', handleResultSubmit);
     }
+    const streamForm = document.getElementById('streamForm');
+    if (streamForm) {
+        streamForm.addEventListener('submit', handleStreamSubmit);
+    }
+    const streamModal = document.getElementById('streamModal');
+    if (streamModal) {
+        streamModal.addEventListener('click', function(e) {
+            if (e.target === this) closeStreamModal();
+        });
+    }
 });
+
+function openStreamModal() {
+    const modal = document.getElementById('streamModal');
+    if (!modal) return;
+    const errorEl = document.getElementById('streamError');
+    if (errorEl) errorEl.classList.add('hidden');
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    const input = document.getElementById('streamUrlInput');
+    if (input) input.focus();
+}
+
+function closeStreamModal() {
+    const modal = document.getElementById('streamModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+async function handleStreamSubmit(e) {
+    e.preventDefault();
+    const input = document.getElementById('streamUrlInput');
+    const errorEl = document.getElementById('streamError');
+    const submitBtn = document.getElementById('streamSubmitBtn');
+    const url = input ? input.value.trim() : '';
+
+    if (errorEl) errorEl.classList.add('hidden');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+        const response = await fetch("{% url 'competitions:ajax_update_stream_url' match.id %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({ stream_url: url })
+        });
+        const data = await response.json();
+        if (data.success) {
+            window.location.reload();
+        } else {
+            if (errorEl) {
+                errorEl.textContent = data.error || '{% trans "Error al guardar el enlace" as js_err %}{{ js_err|escapejs }}';
+                errorEl.classList.remove('hidden');
+            }
+        }
+    } catch (err) {
+        if (errorEl) {
+            errorEl.textContent = '{% trans "Error de conexión. Inténtalo de nuevo." as js_conn %}{{ js_conn|escapejs }}';
+            errorEl.classList.remove('hidden');
+        }
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
+}
 
 // Cerrar modal al hacer clic fuera
 document.getElementById('resultModal').addEventListener('click', function(e) {
@@ -1367,6 +1508,7 @@ document.getElementById('resultModal').addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeResultModal();
+        closeStreamModal();
         closePlayerModal();
     }
 });

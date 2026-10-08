@@ -7,16 +7,17 @@ from io import BytesIO
 from datetime import datetime, timedelta
 
 import requests as http_requests
-from PIL import Image as Image_
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.cache import cache
+from django.core.validators import URLValidator
 from django.db import transaction
 from django.urls import reverse
 from django.db.models import (
-    Case, CharField, Count, Exists, IntegerField, OuterRef, Q, Subquery, Value, When,
+    BooleanField, Case, CharField, Count, Exists, IntegerField, OuterRef, Q, Subquery, Value, When,
 )
 from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse, JsonResponse
@@ -27,8 +28,10 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from ilovevoley.competitions.result_card import (
+    CARD_CACHE_TTL,
     CARD_STYLES,
     _file_field_bytes,
+    card_cache_key,
     render_result_card,
 )
 from ilovevoley.content.favorites import annotate_favorites, match_top_images
@@ -54,8 +57,9 @@ from ilovevoley.videos.scraping import (
 from .forms import FriendlyMatchForm, MatchResultForm
 from .models import League, Match, MatchChangeLog, MatchShareLink, Standing, StoryComposition
 from .services.lineups import resolve_acta_team, store_match_lineups
-from .services.notifications import notify_match_result
+from .services.notifications import notify_match_live_stream, notify_match_result
 from .services.preview import build_match_preview
+
 from .services.sets import extract_set_scores, match_set_scores
 from .services.where_plays import MIN_QUERY_LENGTH, search_locations
 from .share import (
@@ -334,11 +338,13 @@ def match_detail(request, match_id):
         )
         top_images = match_top_images(match, request.tenant, user=request.user, limit=3)
         can_manage = user_is_tenant_manager(request.user, request.tenant)
+        stream_url = match.stream_url
     else:
         videos = match.videos.none()
         images = match.images.none()
         top_images = []
         can_manage = False
+        stream_url = ''
 
     # Enlaces de compartición (solo relevantes para managers)
     share_links = []
@@ -375,6 +381,10 @@ def match_detail(request, match_id):
         'is_own_match': is_own_match,
         'can_manage_videos': can_manage,
         'can_edit_result': can_manage,
+        'can_edit_stream': can_manage,
+        'stream_url': stream_url,
+        'is_live': match.is_live if is_own_match else False,
+        'is_live_window': match.is_live_window if is_own_match else False,
         'share_links': share_links,
         'share_hours_choices': ALLOWED_HOURS,
         'share_default_hours': default_hours(),
@@ -494,7 +504,23 @@ def match_result_card(request, match_id):
             )
 
     report = {}
-    png = render_result_card(
+    is_preview = request.GET.get('preview') == '1'
+    sets = _load_set_scores_for_card(match)
+    # El editor pide el preview en dos capas (fondo y bloque del marcador) para mover el
+    # marcador sin round-trip; solo tiene sentido en el preview del estilo personalizado.
+    layer = request.GET.get('layer') or None
+    if layer and (layer not in ('background', 'score') or not is_preview or card_style != 'personalizada'):
+        return JsonResponse({'error': _('Capa no válida')}, status=400)
+    # La descarga final se cachea (varias stories seguidas del mismo partido); la preview
+    # del editor no, porque su layout cambia a cada gesto.
+    cache_key = None if is_preview else card_cache_key(
+        match=match, organization=request.tenant, card_format=card_format,
+        card_style=card_style, photo=(photo.id, photo.thumbnail_large.name or photo.image.name)
+        if photo_bytes else None, layout=layout, sets=sets,
+    )
+    png = cache_key and cache.get(cache_key)
+    cached = bool(png)
+    png = png or render_result_card(
         match=match,
         organization=request.tenant,
         card_format=card_format,
@@ -502,12 +528,14 @@ def match_result_card(request, match_id):
         photo=photo_bytes,
         layout=layout,
         report=report,
-        sets=_load_set_scores_for_card(match),
+        sets=sets,
+        preview_width=540 if is_preview else None,
+        layer=layer,
     )
-    if request.GET.get('preview') == '1':
-        # Se renderiza a tamaño completo y se reduce; si el editor pide muchas
-        # previews, habrá que renderizar directamente a escala en el renderer.
-        response = HttpResponse(_downscale_png(png), content_type='image/png')
+    if cache_key and not cached:
+        cache.set(cache_key, png, CARD_CACHE_TTL)
+    if is_preview:
+        response = HttpResponse(png, content_type='image/webp')
         # Las miniaturas de "Mis creaciones" llevan ?v=<updated>: la URL cambia al
         # editar, así que se cachean un mes (resultados y escudos no suelen cambiar).
         response['Cache-Control'] = (
@@ -520,15 +548,6 @@ def match_result_card(request, match_id):
         f'attachment; filename="resultado-{match.id}-{card_format}.png"'
     )
     return response
-
-
-def _downscale_png(png: bytes, width: int = 540) -> bytes:
-    with Image_.open(BytesIO(png)) as image:
-        ratio = width / image.width
-        small = image.resize((width, round(image.height * ratio)), Image_.Resampling.LANCZOS)
-        buffer = BytesIO()
-        small.save(buffer, format='PNG')
-        return buffer.getvalue()
 
 
 @login_required
@@ -608,6 +627,15 @@ def calendar_view(request):
     # Filtrar por equipo del club por defecto
     if not show_all_teams:
         matches = matches.filter(get_club_team_filter(request.tenant))
+        matches = matches.annotate(is_own=Value(True, output_field=BooleanField()))
+    else:
+        matches = matches.annotate(
+            is_own=Case(
+                When(get_club_team_filter(request.tenant), then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField(),
+            )
+        )
 
     # Aplicar filtro de liga
     if league_filter:
@@ -643,6 +671,7 @@ def calendar_view(request):
         match_date__gte=start_date,
         match_date__lt=next_month_start,
     )
+
 
     # Navegación de meses
     next_month = next_month_start
@@ -1565,6 +1594,50 @@ def ajax_mark_change_reviewed(request, log_id):
     })
 
 
+@require_POST
+@tenant_access_required(manager=True)
+def ajax_update_stream_url(request, match_id):
+    """Actualiza el enlace de retransmisión en directo del partido (#359)."""
+    try:
+        match = Match.objects.for_tenant(request.tenant).get(id=match_id)
+    except Match.DoesNotExist:
+        return JsonResponse({'success': False, 'error': _('Partido no encontrado')}, status=404)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': _('Datos inválidos')}, status=400)
+
+    stream_url = (data.get('stream_url') or '').strip()
+
+    if stream_url:
+        validator = URLValidator(schemes=['http', 'https'])
+        try:
+            validator(stream_url)
+        except ValidationError:
+            return JsonResponse({
+                'success': False,
+                'error': _('La URL debe comenzar con http:// o https:// y tener un formato válido.'),
+            }, status=400)
+
+    match.stream_url = stream_url
+    match.save(update_fields=['stream_url'])
+
+    notified = False
+    if stream_url and match.is_live_window and match.stream_notified_at is None:
+        try:
+            notified = notify_match_live_stream(match, tenant=request.tenant)
+        except Exception:
+            logger.exception("Error al notificar directo del partido %s", match_id)
+
+    return JsonResponse({
+        'success': True,
+        'stream_url': match.stream_url,
+        'notified': bool(notified),
+        'is_live': match.is_live,
+    })
+
+
 __all__ = [
     'league_list',
     'league_detail',
@@ -1582,9 +1655,11 @@ __all__ = [
     'ajax_add_match_result',
     'ajax_edit_match_result',
     'ajax_acta_lineup',
+    'ajax_update_stream_url',
     'standings_view',
     'ajax_matches_by_category',
     'ajax_teams_by_league_category',
     'match_changes_review',
     'ajax_mark_change_reviewed',
 ]
+

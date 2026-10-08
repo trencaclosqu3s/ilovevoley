@@ -11600,6 +11600,76 @@ msgstr ""
 "Arguments amb nom en JSON vàlid, per exemple {\"delay\": 2.0}. Han de "
 "coincidir amb la signatura de la tasca."
 
+#: ilovevoley/competitions/models/competitions.py:385
+msgid "Enlace de retransmisión"
+msgstr "Enllaç de retransmissió"
+
+#: ilovevoley/competitions/models/competitions.py:391
+msgid "Aviso de directo enviado el"
+msgstr "Avís de directe enviat el"
+
+#: ilovevoley/users/models.py:222
+msgid "Retransmisiones en directo"
+msgstr "Retransmissions en directe"
+
+#: ilovevoley/competitions/services/notifications.py:711
+#, python-format
+msgid "🔴 En directo: %(home)s vs %(away)s"
+msgstr "🔴 En directe: %(home)s vs %(away)s"
+
+#: ilovevoley/competitions/services/notifications.py:712
+#, python-format
+msgid "¡El partido %(home)s vs %(away)s se está emitiendo en directo! Toca para ver la retransmisión."
+msgstr "El partit %(home)s vs %(away)s s'està emetent en directe! Toca per veure la retransmissió."
+
+#: ilovevoley/competitions/views.py:1499
+msgid "La URL debe comenzar con http:// o https:// y tener un formato válido."
+msgstr "L'URL ha de començar amb http:// o https:// i tenir un format vàlid."
+
+#: ilovevoley/competitions/templates/competitions/calendar.html:399
+msgid "En directo"
+msgstr "En directe"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:240
+msgid "Ver en directo"
+msgstr "Veure en directe"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:251
+msgid "Directo programado"
+msgstr "Directe programat"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:259
+msgid "Editar enlace en directo"
+msgstr "Editar enllaç en directe"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:259
+msgid "Añadir enlace en directo"
+msgstr "Afegir enllaç en directe"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:263
+msgid "Editar directo"
+msgstr "Editar directe"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:263
+msgid "Añadir directo"
+msgstr "Afegir directe"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:870
+msgid "Enlace en directo"
+msgstr "Enllaç en directe"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:881
+msgid "URL de emisión (YouTube, Instagram, etc.)"
+msgstr "URL d'emissió (YouTube, Instagram, etc.)"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:888
+msgid "Se notificará automáticamente a los seguidores si el partido está en juego."
+msgstr "Es notificarà automàticament als seguidors si el partit està en joc."
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html:1477
+msgid "Error al guardar el enlace"
+msgstr "Error en desar l'enllaç"
+
 #~ msgid "¡DOBLE!"
 #~ msgstr "DOBLE!"
 

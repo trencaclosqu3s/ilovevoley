@@ -878,7 +878,7 @@ class MatchResultCardViewTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
 
-    def test_custom_style_preview_is_downscaled_png(self):
+    def test_custom_style_preview_is_downscaled_webp(self):
         from io import BytesIO
 
         from PIL import Image as PILImage
@@ -894,7 +894,61 @@ class MatchResultCardViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('Content-Disposition', response)
+        self.assertEqual(response['Content-Type'], 'image/webp')
         self.assertEqual(PILImage.open(BytesIO(response.content)).size, (540, 960))
+
+    def test_preview_layers_split_score_block_from_background(self):
+        import json
+        from io import BytesIO
+
+        from PIL import Image as PILImage
+
+        photo = self._approved_photo()
+        base = (
+            self._url(self.finished.id, 'story')
+            + f'&style=personalizada&photo_id={photo.id}&preview=1'
+        )
+        with patch('ilovevoley.competitions.result_card.fetch_logo_bytes', return_value=None):
+            background = self.client.get(base + '&layer=background', HTTP_HOST='testclub.ilovevoley.es')
+            score = self.client.get(base + '&layer=score', HTTP_HOST='testclub.ilovevoley.es')
+            invalid = self.client.get(base + '&layer=nope', HTTP_HOST='testclub.ilovevoley.es')
+            not_preview = self.client.get(
+                base.replace('&preview=1', '') + '&layer=score', HTTP_HOST='testclub.ilovevoley.es'
+            )
+
+        self.assertEqual(PILImage.open(BytesIO(background.content)).size, (540, 960))
+        layer = PILImage.open(BytesIO(score.content))
+        self.assertEqual(layer.mode, 'RGBA')
+        self.assertLess(layer.width, 540)
+        self.assertEqual(
+            json.loads(score['X-Layout-Info'])['score_box'],
+            json.loads(background['X-Layout-Info'])['score_box'],
+        )
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(not_preview.status_code, 400)
+
+    def test_final_card_is_cached_until_the_result_changes(self):
+        from ilovevoley.competitions.result_card import render_result_card
+
+        cache.clear()
+        photo = self._approved_photo()
+        url = (
+            self._url(self.finished.id, 'story')
+            + f'&style=personalizada&photo_id={photo.id}'
+        )
+        with patch('ilovevoley.competitions.result_card.fetch_logo_bytes', return_value=None):
+            with patch(
+                'ilovevoley.competitions.views.render_result_card',
+                wraps=render_result_card,
+            ) as render:
+                first = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+                second = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+                self.finished.home_score += 1
+                self.finished.save(update_fields=['home_score'])
+                self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+
+        self.assertEqual(first.content, second.content)
+        self.assertEqual(render.call_count, 2)
 
     def test_saved_composition_is_normalized_and_renders_for_its_owner_only(self):
         photo = self._approved_photo()
@@ -1003,7 +1057,8 @@ class MatchResultCardViewTests(TestCase):
 
         get.assert_called_once()
         parse.assert_called_once()
-        self.assertEqual(render_card.call_count, 2)
+        # La segunda petición sale de la caché de PNG finales: un solo render.
+        render_card.assert_called_once()
         self.assertEqual(render_card.call_args.kwargs['sets'], [(25, 19), (21, 25)])
 
     def test_acta_data_avoids_http_fetch_for_card(self):
@@ -1355,6 +1410,117 @@ class CompetitionsTenantIsolationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_match_detail_isolates_stream_url_for_foreign_match(self):
+        """El enlace de retransmisión solo es visible para el tenant dueño del partido (#345, #359)."""
+        self.other_match.stream_url = 'https://youtube.com/live/foreign123'
+        self.other_match.save()
+        self.match.stream_url = 'https://youtube.com/live/own123'
+        self.match.save()
+
+        self.client.force_login(self.manager)
+
+        # Partido ajeno: stream_url oculto
+        foreign = self.client.get(
+            reverse('competitions:match_detail', args=[self.other_match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(foreign.status_code, 200)
+        self.assertEqual(foreign.context.get('stream_url', ''), '')
+        self.assertFalse(foreign.context.get('can_edit_stream', False))
+        self.assertNotIn('https://youtube.com/live/foreign123', foreign.content.decode())
+
+        # Partido propio: stream_url accesible y can_edit_stream activo para manager
+        own = self.client.get(
+            reverse('competitions:match_detail', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(own.status_code, 200)
+        self.assertEqual(own.context.get('stream_url'), 'https://youtube.com/live/own123')
+        self.assertTrue(own.context.get('can_edit_stream'))
+        self.assertIn('https://youtube.com/live/own123', own.content.decode())
+
+    def test_update_stream_url_blocks_foreign_match(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_update_stream_url', args=[self.other_match.id]),
+            data={'stream_url': 'https://youtube.com/live/new'},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_update_stream_url_requires_manager(self):
+        from ilovevoley.users.models import Membership
+        normal_user = get_user_model().objects.create_user(username='regular', password='pwd')
+        Membership.objects.create(user=normal_user, organization=self.org, is_approved=True, role='member')
+        self.client.force_login(normal_user)
+        response = self.client.post(
+            reverse('competitions:ajax_update_stream_url', args=[self.match.id]),
+            data={'stream_url': 'https://youtube.com/live/new'},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_update_stream_url_rejects_invalid_url(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_update_stream_url', args=[self.match.id]),
+            data={'stream_url': 'javascript:alert(1)'},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['success'])
+
+    @patch('ilovevoley.competitions.views.notify_match_live_stream')
+    def test_update_stream_url_success_and_triggers_push(self, mock_notify):
+        mock_notify.return_value = True
+        self.match.match_date = timezone.now() + timedelta(minutes=15)
+        self.match.save()
+
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('competitions:ajax_update_stream_url', args=[self.match.id]),
+            data={'stream_url': 'https://youtube.com/live/valid'},
+            content_type='application/json',
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['stream_url'], 'https://youtube.com/live/valid')
+        self.assertTrue(data['notified'])
+
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.stream_url, 'https://youtube.com/live/valid')
+        mock_notify.assert_called_once()
+
+    def test_calendar_displays_live_stream_button_only_for_own_matches(self):
+        """El botón 'En directo' en el calendario solo se muestra para partidos propios (#345, #359)."""
+        now = timezone.now()
+        # Partido propio en directo
+        self.match.match_date = now
+        self.match.stream_url = 'https://youtube.com/live/own_cal'
+        self.match.save()
+
+        # Partido ajeno en directo
+        self.other_match.match_date = now
+        self.other_match.stream_url = 'https://youtube.com/live/foreign_cal'
+        self.other_match.save()
+
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse('competitions:calendar_view'),
+            {'year': str(now.year), 'month': str(now.month), 'all_teams': '1'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn('https://youtube.com/live/own_cal', content)
+        self.assertNotIn('https://youtube.com/live/foreign_cal', content)
+
 
     def test_acta_lineup_allows_foreign_match_and_isolates_persons(self):
         """Permite cargar el acta de un partido ajeno, la persiste y no resuelve personas de otros clubes."""

@@ -100,7 +100,7 @@ class DisplayLogoTests(SimpleTestCase):
 
 
 class CacheLogoTests(SimpleTestCase):
-    @patch('ilovevoley.competitions.result_card.fetch_logo_bytes')
+    @patch('ilovevoley.core.security.fetch_logo_bytes')
     def test_failed_download_or_invalid_image_leaves_logo_empty(self, fetch):
         club = Club(federation_id='7')
         for payload in (None, b'<html>no es una imagen</html>'):

@@ -94,8 +94,8 @@ def cache_logo(obj):
     """
     from django.core.files.base import ContentFile
 
-    from ilovevoley.competitions.result_card import fetch_logo_bytes
     from ilovevoley.core.image_utils import normalize_crest
+    from ilovevoley.core.security import fetch_logo_bytes
 
     url = obj.logo_url or getattr(obj, 'logo_federation_url', None)
     raw = fetch_logo_bytes(url, timeout=15)
