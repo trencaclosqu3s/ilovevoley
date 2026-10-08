@@ -2,9 +2,11 @@ import logging
 
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db import IntegrityError, transaction
 from django.db.models import Prefetch, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
@@ -12,12 +14,12 @@ from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenancy import get_tenant_object_or_404
-from ilovevoley.core.tenant_utils import person_belongs_to_tenant, tenant_access_required
+from ilovevoley.core.tenant_utils import person_belongs_to_tenant, tenant_access_required, user_is_tenant_manager
 from ilovevoley.competitions.models import MatchLineup
 from ilovevoley.content.models import Image
 from ilovevoley.competitions.services.lineups import get_player_season_stats
 from ilovevoley.teams.models import Team
-from .forms import PersonForm, PlayerRoleForm, StaffRoleForm
+from .forms import BulkPlayerRosterForm, PersonForm, PlayerRoleForm, StaffRoleForm
 from .models import Person, PlayerRole, StaffRole
 
 logger = logging.getLogger(__name__)
@@ -102,6 +104,7 @@ def roster_overview(request):
         "selected_category": category_filter,
         "show_all": show_all,
         "user_categories": user_categories,
+        "can_manage": user_is_tenant_manager(request.user, request.tenant),
     }
     
     return render(request, "rosters/roster_overview.html", context)
@@ -299,6 +302,37 @@ def person_create(request):
 
 @tenant_access_required(manager=True)
 @require_POST
+def person_quick_create(request):
+    """Alta rápida de persona (nombre, apellidos, año) para el modal del alta masiva (#446).
+
+    No vincula la ficha al usuario (``person_create`` lo hace con la primera que
+    crea): aquí se dan de alta jugadores ajenos. Si la identidad ya existe en la
+    plataforma responde 409 con la ficha; con ``adopt=1`` se vincula al club.
+    """
+    form = PersonForm(request.POST)
+    if request.POST.get('adopt') == '1':
+        form.is_valid()
+        person = form.existing_person()
+        if person is None:
+            raise Http404
+    elif form.is_valid():
+        with transaction.atomic():
+            person = form.save()
+            person.organizations.add(request.tenant)
+        return JsonResponse({'id': person.pk, 'name': person.full_name, 'birth_year': person.birth_year})
+    else:
+        existing = form.existing_person()
+        if existing:
+            return JsonResponse({'existing': {
+                'name': existing.full_name, 'birth_year': existing.birth_year,
+            }}, status=409)
+        return JsonResponse({'errors': {k: [str(m) for m in v] for k, v in form.errors.items()}}, status=400)
+    person.organizations.add(request.tenant)
+    return JsonResponse({'id': person.pk, 'name': person.full_name, 'birth_year': person.birth_year})
+
+
+@tenant_access_required(manager=True)
+@require_POST
 def person_adopt(request):
     """Vincula al club una ficha global existente, identificada por nombre y año.
 
@@ -406,6 +440,61 @@ def player_role_create(request, person_id):
     }
     
     return render(request, 'rosters/role_form.html', context)
+
+
+def _previous_season_initial(team, season):
+    """Filas precargadas con la plantilla de la temporada anterior de la misma identidad.
+
+    Cada fase federativa es una fila de ``Team``, así que se busca por ``identity``
+    y no solo por el equipo; sin identidad, solo por el propio equipo.
+    """
+    previous = Season.objects.filter(start_year__lt=season.start_year).order_by('-start_year').first()
+    if previous is None:
+        return {}, None
+    teams = Team.objects.filter(identity_id=team.identity_id) if team.identity_id else Team.objects.filter(pk=team.pk)
+    roles = PlayerRole.objects.filter(team__in=teams, season=previous, is_active=True).order_by('-updated_at')
+    initial = {}
+    for role in roles:
+        initial.setdefault(role.person_id, (role.jersey_number, role.position))
+    return initial, previous
+
+
+@tenant_access_required(manager=True)
+def player_roster_bulk_add(request, team_id):
+    """Alta masiva de jugadores en un equipo y temporada (#446)."""
+    team = get_tenant_object_or_404(Team.objects, request.tenant, user=request.user, id=team_id)
+    seasons = Season.objects.all()
+    raw_season = request.POST.get('season') or request.GET.get('season')
+    season = seasons.filter(pk=raw_season).first() if raw_season and raw_season.isdigit() else None
+    season = season or Season.objects.current()
+
+    candidates = Person.objects.for_tenant(request.tenant).filter(is_active=True).exclude(
+        pk__in=PlayerRole.objects.filter(team=team, season=season, is_active=True).values('person_id'),
+    ).order_by('last_name', 'first_name')
+
+    previous = None
+    if request.method == 'POST':
+        form = BulkPlayerRosterForm(team, season, candidates, data=request.POST)
+        if form.is_valid():
+            try:
+                created = form.save()
+            except IntegrityError:
+                # Carrera con otro alta: el constraint de BD no debe ser un 500.
+                form.errors.append(_('Algún dorsal o jugador acaba de ser asignado. Revisa los datos.'))
+            else:
+                messages.success(request, _('%(n)s jugadores añadidos a %(team)s.') % {'n': created, 'team': team})
+                return redirect(f"{reverse('teams:team_roster', args=[team.id])}?season={season.pk}")
+    else:
+        initial = {}
+        if request.GET.get('copy') == '1':
+            initial, previous = _previous_season_initial(team, season)
+            if not initial:
+                messages.info(request, _('No hay plantilla en la temporada anterior para copiar.'))
+        form = BulkPlayerRosterForm(team, season, candidates, initial=initial)
+
+    return render(request, 'rosters/roster_bulk_add.html', {
+        'form': form, 'team': team, 'season': season, 'seasons': seasons, 'previous_season': previous,
+    })
 
 
 @tenant_access_required(manager=True)

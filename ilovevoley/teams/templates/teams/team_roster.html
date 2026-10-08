@@ -43,6 +43,11 @@
             </div>
             
             <div class="flex items-center gap-2">
+                {% if can_manage %}
+                    <a href="{% url 'rosters:player_roster_bulk_add' team.id %}?season={{ selected_season }}" class="bg-csj-purple-dark hover:opacity-90 text-white px-4 py-2 rounded-full font-medium transition text-sm whitespace-nowrap">
+                        {% icon 'plus' %} {% trans "Añadir jugadores" %}
+                    </a>
+                {% endif %}
                 {% if user.is_staff %}
                     <a href="{% url 'admin:teams_team_change' team.id %}" class="bg-tint hover:opacity-80 text-ink px-4 py-2 rounded-full font-medium transition text-sm whitespace-nowrap">
                         {% icon 'cog' %} {% trans "Editar" %}

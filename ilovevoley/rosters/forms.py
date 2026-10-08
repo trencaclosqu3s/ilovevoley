@@ -1,6 +1,7 @@
 from datetime import date
 
 from django import forms
+from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
@@ -8,6 +9,42 @@ from ilovevoley.core.mixins import get_club_team_names
 from ilovevoley.core.models import Season
 from ilovevoley.teams.models import Team
 from .models import Person, PlayerRole, StaffRole
+
+
+def _club_teams_for_seasons(organization, seasons):
+    """Equipos activos del club con presencia en alguna de ``seasons``.
+
+    Presencia = clasificación, partido o rol de plantilla en esa temporada. Hay una
+    fila de ``Team`` por fase federativa, así que sin este filtro el selector
+    ofrece equipos de otros años con el mismo nombre.
+    """
+    name_query = Q()
+    for club_name in get_club_team_names(organization):
+        name_query |= Q(name__icontains=club_name)
+    in_season = (
+        Q(standings__league__season__in=seasons)
+        | Q(home_matches__league__season__in=seasons)
+        | Q(away_matches__league__season__in=seasons)
+        | Q(player_roles__season__in=seasons)
+        | Q(staff_roles__season__in=seasons)
+    )
+    teams = Team.objects.filter(name_query, is_active=True).select_related('category').order_by('category__name', 'name')
+    in_season_teams = teams.filter(in_season).distinct()
+    # Temporada recién creada y sin scrapear (#344): ninguna fila tiene presencia
+    # todavía, así que se ofrecen todos los equipos del club.
+    return in_season_teams if in_season_teams.exists() else teams
+
+
+def _form_seasons(form):
+    """Temporadas cuyos equipos debe ofrecer el selector: la de partida y la enviada."""
+    season = form.instance.season if form.instance.pk else form.fields['season'].initial
+    seasons = [season] if season else []
+    if form.is_bound:
+        try:
+            seasons.append(Season.objects.get(pk=form.data.get('season')))
+        except (Season.DoesNotExist, ValueError):
+            pass
+    return seasons
 
 
 class PersonForm(forms.ModelForm):
@@ -183,17 +220,8 @@ class PlayerRoleForm(forms.ModelForm):
         if not self.instance.pk:
             self.fields['season'].initial = Season.objects.current()
 
-        # Filtrar equipos del club
-        club_names = get_club_team_names(self.organization)
-        # Usar la primera categoría de equipo como filtro principal
-        team_query = Q()
-        for club_name in club_names:
-            team_query |= Q(name__icontains=club_name)
-
-        self.fields['team'].queryset = Team.objects.filter(
-            team_query,
-            is_active=True
-        ).select_related('category').order_by('category__name', 'name')
+        # Equipos del club con presencia en la temporada
+        self.fields['team'].queryset = _club_teams_for_seasons(self.organization, _form_seasons(self))
 
         # Si hay persona, excluir equipos donde ya tiene rol activo en esa temporada
         if self.person:
@@ -278,16 +306,8 @@ class StaffRoleForm(forms.ModelForm):
         if not self.instance.pk:
             self.fields['season'].initial = Season.objects.current()
 
-        # Filtrar equipos del club
-        club_names = get_club_team_names(self.organization)
-        team_query = Q()
-        for club_name in club_names:
-            team_query |= Q(name__icontains=club_name)
-
-        self.fields['team'].queryset = Team.objects.filter(
-            team_query,
-            is_active=True
-        ).select_related('category').order_by('category__name', 'name')
+        # Equipos del club con presencia en la temporada
+        self.fields['team'].queryset = _club_teams_for_seasons(self.organization, _form_seasons(self))
 
         # Una persona puede tener varios roles distintos en el mismo equipo y
         # temporada (p.ej. entrenador y delegado); lo valida el UniqueConstraint
@@ -311,8 +331,89 @@ class StaffRoleForm(forms.ModelForm):
         return cleaned
 
 
+class BulkPlayerRosterForm:
+    """Alta masiva de jugadores en un equipo y temporada (#446).
+
+    No es un ``forms.Form``: cada candidata es una fila (casilla + dorsal +
+    posición) y el error es por fila, no por campo. ``initial`` precarga filas
+    marcadas con ``{person_id: (jersey_number, position)}``.
+    """
+
+    def __init__(self, team, season, candidates, data=None, initial=None):
+        self.team = team
+        self.season = season
+        self.is_bound = data is not None
+        self.errors = []
+        self.rows = []
+        initial = initial or {}
+        for person in candidates:
+            pid = str(person.pk)
+            if self.is_bound:
+                checked = pid in data.getlist('selected')
+                jersey = data.get(f'jersey_{pid}', '').strip()
+                position = data.get(f'position_{pid}', '')
+            else:
+                checked = person.pk in initial
+                jersey, position = initial.get(person.pk, ('', ''))
+                jersey = '' if jersey is None else str(jersey)
+            self.rows.append({
+                'person': person, 'checked': checked, 'jersey': jersey,
+                'position': position, 'error': '',
+            })
+
+    @property
+    def positions(self):
+        return PlayerRole.POSITION_CHOICES
+
+    def is_valid(self):
+        selected = [row for row in self.rows if row['checked']]
+        if not selected:
+            self.errors.append(_('Selecciona al menos un jugador.'))
+            return False
+        # El constraint solo cubre dorsales con rol activo en ese equipo y temporada.
+        taken = set(
+            PlayerRole.objects.filter(
+                team=self.team, season=self.season, is_active=True, jersey_number__isnull=False,
+            ).values_list('jersey_number', flat=True)
+        )
+        valid_positions = {key for key, _label in PlayerRole.POSITION_CHOICES}
+        seen = set()
+        for row in selected:
+            number = None
+            if row['jersey']:
+                if not (row['jersey'].isascii() and row['jersey'].isdigit() and 1 <= int(row['jersey']) <= 99):
+                    row['error'] = _('El dorsal debe estar entre 1 y 99.')
+                    continue
+                number = int(row['jersey'])
+                if number in taken:
+                    row['error'] = _('El dorsal %(n)s ya está en uso en este equipo.') % {'n': number}
+                    continue
+                if number in seen:
+                    row['error'] = _('El dorsal %(n)s está repetido en este alta.') % {'n': number}
+                    continue
+                seen.add(number)
+            if row['position'] and row['position'] not in valid_positions:
+                row['error'] = _('Posición no válida.')
+        return not any(row['error'] for row in selected)
+
+    def save(self):
+        """Crea todos los roles o ninguno; devuelve cuántos."""
+        roles = [
+            PlayerRole(
+                person=row['person'], team=self.team, season=self.season,
+                jersey_number=int(row['jersey']) if row['jersey'] else None,
+                position=row['position'],
+            )
+            for row in self.rows if row['checked']
+        ]
+        with transaction.atomic():
+            PlayerRole.objects.bulk_create(roles)
+        return len(roles)
+
+
 __all__ = [
     'PersonForm',
     'PlayerRoleForm',
+    'BulkPlayerRosterForm',
     'StaffRoleForm',
 ]

@@ -11679,6 +11679,79 @@ msgstr "Es notificarà automàticament als seguidors si el partit està en joc."
 msgid "Error al guardar el enlace"
 msgstr "Error en desar l'enllaç"
 
+msgid "inactivo"
+msgstr "inactiu"
+
+msgid "Selecciona al menos un jugador."
+msgstr "Selecciona almenys un jugador."
+
+msgid "El dorsal debe estar entre 1 y 99."
+msgstr "El dorsal ha d'estar entre 1 i 99."
+
+#, python-format
+msgid "El dorsal %(n)s ya está en uso en este equipo."
+msgstr "El dorsal %(n)s ja està en ús en aquest equip."
+
+#, python-format
+msgid "El dorsal %(n)s está repetido en este alta."
+msgstr "El dorsal %(n)s està repetit en aquesta alta."
+
+msgid "Posición no válida."
+msgstr "Posició no vàlida."
+
+msgid "No hay plantilla en la temporada anterior para copiar."
+msgstr "No hi ha plantilla a la temporada anterior per copiar."
+
+msgid "Algún dorsal o jugador acaba de ser asignado. Revisa los datos."
+msgstr "Algun dorsal o jugador acaba de ser assignat. Revisa les dades."
+
+#, python-format
+msgid "%(n)s jugadores añadidos a %(team)s."
+msgstr "%(n)s jugadors afegits a %(team)s."
+
+msgid "Añadir jugadores"
+msgstr "Afegir jugadors"
+
+msgid "Volver a plantillas"
+msgstr "Tornar a plantilles"
+
+msgid "Copiar de la temporada anterior"
+msgstr "Copiar de la temporada anterior"
+
+msgid "Desde cero"
+msgstr "Des de zero"
+
+#, python-format
+msgid "Precargado con la plantilla de %(name)s. Revisa casillas, dorsales y posiciones antes de guardar."
+msgstr "Precarregat amb la plantilla de %(name)s. Revisa caselles, dorsals i posicions abans de desar."
+
+msgid "Buscar persona…"
+msgstr "Cercar persona…"
+
+msgid "Todas las personas del club ya están en esta plantilla."
+msgstr "Totes les persones del club ja són en aquesta plantilla."
+
+msgid "¿No está en la lista?"
+msgstr "No és a la llista?"
+
+msgid "Crear persona"
+msgstr "Crear persona"
+
+msgid "Guardar jugadores"
+msgstr "Desar jugadors"
+
+msgid "ya está en la plataforma. ¿Añadirla a tu club?"
+msgstr "ja és a la plataforma. Vols afegir-la al teu club?"
+
+msgid "No se ha podido crear la persona."
+msgstr "No s'ha pogut crear la persona."
+
+msgid "Año de nacimiento"
+msgstr "Any de naixement"
+
+msgid "Crear y añadir"
+msgstr "Crear i afegir"
+
 #~ msgid "¡DOBLE!"
 #~ msgstr "DOBLE!"
 
