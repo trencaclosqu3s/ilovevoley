@@ -15,8 +15,8 @@ from ..services.delta_detector import notify_match_result_after_save
 
 @admin.register(League)
 class LeagueAdmin(ModelAdmin):
-    list_display = ('display_name_admin', 'categories_display', 'federation_id', 'competition_type', 'season', 'phase_indicator', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'matches_count', 'created_at')
-    list_filter = ('categories', 'competition_type', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'season', ('parent_league', admin.RelatedOnlyFieldListFilter))
+    list_display = ('display_name_admin', 'categories_display', 'federation_id', 'competition_type', 'modality', 'season', 'phase_indicator', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'matches_count', 'created_at')
+    list_filter = ('categories', 'modality', 'competition_type', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'season', ('parent_league', admin.RelatedOnlyFieldListFilter))
     search_fields = ('name', 'federation_id', 'categories__name')
     readonly_fields = ('created_at', 'related_organizations')
     autocomplete_fields = ('parent_league',)
@@ -25,7 +25,7 @@ class LeagueAdmin(ModelAdmin):
 
     fieldsets = (
         ('Información Básica', {
-            'fields': ('name', 'display_name_override', 'federation_id', 'categories', 'competition_type', 'season')
+            'fields': ('name', 'display_name_override', 'federation_id', 'categories', 'competition_type', 'modality', 'season')
         }),
         ('Configuración de Fases', {
             'fields': ('parent_league', 'phase_name', 'phase_order'),
@@ -552,14 +552,14 @@ class MatchChangeLogAdmin(ModelAdmin):
 
 @admin.register(LeagueCandidate)
 class LeagueCandidateAdmin(ModelAdmin):
-    list_display = ('category_label', 'phase_label', 'section', 'category', 'season', 'is_historical', 'status', 'federation_id', 'created_at')
-    list_filter = ('status', 'season', 'section', 'is_historical')
+    list_display = ('category_label', 'phase_label', 'section', 'category', 'season', 'modality', 'is_historical', 'status', 'federation_id', 'created_at')
+    list_filter = ('status', 'modality', 'season', 'section', 'is_historical')
     search_fields = ('category_label', 'federation_id')
-    readonly_fields = ('federation_id', 'season', 'section', 'category_label', 'phase_label', 'matched_teams', 'league', 'status')
+    readonly_fields = ('federation_id', 'season', 'section', 'category_label', 'phase_label', 'matched_teams', 'modality', 'league', 'status')
     list_select_related = ('category', 'season')
     autocomplete_fields = ('parent_league',)
     actions = ['approve', 'reject', 'reopen']
-    actions_list = ['discover_now', 'discover_historical_now']
+    actions_list = ['discover_now', 'discover_historical_now', 'discover_beach_now']
 
     @admin.action(description='Aprobar y crear liga')
     def approve(self, request, queryset):
@@ -593,4 +593,11 @@ class LeagueCandidateAdmin(ModelAdmin):
         from ..tasks import discover_historical_leagues_task
         discover_historical_leagues_task.delay()
         self.message_user(request, 'Búsqueda histórica lanzada: las candidatas de los últimos 5 años aparecerán aquí como pendientes.')
+        return redirect('admin:competitions_leaguecandidate_changelist')
+
+    @action(description='Buscar ligas de vóley playa (verano)', permissions=['discover_now'])
+    def discover_beach_now(self, request):
+        from ..tasks import discover_seasonal_beach_leagues_task
+        discover_seasonal_beach_leagues_task.delay()
+        self.message_user(request, 'Búsqueda de vóley playa lanzada: las candidatas estivales aparecerán aquí.')
         return redirect('admin:competitions_leaguecandidate_changelist')

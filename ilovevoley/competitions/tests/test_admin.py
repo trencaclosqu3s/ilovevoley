@@ -152,3 +152,12 @@ class LeagueHistoricalScrapeActionTest(TestCase):
                 self._request(), League.objects.filter(pk__in=[historical.pk, active.pk]),
             )
         delay.assert_called_once_with([historical.pk])
+
+
+def test_league_and_candidate_admin_includes_modality():
+    from ilovevoley.competitions.admin.competitions import LeagueAdmin, LeagueCandidateAdmin
+    assert 'modality' in LeagueAdmin.list_display
+    assert 'modality' in LeagueAdmin.list_filter
+    assert 'modality' in LeagueCandidateAdmin.list_display
+    assert 'modality' in LeagueCandidateAdmin.list_filter
+

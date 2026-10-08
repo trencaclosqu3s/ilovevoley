@@ -73,6 +73,14 @@ class Command(BaseCommand):
             choices=['standard', 'alevin_balear', 'tournament_3sets', 'custom'],
             help='Formato de partido para la liga (auto-detectado por categoría si no se especifica)'
         )
+        parser.add_argument(
+            '--modality',
+            type=str,
+            choices=['indoor', 'beach'],
+            default='indoor',
+            help='Modalidad de la competición (indoor o beach)'
+        )
+
 
     def handle(self, *args, **options):
         self.verbosity = options['verbose']
@@ -135,7 +143,6 @@ class Command(BaseCommand):
         if options['category']:
             try:
                 category_obj = Category.objects.get(name=options['category'])
-                league_data['category'] = category_obj
             except Category.DoesNotExist:
                 self.stdout.write(
                     self.style.WARNING(f"Categoría '{options['category']}' no encontrada")
@@ -147,6 +154,7 @@ class Command(BaseCommand):
             options.get('match_format')
         )
         league_data['match_format'] = match_format
+        league_data['modality'] = options.get('modality') or League.MODALITY_INDOOR
         
         if self.verbosity:
             self.stdout.write(f"Formato de partido asignado: {match_format}")
@@ -170,6 +178,9 @@ class Command(BaseCommand):
                     self.style.SUCCESS(f"Liga actualizada: {league.name}")
                 )
             
+            if category_obj:
+                league.categories.add(category_obj)
+
             # Configurar endpoints automáticamente
             self.setup_endpoints(league)
         else:
@@ -349,6 +360,106 @@ class Command(BaseCommand):
                 'category': 'Infantil',
                 'visibility_type': 'historical'
             },
+            # Vóley Playa 2024-25 (Infantil Baleares)
+            {
+                'federation_id': '7932',
+                'name': 'INFANTIL MASCULINA PLAYA - Campeonato de Baleares - Grup A',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'modality': 'beach',
+                'match_format': 'tournament_3sets',
+                'visibility_type': 'historical',
+            },
+            {
+                'federation_id': '7933',
+                'name': 'INFANTIL MASCULINA PLAYA - Campeonato de Baleares - Grup B',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'modality': 'beach',
+                'match_format': 'tournament_3sets',
+                'visibility_type': 'historical',
+            },
+            {
+                'federation_id': '7934',
+                'name': 'INFANTIL MASCULINA PLAYA - Campeonato de Baleares - Grup C',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'modality': 'beach',
+                'match_format': 'tournament_3sets',
+                'visibility_type': 'historical',
+            },
+            {
+                'federation_id': '7924',
+                'name': 'INFANTIL FEMENINA PLAYA - Campeonato de Baleares - Grup A',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'modality': 'beach',
+                'match_format': 'tournament_3sets',
+                'visibility_type': 'historical',
+            },
+            {
+                'federation_id': '7925',
+                'name': 'INFANTIL FEMENINA PLAYA - Campeonato de Baleares - Grup B',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'modality': 'beach',
+                'match_format': 'tournament_3sets',
+                'visibility_type': 'historical',
+            },
+            {
+                'federation_id': '7926',
+                'name': 'INFANTIL FEMENINA PLAYA - Campeonato de Baleares - Grup C',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'modality': 'beach',
+                'match_format': 'tournament_3sets',
+                'visibility_type': 'historical',
+            },
+            {
+                'federation_id': '7927',
+                'name': 'INFANTIL FEMENINA PLAYA - Campeonato de Baleares - Grup D',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'modality': 'beach',
+                'match_format': 'tournament_3sets',
+                'visibility_type': 'historical',
+            },
+            {
+                'federation_id': '7928',
+                'name': 'INFANTIL FEMENINA PLAYA - Campeonato de Baleares - Grup E',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'modality': 'beach',
+                'match_format': 'tournament_3sets',
+                'visibility_type': 'historical',
+            },
+            {
+                'federation_id': '7929',
+                'name': 'INFANTIL FEMENINA PLAYA - Campeonato de Baleares - Grup F',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'modality': 'beach',
+                'match_format': 'tournament_3sets',
+                'visibility_type': 'historical',
+            },
+            {
+                'federation_id': '7930',
+                'name': 'INFANTIL FEMENINA PLAYA - Campeonato de Baleares - Grup G',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'modality': 'beach',
+                'match_format': 'tournament_3sets',
+                'visibility_type': 'historical',
+            },
+            {
+                'federation_id': '7931',
+                'name': 'INFANTIL FEMENINA PLAYA - Campeonato de Baleares - Grup H',
+                'season': '2024-25',
+                'category': 'Infantil',
+                'modality': 'beach',
+                'match_format': 'tournament_3sets',
+                'visibility_type': 'historical',
+            },
         ]
         
         # Configuración de ligas externas
@@ -409,6 +520,7 @@ class Command(BaseCommand):
             league_config.get('category'), 
             league_config.get('match_format', options.get('match_format'))
         )
+        modality = league_config.get('modality', League.MODALITY_INDOOR)
         
         league_data = {
             'name': league_config['name'],
@@ -417,7 +529,7 @@ class Command(BaseCommand):
             'visibility_type': league_config['visibility_type'],
             'is_historical': league_config['visibility_type'] == 'historical',
             'is_our_team_related': league_config.get('is_our_team_related', True),
-            'category': category,
+            'modality': modality,
             'match_format': match_format,
             'base_url': options['base_url']
         }
@@ -444,6 +556,9 @@ class Command(BaseCommand):
                     self.style.SUCCESS(f"Liga actualizada: {league.name}")
                 )
             
+            if category:
+                league.categories.add(category)
+
             # Configurar endpoints automáticamente
             self.setup_endpoints(league)
             

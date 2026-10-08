@@ -97,9 +97,24 @@ class League(models.Model):
         ('custom', _('Personalizado')),
     ]
 
+    MODALITY_BEACH = 'beach'
+    MODALITY_INDOOR = 'indoor'
+    MODALITY_CHOICES = [
+        (MODALITY_BEACH, _('Vóley Playa')),
+        (MODALITY_INDOOR, _('Vóley Pista')),
+    ]
+
     name = models.CharField(max_length=200)
     federation_id = models.CharField(max_length=200, unique=True)
     competition_type = models.CharField(max_length=20, choices=COMPETITION_TYPES, default='regular')
+    modality = models.CharField(
+        max_length=20,
+        choices=MODALITY_CHOICES,
+        default=MODALITY_INDOOR,
+        db_index=True,
+        verbose_name=_('Modalidad'),
+        help_text=_('Modalidad de la competición: pista o playa'),
+    )
     season = models.ForeignKey(
         'core.Season',
         on_delete=models.PROTECT,
@@ -621,6 +636,13 @@ class LeagueCandidate(models.Model):
         help_text=_('Si es una fase de otra liga (Oro/Plata, copas). Sugerida por categoría; la federación no es consistente'),
     )
     matched_teams = models.JSONField(default=dict, help_text=_('{slug del tenant: [equipos que juegan]}'))
+    modality = models.CharField(
+        max_length=20,
+        choices=League.MODALITY_CHOICES,
+        default=League.MODALITY_INDOOR,
+        db_index=True,
+        verbose_name=_('Modalidad'),
+    )
     is_historical = models.BooleanField(
         default=False,
         help_text=_('Detectada en una temporada pasada: al aprobar se crea como liga histórica inactiva.'),
@@ -650,14 +672,24 @@ class LeagueCandidate(models.Model):
                 return existing
             name = ' '.join(filter(None, [self.category_label.title(), self.phase_label]))
             is_cup = re.search(r'copa|campeonato|torneo', f'{self.section} {self.phase_label}', re.I)
+
+            if self.modality == League.MODALITY_BEACH:
+                visibility_type = 'historical' if self.is_historical else 'reference'
+                match_format = 'tournament_3sets'
+            else:
+                visibility_type = 'historical' if self.is_historical else 'main'
+                match_format = 'standard'
+
             league = League.objects.create(
                 name=name, federation_id=self.federation_id, season_id=self.season_id,
                 competition_type='cup' if is_cup else 'regular',
                 parent_league_id=self.parent_league_id, phase_name=self.phase_label if self.parent_league_id else '',
                 phase_order=1 if self.parent_league_id else 0,
-                visibility_type='historical' if self.is_historical else 'main',
+                visibility_type=visibility_type,
                 is_historical=self.is_historical,
                 is_active=not self.is_historical,
+                modality=self.modality,
+                match_format=match_format,
             )
             if self.category_id:
                 league.categories.add(self.category_id)

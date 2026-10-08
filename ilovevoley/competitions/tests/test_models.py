@@ -353,3 +353,28 @@ class MatchCleanTests(TestCase):
             match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
         )
         partido.clean()  # no debe lanzar
+
+
+class BeachLeagueModelTest(TestCase):
+    """Protege la regla de negocio de vóley playa: visibilidad exclusiva para admin
+
+    (is_reference_league=True, should_show_in_app=False), modalidad 'beach' y
+    formato de torneo a 3 sets (tournament_3sets).
+    """
+
+    def test_beach_league_match_format_and_modality(self):
+        season = Season.objects.resolve('2024-25')
+        league = League.objects.create(
+            name='INFANTIL MASCULINA PLAYA - Grup A',
+            federation_id='7932',
+            season=season,
+            modality='beach',
+            match_format='tournament_3sets',
+            visibility_type='historical',
+            is_historical=True,
+        )
+        self.assertEqual(league.modality, 'beach')
+        self.assertEqual(league.match_format, 'tournament_3sets')
+        self.assertTrue(league.is_reference_league)
+        self.assertFalse(league.should_show_in_app)
+

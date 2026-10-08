@@ -247,3 +247,16 @@ def scrape_historical_leagues_task(league_ids, delay=2.0):
         if i < len(leagues) - 1:
             sleep(delay)
     return summary
+
+
+@shared_task(name='discover_seasonal_beach_leagues')
+def discover_seasonal_beach_leagues_task():
+    """Descubre ligas de vóley playa en la ventana estacional de verano (#372)."""
+    from ilovevoley.competitions.services.discovery import discover_seasonal_beach
+    from ilovevoley.core.models import Season
+
+    current = Season.objects.current()
+    if current is None:
+        return 0
+    return len(discover_seasonal_beach(current))
+
