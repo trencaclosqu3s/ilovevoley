@@ -78,11 +78,51 @@ class SeasonModelTest(TestCase):
         self.assertFalse(old.is_current)
         self.assertTrue(new.is_current)
 
-    def test_current_falls_back_to_latest(self):
+    def test_current_auto_assigns_is_current_when_none_marked(self):
         from ilovevoley.core.models import Season
-        Season.objects.create(name='2023-24', start_year=2023, end_year=2024)
-        Season.objects.create(name='2024-25', start_year=2024, end_year=2025)
-        self.assertEqual(Season.objects.current().name, '2024-25')
+        Season.objects.create(name='2025-26', start_year=2025, end_year=2026)
+        Season.objects.create(name='2026-27', start_year=2026, end_year=2027)
+        # Estado inicial (como en producción): ninguna marcada como is_current
+        self.assertEqual(Season.objects.filter(is_current=True).count(), 0)
+
+        current = Season.objects.current(for_date=datetime.date(2026, 10, 8))
+        self.assertEqual(current.name, '2026-27')
+        self.assertTrue(current.is_current)
+        self.assertEqual(Season.objects.filter(is_current=True).count(), 1)
+
+    def test_future_season_from_scraping_does_not_displace_current(self):
+        from ilovevoley.core.models import Season
+        Season.objects.create(name='2026-27', start_year=2026, end_year=2027, is_current=True)
+
+        # Simular scraping descubriendo la temporada 2027-28 en agosto de 2027
+        future_season = Season.objects.resolve('2027-28')
+        self.assertFalse(future_season.is_current)
+
+        # En agosto de 2027, la temporada vigente sigue siendo 2026-27
+        august_date = datetime.date(2027, 8, 15)
+        current = Season.objects.current(for_date=august_date)
+        self.assertEqual(current.name, '2026-27')
+        self.assertEqual(Season.objects.filter(is_current=True).count(), 1)
+
+    def test_season_rollover_on_september_cutoff(self):
+        from ilovevoley.core.models import Season
+        s2026 = Season.objects.create(name='2026-27', start_year=2026, end_year=2027, is_current=True)
+        s2027 = Season.objects.create(name='2027-28', start_year=2027, end_year=2028, is_current=False)
+
+        # 31 de agosto de 2027: última jornada de la 2026-27
+        self.assertEqual(
+            Season.objects.current(for_date=datetime.date(2027, 8, 31)).pk,
+            s2026.pk,
+        )
+
+        # 1 de septiembre de 2027: corte automático de temporada
+        current = Season.objects.current(for_date=datetime.date(2027, 9, 1))
+        self.assertEqual(current.pk, s2027.pk)
+        s2026.refresh_from_db()
+        s2027.refresh_from_db()
+        self.assertFalse(s2026.is_current)
+        self.assertTrue(s2027.is_current)
+        self.assertEqual(Season.objects.filter(is_current=True).count(), 1)
 
 
 class OrganizationModelTest(TestCase):

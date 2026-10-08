@@ -121,3 +121,7 @@ class SeasonAdmin(ModelAdmin):
         season.is_current = True
         season.save()
         self.message_user(request, _('%(name)s marcada como temporada activa.') % {'name': season.name})
+
+    def changelist_view(self, request, extra_context=None):
+        Season.objects.current()
+        return super().changelist_view(request, extra_context=extra_context)
