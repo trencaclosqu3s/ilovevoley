@@ -1,6 +1,7 @@
 from datetime import date
 
 from django import forms
+from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
@@ -330,8 +331,89 @@ class StaffRoleForm(forms.ModelForm):
         return cleaned
 
 
+class BulkPlayerRosterForm:
+    """Alta masiva de jugadores en un equipo y temporada (#446).
+
+    No es un ``forms.Form``: cada candidata es una fila (casilla + dorsal +
+    posición) y el error es por fila, no por campo. ``initial`` precarga filas
+    marcadas con ``{person_id: (jersey_number, position)}``.
+    """
+
+    def __init__(self, team, season, candidates, data=None, initial=None):
+        self.team = team
+        self.season = season
+        self.is_bound = data is not None
+        self.errors = []
+        self.rows = []
+        initial = initial or {}
+        for person in candidates:
+            pid = str(person.pk)
+            if self.is_bound:
+                checked = pid in data.getlist('selected')
+                jersey = data.get(f'jersey_{pid}', '').strip()
+                position = data.get(f'position_{pid}', '')
+            else:
+                checked = person.pk in initial
+                jersey, position = initial.get(person.pk, ('', ''))
+                jersey = '' if jersey is None else str(jersey)
+            self.rows.append({
+                'person': person, 'checked': checked, 'jersey': jersey,
+                'position': position, 'error': '',
+            })
+
+    @property
+    def positions(self):
+        return PlayerRole.POSITION_CHOICES
+
+    def is_valid(self):
+        selected = [row for row in self.rows if row['checked']]
+        if not selected:
+            self.errors.append(_('Selecciona al menos un jugador.'))
+            return False
+        # El constraint solo cubre dorsales con rol activo en ese equipo y temporada.
+        taken = set(
+            PlayerRole.objects.filter(
+                team=self.team, season=self.season, is_active=True, jersey_number__isnull=False,
+            ).values_list('jersey_number', flat=True)
+        )
+        valid_positions = {key for key, _label in PlayerRole.POSITION_CHOICES}
+        seen = set()
+        for row in selected:
+            number = None
+            if row['jersey']:
+                if not (row['jersey'].isascii() and row['jersey'].isdigit() and 1 <= int(row['jersey']) <= 99):
+                    row['error'] = _('El dorsal debe estar entre 1 y 99.')
+                    continue
+                number = int(row['jersey'])
+                if number in taken:
+                    row['error'] = _('El dorsal %(n)s ya está en uso en este equipo.') % {'n': number}
+                    continue
+                if number in seen:
+                    row['error'] = _('El dorsal %(n)s está repetido en este alta.') % {'n': number}
+                    continue
+                seen.add(number)
+            if row['position'] and row['position'] not in valid_positions:
+                row['error'] = _('Posición no válida.')
+        return not any(row['error'] for row in selected)
+
+    def save(self):
+        """Crea todos los roles o ninguno; devuelve cuántos."""
+        roles = [
+            PlayerRole(
+                person=row['person'], team=self.team, season=self.season,
+                jersey_number=int(row['jersey']) if row['jersey'] else None,
+                position=row['position'],
+            )
+            for row in self.rows if row['checked']
+        ]
+        with transaction.atomic():
+            PlayerRole.objects.bulk_create(roles)
+        return len(roles)
+
+
 __all__ = [
     'PersonForm',
     'PlayerRoleForm',
+    'BulkPlayerRosterForm',
     'StaffRoleForm',
 ]

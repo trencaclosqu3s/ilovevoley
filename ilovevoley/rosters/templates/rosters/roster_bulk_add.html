@@ -1,0 +1,91 @@
+{% extends '../base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Añadir jugadores" %} - {{ team }} - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="mb-4 sm:mb-6">
+        <a href="{% url 'rosters:roster_overview' %}?season={{ season.pk }}" class="inline-flex items-center text-brand-text hover:opacity-80 font-semibold transition py-2">
+            <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            {% trans "Volver a plantillas" %}
+        </a>
+    </div>
+
+    <div class="bg-surface rounded-3xl border border-line p-6 border-t-4 border-csj-purple">
+        <h1 class="text-2xl font-bold text-ink">{% trans "Añadir jugadores" %}</h1>
+        <p class="text-muted mt-1">{{ team }} · {{ season.name }}</p>
+
+        <div class="flex flex-wrap items-center gap-3 mt-4">
+            <form method="get" class="flex items-center gap-2">
+                <label for="season" class="text-sm font-semibold text-ink">{% trans "Temporada" %}</label>
+                <select id="season" name="season" class="px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                    {% for s in seasons %}<option value="{{ s.pk }}" {% if s.pk == season.pk %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+                </select>
+            </form>
+            <a href="?season={{ season.pk }}&copy=1" class="px-4 py-2 rounded-full border border-line text-brand-text hover:bg-tint text-sm font-medium transition">
+                {% trans "Copiar de la temporada anterior" %}
+            </a>
+            <a href="?season={{ season.pk }}" class="px-4 py-2 rounded-full border border-line text-brand-text hover:bg-tint text-sm font-medium transition">
+                {% trans "Desde cero" %}
+            </a>
+        </div>
+        {% if previous_season %}
+            <p class="text-sm text-muted mt-2">{% blocktrans with name=previous_season.name %}Precargado con la plantilla de {{ name }}. Revisa casillas, dorsales y posiciones antes de guardar.{% endblocktrans %}</p>
+        {% endif %}
+
+        <form method="post" class="mt-6 space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="season" value="{{ season.pk }}">
+
+            {% for error in form.errors %}
+                <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded text-red-700 dark:text-red-400">{{ error }}</div>
+            {% endfor %}
+
+            {% if form.rows %}
+                <input type="search" id="person-filter" placeholder="{% trans 'Buscar persona…' %}" class="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+
+                <ul class="divide-y divide-line">
+                    {% for row in form.rows %}
+                        <li class="py-3 flex flex-wrap items-center gap-3" data-name="{{ row.person.full_name|lower }}">
+                            <label class="flex items-center gap-3 flex-1 min-w-[12rem]">
+                                <input type="checkbox" name="selected" value="{{ row.person.pk }}" {% if row.checked %}checked{% endif %} class="w-5 h-5">
+                                <span class="font-medium text-ink">{{ row.person.full_name }}{% if row.person.birth_year %} <span class="text-muted font-normal">({{ row.person.birth_year }})</span>{% endif %}</span>
+                            </label>
+                            <input type="number" name="jersey_{{ row.person.pk }}" value="{{ row.jersey }}" min="1" max="99" placeholder="{% trans 'Dorsal' %}" aria-label="{% trans 'Dorsal' %}" class="w-24 px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                            <select name="position_{{ row.person.pk }}" aria-label="{% trans 'Posición' %}" class="px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                <option value="">{% trans "Sin posición" %}</option>
+                                {% for key, label in form.positions %}
+                                    <option value="{{ key }}" {% if row.position == key %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if row.error %}<p class="w-full text-sm text-red-600 dark:text-red-400">{{ row.error }}</p>{% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted">{% trans "Todas las personas del club ya están en esta plantilla." %}</p>
+            {% endif %}
+
+            <p class="text-sm text-muted">
+                {% trans "¿No está en la lista?" %}
+                <a href="{% url 'rosters:person_create' %}" class="text-brand-text font-semibold hover:underline">{% trans "Crear persona" %}</a>
+            </p>
+
+            <button type="submit" class="w-full bg-csj-purple-dark hover:opacity-90 text-white py-3 rounded-full font-semibold transition">
+                {% trans "Guardar jugadores" %}
+            </button>
+        </form>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.getElementById('season').addEventListener('change', function () { this.form.submit(); });
+document.getElementById('person-filter')?.addEventListener('input', function (e) {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('li[data-name]').forEach(li => { li.hidden = q && !li.dataset.name.includes(q); });
+});
+</script>
+{% endblock %}

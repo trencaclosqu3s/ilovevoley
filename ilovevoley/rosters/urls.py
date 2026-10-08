@@ -12,6 +12,7 @@ urlpatterns = [
     path('personas/<int:person_id>/', views.person_detail, name='person_detail'),
     path('personas/<int:person_id>/editar/', views.person_edit, name='person_edit'),
     path('personas/<int:person_id>/jugador/agregar/', views.player_role_create, name='player_role_create'),
+    path('plantillas/<int:team_id>/jugadores/agregar/', views.player_roster_bulk_add, name='player_roster_bulk_add'),
     path('roles-jugador/<int:role_id>/editar/', views.player_role_edit, name='player_role_edit'),
     path('roles-jugador/<int:role_id>/toggle/', views.player_role_toggle_active, name='player_role_toggle_active'),
     path('personas/<int:person_id>/staff/agregar/', views.staff_role_create, name='staff_role_create'),

@@ -14,7 +14,7 @@ from PIL import Image
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.competitions.models import League, Match, MatchLineup
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
-from ilovevoley.teams.models import Club, Team
+from ilovevoley.teams.models import Club, Team, TeamIdentity
 from ilovevoley.videos.forms import rosters as vid_forms_rosters
 from ilovevoley.videos.views import rosters as vid_views_rosters
 
@@ -714,3 +714,89 @@ class PersonDetailStatsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.context['player_stats'])
         self.assertNotContains(response, 'Sets disputados')
+
+
+@override_settings(ALLOWED_HOSTS=['club-a.ilovevoley.es', 'localhost'])
+class PlayerRosterBulkAddTests(TestCase):
+    """Alta masiva de plantilla (#446): reglas de dorsal, aislamiento y copia por identidad."""
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org_a = Organization.objects.create(
+            slug='club-a', name='Club A', club_team_names={'1': 'Club A'}, is_active=True,
+        )
+        self.org_b = Organization.objects.create(
+            slug='club-b', name='Club B', club_team_names={'1': 'Club B'}, is_active=True,
+        )
+        self.manager = get_user_model().objects.create_user(username='manager-a', password='pass')
+        Membership.objects.create(user=self.manager, organization=self.org_a, is_approved=True, role='manager')
+        self.client.force_login(self.manager)
+        self.ana = Person.objects.create(first_name='Ana', last_name='Uno')
+        self.leo = Person.objects.create(first_name='Leo', last_name='Dos')
+        for person in (self.ana, self.leo):
+            person.organizations.add(self.org_a)
+        self.outsider = Person.objects.create(first_name='Bea', last_name='Ajena')
+        self.outsider.organizations.add(self.org_b)
+        self.old_season = Season.objects.resolve('2025-26')
+        self.season = Season.objects.resolve('2026-27')
+        self.team = Team.objects.create(name='Club A Senior', federation_id='BULK-A1', is_active=True)
+        self.url = reverse('rosters:player_roster_bulk_add', args=[self.team.id])
+
+    def _post(self, data):
+        return self.client.post(
+            self.url, {'season': self.season.id, **data}, HTTP_HOST='club-a.ilovevoley.es',
+        )
+
+    def test_crea_los_roles_marcados_e_ignora_personas_de_otro_club(self):
+        response = self._post({
+            'selected': [self.ana.id, self.outsider.id],
+            f'jersey_{self.ana.id}': '7', f'position_{self.ana.id}': 'setter',
+        })
+        self.assertEqual(response.status_code, 302)
+        role = PlayerRole.objects.get(person=self.ana, team=self.team, season=self.season)
+        self.assertEqual((role.jersey_number, role.position), (7, 'setter'))
+        self.assertFalse(PlayerRole.objects.filter(person=self.outsider).exists())
+
+    def test_dorsal_repetido_en_el_lote_no_guarda_ninguno(self):
+        response = self._post({
+            'selected': [self.ana.id, self.leo.id],
+            f'jersey_{self.ana.id}': '7', f'jersey_{self.leo.id}': '7',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(PlayerRole.objects.filter(team=self.team).exists())
+        errors = [row['error'] for row in response.context['form'].rows if row['error']]
+        self.assertEqual(len(errors), 1)
+
+    def test_dorsal_ya_usado_en_el_equipo_da_error_de_fila(self):
+        PlayerRole.objects.create(person=self.leo, team=self.team, season=self.season, jersey_number=4)
+        # Leo ya está en la plantilla: no es candidato; Ana pide su dorsal.
+        response = self._post({'selected': [self.ana.id], f'jersey_{self.ana.id}': '4'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(PlayerRole.objects.filter(person=self.ana).exists())
+        self.assertTrue(response.context['form'].rows[0]['error'])
+
+    def test_equipo_de_otro_club_devuelve_404(self):
+        foreign = Team.objects.create(name='Club B Junior', federation_id='BULK-B1', is_active=True)
+        response = self.client.get(
+            reverse('rosters:player_roster_bulk_add', args=[foreign.id]), HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_copiar_precarga_la_plantilla_de_la_misma_identidad(self):
+        # Cada fase federativa es otra fila de Team; la identidad las une.
+        identity = TeamIdentity.objects.create(core_name='Club A Senior', core_name_normalized='club a senior')
+        phase_one = Team.objects.create(
+            name='Club A Senior Fase 1', federation_id='BULK-A0', is_active=False, identity=identity,
+        )
+        self.team.identity = identity
+        self.team.save(update_fields=['identity'])
+        PlayerRole.objects.create(person=self.ana, team=phase_one, season=self.old_season, jersey_number=5)
+
+        response = self.client.get(
+            self.url, {'season': self.season.id, 'copy': '1'}, HTTP_HOST='club-a.ilovevoley.es',
+        )
+        rows = {row['person']: row for row in response.context['form'].rows}
+        self.assertTrue(rows[self.ana]['checked'])
+        self.assertEqual(rows[self.ana]['jersey'], '5')
+        self.assertFalse(rows[self.leo]['checked'])
