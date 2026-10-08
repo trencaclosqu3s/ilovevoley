@@ -156,6 +156,7 @@ def test_task_emails_technical_recipients_only_when_there_are_new_candidates(set
     season = Season.objects.resolve('2026-27')
     candidate = LeagueCandidate.objects.create(federation_id='1', season=season, category_label='ALEVIN MASCULINO 4X4')
     with mock.patch.object(discovery, 'discover', side_effect=[[], [candidate]]), \
+            mock.patch.object(discovery, 'discover_seasonal_beach', return_value=[]), \
             mock.patch('ilovevoley.core.email_utils.send_notification_email') as send:
         assert discover_leagues_task() == 0
         send.assert_not_called()
@@ -164,6 +165,24 @@ def test_task_emails_technical_recipients_only_when_there_are_new_candidates(set
     assert kwargs['subject']()
     assert kwargs['recipient_list'] == ['tech@example.com']  # no a los superusers
     assert kwargs['context']['admin_url'].endswith('/leaguecandidate/?status__exact=pending')
+
+
+@pytest.mark.django_db
+def test_task_aggregates_indoor_and_beach_candidates():
+    from ilovevoley.competitions.tasks import discover_leagues_task
+
+    season = Season.objects.resolve('2026-27')
+    season.is_current = True
+    season.save()
+    cand1 = LeagueCandidate.objects.create(federation_id='101', season=season, category_label='ALEVIN')
+    cand2 = LeagueCandidate.objects.create(federation_id='102', season=season, category_label='INFANTIL PLAYA', modality='beach')
+
+    with mock.patch.object(discovery, 'discover', return_value=[cand1]), \
+            mock.patch.object(discovery, 'discover_seasonal_beach', return_value=[cand2]), \
+            mock.patch('ilovevoley.core.email_utils.send_notification_email') as send:
+        assert discover_leagues_task() == 2
+        send.assert_called_once()
+        assert send.call_args.kwargs['context']['count'] == 2
 
 
 @pytest.mark.django_db

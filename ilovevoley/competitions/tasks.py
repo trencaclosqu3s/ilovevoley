@@ -169,22 +169,27 @@ def scrape_federation_news_task():
 
 @shared_task(name='discover_leagues')
 def discover_leagues_task():
-    """Busca en el menú federativo ligas nuevas de la temporada activa (#377).
+    """Busca ligas nuevas de pista y vóley playa en la temporada activa (#377, #372).
 
     Las competiciones se publican escalonadas durante todo el año (categorías que
-    llegan tarde, fases Oro/Plata, copas), así que debe ejecutarse a menudo. Solo
-    avisa por email cuando hay candidatas nuevas, con enlace a la cola, solo a los
-    destinatarios técnicos (``TECHNICAL_ALERT_EMAILS``) para no saturar a los demás superusers.
+    llegan tarde, fases Oro/Plata, copas y torneos estivales de playa), así que
+    debe ejecutarse a menudo. Solo avisa por email cuando hay candidatas nuevas,
+    con enlace a la cola, solo a los destinatarios técnicos (``TECHNICAL_ALERT_EMAILS``)
+    para no saturar a los demás superusers.
     """
     from django.urls import reverse
     from django.utils.translation import gettext as _
 
-    from ilovevoley.competitions.services.discovery import discover
+    from ilovevoley.competitions.services.discovery import discover, discover_seasonal_beach
     from ilovevoley.core.email_utils import get_technical_alert_emails, send_notification_email
     from ilovevoley.core.models import Season
     from ilovevoley.core.tenant_utils import build_absolute_url
 
-    candidates = discover(Season.objects.current())  # sin temporada, discover no hace nada
+    current = Season.objects.current()
+    if current is None:
+        return 0
+
+    candidates = discover(current) + discover_seasonal_beach(current)
     if candidates:
         send_notification_email(
             subject=lambda: _('%(count)s nuevas ligas pendientes de validar') % {'count': len(candidates)},
