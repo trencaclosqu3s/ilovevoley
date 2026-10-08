@@ -133,7 +133,7 @@ DARK_TEXT = (26, 26, 26)
 WHITE = (255, 255, 255)
 
 # Cambia al desplegar un diseño nuevo, así la caché de PNG finales no sirve el anterior.
-_RENDER_VERSION = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:10]
+_RENDER_VERSION = hashlib.sha1(Path(__file__).read_bytes(), usedforsecurity=False).hexdigest()[:10]
 CARD_CACHE_TTL = 60 * 60 * 24
 CREST_CACHE_TTL = 60 * 60 * 24
 CREST_FAILURE_TTL = 60 * 5
@@ -831,5 +831,5 @@ def card_cache_key(*, match, organization, card_format, card_style, photo, layou
         organization.id, organization.primary_color, organization.secondary_color,
         file_identity(getattr(organization, 'logo', None)),
     ]
-    digest = hashlib.sha1(json.dumps(fields, default=str).encode()).hexdigest()
+    digest = hashlib.sha1(json.dumps(fields, default=str).encode(), usedforsecurity=False).hexdigest()
     return f'result-card:{digest}'
