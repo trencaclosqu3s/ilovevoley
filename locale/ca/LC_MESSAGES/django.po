@@ -11740,6 +11740,18 @@ msgstr "Crear persona"
 msgid "Guardar jugadores"
 msgstr "Desar jugadors"
 
+msgid "ya está en la plataforma. ¿Añadirla a tu club?"
+msgstr "ja és a la plataforma. Vols afegir-la al teu club?"
+
+msgid "No se ha podido crear la persona."
+msgstr "No s'ha pogut crear la persona."
+
+msgid "Año de nacimiento"
+msgstr "Any de naixement"
+
+msgid "Crear y añadir"
+msgstr "Crear i afegir"
+
 #~ msgid "¡DOBLE!"
 #~ msgstr "DOBLE!"
 

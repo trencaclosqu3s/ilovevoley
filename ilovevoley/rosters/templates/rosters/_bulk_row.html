@@ -1,0 +1,15 @@
+{% load i18n %}
+<li class="py-3 flex flex-wrap items-center gap-3" data-name="{{ name|lower }}">
+    <label class="flex items-center gap-3 flex-1 min-w-[12rem]">
+        <input type="checkbox" name="selected" value="{{ pid }}" {% if checked %}checked{% endif %} class="w-5 h-5">
+        <span class="font-medium text-ink"><span class="person-name">{{ name }}</span>{% if year %} <span class="text-muted font-normal">({{ year }})</span>{% endif %}</span>
+    </label>
+    <input type="number" name="jersey_{{ pid }}" value="{{ jersey }}" min="1" max="99" placeholder="{% trans 'Dorsal' %}" aria-label="{% trans 'Dorsal' %}" class="w-24 px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+    <select name="position_{{ pid }}" aria-label="{% trans 'Posición' %}" class="w-44 px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+        <option value="">{% trans "Sin posición" %}</option>
+        {% for key, label in form.positions %}
+            <option value="{{ key }}" {% if position == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    {% if error %}<p class="w-full text-sm text-red-600 dark:text-red-400">{{ error }}</p>{% endif %}
+</li>

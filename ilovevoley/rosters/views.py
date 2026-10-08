@@ -302,6 +302,34 @@ def person_create(request):
 
 @tenant_access_required(manager=True)
 @require_POST
+def person_quick_create(request):
+    """Alta rápida de persona (nombre, apellidos, año) para el modal del alta masiva (#446).
+
+    No vincula la ficha al usuario (``person_create`` lo hace con la primera que
+    crea): aquí se dan de alta jugadores ajenos. Si la identidad ya existe en la
+    plataforma responde 409 con la ficha; con ``adopt=1`` se vincula al club.
+    """
+    form = PersonForm(request.POST)
+    if request.POST.get('adopt') == '1':
+        form.is_valid()
+        person = form.existing_person() if hasattr(form, 'cleaned_data') else None
+        if person is None:
+            raise Http404
+    elif form.is_valid():
+        person = form.save()
+    else:
+        existing = form.existing_person() if hasattr(form, 'cleaned_data') else None
+        if existing:
+            return JsonResponse({'existing': {
+                'name': existing.full_name, 'birth_year': existing.birth_year,
+            }}, status=409)
+        return JsonResponse({'errors': {k: [str(m) for m in v] for k, v in form.errors.items()}}, status=400)
+    person.organizations.add(request.tenant)
+    return JsonResponse({'id': person.pk, 'name': person.full_name, 'birth_year': person.birth_year})
+
+
+@tenant_access_required(manager=True)
+@require_POST
 def person_adopt(request):
     """Vincula al club una ficha global existente, identificada por nombre y año.
 

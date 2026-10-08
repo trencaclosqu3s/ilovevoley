@@ -810,3 +810,33 @@ class PlayerRosterBulkAddTests(TestCase):
         self.assertTrue(rows[self.ana]['checked'])
         self.assertEqual(rows[self.ana]['jersey'], '5')
         self.assertFalse(rows[self.leo]['checked'])
+
+    def test_alta_rapida_crea_la_ficha_en_el_club_sin_vincularla_al_usuario(self):
+        response = self.client.post(
+            reverse('rosters:person_quick_create'),
+            {'first_name': 'Nuria', 'last_name': 'Nueva', 'birth_year': '2012'},
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        person = Person.objects.get(first_name='Nuria', last_name='Nueva', birth_year=2012)
+        self.assertEqual(response.json()['id'], person.pk)
+        self.assertIn(self.org_a, person.organizations.all())
+        # person_create vincula la primera ficha al usuario; aquí se crean fichas ajenas.
+        self.assertIsNone(person.user)
+
+    def test_alta_rapida_de_ficha_existente_pide_adoptar_y_no_duplica(self):
+        data = {'first_name': 'Bea', 'last_name': 'Ajena', 'birth_year': '2012'}
+        self.outsider.birth_year = 2012
+        self.outsider.save()
+        response = self.client.post(
+            reverse('rosters:person_quick_create'), data, HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(Person._base_manager.filter(first_name='Bea', last_name='Ajena').count(), 1)
+        self.assertNotIn(self.org_a, self.outsider.organizations.all())
+
+        response = self.client.post(
+            reverse('rosters:person_quick_create'), {**data, 'adopt': '1'}, HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.org_a, self.outsider.organizations.all())

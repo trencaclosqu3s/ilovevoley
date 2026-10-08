@@ -7,6 +7,7 @@ urlpatterns = [
     path('plantillas/', views.roster_overview, name='roster_overview'),
     path('personas/', views.person_list, name='person_list'),
     path('personas/nueva/', views.person_create, name='person_create'),
+    path('personas/crear-rapido/', views.person_quick_create, name='person_quick_create'),
     path('personas/adoptar/', views.person_adopt, name='person_adopt'),
     path('personas/yo/', views.my_profile, name='my_profile'),
     path('personas/<int:person_id>/', views.person_detail, name='person_detail'),
