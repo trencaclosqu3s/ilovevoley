@@ -4,7 +4,7 @@ Nginx no sirve directamente ``/media/images/`` ni ``/media/people/``: reenvía
 esas peticiones a Django, que resuelve el tenant del subdominio, comprueba la
 propiedad/estado del recurso y delega la entrega del archivo a nginx mediante
 ``X-Accel-Redirect`` (zona interna ``/protected-media/``). Los recursos no
-sensibles (logos de organizaciones y avatares) siguen sirviéndose estáticos.
+sensibles (logos de organizaciones, escudos de clubes/equipos y avatares) siguen sirviéndose estáticos.
 """
 import mimetypes
 import os
@@ -21,7 +21,7 @@ from .tenant_utils import (
     tenant_access_required,
 )
 
-PUBLIC_PREFIXES = ('organizations/', 'avatars/')
+PUBLIC_PREFIXES = ('organizations/', 'avatars/', 'clubs/', 'teams/')
 
 
 def _use_x_accel():
