@@ -753,7 +753,10 @@ class PlayerRosterBulkAddTests(TestCase):
             'selected': [self.ana.id, self.outsider.id],
             f'jersey_{self.ana.id}': '7', f'position_{self.ana.id}': 'setter',
         })
-        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response, f"{reverse('teams:team_roster', args=[self.team.id])}?season={self.season.id}",
+            fetch_redirect_response=False,
+        )
         role = PlayerRole.objects.get(person=self.ana, team=self.team, season=self.season)
         self.assertEqual((role.jersey_number, role.position), (7, 'setter'))
         self.assertFalse(PlayerRole.objects.filter(person=self.outsider).exists())

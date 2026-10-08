@@ -9,7 +9,7 @@ from ilovevoley.core.mixins import get_club_team_name_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenancy import get_tenant_object_or_404
-from ilovevoley.core.tenant_utils import tenant_access_required
+from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
 from ilovevoley.rosters.models import PlayerRole, StaffRole
 from ilovevoley.teams.models import Club, Team
 
@@ -222,6 +222,7 @@ def team_roster(request, team_id):
         "position_choices": position_choices,
         "role_choices": role_choices,
         "seasons": Season.objects.all(),
+        "can_manage": user_is_tenant_manager(request.user, request.tenant),
         "selected_season": selected_season,
         "season_filtered": "season" in request.GET,
         "selected_position": position_filter,

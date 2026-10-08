@@ -6,6 +6,7 @@ from django.db import IntegrityError
 from django.db.models import Prefetch, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
@@ -451,7 +452,7 @@ def player_roster_bulk_add(request, team_id):
                 form.errors.append(_('Algún dorsal o jugador acaba de ser asignado. Revisa los datos.'))
             else:
                 messages.success(request, _('%(n)s jugadores añadidos a %(team)s.') % {'n': created, 'team': team})
-                return redirect('teams:team_roster', team_id=team.id)
+                return redirect(f"{reverse('teams:team_roster', args=[team.id])}?season={season.pk}")
     else:
         initial = {}
         if request.GET.get('copy') == '1':
