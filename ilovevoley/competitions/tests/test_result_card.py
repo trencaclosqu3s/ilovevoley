@@ -8,7 +8,7 @@ from django.utils import timezone
 from PIL import Image, ImageChops, ImageDraw, ImageStat
 
 from ilovevoley.competitions import result_card
-from ilovevoley.core.security import UnsafeURL
+from ilovevoley.core.security import UnsafeURL, fetch_logo_bytes
 
 
 def _fake_match(**overrides):
@@ -438,13 +438,11 @@ class DrawFooterTests(SimpleTestCase):
 
 class FetchLogoBytesTests(SimpleTestCase):
     @override_settings(ACTA_ALLOWED_HOSTS=['logos.example'])
-    @patch('ilovevoley.competitions.result_card.safe_get')
+    @patch('ilovevoley.core.security.safe_get')
     def test_uses_safe_get_with_allowed_hosts(self, safe_get):
         safe_get.return_value = b'logo bytes'
 
-        logo = result_card.fetch_logo_bytes(
-            'https://logos.example/crest.png', timeout=3
-        )
+        logo = fetch_logo_bytes('https://logos.example/crest.png', timeout=3)
 
         self.assertEqual(logo, b'logo bytes')
         safe_get.assert_called_once_with(
@@ -454,27 +452,25 @@ class FetchLogoBytesTests(SimpleTestCase):
             max_bytes=2 * 1024 * 1024,
         )
 
-    @patch('ilovevoley.competitions.result_card.safe_get')
+    @patch('ilovevoley.core.security.safe_get')
     def test_upgrades_http_urls_to_https(self, safe_get):
         safe_get.return_value = b'logo bytes'
 
-        result_card.fetch_logo_bytes('http://intranet.rfevb.com/clubes/logos/web/cl00436.jpg')
+        fetch_logo_bytes('http://intranet.rfevb.com/clubes/logos/web/cl00436.jpg')
 
         self.assertEqual(
             safe_get.call_args.args[0],
             'https://intranet.rfevb.com/clubes/logos/web/cl00436.jpg',
         )
 
-    @patch('ilovevoley.competitions.result_card.safe_get')
+    @patch('ilovevoley.core.security.safe_get')
     def test_returns_none_when_download_fails(self, safe_get):
         for error in (UnsafeURL('host no permitido'), OSError('red caída')):
             with self.subTest(error=type(error).__name__):
                 safe_get.reset_mock()
                 safe_get.side_effect = error
 
-                self.assertIsNone(
-                    result_card.fetch_logo_bytes('https://logos.example/crest.png')
-                )
+                self.assertIsNone(fetch_logo_bytes('https://logos.example/crest.png'))
 
 
 class ScoreLayerTests(SimpleTestCase):

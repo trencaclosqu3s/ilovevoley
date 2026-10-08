@@ -1634,7 +1634,10 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.assertNotIn('Liga Ajena', response_past.context['standings_by_league'])
 
 
-@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'otherclub.ilovevoley.es', 'noclub.ilovevoley.es', 'localhost'])
+@override_settings(ALLOWED_HOSTS=[
+    'testclub.ilovevoley.es', 'otherclub.ilovevoley.es', 'rivalclub.ilovevoley.es',
+    'noclub.ilovevoley.es', 'localhost',
+])
 class MatchChangesReviewViewTest(TestCase):
     def setUp(self):
         cache.clear()
@@ -1721,6 +1724,8 @@ class MatchChangesReviewViewTest(TestCase):
         self.assertNotIn(self.log_other, changes)
 
     def test_ajax_mark_change_reviewed(self):
+        from ilovevoley.competitions.models import MatchChangeLogReview
+
         self.client.force_login(self.manager_user)
         url = reverse('competitions:ajax_mark_change_reviewed', kwargs={'log_id': self.log_own.id})
         response = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
@@ -1729,10 +1734,9 @@ class MatchChangesReviewViewTest(TestCase):
         self.assertEqual(data.get('status'), 'success')
         self.assertTrue(data.get('reviewed'))
 
-        self.log_own.refresh_from_db()
-        self.assertTrue(self.log_own.reviewed)
-        self.assertEqual(self.log_own.reviewed_by, self.manager_user)
-        self.assertIsNotNone(self.log_own.reviewed_at)
+        review = MatchChangeLogReview.objects.get(change_log=self.log_own, organization=self.org)
+        self.assertEqual(review.reviewed_by, self.manager_user)
+        self.assertIsNotNone(review.reviewed_at)
 
     def test_ajax_mark_change_reviewed_other_tenant_404(self):
         self.client.force_login(self.manager_user)
@@ -1740,6 +1744,57 @@ class MatchChangesReviewViewTest(TestCase):
         url = reverse('competitions:ajax_mark_change_reviewed', kwargs={'log_id': self.log_other.id})
         response = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 404)
+
+    def test_review_is_per_organization(self):
+        """#201: marcar revisado en un club no lo oculta en el rival.
+
+        Justificación (testing-guidelines): protege la regla de negocio de que
+        la revisión de un MatchChangeLog es per-organización, no global.
+        """
+        from django.contrib.auth import get_user_model
+        from ilovevoley.competitions.models import MatchChangeLog, MatchChangeLogReview
+        from ilovevoley.users.models import Membership
+
+        User = get_user_model()
+        # Partido con dos tenants (ambos clubes tienen organización)
+        rival_org = Organization.objects.create(
+            slug='rivalclub', name='Rival Club Org', is_active=True, club=self.other_club,
+        )
+        rival_manager = User.objects.create_user(username='rival_mgr', email='mgr@rival.es')
+        Membership.objects.create(
+            user=rival_manager, organization=rival_org, role='manager', is_approved=True,
+        )
+        shared_match = Match.objects.create(
+            league=self.league,
+            home_team=self.team,
+            away_team=self.other_team,
+            match_date=timezone.now(),
+        )
+        shared_log = MatchChangeLog.objects.create(
+            match=shared_match,
+            change_type='datetime',
+            field_name='match_date',
+            old_value='10:00',
+            new_value='12:00',
+        )
+
+        self.client.force_login(self.manager_user)
+        url = reverse('competitions:ajax_mark_change_reviewed', kwargs={'log_id': shared_log.id})
+        response = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            MatchChangeLogReview.objects.filter(change_log=shared_log, organization=self.org).exists()
+        )
+        self.assertFalse(
+            MatchChangeLogReview.objects.filter(change_log=shared_log, organization=rival_org).exists()
+        )
+
+        # El rival sigue viendo el cambio como pendiente
+        self.client.force_login(rival_manager)
+        list_url = reverse('competitions:match_changes_review')
+        response = self.client.get(list_url, HTTP_HOST='rivalclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(shared_log, response.context['changes'])
 
     def test_org_without_linked_club_sees_no_changes(self):
         """Una organización sin club federado no debe ver cambios de otros clubes.

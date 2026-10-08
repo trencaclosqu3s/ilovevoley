@@ -1,14 +1,18 @@
 """Validaciones de seguridad para peticiones HTTP salientes (mitigación SSRF)."""
 
 import ipaddress
+import logging
 import socket
 from urllib.parse import urlparse
 
 import requests
 import urllib3
+from django.conf import settings
 from requests.adapters import DEFAULT_POOLBLOCK, HTTPAdapter
 from urllib3 import PoolManager
 from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 10
 DEFAULT_MAX_BYTES = 5 * 1024 * 1024
@@ -171,3 +175,22 @@ def safe_get(url, *, allowed_hosts, timeout=DEFAULT_TIMEOUT, max_bytes=DEFAULT_M
             response.close()
     finally:
         session.close()
+
+
+def fetch_logo_bytes(url: str | None, *, timeout: float = 5) -> bytes | None:
+    """Descarga bytes de un escudo vía ``safe_get`` (hosts de ``ACTA_ALLOWED_HOSTS``)."""
+    if not url:
+        return None
+    # La RFEVB guarda sus escudos con http:// y redirige a https; safe_get solo admite https.
+    if url.startswith('http://'):
+        url = 'https://' + url[len('http://'):]
+    try:
+        return safe_get(
+            url,
+            allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
+            timeout=timeout,
+            max_bytes=2 * 1024 * 1024,
+        )
+    except Exception as exc:
+        logger.warning('No se pudo descargar logo %s: %s', url, exc)
+        return None

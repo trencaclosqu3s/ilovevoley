@@ -11,14 +11,13 @@ from io import BytesIO
 from pathlib import Path
 from typing import Callable, Iterable
 
-from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 from ilovevoley.core.image_utils import normalize_crest
-from ilovevoley.core.security import safe_get
+from ilovevoley.core.security import fetch_logo_bytes
 
 from .services.sets import extract_set_scores
 
@@ -139,24 +138,6 @@ CREST_CACHE_TTL = 60 * 60 * 24
 CREST_FAILURE_TTL = 60 * 5
 
 LogoFetcher = Callable[[str | None], bytes | None]
-
-
-def fetch_logo_bytes(url: str | None, *, timeout: float = 5) -> bytes | None:
-    if not url:
-        return None
-    # La RFEVB guarda sus escudos con http:// y redirige a https; safe_get solo admite https.
-    if url.startswith('http://'):
-        url = 'https://' + url[len('http://'):]
-    try:
-        return safe_get(
-            url,
-            allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
-            timeout=timeout,
-            max_bytes=2 * 1024 * 1024,
-        )
-    except Exception as exc:
-        logger.warning('No se pudo descargar logo %s: %s', url, exc)
-        return None
 
 
 def _file_field_bytes(field) -> bytes | None:

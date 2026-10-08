@@ -165,9 +165,9 @@
                         <!-- Acción / Estado revisión -->
                         <td class="px-4 py-3 whitespace-nowrap text-right text-xs">
                             <div id="review-action-{{ log.id }}">
-                                {% if log.reviewed %}
+                                {% if log.tenant_review %}
                                 <span class="inline-flex items-center text-green-700 dark:text-green-400 font-medium bg-green-50 dark:bg-green-950/40 px-2 py-1 rounded">
-                                    {% icon 'check' %} {% blocktrans with reviewer=log.reviewed_by.get_full_name|default:log.reviewed_by.username|default:"Admin" %}Revisado por {{ reviewer }}{% endblocktrans %}
+                                    {% icon 'check' %} {% blocktrans with reviewer=log.tenant_review.reviewed_by.get_full_name|default:log.tenant_review.reviewed_by.username|default:"Admin" %}Revisado por {{ reviewer }}{% endblocktrans %}
                                 </span>
                                 {% else %}
                                 <button data-call="markAsReviewed" data-call-this
