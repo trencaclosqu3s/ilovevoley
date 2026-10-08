@@ -8,7 +8,10 @@ from unfold.decorators import action
 
 from ilovevoley.content.admin.content import ImageInline
 from ..forms import MatchAdminForm
-from ..models import League, LeagueCandidate, Match, MatchChangeLog, ScrapingEndpoint, Standing, Venue
+from ..models import (
+    League, LeagueCandidate, Match, MatchChangeLog, MatchChangeLogReview,
+    ScrapingEndpoint, Standing, Venue,
+)
 from ..services.delta_detector import notify_match_result_after_save
 
 
@@ -513,17 +516,25 @@ class StandingAdmin(ModelAdmin):
     )
 
 
+class MatchChangeLogReviewInline(TabularInline):
+    model = MatchChangeLogReview
+    extra = 0
+    autocomplete_fields = ('organization', 'reviewed_by')
+    readonly_fields = ('reviewed_at',)
+
+
 @admin.register(MatchChangeLog)
 class MatchChangeLogAdmin(ModelAdmin):
     list_display = (
         'match', 'change_type_badge', 'field_name', 'old_value', 'new_value',
-        'is_last_minute', 'notified', 'reviewed', 'detected_at'
+        'is_last_minute', 'notified', 'reviews_count', 'detected_at',
     )
-    list_filter = ('change_type', 'is_last_minute', 'notified', 'reviewed', 'detected_at')
+    list_filter = ('change_type', 'is_last_minute', 'notified', 'detected_at')
     search_fields = ('match__home_team__name', 'match__away_team__name', 'field_name', 'old_value', 'new_value')
-    readonly_fields = ('detected_at', 'notified_at', 'reviewed_at')
+    readonly_fields = ('detected_at', 'notified_at')
     actions = ['mark_as_reviewed']
-    list_select_related = ('match__home_team', 'match__away_team', 'reviewed_by')
+    list_select_related = ('match__home_team', 'match__away_team')
+    inlines = [MatchChangeLogReviewInline]
 
     def change_type_badge(self, obj):
         colors = {
@@ -541,12 +552,52 @@ class MatchChangeLogAdmin(ModelAdmin):
         )
     change_type_badge.short_description = 'Tipo'
 
+    def reviews_count(self, obj):
+        return obj.reviews.count()
+    reviews_count.short_description = 'Revisiones'
+
     def mark_as_reviewed(self, request, queryset):
-        """Marca las modificaciones seleccionadas como revisadas."""
+        """Crea una revisión por organización cuyo club participa en el partido."""
+        from ilovevoley.core.models import Organization
+
         now = timezone.now()
-        updated = queryset.update(reviewed=True, reviewed_by=request.user, reviewed_at=now)
-        self.message_user(request, f'{updated} modificación(es) marcada(s) como revisada(s).')
+        created = 0
+        for log in queryset.select_related('match__home_team', 'match__away_team'):
+            club_ids = {
+                cid for cid in (
+                    getattr(log.match.home_team, 'club_id', None),
+                    getattr(log.match.away_team, 'club_id', None),
+                ) if cid
+            }
+            if not club_ids:
+                continue
+            for org in Organization.objects.filter(club_id__in=club_ids):
+                _, was_created = MatchChangeLogReview.objects.update_or_create(
+                    change_log=log,
+                    organization=org,
+                    defaults={'reviewed_by': request.user, 'reviewed_at': now},
+                )
+                if was_created:
+                    created += 1
+        self.message_user(
+            request,
+            f'{created} revisión(es) creada(s) para las organizaciones del partido.',
+        )
     mark_as_reviewed.short_description = "Marcar modificaciones seleccionadas como revisadas"
+
+
+@admin.register(MatchChangeLogReview)
+class MatchChangeLogReviewAdmin(ModelAdmin):
+    list_display = ('change_log', 'organization', 'reviewed_by', 'reviewed_at')
+    list_filter = ('organization', 'reviewed_at')
+    search_fields = (
+        'change_log__match__home_team__name',
+        'change_log__match__away_team__name',
+        'organization__slug',
+    )
+    autocomplete_fields = ('change_log', 'organization', 'reviewed_by')
+    readonly_fields = ('reviewed_at',)
+    list_select_related = ('change_log', 'organization', 'reviewed_by')
 
 
 

@@ -913,15 +913,6 @@ class MatchChangeLog(models.Model):
     detected_at = models.DateTimeField(auto_now_add=True)
     notified = models.BooleanField(default=False)
     notified_at = models.DateTimeField(null=True, blank=True)
-    reviewed = models.BooleanField(default=False)
-    reviewed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='reviewed_match_changes',
-    )
-    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     objects = MatchChangeLogManager()
 
@@ -933,9 +924,51 @@ class MatchChangeLog(models.Model):
         indexes = [
             models.Index(fields=['match', 'detected_at'], name='match_change_match_idx'),
             models.Index(fields=['is_last_minute', 'notified'], name='match_change_notif_idx'),
-            # Panel de revisión: filtros primarios son reviewed + orden -detected_at.
-            models.Index(fields=['reviewed', '-detected_at'], name='match_change_review_idx'),
         ]
 
     def __str__(self):
         return f'{self.match} - {self.get_change_type_display()} ({self.field_name}): {self.old_value} -> {self.new_value}'
+
+
+class MatchChangeLogReview(models.Model):
+    """Revisión de un cambio federativo por una organización.
+
+    El mismo ``MatchChangeLog`` puede estar pendiente en un club y revisado
+    en el rival: el estado no es global (#201).
+    """
+
+    change_log = models.ForeignKey(
+        MatchChangeLog, on_delete=models.CASCADE, related_name='reviews',
+    )
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.CASCADE,
+        related_name='match_change_reviews',
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='match_change_reviews',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _('Revisión de modificación de partido')
+        verbose_name_plural = _('Revisiones de modificaciones de partidos')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['change_log', 'organization'],
+                name='unique_matchchangelog_review_per_org',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['organization', '-reviewed_at'],
+                name='match_change_review_org_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.change_log_id} @ {self.organization_id}'
