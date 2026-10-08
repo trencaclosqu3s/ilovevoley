@@ -39,12 +39,14 @@
     // ---- Vista previa (render del servidor a 540 px, con debounce) ----
 
     let timer = null;
-    let inflight = null;
+    let inflight = false;
+    let stale = false;
     let objectUrl = null;
 
-    function schedule() {
+    // Los sliders esperan 250 ms; los gestos piden el render nada más soltar (delay 0).
+    function schedule(delay) {
         clearTimeout(timer);
-        timer = setTimeout(refresh, 250);
+        timer = setTimeout(refresh, delay === undefined ? 250 : delay);
     }
 
     function cardParams(extra) {
@@ -63,20 +65,38 @@
         stage.style.aspectRatio = state.format === 'story' ? '9 / 16' : '1 / 1';
     }
 
+    // Una sola petición en vuelo: abortar en el cliente no cancela el render del servidor,
+    // así que los cambios que llegan mientras tanto se juntan en un único render posterior.
     async function refresh() {
         if (!state.photoId) {
             toast('error', msg.msgNoPhoto);
             return;
         }
-        if (inflight) inflight.abort();
-        inflight = new AbortController();
+        if (inflight) {
+            stale = true;
+            return;
+        }
+        inflight = true;
+        stale = false;
+        try {
+            await renderPreview();
+        } finally {
+            inflight = false;
+            if (stale) refresh();
+        }
+    }
+
+    async function renderPreview() {
         sizeStage();
+        stage.classList.add('opacity-80');
         let response;
         try {
-            response = await fetch(`${msg.cardUrl}?${cardParams({ preview: '1' })}`, { signal: inflight.signal });
+            response = await fetch(`${msg.cardUrl}?${cardParams({ preview: '1' })}`);
         } catch (error) {
-            if (error.name !== 'AbortError') toast('error', msg.msgError);
+            toast('error', msg.msgError);
             return;
+        } finally {
+            stage.classList.remove('opacity-80');
         }
         if (!response.ok) {
             let text = msg.msgError;
@@ -90,6 +110,7 @@
         objectUrl = URL.createObjectURL(blob);
         preview.onload = function () {
             preview.style.transform = '';
+            preview.style.objectFit = '';
         };
         preview.src = objectUrl;
         syncControls();
@@ -173,11 +194,17 @@
         }
         photosBox.querySelectorAll('button').forEach(function (button) {
             const selected = button.dataset.photoId === photoId;
+            const thumb = selected && button.querySelector('img');
+            // Hasta que llega el primer render se enseña la miniatura (ya cargada) en vez de gris.
+            if (thumb && !state.info) {
+                preview.style.objectFit = 'cover';
+                preview.src = thumb.currentSrc || thumb.src;
+            }
             button.classList.toggle('border-csj-purple', selected);
             button.classList.toggle('border-transparent', !selected);
             button.setAttribute('aria-pressed', selected ? 'true' : 'false');
         });
-        schedule();
+        schedule(0);
     }
 
     function buildPhotoStrip() {
@@ -229,7 +256,7 @@
                         }
                     }
                     pan = { x: 0, y: 0 };
-                    schedule();
+                    schedule(0);
                 },
             },
         })
@@ -245,7 +272,7 @@
                 end() {
                     state.layout.photo.zoom = clamp(pinch.zoom * pinch.scale, 0.1, MAX_ZOOM);
                     pinch.scale = 1;
-                    schedule();
+                    schedule(0);
                 },
             },
         });
@@ -274,7 +301,7 @@
                         scoreBox.offsetLeft + drag.x, scoreBox.offsetTop + drag.y,
                         scoreBox.offsetWidth, scoreBox.offsetHeight
                     );
-                    schedule();
+                    schedule(0);
                 },
             },
         })
@@ -297,7 +324,7 @@
                         scoreBox.offsetLeft, scoreBox.offsetTop,
                         scoreBox.offsetWidth, scoreBox.offsetHeight
                     );
-                    schedule();
+                    schedule(0);
                 },
             },
         });

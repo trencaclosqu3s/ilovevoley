@@ -2,6 +2,7 @@ from datetime import datetime, timezone as dt_timezone
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
+from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
 from PIL import Image, ImageDraw
@@ -474,6 +475,32 @@ class FetchLogoBytesTests(SimpleTestCase):
                 self.assertIsNone(
                     result_card.fetch_logo_bytes('https://logos.example/crest.png')
                 )
+
+
+class TeamLogoCacheTests(SimpleTestCase):
+    def setUp(self):
+        cache.clear()
+        self.team = MagicMock(display_logo_file=None, display_logo='https://fed.example/a.png')
+
+    def test_remote_crest_is_downloaded_once(self):
+        buffer = BytesIO()
+        Image.new('RGBA', (40, 40), (200, 0, 0, 255)).save(buffer, format='PNG')
+        fetcher = MagicMock(return_value=buffer.getvalue())
+
+        first = result_card._team_logo_bytes(self.team, fetcher)
+        second = result_card._team_logo_bytes(self.team, fetcher)
+
+        self.assertIsNotNone(first)
+        self.assertEqual(first, second)
+        fetcher.assert_called_once()
+
+    def test_failed_download_is_remembered_briefly(self):
+        fetcher = MagicMock(return_value=None)
+
+        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
+        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
+
+        fetcher.assert_called_once()
 
 
 class PasteCrestCircleTests(SimpleTestCase):

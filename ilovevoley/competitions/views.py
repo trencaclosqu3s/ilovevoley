@@ -7,7 +7,6 @@ from io import BytesIO
 from datetime import datetime, timedelta
 
 import requests as http_requests
-from PIL import Image as Image_
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -27,8 +26,10 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from ilovevoley.competitions.result_card import (
+    CARD_CACHE_TTL,
     CARD_STYLES,
     _file_field_bytes,
+    card_cache_key,
     render_result_card,
 )
 from ilovevoley.content.favorites import annotate_favorites, match_top_images
@@ -494,7 +495,18 @@ def match_result_card(request, match_id):
             )
 
     report = {}
-    png = render_result_card(
+    is_preview = request.GET.get('preview') == '1'
+    sets = _load_set_scores_for_card(match)
+    # La descarga final se cachea (varias stories seguidas del mismo partido); la preview
+    # del editor no, porque su layout cambia a cada gesto.
+    cache_key = None if is_preview else card_cache_key(
+        match=match, organization=request.tenant, card_format=card_format,
+        card_style=card_style, photo=(photo.id, photo.thumbnail_large.name or photo.image.name)
+        if photo_bytes else None, layout=layout, sets=sets,
+    )
+    png = cache_key and cache.get(cache_key)
+    cached = bool(png)
+    png = png or render_result_card(
         match=match,
         organization=request.tenant,
         card_format=card_format,
@@ -502,12 +514,13 @@ def match_result_card(request, match_id):
         photo=photo_bytes,
         layout=layout,
         report=report,
-        sets=_load_set_scores_for_card(match),
+        sets=sets,
+        preview_width=540 if is_preview else None,
     )
-    if request.GET.get('preview') == '1':
-        # Se renderiza a tamaño completo y se reduce; si el editor pide muchas
-        # previews, habrá que renderizar directamente a escala en el renderer.
-        response = HttpResponse(_downscale_png(png), content_type='image/png')
+    if cache_key and not cached:
+        cache.set(cache_key, png, CARD_CACHE_TTL)
+    if is_preview:
+        response = HttpResponse(png, content_type='image/webp')
         # Las miniaturas de "Mis creaciones" llevan ?v=<updated>: la URL cambia al
         # editar, así que se cachean un mes (resultados y escudos no suelen cambiar).
         response['Cache-Control'] = (
@@ -520,15 +533,6 @@ def match_result_card(request, match_id):
         f'attachment; filename="resultado-{match.id}-{card_format}.png"'
     )
     return response
-
-
-def _downscale_png(png: bytes, width: int = 540) -> bytes:
-    with Image_.open(BytesIO(png)) as image:
-        ratio = width / image.width
-        small = image.resize((width, round(image.height * ratio)), Image_.Resampling.LANCZOS)
-        buffer = BytesIO()
-        small.save(buffer, format='PNG')
-        return buffer.getvalue()
 
 
 @login_required

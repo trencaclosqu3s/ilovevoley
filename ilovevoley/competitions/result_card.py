@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import re
 from functools import lru_cache
@@ -10,6 +12,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
@@ -129,6 +132,12 @@ FOOTER_GAP = 64
 DARK_TEXT = (26, 26, 26)
 WHITE = (255, 255, 255)
 
+# Cambia al desplegar un diseño nuevo, así la caché de PNG finales no sirve el anterior.
+_RENDER_VERSION = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:10]
+CARD_CACHE_TTL = 60 * 60 * 24
+CREST_CACHE_TTL = 60 * 60 * 24
+CREST_FAILURE_TTL = 60 * 5
+
 LogoFetcher = Callable[[str | None], bytes | None]
 
 
@@ -233,11 +242,20 @@ def _team_logo_bytes(team, fetcher: LogoFetcher) -> bytes | None:
     local = _file_field_bytes(getattr(team, 'display_logo_file', None))
     if local:
         return local
+    url = getattr(team, 'display_logo', None)
+    key = f'result-card-crest:{url}'
+    cached = cache.get(key)
+    if cached is not None:
+        return cached or None
     try:
-        raw = fetcher(getattr(team, 'display_logo', None))
+        raw = fetcher(url)
     except Exception:
         return None
-    return normalize_crest(raw) if raw else None
+    crest = normalize_crest(raw) if raw else None
+    # Varias stories seguidas del mismo partido: un solo viaje a la federación por escudo.
+    # Un fallo se recuerda poco para no repetir el timeout de 5 s en cada preview.
+    cache.set(key, crest or b'', CREST_CACHE_TTL if crest else CREST_FAILURE_TTL)
+    return crest
 
 
 def _org_logo_bytes(organization) -> bytes | None:
@@ -525,8 +543,12 @@ def render_result_card(
     layout: dict | None = None,
     report: dict | None = None,
     logo_fetcher: LogoFetcher | None = None,
+    preview_width: int | None = None,
 ) -> bytes:
     """Renderiza la tarjeta. `layout` (ver `normalize_layout`) solo aplica al estilo "marco".
+
+    Con `preview_width` devuelve un WebP reducido a ese ancho en vez del PNG completo: se
+    dibuja a tamaño completo pero sin codificar el PNG intermedio (el 70 % del coste).
 
     Si se pasa `report`, se rellena con la geometría normalizada (0-1) que necesita
     el editor: `layout` normalizado, `score_box` [x, y, w, h] y `photo` {min_zoom, w, h}.
@@ -701,8 +723,15 @@ def render_result_card(
         )
 
     buffer = BytesIO()
-
-    image.convert('RGB').save(buffer, format='PNG', optimize=True)
+    image = image.convert('RGB')
+    if preview_width:
+        image = image.resize(
+            (preview_width, round(image.height * preview_width / image.width)),
+            Image.Resampling.LANCZOS,
+        )
+        image.save(buffer, format='WEBP', quality=80)
+    else:
+        image.save(buffer, format='PNG', optimize=True)
     return buffer.getvalue()
 
 
@@ -742,3 +771,21 @@ def _draw_card_shadow(image: Image.Image, box, radius: int):
     ImageDraw.Draw(shadow).rounded_rectangle(shadow_box, radius=radius, fill=(0, 0, 0, 90))
     shadow = shadow.filter(ImageFilter.GaussianBlur(18))
     image.paste(Image.new('RGB', image.size, (0, 0, 0)), (0, 0), shadow)
+
+
+def card_cache_key(*, match, organization, card_format, card_style, photo, layout, sets) -> str:
+    """Huella de todo lo que cambia el PNG final: si algo varía, la clave también."""
+    def crest(team):
+        return [getattr(team, 'display_name', ''), str(getattr(team, 'display_logo', ''))]
+
+    fields = [
+        _RENDER_VERSION, match.id, card_format, card_style, photo,
+        json.dumps(layout, sort_keys=True), list(sets),
+        match.home_score, match.away_score, str(match.match_date),
+        getattr(getattr(match, 'league', None), 'name', ''),
+        crest(match.home_team), crest(match.away_team),
+        organization.id, organization.primary_color, organization.secondary_color,
+        str(getattr(organization, 'logo', '')),
+    ]
+    digest = hashlib.sha1(json.dumps(fields, default=str).encode()).hexdigest()
+    return f'result-card:{digest}'
