@@ -2,7 +2,7 @@ import logging
 
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Prefetch, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
@@ -312,13 +312,16 @@ def person_quick_create(request):
     form = PersonForm(request.POST)
     if request.POST.get('adopt') == '1':
         form.is_valid()
-        person = form.existing_person() if hasattr(form, 'cleaned_data') else None
+        person = form.existing_person()
         if person is None:
             raise Http404
     elif form.is_valid():
-        person = form.save()
+        with transaction.atomic():
+            person = form.save()
+            person.organizations.add(request.tenant)
+        return JsonResponse({'id': person.pk, 'name': person.full_name, 'birth_year': person.birth_year})
     else:
-        existing = form.existing_person() if hasattr(form, 'cleaned_data') else None
+        existing = form.existing_person()
         if existing:
             return JsonResponse({'existing': {
                 'name': existing.full_name, 'birth_year': existing.birth_year,

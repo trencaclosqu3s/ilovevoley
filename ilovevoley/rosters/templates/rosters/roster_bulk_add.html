@@ -107,9 +107,20 @@
     const existingBox = document.getElementById('qp-existing');
     const csrf = document.querySelector('#bulk-form [name=csrfmiddlewaretoken]').value;
 
+    const submitButtons = [document.getElementById('qp-submit'), document.getElementById('qp-adopt')];
+
     function reset() { errorBox.hidden = true; existingBox.hidden = true; }
 
     function addRow(person) {
+        // Ya estaba en la lista (ficha del club aún sin plantilla): se marca, no se duplica.
+        const existing = list.querySelector('input[name=selected][value="' + person.id + '"]');
+        if (existing) {
+            existing.checked = true;
+            dialog.close();
+            form.reset();
+            existing.closest('li').querySelector('input[type=number]').focus();
+            return;
+        }
         const html = document.getElementById('row-template').innerHTML
             .replaceAll('__ID__', person.id).replaceAll('__YEAR__', person.birth_year).replace('__NAME__', '');
         list.insertAdjacentHTML('afterbegin', html);
@@ -124,6 +135,15 @@
 
     async function send(extra) {
         reset();
+        submitButtons.forEach(b => { b.disabled = true; });
+        try {
+            await post(extra);
+        } finally {
+            submitButtons.forEach(b => { b.disabled = false; });
+        }
+    }
+
+    async function post(extra) {
         const body = new FormData(form);
         body.append('csrfmiddlewaretoken', csrf);
         if (extra) body.append('adopt', '1');
