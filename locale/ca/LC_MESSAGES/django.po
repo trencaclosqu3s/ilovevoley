@@ -7060,6 +7060,15 @@ msgstr "%(n)s vincles aprovats"
 msgid "Rechazar (identidad nueva)"
 msgstr "Rebutjar (identitat nova)"
 
+#: ilovevoley/teams/admin/teams.py
+msgid "Asignar identidad común a los equipos seleccionados"
+msgstr "Assignar identitat comuna als equips seleccionats"
+
+#: ilovevoley/teams/admin/teams.py
+#, python-format
+msgid "%(count)s equipo(s) asignados a la identidad «%(identity)s»"
+msgstr "%(count)s equip(s) assignats a la identitat «%(identity)s»"
+
 #: ilovevoley/teams/admin/teams.py:111
 #, python-format
 msgid "%(n)s candidatas rechazadas"

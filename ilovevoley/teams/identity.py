@@ -157,6 +157,78 @@ def resolve_team_identity(team, *, sponsor_name: str = ''):
     return identity, None
 
 
+class IdentityAssignError(ValueError):
+    """La selección no se puede unificar bajo una sola identidad."""
+
+
+def _team_family_ids(teams):
+    """PKs de los equipos dados más su root y todas las variantes de cada root."""
+    from ilovevoley.teams.models import Team
+
+    ids = {_root_team(t).pk for t in teams}
+    frontier = set(ids)
+    while frontier:
+        children = set(
+            Team.objects.filter(parent_team_id__in=frontier).values_list('pk', flat=True)
+        ) - ids
+        ids |= children
+        frontier = children
+    return ids
+
+
+def assign_common_identity(teams):
+    """Asigna una misma ``TeamIdentity`` a ``teams`` y a toda su familia de variantes.
+
+    Exige mismo club + categoría + género (la clave de la identidad). Si ya hay
+    identidades, gana la más usada (empate: la más antigua) y las demás se
+    absorben; las candidatas pendientes de la familia se cierran. Devuelve
+    ``(identity, n_teams)``.
+    """
+    from collections import Counter
+
+    from django.db import transaction
+
+    from ilovevoley.teams.models import Team, TeamIdentity, TeamIdentityCandidate
+
+    with transaction.atomic():
+        family = list(
+            Team.objects.filter(pk__in=_team_family_ids(teams)).select_related('category', 'club')
+        )
+        keys = {(t.club_id, t.category_id, effective_gender(t)) for t in family}
+        if len(keys) != 1 or None in next(iter(keys))[:2]:
+            detail = '; '.join(
+                f'{t.name} ({t.club or "sin club"} / {t.category or "sin categoría"}'
+                f' / {effective_gender(t) or "sin género"})'
+                for t in family
+            )
+            raise IdentityAssignError(
+                f'Los equipos deben compartir club, categoría y género: {detail}'
+            )
+
+        counts = Counter(t.identity_id for t in family if t.identity_id)
+        if counts:
+            winner_id = min(counts, key=lambda pk: (-counts[pk], pk))
+            winner = TeamIdentity.objects.get(pk=winner_id)
+        else:
+            winner = create_identity_for_team(_root_team(teams[0]))
+
+        losers = [pk for pk in counts if pk != winner.pk]
+        if losers:
+            Team.objects.filter(identity_id__in=losers).update(identity=winner)
+            TeamIdentityCandidate.objects.filter(suggested_identity_id__in=losers).update(
+                suggested_identity=winner,
+            )
+            TeamIdentity.objects.filter(pk__in=losers).delete()
+        Team.objects.filter(pk__in=[t.pk for t in family]).update(identity=winner)
+
+        pending = TeamIdentityCandidate.objects.filter(
+            new_team__in=family, status='pending',
+        )
+        pending.filter(suggested_identity=winner).update(status='approved')
+        pending.exclude(suggested_identity=winner).update(status='rejected')
+    return winner, len(family)
+
+
 def notify_new_identity_candidates(candidates):
     """Email a técnicos cuando hay vínculos pendientes (como ligas candidatas)."""
     if not candidates:

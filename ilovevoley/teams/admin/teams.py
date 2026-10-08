@@ -3,6 +3,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin
 
+from ..identity import IdentityAssignError, assign_common_identity
 from ..models import Club, Team, TeamIdentity, TeamIdentityCandidate
 
 
@@ -145,7 +146,7 @@ class TeamAdmin(ModelAdmin):
         })
     )
     
-    actions = ['match_to_clubs', 'activate_teams', 'deactivate_teams']
+    actions = ['match_to_clubs', 'activate_teams', 'deactivate_teams', 'assign_identity']
     
     def club_name(self, obj):
         """Muestra el nombre del club asociado"""
@@ -195,6 +196,19 @@ class TeamAdmin(ModelAdmin):
         return '-'
     logo_preview.short_description = _('Logo')
     
+    @admin.action(description=_('Asignar identidad común a los equipos seleccionados'))
+    def assign_identity(self, request, queryset):
+        try:
+            identity, count = assign_common_identity(list(queryset))
+        except IdentityAssignError as e:
+            self.message_user(request, str(e), level='ERROR')
+            return
+        self.message_user(
+            request,
+            _('%(count)s equipo(s) asignados a la identidad «%(identity)s»')
+            % {'count': count, 'identity': identity},
+        )
+
     def match_to_clubs(self, request, queryset):
         """Acción para hacer matching automático de equipos seleccionados"""
         from django.core.management import call_command
