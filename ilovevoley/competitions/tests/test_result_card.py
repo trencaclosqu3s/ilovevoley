@@ -494,6 +494,14 @@ class TeamLogoCacheTests(SimpleTestCase):
         self.assertEqual(first, second)
         fetcher.assert_called_once()
 
+    def test_download_exception_is_remembered_briefly(self):
+        fetcher = MagicMock(side_effect=TimeoutError)
+
+        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
+        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
+
+        fetcher.assert_called_once()
+
     def test_failed_download_is_remembered_briefly(self):
         fetcher = MagicMock(return_value=None)
 

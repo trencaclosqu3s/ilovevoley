@@ -243,13 +243,14 @@ def _team_logo_bytes(team, fetcher: LogoFetcher) -> bytes | None:
     if local:
         return local
     url = getattr(team, 'display_logo', None)
-    key = f'result-card-crest:{url}'
+    key = f'result-card-crest:{_RENDER_VERSION}:{url}'
     cached = cache.get(key)
     if cached is not None:
         return cached or None
     try:
         raw = fetcher(url)
     except Exception:
+        cache.set(key, b'', CREST_FAILURE_TTL)
         return None
     crest = normalize_crest(raw) if raw else None
     # Varias stories seguidas del mismo partido: un solo viaje a la federación por escudo.
@@ -775,8 +776,20 @@ def _draw_card_shadow(image: Image.Image, box, radius: int):
 
 def card_cache_key(*, match, organization, card_format, card_style, photo, layout, sets) -> str:
     """Huella de todo lo que cambia el PNG final: si algo varía, la clave también."""
+    def file_identity(field):
+        # Nombre + fecha de modificación: sustituir el fichero sin cambiar su ruta también invalida.
+        if not field:
+            return ''
+        try:
+            return [field.name, str(field.storage.get_modified_time(field.name))]
+        except Exception:
+            return field.name
+
     def crest(team):
-        return [getattr(team, 'display_name', ''), str(getattr(team, 'display_logo', ''))]
+        return [
+            getattr(team, 'display_name', ''), str(getattr(team, 'display_logo', '')),
+            file_identity(getattr(team, 'display_logo_file', None)),
+        ]
 
     fields = [
         _RENDER_VERSION, match.id, card_format, card_style, photo,
@@ -785,7 +798,7 @@ def card_cache_key(*, match, organization, card_format, card_style, photo, layou
         getattr(getattr(match, 'league', None), 'name', ''),
         crest(match.home_team), crest(match.away_team),
         organization.id, organization.primary_color, organization.secondary_color,
-        str(getattr(organization, 'logo', '')),
+        file_identity(getattr(organization, 'logo', None)),
     ]
     digest = hashlib.sha1(json.dumps(fields, default=str).encode()).hexdigest()
     return f'result-card:{digest}'
