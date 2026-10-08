@@ -17,14 +17,14 @@ class ContentSeasonBackfillMigrationTest(TransactionTestCase):
         self.executor.loader.build_graph()
 
         old_apps = self.executor.loader.project_state([self.migrate_from]).apps
-        leaf_apps = self.executor.loader.project_state(self.executor.loader.graph.leaf_nodes()).apps
 
-        Season = leaf_apps.get_model('core', 'Season')
-        League = leaf_apps.get_model('competitions', 'League')
-        Match = leaf_apps.get_model('competitions', 'Match')
-        Team = leaf_apps.get_model('teams', 'Team')
-        # El estado real de la BD (no el de las hojas del grafo): users puede
-        # tener migraciones posteriores sin aplicar tras migrar content hacia atrás.
+        # El estado real de la BD (no el de las hojas del grafo): users y
+        # competitions pueden tener migraciones posteriores sin aplicar tras
+        # migrar content hacia atrás (p. ej. columnas nuevas de Match).
+        Season = db_state.apps.get_model('core', 'Season')
+        League = db_state.apps.get_model('competitions', 'League')
+        Match = db_state.apps.get_model('competitions', 'Match')
+        Team = db_state.apps.get_model('teams', 'Team')
         User = db_state.apps.get_model('users', 'User')
 
         season = Season.objects.create(name='2024-25', start_year=2024, end_year=2025)
