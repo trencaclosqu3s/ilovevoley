@@ -10,6 +10,42 @@ from ilovevoley.teams.models import Team
 from .models import Person, PlayerRole, StaffRole
 
 
+def _club_teams_for_seasons(organization, seasons):
+    """Equipos activos del club con presencia en alguna de ``seasons``.
+
+    Presencia = clasificación, partido o rol de plantilla en esa temporada. Hay una
+    fila de ``Team`` por fase federativa, así que sin este filtro el selector
+    ofrece equipos de otros años con el mismo nombre.
+    """
+    name_query = Q()
+    for club_name in get_club_team_names(organization):
+        name_query |= Q(name__icontains=club_name)
+    in_season = (
+        Q(standings__league__season__in=seasons)
+        | Q(home_matches__league__season__in=seasons)
+        | Q(away_matches__league__season__in=seasons)
+        | Q(player_roles__season__in=seasons)
+        | Q(staff_roles__season__in=seasons)
+    )
+    teams = Team.objects.filter(name_query, is_active=True).select_related('category').order_by('category__name', 'name')
+    in_season_teams = teams.filter(in_season).distinct()
+    # Temporada recién creada y sin scrapear (#344): ninguna fila tiene presencia
+    # todavía, así que se ofrecen todos los equipos del club.
+    return in_season_teams if in_season_teams.exists() else teams
+
+
+def _form_seasons(form):
+    """Temporadas cuyos equipos debe ofrecer el selector: la de partida y la enviada."""
+    season = form.instance.season if form.instance.pk else form.fields['season'].initial
+    seasons = [season] if season else []
+    if form.is_bound:
+        try:
+            seasons.append(Season.objects.get(pk=form.data.get('season')))
+        except (Season.DoesNotExist, ValueError):
+            pass
+    return seasons
+
+
 class PersonForm(forms.ModelForm):
     """Formulario para crear y editar personas del club"""
     
@@ -183,17 +219,8 @@ class PlayerRoleForm(forms.ModelForm):
         if not self.instance.pk:
             self.fields['season'].initial = Season.objects.current()
 
-        # Filtrar equipos del club
-        club_names = get_club_team_names(self.organization)
-        # Usar la primera categoría de equipo como filtro principal
-        team_query = Q()
-        for club_name in club_names:
-            team_query |= Q(name__icontains=club_name)
-
-        self.fields['team'].queryset = Team.objects.filter(
-            team_query,
-            is_active=True
-        ).select_related('category').order_by('category__name', 'name')
+        # Equipos del club con presencia en la temporada
+        self.fields['team'].queryset = _club_teams_for_seasons(self.organization, _form_seasons(self))
 
         # Si hay persona, excluir equipos donde ya tiene rol activo en esa temporada
         if self.person:
@@ -278,16 +305,8 @@ class StaffRoleForm(forms.ModelForm):
         if not self.instance.pk:
             self.fields['season'].initial = Season.objects.current()
 
-        # Filtrar equipos del club
-        club_names = get_club_team_names(self.organization)
-        team_query = Q()
-        for club_name in club_names:
-            team_query |= Q(name__icontains=club_name)
-
-        self.fields['team'].queryset = Team.objects.filter(
-            team_query,
-            is_active=True
-        ).select_related('category').order_by('category__name', 'name')
+        # Equipos del club con presencia en la temporada
+        self.fields['team'].queryset = _club_teams_for_seasons(self.organization, _form_seasons(self))
 
         # Una persona puede tener varios roles distintos en el mismo equipo y
         # temporada (p.ej. entrenador y delegado); lo valida el UniqueConstraint

@@ -2,6 +2,7 @@ from datetime import date
 
 from django.test import TestCase
 
+from ilovevoley.competitions.models import League, Standing
 from ilovevoley.core.models import Organization, Season
 from ilovevoley.rosters.forms import PersonForm, PlayerRoleForm, StaffRoleForm
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
@@ -70,3 +71,23 @@ class RoleFormDuplicateValidationTests(TestCase):
         self.assertFalse(form.is_valid())
         # El equipo con rol activo en esa temporada se excluye del queryset.
         self.assertIn('team', form.errors)
+
+
+class RoleFormTeamChoicesTests(TestCase):
+    """El selector de equipo solo ofrece equipos con presencia en la temporada (#445)."""
+
+    def setUp(self):
+        self.org = Organization.objects.create(
+            slug='club', name='Club', club_team_names={'1': 'Club'},
+        )
+        self.season = Season.objects.resolve('2025-26')
+        old_season = Season.objects.resolve('2024-25')
+        self.current = Team.objects.create(name='Club Senior', federation_id='T-CUR')
+        self.old = Team.objects.create(name='Club Senior', federation_id='T-OLD')
+        for team, season in ((self.current, self.season), (self.old, old_season)):
+            league = League.objects.create(name=f'L {team.federation_id}', federation_id=team.federation_id, season=season)
+            Standing.objects.create(league=league, team=team, position=1)
+
+    def test_no_ofrece_equipos_de_otras_temporadas(self):
+        form = PlayerRoleForm(organization=self.org)
+        self.assertEqual(list(form.fields['team'].queryset), [self.current])

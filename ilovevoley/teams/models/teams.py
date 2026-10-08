@@ -175,7 +175,12 @@ class Team(models.Model):
         verbose_name_plural = _('Equipos')
 
     def __str__(self):
-        return self.display_name_with_variant
+        # Selectores y admin: varios equipos comparten nombre (una fila por fase federativa).
+        extras = [self.variant_name, self.category.name if self.category_id else '']
+        if not self.is_active:
+            extras.append(str(_('inactivo')))
+        extras = ', '.join(e for e in extras if e)
+        return f'{self.name} ({extras})' if extras else self.name
 
     @property
     def display_logo_file(self):
