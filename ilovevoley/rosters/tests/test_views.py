@@ -779,12 +779,15 @@ class PlayerRosterBulkAddTests(TestCase):
         self.assertFalse(PlayerRole.objects.filter(person=self.ana).exists())
         self.assertTrue(response.context['form'].rows[0]['error'])
 
-    def test_equipo_de_otro_club_devuelve_404(self):
+    def test_post_a_equipo_de_otro_club_devuelve_404_y_no_crea_roles(self):
         foreign = Team.objects.create(name='Club B Junior', federation_id='BULK-B1', is_active=True)
-        response = self.client.get(
-            reverse('rosters:player_roster_bulk_add', args=[foreign.id]), HTTP_HOST='club-a.ilovevoley.es',
+        response = self.client.post(
+            reverse('rosters:player_roster_bulk_add', args=[foreign.id]),
+            {'season': self.season.id, 'selected': [self.ana.id]},
+            HTTP_HOST='club-a.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 404)
+        self.assertFalse(PlayerRole.objects.filter(team=foreign).exists())
 
     def test_copiar_precarga_la_plantilla_de_la_misma_identidad(self):
         # Cada fase federativa es otra fila de Team; la identidad las une.
@@ -795,6 +798,10 @@ class PlayerRosterBulkAddTests(TestCase):
         self.team.identity = identity
         self.team.save(update_fields=['identity'])
         PlayerRole.objects.create(person=self.ana, team=phase_one, season=self.old_season, jersey_number=5)
+        # Una temporada aún anterior no debe ganar a la inmediata.
+        PlayerRole.objects.create(
+            person=self.ana, team=phase_one, season=Season.objects.resolve('2024-25'), jersey_number=9,
+        )
 
         response = self.client.get(
             self.url, {'season': self.season.id, 'copy': '1'}, HTTP_HOST='club-a.ilovevoley.es',

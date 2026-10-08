@@ -4,7 +4,7 @@ from django.test import TestCase
 
 from ilovevoley.competitions.models import League, Standing
 from ilovevoley.core.models import Organization, Season
-from ilovevoley.rosters.forms import PersonForm, PlayerRoleForm, StaffRoleForm
+from ilovevoley.rosters.forms import PersonForm, PlayerRoleForm, StaffRoleForm, _club_teams_for_seasons
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
 from ilovevoley.teams.models import Team
 
@@ -92,3 +92,9 @@ class RoleFormTeamChoicesTests(TestCase):
     def test_no_ofrece_equipos_de_otras_temporadas(self):
         form = PlayerRoleForm(organization=self.org)
         self.assertEqual(list(form.fields['team'].queryset), [self.current])
+
+    def test_temporada_sin_presencia_ofrece_todos_los_equipos_activos(self):
+        # Temporada recién creada y sin scrapear (#344): hay que poder prepararla.
+        empty = Season.objects.resolve('2027-28')
+        teams = _club_teams_for_seasons(self.org, [empty])
+        self.assertEqual(set(teams), {self.current, self.old})
