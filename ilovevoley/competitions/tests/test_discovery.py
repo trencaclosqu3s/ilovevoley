@@ -156,6 +156,7 @@ def test_task_emails_technical_recipients_only_when_there_are_new_candidates(set
     season = Season.objects.resolve('2026-27')
     candidate = LeagueCandidate.objects.create(federation_id='1', season=season, category_label='ALEVIN MASCULINO 4X4')
     with mock.patch.object(discovery, 'discover', side_effect=[[], [candidate]]), \
+            mock.patch.object(discovery, 'discover_seasonal_beach', return_value=[]), \
             mock.patch('ilovevoley.core.email_utils.send_notification_email') as send:
         assert discover_leagues_task() == 0
         send.assert_not_called()
@@ -164,6 +165,24 @@ def test_task_emails_technical_recipients_only_when_there_are_new_candidates(set
     assert kwargs['subject']()
     assert kwargs['recipient_list'] == ['tech@example.com']  # no a los superusers
     assert kwargs['context']['admin_url'].endswith('/leaguecandidate/?status__exact=pending')
+
+
+@pytest.mark.django_db
+def test_task_aggregates_indoor_and_beach_candidates():
+    from ilovevoley.competitions.tasks import discover_leagues_task
+
+    season = Season.objects.resolve('2026-27')
+    season.is_current = True
+    season.save()
+    cand1 = LeagueCandidate.objects.create(federation_id='101', season=season, category_label='ALEVIN')
+    cand2 = LeagueCandidate.objects.create(federation_id='102', season=season, category_label='INFANTIL PLAYA', modality='beach')
+
+    with mock.patch.object(discovery, 'discover', return_value=[cand1]), \
+            mock.patch.object(discovery, 'discover_seasonal_beach', return_value=[cand2]), \
+            mock.patch('ilovevoley.core.email_utils.send_notification_email') as send:
+        assert discover_leagues_task() == 2
+        send.assert_called_once()
+        assert send.call_args.kwargs['context']['count'] == 2
 
 
 @pytest.mark.django_db
@@ -318,3 +337,155 @@ def test_discover_links_manual_league_so_it_can_be_suggested_as_parent():
     assert manual.candidate.status == 'approved' and manual.candidate.section == 'INSULAR ESCOLAR MALLORCA'
     assert LeagueCandidate.objects.get(federation_id='8999').parent_league == manual
     assert '8020' not in [c.federation_id for c in created]
+
+
+@pytest.mark.django_db
+def test_candidate_approve_beach_is_admin_only():
+    season = Season.objects.resolve('2026-27')
+    candidate = LeagueCandidate.objects.create(
+        federation_id='99991',
+        season=season,
+        section='VOLEYPLAYA',
+        category_label='INFANTIL MASCULINA PLAYA',
+        phase_label='Campeonato de Baleares - GRUP A',
+        modality='beach',
+        is_historical=False,
+    )
+    league = candidate.approve()
+    assert league.modality == 'beach'
+    assert league.visibility_type == 'reference'
+    assert league.should_show_in_app is False
+    assert league.match_format == 'tournament_3sets'
+
+
+@pytest.mark.django_db
+def test_candidate_approve_indoor_keeps_main_and_standard():
+    season = Season.objects.resolve('2026-27')
+    candidate = LeagueCandidate.objects.create(
+        federation_id='99992',
+        season=season,
+        section='INSULAR',
+        category_label='INFANTIL MASCULINO',
+        phase_label='Liga Regular',
+        modality='indoor',
+        is_historical=False,
+    )
+    league = candidate.approve()
+    assert league.modality == 'indoor'
+    assert league.visibility_type == 'main'
+    assert league.should_show_in_app is True
+    assert league.match_format == 'standard'
+
+
+def test_detect_modality():
+    from ilovevoley.competitions.services.discovery import detect_modality
+    assert detect_modality('VOLEYPLAYA', 'INFANTIL MASCULINA PLAYA', 'GRUP A') == 'beach'
+    assert detect_modality('AUTONOMICA', 'INFANTIL PLATJA', '') == 'beach'
+    assert detect_modality('INSULAR', 'INFANTIL MASCULINO', 'Liga Regular') == 'indoor'
+
+
+def test_fetch_team_names_calendar_fallback(monkeypatch):
+    from ilovevoley.competitions.services import discovery
+
+    # Standings returns empty table
+    monkeypatch.setattr(discovery, 'fetch_standings_html', lambda fid, session: "<table><tr><th>Equipo</th></tr></table>")
+    # Calendar returns match rows with teams
+    calendar_html = (
+        "<table class='calendario-completo'>"
+        "<tr><td>CV SANT JOSEP LILA</td><td>CV MAYURQA</td><td><strong>07/06/2025<br>17:00</strong></td></tr>"
+        "<tr><td>PÒRTOL A</td><td>Descansa</td><td><strong>07/06/2025<br>17:30</strong></td></tr>"
+        "</table>"
+    )
+    monkeypatch.setattr(discovery, 'fetch_calendar_html', lambda fid, session: calendar_html)
+
+    teams = discovery.fetch_team_names('7932')
+    assert 'CV SANT JOSEP LILA' in teams
+    assert 'CV MAYURQA' in teams
+    assert 'PÒRTOL A' in teams
+    assert 'Descansa' not in teams
+
+
+@pytest.mark.django_db
+def test_discover_seasonal_beach(monkeypatch):
+    from ilovevoley.competitions.services import discovery
+    season = Season.objects.resolve('2024-25')
+    Organization.objects.update_or_create(slug='santjosep', defaults={'name': 'Sant Josep', 'club_team_names': {'base': 'CV SANT JOSEP'}})
+
+    sample_json = {
+        "categorias": [{
+            "nombre": "INFANTIL MASCULINA PLAYA",
+            "competiciones": [{
+                "nombre": "VOLEYPLAYA",
+                "fases": [{
+                    "nombre": "Campeonato de Baleares",
+                    "grupos": [{
+                        "id": "7933",
+                        "nombre": "GRUP B",
+                        "partidos": [
+                            {"ELOCAL": "CV SANT JOSEP", "EVISITANTE": "CV ARTÀ"},
+                            {"ELOCAL": "PÒRTOL B", "EVISITANTE": "CV SANT JOSEP"}
+                        ]
+                    }]
+                }]
+            }]
+        }]
+    }
+    monkeypatch.setattr(discovery, 'fetch_desglose_json', lambda fini, ffin, session: sample_json)
+
+    candidates = discovery.discover_seasonal_beach(season)
+    assert len(candidates) == 1
+    cand = candidates[0]
+    assert cand.federation_id == '7933'
+    assert cand.modality == 'beach'
+    assert cand.section == 'VOLEYPLAYA'
+    assert cand.matched_teams == {'santjosep': ['CV SANT JOSEP']}
+    assert cand.is_historical is True
+
+
+@pytest.mark.django_db
+def test_discover_leagues_command_seasonal(monkeypatch):
+    from io import StringIO
+    from django.core.management import call_command
+
+    season = Season.objects.resolve('2024-25')
+    called = []
+
+    def mock_discover_seasonal(s, fini=None, ffin=None):
+        called.append((s, fini, ffin))
+        return []
+
+    monkeypatch.setattr(
+        'ilovevoley.competitions.management.commands.discover_leagues.discover_seasonal_beach',
+        mock_discover_seasonal,
+    )
+    out = StringIO()
+    call_command('discover_leagues', '--season', '2024-25', '--seasonal', '--date-range', '01/06/2025', '31/08/2025', stdout=out)
+    assert len(called) == 1
+    assert called[0] == (season, '01/06/2025', '31/08/2025')
+    assert '0 candidatas nuevas en 2024-25' in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_scrape_historical_leagues_beach_command(monkeypatch):
+    """Protege la configuración y creación de ligas de playa vía scrape_historical_leagues."""
+    from io import StringIO
+    from django.core.management import call_command
+    from ilovevoley.videos.management.commands.scrape_historical_leagues import Command
+
+    monkeypatch.setattr(Command, 'perform_scraping', lambda self, league, options: None)
+    out = StringIO()
+    call_command(
+        'scrape_historical_leagues',
+        '--league-id', '7932',
+        '--league-name', 'INFANTIL MASCULINA PLAYA - Grup A',
+        '--season', '2024-25',
+        '--modality', 'beach',
+        '--match-format', 'tournament_3sets',
+        stdout=out,
+    )
+    league = League.objects.get(federation_id='7932')
+    assert league.modality == 'beach'
+    assert league.match_format == 'tournament_3sets'
+    assert league.visibility_type == 'historical'
+    assert league.is_reference_league is True
+    assert league.should_show_in_app is False

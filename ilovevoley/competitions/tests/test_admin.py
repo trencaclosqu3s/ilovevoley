@@ -57,6 +57,7 @@ class MatchChangeLogAdminTest(TestCase):
         self.admin = MatchChangeLogAdmin(MatchChangeLog, django_admin.site)
 
         club = Club.objects.create(federation_id='c-admin', official_name='CV ADMIN')
+        self.org = Organization.objects.create(slug='admin-org', name='Admin Org', club=club)
         team = Team.objects.create(name='ADMIN TEAM', federation_id='t-admin', club=club)
         league = League.objects.create(name='Admin League', federation_id='l-admin')
         self.match = Match.objects.create(league=league, home_team=team, match_date=timezone.now())
@@ -69,7 +70,8 @@ class MatchChangeLogAdminTest(TestCase):
         )
 
     def test_mark_as_reviewed_action(self):
-        from ilovevoley.competitions.models import MatchChangeLog
+        """La acción de admin crea MatchChangeLogReview por org del partido (#201)."""
+        from ilovevoley.competitions.models import MatchChangeLog, MatchChangeLogReview
         request = self.factory.post('/admin/')
         request.user = self.user
         request._messages = []
@@ -77,12 +79,12 @@ class MatchChangeLogAdminTest(TestCase):
         self.admin.message_user = lambda req, msg: None
         self.admin.mark_as_reviewed(request, MatchChangeLog.objects.filter(id__in=[self.log1.id, self.log2.id]))
 
-        self.log1.refresh_from_db()
-        self.log2.refresh_from_db()
-        self.assertTrue(self.log1.reviewed)
-        self.assertTrue(self.log2.reviewed)
-        self.assertEqual(self.log1.reviewed_by, self.user)
-        self.assertIsNotNone(self.log1.reviewed_at)
+        reviews = MatchChangeLogReview.objects.filter(change_log__in=[self.log1, self.log2])
+        self.assertEqual(reviews.count(), 2)
+        self.assertTrue(reviews.filter(change_log=self.log1, organization=self.org).exists())
+        self.assertTrue(reviews.filter(change_log=self.log2, organization=self.org).exists())
+        self.assertEqual(reviews.get(change_log=self.log1).reviewed_by, self.user)
+        self.assertIsNotNone(reviews.get(change_log=self.log1).reviewed_at)
 
 
 

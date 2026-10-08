@@ -99,9 +99,24 @@ class League(models.Model):
         ('custom', _('Personalizado')),
     ]
 
+    MODALITY_BEACH = 'beach'
+    MODALITY_INDOOR = 'indoor'
+    MODALITY_CHOICES = [
+        (MODALITY_BEACH, _('Vóley Playa')),
+        (MODALITY_INDOOR, _('Vóley Pista')),
+    ]
+
     name = models.CharField(max_length=200)
     federation_id = models.CharField(max_length=200, unique=True)
     competition_type = models.CharField(max_length=20, choices=COMPETITION_TYPES, default='regular')
+    modality = models.CharField(
+        max_length=20,
+        choices=MODALITY_CHOICES,
+        default=MODALITY_INDOOR,
+        db_index=True,
+        verbose_name=_('Modalidad'),
+        help_text=_('Modalidad de la competición: pista o playa'),
+    )
     season = models.ForeignKey(
         'core.Season',
         on_delete=models.PROTECT,
@@ -652,6 +667,13 @@ class LeagueCandidate(models.Model):
         help_text=_('Si es una fase de otra liga (Oro/Plata, copas). Sugerida por categoría; la federación no es consistente'),
     )
     matched_teams = models.JSONField(default=dict, help_text=_('{slug del tenant: [equipos que juegan]}'))
+    modality = models.CharField(
+        max_length=20,
+        choices=League.MODALITY_CHOICES,
+        default=League.MODALITY_INDOOR,
+        db_index=True,
+        verbose_name=_('Modalidad'),
+    )
     is_historical = models.BooleanField(
         default=False,
         help_text=_('Detectada en una temporada pasada: al aprobar se crea como liga histórica inactiva.'),
@@ -681,14 +703,20 @@ class LeagueCandidate(models.Model):
                 return existing
             name = ' '.join(filter(None, [self.category_label.title(), self.phase_label]))
             is_cup = re.search(r'copa|campeonato|torneo', f'{self.section} {self.phase_label}', re.I)
+
+            visibility_type = 'historical' if self.is_historical else ('reference' if self.modality == League.MODALITY_BEACH else 'main')
+            match_format = 'tournament_3sets' if self.modality == League.MODALITY_BEACH else 'standard'
+
             league = League.objects.create(
                 name=name, federation_id=self.federation_id, season_id=self.season_id,
                 competition_type='cup' if is_cup else 'regular',
                 parent_league_id=self.parent_league_id, phase_name=self.phase_label if self.parent_league_id else '',
                 phase_order=1 if self.parent_league_id else 0,
-                visibility_type='historical' if self.is_historical else 'main',
+                visibility_type=visibility_type,
                 is_historical=self.is_historical,
                 is_active=not self.is_historical,
+                modality=self.modality,
+                match_format=match_format,
             )
             if self.category_id:
                 league.categories.add(self.category_id)
@@ -913,15 +941,6 @@ class MatchChangeLog(models.Model):
     detected_at = models.DateTimeField(auto_now_add=True)
     notified = models.BooleanField(default=False)
     notified_at = models.DateTimeField(null=True, blank=True)
-    reviewed = models.BooleanField(default=False)
-    reviewed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='reviewed_match_changes',
-    )
-    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     objects = MatchChangeLogManager()
 
@@ -933,9 +952,51 @@ class MatchChangeLog(models.Model):
         indexes = [
             models.Index(fields=['match', 'detected_at'], name='match_change_match_idx'),
             models.Index(fields=['is_last_minute', 'notified'], name='match_change_notif_idx'),
-            # Panel de revisión: filtros primarios son reviewed + orden -detected_at.
-            models.Index(fields=['reviewed', '-detected_at'], name='match_change_review_idx'),
         ]
 
     def __str__(self):
         return f'{self.match} - {self.get_change_type_display()} ({self.field_name}): {self.old_value} -> {self.new_value}'
+
+
+class MatchChangeLogReview(models.Model):
+    """Revisión de un cambio federativo por una organización.
+
+    El mismo ``MatchChangeLog`` puede estar pendiente en un club y revisado
+    en el rival: el estado no es global (#201).
+    """
+
+    change_log = models.ForeignKey(
+        MatchChangeLog, on_delete=models.CASCADE, related_name='reviews',
+    )
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.CASCADE,
+        related_name='match_change_reviews',
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='match_change_reviews',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _('Revisión de modificación de partido')
+        verbose_name_plural = _('Revisiones de modificaciones de partidos')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['change_log', 'organization'],
+                name='unique_matchchangelog_review_per_org',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['organization', '-reviewed_at'],
+                name='match_change_review_org_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.change_log_id} @ {self.organization_id}'

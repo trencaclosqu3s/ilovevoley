@@ -8,15 +8,18 @@ from unfold.decorators import action
 
 from ilovevoley.content.admin.content import ImageInline
 from ..forms import MatchAdminForm
-from ..models import League, LeagueCandidate, Match, MatchChangeLog, ScrapingEndpoint, Standing, Venue
+from ..models import (
+    League, LeagueCandidate, Match, MatchChangeLog, MatchChangeLogReview,
+    ScrapingEndpoint, Standing, Venue,
+)
 from ..services.delta_detector import notify_match_result_after_save
 
 
 
 @admin.register(League)
 class LeagueAdmin(ModelAdmin):
-    list_display = ('display_name_admin', 'categories_display', 'federation_id', 'competition_type', 'season', 'phase_indicator', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'matches_count', 'created_at')
-    list_filter = ('categories', 'competition_type', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'season', ('parent_league', admin.RelatedOnlyFieldListFilter))
+    list_display = ('display_name_admin', 'categories_display', 'federation_id', 'competition_type', 'modality', 'season', 'phase_indicator', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'matches_count', 'created_at')
+    list_filter = ('categories', 'modality', 'competition_type', 'match_format', 'visibility_type', 'is_our_team_related', 'is_historical', 'is_active', 'season', ('parent_league', admin.RelatedOnlyFieldListFilter))
     search_fields = ('name', 'federation_id', 'categories__name')
     readonly_fields = ('created_at', 'related_organizations')
     autocomplete_fields = ('parent_league',)
@@ -25,7 +28,7 @@ class LeagueAdmin(ModelAdmin):
 
     fieldsets = (
         ('Información Básica', {
-            'fields': ('name', 'display_name_override', 'federation_id', 'categories', 'competition_type', 'season')
+            'fields': ('name', 'display_name_override', 'federation_id', 'categories', 'competition_type', 'modality', 'season')
         }),
         ('Configuración de Fases', {
             'fields': ('parent_league', 'phase_name', 'phase_order'),
@@ -513,17 +516,25 @@ class StandingAdmin(ModelAdmin):
     )
 
 
+class MatchChangeLogReviewInline(TabularInline):
+    model = MatchChangeLogReview
+    extra = 0
+    autocomplete_fields = ('organization', 'reviewed_by')
+    readonly_fields = ('reviewed_at',)
+
+
 @admin.register(MatchChangeLog)
 class MatchChangeLogAdmin(ModelAdmin):
     list_display = (
         'match', 'change_type_badge', 'field_name', 'old_value', 'new_value',
-        'is_last_minute', 'notified', 'reviewed', 'detected_at'
+        'is_last_minute', 'notified', 'reviews_count', 'detected_at',
     )
-    list_filter = ('change_type', 'is_last_minute', 'notified', 'reviewed', 'detected_at')
+    list_filter = ('change_type', 'is_last_minute', 'notified', 'detected_at')
     search_fields = ('match__home_team__name', 'match__away_team__name', 'field_name', 'old_value', 'new_value')
-    readonly_fields = ('detected_at', 'notified_at', 'reviewed_at')
+    readonly_fields = ('detected_at', 'notified_at')
     actions = ['mark_as_reviewed']
-    list_select_related = ('match__home_team', 'match__away_team', 'reviewed_by')
+    list_select_related = ('match__home_team', 'match__away_team')
+    inlines = [MatchChangeLogReviewInline]
 
     def change_type_badge(self, obj):
         colors = {
@@ -541,25 +552,65 @@ class MatchChangeLogAdmin(ModelAdmin):
         )
     change_type_badge.short_description = 'Tipo'
 
+    def reviews_count(self, obj):
+        return obj.reviews.count()
+    reviews_count.short_description = 'Revisiones'
+
     def mark_as_reviewed(self, request, queryset):
-        """Marca las modificaciones seleccionadas como revisadas."""
+        """Crea una revisión por organización cuyo club participa en el partido."""
+        from ilovevoley.core.models import Organization
+
         now = timezone.now()
-        updated = queryset.update(reviewed=True, reviewed_by=request.user, reviewed_at=now)
-        self.message_user(request, f'{updated} modificación(es) marcada(s) como revisada(s).')
+        created = 0
+        for log in queryset.select_related('match__home_team', 'match__away_team'):
+            club_ids = {
+                cid for cid in (
+                    getattr(log.match.home_team, 'club_id', None),
+                    getattr(log.match.away_team, 'club_id', None),
+                ) if cid
+            }
+            if not club_ids:
+                continue
+            for org in Organization.objects.filter(club_id__in=club_ids):
+                _, was_created = MatchChangeLogReview.objects.update_or_create(
+                    change_log=log,
+                    organization=org,
+                    defaults={'reviewed_by': request.user, 'reviewed_at': now},
+                )
+                if was_created:
+                    created += 1
+        self.message_user(
+            request,
+            f'{created} revisión(es) creada(s) para las organizaciones del partido.',
+        )
     mark_as_reviewed.short_description = "Marcar modificaciones seleccionadas como revisadas"
+
+
+@admin.register(MatchChangeLogReview)
+class MatchChangeLogReviewAdmin(ModelAdmin):
+    list_display = ('change_log', 'organization', 'reviewed_by', 'reviewed_at')
+    list_filter = ('organization', 'reviewed_at')
+    search_fields = (
+        'change_log__match__home_team__name',
+        'change_log__match__away_team__name',
+        'organization__slug',
+    )
+    autocomplete_fields = ('change_log', 'organization', 'reviewed_by')
+    readonly_fields = ('reviewed_at',)
+    list_select_related = ('change_log', 'organization', 'reviewed_by')
 
 
 
 @admin.register(LeagueCandidate)
 class LeagueCandidateAdmin(ModelAdmin):
-    list_display = ('category_label', 'phase_label', 'section', 'category', 'season', 'is_historical', 'status', 'federation_id', 'created_at')
-    list_filter = ('status', 'season', 'section', 'is_historical')
+    list_display = ('category_label', 'phase_label', 'section', 'category', 'season', 'modality', 'is_historical', 'status', 'federation_id', 'created_at')
+    list_filter = ('status', 'modality', 'season', 'section', 'is_historical')
     search_fields = ('category_label', 'federation_id')
-    readonly_fields = ('federation_id', 'season', 'section', 'category_label', 'phase_label', 'matched_teams', 'league', 'status')
+    readonly_fields = ('federation_id', 'season', 'section', 'category_label', 'phase_label', 'matched_teams', 'modality', 'league', 'status')
     list_select_related = ('category', 'season')
     autocomplete_fields = ('parent_league',)
     actions = ['approve', 'reject', 'reopen']
-    actions_list = ['discover_now', 'discover_historical_now']
+    actions_list = ['discover_now', 'discover_historical_now', 'discover_beach_now']
 
     @admin.action(description='Aprobar y crear liga')
     def approve(self, request, queryset):
@@ -593,4 +644,11 @@ class LeagueCandidateAdmin(ModelAdmin):
         from ..tasks import discover_historical_leagues_task
         discover_historical_leagues_task.delay()
         self.message_user(request, 'Búsqueda histórica lanzada: las candidatas de los últimos 5 años aparecerán aquí como pendientes.')
+        return redirect('admin:competitions_leaguecandidate_changelist')
+
+    @action(description='Buscar ligas de vóley playa (verano)', permissions=['discover_now'])
+    def discover_beach_now(self, request):
+        from ..tasks import discover_seasonal_beach_leagues_task
+        discover_seasonal_beach_leagues_task.delay()
+        self.message_user(request, 'Búsqueda de vóley playa lanzada: las candidatas estivales aparecerán aquí.')
         return redirect('admin:competitions_leaguecandidate_changelist')

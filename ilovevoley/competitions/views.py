@@ -55,7 +55,9 @@ from ilovevoley.videos.scraping import (
     validate_volleyball_score,
 )
 from .forms import FriendlyMatchForm, MatchResultForm
-from .models import League, Match, MatchChangeLog, MatchShareLink, Standing, StoryComposition
+from .models import (
+    League, Match, MatchChangeLog, MatchChangeLogReview, MatchShareLink, Standing, StoryComposition,
+)
 from .services.lineups import resolve_acta_team, store_match_lineups
 from .services.notifications import notify_match_live_stream, notify_match_result
 from .services.preview import build_match_preview
@@ -1532,18 +1534,25 @@ def match_changes_review(request):
     tenant = request.tenant
     season, selected_season_id = resolve_season_filter(request)
 
-    qs = MatchChangeLog.objects.for_tenant(tenant).select_related(
-        'match', 'match__league', 'match__home_team', 'match__away_team', 'reviewed_by'
+    reviewed_for_tenant = Exists(
+        MatchChangeLogReview.objects.filter(
+            change_log_id=OuterRef('pk'),
+            organization=tenant,
+        )
     )
+
+    qs = MatchChangeLog.objects.for_tenant(tenant).select_related(
+        'match', 'match__league', 'match__home_team', 'match__away_team',
+    ).annotate(is_reviewed=reviewed_for_tenant)
 
     if season:
         qs = qs.filter(match__league__season=season)
 
     status_filter = request.GET.get('status', 'pending')
     if status_filter == 'pending':
-        qs = qs.filter(reviewed=False)
+        qs = qs.filter(is_reviewed=False)
     elif status_filter == 'reviewed':
-        qs = qs.filter(reviewed=True)
+        qs = qs.filter(is_reviewed=True)
 
     change_type = request.GET.get('type')
     if change_type:
@@ -1553,12 +1562,24 @@ def match_changes_review(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    reviews_by_log = {
+        r.change_log_id: r
+        for r in MatchChangeLogReview.objects.filter(
+            organization=tenant,
+            change_log_id__in=[log.id for log in page_obj.object_list],
+        ).select_related('reviewed_by')
+    }
+    for log in page_obj.object_list:
+        log.tenant_review = reviews_by_log.get(log.id)
+
     all_seasons = Season.objects.all().order_by('-start_year')
 
-    pending_count = MatchChangeLog.objects.for_tenant(tenant)
+    pending_count = MatchChangeLog.objects.for_tenant(tenant).annotate(
+        is_reviewed=reviewed_for_tenant,
+    )
     if season:
         pending_count = pending_count.filter(match__league__season=season)
-    pending_count = pending_count.filter(reviewed=False).count()
+    pending_count = pending_count.filter(is_reviewed=False).count()
 
     context = {
         'page_obj': page_obj,
@@ -1580,17 +1601,22 @@ def ajax_mark_change_reviewed(request, log_id):
     tenant = getattr(request, 'tenant', None)
     log = get_object_or_404(MatchChangeLog.objects.for_tenant(tenant), pk=log_id)
 
-    log.reviewed = True
-    log.reviewed_by = request.user
-    log.reviewed_at = timezone.now()
-    log.save(update_fields=['reviewed', 'reviewed_by', 'reviewed_at'])
+    now = timezone.now()
+    review, _created = MatchChangeLogReview.objects.update_or_create(
+        change_log=log,
+        organization=tenant,
+        defaults={
+            'reviewed_by': request.user,
+            'reviewed_at': now,
+        },
+    )
 
     return JsonResponse({
         'status': 'success',
         'log_id': log.id,
         'reviewed': True,
         'reviewed_by': request.user.get_full_name() or request.user.username,
-        'reviewed_at': log.reviewed_at.strftime('%d/%m/%Y %H:%M'),
+        'reviewed_at': review.reviewed_at.strftime('%d/%m/%Y %H:%M'),
     })
 
 
