@@ -673,12 +673,8 @@ class LeagueCandidate(models.Model):
             name = ' '.join(filter(None, [self.category_label.title(), self.phase_label]))
             is_cup = re.search(r'copa|campeonato|torneo', f'{self.section} {self.phase_label}', re.I)
 
-            if self.modality == League.MODALITY_BEACH:
-                visibility_type = 'historical' if self.is_historical else 'reference'
-                match_format = 'tournament_3sets'
-            else:
-                visibility_type = 'historical' if self.is_historical else 'main'
-                match_format = 'standard'
+            visibility_type = 'historical' if self.is_historical else ('reference' if self.modality == League.MODALITY_BEACH else 'main')
+            match_format = 'tournament_3sets' if self.modality == League.MODALITY_BEACH else 'standard'
 
             league = League.objects.create(
                 name=name, federation_id=self.federation_id, season_id=self.season_id,

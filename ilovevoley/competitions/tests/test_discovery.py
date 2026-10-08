@@ -339,6 +339,25 @@ def test_candidate_approve_beach_is_admin_only():
     assert league.match_format == 'tournament_3sets'
 
 
+@pytest.mark.django_db
+def test_candidate_approve_indoor_keeps_main_and_standard():
+    season = Season.objects.resolve('2026-27')
+    candidate = LeagueCandidate.objects.create(
+        federation_id='99992',
+        season=season,
+        section='INSULAR',
+        category_label='INFANTIL MASCULINO',
+        phase_label='Liga Regular',
+        modality='indoor',
+        is_historical=False,
+    )
+    league = candidate.approve()
+    assert league.modality == 'indoor'
+    assert league.visibility_type == 'main'
+    assert league.should_show_in_app is True
+    assert league.match_format == 'standard'
+
+
 def test_detect_modality():
     from ilovevoley.competitions.services.discovery import detect_modality
     assert detect_modality('VOLEYPLAYA', 'INFANTIL MASCULINA PLAYA', 'GRUP A') == 'beach'
@@ -408,7 +427,6 @@ def test_discover_seasonal_beach(monkeypatch):
 def test_discover_leagues_command_seasonal(monkeypatch):
     from io import StringIO
     from django.core.management import call_command
-    from ilovevoley.competitions.services import discovery
 
     season = Season.objects.resolve('2024-25')
     called = []
@@ -417,7 +435,10 @@ def test_discover_leagues_command_seasonal(monkeypatch):
         called.append((s, fini, ffin))
         return []
 
-    monkeypatch.setattr(discovery, 'discover_seasonal_beach', mock_discover_seasonal)
+    monkeypatch.setattr(
+        'ilovevoley.competitions.management.commands.discover_leagues.discover_seasonal_beach',
+        mock_discover_seasonal,
+    )
     out = StringIO()
     call_command('discover_leagues', '--season', '2024-25', '--seasonal', '--date-range', '01/06/2025', '31/08/2025', stdout=out)
     assert len(called) == 1

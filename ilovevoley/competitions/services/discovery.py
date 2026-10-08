@@ -52,9 +52,10 @@ def detect_modality(section='', category_label='', phase_label=''):
     """Detecta si la competición es vóley playa o pista."""
     full_text = f'{section} {category_label} {phase_label}'
     normalized = _normalize(full_text)
-    if 'voleyplaya' in normalized or 'playa' in normalized or 'platja' in normalized:
+    if 'playa' in normalized or 'platja' in normalized:
         return 'beach'
     return 'indoor'
+
 
 
 def parse_menu(menu_html):
@@ -283,11 +284,16 @@ def discover_historical(seasons):
     return created
 
 
-DESGLOSE_URL = BASE_URL + '/JSON/get_partidos_desglose_competiciones.asp?op=2&fini={fini}&ffin={ffin}'
+DESGLOSE_URL = BASE_URL + '/JSON/get_partidos_desglose_competiciones.asp'
 
 
 def fetch_desglose_json(fini, ffin, session=requests):
-    response = session.get(DESGLOSE_URL.format(fini=fini, ffin=ffin), headers=DEFAULT_HEADERS, timeout=TIMEOUT)
+    response = session.get(
+        DESGLOSE_URL,
+        params={'op': '2', 'fini': fini, 'ffin': ffin},
+        headers=DEFAULT_HEADERS,
+        timeout=TIMEOUT,
+    )
     response.raise_for_status()
     return response.json()
 
@@ -317,6 +323,11 @@ def discover_seasonal_beach(season, fini=None, ffin=None, session=requests):
         logger.warning('No se pudo obtener el desglose de competiciones (%s - %s): %s', fini, ffin, e)
         return []
 
+    if not isinstance(data, dict):
+        logger.warning('Respuesta inesperada al obtener el desglose de competiciones (%s - %s): tipo %s', fini, ffin, type(data))
+        return []
+
+
     created = []
     is_historical = not season.is_current
 
@@ -344,35 +355,20 @@ def discover_seasonal_beach(season, fini=None, ffin=None, session=requests):
                                 teams.add(name)
 
                     tenants = matching_tenants(teams, organizations)
-                    if not tenants:
-                        LeagueCandidate.objects.create(
-                            federation_id=grupo_id,
-                            season=season,
-                            section=comp_name,
-                            category_label=cat_name,
-                            phase_label=phase_label,
-                            modality='beach',
-                            status='rejected',
-                            is_historical=is_historical,
-                        )
-                        known.add(grupo_id)
-                        continue
-
                     candidate = LeagueCandidate.objects.create(
                         federation_id=grupo_id,
                         season=season,
                         section=comp_name,
                         category_label=cat_name,
                         phase_label=phase_label,
-                        category=detect_category(cat_name),
+                        category=detect_category(cat_name) if tenants else None,
                         modality='beach',
-                        status='pending',
+                        status='pending' if tenants else 'rejected',
                         is_historical=is_historical,
-                        matched_teams={org.slug: t for org, t in tenants.items()},
+                        matched_teams={org.slug: sorted(t) for org, t in tenants.items()} if tenants else {},
                     )
-                    created.append(candidate)
+                    if tenants:
+                        created.append(candidate)
                     known.add(grupo_id)
 
     return created
-
-

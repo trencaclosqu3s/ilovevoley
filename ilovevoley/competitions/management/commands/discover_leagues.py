@@ -34,4 +34,3 @@ class Command(BaseCommand):
         for candidate in candidates:
             self.stdout.write(f'{candidate.federation_id}  {candidate.category_label} · {candidate.phase_label}  {candidate.matched_teams}')
         self.stdout.write(self.style.SUCCESS(f'{len(candidates)} candidatas nuevas en {season}.'))
-

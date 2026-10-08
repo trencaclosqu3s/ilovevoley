@@ -81,7 +81,6 @@ class Command(BaseCommand):
             help='Modalidad de la competición (indoor o beach)'
         )
 
-
     def handle(self, *args, **options):
         self.verbosity = options['verbose']
         self.dry_run = options['dry_run']

@@ -259,4 +259,3 @@ def discover_seasonal_beach_leagues_task():
     if current is None:
         return 0
     return len(discover_seasonal_beach(current))
-
