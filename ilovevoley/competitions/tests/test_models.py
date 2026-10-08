@@ -1,4 +1,4 @@
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -389,7 +389,7 @@ class MatchStreamUrlTest(TestCase):
         # Partido a 15 minutos en el futuro (dentro de ventana -30 min a +3 h)
         match_live = Match(
             league=self.league, home_team=self.team_a, away_team=self.team_b,
-            match_date=now + timezone.timedelta(minutes=15),
+            match_date=now + timedelta(minutes=15),
             status='scheduled',
             stream_url='https://youtube.com/live/xyz',
         )
@@ -410,7 +410,7 @@ class MatchStreamUrlTest(TestCase):
         # Partido fuera de ventana (+4 h en el futuro)
         match_future = Match(
             league=self.league, home_team=self.team_a, away_team=self.team_b,
-            match_date=now + timezone.timedelta(hours=4),
+            match_date=now + timedelta(hours=4),
             status='scheduled',
             stream_url='https://youtube.com/live/xyz',
         )

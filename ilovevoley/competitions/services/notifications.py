@@ -678,7 +678,23 @@ def notify_match_live_stream(match: Match, tenant=None) -> bool:
         return False
 
     from django.db import transaction
+    from ilovevoley.core.models import Organization
     from ilovevoley.users.models import NotificationType
+
+    if tenant:
+        orgs = Organization.objects.filter(pk=tenant.pk, is_active=True)
+    else:
+        club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
+        if not club_ids:
+            return False
+        orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
+
+    q = organization_branch_q(match_branches(match))
+    if q is not None:
+        orgs = orgs.filter(q)
+
+    if not orgs.exists():
+        return False
 
     with transaction.atomic():
         updated = Match.objects.filter(pk=match.pk, stream_notified_at__isnull=True).update(
@@ -688,20 +704,6 @@ def notify_match_live_stream(match: Match, tenant=None) -> bool:
             return False
 
         match.stream_notified_at = timezone.now()
-
-        from ilovevoley.core.models import Organization
-
-        if tenant:
-            orgs = Organization.objects.filter(pk=tenant.pk)
-        else:
-            club_ids = {t.club_id for t in (match.home_team, match.away_team) if t and t.club_id}
-            if not club_ids:
-                return True
-            orgs = Organization.objects.filter(club_id__in=club_ids, is_active=True)
-
-        q = organization_branch_q(match_branches(match))
-        if q is not None:
-            orgs = orgs.filter(q)
 
         home_name = match.home_team_display
         away_name = match.away_team_display
