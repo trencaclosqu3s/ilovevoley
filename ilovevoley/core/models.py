@@ -78,12 +78,47 @@ def season_start_year_for_date(value):
     return value.year if value.month >= SEASON_START_MONTH else value.year - 1
 
 
-class SeasonManager(models.Manager):
-    """Manager de Season con resolución de la temporada activa."""
+class SeasonQuerySet(models.QuerySet):
+    """QuerySet para Season con resolución de la temporada activa."""
 
-    def current(self):
-        """Temporada activa; si no hay ninguna marcada, la más reciente."""
-        return self.filter(is_current=True).first() or self.order_by('-start_year').first()
+    def current(self, for_date=None):
+        """Temporada activa según la fecha dada (o la actual, corte 1 sept).
+
+        1. Si hay una temporada marcada con `is_current=True` que sigue vigente
+           o futura (`start_year >= target_year`), se respeta.
+        2. Si no hay ninguna o quedó obsoleta tras superar el 1 de septiembre,
+           se resuelve la temporada en curso (`start_year <= target_year`),
+           se autoasigna `is_current=True` (desmarcando la anterior de forma
+           atómica) y se devuelve.
+        3. Si la base de datos está vacía, se crea la temporada para la fecha.
+        """
+        target_date = for_date or timezone.localdate()
+        target_year = season_start_year_for_date(target_date)
+
+        season = self.filter(is_current=True).first()
+        if season and season.start_year >= target_year:
+            return season
+
+        # Buscar la temporada vigente según la fecha (excluyendo temporadas futuras de scraping)
+        target = (
+            self.model.objects.filter(start_year__lte=target_year)
+            .order_by('-start_year')
+            .first()
+        )
+        if target is None:
+            target = self.model.objects.for_date(target_date)
+
+        if not target.is_current:
+            with transaction.atomic():
+                target = self.model.objects.select_for_update().get(pk=target.pk)
+                if not target.is_current:
+                    target.is_current = True
+                    target.save(update_fields=['is_current'])
+        return target
+
+
+class SeasonManager(models.Manager.from_queryset(SeasonQuerySet)):
+    """Manager de Season con resolución de la temporada activa."""
 
     def resolve(self, raw):
         """Normaliza un string y devuelve (creándola si hace falta) su Season."""
