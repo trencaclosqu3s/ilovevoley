@@ -334,3 +334,31 @@ class PortalMatchPrivacyAndJsonLdTest(TestCase):
         self.assertEqual(data['awayTeam']['name'], 'Visitante FC')
         self.assertEqual(data['description'], '3-1')
         self.assertNotIn('Jugador Secreto', str(data))
+
+
+@override_settings(
+    ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'],
+    TENANT_BASE_DOMAIN='ilovevoley.es',
+    SECURE_SSL_REDIRECT=False,
+)
+class TenantCompetitionsStayPrivateTest(TestCase):
+    """Abrir el portal de marca no debe liberar /competitions/ en el tenant."""
+
+    def setUp(self):
+        Season.objects.create(
+            name='2026-27', start_year=2026, end_year=2027, is_current=True,
+        )
+        club = Club.objects.create(
+            official_name='Test Club', federation_id='CLUB-TENANT-PRIV',
+        )
+        Organization.objects.create(
+            slug='testclub', name='Test Club Org', club=club, is_active=True,
+        )
+
+    def test_anonymous_tenant_competitions_redirects_to_login(self):
+        response = self.client.get(
+            reverse('competitions:league_list'),
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
