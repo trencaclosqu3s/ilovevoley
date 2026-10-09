@@ -89,12 +89,6 @@ class CookieConsent {
         if (window.showToast) {
             window.showToast('info', 'Cookies rechazadas. Solo se utilizarán las estrictamente necesarias.');
         }
-        
-        this.disableNonEssentialCookies();
-    }
-    
-    disableNonEssentialCookies() {
-        // En este caso particular solo usamos cookies esenciales.
     }
     
     setCookie(name, value, days) {

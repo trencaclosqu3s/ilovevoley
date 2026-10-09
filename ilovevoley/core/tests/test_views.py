@@ -766,17 +766,20 @@ class PrivacyPolicyViewTest(TestCase):
         self.assertContains(response, 'mailto:fallback@example.com')
 
     def test_privacy_policy_footer_link_only_for_authenticated_users(self):
-        # Usuario anónimo en el tenant no ve el enlace en el pie
-        response = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
         privacy_url = reverse('core:privacy_policy')
-        self.assertNotContains(response, f'href="{privacy_url}" class="block text-white/80')
 
-        # Usuario autenticado sí lo ve en el pie
+        # Usuario anónimo en el tenant no tiene el enlace en el pie
+        response_anon = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response_anon.status_code, 200)
+        footer_anon = response_anon.content.decode().split('<footer')[1].split('</footer>')[0]
+        self.assertNotIn(privacy_url, footer_anon)
+
+        # Usuario autenticado sí lo tiene en el pie
         self.client.force_login(self.user)
         response_auth = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response_auth.status_code, 200)
-        self.assertContains(response_auth, f'href="{privacy_url}"')
+        footer_auth = response_auth.content.decode().split('<footer')[1].split('</footer>')[0]
+        self.assertIn(privacy_url, footer_auth)
 
     def test_cookie_banner_and_registration_link_to_privacy_policy(self):
         privacy_url = reverse('core:privacy_policy')

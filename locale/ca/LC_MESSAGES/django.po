@@ -8769,11 +8769,11 @@ msgstr ""
 #, python-format
 msgid ""
 "Al crear una cuenta, aceptas el tratamiento de tus datos según nuestra <a "
-"href=\"%(privacy_url)s\" target=\"_blank\" class=\"text-brand-text "
+"href=\"%(privacy_url)s\" target=\"_blank\" rel=\"noopener\" class=\"text-brand-text "
 "hover:underline font-semibold\">Política de Privacidad</a>."
 msgstr ""
 "En crear un compte, acceptes el tractament de les teves dades segons la nostra <a "
-"href=\"%(privacy_url)s\" target=\"_blank\" class=\"text-brand-text "
+"href=\"%(privacy_url)s\" target=\"_blank\" rel=\"noopener\" class=\"text-brand-text "
 "hover:underline font-semibold\">Política de Privacitat</a>."
 
 #: ilovevoley/templates/account/signup.html:120
@@ -11298,11 +11298,11 @@ msgstr "Estàs utilitzant el teu compte de Google"
 #, python-format
 msgid ""
 "Al completar el registro, aceptas el tratamiento de tus datos según nuestra "
-"<a href=\"%(privacy_url)s\" target=\"_blank\" class=\"text-brand-text "
+"<a href=\"%(privacy_url)s\" target=\"_blank\" rel=\"noopener\" class=\"text-brand-text "
 "hover:underline font-semibold\">Política de Privacidad</a>."
 msgstr ""
 "En completar el registre, acceptes el tractament de les teves dades segons la nostra "
-"<a href=\"%(privacy_url)s\" target=\"_blank\" class=\"text-brand-text "
+"<a href=\"%(privacy_url)s\" target=\"_blank\" rel=\"noopener\" class=\"text-brand-text "
 "hover:underline font-semibold\">Política de Privacitat</a>."
 
 #: ilovevoley/templates/users/deactivate_account_confirm.html:4
