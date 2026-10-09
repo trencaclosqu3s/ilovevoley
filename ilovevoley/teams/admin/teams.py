@@ -213,6 +213,17 @@ class TeamAdmin(ModelAdmin):
             _('%(count)s equipo(s) asignados a la identidad «%(identity)s»')
             % {'count': count, 'identity': identity},
         )
+        clubs = sorted({str(t.club or _('sin club')) for t in identity.teams.select_related('club')})
+        if len(clubs) > 1:
+            # Se permite (equipo inscrito en otro club federativo, #452), pero se
+            # avisa por si la selección fue un error.
+            self.message_user(
+                request,
+                _('La identidad «%(identity)s» agrupa equipos de clubes distintos: %(clubs)s. '
+                  'Si no es el mismo equipo, reasigna la identidad en cada equipo.')
+                % {'identity': identity, 'clubs': ', '.join(clubs)},
+                level='WARNING',
+            )
 
     def match_to_clubs(self, request, queryset):
         """Acción para hacer matching automático de equipos seleccionados"""

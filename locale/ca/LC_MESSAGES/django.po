@@ -11882,3 +11882,16 @@ msgstr ""
 #
 #~ msgid "Equipo o club"
 #~ msgstr "Equip o club"
+
+#: ilovevoley/teams/admin/teams.py
+msgid "sin club"
+msgstr "sense club"
+
+#: ilovevoley/teams/admin/teams.py
+#, python-format
+msgid ""
+"La identidad «%(identity)s» agrupa equipos de clubes distintos: %(clubs)s. Si "
+"no es el mismo equipo, reasigna la identidad en cada equipo."
+msgstr ""
+"La identitat «%(identity)s» agrupa equips de clubs diferents: %(clubs)s. Si "
+"no és el mateix equip, reassigna la identitat a cada equip."
