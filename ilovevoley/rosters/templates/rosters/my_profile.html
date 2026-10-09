@@ -1,11 +1,15 @@
 {% extends '../base.html' %}
 {% load i18n %}
 
-{% block title %}{% trans "Tú" %} - I Love Voley{% endblock %}
+{% block title %}{% if is_child %}{{ person.full_name }}{% else %}{% trans "Tú" %}{% endif %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto">
-    <div class="bg-surface rounded-3xl border border-line p-6 mb-6 flex items-center gap-4">
+    {% if is_child %}
+        <a href="{% url 'rosters:my_profile' %}" class="inline-block mb-3 text-sm font-semibold text-brand-text hover:underline">← {% trans "Tú" %}</a>
+    {% endif %}
+    {% if person %}
+    <div class="bg-surface rounded-3xl border border-line p-6 mb-6 flex flex-wrap items-center gap-4">
         {% if person.photo %}
             <img src="{{ person.photo.url }}" alt="{{ person.full_name }}" class="w-16 h-16 rounded-full object-cover">
         {% endif %}
@@ -15,13 +19,36 @@
         {% if in_current_tenant %}
             <a href="{% url 'rosters:person_detail' person.id %}" class="text-sm font-semibold text-brand-text hover:underline">{% trans "Ver ficha completa" %}</a>
         {% endif %}
+        {% if has_card %}
+            {% include "rosters/_card_links.html" with card_person=person %}
+        {% endif %}
     </div>
+    {% endif %}
 
+    {% if children %}
+        <section class="bg-surface rounded-[20px] border border-line p-5 mb-6">
+            <h2 class="text-lg font-bold text-ink mb-3">{% trans "Tus hijos" %}</h2>
+            <ul class="space-y-2">
+                {% for child in children %}
+                    <li class="bg-tint rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
+                        <a href="{% url 'rosters:child_profile' child.person.id %}" class="font-semibold text-ink hover:underline">{{ child.person.full_name }}</a>
+                        {% if child.has_card %}
+                            {% include "rosters/_card_links.html" with card_person=child.person %}
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+
+    {% if person %}
+    {% if not is_child %}
     <a href="{% url 'content:favorite_images' %}"
        class="bg-surface rounded-3xl border border-line p-4 mb-6 flex items-center gap-3 hover:border-accent transition">
         {% icon 'heart' 'w-6 h-6 text-red-400' %}
         <span class="font-semibold text-ink">{% trans "Mis fotos favoritas" %}</span>
     </a>
+    {% endif %}
 
     {% include 'rosters/_tagged_photos.html' with person=person tagged_images=tagged_images tagged_images_count=tagged_images_count %}
 
@@ -47,7 +74,8 @@
             </ul>
         </section>
     {% empty %}
-        <p class="text-center text-muted py-8 italic">{% trans "Todavía no tienes roles registrados" %}</p>
+        <p class="text-center text-muted py-8 italic">{% if is_child %}{% trans "Todavía no tiene roles registrados" %}{% else %}{% trans "Todavía no tienes roles registrados" %}{% endif %}</p>
     {% endfor %}
+    {% endif %}
 </div>
 {% endblock %}

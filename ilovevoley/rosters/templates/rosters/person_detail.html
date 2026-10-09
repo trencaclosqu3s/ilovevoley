@@ -72,6 +72,9 @@
                             {% trans "Editar" %}
                         </a>
                     {% endif %}
+                    {% if has_card %}
+                        {% include "rosters/_card_links.html" with card_person=person %}
+                    {% endif %}
                 </div>
                 
                 <!-- Información de contacto (solo quien puede editar la ficha) -->
