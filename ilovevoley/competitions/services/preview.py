@@ -5,6 +5,8 @@ fijo (historial, clasificación y forma de cada equipo), sin N+1.
 """
 
 from django.db.models import Count, Q
+from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from ilovevoley.competitions.models import Match, Standing
 from ilovevoley.competitions.services.sets import match_set_scores
@@ -111,3 +113,24 @@ def build_match_preview(match):
         'home_form': home_form,
         'away_form': away_form,
     }
+
+
+def preview_card_pills(match):
+    """Pastillas de la story previa (#456): hora y posición de ambos en la clasificación.
+
+    La hora 00:00 es la convención de "hora por confirmar" y no se muestra.
+    """
+    pills = []
+    local = timezone.localtime(match.match_date)
+    if (local.hour, local.minute) != (0, 0):
+        pills.append(local.strftime('%H:%M'))
+    if match.league_id:
+        positions = dict(
+            Standing.objects.filter(
+                league_id=match.league_id, team_id__in=[match.home_team_id, match.away_team_id]
+            ).values_list('team_id', 'position')
+        )
+        home, away = positions.get(match.home_team_id), positions.get(match.away_team_id)
+        if home is not None and away is not None:
+            pills.append(_('%(home)sº vs %(away)sº') % {'home': home, 'away': away})
+    return pills
