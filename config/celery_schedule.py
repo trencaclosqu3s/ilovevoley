@@ -116,17 +116,17 @@ CELERY_BEAT_SCHEDULE = {
     # --- Descubrimiento de ligas (#377) ----------------------------------------
     # La federación publica competiciones escalonadas todo el año (categorías que
     # llegan tarde, fases, copas); cada pasada solo consulta lo aún no conocido.
+    'discover-leagues': {
+        'task': 'discover_leagues',
+        'schedule': crontab(minute=45, hour=7),
+        'options': {'expire_seconds': 3600},
+    },
     # --- Actas de partidos oficiales de los tenants (#455) ----------------------
     # Las actas se publican horas después del partido; cada pasada también enlaza
     # las alineaciones con las plantillas cargadas después.
     'scrape-match-actas': {
         'task': 'scrape_match_actas',
         'schedule': crontab(minute=30, hour='*/6'),
-        'options': {'expire_seconds': 3600},
-    },
-    'discover-leagues': {
-        'task': 'discover_leagues',
-        'schedule': crontab(minute=45, hour=7),
         'options': {'expire_seconds': 3600},
     },
 }
