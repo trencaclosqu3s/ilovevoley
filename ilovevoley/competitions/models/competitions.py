@@ -761,6 +761,8 @@ class ScrapingEndpoint(models.Model):
 
     def get_full_url(self, **kwargs):
         """Construye la URL completa reemplazando parámetros"""
+        # La federación responde 400 a `jor=None` (#463): un parámetro sin valor va vacío.
+        kwargs = {key: '' if value is None else value for key, value in kwargs.items()}
         url = self.url_pattern.format(league_id=self.league.federation_id, **kwargs)
         if not url.startswith('http'):
             url = f'{self.league.base_url}/{url.lstrip("/")}'

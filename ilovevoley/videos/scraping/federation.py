@@ -82,6 +82,16 @@ class FederationScraper:
                 else:
                     raise last_error
 
+    @staticmethod
+    def _parse_json_response(response: requests.Response) -> Any:
+        """Parsea el JSON incluyendo en el error el cuerpo recibido: la federación responde a veces con texto plano (#463)."""
+        try:
+            return json.loads(response.text)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Respuesta no JSON ({response.status_code}) de {response.url}: {response.text[:200]!r}"
+            ) from e
+
     def scrape_endpoint(self, endpoint: ScrapingEndpoint, **kwargs) -> Dict[str, Any]:
         """Ejecuta scraping de un endpoint específico"""
         
@@ -169,7 +179,7 @@ class FederationScraper:
 
             # Obtener datos del JSON
             response = self._fetch_json_with_retry(json_url)
-            json_data = json.loads(response.text)
+            json_data = self._parse_json_response(response)
 
             # Obtener IDs de ligas que tenemos en la base de datos (si se requiere filtrado)
             db_league_ids = set()
@@ -1143,7 +1153,7 @@ class FederationScraper:
             response = self._fetch_json_with_retry(json_url)
 
             # Parsear JSON
-            json_data = json.loads(response.text)
+            json_data = self._parse_json_response(response)
             
             enriched_count = 0
             new_matches_count = 0
