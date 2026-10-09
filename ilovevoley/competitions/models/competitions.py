@@ -4,7 +4,7 @@ import uuid
 
 from django.conf import settings
 from django.core.validators import URLValidator
-from django.db import models, transaction
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -691,37 +691,59 @@ class LeagueCandidate(models.Model):
         return f'{self.category_label} · {self.phase_label} ({self.federation_id})'
 
     def approve(self):
-        """Crea la liga (la signal ``post_save`` añade los 3 endpoints) y la enlaza."""
-        if self.status != 'pending':
-            return self.league
+        """Crea la liga (la signal ``post_save`` añade los 3 endpoints) y la enlaza.
+
+        Idempotente bajo doble envío: bloquea la candidata y, si ``create``
+        choca por ``federation_id`` único, reutiliza la liga ya insertada.
+        """
         with transaction.atomic():
+            locked = LeagueCandidate.objects.select_for_update(of=('self',)).get(pk=self.pk)
+            if locked.status != 'pending':
+                self.league, self.status = locked.league, locked.status
+                return locked.league
+
             # Liga ya dada de alta (a mano o por una sincronización) tras crearse la candidata
-            existing = League.objects.filter(federation_id=self.federation_id).first()
+            existing = League.objects.filter(federation_id=locked.federation_id).first()
             if existing:
+                locked.league, locked.status = existing, 'approved'
+                locked.save(update_fields=['league', 'status'])
                 self.league, self.status = existing, 'approved'
-                self.save(update_fields=['league', 'status'])
                 return existing
-            name = ' '.join(filter(None, [self.category_label.title(), self.phase_label]))
-            is_cup = re.search(r'copa|campeonato|torneo', f'{self.section} {self.phase_label}', re.I)
 
-            visibility_type = 'historical' if self.is_historical else ('reference' if self.modality == League.MODALITY_BEACH else 'main')
-            match_format = 'tournament_3sets' if self.modality == League.MODALITY_BEACH else 'standard'
+            name = ' '.join(filter(None, [locked.category_label.title(), locked.phase_label]))
+            is_cup = re.search(r'copa|campeonato|torneo', f'{locked.section} {locked.phase_label}', re.I)
 
-            league = League.objects.create(
-                name=name, federation_id=self.federation_id, season_id=self.season_id,
-                competition_type='cup' if is_cup else 'regular',
-                parent_league_id=self.parent_league_id, phase_name=self.phase_label if self.parent_league_id else '',
-                phase_order=1 if self.parent_league_id else 0,
-                visibility_type=visibility_type,
-                is_historical=self.is_historical,
-                is_active=not self.is_historical,
-                modality=self.modality,
-                match_format=match_format,
+            visibility_type = (
+                'historical' if locked.is_historical
+                else ('reference' if locked.modality == League.MODALITY_BEACH else 'main')
             )
-            if self.category_id:
-                league.categories.add(self.category_id)
+            match_format = 'tournament_3sets' if locked.modality == League.MODALITY_BEACH else 'standard'
+
+            try:
+                league = League.objects.create(
+                    name=name, federation_id=locked.federation_id, season_id=locked.season_id,
+                    competition_type='cup' if is_cup else 'regular',
+                    parent_league_id=locked.parent_league_id,
+                    phase_name=locked.phase_label if locked.parent_league_id else '',
+                    phase_order=1 if locked.parent_league_id else 0,
+                    visibility_type=visibility_type,
+                    is_historical=locked.is_historical,
+                    is_active=not locked.is_historical,
+                    modality=locked.modality,
+                    match_format=match_format,
+                )
+            except IntegrityError:
+                league = League.objects.get(federation_id=locked.federation_id)
+                locked.league, locked.status = league, 'approved'
+                locked.save(update_fields=['league', 'status'])
+                self.league, self.status = league, 'approved'
+                return league
+
+            if locked.category_id:
+                league.categories.add(locked.category_id)
+            locked.league, locked.status = league, 'approved'
+            locked.save(update_fields=['league', 'status'])
             self.league, self.status = league, 'approved'
-            self.save(update_fields=['league', 'status'])
         return league
 
 
