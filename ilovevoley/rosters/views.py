@@ -4,7 +4,8 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import Prefetch, Q
-from django.http import Http404, JsonResponse
+from django.core.exceptions import PermissionDenied
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext as _
@@ -20,8 +21,10 @@ from ilovevoley.content.models import Image
 from ilovevoley.competitions.services.lineups import get_player_season_stats
 from ilovevoley.teams.identity import one_team_per_identity
 from ilovevoley.teams.models import Team
+from ilovevoley.competitions.result_card import _file_field_bytes
 from .forms import BulkPlayerRosterForm, PersonForm, PlayerRoleForm, StaffRoleForm
 from .models import Person, PlayerRole, StaffRole
+from .player_card import card_highlight, render_player_card
 
 logger = logging.getLogger(__name__)
 
@@ -162,30 +165,93 @@ def my_profile(request):
     """Trayectoria del propio usuario: sus roles en todos los clubes, por temporada.
 
     No filtra por tenant: la ficha vinculada puede pertenecer a otro club y
-    el usuario solo ve sus propios datos (nunca recibe un id por URL).
+    el usuario solo ve sus propios datos (nunca recibe un id por URL). Los
+    padres ven además a sus hijos, para generarles el cromo (#457).
     """
     person = Person.objects.filter(user=request.user).first()
-    if person is None:
+    children = [
+        {'person': child, 'has_card': _card_role(child, request.tenant) is not None}
+        for child in request.user.children.order_by('first_name')
+    ]
+    if person is None and not children:
         raise Http404
 
-    by_season = {}
-    for kind, model in (('player_roles', PlayerRole), ('staff_roles', StaffRole)):
-        roles = model.objects.filter(person=person).select_related('identity__category', 'identity__club', 'season')
-        for role in roles.order_by('identity__core_name'):
-            by_season.setdefault(role.season, {'season': role.season, 'player_roles': [], 'staff_roles': []})[kind].append(role)
-    seasons = sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True)
+    seasons, tagged_images, tagged_images_count = [], [], 0
+    if person is not None:
+        by_season = {}
+        for kind, model in (('player_roles', PlayerRole), ('staff_roles', StaffRole)):
+            roles = model.objects.filter(person=person).select_related('identity__category', 'identity__club', 'season')
+            for role in roles.order_by('identity__core_name'):
+                by_season.setdefault(role.season, {'season': role.season, 'player_roles': [], 'staff_roles': []})[kind].append(role)
+        seasons = sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True)
 
-    tagged_images_qs = Image.objects.for_tenant(request.tenant).filter(
-        persons=person, status='approved'
-    ).order_by('-upload_date')
+        tagged_images_qs = Image.objects.for_tenant(request.tenant).filter(
+            persons=person, status='approved'
+        ).order_by('-upload_date')
+        tagged_images = list(tagged_images_qs[:8])
+        tagged_images_count = tagged_images_qs.count()
 
     return render(request, 'rosters/my_profile.html', {
         'person': person,
         'seasons': seasons,
-        'in_current_tenant': person_belongs_to_tenant(person, request.tenant),
-        'tagged_images': list(tagged_images_qs[:8]),
-        'tagged_images_count': tagged_images_qs.count(),
+        'in_current_tenant': person is not None and person_belongs_to_tenant(person, request.tenant),
+        'has_card': person is not None and _card_role(person, request.tenant) is not None,
+        'children': children,
+        'tagged_images': tagged_images,
+        'tagged_images_count': tagged_images_count,
     })
+
+
+def _card_role(person, tenant):
+    """Último rol de jugador en un equipo del club: el cromo es de esa temporada.
+
+    Solo equipos del tenant, así que nunca sale el cromo de un rival.
+    """
+    return (
+        person.player_roles.for_tenant(tenant).select_related('identity', 'season')
+        .order_by('-season__start_year', '-is_active').first()
+    )
+
+
+@tenant_access_required()
+def person_card(request, person_id):
+    """Cromo del jugador en PNG Story para compartir (#457).
+
+    Lo generan el propio jugador, su familia y los gestores del club: es la
+    imagen de un menor pensada para redes.
+    """
+    person = get_tenant_object_or_404(Person.objects.all(), request.tenant, user=request.user, id=person_id)
+    if not request.user.is_authenticated or not request.user.can_edit_person(person, request.tenant):
+        raise PermissionDenied
+    role = _card_role(person, request.tenant)
+    if role is None:
+        raise Http404
+
+    teams = Team.objects.for_tenant(request.tenant).filter(identity=role.identity)
+    has_actas = MatchLineup.objects.filter(
+        person=person, team__in=teams, match__league__season=role.season,
+    ).exclude(match__status='withdrawn').exists()
+
+    photo = None
+    if request.GET.get('foto') != '0':
+        # TODO(#122): sin foto si la ficha no tiene consentimiento de imagen cuando exista
+        # el campo; hasta entonces la familia puede pedirlo sin foto (?foto=0).
+        tagged = Image.objects.for_tenant(request.tenant).filter(
+            persons=person, status='approved'
+        ).order_by('-upload_date').first()
+        photo = (tagged and _file_field_bytes(tagged.thumbnail_large or tagged.image)) or _file_field_bytes(person.photo)
+
+    png = render_player_card(
+        organization=request.tenant,
+        person=person,
+        role=role,
+        highlight=card_highlight(person, teams, role.season) if has_actas else None,
+        stats=get_player_season_stats(person, role.season, teams) if has_actas else None,
+        photo=photo,
+    )
+    response = HttpResponse(png, content_type='image/png')
+    response['Content-Disposition'] = f'attachment; filename="cromo-{person.id}.png"'
+    return response
 
 
 @tenant_access_required()
@@ -226,6 +292,7 @@ def person_detail(request, person_id):
         'player_roles': player_roles,
         'staff_roles': staff_roles,
         'can_edit': can_edit,
+        'has_card': can_edit and _card_role(person, request.tenant) is not None,
         'seasons': seasons,
         'stat_season': stat_season,
         'player_stats': player_stats,
