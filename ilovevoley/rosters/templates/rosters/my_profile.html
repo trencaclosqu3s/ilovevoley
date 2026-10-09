@@ -52,6 +52,40 @@
 
     {% include 'rosters/_tagged_photos.html' with person=person tagged_images=tagged_images tagged_images_count=tagged_images_count %}
 
+    {% if rival_season %}
+        <section class="bg-surface rounded-[20px] border border-line p-5 mb-6">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <h2 class="text-lg font-bold text-ink">{% trans "Tus rivales" %}</h2>
+                {% if rival_seasons|length > 1 %}
+                    <form method="get">
+                        <label for="season" class="sr-only">{% trans "Temporada" %}</label>
+                        <select name="season" id="season" data-submit-on-change class="px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
+                            {% for season in rival_seasons %}
+                                <option value="{{ season.id }}" {% if season.id == rival_season.id %}selected{% endif %}>{{ season.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                {% else %}
+                    <span class="text-sm text-muted">{{ rival_season.name }}</span>
+                {% endif %}
+            </div>
+            <ul class="space-y-2">
+                {% for rival in rivals %}
+                    <li class="bg-tint rounded-lg p-3">
+                        <span class="font-semibold text-ink">{{ rival.name|default:_("Sin nombre") }}</span>
+                        <span class="ml-2 text-sm font-bold text-brand-text">#{{ rival.jersey_number }}</span>
+                        <span class="ml-2 text-xs text-muted">{{ rival.team_name }}</span>
+                        <p class="text-sm text-muted">
+                            {% blocktrans count counter=rival.matches with wins=rival.wins %}Te has enfrentado {{ counter }} vez y has ganado {{ wins }}{% plural %}Te has enfrentado {{ counter }} veces y has ganado {{ wins }}{% endblocktrans %}
+                        </p>
+                    </li>
+                {% empty %}
+                    <li class="text-sm text-muted italic">{% trans "Las actas de esta temporada no tienen alineación del rival" %}</li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+
     {% for entry in seasons %}
         <section class="bg-surface rounded-[20px] border border-line p-5 mb-4">
             <h2 class="text-lg font-bold text-ink mb-3">{% blocktrans with season=entry.season %}Temporada {{ season }}{% endblocktrans %}</h2>

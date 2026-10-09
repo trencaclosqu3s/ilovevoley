@@ -20,7 +20,7 @@ from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import person_belongs_to_tenant, tenant_access_required, user_is_tenant_manager
 from ilovevoley.competitions.models import MatchLineup
 from ilovevoley.content.models import Image
-from ilovevoley.competitions.services.lineups import get_player_season_stats
+from ilovevoley.competitions.services.lineups import get_player_season_stats, get_rival_seasons, get_season_rivals
 from ilovevoley.teams.identity import one_team_per_identity
 from ilovevoley.teams.models import Team
 from ilovevoley.competitions.result_card import _file_field_bytes
@@ -202,11 +202,17 @@ def _trajectory_context(request, person):
     tagged_images_qs = Image.objects.for_tenant(request.tenant).filter(
         persons=person, status='approved'
     ).order_by('-upload_date')
+    rival_seasons = get_rival_seasons(person)
+    # Los rivales nunca cruzan temporadas: «todas» (?season=) cae en la más reciente.
+    rival_season = _resolve_person_stat_season(request, rival_seasons) or rival_seasons.first()
     # La ficha del club se abre con el mismo filtro que person_detail, para no enlazar a un 404.
     visible = Person.objects.all() if request.user.is_superuser else Person.objects.for_tenant(request.tenant)
     return {
         'person': person,
         'seasons': sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True),
+        'rival_seasons': rival_seasons,
+        'rival_season': rival_season,
+        'rivals': get_season_rivals(person, rival_season) if rival_season else [],
         'in_current_tenant': visible.filter(pk=person.pk).exists(),
         'has_card': _card_role(person, request.tenant) is not None,
         'tagged_images': list(tagged_images_qs[:8]),
