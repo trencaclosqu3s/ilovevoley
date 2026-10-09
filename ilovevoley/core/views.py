@@ -186,6 +186,19 @@ def privacy_policy(request):
     return render(request, 'core/privacy_policy.html', context)
 
 
+@login_required
+def image_transparency(request):
+    """Página en claro: quién ve fotos e imagen (#222). No sustituye la política legal."""
+    contact_email = parseaddr(getattr(settings, 'PRIVACY_CONTACT_EMAIL', ''))[1]
+    if not contact_email:
+        contact_email = parseaddr(getattr(settings, 'DEFAULT_FROM_EMAIL', ''))[1] or 'privacidad@ilovevoley.es'
+    context = {
+        'privacy_email': contact_email,
+        'current_year': timezone.now().year,
+    }
+    return render(request, 'core/image_transparency.html', context)
+
+
 def healthz(request):
     """
     Health check endpoint for deployment validation and uptime monitoring.

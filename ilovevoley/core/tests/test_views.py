@@ -802,3 +802,29 @@ class PrivacyPolicyViewTest(TestCase):
         self.assertContains(response, 'Responsable del Tractament')
 
 
+@override_settings(ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'])
+class ImageTransparencyViewTests(TestCase):
+    """Página de transparencia de imagen (#222): acceso y descubrimiento."""
+
+    def setUp(self):
+        from ilovevoley.core.models import Organization
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club', is_active=True
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='transparency_user', password='password123')
+
+    def test_image_transparency_requires_login(self):
+        url = reverse('core:image_transparency')
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_image_transparency_ok_for_authenticated_user(self):
+        url = reverse('core:image_transparency')
+        self.client.force_login(self.user)
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+
+
