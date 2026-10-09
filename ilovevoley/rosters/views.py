@@ -217,7 +217,7 @@ def _trajectory_context(request, person, is_child=False):
     return {
         'person': person,
         'seasons': seasons,
-        'active_season': active['season'] if active else None,
+        'active_entry': active,
         'in_current_tenant': visible.filter(pk=person.pk).exists(),
         'has_card': _card_role(person, request.tenant) is not None,
         'tagged_images': list(tagged_images_qs[:8]),

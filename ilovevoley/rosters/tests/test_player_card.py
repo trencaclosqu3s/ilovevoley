@@ -276,7 +276,7 @@ class SeasonSummaryTests(PlayerCardTestBase):
 
         def active(query=''):
             response = self.client.get(reverse('rosters:my_profile') + query, HTTP_HOST='testclub.ilovevoley.es')
-            return response.context['active_season'].name
+            return response.context['active_entry']['season'].name
 
         self.assertEqual(active(), '2025-26')
         self.assertEqual(active(f'?season={old.pk}'), '2024-25')

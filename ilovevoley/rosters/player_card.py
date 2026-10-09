@@ -247,7 +247,10 @@ def season_summary(person, identity, season, second_person):
             _('Has jugado %(matches)s y %(sets)s; titular en %(starts)s.') if second_person
             else _('Ha jugado %(matches)s y %(sets)s; titular en %(starts)s.')
         ) % params
-    return {'sentence': sentence, 'highlight': card_highlight(person, teams, season, second_person)}
+    highlight = card_highlight(person, teams, season, second_person)
+    if not sentence and not highlight:
+        return None
+    return {'sentence': sentence, 'highlight': highlight}
 
 
 # Iconos en una rejilla de 24×24 (los mismos trazos que el diseño): polilíneas y círculos.
