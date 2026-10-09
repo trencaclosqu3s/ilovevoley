@@ -12,6 +12,16 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterField(
+            model_name='playerrole',
+            name='team',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='+', to='teams.team'),
+        ),
+        migrations.AlterField(
+            model_name='staffrole',
+            name='team',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='+', to='teams.team'),
+        ),
         migrations.AddField(
             model_name='playerrole',
             name='identity',

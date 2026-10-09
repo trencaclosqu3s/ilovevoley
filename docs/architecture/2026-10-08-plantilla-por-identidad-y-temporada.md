@@ -177,6 +177,14 @@ coincidir. "Asignar identidad común" exige solo la misma categoría y género. 
 dos identidades empatan, gana la del equipo más antiguo, que es la que lleva el
 historial.
 
+La plantilla pertenece a **todos** los clubes de los equipos de su identidad
+(`PersonRoleTenantQuerySet` pasa por `Team.for_tenant`), de todas las
+temporadas. Es deliberado: si es el mismo equipo, es la misma plantilla. Por
+eso un manager de cualquiera de esos clubes puede ver y editar las fichas
+(`can_edit_person`), y el admin lo avisa al asignar una identidad que mezcla
+clubes. Anclar la tenencia a `identity.club` se descartó porque los equipos que
+entran en el tenant por nombre y no por FK perderían su plantilla.
+
 ### 3.7 Pantallas
 
 - `teams:team_roster` (URL por `Team`) muestra `roles(team.identity, season)`

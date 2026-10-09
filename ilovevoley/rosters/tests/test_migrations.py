@@ -63,3 +63,12 @@ class RoleIdentityMigrationTest(TransactionTestCase):
             sorted(StaffRole.objects.filter(identity_id=self.identity_id).values_list('role', flat=True)),
             ['delegate', 'head_coach'],
         )
+
+    def test_rollback_with_data_restores_team(self):
+        self.executor.loader.build_graph()
+        self.executor.migrate(self.executor.loader.graph.leaf_nodes('rosters'))
+        self.executor.loader.build_graph()
+        self.executor.migrate([self.migrate_from])
+        apps = self.executor.loader.project_state([self.migrate_from]).apps
+        role = apps.get_model('rosters', 'PlayerRole').objects.get()
+        self.assertEqual(role.team.federation_id, '10')

@@ -47,19 +47,9 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='player_roles', to='teams.teamidentity', verbose_name='Equipo'),
         ),
         migrations.AlterField(
-            model_name='playerrole',
-            name='team',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='+', to='teams.team'),
-        ),
-        migrations.AlterField(
             model_name='staffrole',
             name='identity',
             field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='staff_roles', to='teams.teamidentity', verbose_name='Equipo'),
-        ),
-        migrations.AlterField(
-            model_name='staffrole',
-            name='team',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='+', to='teams.team'),
         ),
         migrations.AddIndex(
             model_name='playerrole',

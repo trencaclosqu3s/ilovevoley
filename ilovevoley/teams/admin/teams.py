@@ -220,6 +220,7 @@ class TeamAdmin(ModelAdmin):
             self.message_user(
                 request,
                 _('La identidad «%(identity)s» agrupa equipos de clubes distintos: %(clubs)s. '
+                  'Todos ellos podrán ver y editar las fichas de su plantilla. '
                   'Si no es el mismo equipo, reasigna la identidad en cada equipo.')
                 % {'identity': identity, 'clubs': ', '.join(clubs)},
                 level='WARNING',
