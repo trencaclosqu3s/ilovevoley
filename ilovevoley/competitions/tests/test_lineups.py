@@ -1,3 +1,4 @@
+from ilovevoley.teams.tests.helpers import identity_of
 from unittest.mock import patch
 
 from django.core.management import call_command
@@ -108,7 +109,7 @@ class MatchLineupBuildingTests(TestCase):
         person = Person.objects.create(first_name='Ana', last_name='Ruiz')
         person.organizations.add(self.org)
         PlayerRole.objects.create(
-            person=person, team=self.team, season=self.season,
+            person=person, identity=identity_of(self.team), season=self.season,
             jersey_number=7, is_active=True,
         )
         data = _lineup_data(
@@ -120,11 +121,33 @@ class MatchLineupBuildingTests(TestCase):
         rows = {r.jersey_number: r for r in build_match_lineups(self.match, data)}
         self.assertEqual(rows[7].person_id, person.id)
 
+    def test_partido_de_otra_fase_usa_la_plantilla_de_la_identidad(self):
+        # Cada fase federativa es otra fila de Team; la plantilla se dio de alta
+        # en la de liga y el partido es de la fase de copa (#447).
+        person = Person.objects.create(first_name='Ana', last_name='Ruiz')
+        PlayerRole.objects.create(person=person, identity=identity_of(self.team), season=self.season, jersey_number=7)
+        cup_phase = Team.objects.create(
+            name='Test Club Senior', category=self.category, club=self.club,
+            federation_id='TEAM-1-COPA', identity=self.team.identity,
+        )
+        cup_match = Match.objects.create(
+            league=self.league, home_team=cup_phase, away_team=self.rival,
+            match_date=timezone.now(), round_number=2, status='finished',
+        )
+        data = _lineup_data(
+            home_convocados=['7 Ruiz'],
+            sets=[_set('Set 1', [_entry('I', 7), _entry('II', 2), _entry('III', 3),
+                                 _entry('IV', 4), _entry('V', 5), _entry('VI', 6)], _six(11))],
+        )
+
+        rows = {r.jersey_number: r for r in build_match_lineups(cup_match, data)}
+        self.assertEqual((rows[7].team_id, rows[7].person_id), (cup_phase.id, person.id))
+
     def test_person_se_resuelve_aunque_el_rol_este_inactivo(self):
         person = Person.objects.create(first_name='Baja', last_name='Temporada')
         person.organizations.add(self.org)
         PlayerRole.objects.create(
-            person=person, team=self.team, season=self.season,
+            person=person, identity=identity_of(self.team), season=self.season,
             jersey_number=7, is_active=False,
         )
         data = _lineup_data(
@@ -144,11 +167,11 @@ class MatchLineupBuildingTests(TestCase):
         inactivo = Person.objects.create(first_name='Baja', last_name='Uno')
         inactivo.organizations.add(self.org)
         PlayerRole.objects.create(
-            person=activo, team=self.team, season=self.season,
+            person=activo, identity=identity_of(self.team), season=self.season,
             jersey_number=7, is_active=True,
         )
         PlayerRole.objects.create(
-            person=inactivo, team=self.team, season=self.season,
+            person=inactivo, identity=identity_of(self.team), season=self.season,
             jersey_number=7, is_active=False,
         )
         data = _lineup_data(
@@ -166,11 +189,11 @@ class MatchLineupBuildingTests(TestCase):
         reciente = Person.objects.create(first_name='Reciente', last_name='Dorsal')
         reciente.organizations.add(self.org)
         PlayerRole.objects.create(
-            person=antiguo, team=self.team, season=self.season,
+            person=antiguo, identity=identity_of(self.team), season=self.season,
             jersey_number=7, is_active=False,
         )
         PlayerRole.objects.create(
-            person=reciente, team=self.team, season=self.season,
+            person=reciente, identity=identity_of(self.team), season=self.season,
             jersey_number=7, is_active=False,
         )
         data = _lineup_data(
@@ -187,7 +210,7 @@ class MatchLineupBuildingTests(TestCase):
         person = Person.objects.create(first_name='Vieja', last_name='Dorsal')
         person.organizations.add(self.org)
         PlayerRole.objects.create(
-            person=person, team=self.team, season=otro,
+            person=person, identity=identity_of(self.team), season=otro,
             jersey_number=7, is_active=True,
         )
         data = _lineup_data(

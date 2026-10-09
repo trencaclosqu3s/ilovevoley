@@ -122,7 +122,7 @@ def taggable_persons(match, tenant):
 
     team_ids = [tid for tid in (match.home_team_id, match.away_team_id) if tid]
     roster_ids = PlayerRole.objects.filter(
-        team_id__in=team_ids, is_active=True
+        identity__teams__id__in=team_ids, is_active=True
     ).values_list('person_id', flat=True)
     return base.filter(Q(pk__in=roster_ids)).order_by('last_name', 'first_name')
 

@@ -8,6 +8,7 @@ from ilovevoley.teams.identity import (
     IdentityAssignError,
     assign_common_identity,
     backfill_team_identities,
+    create_identity_for_team,
     extract_core_name,
     notify_new_identity_candidates,
     resolve_team_identity,
@@ -329,6 +330,23 @@ class AssignCommonIdentityTests(TestCase):
             t.refresh_from_db()
             self.assertEqual(t.identity_id, identity.pk)
 
+    def test_merges_across_clubs_keeping_identity_of_oldest_team(self):
+        # Pórtol Rojo pasa a competir inscrito en otro club federativo y sigue
+        # siendo el mismo equipo; la identidad conserva el historial (#452).
+        old = self._team('a', 'UNILOG CV PORTOL ROJO')
+        other_club = Club.objects.create(federation_id='c2', official_name='Marratxí Vòlei Pòrtol')
+        new = self._team('b', 'CAS TORD CMV PORTOL ROJO', club=other_club)
+        new.identity = create_identity_for_team(new)  # id menor que la del equipo antiguo
+        new.save(update_fields=['identity'])
+        old.identity = create_identity_for_team(old)
+        old.save(update_fields=['identity'])
+
+        identity, _n = assign_common_identity([old, new])
+
+        self.assertEqual((identity.pk, identity.club_id), (old.identity_id, self.club.pk))
+        new.refresh_from_db()
+        self.assertEqual(new.identity_id, identity.pk)
+
     def test_rejects_mixed_categories(self):
         infantil = Category.objects.create(name='Infantil')
         with self.assertRaises(IdentityAssignError):
@@ -345,3 +363,54 @@ class AssignCommonIdentityTests(TestCase):
         assign_common_identity([base, new])
         cand.refresh_from_db()
         self.assertEqual(cand.status, 'approved')
+
+
+class MergeIdentityRosterTests(TestCase):
+    """Fusionar identidades arrastra su plantilla: si no, queda huérfana (#447)."""
+
+    def setUp(self):
+        from ilovevoley.core.models import Season
+        from ilovevoley.rosters.models import Person
+
+        club = Club.objects.create(federation_id='c1', official_name='Sant Josep')
+        cat = Category.objects.create(name='Infantil')
+        self.groc = Team.objects.create(name='SANT JOSEP GROC', federation_id='a', club=club, category=cat)
+        self.lila = Team.objects.create(name='SANT JOSEP LILA', federation_id='b', club=club, category=cat)
+        for t in (self.groc, self.lila):
+            t.identity = create_identity_for_team(t)
+            t.save(update_fields=['identity'])
+        self.season = Season.objects.create(name='2025-26', start_year=2025, end_year=2026)
+        self.ana = Person.objects.create(first_name='Ana', last_name='Pons', birth_year=2012)
+        self.eva = Person.objects.create(first_name='Eva', last_name='Coll', birth_year=2012)
+
+    def _role(self, team, person, jersey, position=''):
+        from ilovevoley.rosters.models import PlayerRole
+
+        return PlayerRole.objects.create(
+            person=person, identity=team.identity, season=self.season, jersey_number=jersey, position=position,
+        )
+
+    def test_moves_roles_and_keeps_last_state_of_duplicates(self):
+        from ilovevoley.rosters.models import PlayerRole
+
+        self._role(self.groc, self.ana, 7, 'middle_blocker')
+        self._role(self.lila, self.ana, 7, 'setter')  # el último editado
+        self._role(self.lila, self.eva, 9)
+
+        identity, _n = assign_common_identity([self.groc, self.lila])
+
+        roles = PlayerRole.objects.filter(identity=identity)
+        self.assertEqual(
+            sorted(roles.values_list('person__first_name', 'position')),
+            [('Ana', 'setter'), ('Eva', '')],
+        )
+        self.assertEqual(PlayerRole.objects.count(), 2)
+
+    def test_jersey_clash_between_people_aborts_merge(self):
+        self._role(self.groc, self.ana, 7)
+        self._role(self.lila, self.eva, 7)
+
+        with self.assertRaises(IdentityAssignError):
+            assign_common_identity([self.groc, self.lila])
+
+        self.assertEqual(TeamIdentity.objects.count(), 2)

@@ -1,4 +1,5 @@
 """Etiquetado de deportistas en imágenes (#362): permisos, aislamiento y galería."""
+from ilovevoley.teams.tests.helpers import identity_of
 import uuid
 from unittest.mock import patch
 
@@ -70,17 +71,17 @@ class ImageTaggingTests(TestCase):
         self.person_a = Person.objects.create(first_name='Laura', last_name='García')
         self.person_a.organizations.add(self.org_a)
         PlayerRole.objects.create(
-            person=self.person_a, team=self.team_a, season=self.season, is_active=True,
+            person=self.person_a, identity=identity_of(self.team_a), season=self.season, is_active=True,
         )
         self.other_person = Person.objects.create(first_name='Nuria', last_name='Ruiz')
         self.other_person.organizations.add(self.org_a)
         PlayerRole.objects.create(
-            person=self.other_person, team=self.other_team, season=self.season, is_active=True,
+            person=self.other_person, identity=identity_of(self.other_team), season=self.season, is_active=True,
         )
         self.person_b = Person.objects.create(first_name='Marta', last_name='Navarro')
         self.person_b.organizations.add(self.org_b)
         PlayerRole.objects.create(
-            person=self.person_b, team=self.team_b, season=self.season, is_active=True,
+            person=self.person_b, identity=identity_of(self.team_b), season=self.season, is_active=True,
         )
 
         self.album_group_id = uuid.uuid4()

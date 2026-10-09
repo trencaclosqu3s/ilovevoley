@@ -137,7 +137,7 @@ def get_recipients_for_match(match: Match) -> List[str]:
 
         team_recipients = set()
         staff_qs = StaffRole.objects.filter(
-            team=team,
+            identity_id=team.identity_id,
             role__in=['delegate', 'head_coach'],
             is_active=True,
         )
@@ -602,8 +602,8 @@ def notify_callup_confirmed(player: CallUpPlayer) -> bool:
             player.person.player_roles.filter(
                 season=player.callup.season,
                 is_active=True,
-                team__category_id__isnull=False,
-            ).values_list('team__category_id', flat=True).distinct()
+                identity__category_id__isnull=False,
+            ).values_list('identity__category_id', flat=True).distinct()
         )
 
     def build():

@@ -18,6 +18,7 @@ from ilovevoley.core.tenant_utils import person_belongs_to_tenant, tenant_access
 from ilovevoley.competitions.models import MatchLineup
 from ilovevoley.content.models import Image
 from ilovevoley.competitions.services.lineups import get_player_season_stats
+from ilovevoley.teams.identity import one_team_per_identity
 from ilovevoley.teams.models import Team
 from .forms import BulkPlayerRosterForm, PersonForm, PlayerRoleForm, StaffRoleForm
 from .models import Person, PlayerRole, StaffRole
@@ -42,8 +43,8 @@ def roster_overview(request):
 
     # Query base para equipos del club; los roles se prefetchean ya filtrados
     teams_query = Team.objects.select_related("category", "club").prefetch_related(
-        Prefetch("player_roles", queryset=PlayerRole.objects.filter(**role_filter).select_related("person")),
-        Prefetch("staff_roles", queryset=StaffRole.objects.filter(**role_filter).select_related("person")),
+        Prefetch("identity__player_roles", queryset=PlayerRole.objects.filter(**role_filter).select_related("person")),
+        Prefetch("identity__staff_roles", queryset=StaffRole.objects.filter(**role_filter).select_related("person")),
     ).filter(is_active=True).for_tenant(request.tenant)
     
     # Filtrar por categorías preferidas del usuario
@@ -55,7 +56,7 @@ def roster_overview(request):
     elif category_filter:
         teams_query = teams_query.filter(category_id=category_filter)
     
-    teams = teams_query.order_by("category__name", "name")
+    teams = one_team_per_identity(teams_query.order_by("category__name", "name"))
 
     # Estadísticas generales
     total_stats = {
@@ -67,8 +68,8 @@ def roster_overview(request):
     }
     
     for team in teams:
-        active_player_roles = team.player_roles.all()
-        active_staff_roles = team.staff_roles.all()
+        active_player_roles = team.identity.player_roles.all() if team.identity_id else []
+        active_staff_roles = team.identity.staff_roles.all() if team.identity_id else []
         
         team.active_players_count = len(active_player_roles)
         team.active_staff_count = len(active_staff_roles)
@@ -117,8 +118,8 @@ def person_list(request):
     people = Person.objects.for_tenant(request.tenant).filter(
         is_active=True,
     ).prefetch_related(
-        'player_roles__team__category',
-        'staff_roles__team__category'
+        'player_roles__identity__category',
+        'staff_roles__identity__category'
     ).order_by('last_name', 'first_name')
     
     # Filtros
@@ -143,10 +144,9 @@ def person_list(request):
     page_obj = paginator.get_page(page_number)
     
     # Enriquecer con info de roles, solo de equipos del club del tenant
-    tenant_teams = Team.objects.for_tenant(request.tenant)
     for person in page_obj:
-        person.active_player_roles = person.get_player_roles().filter(team__in=tenant_teams)
-        person.active_staff_roles = person.get_staff_roles().filter(team__in=tenant_teams)
+        person.active_player_roles = person.get_player_roles().for_tenant(request.tenant)
+        person.active_staff_roles = person.get_staff_roles().for_tenant(request.tenant)
     
     context = {
         'page_obj': page_obj,
@@ -170,8 +170,8 @@ def my_profile(request):
 
     by_season = {}
     for kind, model in (('player_roles', PlayerRole), ('staff_roles', StaffRole)):
-        roles = model.objects.filter(person=person).select_related('team__category', 'team__club', 'season')
-        for role in roles.order_by('team__name'):
+        roles = model.objects.filter(person=person).select_related('identity__category', 'identity__club', 'season')
+        for role in roles.order_by('identity__core_name'):
             by_season.setdefault(role.season, {'season': role.season, 'player_roles': [], 'staff_roles': []})[kind].append(role)
     seasons = sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True)
 
@@ -193,16 +193,16 @@ def person_detail(request, person_id):
     """Vista de detalle de una persona"""
     person = get_tenant_object_or_404(
         Person.objects.select_related('user').prefetch_related(
-            'player_roles__team__category',
-            'staff_roles__team__category'
+            'player_roles__identity__category',
+            'staff_roles__identity__category'
         ),
         request.tenant, user=request.user, id=person_id,
     )
     
     # Roles visibles solo en equipos del club del tenant
     tenant_teams = Team.objects.for_tenant(request.tenant)
-    player_roles = person.player_roles.filter(team__in=tenant_teams).select_related('team__category').order_by('-is_active', 'team__name')
-    staff_roles = person.staff_roles.filter(team__in=tenant_teams).select_related('team__category').order_by('-is_active', 'team__name')
+    player_roles = person.player_roles.for_tenant(request.tenant).select_related('identity__category').order_by('-is_active', 'identity__core_name')
+    staff_roles = person.staff_roles.for_tenant(request.tenant).select_related('identity__category').order_by('-is_active', 'identity__core_name')
 
     # Verificar permisos de edición
     can_edit = request.user.can_edit_person(person, request.tenant)
@@ -426,7 +426,7 @@ def player_role_create(request, person_id):
             player_role = form.save(commit=False)
             player_role.person = person
             player_role.save()
-            messages.success(request, _('¡Rol de jugador agregado en %(team)s!') % {'team': player_role.team.name})
+            messages.success(request, _('¡Rol de jugador agregado en %(team)s!') % {'team': player_role.identity})
             return redirect('rosters:person_detail', person_id=person.id)
     else:
         form = PlayerRoleForm(person=person, organization=request.tenant)
@@ -443,33 +443,29 @@ def player_role_create(request, person_id):
 
 
 def _previous_season_initial(team, season):
-    """Filas precargadas con la plantilla de la temporada anterior de la misma identidad.
-
-    Cada fase federativa es una fila de ``Team``, así que se busca por ``identity``
-    y no solo por el equipo; sin identidad, solo por el propio equipo.
-    """
+    """Filas precargadas con la plantilla de la temporada anterior del mismo equipo (identidad)."""
     previous = Season.objects.filter(start_year__lt=season.start_year).order_by('-start_year').first()
     if previous is None:
         return {}, None
-    teams = Team.objects.filter(identity_id=team.identity_id) if team.identity_id else Team.objects.filter(pk=team.pk)
-    roles = PlayerRole.objects.filter(team__in=teams, season=previous, is_active=True).order_by('-updated_at')
-    initial = {}
-    for role in roles:
-        initial.setdefault(role.person_id, (role.jersey_number, role.position))
-    return initial, previous
+    roles = PlayerRole.objects.filter(identity_id=team.identity_id, season=previous, is_active=True)
+    return {role.person_id: (role.jersey_number, role.position) for role in roles}, previous
 
 
 @tenant_access_required(manager=True)
 def player_roster_bulk_add(request, team_id):
     """Alta masiva de jugadores en un equipo y temporada (#446)."""
     team = get_tenant_object_or_404(Team.objects, request.tenant, user=request.user, id=team_id)
+    if not team.identity_id:
+        # La plantilla cuelga de la identidad (#447); sin ella no hay dónde guardarla.
+        messages.error(request, _('Este equipo no tiene identidad asignada; asígnala en el admin antes de dar de alta la plantilla.'))
+        return redirect('teams:team_roster', team.id)
     seasons = Season.objects.all()
     raw_season = request.POST.get('season') or request.GET.get('season')
     season = seasons.filter(pk=raw_season).first() if raw_season and raw_season.isdigit() else None
     season = season or Season.objects.current()
 
     candidates = Person.objects.for_tenant(request.tenant).filter(is_active=True).exclude(
-        pk__in=PlayerRole.objects.filter(team=team, season=season, is_active=True).values('person_id'),
+        pk__in=PlayerRole.objects.filter(identity_id=team.identity_id, season=season, is_active=True).values('person_id'),
     ).order_by('last_name', 'first_name')
 
     previous = None
@@ -516,7 +512,7 @@ def staff_role_create(request, person_id):
             staff_role = form.save(commit=False)
             staff_role.person = person
             staff_role.save()
-            messages.success(request, _('¡Rol de staff agregado en %(team)s!') % {'team': staff_role.team.name})
+            messages.success(request, _('¡Rol de staff agregado en %(team)s!') % {'team': staff_role.identity})
             return redirect('rosters:person_detail', person_id=person.id)
     else:
         form = StaffRoleForm(person=person, organization=request.tenant)
@@ -536,7 +532,7 @@ def staff_role_create(request, person_id):
 def player_role_edit(request, role_id):
     """Vista para editar un rol de jugador"""
     player_role = get_tenant_object_or_404(
-        PlayerRole.objects.select_related('person', 'team'),
+        PlayerRole.objects.select_related('person', 'identity'),
         request.tenant, user=request.user, id=role_id,
     )
     
@@ -571,7 +567,7 @@ def player_role_edit(request, role_id):
 def staff_role_edit(request, role_id):
     """Vista para editar un rol de staff"""
     staff_role = get_tenant_object_or_404(
-        StaffRole.objects.select_related('person', 'team'),
+        StaffRole.objects.select_related('person', 'identity'),
         request.tenant, user=request.user, id=role_id,
     )
     

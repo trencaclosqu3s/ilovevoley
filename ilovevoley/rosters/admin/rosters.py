@@ -9,18 +9,18 @@ class PlayerRoleInline(TabularInline):
     """Inline para roles de jugador en la vista de Person"""
     model = PlayerRole
     extra = 0
-    fields = ('team', 'season', 'jersey_number', 'position', 'is_active', 'notes')
+    fields = ('identity', 'season', 'jersey_number', 'position', 'is_active', 'notes')
     readonly_fields = ('created_at',)
-    autocomplete_fields = ('team',)
+    autocomplete_fields = ('identity',)
 
 
 class StaffRoleInline(TabularInline):
     """Inline para roles de staff en la vista de Person"""
     model = StaffRole
     extra = 0
-    fields = ('team', 'season', 'role', 'is_active', 'notes')
+    fields = ('identity', 'season', 'role', 'is_active', 'notes')
     readonly_fields = ('created_at',)
-    autocomplete_fields = ('team',)
+    autocomplete_fields = ('identity',)
 
 
 @admin.register(Person)
@@ -72,7 +72,7 @@ class PersonAdmin(ModelAdmin):
 
     def active_teams_count(self, obj):
         """Cuenta de equipos activos donde participa"""
-        return obj.get_all_active_teams().count()
+        return obj.get_active_identities().count()
     active_teams_count.short_description = 'Equipos Activos'
     
     def parents_info(self, obj):
@@ -106,16 +106,16 @@ class PersonAdmin(ModelAdmin):
 @admin.register(PlayerRole)
 class PlayerRoleAdmin(ModelAdmin):
     """Admin para el modelo PlayerRole"""
-    list_display = ('person', 'team', 'season', 'jersey_number', 'display_position', 'is_active', 'created_at')
-    list_filter = ('team', 'team__category', 'season', 'position', 'is_active', 'created_at')
-    search_fields = ('person__first_name', 'person__last_name', 'team__name', 'jersey_number')
+    list_display = ('person', 'identity', 'season', 'jersey_number', 'display_position', 'is_active', 'created_at')
+    list_filter = ('identity', 'identity__category', 'season', 'position', 'is_active', 'created_at')
+    search_fields = ('person__first_name', 'person__last_name', 'identity__core_name', 'jersey_number')
     readonly_fields = ('created_at', 'updated_at')
-    autocomplete_fields = ('person', 'team')
+    autocomplete_fields = ('person', 'identity')
     actions = ['activate_roles', 'deactivate_roles']
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('person', 'team', 'season')
+            'fields': ('person', 'identity', 'season')
         }),
         ('Detalles del Jugador', {
             'fields': ('jersey_number', 'position')
@@ -145,16 +145,16 @@ class PlayerRoleAdmin(ModelAdmin):
 @admin.register(StaffRole)
 class StaffRoleAdmin(ModelAdmin):
     """Admin para el modelo StaffRole"""
-    list_display = ('person', 'team', 'season', 'display_role', 'is_active', 'created_at')
-    list_filter = ('team', 'team__category', 'season', 'role', 'is_active', 'created_at')
-    search_fields = ('person__first_name', 'person__last_name', 'team__name')
+    list_display = ('person', 'identity', 'season', 'display_role', 'is_active', 'created_at')
+    list_filter = ('identity', 'identity__category', 'season', 'role', 'is_active', 'created_at')
+    search_fields = ('person__first_name', 'person__last_name', 'identity__core_name')
     readonly_fields = ('created_at', 'updated_at')
-    autocomplete_fields = ('person', 'team')
+    autocomplete_fields = ('person', 'identity')
     actions = ['activate_roles', 'deactivate_roles']
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('person', 'team', 'season')
+            'fields': ('person', 'identity', 'season')
         }),
         ('Detalles del Staff', {
             'fields': ('role',)

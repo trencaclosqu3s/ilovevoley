@@ -200,7 +200,7 @@
                     <div class="bg-tint rounded-lg p-4 flex items-center justify-between {% if not player_role.is_active %}opacity-60{% endif %}">
                         <div class="flex-1">
                             <div class="flex items-center gap-3 mb-2">
-                                <h3 class="font-semibold text-ink">{{ player_role.team.name }}</h3>
+                                <h3 class="font-semibold text-ink">{{ player_role.identity.core_name }}</h3>
                                 
                                 {% if player_role.jersey_number %}
                                     <span class="bg-csj-purple-dark dark:bg-csj-purple-dark text-white px-3 py-1 rounded-full text-sm font-bold">
@@ -221,8 +221,8 @@
                                 {% endif %}
                             </div>
                             
-                            {% if player_role.team.category %}
-                                <p class="text-sm text-muted">{{ player_role.team.category.name }}</p>
+                            {% if player_role.identity.category %}
+                                <p class="text-sm text-muted">{{ player_role.identity.category.name }}</p>
                             {% endif %}
                             
                             {% if player_role.notes %}
@@ -271,7 +271,7 @@
                     <div class="bg-tint rounded-lg p-4 flex items-center justify-between {% if not staff_role.is_active %}opacity-60{% endif %}">
                         <div class="flex-1">
                             <div class="flex items-center gap-3 mb-2">
-                                <h3 class="font-semibold text-ink">{{ staff_role.team.name }}</h3>
+                                <h3 class="font-semibold text-ink">{{ staff_role.identity.core_name }}</h3>
                                 
                                 <span class="bg-csj-purple-dark text-white px-3 py-1 rounded-full text-sm font-medium">
                                     {{ staff_role.display_role }}
@@ -284,8 +284,8 @@
                                 {% endif %}
                             </div>
                             
-                            {% if staff_role.team.category %}
-                                <p class="text-sm text-muted">{{ staff_role.team.category.name }}</p>
+                            {% if staff_role.identity.category %}
+                                <p class="text-sm text-muted">{{ staff_role.identity.category.name }}</p>
                             {% endif %}
                             
                             {% if staff_role.notes %}

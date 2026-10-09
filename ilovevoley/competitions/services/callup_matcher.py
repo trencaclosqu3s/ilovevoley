@@ -82,7 +82,7 @@ def _club_has_gender(org: Organization, gender: str) -> bool:
     from ilovevoley.teams.models import Team
     teams = Team.objects.filter(club=org.club) if hasattr(org, 'club') and org.club else Team.objects.none()
     if not teams.exists():
-        teams = Team.objects.filter(player_roles__person__in=Person.objects.for_tenant(org))
+        teams = Team.objects.filter(identity__player_roles__person__in=Person.objects.for_tenant(org))
 
     if not teams.exists():
         return False
@@ -255,10 +255,10 @@ def match_callup_player(
         # Si la convocatoria tiene género 'M' o 'F', comprobar que no haya conflicto con los equipos del jugador
         if callup and getattr(callup, 'gender', None) in ['M', 'F']:
             c_gender = callup.gender
-            player_teams = [r.team for r in person.player_roles.filter(season=season)]
+            player_teams = [r.identity for r in person.player_roles.filter(season=season).select_related('identity__category')]
             has_gender_conflict = False
             for t in player_teams:
-                t_str = f"{t.name} {t.category.name if t.category else ''}".upper()
+                t_str = f"{t.core_name} {t.category.name if t.category else ''}".upper()
                 if c_gender == 'M' and any(w in t_str for w in ['FEM', 'FEMENI', 'FEMENINA', 'FEMENINO']):
                     has_gender_conflict = True
                 elif c_gender == 'F' and any(w in t_str for w in ['MASC', 'MASCULI', 'MASCULINA', 'MASCULINO']):
