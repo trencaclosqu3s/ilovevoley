@@ -20,7 +20,7 @@ from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import person_belongs_to_tenant, tenant_access_required, user_is_tenant_manager
 from ilovevoley.competitions.models import MatchLineup
 from ilovevoley.content.models import Image
-from ilovevoley.competitions.services.lineups import get_player_season_stats
+from ilovevoley.competitions.services.lineups import get_player_season_stats, get_rival_seasons, get_season_rivals
 from ilovevoley.teams.identity import one_team_per_identity
 from ilovevoley.teams.models import Team
 from ilovevoley.competitions.result_card import _file_field_bytes
@@ -199,20 +199,25 @@ def _trajectory_context(request, person, is_child=False):
         roles = model.objects.filter(person=person).select_related('identity__category', 'identity__club', 'season')
         for role in roles.order_by('identity__core_name'):
             by_season.setdefault(role.season, {'season': role.season, 'player_roles': [], 'staff_roles': []})[kind].append(role)
-            if kind == 'player_roles':
-                role.summary = season_summary(person, role.identity, role.season, second_person=not is_child)
+    seasons = sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True)
+    # ?season=<id> elige la pestaña; si no existe o no se pide, la más reciente.
+    requested = request.GET.get('season', '')
+    active = next((e for e in seasons if str(e['season'].pk) == requested), seasons[0] if seasons else None)
+    if active:
+        # Las cifras y los rivales recorren actas: solo se calculan para la temporada abierta.
+        for role in active['player_roles']:
+            role.summary = season_summary(person, role.identity, active['season'], second_person=not is_child)
+        played = get_rival_seasons(person).filter(pk=active['season'].pk).exists()
+        active['rivals'] = get_season_rivals(person, active['season']) if played else None
     tagged_images_qs = Image.objects.for_tenant(request.tenant).filter(
         persons=person, status='approved'
     ).order_by('-upload_date')
     # La ficha del club se abre con el mismo filtro que person_detail, para no enlazar a un 404.
     visible = Person.objects.all() if request.user.is_superuser else Person.objects.for_tenant(request.tenant)
-    seasons = sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True)
-    names = [entry['season'].name for entry in seasons]
-    requested = request.GET.get('temporada')
     return {
         'person': person,
         'seasons': seasons,
-        'active_season': requested if requested in names else (names[0] if names else None),
+        'active_season': active['season'] if active else None,
         'in_current_tenant': visible.filter(pk=person.pk).exists(),
         'has_card': _card_role(person, request.tenant) is not None,
         'tagged_images': list(tagged_images_qs[:8]),

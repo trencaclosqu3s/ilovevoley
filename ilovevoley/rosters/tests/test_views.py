@@ -441,12 +441,17 @@ class RostersTenantIsolationTests(TestCase):
             reverse('rosters:my_profile'), HTTP_HOST='club-a.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Club B Junior')
         self.assertContains(response, 'Club A Senior')
         self.assertEqual(
             [e['season'].name for e in response.context['seasons']],
             ['2026-27', '2025-26'],
         )
+        # Cada temporada es una pestaña: la del club B se abre con ?season=.
+        older = Season.objects.resolve('2025-26')
+        response = self.client.get(
+            reverse('rosters:my_profile'), {'season': older.pk}, HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertContains(response, 'Club B Junior')
 
     def test_ficha_de_otro_club_es_visible_donde_tiene_rol_y_oculta_contacto(self):
         # Marc: ficha vinculada al club B, con rol en un equipo del club A.

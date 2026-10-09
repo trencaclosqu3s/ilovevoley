@@ -264,9 +264,9 @@ class SeasonSummaryTests(PlayerCardTestBase):
         self.assertNotContains(response, 'Momento')
 
     def test_pestana_activa_es_la_pedida_o_la_ultima_y_solo_hay_de_temporadas_con_rol(self):
+        old = Season.objects.resolve('2024-25')
         PlayerRole.objects.create(
-            person=self.person, identity=identity_of(self.team), season=Season.objects.resolve('2024-25'),
-            jersey_number=JERSEY, is_active=False,
+            person=self.person, identity=identity_of(self.team), season=old, jersey_number=JERSEY, is_active=False,
         )
         user = get_user_model().objects.create_user(username='jugador', password='pass')
         Membership.objects.create(user=user, organization=self.org, is_approved=True)
@@ -274,14 +274,14 @@ class SeasonSummaryTests(PlayerCardTestBase):
         self.person.user = user
         self.person.save()
 
-        default = self.visit('rosters:my_profile')
-        asked = self.client.get(reverse('rosters:my_profile') + '?temporada=2024-25', HTTP_HOST='testclub.ilovevoley.es')
-        invalid = self.client.get(reverse('rosters:my_profile') + '?temporada=1999-00', HTTP_HOST='testclub.ilovevoley.es')
+        def active(query=''):
+            response = self.client.get(reverse('rosters:my_profile') + query, HTTP_HOST='testclub.ilovevoley.es')
+            return response.context['active_season'].name
 
-        self.assertEqual(default.context['active_season'], '2025-26')
-        self.assertEqual(asked.context['active_season'], '2024-25')
-        self.assertEqual(invalid.context['active_season'], '2025-26')
-        self.assertNotContains(default, 'data-season-tab="1999-00"')
+        self.assertEqual(active(), '2025-26')
+        self.assertEqual(active(f'?season={old.pk}'), '2024-25')
+        self.assertEqual(active('?season=999999'), '2025-26')
+        self.assertEqual(self.visit('rosters:my_profile').context['seasons'].__len__(), 2)
 
     def test_cifras_de_una_temporada_en_otro_club_salen_entrando_por_este_tenant(self):
         # «Tú» es universal: el rol está en el club rival y el usuario entra por testclub.
