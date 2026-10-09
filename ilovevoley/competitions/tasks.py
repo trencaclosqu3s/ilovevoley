@@ -264,3 +264,50 @@ def discover_seasonal_beach_leagues_task():
     if current is None:
         return 0
     return len(discover_seasonal_beach(current))
+
+
+# Actas por pasada: limita las peticiones a la federación y deja que el histórico
+# pendiente se ponga al día en unas pocas ejecuciones.
+ACTA_BATCH_SIZE = 50
+
+
+@shared_task(name='scrape_match_actas')
+def scrape_match_actas_task(limit=ACTA_BATCH_SIZE):
+    """Guarda las actas de partidos oficiales de los tenants y enlaza alineaciones (#455).
+
+    Hasta ahora el acta solo se guardaba si alguien la abría en el detalle del partido.
+    Los partidos rival contra rival no se procesan: no hay jugadores de ningún tenant.
+    Un acta que falla se reintenta en la siguiente pasada; si falla siempre (p. ej. HTML
+    que el parser no entiende), ocupa un hueco del lote hasta que se corrija a mano.
+    """
+    import requests
+
+    from ilovevoley.core.mixins import get_club_team_filter
+    from ilovevoley.core.models import Organization
+    from ilovevoley.core.security import UnsafeURL
+    from ilovevoley.competitions.services.lineups import fetch_and_store_acta, relink_orphan_lineups
+
+    tenant_q = None
+    for organization in Organization.objects.filter(is_active=True):
+        club_q = get_club_team_filter(organization)
+        if club_q:
+            tenant_q = club_q if tenant_q is None else tenant_q | club_q
+
+    processed = failed = 0
+    if tenant_q is not None:
+        pending = (
+            Match.objects.filter(tenant_q, status='finished', is_friendly=False, acta_data__isnull=True)
+            .exclude(acta_html='')
+            .select_related('home_team', 'away_team', 'league__season')
+            .distinct()
+            .order_by('-match_date')[:limit]
+        )
+        for match in pending:
+            try:
+                fetch_and_store_acta(match)
+                processed += 1
+            except (UnsafeURL, requests.exceptions.RequestException, ValueError) as exc:
+                failed += 1
+                logger.warning('No se pudo guardar el acta del partido %s: %s', match.id, exc)
+
+    return {'processed': processed, 'failed': failed, 'relinked': relink_orphan_lineups()}

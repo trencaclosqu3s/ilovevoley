@@ -47,6 +47,7 @@ QUEUE_BY_TASK = {
     'scrape_rfevb_final_classification': 'scraping',
     'scrape_balearic_callups': 'scraping',
     'scrape_balearic_tracking': 'scraping',
+    'scrape_match_actas': 'scraping',
 }
 
 

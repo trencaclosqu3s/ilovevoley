@@ -333,9 +333,9 @@ class BackfillActasCommandTests(TestCase):
             home_convocados=['1 Uno'],
             sets=[_set('Set 1', _six(1), _six(11))],
         )
-        with patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.safe_get',
+        with patch('ilovevoley.competitions.services.lineups.safe_get',
                    return_value=b'<html></html>') as get, \
-                patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.parse_acta_lineup',
+                patch('ilovevoley.videos.scraping.parse_acta_lineup',
                       return_value=data):
             call_command('backfill_acta_lineups')
 
@@ -347,7 +347,7 @@ class BackfillActasCommandTests(TestCase):
     def test_backfill_ignora_los_ya_procesados(self):
         self.match.acta_data = {'sets': []}
         self.match.save(update_fields=['acta_data'])
-        with patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.safe_get') as get:
+        with patch('ilovevoley.competitions.services.lineups.safe_get') as get:
             call_command('backfill_acta_lineups')
         get.assert_not_called()
 
@@ -389,9 +389,9 @@ class BackfillActasCommandTests(TestCase):
             home_convocados=['1 Uno'],
             sets=[_set('Set 1', _six(1), _six(11))],
         )
-        with patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.safe_get',
+        with patch('ilovevoley.competitions.services.lineups.safe_get',
                    return_value=b'<html></html>') as mock_safe_get, \
-                patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.parse_acta_lineup',
+                patch('ilovevoley.videos.scraping.parse_acta_lineup',
                       return_value=data):
             call_command('backfill_acta_lineups')
 
@@ -400,3 +400,63 @@ class BackfillActasCommandTests(TestCase):
             allowed_hosts=['federacion.example'],
         )
 
+
+
+class ScrapeMatchActasTaskTests(TestCase):
+    """La tarea periódica (#455) solo procesa partidos oficiales de los tenants."""
+
+    def setUp(self):
+        self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-T')
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', club=self.club, is_active=True)
+        category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(name='Test Club Senior', category=category, club=self.club, federation_id='TEAM-1')
+        self.rival = Team.objects.create(
+            name='Rival Team Senior', category=category, federation_id='TEAM-2',
+            club=Club.objects.create(official_name='Rival', federation_id='CLUB-R'),
+        )
+        other = Team.objects.create(
+            name='Otro', category=category, federation_id='TEAM-3',
+            club=Club.objects.create(official_name='Otro', federation_id='CLUB-O'),
+        )
+        self.season = Season.objects.resolve('2025-26')
+        league = League.objects.create(
+            name='Liga', federation_id='L-1', season=self.season,
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+
+        def match(home, away, n, **extra):
+            return Match.objects.create(
+                league=league, home_team=home, away_team=away, match_date=timezone.now(),
+                round_number=n, status='finished', acta_html=f'https://federacion.example/acta/{n}', **extra,
+            )
+
+        self.own = match(self.team, self.rival, 1)
+        self.friendly = match(self.team, self.rival, 2, is_friendly=True)
+        self.rivals_only = match(self.rival, other, 3)
+
+    @override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
+    def test_solo_procesa_oficiales_del_tenant_y_enlaza_la_plantilla_cargada_despues(self):
+        from ilovevoley.competitions.services.lineups import relink_orphan_lineups
+        from ilovevoley.competitions.tasks import scrape_match_actas_task
+
+        data = _lineup_data(home_convocados=['7 Ruiz'], sets=[_set('Set 1', _six(7), _six(21))])
+        with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
+                patch('ilovevoley.videos.scraping.parse_acta_lineup', return_value=data):
+            result = scrape_match_actas_task()
+
+        get.assert_called_once_with('https://federacion.example/acta/1', allowed_hosts=['federacion.example'])
+        self.assertEqual(result['processed'], 1)
+        self.assertIsNone(Match.all_objects.get(pk=self.friendly.pk).acta_data)
+        self.assertIsNone(Match.all_objects.get(pk=self.rivals_only.pk).acta_data)
+        row = MatchLineup.objects.get(match=self.own, team=self.team, jersey_number=7)
+        self.assertIsNone(row.person_id)
+
+        # La plantilla se rellena después del acta: la siguiente pasada enlaza la fila.
+        person = Person.objects.create(first_name='Ana', last_name='Ruiz')
+        PlayerRole.objects.create(
+            person=person, identity=identity_of(self.team), season=self.season, jersey_number=7, is_active=True,
+        )
+        self.assertEqual(relink_orphan_lineups(), 1)
+        row.refresh_from_db()
+        self.assertEqual(row.person_id, person.id)
+        self.assertFalse(MatchLineup.objects.filter(team=self.rival, person__isnull=False).exists())
