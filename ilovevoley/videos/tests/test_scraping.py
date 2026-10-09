@@ -791,6 +791,309 @@ class ProcessJsonMatchesUnifiedTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Intercambio de localía federativa (#485): reutilizar sin duplicar en espejo
+# ---------------------------------------------------------------------------
+
+
+class SwappedHomeAwayMatchingTests(TestCase):
+    """Cuando la federación da la vuelta a local/visitante de un partido ya
+    programado, la sincronización debe reutilizar la fila existente (aunque venga
+    sin federation_id) o retirar el duplicado en espejo de ejecuciones anteriores."""
+
+    def setUp(self):
+        from ilovevoley.videos.scraping import FederationScraper
+        self.category = Category.objects.create(name='Juvenil')
+        self.league = League.objects.create(
+            name='Superliga 2026-27',
+            federation_id='8246',
+            season=Season.objects.resolve('2026-27'),
+            competition_type='regular',
+            match_format='standard',
+            visibility_type='main',
+        )
+        self.league.categories.add(self.category)
+        self.home_team = Team.objects.create(
+            name='CV SANT JOSEP',
+            federation_id='8246_cv_sant_josep',
+            category=self.category,
+            is_active=True,
+        )
+        self.away_team = Team.objects.create(
+            name='CBM MANACOR',
+            federation_id='8246_cbm_manacor',
+            category=self.category,
+            is_active=True,
+        )
+        self.scraper = FederationScraper(self.league)
+
+    def _process(self, partidos_data):
+        return self.scraper._process_json_matches_unified(
+            self.league, partidos_data, 'Juvenil', '8246', '1'
+        )
+
+    def test_reuses_scheduled_match_with_swapped_home_away(self):
+        """Cruce programado sin id que la federación invierte: se reutiliza en sitio."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        old_date = datetime(2026, 10, 17, 0, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        existing_match = Match.objects.create(
+            league=self.league,
+            home_team=self.away_team,
+            away_team=self.home_team,
+            match_date=old_date,
+            federation_id=None,
+            status='scheduled',
+        )
+
+        partidos_data = [{
+            'ID': 89852,
+            'ELOCAL': 'CV SANT JOSEP',
+            'EVISITANTE': 'CBM MANACOR',
+            'FECHA': '17/10/2026',
+            'HORA': '17:00',
+            'TORNEO': 8246,
+        }]
+
+        created, updated = self._process(partidos_data)
+
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+        existing_match.refresh_from_db()
+        self.assertEqual(self.league.matches.count(), 1)
+        # La localía nueva queda absorbida en la fila original y ancla el id federativo
+        self.assertEqual(existing_match.home_team_id, self.home_team.id)
+        self.assertEqual(existing_match.away_team_id, self.away_team.id)
+        self.assertEqual(existing_match.federation_id, '89852')
+
+    def test_withdraws_previous_mirror_duplicate_without_federation_id(self):
+        """Escenario real de producción (#485): quedaron dos filas (la antigua sin id y la
+        nueva con id). El scrape confirma la que la federación sirve y retira la otra."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        match_date = datetime(2026, 10, 17, 17, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        old_without_id = Match.objects.create(
+            league=self.league,
+            home_team=self.away_team,
+            away_team=self.home_team,
+            match_date=match_date,
+            federation_id=None,
+            status='scheduled',
+        )
+        current_with_id = Match.objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=match_date,
+            federation_id='89852',
+            status='scheduled',
+        )
+
+        partidos_data = [{
+            'ID': 89852,
+            'ELOCAL': 'CV SANT JOSEP',
+            'EVISITANTE': 'CBM MANACOR',
+            'FECHA': '17/10/2026',
+            'HORA': '17:00',
+            'TORNEO': 8246,
+        }]
+
+        created, updated = self._process(partidos_data)
+
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+        current_with_id.refresh_from_db()
+        self.assertEqual(current_with_id.status, 'scheduled')
+        old_without_id.refresh_from_db()
+        self.assertEqual(old_without_id.status, 'withdrawn')
+        self.assertEqual(
+            Match.objects.filter(status='scheduled', league=self.league).count(), 1
+        )
+
+    def test_withdraws_mirror_pair_of_two_rows_without_ids_when_one_is_confirmed(self):
+        """Caso de producción del 20/11 y 18/12 (#485): dos filas en espejo sin id en
+        ninguna. El scrape llega sin id y en la orientación nueva: confirma la fila que
+        se empareja y retira la que quedó de la ejecución anterior."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        match_date = datetime(2026, 11, 20, 23, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        old_row = Match.objects.create(
+            league=self.league,
+            home_team=self.away_team,
+            away_team=self.home_team,
+            match_date=match_date,
+            status='scheduled',
+        )
+        new_row = Match.objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=match_date,
+            status='scheduled',
+        )
+
+        partidos_data = [{
+            'ID': '',
+            'ELOCAL': 'CV SANT JOSEP',
+            'EVISITANTE': 'CBM MANACOR',
+            'FECHA': '20/11/2026',
+            'HORA': '23:00',
+            'TORNEO': 8246,
+        }]
+
+        created, updated = self._process(partidos_data)
+
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+        new_row.refresh_from_db()
+        self.assertEqual(new_row.status, 'scheduled')
+        old_row.refresh_from_db()
+        self.assertEqual(old_row.status, 'withdrawn')
+
+    def test_mirror_pair_without_confirmation_is_left_untouched(self):
+        """Si el scrape no cubre ese cruce (venga otro partido), no hay confirmación
+        y no se retira nada: el barrido es convergente, sin datos no decide."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        match_date = datetime(2026, 11, 20, 23, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        mirror_a = Match.objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=match_date,
+            status='scheduled',
+        )
+        mirror_b = Match.objects.create(
+            league=self.league,
+            home_team=self.away_team,
+            away_team=self.home_team,
+            match_date=match_date,
+            status='scheduled',
+        )
+
+        # El scrape cubre otro cruce distinto (otra fecha), no el espejo
+        partidos_data = [{
+            'ID': '',
+            'ELOCAL': 'CV SANT JOSEP',
+            'EVISITANTE': 'CBM MANACOR',
+            'FECHA': '27/11/2026',
+            'HORA': '18:00',
+            'TORNEO': 8246,
+        }]
+
+        created, updated = self._process(partidos_data)
+
+        self.assertEqual(created, 1)
+        self.assertEqual(updated, 0)
+        mirror_a.refresh_from_db()
+        mirror_b.refresh_from_db()
+        self.assertEqual(mirror_a.status, 'scheduled')
+        self.assertEqual(mirror_b.status, 'scheduled')
+
+    def test_ida_vuelta_on_different_dates_is_never_withdrawn(self):
+        """La ida y la vuelta comparten cruce pero no fecha: el dedup no puede tocarlas."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        first_leg = Match.objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=datetime(2026, 10, 17, 17, 0, tzinfo=ZoneInfo('Europe/Madrid')),
+            status='scheduled',
+        )
+        second_leg = Match.objects.create(
+            league=self.league,
+            home_team=self.away_team,
+            away_team=self.home_team,
+            match_date=datetime(2026, 11, 20, 17, 0, tzinfo=ZoneInfo('Europe/Madrid')),
+            status='scheduled',
+        )
+
+        partidos_data = [{
+            'ID': '',
+            'ELOCAL': 'CV SANT JOSEP',
+            'EVISITANTE': 'CBM MANACOR',
+            'FECHA': '17/10/2026',
+            'HORA': '17:00',
+            'TORNEO': 8246,
+        }]
+
+        created, updated = self._process(partidos_data)
+
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+        first_leg.refresh_from_db()
+        second_leg.refresh_from_db()
+        self.assertEqual(first_leg.status, 'scheduled')
+        self.assertEqual(second_leg.status, 'scheduled')
+
+    def test_swapped_match_in_progress_or_finished_is_not_claimed(self):
+        """Un cruce no jugable (finalizado) no se reclama aunque el par llegue invertido."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        finished = Match.objects.create(
+            league=self.league,
+            home_team=self.away_team,
+            away_team=self.home_team,
+            match_date=datetime(2026, 10, 17, 17, 0, tzinfo=ZoneInfo('Europe/Madrid')),
+            status='finished',
+        )
+
+        partidos_data = [{
+            'ID': '',
+            'ELOCAL': 'CV SANT JOSEP',
+            'EVISITANTE': 'CBM MANACOR',
+            'FECHA': '17/10/2026',
+            'HORA': '17:00',
+            'TORNEO': 8246,
+        }]
+
+        created, updated = self._process(partidos_data)
+
+        # El partido finalizado queda intacto y se crea un partido nuevo para el
+        # cruce invertido (situación anómala, pero sin reescribir el resultado).
+        finished.refresh_from_db()
+        self.assertEqual(finished.status, 'finished')
+        self.assertEqual(created, 1)
+        self.assertEqual(updated, 0)
+
+    def test_html_update_matches_reuses_scheduled_match_with_swapped_home_away(self):
+        """La ruta HTML del calendario (update_matches) comparte el emparejamiento en espejo (#485)."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        old_date = datetime(2026, 10, 17, 0, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        existing_match = Match.objects.create(
+            league=self.league,
+            home_team=self.away_team,
+            away_team=self.home_team,
+            match_date=old_date,
+            round_number=4,
+            status='scheduled',
+        )
+
+        match_data = {
+            'home_team': 'CV SANT JOSEP',
+            'away_team': 'CBM MANACOR',
+            'match_date': datetime(2026, 10, 17, 17, 0, tzinfo=ZoneInfo('Europe/Madrid')),
+            'round_number': 4,
+            'status': 'scheduled',
+        }
+        self.scraper.update_matches([match_data], {})
+
+        existing_match.refresh_from_db()
+        self.assertEqual(Match.all_objects.count(), 1)
+        self.assertEqual(existing_match.home_team_id, self.home_team.id)
+        self.assertEqual(existing_match.away_team_id, self.away_team.id)
+        self.assertEqual(existing_match.status, 'scheduled')
+
+
+# ---------------------------------------------------------------------------
 # Withdrawn team detection: evaluación una sola vez con la unión del scrape (#235)
 # ---------------------------------------------------------------------------
 
