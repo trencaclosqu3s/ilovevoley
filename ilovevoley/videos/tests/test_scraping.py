@@ -969,6 +969,39 @@ class UpdateMatchesClubFallbackTests(TestCase):
         self.assertFalse(Match.objects.filter(league=self.league, round_number=1).exists())
 
 
+class UpdateMatchesHistoricalMissingTeamTests(TestCase):
+    """Liga histórica: un equipo ausente de la clasificación se crea para no perder el partido (#483)."""
+
+    def _scrape(self, *, is_historical):
+        from ilovevoley.videos.scraping import FederationScraper
+        category = Category.objects.create(name='Alevín')
+        league = League.objects.create(
+            name='Alevín 4x4', federation_id='6754', match_format='standard',
+            season=Season.objects.resolve('2024-25'), competition_type='regular',
+            is_historical=is_historical,
+        )
+        league.categories.add(category)
+        Team.objects.create(name='LOCAL', federation_id='6754_local', category=category)
+        FederationScraper(league).update_matches([{
+            'home_team': 'LOCAL', 'away_team': 'HIPER CENTRO CV MANACOR',
+            'home_score': 3, 'away_score': 0, 'status': 'finished',
+            'match_date': timezone.now(), 'round_number': 1,
+        }], {})
+        return league
+
+    def test_historical_league_creates_missing_team_and_keeps_match(self):
+        league = self._scrape(is_historical=True)
+
+        match = Match.all_objects.get(league=league)
+        self.assertEqual(match.away_team.name, 'HIPER CENTRO CV MANACOR')
+        self.assertTrue(match.away_team.is_active)
+
+    def test_live_league_still_skips_unknown_team(self):
+        league = self._scrape(is_historical=False)
+
+        self.assertFalse(Match.all_objects.filter(league=league).exists())
+
+
 # ---------------------------------------------------------------------------
 # Identidad estable entre temporadas (#428)
 # ---------------------------------------------------------------------------

@@ -738,6 +738,19 @@ class FederationScraper:
                     away_team = self._find_league_team_by_club(
                         away_team_name, match_data.get('federation_club_away_id', ''))
 
+                if self.league.is_historical and (not home_team or not away_team):
+                    # La clasificación de una temporada pasada omite equipos retirados:
+                    # sin su Team el partido jugado se perdería del H2H.
+                    category = self.league.categories.first()
+                    if category and not home_team:
+                        home_team = self._find_or_create_team_by_name(
+                            home_team_name, self.league, category,
+                            match_data.get('federation_club_local_id', ''))
+                    if category and not away_team:
+                        away_team = self._find_or_create_team_by_name(
+                            away_team_name, self.league, category,
+                            match_data.get('federation_club_away_id', ''))
+
                 if not home_team or not away_team:
                     logger.error(f"Could not match teams: {home_team_name} vs {away_team_name}")
                     continue
