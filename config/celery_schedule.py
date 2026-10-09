@@ -85,6 +85,14 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute=30, hour=7),
         'options': {'expire_seconds': 3600},
     },
+    # --- Actas oficiales de partidos federativos (#455) -------------------------
+    # Descarga y parsea el acta HTML de los partidos oficiales de los tenants que
+    # aún no la tienen. Cada 6 h es suficiente para ponerse al día.
+    'scrape-match-actas': {
+        'task': 'scrape_match_actas',
+        'schedule': crontab(minute=30, hour='*/6'),
+        'options': {'expire_seconds': 3600},
+    },
     # --- Convocatorias y seguimiento federativo (#287 / #288) ------------------
     # La federación publica circulares de forma esporádica; cada 6 h es de sobra.
     # El seguimiento va 15 min después para no solapar la descarga de PDFs.

@@ -400,6 +400,11 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = env_config('DATA_UPLOAD_MAX_MEMORY_SIZE', default=
 GOOGLE_VISION_ENABLED = env_config('GOOGLE_VISION_ENABLED', default=False, cast=bool)
 GOOGLE_APPLICATION_CREDENTIALS = env_config('GOOGLE_APPLICATION_CREDENTIALS', default='')
 
+# Configuración para lectura de actas manuales con Gemini Vision (Issue #462)
+ACTA_VISION_ENABLED = env_config('ACTA_VISION_ENABLED', default=False, cast=bool)
+GEMINI_API_KEY = env_config('GEMINI_API_KEY', default='')
+GEMINI_ACTA_MODEL = env_config('GEMINI_ACTA_MODEL', default='gemini-3.5-flash-lite')
+
 # Configuración de moderación automática
 AUTO_MODERATION_ENABLED = env_config('AUTO_MODERATION_ENABLED', default=DEBUG, cast=bool)
 
@@ -481,6 +486,7 @@ CELERY_TASK_ROUTES = {
     'enrich_*': {'queue': 'scraping'},
     'handle_withdrawn_teams': {'queue': 'scraping'},
     'process_json_unified': {'queue': 'scraping'},
+    'process_pending_acta_photos': {'queue': 'scraping'},
 }
 
 CELERY_ACCEPT_CONTENT = ['json']

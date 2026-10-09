@@ -7,10 +7,12 @@ calcular históricos por deportista sin volver a descargar el acta.
 
 import re
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Q, Sum
 from unidecode import unidecode
 
+from ilovevoley.core.security import safe_get
 from ilovevoley.rosters.models import PlayerRole
 
 from ..models import Match, MatchLineup
@@ -161,6 +163,46 @@ def store_match_lineups(match, lineup_data):
     match.save(update_fields=update_fields)
     MatchLineup.objects.filter(match=match).delete()
     MatchLineup.objects.bulk_create(build_match_lineups(match, lineup_data))
+
+
+def fetch_and_store_acta(match):
+    """Descarga, parsea y persiste el acta de un partido.
+
+    Propaga ``UnsafeURL``, ``requests.RequestException`` y ``ValueError`` para que
+    cada llamador decida si reintenta o lo da por perdido.
+    """
+    from ilovevoley.videos.scraping import parse_acta_lineup
+
+    content = safe_get(match.official_acta_url or match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS)
+    store_match_lineups(match, parse_acta_lineup(content))
+
+
+def relink_orphan_lineups():
+    """Asigna ``person`` a las filas guardadas antes de cargar la plantilla.
+
+    ``store_match_lineups`` resuelve la persona al guardar el acta; si el dorsal se
+    da de alta después, la fila quedaría huérfana para siempre. Solo se miran
+    identidades con algún rol: las de los rivales nunca tendrán plantilla.
+    Devuelve el número de filas enlazadas.
+    """
+    orphans = MatchLineup.objects.filter(
+        person__isnull=True, jersey_number__isnull=False,
+        team__identity_id__in=PlayerRole.objects.filter(jersey_number__isnull=False).values('identity_id'),
+    ).select_related('match__home_team', 'match__away_team', 'match__league__season')
+    by_match = {}
+    for row in orphans:
+        by_match.setdefault(row.match, []).append(row)
+
+    linked = []
+    for match, rows in by_match.items():
+        roles = _roles_lookup(match)
+        for row in rows:
+            role = roles.get((row.team_id, row.jersey_number))
+            if role:
+                row.person = role.person
+                linked.append(row)
+    MatchLineup.objects.bulk_update(linked, ['person'])
+    return len(linked)
 
 
 def get_player_season_stats(person, season=None, teams=None):

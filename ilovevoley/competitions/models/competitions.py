@@ -1000,3 +1000,80 @@ class MatchChangeLogReview(models.Model):
 
     def __str__(self):
         return f'{self.change_log_id} @ {self.organization_id}'
+
+
+class MatchActaPhoto(models.Model):
+    """Acta manual (foto) de un partido, pendiente de descarga, lectura y revisión."""
+
+    STATUS_CHOICES = [
+        ('pending_download', _('Pendiente de descarga')),
+        ('pending_review', _('Pendiente de revisión')),
+        ('approved', _('Aprobada')),
+        ('rejected', _('Rechazada')),
+        ('unreadable', _('Ilegible')),
+        ('expired', _('Caducada')),
+    ]
+
+    match = models.OneToOneField(
+        Match,
+        on_delete=models.CASCADE,
+        related_name='acta_photo',
+        verbose_name=_('Partido'),
+    )
+    source_url = models.URLField(
+        max_length=500,
+        verbose_name=_('URL origen'),
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending_download',
+        verbose_name=_('Estado'),
+    )
+    image = models.ImageField(
+        upload_to='actas_photos/%Y/%m/',
+        null=True,
+        blank=True,
+        verbose_name=_('Foto del acta'),
+    )
+    extracted_data = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_('Datos extraídos'),
+    )
+    extraction_meta = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name=_('Metadatos de extracción'),
+    )
+    validation_errors = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_('Errores de validación'),
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_acta_photos',
+        verbose_name=_('Revisado por'),
+    )
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Revisado el'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = _('Foto de acta manual')
+        verbose_name_plural = _('Fotos de actas manuales')
+        indexes = [
+            models.Index(fields=['status', '-created_at'], name='acta_photo_status_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.match} ({self.get_status_display()})'
