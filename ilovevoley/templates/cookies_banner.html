@@ -10,9 +10,10 @@
                     <div class="text-sm text-ink">
                         <p class="font-medium mb-1">{% trans "Esta web utiliza cookies" %}</p>
                         <p class="text-muted">
-                            {% blocktrans trimmed %}Utilizamos cookies de sesión necesarias para el funcionamiento del sitio y cookies de Google OAuth para la autenticación. 
+                            {% url 'core:privacy_policy' as privacy_url %}
+                            {% blocktrans trimmed with privacy_url=privacy_url %}Utilizamos cookies de sesión necesarias para el funcionamiento del sitio y cookies de Google OAuth para la autenticación. 
                             Al continuar navegando, aceptas su uso.
-                            <a href="#" id="cookie-info-link" class="text-brand-text hover:opacity-80 underline font-medium">Más información</a>{% endblocktrans %}
+                            <a href="{{ privacy_url }}" class="text-brand-text hover:opacity-80 underline font-medium">Más información</a>{% endblocktrans %}
                         </p>
                     </div>
                 </div>
@@ -24,43 +25,6 @@
                 <button id="cookie-reject" class="bg-tint hover:opacity-80 text-ink px-4 py-2 rounded-full font-semibold transition text-sm touch-manipulation">
                     {% trans "Rechazar" %}
                 </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de información de cookies -->
-<div id="cookie-info-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
-    <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="bg-surface rounded-3xl max-w-2xl w-full max-h-96 overflow-y-auto">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-ink">{% trans "Información sobre cookies" %}</h3>
-                    <button id="close-cookie-modal" class="text-muted hover:text-ink text-2xl font-bold">
-                        ×
-                    </button>
-                </div>
-                <div class="text-sm text-ink space-y-3">
-                    <p><strong>{% trans "¿Qué son las cookies?" %}</strong></p>
-                    <p>{% trans "Las cookies son pequeños archivos de texto que se almacenan en tu dispositivo cuando visitas un sitio web." %}</p>
-                    
-                    <p><strong>{% trans "Cookies que utilizamos:" %}</strong></p>
-                    <ul class="list-disc list-inside space-y-1 ml-4">
-                        <li><strong>{% trans "Cookies de sesión (Django):" %}</strong> {% trans "Necesarias para mantener tu sesión activa y proteger contra ataques CSRF. Se eliminan al cerrar el navegador." %}</li>
-                        <li><strong>{% trans "Cookies de autenticación (Google OAuth):" %}</strong> {% trans "Utilizadas para el proceso de login con Google. Gestionadas por Google según su política de privacidad." %}</li>
-                    </ul>
-                    
-                    <p><strong>{% trans "Finalidad:" %}</strong></p>
-                    <p>{% trans "Las cookies son estrictamente necesarias para el funcionamiento de la aplicación y no se utilizan para tracking o publicidad." %}</p>
-                    
-                    <p><strong>{% trans "Gestión:" %}</strong></p>
-                    <p>{% trans "Puedes configurar tu navegador para rechazar cookies, aunque esto puede afectar el funcionamiento del sitio." %}</p>
-                </div>
-                <div class="mt-6 flex justify-end">
-                    <button id="close-cookie-modal-btn" class="bg-csj-purple-dark hover:opacity-90 text-white px-4 py-2 rounded-full font-semibold transition text-sm">
-                        {% trans "Entendido" %}
-                    </button>
-                </div>
             </div>
         </div>
     </div>

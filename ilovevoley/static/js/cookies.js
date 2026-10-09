@@ -8,7 +8,6 @@ class CookieConsent {
         this.cookieName = 'cookie_consent';
         this.cookieExpiry = 365; // días
         this.banner = null;
-        this.modal = null;
         
         this.init();
     }
@@ -24,8 +23,6 @@ class CookieConsent {
     
     setup() {
         this.banner = document.getElementById('cookie-banner');
-        this.modal = document.getElementById('cookie-info-modal');
-        
         if (!this.banner) return;
         
         // Verificar si el usuario ya ha dado su consentimiento
@@ -49,43 +46,6 @@ class CookieConsent {
         if (rejectBtn) {
             rejectBtn.addEventListener('click', () => this.rejectCookies());
         }
-        
-        // Enlace de más información
-        const infoLink = document.getElementById('cookie-info-link');
-        if (infoLink) {
-            infoLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showModal();
-            });
-        }
-        
-        // Cerrar modal
-        const closeModalBtn = document.getElementById('close-cookie-modal');
-        const closeModalBtnBottom = document.getElementById('close-cookie-modal-btn');
-        
-        if (closeModalBtn) {
-            closeModalBtn.addEventListener('click', () => this.hideModal());
-        }
-        
-        if (closeModalBtnBottom) {
-            closeModalBtnBottom.addEventListener('click', () => this.hideModal());
-        }
-        
-        // Cerrar modal al hacer clic fuera
-        if (this.modal) {
-            this.modal.addEventListener('click', (e) => {
-                if (e.target === this.modal) {
-                    this.hideModal();
-                }
-            });
-        }
-        
-        // Cerrar modal con Escape
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.modal && !this.modal.classList.contains('hidden')) {
-                this.hideModal();
-            }
-        });
     }
     
     hasConsent() {
@@ -111,21 +71,6 @@ class CookieConsent {
         }, 300);
     }
     
-    showModal() {
-        if (!this.modal) return;
-        
-        this.modal.classList.remove('hidden');
-        // Enfocar el botón de cerrar para accesibilidad
-        const closeBtn = document.getElementById('close-cookie-modal');
-        if (closeBtn) closeBtn.focus();
-    }
-    
-    hideModal() {
-        if (!this.modal) return;
-        
-        this.modal.classList.add('hidden');
-    }
-    
     acceptCookies() {
         this.setCookie(this.cookieName, 'accepted', this.cookieExpiry);
         this.hideBanner();
@@ -145,16 +90,11 @@ class CookieConsent {
             window.showToast('info', 'Cookies rechazadas. Solo se utilizarán las estrictamente necesarias.');
         }
         
-        // Aquí podrías agregar lógica para desactivar cookies no esenciales
         this.disableNonEssentialCookies();
     }
     
     disableNonEssentialCookies() {
-        // En este caso particular, como solo usamos cookies esenciales,
-        // no hay mucho que desactivar, pero aquí es donde podrías
-        // desactivar Google Analytics, tracking, etc.
-        
-        console.log('Cookies no esenciales desactivadas');
+        // En este caso particular solo usamos cookies esenciales.
     }
     
     setCookie(name, value, days) {

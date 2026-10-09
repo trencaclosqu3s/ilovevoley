@@ -579,6 +579,7 @@ class SeoEndpointsTest(TestCase):
         body = response.content.decode()
         self.assertIn('<loc>https://ilovevoley.es/</loc>', body)
         self.assertIn('<loc>https://ilovevoley.es/core/quienes-somos/</loc>', body)
+        self.assertIn('<loc>https://ilovevoley.es/core/privacidad/</loc>', body)
         self.assertNotIn('/content/', body)
         self.assertNotIn('/accounts/', body)
 
@@ -727,5 +728,74 @@ class ModerationRateLimitingTests(TestCase):
 
         blocked_response = self.client.get(url, REMOTE_ADDR=client_ip)
         self.assertEqual(blocked_response.status_code, 429)
+
+
+@override_settings(ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'])
+class PrivacyPolicyViewTest(TestCase):
+    """
+    Protege las decisiones de negocio de la política de privacidad RGPD:
+    - Extracción y fallback configurable del email de contacto (art. 13 RGPD).
+    - Disponibilidad pública sin login requerido.
+    - Presencia del enlace en sitemap y banner de cookies.
+    - Condicionalidad del enlace del pie reservado a usuarios autenticados.
+    """
+
+    def setUp(self):
+        from ilovevoley.core.models import Organization
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club', is_active=True
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='privacy_user', password='password123')
+
+    @override_settings(PRIVACY_CONTACT_EMAIL='Protección Datos <lopd@example.com>')
+    def test_privacy_policy_extracts_contact_email_from_settings(self):
+        url = reverse('core:privacy_policy')
+        response = self.client.get(url, HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['privacy_email'], 'lopd@example.com')
+        self.assertContains(response, 'mailto:lopd@example.com')
+
+    @override_settings(PRIVACY_CONTACT_EMAIL='', DEFAULT_FROM_EMAIL='Admin <fallback@example.com>')
+    def test_privacy_policy_fallback_to_default_from_email_when_empty(self):
+        url = reverse('core:privacy_policy')
+        response = self.client.get(url, HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['privacy_email'], 'fallback@example.com')
+        self.assertContains(response, 'mailto:fallback@example.com')
+
+    def test_privacy_policy_footer_link_only_for_authenticated_users(self):
+        # Usuario anónimo en el tenant no ve el enlace en el pie
+        response = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        privacy_url = reverse('core:privacy_policy')
+        self.assertNotContains(response, f'href="{privacy_url}" class="block text-white/80')
+
+        # Usuario autenticado sí lo ve en el pie
+        self.client.force_login(self.user)
+        response_auth = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response_auth.status_code, 200)
+        self.assertContains(response_auth, f'href="{privacy_url}"')
+
+    def test_cookie_banner_and_registration_link_to_privacy_policy(self):
+        privacy_url = reverse('core:privacy_policy')
+
+        # Banner de cookies en el HTML enlaza a la política de privacidad
+        response_about = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertContains(response_about, privacy_url)
+
+        # Formulario de registro enlaza a la política de privacidad
+        response_signup = self.client.get(reverse('account_signup'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response_signup.status_code, 200)
+        self.assertContains(response_signup, privacy_url)
+
+    def test_privacy_policy_catalan_translation(self):
+        url = reverse('core:privacy_policy')
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = 'ca'
+        response = self.client.get(url, HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Política de Privacitat')
+        self.assertContains(response, 'Responsable del Tractament')
 
 

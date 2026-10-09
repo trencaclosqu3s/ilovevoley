@@ -419,6 +419,9 @@ SERVER_EMAIL = env_config('SERVER_EMAIL', default='I Love Voley <notificaciones@
 # Contacto de seguridad publicado en /.well-known/security.txt (acepta "Nombre <correo>")
 SECURITY_CONTACT_EMAIL = env_config('SECURITY_CONTACT_EMAIL', default=DEFAULT_FROM_EMAIL)
 
+# Contacto para política de privacidad RGPD publicado en /privacidad/ (acepta "Nombre <correo>" o correo simple)
+PRIVACY_CONTACT_EMAIL = env_config('PRIVACY_CONTACT_EMAIL', default='privacidad@ilovevoley.es')
+
 # Notificaciones
 NOTIFICATION_EMAIL_ENABLED = env_config('NOTIFICATION_EMAIL_ENABLED', default=False, cast=bool)
 ADMIN_EMAIL_LIST = env_config('ADMIN_EMAIL_LIST', default='', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])

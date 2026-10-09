@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Política de Privacidad" %} - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="bg-surface rounded-[20px] border border-line overflow-hidden">
+    <!-- Hero Section -->
+    <div class="bg-csj-purple-dark text-white px-6 py-10 sm:px-8 sm:py-12">
+        <div class="max-w-4xl mx-auto text-center">
+            <h1 class="text-3xl sm:text-4xl font-bold mb-3">{% trans "Política de Privacidad" %}</h1>
+            <p class="text-base sm:text-lg text-purple-100">
+                {% trans "Información sobre el tratamiento de datos y protección de la imagen en la plataforma comunitaria" %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Content Section -->
+    <div class="max-w-4xl mx-auto px-6 py-8 sm:px-8 sm:py-12 space-y-10">
+        <!-- Responsable del Tratamiento -->
+        <section>
+            <h2 class="text-xl sm:text-2xl font-bold text-ink mb-4 flex items-center gap-2">
+                {% icon 'lock' %} {% trans "1. Responsable del Tratamiento" %}
+            </h2>
+            <div class="text-ink text-base leading-relaxed space-y-3">
+                <p>
+                    {% blocktrans trimmed %}
+                    Esta plataforma es un entorno comunitario, familiar y deportivo, gestionado por familias y sin ánimo de lucro ni actividad económica. El acceso al contenido está restringido a miembros y familias autorizadas del club.
+                    {% endblocktrans %}
+                </p>
+                <p>
+                    {% blocktrans trimmed with email=privacy_email %}
+                    Para cualquier consulta, solicitud o ejercicio de derechos relativos a tus datos personales o imágenes, puedes contactar con el responsable a través de la dirección de correo electrónico: <a href="mailto:{{ email }}" class="text-brand-text underline font-semibold">{{ email }}</a>.
+                    {% endblocktrans %}
+                </p>
+            </div>
+        </section>
+
+        <div class="border-t border-line"></div>
+
+        <!-- Acceso restringido y moderación -->
+        <section>
+            <h2 class="text-xl sm:text-2xl font-bold text-ink mb-4 flex items-center gap-2">
+                {% icon 'users' %} {% trans "2. Acceso Restringido y Moderación" %}
+            </h2>
+            <div class="text-ink text-base leading-relaxed space-y-3">
+                <p>
+                    {% blocktrans trimmed %}
+                    La plataforma no es un servicio abierto al público indiscriminado. Cada solicitud de registro requiere verificación y aprobación manual por parte de los coordinadores o administradores del club, con el fin de confirmar la vinculación familiar o deportiva con el club y garantizar un entorno seguro y de confianza para todos los participantes, especialmente menores de edad.
+                    {% endblocktrans %}
+                </p>
+            </div>
+        </section>
+
+        <div class="border-t border-line"></div>
+
+        <!-- Datos tratados y procedencia -->
+        <section>
+            <h2 class="text-xl sm:text-2xl font-bold text-ink mb-4 flex items-center gap-2">
+                {% icon 'info' %} {% trans "3. Datos Tratados y su Procedencia" %}
+            </h2>
+            <div class="text-ink text-base leading-relaxed space-y-4">
+                <p>
+                    {% trans "Tratamos únicamente los datos necesarios para la gestión comunitaria y deportiva del club:" %}
+                </p>
+                <ul class="space-y-3 list-disc list-inside">
+                    <li>
+                        <strong>{% trans "Datos de cuenta y registro:" %}</strong>
+                        {% trans "Nombre de usuario, dirección de correo electrónico y la información de parentesco o vinculación familiar facilitada al solicitar el alta." %}
+                    </li>
+                    <li>
+                        <strong>{% trans "Fichas y datos deportivos:" %}</strong>
+                        {% trans "Nombre y apellidos de deportistas y cuerpo técnico, año o fecha de nacimiento, dorsal, equipo, club y categoría, así como datos de partidos y actas oficiales provenientes de las competiciones federativas." %}
+                    </li>
+                    <li>
+                        <strong>{% trans "Fotografías y vídeos:" %}</strong>
+                        {% trans "Imágenes y grabaciones de encuentros, entrenamientos y actividades deportivas compartidas por familias, entrenadores y socios para el seguimiento de la temporada." %}
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <div class="border-t border-line"></div>
+
+        <!-- Finalidad y base jurídica -->
+        <section>
+            <h2 class="text-xl sm:text-2xl font-bold text-ink mb-4 flex items-center gap-2">
+                {% icon 'check' %} {% trans "4. Finalidad y Base Jurídica" %}
+            </h2>
+            <div class="text-ink text-base leading-relaxed space-y-3">
+                <p>
+                    {% blocktrans trimmed %}
+                    La finalidad del tratamiento es exclusivamente la coordinación deportiva, la difusión privada de partidos y momentos de los equipos, y el fomento de la comunidad entre las familias del voleibol.
+                    {% endblocktrans %}
+                </p>
+                <p>
+                    {% blocktrans trimmed %}
+                    La base jurídica que legitima este tratamiento es el consentimiento otorgado al registrarse y en las fichas del club, así como el interés legítimo de la comunidad deportiva en organizar sus actividades sin fines comerciales. No se ceden datos a terceros para publicidad, comercialización ni perfiles de marketing.
+                    {% endblocktrans %}
+                </p>
+            </div>
+        </section>
+
+        <div class="border-t border-line"></div>
+
+        <!-- Seguridad y Google Vision API -->
+        <section>
+            <h2 class="text-xl sm:text-2xl font-bold text-ink mb-4 flex items-center gap-2">
+                {% icon 'eye' %} {% trans "5. Protección de Menores y Revisión Automatizada de Imágenes" %}
+            </h2>
+            <div class="text-ink text-base leading-relaxed space-y-3">
+                <p>
+                    {% blocktrans trimmed %}
+                    Con el objetivo primordial de proteger a los menores de edad y asegurar que no se difunda contenido inapropiado, ilícito o perjudicial, las imágenes subidas a la plataforma pueden ser analizadas de manera automatizada mediante la tecnología de Google Cloud Vision API (SafeSearch).
+                    {% endblocktrans %}
+                </p>
+                <p>
+                    {% blocktrans trimmed %}
+                    Este análisis se limita de forma estricta a la detección preventiva de contenidos no aptos o inadecuados para menores. Las imágenes no se utilizan para entrenamiento de modelos comerciales ni se asocian a perfiles individuales de usuarios.
+                    {% endblocktrans %}
+                </p>
+            </div>
+        </section>
+
+        <div class="border-t border-line"></div>
+
+        <!-- Consentimiento de imagen y retirada -->
+        <section>
+            <h2 class="text-xl sm:text-2xl font-bold text-ink mb-4 flex items-center gap-2">
+                {% icon 'camera' %} {% trans "6. Consentimiento de Imagen y Derecho de Retirada" %}
+            </h2>
+            <div class="text-ink text-base leading-relaxed space-y-4">
+                <p>
+                    {% blocktrans trimmed %}
+                    Reconocemos y respetamos el derecho a la propia imagen de cada deportista y de sus tutores legales:
+                    {% endblocktrans %}
+                </p>
+                <div class="bg-tint rounded-2xl p-5 border border-line space-y-3">
+                    <p>
+                        <strong>{% trans "Preferencia de imagen en la ficha:" %}</strong>
+                        {% trans "El sistema permite registrar en la ficha deportiva si existe consentimiento de imagen para la difusión de fotografías del jugador o jugadora." %}
+                    </p>
+                    <p>
+                        <strong>{% trans "Solicitud directa de retirada de fotos:" %}</strong>
+                        {% blocktrans trimmed with email=privacy_email %}
+                        Cualquier familia o deportista puede solicitar en cualquier momento la retirada de una fotografía en la que aparezca, tanto utilizando el botón de solicitud de retirada disponible en la propia foto como enviando un mensaje a <a href="mailto:{{ email }}" class="text-brand-text underline font-semibold">{{ email }}</a>. La solicitud será atendida y procesada por los moderadores del club de forma prioritaria.
+                        {% endblocktrans %}
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="border-t border-line"></div>
+
+        <!-- Cookies -->
+        <section>
+            <h2 class="text-xl sm:text-2xl font-bold text-ink mb-4 flex items-center gap-2">
+                {% icon 'cog' %} {% trans "7. Cookies y Almacenamiento Local" %}
+            </h2>
+            <div class="text-ink text-base leading-relaxed space-y-3">
+                <p>
+                    {% blocktrans trimmed %}
+                    Esta web utiliza exclusivamente cookies técnicas necesarias para su funcionamiento:
+                    {% endblocktrans %}
+                </p>
+                <ul class="space-y-2 list-disc list-inside">
+                    <li>
+                        <strong>{% trans "Cookies de sesión y seguridad (Django):" %}</strong>
+                        {% trans "Imprescindibles para mantener la sesión de usuario activa y proteger los formularios frente a ataques de falsificación (CSRF). Se eliminan al cerrar el navegador o al expirar la sesión." %}
+                    </li>
+                    <li>
+                        <strong>{% trans "Cookies de autenticación (Google OAuth):" %}</strong>
+                        {% trans "Necesarias únicamente si el usuario elige iniciar sesión con su cuenta de Google, gestionadas de acuerdo con la autenticación segura del proveedor." %}
+                    </li>
+                </ul>
+                <p class="text-muted text-sm">
+                    {% trans "No utilizamos cookies publicitarias, rastreadores entre sitios ni herramientas de analítica intrusiva." %}
+                </p>
+            </div>
+        </section>
+
+        <div class="border-t border-line"></div>
+
+        <!-- Conservación y Derechos RGPD -->
+        <section>
+            <h2 class="text-xl sm:text-2xl font-bold text-ink mb-4 flex items-center gap-2">
+                {% icon 'document' %} {% trans "8. Conservación de Datos y Derechos RGPD" %}
+            </h2>
+            <div class="text-ink text-base leading-relaxed space-y-3">
+                <p>
+                    {% blocktrans trimmed %}
+                    Los datos se conservan durante el tiempo en que la cuenta de usuario permanezca activa y durante las temporadas deportivas en las que el deportista participe en las actividades del club, o hasta que se solicite su supresión.
+                    {% endblocktrans %}
+                </p>
+                <p>
+                    {% blocktrans trimmed with email=privacy_email %}
+                    En virtud del RGPD, tienes derecho a acceder a tus datos, rectificar aquellos inexactos, solicitar su supresión ("derecho al olvido"), limitar u oponerte a su tratamiento, y revocar en cualquier momento el consentimiento prestado. Para ejercer cualquiera de estos derechos, basta con enviar un correo electrónico a <a href="mailto:{{ email }}" class="text-brand-text underline font-semibold">{{ email }}</a> indicando tu solicitud.
+                    {% endblocktrans %}
+                </p>
+            </div>
+        </section>
+
+        <!-- Footer Card -->
+        <div class="pt-6 border-t border-line text-center text-sm text-muted">
+            <p>
+                {% blocktrans with year=current_year %}Última actualización: {{ year }} · Plataforma comunitaria I Love Voley{% endblocktrans %}
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
