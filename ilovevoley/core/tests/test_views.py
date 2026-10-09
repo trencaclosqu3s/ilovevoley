@@ -838,5 +838,14 @@ class ImageTransparencyViewTests(TestCase):
         self.assertContains(response, 'Uso público')
         self.assertContains(response, reverse('rosters:my_profile'))
         self.assertContains(response, reverse('core:privacy_policy'))
+        self.assertContains(response, 'El cromo respeta el nivel de consentimiento elegido')
+        self.assertContains(
+            response,
+            'La foto que aparece en la ficha no se oculta actualmente según ese nivel',
+        )
+        self.assertContains(
+            response,
+            'El nivel elegido no oculta automáticamente las imágenes etiquetadas',
+        )
 
 
