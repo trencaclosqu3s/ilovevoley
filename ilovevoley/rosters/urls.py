@@ -10,6 +10,7 @@ urlpatterns = [
     path('personas/crear-rapido/', views.person_quick_create, name='person_quick_create'),
     path('personas/adoptar/', views.person_adopt, name='person_adopt'),
     path('personas/yo/', views.my_profile, name='my_profile'),
+    path('personas/yo/hijos/<int:person_id>/', views.child_profile, name='child_profile'),
     path('personas/<int:person_id>/', views.person_detail, name='person_detail'),
     path('personas/<int:person_id>/cromo/', views.person_card_page, name='person_card_page'),
     path('personas/<int:person_id>/cromo.png', views.person_card, name='person_card'),

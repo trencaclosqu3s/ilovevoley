@@ -170,15 +170,30 @@ class PlayerCardViewTests(PlayerCardTestBase):
 
         self.assertContains(response, reverse('rosters:person_card_page', args=[self.person.id]))
 
-    def test_hijo_de_otro_club_sale_en_tu_sin_enlace_a_una_ficha_que_daria_404(self):
+    def test_padre_ve_la_trayectoria_de_su_hijo_tambien_en_otro_club(self):
+        # «Tú» es universal: si el hijo jugó el año pasado en otro club, sus padres lo siguen viendo.
         other_child = Person.objects.create(first_name='Pau', last_name='Ferrer', birth_year=2014)
-        self.member('padre').children.add(self.person, other_child)
+        PlayerRole.objects.create(
+            person=other_child, identity=identity_of(self.rival), season=self.season, jersey_number=3, is_active=True,
+        )
+        self.member('padre').children.add(other_child)
 
-        response = self.client.get(reverse('rosters:my_profile'), HTTP_HOST='testclub.ilovevoley.es')
+        tu = self.client.get(reverse('rosters:my_profile'), HTTP_HOST='testclub.ilovevoley.es')
+        child_url = reverse('rosters:child_profile', args=[other_child.id])
+        response = self.client.get(child_url, HTTP_HOST='testclub.ilovevoley.es')
 
-        self.assertContains(response, 'Pau Ferrer')
+        self.assertContains(tu, child_url)
+        self.assertContains(response, self.rival.name)
         self.assertNotContains(response, reverse('rosters:person_detail', args=[other_child.id]))
-        self.assertContains(response, reverse('rosters:person_detail', args=[self.person.id]))
+
+    def test_la_trayectoria_de_un_menor_que_no_es_tu_hijo_da_404(self):
+        self.member('socio')
+
+        response = self.client.get(
+            reverse('rosters:child_profile', args=[self.person.id]), HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_no_se_puede_usar_una_foto_donde_no_esta_etiquetado(self):
         # El id de la foto viene por URL: sin este filtro saldría la foto de otro menor.

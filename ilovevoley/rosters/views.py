@@ -8,7 +8,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Prefetch, Q
 from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
@@ -168,48 +168,50 @@ def my_profile(request):
 
     No filtra por tenant: la ficha vinculada puede pertenecer a otro club y
     el usuario solo ve sus propios datos (nunca recibe un id por URL). Los
-    padres ven además a sus hijos, para generarles el cromo (#457).
+    padres ven además la lista de sus hijos (#457).
     """
     person = Person.objects.filter(user=request.user).first()
-    # El enlace a la ficha usa el mismo filtro que person_detail: un hijo que no
-    # es del club se lista sin enlace en vez de llevar a un 404.
-    visible = Person.objects.all() if request.user.is_superuser else Person.objects.for_tenant(request.tenant)
-    visible_ids = set(visible.filter(parents=request.user).values_list('pk', flat=True))
     children = [
-        {
-            'person': child,
-            'in_tenant': child.pk in visible_ids,
-            'has_card': child.pk in visible_ids and _card_role(child, request.tenant) is not None,
-        }
+        {'person': child, 'has_card': _card_role(child, request.tenant) is not None}
         for child in request.user.children.order_by('first_name')
     ]
     if person is None and not children:
         raise Http404
+    context = _trajectory_context(request, person) if person else {'person': None}
+    return render(request, 'rosters/my_profile.html', {**context, 'children': children})
 
-    seasons, tagged_images, tagged_images_count = [], [], 0
-    if person is not None:
-        by_season = {}
-        for kind, model in (('player_roles', PlayerRole), ('staff_roles', StaffRole)):
-            roles = model.objects.filter(person=person).select_related('identity__category', 'identity__club', 'season')
-            for role in roles.order_by('identity__core_name'):
-                by_season.setdefault(role.season, {'season': role.season, 'player_roles': [], 'staff_roles': []})[kind].append(role)
-        seasons = sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True)
 
-        tagged_images_qs = Image.objects.for_tenant(request.tenant).filter(
-            persons=person, status='approved'
-        ).order_by('-upload_date')
-        tagged_images = list(tagged_images_qs[:8])
-        tagged_images_count = tagged_images_qs.count()
+@tenant_access_required()
+def child_profile(request, person_id):
+    """«Tú» de un hijo: su trayectoria en todos los clubes, como la del propio usuario.
 
-    return render(request, 'rosters/my_profile.html', {
+    Universal igual que «Tú»: si el hijo cambia de club, sus padres siguen viendo
+    las temporadas anteriores. Solo se resuelve entre los hijos del usuario, así
+    que un id ajeno da 404 sin importar el tenant.
+    """
+    person = get_object_or_404(request.user.children.all(), pk=person_id)
+    return render(request, 'rosters/my_profile.html', {**_trajectory_context(request, person), 'is_child': True})
+
+
+def _trajectory_context(request, person):
+    by_season = {}
+    for kind, model in (('player_roles', PlayerRole), ('staff_roles', StaffRole)):
+        roles = model.objects.filter(person=person).select_related('identity__category', 'identity__club', 'season')
+        for role in roles.order_by('identity__core_name'):
+            by_season.setdefault(role.season, {'season': role.season, 'player_roles': [], 'staff_roles': []})[kind].append(role)
+    tagged_images_qs = Image.objects.for_tenant(request.tenant).filter(
+        persons=person, status='approved'
+    ).order_by('-upload_date')
+    # La ficha del club se abre con el mismo filtro que person_detail, para no enlazar a un 404.
+    visible = Person.objects.all() if request.user.is_superuser else Person.objects.for_tenant(request.tenant)
+    return {
         'person': person,
-        'seasons': seasons,
-        'in_current_tenant': person is not None and person_belongs_to_tenant(person, request.tenant),
-        'has_card': person is not None and _card_role(person, request.tenant) is not None,
-        'children': children,
-        'tagged_images': tagged_images,
-        'tagged_images_count': tagged_images_count,
-    })
+        'seasons': sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True),
+        'in_current_tenant': visible.filter(pk=person.pk).exists(),
+        'has_card': _card_role(person, request.tenant) is not None,
+        'tagged_images': list(tagged_images_qs[:8]),
+        'tagged_images_count': tagged_images_qs.count(),
+    }
 
 
 def _card_role(person, tenant):
