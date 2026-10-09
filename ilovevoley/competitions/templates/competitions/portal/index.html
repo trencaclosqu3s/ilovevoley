@@ -1,0 +1,8 @@
+{% extends "competitions/portal/base_portal.html" %}
+{% load i18n %}
+
+{% block portal_content %}
+<h1 class="text-2xl font-bold text-ink">{% trans "Competición" %}</h1>
+{% include "competitions/portal/_league_cards.html" %}
+<a href="{% url 'portal:league_list' %}?season={{ selected_season }}" class="inline-block text-sm font-medium text-ink hover:underline">{% trans "Ver todas las ligas" %}</a>
+{% endblock %}

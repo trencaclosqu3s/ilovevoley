@@ -60,3 +60,63 @@ class PublicLeaguesCatalogTest(TestCase):
         qs = public_leagues(self.current)
         self.assertFalse(self.main.is_our_team_related)
         self.assertIn(self.main, qs)
+
+
+@override_settings(
+    ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'],
+    TENANT_BASE_DOMAIN='ilovevoley.es',
+    SECURE_SSL_REDIRECT=False,
+)
+class BrandPortalHostTest(TestCase):
+    """Portal solo en dominio raíz; en tenant 404 (#124)."""
+
+    def setUp(self):
+        self.season = Season.objects.create(
+            name='2026-27', start_year=2026, end_year=2027, is_current=True,
+        )
+        self.past = Season.objects.create(
+            name='2025-26', start_year=2025, end_year=2026, is_current=False,
+        )
+        League.objects.create(
+            name='Liga Main', federation_id='PORTAL-HOST-MAIN',
+            season=self.season, visibility_type='main', is_active=True,
+        )
+        League.objects.create(
+            name='Liga Pasada', federation_id='PORTAL-HOST-PAST',
+            season=self.past, visibility_type='historical', is_active=False,
+        )
+        club = Club.objects.create(
+            official_name='Club Portal Test', federation_id='CLUB-PORTAL',
+        )
+        Organization.objects.create(
+            slug='testclub', name='Test Club Org', club=club, is_active=True,
+        )
+
+    def test_anonymous_root_lists_leagues(self):
+        response = self.client.get(
+            reverse('portal:league_list'), HTTP_HOST='ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Liga Main')
+        self.assertNotContains(response, 'Liga Pasada')
+
+    def test_season_param_selects_other_season(self):
+        response = self.client.get(
+            reverse('portal:league_list'), {'season': self.past.pk},
+            HTTP_HOST='ilovevoley.es',
+        )
+        self.assertContains(response, 'Liga Pasada')
+        self.assertNotContains(response, 'Liga Main')
+
+    def test_index_root_ok(self):
+        response = self.client.get(reverse('portal:index'), HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Liga Main')
+
+    def test_tenant_host_returns_404(self):
+        for name in ('portal:index', 'portal:league_list'):
+            with self.subTest(view=name):
+                response = self.client.get(
+                    reverse(name), HTTP_HOST='testclub.ilovevoley.es',
+                )
+                self.assertEqual(response.status_code, 404)

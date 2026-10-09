@@ -11897,3 +11897,11 @@ msgstr ""
 "La identitat «%(identity)s» agrupa equips de clubs diferents: %(clubs)s. "
 "Tots ells podran veure i editar les fitxes de la seva plantilla. Si no és el "
 "mateix equip, reassigna la identitat a cada equip."
+
+#: ilovevoley/competitions/templates/competitions/portal/index.html
+msgid "Ver todas las ligas"
+msgstr "Veure totes les lligues"
+
+#: ilovevoley/competitions/templates/competitions/portal/_league_cards.html
+msgid "No hay ligas para esta temporada."
+msgstr "No hi ha lligues per a aquesta temporada."
