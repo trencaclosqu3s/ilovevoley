@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional
 from django.db import models, transaction
 from django.utils import timezone
 import requests
-from unidecode import unidecode
 
 from ilovevoley.competitions.services.delta_detector import (
     detect_and_record_match_changes,
@@ -588,14 +587,6 @@ class FederationScraper:
 
         return withdrawn_teams
     
-    def _normalize_team_name(self, name: str) -> str:
-        """Normaliza nombres de equipos para comparación"""
-        # Remover acentos y convertir a mayúsculas
-        normalized = unidecode(name).upper()
-        # Remover espacios extra y caracteres especiales
-        normalized = ' '.join(normalized.split())
-        return normalized
-    
     def _calculate_won_lost_from_matches(self, team) -> Dict[str, int]:
         """
         Calcula partidos ganados y perdidos desde los partidos finalizados.
@@ -734,7 +725,13 @@ class FederationScraper:
                     home_team = self._find_similar_team(home_team_name)
                 if not away_team:
                     away_team = self._find_similar_team(away_team_name)
-                    
+                if not home_team:
+                    home_team = self._find_league_team_by_club(
+                        home_team_name, match_data.get('federation_club_local_id', ''))
+                if not away_team:
+                    away_team = self._find_league_team_by_club(
+                        away_team_name, match_data.get('federation_club_away_id', ''))
+
                 if not home_team or not away_team:
                     logger.error(f"Could not match teams: {home_team_name} vs {away_team_name}")
                     continue
@@ -1023,7 +1020,34 @@ class FederationScraper:
                 return team
 
         return None
-    
+
+    def _find_league_team_by_club(self, team_name: str, club_fed_id: str) -> Optional[Team]:
+        """Equipo de la liga que difiere solo en el patrocinador, si es el único (#464).
+
+        El club solo no basta: un club tiene varios equipos por liga (MAYURQA BLACK,
+        Portol Rojo/Negro) y equipos antiguos sin club asignado. Se exige además que
+        las palabras de un nombre estén contenidas en las del otro (patrocinador
+        añadido o quitado). Un patrocinador sustituido por otro no casa: se descarta.
+        """
+        from ilovevoley.teams.services import EMPTY_CLUB_IDS
+        if club_fed_id in EMPTY_CLUB_IDS:
+            return None
+        words = set(self._normalize_team_name(team_name).split())
+        candidates = [
+            team for team in Team.objects.filter(
+                models.Q(club__isnull=True) | models.Q(club__federation_id=club_fed_id),
+            ).filter(
+                models.Q(home_matches__league=self.league) | models.Q(away_matches__league=self.league)
+            ).distinct()
+            if (other := set(self._normalize_team_name(team.name).split())) <= words or words <= other
+        ]
+        if len(candidates) != 1:
+            return None
+        team = candidates[0]
+        if self._assign_federation_club(team, club_fed_id):
+            team.save(update_fields=['club'])
+        return team
+
     def get_max_rounds(self) -> int:
         """
         Determina el número máximo de jornadas para la liga.
