@@ -735,7 +735,12 @@ class FederationScraper:
                 if not home_team or not away_team:
                     logger.error(f"Could not match teams: {home_team_name} vs {away_team_name}")
                     continue
-            
+
+            # El id de club del escudo sitúa también al equipo encontrado por nombre (#464)
+            for team, club_key in ((home_team, 'federation_club_local_id'), (away_team, 'federation_club_away_id')):
+                if self._assign_federation_club(team, match_data.get(club_key, '')):
+                    team.save(update_fields=['club'])
+
             match_date = match_data.get('match_date')
             round_number = match_data.get('round_number')
             is_result_only = match_data.get('is_result_only', False)
@@ -1028,6 +1033,7 @@ class FederationScraper:
         Portol Rojo/Negro) y equipos antiguos sin club asignado. Se exige además que
         las palabras de un nombre estén contenidas en las del otro (patrocinador
         añadido o quitado). Un patrocinador sustituido por otro no casa: se descarta.
+        El club se asigna en ``update_matches``, igual que a los encontrados por nombre.
         """
         from ilovevoley.teams.services import EMPTY_CLUB_IDS
         if club_fed_id in EMPTY_CLUB_IDS:
@@ -1041,12 +1047,7 @@ class FederationScraper:
             ).distinct()
             if (other := set(self._normalize_team_name(team.name).split())) <= words or words <= other
         ]
-        if len(candidates) != 1:
-            return None
-        team = candidates[0]
-        if self._assign_federation_club(team, club_fed_id):
-            team.save(update_fields=['club'])
-        return team
+        return candidates[0] if len(candidates) == 1 else None
 
     def get_max_rounds(self) -> int:
         """

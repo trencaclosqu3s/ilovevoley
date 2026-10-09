@@ -931,6 +931,7 @@ class UpdateMatchesClubFallbackTests(TestCase):
             name='VOLEY PALMA MAYURQA BLACK', federation_id='8253_voley_palma_mayurqa_black',
             category=category, club=self.natur_club,
         )
+        self.portol_club = Club.objects.create(federation_id='131', official_name='CLUB MARRATXI VOLEI PORTOL')
         self.portol = Team.objects.create(
             name='CAS TORD CMV.PORTOL ROJO', federation_id='8253_cas_tord_cmv.portol_rojo', category=category,
         )
@@ -949,7 +950,9 @@ class UpdateMatchesClubFallbackTests(TestCase):
             Match.objects.filter(league=self.league, round_number=1, home_team=self.natur, away_team=self.portol).exists()
         )
         self.natur.refresh_from_db()
+        self.portol.refresh_from_db()
         self.assertEqual(self.natur.club, self.natur_club)
+        self.assertEqual(self.portol.club, self.portol_club)  # encontrado por nombre, sin club previo
 
     def test_ambiguous_candidates_are_not_guessed(self):
         """Dos equipos de la liga casan con el nombre sin patrocinador: no se elige ninguno."""
