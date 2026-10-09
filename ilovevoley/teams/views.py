@@ -11,6 +11,7 @@ from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
 from ilovevoley.rosters.models import PlayerRole, StaffRole
+from ilovevoley.teams.identity import one_team_per_identity
 from ilovevoley.teams.models import Club, Team
 
 logger = logging.getLogger(__name__)
@@ -103,9 +104,7 @@ def team_list(request):
         user_categories = Category.objects.filter(is_active=True)
 
     # Query base para equipos del club
-    teams_query = Team.objects.select_related("category", "club").prefetch_related(
-        "player_roles", "staff_roles"
-    ).filter(is_active=True).filter(get_club_team_name_filter(request.tenant))
+    teams_query = Team.objects.select_related("category", "club").filter(is_active=True).filter(get_club_team_name_filter(request.tenant))
     
     # Filtrar por categorías preferidas del usuario
     category_filter = request.GET.get("category")
@@ -117,15 +116,15 @@ def team_list(request):
         teams_query = teams_query.filter(category_id=category_filter)
     
     # Ordenar por categoría y nombre
-    teams = teams_query.order_by("category__name", "name")
+    teams = one_team_per_identity(teams_query.order_by("category__name", "name"))
 
     # Temporada a mostrar (activa por defecto)
     season_filter, selected_season = resolve_season_filter(request)
 
     # Añadir contadores de plantilla usando nueva estructura Person-Role
     for team in teams:
-        players = team.player_roles.filter(is_active=True)
-        staff = team.staff_roles.filter(is_active=True)
+        players = PlayerRole.objects.filter(identity_id=team.identity_id, is_active=True)
+        staff = StaffRole.objects.filter(identity_id=team.identity_id, is_active=True)
         if season_filter:
             players = players.filter(season=season_filter)
             staff = staff.filter(season=season_filter)
@@ -162,8 +161,9 @@ def team_roster(request, team_id):
     # Plantilla base: roles activos de la temporada seleccionada. Es la misma
     # regla que usan el listado de equipos y la vista general de plantillas, así
     # que los contadores coinciden entre superficies.
-    roster_players = team.player_roles.filter(is_active=True)
-    roster_staff = team.staff_roles.filter(is_active=True)
+    # La plantilla es de la identidad, no de la fila (fase) federativa (#447).
+    roster_players = PlayerRole.objects.filter(identity_id=team.identity_id, is_active=True)
+    roster_staff = StaffRole.objects.filter(identity_id=team.identity_id, is_active=True)
     if season_filter:
         roster_players = roster_players.filter(season=season_filter)
         roster_staff = roster_staff.filter(season=season_filter)

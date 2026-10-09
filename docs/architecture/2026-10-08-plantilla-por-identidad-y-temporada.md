@@ -91,9 +91,15 @@ que:
 - ninguno tiene roles, así que la migración no los necesita.
 
 La regla pasa a ser: **solo puede tener plantilla un equipo con identidad**.
-Dar de alta un rol desde un equipo sin identidad la resuelve antes con
-`resolve_team_identity` (el mismo camino que usa el scraping), y si no se puede
-resolver (falta club o categoría), lo rechaza con un error de formulario.
+Los selectores de los formularios solo ofrecen identidades, y el alta masiva
+desde un equipo sin identidad redirige con un aviso para asignarla en el admin.
+No se resuelve sobre la marcha: los equipos del club ya reciben su identidad al
+scrapearse.
+
+Las vistas que listan equipos (vista general de plantillas y lista de equipos)
+muestran una sola fila por identidad, la más reciente
+(`teams.identity.one_team_per_identity`); si no, una identidad con varias fases
+activas saldría repetida con la misma plantilla.
 
 ### 3.3 `Match`, lineups, convocatorias y clasificación
 
@@ -172,13 +178,12 @@ conflicto: son dos roles en dos plantillas distintas.
   "Copiar de la temporada anterior" se simplifica a
   `roles(identity, season_anterior)`: desaparece la búsqueda por "cualquier
   `Team` con la misma identidad, gana el más reciente".
-- `PlayerRoleForm` y `StaffRoleForm` siguen eligiendo un **equipo** (es lo que
-  reconoce el usuario) y guardan `identity=team.identity`. Validación: el
-  equipo debe tener identidad (§3.2) y el dorsal no puede chocar en
-  `(identity, season)`.
+- En `PlayerRoleForm` y `StaffRoleForm` se elige la **identidad**, mostrada
+  como "nombre · categoría", entre las de los equipos del club con presencia
+  en la temporada. Si se eligiera el equipo, el selector repetiría el mismo
+  equipo una vez por fase.
 - Ficha de persona, "Tú" y listado de personas: `role.team.*` pasa a
-  `role.identity.*` (nombre, categoría). Para enlazar a la plantilla se usa la
-  fila activa más reciente de la identidad.
+  `role.identity.*` (nombre, club, categoría).
 
 ### 3.8 `Season.is_current`
 

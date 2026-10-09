@@ -11785,3 +11785,11 @@ msgstr "Crear i afegir"
 #
 #~ msgid "Equipo o club"
 #~ msgstr "Equip o club"
+
+#: ilovevoley/rosters/views.py:460
+msgid ""
+"Este equipo no tiene identidad asignada; asígnala en el admin antes de dar "
+"de alta la plantilla."
+msgstr ""
+"Aquest equip no té identitat assignada; assigna-la a l'admin abans de donar "
+"d'alta la plantilla."

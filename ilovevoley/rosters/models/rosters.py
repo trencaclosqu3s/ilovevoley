@@ -171,20 +171,21 @@ class Person(models.Model):
     
     def get_player_roles(self):
         """Obtiene todos los roles de jugador de esta persona"""
-        return self.player_roles.filter(is_active=True).select_related('team', 'team__category')
+        return self.player_roles.filter(is_active=True).select_related('identity', 'identity__category')
     
     def get_staff_roles(self):
         """Obtiene todos los roles de staff de esta persona"""
-        return self.staff_roles.filter(is_active=True).select_related('team', 'team__category')
+        return self.staff_roles.filter(is_active=True).select_related('identity', 'identity__category')
     
-    def get_all_active_teams(self):
-        """Obtiene todos los equipos donde tiene roles activos"""
+    def get_active_identities(self):
+        """Equipos (identidades) donde tiene roles activos."""
         from django.apps import apps
         from django.db.models import Q
-        Team = apps.get_model('teams', 'Team')
-        player_teams = Team.objects.filter(player_roles__person=self, player_roles__is_active=True)
-        staff_teams = Team.objects.filter(staff_roles__person=self, staff_roles__is_active=True)
-        return Team.objects.filter(Q(id__in=player_teams) | Q(id__in=staff_teams)).distinct()
+        TeamIdentity = apps.get_model('teams', 'TeamIdentity')
+        return TeamIdentity.objects.filter(
+            Q(player_roles__person=self, player_roles__is_active=True)
+            | Q(staff_roles__person=self, staff_roles__is_active=True)
+        ).distinct()
 
 
 class PlayerRole(models.Model):
@@ -207,11 +208,11 @@ class PlayerRole(models.Model):
         related_name='player_roles',
         verbose_name=_('Persona')
     )
-    team = models.ForeignKey(
-        'teams.Team',
-        on_delete=models.CASCADE,
+    identity = models.ForeignKey(
+        'teams.TeamIdentity',
+        on_delete=models.PROTECT,
         related_name='player_roles',
-        verbose_name=_('Equipo')
+        verbose_name=_('Equipo'),
     )
     season = models.ForeignKey(
         'core.Season',
@@ -254,11 +255,11 @@ class PlayerRole(models.Model):
 
     class Meta:
         db_table = 'videos_playerrole'
-        ordering = ['team', 'jersey_number', 'person__last_name', 'person__first_name']
+        ordering = ['identity', 'jersey_number', 'person__last_name', 'person__first_name']
         verbose_name = _('Rol de Jugador')
         verbose_name_plural = _('Roles de Jugador')
         indexes = [
-            models.Index(fields=['team', 'is_active']),
+            models.Index(fields=['identity', 'is_active']),
             models.Index(fields=['person', 'is_active']),
             models.Index(fields=['jersey_number']),
             models.Index(fields=['position']),
@@ -266,13 +267,13 @@ class PlayerRole(models.Model):
         # Evitar duplicados de persona-equipo activos dentro de una temporada
         constraints = [
             models.UniqueConstraint(
-                fields=['person', 'team', 'season'],
+                fields=['person', 'identity', 'season'],
                 name='unique_active_player_role',
                 condition=models.Q(is_active=True)
             ),
             # Evitar números de dorsal duplicados en el mismo equipo y temporada
             models.UniqueConstraint(
-                fields=['team', 'season', 'jersey_number'],
+                fields=['identity', 'season', 'jersey_number'],
                 name='unique_jersey_number_per_team',
                 condition=models.Q(jersey_number__isnull=False, is_active=True)
             )
@@ -280,7 +281,7 @@ class PlayerRole(models.Model):
 
     def __str__(self):
         jersey_info = f" (#{self.jersey_number})" if self.jersey_number else ""
-        return f"{self.person.full_name}{jersey_info} - {self.team.name}"
+        return f"{self.person.full_name}{jersey_info} - {self.identity}"
     
     @property
     def display_position(self):
@@ -307,11 +308,11 @@ class StaffRole(models.Model):
         related_name='staff_roles',
         verbose_name=_('Persona')
     )
-    team = models.ForeignKey(
-        'teams.Team',
-        on_delete=models.CASCADE,
+    identity = models.ForeignKey(
+        'teams.TeamIdentity',
+        on_delete=models.PROTECT,
         related_name='staff_roles',
-        verbose_name=_('Equipo')
+        verbose_name=_('Equipo'),
     )
     season = models.ForeignKey(
         'core.Season',
@@ -347,25 +348,25 @@ class StaffRole(models.Model):
 
     class Meta:
         db_table = 'videos_staffrole'
-        ordering = ['team', 'role', 'person__last_name', 'person__first_name']
+        ordering = ['identity', 'role', 'person__last_name', 'person__first_name']
         verbose_name = _('Rol de Staff')
         verbose_name_plural = _('Roles de Staff')
         indexes = [
-            models.Index(fields=['team', 'is_active']),
+            models.Index(fields=['identity', 'is_active']),
             models.Index(fields=['person', 'is_active']),
             models.Index(fields=['role']),
         ]
         # Evitar duplicados de persona-equipo-rol activos dentro de una temporada
         constraints = [
             models.UniqueConstraint(
-                fields=['person', 'team', 'role', 'season'],
+                fields=['person', 'identity', 'role', 'season'],
                 name='unique_active_staff_role',
                 condition=models.Q(is_active=True)
             )
         ]
 
     def __str__(self):
-        return f"{self.person.full_name} - {self.get_role_display()} ({self.team.name})"
+        return f"{self.person.full_name} - {self.get_role_display()} ({self.identity})"
     
     @property
     def display_role(self):

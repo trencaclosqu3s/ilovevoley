@@ -11,6 +11,20 @@ from ilovevoley.videos.utils import normalize_team_name
 CANDIDATE_SIMILARITY_MIN = 0.85
 
 
+def one_team_per_identity(teams):
+    """Una fila por identidad (la más reciente), conservando el orden.
+
+    Un equipo que juega varias fases tiene varias filas activas con la misma
+    plantilla (#447). Las filas sin identidad se conservan todas.
+    """
+    teams = list(teams)
+    latest = {}
+    for team in teams:
+        if team.identity_id and team.id > latest.get(team.identity_id, 0):
+            latest[team.identity_id] = team.id
+    return [t for t in teams if not t.identity_id or latest[t.identity_id] == t.id]
+
+
 def effective_gender(team) -> str:
     if getattr(team, 'gender', None):
         return team.gender
@@ -161,6 +175,39 @@ class IdentityAssignError(ValueError):
     """La selección no se puede unificar bajo una sola identidad."""
 
 
+def move_roles_to_identity(from_ids, target):
+    """Mueve la plantilla de ``from_ids`` a ``target`` al fusionar identidades.
+
+    Un rol activo que choca con otro de ``target`` (misma persona y temporada,
+    y mismo rol en técnicos) se resuelve como en la migración de #447: gana el
+    último editado. Un dorsal repetido con personas distintas no se elige solo:
+    aborta con ``IdentityAssignError``. Llamar dentro de una transacción.
+    """
+    from django.db import transaction
+
+    from ilovevoley.rosters.models import PlayerRole, StaffRole
+
+    for model, keys in ((PlayerRole, ('season_id', 'person_id')), (StaffRole, ('season_id', 'person_id', 'role'))):
+        for role in model.objects.filter(identity_id__in=from_ids):
+            if role.is_active:
+                clash = model.objects.filter(
+                    identity=target, is_active=True, **{k: getattr(role, k) for k in keys},
+                ).first()
+                if clash and (clash.updated_at, clash.id) >= (role.updated_at, role.id):
+                    role.delete()
+                    continue
+                if clash:
+                    clash.delete()
+            role.identity = target
+            try:
+                with transaction.atomic():
+                    role.save(update_fields=['identity'])
+            except IntegrityError as e:
+                raise IdentityAssignError(
+                    f'Dorsal {role.jersey_number} repetido con otra persona en la temporada {role.season}.'
+                ) from e
+
+
 def _team_family_ids(teams):
     """PKs de los equipos dados más su root y todas las variantes de cada root."""
     from ilovevoley.teams.models import Team
@@ -214,6 +261,7 @@ def assign_common_identity(teams):
 
         losers = [pk for pk in counts if pk != winner.pk]
         if losers:
+            move_roles_to_identity(losers, winner)
             Team.objects.filter(identity_id__in=losers).update(identity=winner)
             TeamIdentityCandidate.objects.filter(suggested_identity_id__in=losers).update(
                 suggested_identity=winner,

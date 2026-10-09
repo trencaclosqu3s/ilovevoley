@@ -295,7 +295,10 @@ class TeamIdentityCandidate(models.Model):
             suggested = self.suggested_identity
             if old_identity_id and old_identity_id != suggested.pk:
                 # Candidata de backfill: mover todas las apariciones de la identidad origen
+                from ilovevoley.teams.identity import move_roles_to_identity
+
                 Team.objects.filter(identity_id=old_identity_id).update(identity=suggested)
+                move_roles_to_identity([old_identity_id], suggested)
             else:
                 team.identity = suggested
                 team.save(update_fields=['identity'])

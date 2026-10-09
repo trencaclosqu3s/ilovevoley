@@ -1,3 +1,4 @@
+from ilovevoley.teams.tests.helpers import identity_of
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.core import mail
@@ -46,7 +47,7 @@ class MatchChangeNotificationsTest(TestCase):
         )
         cls.person_delegate.organizations.add(cls.org_a)
         cls.staff_delegate = StaffRole.objects.create(
-            person=cls.person_delegate, team=cls.team_a, role='delegate', season=cls.season, is_active=True
+            person=cls.person_delegate, identity=identity_of(cls.team_a), role='delegate', season=cls.season, is_active=True
         )
 
         # Entrenador para Team A (vinculado a User con email)
@@ -56,7 +57,7 @@ class MatchChangeNotificationsTest(TestCase):
         )
         cls.person_coach.organizations.add(cls.org_a)
         cls.staff_coach = StaffRole.objects.create(
-            person=cls.person_coach, team=cls.team_a, role='head_coach', season=cls.season, is_active=True
+            person=cls.person_coach, identity=identity_of(cls.team_a), role='head_coach', season=cls.season, is_active=True
         )
 
         # Manager de Org B (para probar fallback ya que Team B no tiene staff)
@@ -175,7 +176,7 @@ class MatchChangeNotificationsTest(TestCase):
         )
         person.organizations.add(self.org_a)
         StaffRole.objects.create(
-            person=person, team=team_no_club, role='delegate',
+            person=person, identity=identity_of(team_no_club), role='delegate',
             season=self.season, is_active=True,
         )
         match = Match.objects.create(

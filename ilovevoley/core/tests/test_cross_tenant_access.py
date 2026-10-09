@@ -5,6 +5,7 @@ no alcanza recursos de B en las rutas de detalle y mutación. Los listados y
 contadores deben excluir los datos del otro tenant.
 """
 
+from ilovevoley.teams.tests.helpers import identity_of
 import json
 from uuid import uuid4
 
@@ -150,16 +151,16 @@ class CrossTenantAccessTests(TestCase):
         )
         cls.person_b.organizations.add(cls.org_b)
         cls.player_role_a = PlayerRole.objects.create(
-            person=cls.person_a, team=cls.team_a, season=season, jersey_number=1,
+            person=cls.person_a, identity=identity_of(cls.team_a), season=season, jersey_number=1,
         )
         cls.player_role_b = PlayerRole.objects.create(
-            person=cls.person_b, team=cls.team_b, season=season, jersey_number=1,
+            person=cls.person_b, identity=identity_of(cls.team_b), season=season, jersey_number=1,
         )
         cls.staff_role_a = StaffRole.objects.create(
-            person=cls.person_a, team=cls.team_a, season=season, role='head_coach',
+            person=cls.person_a, identity=identity_of(cls.team_a), season=season, role='head_coach',
         )
         cls.staff_role_b = StaffRole.objects.create(
-            person=cls.person_b, team=cls.team_b, season=season, role='head_coach',
+            person=cls.person_b, identity=identity_of(cls.team_b), season=season, role='head_coach',
         )
 
     def test_cross_tenant_get_requests_are_blocked(self):
@@ -240,7 +241,7 @@ class CrossTenantAccessTests(TestCase):
         self.client.force_login(self.manager_a)
         response = self.client.post(
             reverse('rosters:player_role_create', args=[self.person_b.id]),
-            data={'team': self.team_b.id, 'season': self.player_role_b.season_id},
+            data={'identity': identity_of(self.team_b).id, 'season': self.player_role_b.season_id},
             HTTP_HOST=self.HOST_A,
         )
         self.assertEqual(response.status_code, 404)
