@@ -129,4 +129,12 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute=30, hour='*/6'),
         'options': {'expire_seconds': 3600},
     },
+    # --- Actas manuales (foto) de los tenants (#462) -----------------------------
+    # Descarga la foto y, con ACTA_VISION_ENABLED, la lee con Gemini; el resultado queda
+    # pendiente de revisión en el admin. Pocas fotos a la semana: cada 2 h sobra.
+    'process-pending-acta-photos': {
+        'task': 'process_pending_acta_photos',
+        'schedule': crontab(minute=15, hour='*/2'),
+        'options': {'expire_seconds': 1800},
+    },
 }
