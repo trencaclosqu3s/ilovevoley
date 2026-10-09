@@ -311,7 +311,6 @@ class PlayerSeasonStatsTests(TestCase):
         self.assertEqual(stats['sets_disputados'], 5)
 
 
-@override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
 class SeasonRivalsTests(TestCase):
     """El rival se identifica por (equipo, dorsal, apellido) dentro de la temporada (#459)."""
 
@@ -355,6 +354,7 @@ class SeasonRivalsTests(TestCase):
         self.assertEqual(rivals, {(7, 'RAYA'): (2, 1), (9, 'GARCIA'): (2, 1), (12, 'GARCIA'): (1, 1)})
 
 
+@override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
 class BackfillActasCommandTests(TestCase):
     def setUp(self):
         self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-T')
