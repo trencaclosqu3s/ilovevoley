@@ -25,6 +25,9 @@
     <p class="text-muted text-base sm:text-lg">
       {% trans "Selecciona tu club para continuar" %}
     </p>
+    <a href="{% url 'portal:index' %}" class="inline-block mt-4 text-sm font-semibold text-ink underline hover:no-underline">
+      {% trans "Resultados y clasificación" %}
+    </a>
   </div>
 
   {% if user_organizations %}

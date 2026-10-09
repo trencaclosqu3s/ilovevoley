@@ -10,15 +10,13 @@ Uso:
 """
 
 import requests
-from django.conf import settings
 
 from django.core.management.base import BaseCommand
 
-from ilovevoley.core.security import UnsafeURL, safe_get
-from ilovevoley.videos.scraping import parse_acta_lineup
+from ilovevoley.core.security import UnsafeURL
 
 from ...models import Match
-from ...services.lineups import store_match_lineups
+from ...services.lineups import fetch_and_store_acta
 
 
 class Command(BaseCommand):
@@ -64,11 +62,7 @@ class Command(BaseCommand):
         for match in matches:
             acta_url = match.official_acta_url or match.acta_html
             try:
-                content = safe_get(
-                    acta_url, allowed_hosts=settings.ACTA_ALLOWED_HOSTS,
-                )
-                lineup_data = parse_acta_lineup(content)
-                store_match_lineups(match, lineup_data)
+                fetch_and_store_acta(match)
                 ok += 1
                 self.stdout.write(f'OK {match.id}: {acta_url}')
             except UnsafeURL as e:

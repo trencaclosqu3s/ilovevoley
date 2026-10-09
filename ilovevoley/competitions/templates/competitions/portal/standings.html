@@ -1,0 +1,23 @@
+{% extends "competitions/portal/base_portal.html" %}
+{% load i18n %}
+
+{% block portal_content %}
+<h1 class="text-2xl font-bold text-ink">{% trans "Clasificación" %}</h1>
+<form method="get" class="flex items-end gap-3">
+    <input type="hidden" name="season" value="{{ selected_season }}">
+    <div>
+        <label for="league" class="block text-sm font-medium text-ink mb-1">{% trans "Liga" %}</label>
+        <select name="league" id="league" class="px-3 py-2 border border-line bg-surface text-ink rounded-xl">
+            <option value="">{% trans "Selecciona una liga" %}</option>
+            {% for l in leagues %}
+                <option value="{{ l.id }}" {% if selected_league and selected_league.id == l.id %}selected{% endif %}>{{ l.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="px-4 py-2 bg-csj-purple-dark text-white rounded-full text-sm font-medium">{% trans "Ver" %}</button>
+</form>
+{% if selected_league %}
+    <h2 class="text-lg font-bold text-ink">{{ selected_league.name }}</h2>
+    {% include "competitions/portal/_standings_table.html" %}
+{% endif %}
+{% endblock %}

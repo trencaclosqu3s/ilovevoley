@@ -15,6 +15,8 @@ urlpatterns = [
     
     # Páginas institucionales
     path('quienes-somos/', views.about, name='about'),
+    path('privacidad/', views.privacy_policy, name='privacy_policy'),
+    path('transparencia-imagen/', views.image_transparency, name='image_transparency'),
     
     # Moderación de usuarios
     path('moderacion/', views.moderation_panel, name='moderation_panel'),

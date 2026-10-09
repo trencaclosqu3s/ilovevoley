@@ -1,0 +1,30 @@
+{% extends "competitions/portal/base_portal.html" %}
+{% load i18n %}
+
+{% block portal_content %}
+<article class="bg-surface rounded-2xl border border-line p-6 space-y-4 text-ink">
+    <p class="text-sm text-muted">
+        <a href="{% url 'portal:league_detail' match.league_id %}" class="hover:underline">{{ match.league.name }}</a>
+    </p>
+    <h1 class="text-2xl font-bold">{{ match.home_team_display }} vs {{ match.away_team_display }}</h1>
+    <p class="text-4xl font-bold text-center">
+        {% if match.home_score is not None and match.away_score is not None %}{{ match.home_score }} - {{ match.away_score }}{% else %}-{% endif %}
+    </p>
+    <dl class="text-sm space-y-1">
+        <div><dt class="inline font-medium">{% trans "Fecha" %}:</dt> <dd class="inline">{{ match.match_date|date:"d/m/Y H:i" }}</dd></div>
+        {% if match.venue_ref %}
+        <div><dt class="inline font-medium">{% trans "Sede" %}:</dt> <dd class="inline">{{ match.venue_ref.name }}</dd></div>
+        {% elif match.venue %}
+        <div><dt class="inline font-medium">{% trans "Sede" %}:</dt> <dd class="inline">{{ match.venue }}</dd></div>
+        {% endif %}
+    </dl>
+    {% if set_scores %}
+    <div>
+        <h2 class="text-sm font-medium text-muted mb-1">{% trans "Parciales" %}</h2>
+        <ul class="flex flex-wrap gap-3 text-sm">
+            {% for home, away in set_scores %}<li class="px-3 py-1 rounded-full border border-line">{{ home }}-{{ away }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</article>
+{% endblock %}

@@ -1165,6 +1165,17 @@ def image_removal_request(request, image_id):
     return redirect('content:image_detail', image_id=image.id)
 
 
+def _warn_tagged_without_consent(request, persons):
+    """Avisa de las fichas etiquetadas sin consentimiento de imagen (#122)."""
+    names = [p.full_name for p in persons if p.image_consent == Person.ImageConsent.NONE]
+    if names:
+        messages.warning(
+            request,
+            _('Sin consentimiento de imagen: %(names)s. Revisa si la foto debe publicarse.')
+            % {'names': ', '.join(names)},
+        )
+
+
 @tenant_access_required()
 @require_POST
 def image_tag(request, image_id):
@@ -1183,6 +1194,7 @@ def image_tag(request, image_id):
     )
 
     messages.success(request, _('Etiquetas actualizadas.'))
+    _warn_tagged_without_consent(request, persons)
     return redirect('content:image_detail', image_id=image.id)
 
 
@@ -1221,6 +1233,8 @@ def image_tag_bulk(request):
             request,
             _('Etiquetas actualizadas en %(count)s imágenes.') % {'count': changed},
         )
+        if changed:
+            _warn_tagged_without_consent(request, persons)
         next_url = request.POST.get('next')
         if next_url and url_has_allowed_host_and_scheme(
             next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
@@ -1349,6 +1363,10 @@ def image_moderation(request):
         'uploaded_by'
     ).prefetch_related('categories').filter(status='pending').for_tenant(
         request.tenant
+    ).annotate(
+        no_consent_count=Count(
+            'persons', filter=Q(persons__image_consent=Person.ImageConsent.NONE), distinct=True
+        )
     ).order_by('upload_date')
     
     # Paginación
@@ -1394,6 +1412,7 @@ def image_moderate_action(request, image_id):
     context = {
         'image': image,
         'form': form,
+        'persons_without_consent': image.persons.filter(image_consent=Person.ImageConsent.NONE),
     }
     
     return render(request, 'content/image_moderate.html', context)

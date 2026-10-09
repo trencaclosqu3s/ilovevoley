@@ -116,7 +116,7 @@ def taggable_persons(match, tenant):
     """
     from ilovevoley.rosters.models import Person, PlayerRole
 
-    base = Person.objects.for_tenant(tenant).filter(is_active=True)
+    base = Person.objects.active_for_tenant(tenant).filter(is_active=True)
     if match is None:
         return base.order_by('last_name', 'first_name')
 
@@ -158,8 +158,8 @@ def apply_image_tags(actor, tenant, images, persons, *, replace=False, validate_
     modificadas. Por cada ficha etiquetada de nuevo se avisa al deportista y a
     su familia.
     """
-    # TODO(#122): descartar fichas sin consentimiento de imagen cuando exista el
-    # campo en Person; hoy todas las fichas del club son etiquetables.
+    # Las fichas sin consentimiento de imagen se etiquetan igual: la etiqueta es
+    # lo que permite avisar a quien publica o modera la foto (#122).
     persons = list(persons)
     changed = 0
     added_by_person = defaultdict(set)

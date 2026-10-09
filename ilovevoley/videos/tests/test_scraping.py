@@ -895,6 +895,80 @@ class UpdateTeamsFederationClubTests(TestCase):
         self.assertEqual(teams['CV ATLETICO'].club, self.mataro)
 
 
+RESULTS_HTML_464 = """<h3>JORNADA 1</h3><div class='info_partido little'>
+ <div class='top'><span class='pabellon'>Pav.</span><span class='municipio'>Palma</span>
+  <span class='fecha'>10/10/2026 - 18:00</span></div>
+ <div class='datos_partido'><table><tbody><tr>
+  <td><div class='bandera'><img src='https://voleibolib.federatio.com//fichas/clubes/100mini.jpg?4029'></div>
+   <span class='nombreEquipo'>NATUR VOLEY PALMA MAYURQA</span></td>
+  <td><span class='marcador'></span></td>
+  <td><div class='bandera'><img src='https://voleibolib.federatio.com//fichas/clubes/131mini.jpg?1'></div>
+   <span class='nombreEquipo'>CAS TORD CMV.PÒRTOL ROJO</span></td>
+ </tr></tbody></table></div></div>"""
+
+
+class UpdateMatchesClubFallbackTests(TestCase):
+    """El HTML de resultados no trae equipos: si el nombre no casa, desempata el club (#464)."""
+
+    def setUp(self):
+        from ilovevoley.teams.models import Club
+        from ilovevoley.videos.scraping import FederationScraper
+        from ilovevoley.videos.scraping.parsers import MatchesParser
+
+        category = Category.objects.create(name='Cadete')
+        self.league = League.objects.create(
+            name='Cadete Masculino - Grupo C', federation_id='8253', season=Season.objects.resolve('2026-27'),
+            competition_type='regular', match_format='standard', visibility_type='main',
+        )
+        self.league.categories.add(category)
+        # Como en producción: el equipo renombrado no tiene club y el club tiene otro equipo en la liga
+        self.natur_club = Club.objects.create(federation_id='100', official_name='VOLEY PALMA MAYURQA')
+        self.natur = Team.objects.create(
+            name='NATUR POKE VOLEY PALMA MAYURQA', federation_id='8253_natur_poke_voley_palma_mayurqa',
+            category=category,
+        )
+        self.black = Team.objects.create(
+            name='VOLEY PALMA MAYURQA BLACK', federation_id='8253_voley_palma_mayurqa_black',
+            category=category, club=self.natur_club,
+        )
+        self.portol_club = Club.objects.create(federation_id='131', official_name='CLUB MARRATXI VOLEI PORTOL')
+        self.portol = Team.objects.create(
+            name='CAS TORD CMV.PORTOL ROJO', federation_id='8253_cas_tord_cmv.portol_rojo', category=category,
+        )
+        for home, away, round_number in ((self.portol, self.natur, 2), (self.black, self.portol, 3)):
+            Match.objects.create(
+                league=self.league, home_team=home, away_team=away, round_number=round_number,
+                match_date=timezone.now(),
+            )
+        self.scraper = FederationScraper(self.league)
+        self.matches = MatchesParser(self.league).parse_content(RESULTS_HTML_464)['matches']
+
+    def test_sponsor_change_matches_renamed_team_not_other_club_team(self):
+        self.scraper.update_matches(self.matches, {})
+
+        self.assertTrue(
+            Match.objects.filter(league=self.league, round_number=1, home_team=self.natur, away_team=self.portol).exists()
+        )
+        self.natur.refresh_from_db()
+        self.portol.refresh_from_db()
+        self.assertEqual(self.natur.club, self.natur_club)
+        self.assertEqual(self.portol.club, self.portol_club)  # encontrado por nombre, sin club previo
+
+    def test_ambiguous_candidates_are_not_guessed(self):
+        """Dos equipos de la liga casan con el nombre sin patrocinador: no se elige ninguno."""
+        other = Team.objects.create(
+            name='NATUR VOLEY PALMA MAYURQA NEGRO', federation_id='8253_natur_negro',
+            category=self.natur.category, club=self.natur_club,
+        )
+        Match.objects.create(
+            league=self.league, home_team=other, away_team=self.portol, round_number=3, match_date=timezone.now(),
+        )
+
+        self.scraper.update_matches(self.matches, {})
+
+        self.assertFalse(Match.objects.filter(league=self.league, round_number=1).exists())
+
+
 # ---------------------------------------------------------------------------
 # Identidad estable entre temporadas (#428)
 # ---------------------------------------------------------------------------

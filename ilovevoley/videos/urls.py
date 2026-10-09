@@ -83,4 +83,5 @@ urlpatterns = [
     _legacy('api/users/<int:user_id>/approve/', 'core:approve_user_api'),
     _legacy('api/users/<int:user_id>/reject/', 'core:reject_user_api'),
     _legacy('quienes-somos/', 'core:about'),
+    _legacy('privacidad/', 'core:privacy_policy'),
 ]

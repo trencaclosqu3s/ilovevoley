@@ -4,7 +4,7 @@ import uuid
 
 from django.conf import settings
 from django.core.validators import URLValidator
-from django.db import models, transaction
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -691,38 +691,58 @@ class LeagueCandidate(models.Model):
         return f'{self.category_label} · {self.phase_label} ({self.federation_id})'
 
     def approve(self):
-        """Crea la liga (la signal ``post_save`` añade los 3 endpoints) y la enlaza."""
-        if self.status != 'pending':
-            return self.league
+        """Crea la liga (la signal ``post_save`` añade los 3 endpoints) y la enlaza.
+
+        Idempotente bajo doble envío: bloquea la candidata y, si ``create``
+        choca por ``federation_id`` único, reutiliza la liga ya insertada.
+        """
         with transaction.atomic():
+            locked = LeagueCandidate.objects.select_for_update(of=('self',)).get(pk=self.pk)
+            if locked.status != 'pending':
+                self.league, self.status = locked.league, locked.status
+                return locked.league
+
+            def _link(league):
+                locked.league, locked.status = league, 'approved'
+                locked.save(update_fields=['league', 'status'])
+                self.league, self.status = league, 'approved'
+                return league
+
             # Liga ya dada de alta (a mano o por una sincronización) tras crearse la candidata
-            existing = League.objects.filter(federation_id=self.federation_id).first()
+            existing = League.objects.filter(federation_id=locked.federation_id).first()
             if existing:
-                self.league, self.status = existing, 'approved'
-                self.save(update_fields=['league', 'status'])
-                return existing
-            name = ' '.join(filter(None, [self.category_label.title(), self.phase_label]))
-            is_cup = re.search(r'copa|campeonato|torneo', f'{self.section} {self.phase_label}', re.I)
+                return _link(existing)
 
-            visibility_type = 'historical' if self.is_historical else ('reference' if self.modality == League.MODALITY_BEACH else 'main')
-            match_format = 'tournament_3sets' if self.modality == League.MODALITY_BEACH else 'standard'
+            name = ' '.join(filter(None, [locked.category_label.title(), locked.phase_label]))
+            is_cup = re.search(r'copa|campeonato|torneo', f'{locked.section} {locked.phase_label}', re.I)
 
-            league = League.objects.create(
-                name=name, federation_id=self.federation_id, season_id=self.season_id,
-                competition_type='cup' if is_cup else 'regular',
-                parent_league_id=self.parent_league_id, phase_name=self.phase_label if self.parent_league_id else '',
-                phase_order=1 if self.parent_league_id else 0,
-                visibility_type=visibility_type,
-                is_historical=self.is_historical,
-                is_active=not self.is_historical,
-                modality=self.modality,
-                match_format=match_format,
+            visibility_type = (
+                'historical' if locked.is_historical
+                else ('reference' if locked.modality == League.MODALITY_BEACH else 'main')
             )
-            if self.category_id:
-                league.categories.add(self.category_id)
-            self.league, self.status = league, 'approved'
-            self.save(update_fields=['league', 'status'])
-        return league
+            match_format = 'tournament_3sets' if locked.modality == League.MODALITY_BEACH else 'standard'
+
+            try:
+                # Savepoint: sin él, IntegrityError aborta toda la atomic externa en PostgreSQL
+                with transaction.atomic():
+                    league = League.objects.create(
+                        name=name, federation_id=locked.federation_id, season_id=locked.season_id,
+                        competition_type='cup' if is_cup else 'regular',
+                        parent_league_id=locked.parent_league_id,
+                        phase_name=locked.phase_label if locked.parent_league_id else '',
+                        phase_order=1 if locked.parent_league_id else 0,
+                        visibility_type=visibility_type,
+                        is_historical=locked.is_historical,
+                        is_active=not locked.is_historical,
+                        modality=locked.modality,
+                        match_format=match_format,
+                    )
+            except IntegrityError:
+                return _link(League.objects.get(federation_id=locked.federation_id))
+
+            if locked.category_id:
+                league.categories.add(locked.category_id)
+            return _link(league)
 
 
 class ScrapingEndpoint(models.Model):
@@ -761,6 +781,8 @@ class ScrapingEndpoint(models.Model):
 
     def get_full_url(self, **kwargs):
         """Construye la URL completa reemplazando parámetros"""
+        # La federación responde 400 a `jor=None` (#463): un parámetro sin valor va vacío.
+        kwargs = {key: '' if value is None else value for key, value in kwargs.items()}
         url = self.url_pattern.format(league_id=self.league.federation_id, **kwargs)
         if not url.startswith('http'):
             url = f'{self.league.base_url}/{url.lstrip("/")}'
@@ -1000,3 +1022,82 @@ class MatchChangeLogReview(models.Model):
 
     def __str__(self):
         return f'{self.change_log_id} @ {self.organization_id}'
+
+
+class MatchActaPhoto(models.Model):
+    """Acta manual (foto) de un partido, pendiente de descarga, lectura y revisión."""
+
+    STATUS_CHOICES = [
+        ('pending_download', _('Pendiente de descarga')),
+        ('downloaded', _('Descargada')),
+        ('pending_read', _('Pendiente de lectura')),
+        ('pending_review', _('Pendiente de revisión')),
+        ('approved', _('Aprobada')),
+        ('rejected', _('Rechazada')),
+        ('unreadable', _('Ilegible')),
+        ('expired', _('Caducada')),
+    ]
+
+    match = models.OneToOneField(
+        Match,
+        on_delete=models.CASCADE,
+        related_name='acta_photo',
+        verbose_name=_('Partido'),
+    )
+    source_url = models.URLField(
+        max_length=500,
+        verbose_name=_('URL origen'),
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending_download',
+        verbose_name=_('Estado'),
+    )
+    image = models.ImageField(
+        upload_to='actas_photos/%Y/%m/',
+        null=True,
+        blank=True,
+        verbose_name=_('Foto del acta'),
+    )
+    extracted_data = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_('Datos extraídos'),
+    )
+    extraction_meta = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name=_('Metadatos de extracción'),
+    )
+    validation_errors = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_('Errores de validación'),
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_acta_photos',
+        verbose_name=_('Revisado por'),
+    )
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Revisado el'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = _('Foto de acta manual')
+        verbose_name_plural = _('Fotos de actas manuales')
+        indexes = [
+            models.Index(fields=['status', '-created_at'], name='acta_photo_status_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.match} ({self.get_status_display()})'

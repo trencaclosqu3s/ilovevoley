@@ -1,0 +1,18 @@
+{% load i18n %}
+{% if leagues %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for league in leagues %}
+    <div class="bg-surface rounded-2xl border border-line p-4">
+        <h2 class="text-lg font-bold text-ink line-clamp-2"><a href="{% url 'portal:league_detail' league.pk %}" class="hover:underline">{{ league.name }}</a></h2>
+        <div class="mt-2 flex flex-wrap gap-2 text-xs text-muted">
+            <span>{{ league.season }}</span>
+            {% for category in league.categories.all %}<span>· {{ category.name }}</span>{% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-surface rounded-2xl border border-line p-8 text-center text-muted">
+    {% trans "No hay ligas para esta temporada." %}
+</div>
+{% endif %}

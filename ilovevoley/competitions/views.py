@@ -60,7 +60,7 @@ from .models import (
 )
 from .services.lineups import resolve_acta_team, store_match_lineups
 from .services.notifications import notify_match_live_stream, notify_match_result
-from .services.preview import build_match_preview
+from .services.preview import build_match_preview, preview_card_pills
 
 from .services.sets import extract_set_scores, match_set_scores
 from .services.where_plays import MIN_QUERY_LENGTH, search_locations
@@ -445,6 +445,7 @@ def match_result_card(request, match_id):
                 'away_team',
                 'away_team__club',
                 'league',
+                'venue_ref',
             ),
             request.tenant,
             user=request.user,
@@ -469,7 +470,8 @@ def match_result_card(request, match_id):
     card_style = 'personalizada' if composition else request.GET.get('style', 'completa')
     if card_style not in (*CARD_STYLES, 'personalizada'):
         return JsonResponse({'error': _('Estilo de tarjeta no válido')}, status=400)
-    if (
+    upcoming = match.status == 'scheduled' and match.home_team_id and match.away_team_id
+    if not upcoming and (
         match.status != 'finished'
         or match.home_score is None
         or match.away_score is None
@@ -478,6 +480,8 @@ def match_result_card(request, match_id):
             {'error': _('No se puede compartir un partido sin resultado finalizado')},
             status=400,
         )
+    if upcoming and (composition or card_style != 'completa'):
+        return JsonResponse({'error': _('La previa del partido solo admite el estilo completo')}, status=400)
 
     layout = composition.layout if composition else None
     if card_style == 'personalizada' and not composition:
@@ -507,7 +511,8 @@ def match_result_card(request, match_id):
 
     report = {}
     is_preview = request.GET.get('preview') == '1'
-    sets = _load_set_scores_for_card(match)
+    sets = [] if upcoming else _load_set_scores_for_card(match)
+    pills = preview_card_pills(match) if upcoming else None
     # El editor pide el preview en dos capas (fondo y bloque del marcador) para mover el
     # marcador sin round-trip; solo tiene sentido en el preview del estilo personalizado.
     layer = request.GET.get('layer') or None
@@ -518,7 +523,7 @@ def match_result_card(request, match_id):
     cache_key = None if is_preview else card_cache_key(
         match=match, organization=request.tenant, card_format=card_format,
         card_style=card_style, photo=(photo.id, photo.thumbnail_large.name or photo.image.name)
-        if photo_bytes else None, layout=layout, sets=sets,
+        if photo_bytes else None, layout=layout, sets=pills if upcoming else sets,
     )
     png = cache_key and cache.get(cache_key)
     cached = bool(png)
@@ -531,6 +536,7 @@ def match_result_card(request, match_id):
         layout=layout,
         report=report,
         sets=sets,
+        pills=pills,
         preview_width=540 if is_preview else None,
         layer=layer,
     )
@@ -547,7 +553,7 @@ def match_result_card(request, match_id):
         return response
     response = HttpResponse(png, content_type='image/png')
     response['Content-Disposition'] = (
-        f'attachment; filename="resultado-{match.id}-{card_format}.png"'
+        f'attachment; filename="{"partido" if upcoming else "resultado"}-{match.id}-{card_format}.png"'
     )
     return response
 

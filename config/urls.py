@@ -71,6 +71,7 @@ urlpatterns = [
     path('content/', include('ilovevoley.content.urls', namespace='content')),
     path('teams/', include('ilovevoley.teams.urls', namespace='teams')),
     path('competitions/', include('ilovevoley.competitions.urls', namespace='competitions')),
+    path('competicion/', include('ilovevoley.competitions.portal_urls')),
     path('p/', include('ilovevoley.competitions.public_urls', namespace='public')),
     path('core/', include('ilovevoley.core.urls', namespace='core')),
     # Página pública "Sedes y pabellones" (sin login, acotada al tenant)

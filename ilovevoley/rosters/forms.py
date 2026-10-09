@@ -69,7 +69,7 @@ class PersonForm(forms.ModelForm):
     
     class Meta:
         model = Person
-        fields = ['first_name', 'last_name', 'birth_date', 'birth_year', 'photo', 'email', 'phone', 'notes']
+        fields = ['first_name', 'last_name', 'birth_date', 'birth_year', 'photo', 'email', 'phone', 'notes', 'image_consent']
         widgets = {
             'first_name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
@@ -105,6 +105,9 @@ class PersonForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': _('Algo que quieras que sepamos sobre esta persona...')
             }),
+            'image_consent': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white',
+            }),
         }
         labels = {
             'first_name': _('Nombre'),
@@ -123,6 +126,7 @@ class PersonForm(forms.ModelForm):
             'email': _('Email de contacto (opcional)'),
             'phone': _('Número de teléfono de contacto (opcional)'),
             'notes': _('Información adicional que consideres relevante (opcional)'),
+            'image_consent': _('Si eliges "Sin consentimiento", se avisará a quien etiquete o modere fotos en las que aparezca.'),
         }
     
     def __init__(self, *args, **kwargs):
@@ -135,6 +139,11 @@ class PersonForm(forms.ModelForm):
         self.fields['email'].required = False
         self.fields['phone'].required = False
         self.fields['notes'].required = False
+        # El alta rápida no envía el campo: se conserva el valor de la ficha.
+        self.fields['image_consent'].required = False
+
+    def clean_image_consent(self):
+        return self.cleaned_data.get('image_consent') or self.instance.image_consent
 
     def clean(self):
         cleaned = super().clean()

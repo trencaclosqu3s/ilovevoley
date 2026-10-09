@@ -165,6 +165,7 @@ LEGACY_VIDEOS_REDIRECTS = [
     ('/videos/api/users/1/approve/', '/core/api/users/1/approve/'),
     ('/videos/api/users/1/reject/', '/core/api/users/1/reject/'),
     ('/videos/quienes-somos/', '/core/quienes-somos/'),
+    ('/videos/privacidad/', '/core/privacidad/'),
 ]
 
 

@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Quién ve las fotos" %} - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="bg-surface rounded-[20px] border border-line overflow-hidden">
+  <div class="bg-csj-purple-dark text-white px-6 py-10 sm:px-8 sm:py-12">
+    <div class="max-w-4xl mx-auto text-center">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-3">{% trans "Quién ve las fotos" %}</h1>
+      <p class="text-base sm:text-lg text-purple-100">
+        {% trans "Explicación clara sobre quién puede ver fotos e imágenes en la plataforma" %}
+      </p>
+    </div>
+  </div>
+
+  <div class="max-w-4xl mx-auto px-6 py-8 sm:px-8 sm:py-12 space-y-10">
+    <section class="text-ink text-base leading-relaxed space-y-3">
+      <p>
+        {% blocktrans trimmed %}
+        Esta página resume, en lenguaje sencillo, cómo tratamos la imagen en el club.
+        No sustituye el aviso legal.
+        {% endblocktrans %}
+      </p>
+      <p>
+        <a href="{% url 'core:privacy_policy' %}" class="text-brand-text underline font-semibold">
+          {% trans "Lee la Política de Privacidad" %}
+        </a>
+      </p>
+    </section>
+
+    <div class="border-t border-line"></div>
+
+    <section>
+      <h2 class="text-xl sm:text-2xl font-bold text-ink mb-4">
+        {% trans "Niveles de consentimiento de imagen" %}
+      </h2>
+      <ul class="text-ink text-base leading-relaxed space-y-3 list-disc list-inside">
+        <li>
+          <strong>{% trans "Sin consentimiento" %}</strong> —
+          {% trans "indica que no se autoriza el uso de la imagen." %}
+        </li>
+        <li>
+          <strong>{% trans "Solo uso interno del club" %}</strong> —
+          {% trans "autoriza el uso de la imagen dentro del entorno restringido del club." %}
+        </li>
+        <li>
+          <strong>{% trans "Uso público" %}</strong> —
+          {% trans "autoriza también el uso público de la imagen." %}
+        </li>
+      </ul>
+    </section>
+
+    <div class="border-t border-line"></div>
+
+    <section>
+      <h2 class="text-xl sm:text-2xl font-bold text-ink mb-4">
+        {% trans "Qué significa esto en la práctica" %}
+      </h2>
+      <div class="text-ink text-base leading-relaxed space-y-3">
+        <p>
+          {% blocktrans trimmed %}
+          La galería no está abierta en internet: pueden verla los miembros que tienen
+          acceso al club en la plataforma. El nivel elegido no oculta automáticamente
+          las imágenes etiquetadas.
+          {% endblocktrans %}
+        </p>
+        <p>
+          {% blocktrans trimmed %}
+          El cromo respeta el nivel de consentimiento elegido: sin consentimiento se
+          genera sin foto; con solo uso interno, únicamente la propia persona o su
+          familia pueden generarlo con foto; y el uso público permite un acceso más
+          amplio.
+          {% endblocktrans %}
+        </p>
+        <p>
+          {% blocktrans trimmed %}
+          La foto que aparece en la ficha no se oculta actualmente según ese nivel.
+          {% endblocktrans %}
+        </p>
+        <p>
+          {% blocktrans trimmed %}
+          Al etiquetar y moderar imágenes, la plataforma avisa si aparece alguna ficha
+          marcada como «Sin consentimiento».
+          {% endblocktrans %}
+        </p>
+      </div>
+    </section>
+
+    <div class="border-t border-line"></div>
+
+    <section>
+      <h2 class="text-xl sm:text-2xl font-bold text-ink mb-4">
+        {% trans "Cómo gestionar el consentimiento" %}
+      </h2>
+      <p class="text-ink text-base leading-relaxed">
+        <a href="{% url 'rosters:my_profile' %}" class="text-brand-text underline font-semibold">
+          {% trans "Ve a Tú" %}
+        </a>
+        {% trans "para revisar tu ficha o la de tus hijos y cambiar el consentimiento de imagen." %}
+      </p>
+    </section>
+
+    <div class="border-t border-line"></div>
+
+    <section>
+      <p class="text-ink text-base leading-relaxed">
+        {% blocktrans trimmed with email=privacy_email %}
+        Si tienes dudas, escribe a
+        <a href="mailto:{{ email }}" class="text-brand-text underline font-semibold">{{ email }}</a>.
+        {% endblocktrans %}
+      </p>
+    </section>
+  </div>
+</div>
+{% endblock %}

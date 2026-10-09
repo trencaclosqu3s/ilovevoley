@@ -121,4 +121,20 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute=45, hour=7),
         'options': {'expire_seconds': 3600},
     },
+    # --- Actas de partidos oficiales de los tenants (#455) ----------------------
+    # Las actas se publican horas después del partido; cada pasada también enlaza
+    # las alineaciones con las plantillas cargadas después.
+    'scrape-match-actas': {
+        'task': 'scrape_match_actas',
+        'schedule': crontab(minute=30, hour='*/6'),
+        'options': {'expire_seconds': 3600},
+    },
+    # --- Actas manuales (foto) de los tenants (#462) -----------------------------
+    # Descarga la foto y, con ACTA_VISION_ENABLED, la lee con Gemini; el resultado queda
+    # pendiente de revisión en el admin. Pocas fotos a la semana: cada 2 h sobra.
+    'process-pending-acta-photos': {
+        'task': 'process_pending_acta_photos',
+        'schedule': crontab(minute=15, hour='*/2'),
+        'options': {'expire_seconds': 1800},
+    },
 }
