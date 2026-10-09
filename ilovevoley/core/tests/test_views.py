@@ -848,4 +848,18 @@ class ImageTransparencyViewTests(TestCase):
             'El nivel elegido no oculta automáticamente las imágenes etiquetadas',
         )
 
+    def test_image_transparency_footer_link_only_for_authenticated_users(self):
+        transparency_url = reverse('core:image_transparency')
+
+        response_anon = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response_anon.status_code, 200)
+        footer_anon = response_anon.content.decode().split('<footer')[1].split('</footer>')[0]
+        self.assertNotIn(transparency_url, footer_anon)
+
+        self.client.force_login(self.user)
+        response_auth = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response_auth.status_code, 200)
+        footer_auth = response_auth.content.decode().split('<footer')[1].split('</footer>')[0]
+        self.assertIn(transparency_url, footer_auth)
+
 
