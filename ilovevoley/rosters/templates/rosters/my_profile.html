@@ -53,11 +53,10 @@
     {% include 'rosters/_tagged_photos.html' with person=person tagged_images=tagged_images tagged_images_count=tagged_images_count %}
 
 {% if seasons|length > 1 %}
-    <nav class="flex gap-2 overflow-x-auto whitespace-nowrap pb-1 mb-4 -mx-1 px-1" role="tablist" aria-label="{% trans 'Temporadas' %}">
+    <nav class="flex gap-2 overflow-x-auto whitespace-nowrap pb-1 mb-4 -mx-1 px-1" aria-label="{% trans 'Temporadas' %}">
         {% for entry in seasons %}
-        <a href="?season={{ entry.season.pk }}" role="tab"
-           aria-selected="{% if entry.season == active_season %}true{% else %}false{% endif %}"
-           class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold touch-manipulation transition bg-surface text-ink hover:bg-tint aria-selected:bg-csj-purple-dark aria-selected:text-white">
+        <a href="?season={{ entry.season.pk }}"{% if entry.season == active_season %} aria-current="page"{% endif %}
+           class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold touch-manipulation transition bg-surface text-ink hover:bg-tint aria-[current=page]:bg-csj-purple-dark aria-[current=page]:text-white">
             {{ entry.season }}
         </a>
         {% endfor %}
@@ -66,7 +65,7 @@
 
     {% for entry in seasons %}
     {% if entry.season == active_season %}
-        <section role="tabpanel" class="bg-surface rounded-[20px] border border-line p-5 mb-4">
+        <section class="bg-surface rounded-[20px] border border-line p-5 mb-4">
             <h2 class="text-lg font-bold text-ink mb-3">{% blocktrans with season=entry.season %}Temporada {{ season }}{% endblocktrans %}</h2>
             <ul class="space-y-2">
                 {% for role in entry.player_roles %}
