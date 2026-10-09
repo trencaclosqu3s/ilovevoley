@@ -1074,7 +1074,12 @@ class FederationScraper:
         if not to_withdraw:
             return
 
-        Match.objects.filter(pk__in=[m.pk for m in to_withdraw]).update(status='withdrawn')
+        # Re-verificar estado: un scrape concurrente pudo finalizar un cruce del
+        # listado entre el snapshot y este UPDATE.
+        Match.objects.filter(
+            pk__in=[m.pk for m in to_withdraw],
+            status__in=['scheduled', 'postponed'],
+        ).update(status='withdrawn')
         for fixture in to_withdraw:
             logger.warning(
                 f'Mirror duplicate withdrawn: {fixture.home_team.name} vs {fixture.away_team.name} '
