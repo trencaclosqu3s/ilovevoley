@@ -5,9 +5,10 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from ilovevoley.competitions.models import League, Match, MatchLineup
+from ilovevoley.competitions.models import League, Match, MatchActaPhoto, MatchLineup
 from ilovevoley.competitions.services.lineups import (
     build_match_lineups,
+    fetch_and_store_acta,
     get_player_season_stats,
     get_season_rivals,
     store_match_lineups,
@@ -445,9 +446,8 @@ class BackfillActasCommandTests(TestCase):
         )
 
 
-
 class ScrapeMatchActasTaskTests(TestCase):
-    """La tarea periódica (#455) solo procesa partidos oficiales de los tenants."""
+    """La tarea periódica (#455, #462) procesa partidos oficiales de los tenants y gestiona actas manuales."""
 
     def setUp(self):
         self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-T')
@@ -504,3 +504,102 @@ class ScrapeMatchActasTaskTests(TestCase):
         row.refresh_from_db()
         self.assertEqual(row.person_id, person.id)
         self.assertFalse(MatchLineup.objects.filter(team=self.rival, person__isnull=False).exists())
+
+    @override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
+    def test_ignora_partidos_con_acta_foto_sin_acta_html(self):
+        """Los partidos con foto manual y sin acta_html no deben ser intentados por la tarea HTML (#462)."""
+        from ilovevoley.competitions.tasks import scrape_match_actas_task
+
+        photo_match = Match.objects.create(
+            league=self.own.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now(), round_number=4, status='finished',
+            acta_html='',
+        )
+        MatchActaPhoto.objects.create(
+            match=photo_match,
+            source_url='https://federacion.example/pdf.asp?o=81768.jpeg',
+            status='pending_download',
+        )
+
+        data = _lineup_data(home_convocados=['7 Ruiz'], sets=[_set('Set 1', _six(7), _six(21))])
+        with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
+                patch('ilovevoley.videos.scraping.parse_acta_lineup', return_value=data):
+            result = scrape_match_actas_task()
+
+        # Solo se procesa self.own (que tiene acta_html válida), no photo_match
+        get.assert_called_once_with('https://federacion.example/acta/1', allowed_hosts=['federacion.example'])
+        self.assertEqual(result['processed'], 1)
+        photo_match.refresh_from_db()
+        self.assertIsNone(photo_match.acta_data)
+
+    @override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
+    def test_fetch_and_store_acta_sobreescribe_alineaciones_si_llega_html(self):
+        """Si un partido tenía foto manual y llega el HTML oficial, prevalece el HTML y sobreescribe (#462)."""
+        photo_match = Match.objects.create(
+            league=self.own.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now(), round_number=5, status='finished',
+            acta_html='https://federacion.example/acta/5',
+        )
+        MatchActaPhoto.objects.create(
+            match=photo_match,
+            source_url='https://federacion.example/pdf.asp?o=81768.jpeg',
+            status='approved',
+        )
+        initial_photo_data = _lineup_data(
+            home_convocados=['7 Ruiz Provisional'],
+            sets=[],
+        )
+        store_match_lineups(photo_match, initial_photo_data)
+        self.assertEqual(MatchLineup.objects.filter(match=photo_match).count(), 1)
+        lineup_entry = MatchLineup.objects.get(match=photo_match)
+        self.assertEqual(lineup_entry.jersey_number, 7)
+        self.assertEqual(lineup_entry.sets_played, 0)
+        self.assertEqual(lineup_entry.name_acta, 'Ruiz Provisional')
+
+        html_data = _lineup_data(
+            home_convocados=['7 Ruiz', '9 Gomila'],
+            sets=[_set('Set 1', [_entry('I', 7), _entry('II', 9), _entry('III', 1),
+                                 _entry('IV', 2), _entry('V', 3), _entry('VI', 4)], _six(21))],
+        )
+        with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
+                patch('ilovevoley.videos.scraping.parse_acta_lineup', return_value=html_data):
+            fetch_and_store_acta(photo_match)
+
+        get.assert_called_once_with('https://federacion.example/acta/5', allowed_hosts=['federacion.example'])
+        photo_match.refresh_from_db()
+        self.assertEqual(photo_match.acta_data['home_convocados'], ['7 Ruiz', '9 Gomila'])
+
+        rows = {r.jersey_number: r for r in MatchLineup.objects.filter(match=photo_match, team=self.team)}
+        self.assertIn(7, rows)
+        self.assertIn(9, rows)
+        self.assertEqual(rows[7].name_acta, 'Ruiz')
+        self.assertEqual(rows[7].sets_played, 1)
+        self.assertEqual(rows[7].sets_started, 1)
+        self.assertEqual(rows[9].name_acta, 'Gomila')
+        self.assertEqual(rows[9].sets_played, 1)
+
+    @override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
+    def test_procesa_partido_con_foto_si_tiene_acta_html(self):
+        """Si un partido tiene foto pero también tiene acta_html, la tarea sí lo procesa (#462)."""
+        from ilovevoley.competitions.tasks import scrape_match_actas_task
+
+        photo_with_html = Match.objects.create(
+            league=self.own.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now(), round_number=6, status='finished',
+            acta_html='https://federacion.example/acta/6',
+        )
+        MatchActaPhoto.objects.create(
+            match=photo_with_html,
+            source_url='https://federacion.example/pdf.asp?o=81769.jpeg',
+            status='pending_download',
+        )
+
+        data = _lineup_data(home_convocados=['7 Ruiz'], sets=[_set('Set 1', _six(7), _six(21))])
+        with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
+                patch('ilovevoley.videos.scraping.parse_acta_lineup', return_value=data):
+            result = scrape_match_actas_task()
+
+        self.assertEqual(result['processed'], 2)  # self.own + photo_with_html
+        photo_with_html.refresh_from_db()
+        self.assertIsNotNone(photo_with_html.acta_data)
+

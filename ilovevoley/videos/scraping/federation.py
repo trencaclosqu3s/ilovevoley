@@ -136,11 +136,17 @@ class FederationScraper:
             # Fuera de rango el servidor devuelve la jornada 1, no un error.
             if not header or (round_number and int(header.group(1)) != round_number):
                 return None
+            current_round_num = int(header.group(1))
+            try:
+                from ilovevoley.competitions.services.acta_photo import process_acta_photos_from_html
+                process_acta_photos_from_html(html, league=league, round_number=current_round_num)
+            except Exception as e:
+                logger.warning(f'Error procesando fotos de acta en {league.name}: {e}')
             for block in html.split("class='info_partido")[1:]:
                 clubs = re.findall(r'clubes/(\d+)mini', block)
                 if len(clubs) >= 2:
-                    round_map[(clubs[0], clubs[1])] = int(header.group(1))
-            return int(header.group(1))
+                    round_map[(clubs[0], clubs[1])] = current_round_num
+            return current_round_num
 
         try:
             if needed is None:

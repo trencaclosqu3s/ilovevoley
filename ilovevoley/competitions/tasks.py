@@ -266,6 +266,14 @@ def discover_seasonal_beach_leagues_task():
     return len(discover_seasonal_beach(current))
 
 
+@shared_task(name='process_pending_acta_photos')
+def process_pending_acta_photos_task(limit=5):
+    """Procesa un lote de fotos de actas manuales pendientes de descarga y lectura con visión (#462)."""
+    from ilovevoley.competitions.services.acta_vision import process_acta_photo_batch
+
+    return process_acta_photo_batch(limit=limit)
+
+
 # Actas por pasada: limita las peticiones a la federación y deja que el histórico
 # pendiente se ponga al día en unas pocas ejecuciones.
 ACTA_BATCH_SIZE = 50
@@ -279,13 +287,14 @@ def scrape_match_actas_task(limit=ACTA_BATCH_SIZE):
     Los partidos rival contra rival no se procesan: no hay jugadores de ningún tenant.
     Un acta que falla se reintenta en la siguiente pasada; si falla siempre (p. ej. HTML
     que el parser no entiende), ocupa un hueco del lote hasta que se corrija a mano.
+    Los partidos con acta manual (MatchActaPhoto) y sin acta_html se saltan (#462).
     """
     import requests
 
+    from ilovevoley.competitions.services.lineups import fetch_and_store_acta, relink_orphan_lineups
     from ilovevoley.core.mixins import get_club_team_filter
     from ilovevoley.core.models import Organization
     from ilovevoley.core.security import UnsafeURL
-    from ilovevoley.competitions.services.lineups import fetch_and_store_acta, relink_orphan_lineups
 
     tenant_q = None
     for organization in Organization.objects.filter(is_active=True):

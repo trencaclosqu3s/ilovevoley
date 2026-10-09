@@ -109,7 +109,13 @@ class MatchesParser(BaseParser):
             except Exception as e:
                 logger.warning(f"Error parsing match: {e}")
                 continue
-        
+
+        try:
+            from ilovevoley.competitions.services.acta_photo import process_acta_photos_from_html
+            process_acta_photos_from_html(content, league=self.league, round_number=current_round)
+        except Exception as e:
+            logger.warning(f"Error procesando fotos de acta en MatchesParser: {e}")
+
         return {'matches': matches}
     
     def _parse_single_match(self, match_div, round_number: int) -> Optional[Dict[str, Any]]:
