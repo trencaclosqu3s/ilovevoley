@@ -848,6 +848,14 @@ class ImageTransparencyViewTests(TestCase):
             'El nivel elegido no oculta automáticamente las imágenes etiquetadas',
         )
 
+    def test_image_transparency_catalan_translation(self):
+        url = reverse('core:image_transparency')
+        self.client.force_login(self.user)
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = 'ca'
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Qui veu les fotos')
+
     def test_image_transparency_footer_link_only_for_authenticated_users(self):
         transparency_url = reverse('core:image_transparency')
 
