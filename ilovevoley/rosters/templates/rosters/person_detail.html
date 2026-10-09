@@ -75,7 +75,7 @@
                     {% if can_manage %}
                         {% if membership and not membership.is_active %}
                             <form method="post" action="{% url 'rosters:person_membership_toggle' person.id %}" id="membership-toggle-form"
-                                  data-confirm-message="{% trans "¿Reactivar a esta persona en el club?"|escapejs %}"
+                                  data-confirm-message="{% trans "¿Reactivar a esta persona en el club?" %}"
                                   class="inline-flex">
                                 {% csrf_token %}
                                 <input type="hidden" name="target" value="alta">
@@ -85,7 +85,7 @@
                             </form>
                         {% else %}
                             <form method="post" action="{% url 'rosters:person_membership_toggle' person.id %}" id="membership-toggle-form"
-                                  data-confirm-message="{% trans "¿Dar de baja a esta persona en el club? Su ficha e histórico se conservan."|escapejs %}"
+                                  data-confirm-message="{% trans "¿Dar de baja a esta persona en el club? Su ficha e histórico se conservan." %}"
                                   class="inline-flex">
                                 {% csrf_token %}
                                 <input type="hidden" name="target" value="baja">
@@ -375,10 +375,12 @@
                 return;
             }
             // El POST es idempotente (target explícito); el botón se deshabilita
-            // para evitar el doble envío accidental.
+            // tras el ciclo de envío para evitar el doble clic accidental.
             const button = form.querySelector('button');
             if (button) {
-                button.disabled = true;
+                setTimeout(function () {
+                    button.disabled = true;
+                }, 0);
             }
         });
     }

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Prefetch
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 
@@ -110,7 +111,7 @@ class PersonAdmin(ModelAdmin):
 
     def membership_state(self, obj):
         """Estado de pertenencia a clubes: alta o baja por organización (#478)."""
-        memberships = list(obj.club_memberships.select_related('organization').order_by('organization__name'))
+        memberships = list(obj.club_memberships.all())
         if not memberships:
             return format_html('<span style="color: gray;">{}</span>', '—')
         lines = format_html('<br>').join(
@@ -144,6 +145,15 @@ class PersonAdmin(ModelAdmin):
         return format_html('<span style="color: gray;">{}</span>', '—')
     parents_info.short_description = 'Padres'
     parents_info.admin_order_field = 'parents__count'
+
+    def get_queryset(self, request):
+        """Prefetch de pertenencias (con organización) para el changelist (#478)."""
+        return super().get_queryset(request).prefetch_related(
+            Prefetch(
+                'club_memberships',
+                queryset=PersonOrganization.objects.select_related('organization').order_by('organization__name'),
+            )
+        )
 
     def activate_people(self, request, queryset):
         """Activar personas seleccionadas"""

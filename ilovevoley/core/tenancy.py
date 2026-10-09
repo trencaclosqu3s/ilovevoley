@@ -101,7 +101,10 @@ class PersonTenantQuerySet(TenantQuerySet):
                     staff_roles__season=season,
                 )
             )
-        # La baja del club precede a cualquier rol activo de la temporada.
+        # La baja del club precede a cualquier rol activo de la temporada. Con
+        # pertenencias múltiples (baja aquí, alta en otro club) hay que restar
+        # por pk de la ficha: el exclude directo del join alteraría la
+        # semántica del multi-valued.
         given_leave = self.model._base_manager.filter(
             models.Q(
                 club_memberships__organization=tenant,
