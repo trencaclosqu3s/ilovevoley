@@ -74,8 +74,11 @@
                     {% endif %}
                     {% if can_manage %}
                         {% if membership and not membership.is_active %}
-                            <form method="post" action="{% url 'rosters:person_membership_toggle' person.id %}" class="inline-flex">
+                            <form method="post" action="{% url 'rosters:person_membership_toggle' person.id %}" id="membership-toggle-form"
+                                  data-confirm-message="{% trans "¿Reactivar a esta persona en el club?"|escapejs %}"
+                                  class="inline-flex">
                                 {% csrf_token %}
+                                <input type="hidden" name="target" value="alta">
                                 <button type="submit" class="bg-green-600 hover:opacity-80 text-white px-4 py-2 rounded-full font-medium transition text-sm whitespace-nowrap inline-flex items-center">
                                     {% trans "Reactivar en el club" %}
                                 </button>
@@ -85,6 +88,7 @@
                                   data-confirm-message="{% trans "¿Dar de baja a esta persona en el club? Su ficha e histórico se conservan."|escapejs %}"
                                   class="inline-flex">
                                 {% csrf_token %}
+                                <input type="hidden" name="target" value="baja">
                                 <button type="submit" class="bg-red-600 hover:opacity-80 text-white px-4 py-2 rounded-full font-medium transition text-sm whitespace-nowrap inline-flex items-center">
                                     {% trans "Dar de baja en el club" %}
                                 </button>
@@ -363,10 +367,18 @@
 <script nonce="{{ csp_nonce }}">
 (function () {
     const form = document.getElementById('membership-toggle-form');
-    if (form && form.dataset.confirmMessage) {
+    if (form) {
         form.addEventListener('submit', function (event) {
-            if (!confirm(form.dataset.confirmMessage)) {
+            const message = form.dataset.confirmMessage;
+            if (message && !confirm(message)) {
                 event.preventDefault();
+                return;
+            }
+            // El POST es idempotente (target explícito); el botón se deshabilita
+            // para evitar el doble envío accidental.
+            const button = form.querySelector('button');
+            if (button) {
+                button.disabled = true;
             }
         });
     }

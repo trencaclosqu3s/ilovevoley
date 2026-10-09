@@ -109,8 +109,8 @@ class PersonAdmin(ModelAdmin):
     photo_preview.short_description = 'Preview'
 
     def membership_state(self, obj):
-        """Estado de pertenencia a clubes: alta o baja por organizaci贸n (#478)."""
-        memberships = list(obj.club_memberships.order_by('organization__name'))
+        """Estado de pertenencia a clubes: alta o baja por organización (#478)."""
+        memberships = list(obj.club_memberships.select_related('organization').order_by('organization__name'))
         if not memberships:
             return format_html('<span style="color: gray;">{}</span>', '—')
         lines = format_html('<br>').join(

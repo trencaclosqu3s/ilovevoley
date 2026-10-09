@@ -70,8 +70,10 @@ class PersonTenantQuerySet(TenantQuerySet):
 
         Más estrecho que ``for_tenant`` (que mantiene el acceso histórico por
         URL a fichas dadas de baja): los listados y selectores no deben
-        ofrecer fichas con baja deportiva. Sin temporada activa configurada
-        solo cuenta la pertenencia.
+        ofrecer fichas con baja deportiva. La baja gana: una ficha dada de
+        baja aquí no sale aunque conserve un rol activo de la temporada
+        (dar de baja debe limpiar también las plantillas vigentes). Sin
+        temporada activa configurada solo cuenta la pertenencia.
         """
         if tenant is None:
             return self.none()
@@ -99,7 +101,14 @@ class PersonTenantQuerySet(TenantQuerySet):
                     staff_roles__season=season,
                 )
             )
-        return self.filter(pk__in=qs.values('pk'))
+        # La baja del club precede a cualquier rol activo de la temporada.
+        given_leave = self.model._base_manager.filter(
+            models.Q(
+                club_memberships__organization=tenant,
+                club_memberships__is_active=False,
+            )
+        )
+        return self.filter(pk__in=qs.values('pk')).exclude(pk__in=given_leave.values('pk'))
 
 
 class PersonRoleTenantQuerySet(TenantQuerySet):

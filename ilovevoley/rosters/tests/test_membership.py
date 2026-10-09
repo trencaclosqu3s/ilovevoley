@@ -139,6 +139,22 @@ class ActiveForTenantTests(TestCase):
         )
         self.assertIn(only_role, Person.objects.active_for_tenant(self.org_b))
 
+    def test_baja_gana_sobre_rol_temporada_actual(self):
+        """Ficha dada de baja con plantilla vigente: no sale en los listados.
+
+        La baja debe limpiar también los selectores aunque el rol siga
+        activo (a las plantillas vigentes habría que retirarla a mano).
+        """
+        person = self._person('Helena', 'BajaConRol')
+        self._give_alta(person, self.org_a)
+        self._dar_de_baja(person, self.org_a)
+        PlayerRole.objects.create(
+            person=person, identity=self.team_a, season=self.season,
+            jersey_number=4, is_active=True,
+        )
+        self.assertNotIn(person, Person.objects.active_for_tenant(self.org_a))
+        self.assertIn(person, Person.objects.for_tenant(self.org_a))
+
     def test_person_list_excluye_las_bajas(self):
         """El listado visible del tenant respeta la baja (#478)."""
         baja = self._person('Fabian', 'BajaListado')
@@ -219,19 +235,28 @@ class PersonMembershipToggleTests(TestCase):
 
     def test_manager_da_de_baja_y_reactiva(self):
         self.client.force_login(self.manager)
-        response = self.client.post(self.url, HTTP_HOST='club-a.rostertest.es')
+        response = self.client.post(self.url, {'target': 'baja'}, HTTP_HOST='club-a.rostertest.es')
         self.assertEqual(response.status_code, 302)
         membership = self.person.club_memberships.get(organization=self.org)
         self.assertFalse(membership.is_active)
         self.assertIsNotNone(membership.end_date)
 
-        self.client.post(self.url, HTTP_HOST='club-a.rostertest.es')
+        self.client.post(self.url, {'target': 'alta'}, HTTP_HOST='club-a.rostertest.es')
         membership.refresh_from_db()
         self.assertTrue(membership.is_active)
         self.assertIsNone(membership.end_date)
 
+    def test_doble_post_de_baja_no_reactiva(self):
+        """El POST lleva target explícito: repetirlo es idempotente (#478)."""
+        self.client.force_login(self.manager)
+        self.client.post(self.url, {'target': 'baja'}, HTTP_HOST='club-a.rostertest.es')
+        self.client.post(self.url, {'target': 'baja'}, HTTP_HOST='club-a.rostertest.es')
+        membership = self.person.club_memberships.get(organization=self.org)
+        self.assertFalse(membership.is_active)
+        self.assertIsNotNone(membership.end_date)
+
     def test_member_no_puede_dar_de_baja(self):
         self.client.force_login(self.member)
-        response = self.client.post(self.url, HTTP_HOST='club-a.rostertest.es')
+        response = self.client.post(self.url, {'target': 'baja'}, HTTP_HOST='club-a.rostertest.es')
         self.assertEqual(response.status_code, 403)
         self.assertTrue(self.person.club_memberships.get(organization=self.org).is_active)

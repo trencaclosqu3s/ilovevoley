@@ -382,19 +382,23 @@ def person_detail(request, person_id):
 def person_membership_toggle(request, person_id):
     """Da de baja (o reactiva) la pertenencia deportiva de una ficha al club (#478).
 
+    El POST lleva ``target`` explícito ('baja' o 'alta') para que el doble
+    envío sea idempotente: repetir el mismo POST no invierte el estado.
     Solo toca la pertenencia a este tenant: la ficha global, sus roles
     históricos y la relación de seguidor del usuario quedan intactos.
     """
     person = get_tenant_object_or_404(
         Person.objects, request.tenant, user=request.user, id=person_id,
     )
+    target = request.POST.get('target')
     membership = person.club_memberships.filter(organization=request.tenant).first()
-    if membership is not None and membership.is_active:
-        membership.is_active = False
-        membership.end_date = timezone.localdate()
-        membership.save(update_fields=['is_active', 'end_date', 'updated_at'])
-        messages.success(request, _('%(name)s dada de baja en el club. Su ficha e histórico permanecen.') % {'name': person.full_name})
-    else:
+    if target == 'baja':
+        if membership is not None and membership.is_active:
+            membership.is_active = False
+            membership.end_date = timezone.localdate()
+            membership.save(update_fields=['is_active', 'end_date', 'updated_at'])
+            messages.success(request, _('%(name)s dada de baja en el club. Su ficha e histórico permanecen.') % {'name': person.full_name})
+    elif target == 'alta':
         person.enroll(request.tenant)
         messages.success(request, _('%(name)s está de alta en el club.') % {'name': person.full_name})
     return redirect('rosters:person_detail', person_id=person.id)
