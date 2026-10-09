@@ -1551,10 +1551,6 @@ msgstr "l'estil \"marc\" requereix una foto"
 msgid "capa inválida: %(layer)s"
 msgstr "capa no vàlida: %(layer)s"
 
-#: ilovevoley/competitions/result_card.py:596
-msgid "la previa solo admite el estilo \"completa\""
-msgstr "la prèvia només admet l'estil \"completa\""
-
 #: ilovevoley/competitions/result_card.py:709
 msgid "¡Hoy jugamos!"
 msgstr "Avui juguem!"

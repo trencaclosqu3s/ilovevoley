@@ -732,6 +732,7 @@ class MatchResultCardViewTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 400)
+        self.assertIn('previa', response.json()['error'].lower())
 
     def test_preview_pills_hide_unknown_time_and_need_both_positions(self):
         from ilovevoley.competitions.services.preview import preview_card_pills

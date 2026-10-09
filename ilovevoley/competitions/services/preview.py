@@ -131,6 +131,6 @@ def preview_card_pills(match):
             ).values_list('team_id', 'position')
         )
         home, away = positions.get(match.home_team_id), positions.get(match.away_team_id)
-        if home and away:
+        if home is not None and away is not None:
             pills.append(_('%(home)sº vs %(away)sº') % {'home': home, 'away': away})
     return pills

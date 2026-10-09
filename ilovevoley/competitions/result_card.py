@@ -530,7 +530,7 @@ def render_result_card(
 ) -> bytes:
     """Renderiza la tarjeta. `layout` (ver `normalize_layout`) solo aplica al estilo "marco".
 
-    Un partido sin resultado se pinta como previa (#456): "VS" en lugar del marcador, título
+    Con `pills` el partido se pinta como previa (#456): "VS" en lugar del marcador, título
     de día de partido, `pills` (hora, clasificación) en lugar de los sets y el pabellón.
 
     Con `preview_width` devuelve un WebP reducido a ese ancho en vez del PNG completo: se
@@ -591,9 +591,8 @@ def render_result_card(
     font_xs = _load_font(_FONT_REGULAR, 26)
     font_pill = _load_font(_FONT_REGULAR, round(26 * scale))
 
-    upcoming = match.home_score is None or match.away_score is None
-    if upcoming and card_style != 'completa':
-        raise ValueError(_('la previa solo admite el estilo "completa"'))
+    # La vista decide qué es previa y valida el estilo: con `pills` se pinta como previa.
+    upcoming = pills is not None
     score = 'VS' if upcoming else f'{match.home_score} - {match.away_score}'
     set_list = list(pills) if pills is not None else [f'{home}-{away}' for home, away in sets or []]
 
