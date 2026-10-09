@@ -10,6 +10,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
@@ -119,10 +120,12 @@ def roster_overview(request):
 @tenant_access_required()
 def person_list(request):
     """Vista de listado de personas del club"""
-    # Solo fichas del club del tenant activo
-    people = Person.objects.for_tenant(request.tenant).filter(
+    # Solo fichas del club del tenant activo que sigan dadas de alta o
+    # jugando la temporada actual (#478): las bajas quedan fuera del listado
+    # (siguen accesibles por URL y en los históricos).
+    people = Person.objects.filter(
         is_active=True,
-    ).prefetch_related(
+    ).active_for_tenant(request.tenant).prefetch_related(
         'player_roles__identity__category',
         'staff_roles__identity__category'
     ).order_by('last_name', 'first_name')
@@ -339,6 +342,9 @@ def person_detail(request, person_id):
     # Verificar permisos de edición
     can_edit = request.user.can_edit_person(person, request.tenant)
 
+    # Estado de pertenencia a este club (#478), para el badge y el toggle de baja
+    membership = person.club_memberships.filter(organization=request.tenant).first()
+
     # Histórico de actas: temporadas con roles o con partidos registrados
     person_lineups = MatchLineup.objects.filter(person=person, team__in=tenant_teams).exclude(match__status='withdrawn')
     lineup_season_ids = set(person_lineups.values_list('match__league__season_id', flat=True))
@@ -359,6 +365,8 @@ def person_detail(request, person_id):
         'staff_roles': staff_roles,
         'can_edit': can_edit,
         'has_card': can_edit and _card_role(person, request.tenant) is not None,
+        'membership': membership,
+        'can_manage': user_is_tenant_manager(request.user, request.tenant),
         'seasons': seasons,
         'stat_season': stat_season,
         'player_stats': player_stats,
@@ -367,6 +375,29 @@ def person_detail(request, person_id):
     }
 
     return render(request, 'rosters/person_detail.html', context)
+
+
+@tenant_access_required(manager=True)
+@require_POST
+def person_membership_toggle(request, person_id):
+    """Da de baja (o reactiva) la pertenencia deportiva de una ficha al club (#478).
+
+    Solo toca la pertenencia a este tenant: la ficha global, sus roles
+    históricos y la relación de seguidor del usuario quedan intactos.
+    """
+    person = get_tenant_object_or_404(
+        Person.objects, request.tenant, user=request.user, id=person_id,
+    )
+    membership = person.club_memberships.filter(organization=request.tenant).first()
+    if membership is not None and membership.is_active:
+        membership.is_active = False
+        membership.end_date = timezone.localdate()
+        membership.save(update_fields=['is_active', 'end_date', 'updated_at'])
+        messages.success(request, _('%(name)s dada de baja en el club. Su ficha e histórico permanecen.') % {'name': person.full_name})
+    else:
+        person.enroll(request.tenant)
+        messages.success(request, _('%(name)s está de alta en el club.') % {'name': person.full_name})
+    return redirect('rosters:person_detail', person_id=person.id)
 
 
 def _resolve_person_stat_season(request, seasons):
@@ -417,7 +448,7 @@ def person_create(request):
                 person.user = request.user
             
             person.save()
-            person.organizations.add(request.tenant)
+            person.enroll(request.tenant)
             messages.success(request, _('¡Persona creada exitosamente! Ahora puedes agregar roles de jugador o staff.'))
             return redirect('rosters:person_detail', person_id=person.id)
     else:
@@ -451,7 +482,7 @@ def person_quick_create(request):
     elif form.is_valid():
         with transaction.atomic():
             person = form.save()
-            person.organizations.add(request.tenant)
+            person.enroll(request.tenant)
         return JsonResponse({'id': person.pk, 'name': person.full_name, 'birth_year': person.birth_year})
     else:
         existing = form.existing_person()
@@ -460,7 +491,7 @@ def person_quick_create(request):
                 'name': existing.full_name, 'birth_year': existing.birth_year,
             }}, status=409)
         return JsonResponse({'errors': {k: [str(m) for m in v] for k, v in form.errors.items()}}, status=400)
-    person.organizations.add(request.tenant)
+    person.enroll(request.tenant)
     return JsonResponse({'id': person.pk, 'name': person.full_name, 'birth_year': person.birth_year})
 
 
@@ -482,7 +513,7 @@ def person_adopt(request):
     ).first()
     if person is None:
         raise Http404
-    person.organizations.add(request.tenant)
+    person.enroll(request.tenant)
     messages.success(request, _('Persona añadida a tu club. Ahora puedes agregar roles de jugador o staff.'))
     return redirect('rosters:person_detail', person_id=person.id)
 
@@ -597,7 +628,7 @@ def player_roster_bulk_add(request, team_id):
     season = seasons.filter(pk=raw_season).first() if raw_season and raw_season.isdigit() else None
     season = season or Season.objects.current()
 
-    candidates = Person.objects.for_tenant(request.tenant).filter(is_active=True).exclude(
+    candidates = Person.objects.active_for_tenant(request.tenant).filter(is_active=True).exclude(
         pk__in=PlayerRole.objects.filter(identity_id=team.identity_id, season=season, is_active=True).values('person_id'),
     ).order_by('last_name', 'first_name')
 

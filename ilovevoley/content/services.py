@@ -116,7 +116,7 @@ def taggable_persons(match, tenant):
     """
     from ilovevoley.rosters.models import Person, PlayerRole
 
-    base = Person.objects.for_tenant(tenant).filter(is_active=True)
+    base = Person.objects.active_for_tenant(tenant).filter(is_active=True)
     if match is None:
         return base.order_by('last_name', 'first_name')
 
