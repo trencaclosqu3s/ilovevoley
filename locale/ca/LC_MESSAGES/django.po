@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-09 18:53+0200\n"
+"POT-Creation-Date: 2026-10-09 18:56+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -91,7 +91,7 @@ msgstr "Vídeos"
 #: ilovevoley/competitions/templates/competitions/league_detail.html:53
 #: ilovevoley/competitions/templates/competitions/league_detail.html:77
 #: ilovevoley/competitions/templates/competitions/league_list.html:152
-#: ilovevoley/rosters/player_card.py:298
+#: ilovevoley/rosters/player_card.py:313
 msgid "Partidos"
 msgstr "Partits"
 
@@ -1368,13 +1368,13 @@ msgid "Nombre en acta"
 msgstr "Nom en acta"
 
 #: ilovevoley/competitions/models/competitions.py:882
-#: ilovevoley/rosters/player_card.py:183
+#: ilovevoley/rosters/player_card.py:198
 msgid "Convocado"
 msgstr "Convocat"
 
 #
 #: ilovevoley/competitions/models/competitions.py:883
-#: ilovevoley/rosters/player_card.py:299
+#: ilovevoley/rosters/player_card.py:314
 msgid "Sets jugados"
 msgstr "Sets jugats"
 
@@ -1512,7 +1512,7 @@ msgstr "Organització"
 #: ilovevoley/competitions/models/story.py:33
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:45
 #: ilovevoley/rosters/forms.py:117 ilovevoley/rosters/models/rosters.py:48
-#: ilovevoley/rosters/templates/rosters/person_card.html:45
+#: ilovevoley/rosters/templates/rosters/person_card.html:55
 #: ilovevoley/teams/templates/teams/team_roster.html:242
 #: ilovevoley/teams/templates/teams/team_roster.html:469
 msgid "Foto"
@@ -2493,7 +2493,7 @@ msgstr "Totes les temporades"
 
 #: ilovevoley/competitions/templates/competitions/match_changes_review.html:57
 #: ilovevoley/competitions/templates/competitions/standings.html:111
-#: ilovevoley/rosters/player_card.py:266
+#: ilovevoley/rosters/player_card.py:281
 #: ilovevoley/rosters/templates/rosters/my_profile.html:53
 #: ilovevoley/rosters/templates/rosters/person_card.html:20
 #, python-format
@@ -6661,7 +6661,7 @@ msgstr "No especificada"
 
 #
 #: ilovevoley/rosters/models/rosters.py:191
-#: ilovevoley/rosters/templates/rosters/person_card.html:66
+#: ilovevoley/rosters/templates/rosters/person_card.html:76
 msgid "Sin foto"
 msgstr "Sense foto"
 
@@ -6766,116 +6766,117 @@ msgstr "Rol de Staff"
 msgid "Roles de Staff"
 msgstr "Rols de staff"
 
-#: ilovevoley/rosters/player_card.py:123
+#: ilovevoley/rosters/player_card.py:138
 msgid "Talismán"
 msgstr "Talismà"
 
-#: ilovevoley/rosters/player_card.py:123
+#: ilovevoley/rosters/player_card.py:138
 #, python-format
 msgid "El equipo ganó el %(pct)s %% de los sets que jugó"
 msgstr "L'equip va guanyar el %(pct)s %% dels sets que va jugar"
 
-#: ilovevoley/rosters/player_card.py:126
+#: ilovevoley/rosters/player_card.py:141
 msgid "Sangre fría"
 msgstr "Sang freda"
 
-#: ilovevoley/rosters/player_card.py:126
+#: ilovevoley/rosters/player_card.py:141
 #, python-format
 msgid "En pista en %(n)s sets ajustados que ganó el equipo"
 msgstr "A pista en %(n)s sets ajustats que va guanyar l'equip"
 
-#: ilovevoley/rosters/player_card.py:129
+#: ilovevoley/rosters/player_card.py:144
 msgid "Revulsivo"
 msgstr "Revulsiu"
 
-#: ilovevoley/rosters/player_card.py:129
+#: ilovevoley/rosters/player_card.py:144
 #, python-format
 msgid "Entró desde el banquillo en %(n)s sets y el equipo ganó %(won)s"
-msgstr "Va entrar des de la banqueta en %(n)s sets i l'equip en va guanyar %(won)s"
+msgstr ""
+"Va entrar des de la banqueta en %(n)s sets i l'equip en va guanyar %(won)s"
 
-#: ilovevoley/rosters/player_card.py:132
+#: ilovevoley/rosters/player_card.py:147
 msgid "Fijo en el seis"
 msgstr "Fix al sis"
 
-#: ilovevoley/rosters/player_card.py:132
+#: ilovevoley/rosters/player_card.py:147
 #, python-format
 msgid "Titular en %(n)s de los %(total)s sets del equipo"
 msgstr "Titular en %(n)s dels %(total)s sets de l'equip"
 
-#: ilovevoley/rosters/player_card.py:135
+#: ilovevoley/rosters/player_card.py:150
 msgid "Remontada"
 msgstr "Remuntada"
 
-#: ilovevoley/rosters/player_card.py:136
+#: ilovevoley/rosters/player_card.py:151
 #, python-format
 msgid "En pista en %(n)s partido que el equipo remontó"
 msgid_plural "En pista en %(n)s partidos que el equipo remontó"
 msgstr[0] "A pista en %(n)s partit que l'equip va remuntar"
 msgstr[1] "A pista en %(n)s partits que l'equip va remuntar"
 
-#: ilovevoley/rosters/player_card.py:140
+#: ilovevoley/rosters/player_card.py:155
 msgid "Maratón"
 msgstr "Marató"
 
-#: ilovevoley/rosters/player_card.py:140
+#: ilovevoley/rosters/player_card.py:155
 #, python-format
 msgid "Jugó %(n)s partidos a cinco sets"
 msgstr "Va jugar %(n)s partits a cinc sets"
 
-#: ilovevoley/rosters/player_card.py:142
+#: ilovevoley/rosters/player_card.py:157
 msgid "Viajero"
 msgstr "Viatger"
 
-#: ilovevoley/rosters/player_card.py:142
+#: ilovevoley/rosters/player_card.py:157
 #, python-format
 msgid "Jugó %(n)s de los %(total)s partidos fuera de casa"
 msgstr "Va jugar %(n)s dels %(total)s partits fora de casa"
 
-#: ilovevoley/rosters/player_card.py:173
+#: ilovevoley/rosters/player_card.py:188
 #, python-format
 msgid "Victoria %(ours)s-%(theirs)s"
 msgstr "Victòria %(ours)s-%(theirs)s"
 
-#: ilovevoley/rosters/player_card.py:174
+#: ilovevoley/rosters/player_card.py:189
 #, python-format
 msgid "En pista contra %(rival)s el %(date)s"
 msgstr "A pista contra %(rival)s el %(date)s"
 
-#: ilovevoley/rosters/player_card.py:178
+#: ilovevoley/rosters/player_card.py:193
 #, python-format
 msgid "%(n)s set en pista"
 msgid_plural "%(n)s sets en pista"
 msgstr[0] "%(n)s set a pista"
 msgstr[1] "%(n)s sets a pista"
 
-#: ilovevoley/rosters/player_card.py:179
+#: ilovevoley/rosters/player_card.py:194
 #, python-format
 msgid "Contra %(rival)s el %(date)s"
 msgstr "Contra %(rival)s el %(date)s"
 
-#: ilovevoley/rosters/player_card.py:183
+#: ilovevoley/rosters/player_card.py:198
 #, python-format
 msgid "Primera convocatoria: contra %(rival)s el %(date)s"
 msgstr "Primera convocatòria: contra %(rival)s el %(date)s"
 
-#: ilovevoley/rosters/player_card.py:193
+#: ilovevoley/rosters/player_card.py:208
 msgid "Perfil de la temporada"
 msgstr "Perfil de la temporada"
 
-#: ilovevoley/rosters/player_card.py:197
+#: ilovevoley/rosters/player_card.py:212
 msgid "Momento de la temporada"
 msgstr "Moment de la temporada"
 
-#: ilovevoley/rosters/player_card.py:276
+#: ilovevoley/rosters/player_card.py:291
 msgid "Partidos oficiales · según actas"
 msgstr "Partits oficials · segons actes"
 
-#: ilovevoley/rosters/player_card.py:300
+#: ilovevoley/rosters/player_card.py:315
 #: ilovevoley/rosters/templates/rosters/person_detail.html:179
 msgid "Titularidades"
 msgstr "Titularitats"
 
-#: ilovevoley/rosters/player_card.py:360
+#: ilovevoley/rosters/player_card.py:375
 #, python-format
 msgid "nº %(n)s"
 msgstr "núm. %(n)s"
@@ -6939,17 +6940,32 @@ msgstr "Cromo del jugador"
 msgid "Vista previa del cromo"
 msgstr "Vista prèvia del cromo"
 
-#: ilovevoley/rosters/templates/rosters/person_card.html:50
+#: ilovevoley/rosters/templates/rosters/person_card.html:47
+msgid "Esta ficha no tiene consentimiento de imagen: el cromo sale sin foto."
+msgstr "Aquesta fitxa no té consentiment d'imatge: el cromo surt sense foto."
+
+#: ilovevoley/rosters/templates/rosters/person_card.html:49
+msgid ""
+"Con consentimiento de solo uso interno, el cromo con foto solo lo puede "
+"generar el propio deportista o su familia."
+msgstr "Amb consentiment només d'ús intern, el cromo amb foto només el pot generar el mateix esportista o la seva família."
+
+#: ilovevoley/rosters/templates/rosters/person_card.html:51
+msgid "El consentimiento se cambia en la ficha."
+msgstr "El consentiment es canvia a la fitxa."
+
+#: ilovevoley/rosters/templates/rosters/person_card.html:60
 msgid "Foto etiquetada"
 msgstr "Foto etiquetada"
 
-#: ilovevoley/rosters/templates/rosters/person_card.html:58
+#: ilovevoley/rosters/templates/rosters/person_card.html:68
 msgid "Foto de perfil"
 msgstr "Foto de perfil"
 
-#: ilovevoley/rosters/templates/rosters/person_card.html:70
+#: ilovevoley/rosters/templates/rosters/person_card.html:80
 msgid "Para usar otra foto, súbela a la galería del club y etiquétalo en ella."
-msgstr "Per fer servir una altra foto, puja-la a la galeria del club i etiqueta'l."
+msgstr ""
+"Per fer servir una altra foto, puja-la a la galeria del club i etiqueta'l."
 
 #: ilovevoley/rosters/templates/rosters/person_detail.html:14
 msgid "Volver a personas"

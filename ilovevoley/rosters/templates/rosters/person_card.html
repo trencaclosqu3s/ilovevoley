@@ -41,6 +41,16 @@
                 </button>
             </div>
 
+            {% if not photo_allowed %}
+                <p class="text-sm text-muted bg-tint rounded-lg p-4">
+                    {% if person.image_consent == 'none' %}
+                        {% trans "Esta ficha no tiene consentimiento de imagen: el cromo sale sin foto." %}
+                    {% else %}
+                        {% trans "Con consentimiento de solo uso interno, el cromo con foto solo lo puede generar el propio deportista o su familia." %}
+                    {% endif %}
+                    <a href="{% url 'rosters:person_edit' person.id %}" class="font-semibold text-brand-text hover:underline">{% trans "El consentimiento se cambia en la ficha." %}</a>
+                </p>
+            {% else %}
             <fieldset>
                 <legend class="text-sm font-semibold text-ink mb-2">{% trans "Foto" %}</legend>
                 <div class="grid grid-cols-4 sm:grid-cols-5 gap-2">
@@ -70,6 +80,7 @@
                     <p class="text-sm text-muted mt-2">{% trans "Para usar otra foto, súbela a la galería del club y etiquétalo en ella." %}</p>
                 {% endif %}
             </fieldset>
+            {% endif %}
         </div>
     </div>
 </div>

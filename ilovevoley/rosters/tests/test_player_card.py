@@ -16,7 +16,7 @@ from ilovevoley.content.models import Image
 from ilovevoley.competitions.services.lineups import store_match_lineups
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.rosters.models import Person, PlayerRole
-from ilovevoley.rosters.player_card import card_highlight, pick_profile, season_facts
+from ilovevoley.rosters.player_card import card_highlight, card_photo_allowed, pick_profile, season_facts
 from ilovevoley.teams.models import Club, Team
 from ilovevoley.teams.tests.helpers import identity_of
 from ilovevoley.users.models import Membership
@@ -182,3 +182,24 @@ class PlayerCardViewTests(PlayerCardTestBase):
         response = self.client.get(f'{self.url}?foto={other.id}', HTTP_HOST='testclub.ilovevoley.es')
 
         self.assertEqual(response.status_code, 404)
+
+
+class PlayerCardConsentTests(PlayerCardTestBase):
+    """El cromo es para redes: la foto depende del consentimiento y de quién lo genera (#122)."""
+
+    def test_foto_segun_consentimiento_y_quien_genera(self):
+        User = get_user_model()
+        parent = User.objects.create_user(username='padre')
+        parent.children.add(self.person)
+        manager = User.objects.create_user(username='gestor')
+        consent = Person.ImageConsent
+        cases = [
+            (consent.FULL_PUBLIC, manager, True),
+            (consent.INTERNAL_ONLY, parent, True),
+            (consent.INTERNAL_ONLY, manager, False),
+            (consent.NONE, parent, False),
+        ]
+        for value, user, expected in cases:
+            with self.subTest(consent=value, user=user.username):
+                self.person.image_consent = value
+                self.assertIs(card_photo_allowed(user, self.person), expected)

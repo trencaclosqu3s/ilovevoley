@@ -45,6 +45,21 @@ AWAY_MIN_MATCHES = 5
 AWAY_MIN_SHARE = 0.8
 
 
+def card_photo_allowed(user, person):
+    """Si el cromo puede llevar foto según el consentimiento de imagen (#122).
+
+    El cromo es para publicar en redes: con "uso público" siempre. Con "solo uso
+    interno" solo si lo genera el propio deportista o su familia, que son quienes
+    deciden sobre su imagen; un gestor del club no.
+    """
+    consent = person.image_consent
+    if consent == person.ImageConsent.FULL_PUBLIC:
+        return True
+    if consent == person.ImageConsent.INTERNAL_ONLY:
+        return person.user_id == user.id or user.children.filter(pk=person.pk).exists()
+    return False
+
+
 def season_facts(person, teams, season):
     """Recorre las actas del equipo en la temporada y cuenta lo que piden los perfiles.
 

@@ -26,7 +26,7 @@ from ilovevoley.teams.models import Team
 from ilovevoley.competitions.result_card import _file_field_bytes
 from .forms import BulkPlayerRosterForm, PersonForm, PlayerRoleForm, StaffRoleForm
 from .models import Person, PlayerRole, StaffRole
-from .player_card import card_highlight, render_player_card
+from .player_card import card_highlight, card_photo_allowed, render_player_card
 
 logger = logging.getLogger(__name__)
 
@@ -231,8 +231,6 @@ def _card_person(request, person_id):
 
 
 def _card_photos(person, tenant):
-    # TODO(#122): sin foto si la ficha no tiene consentimiento de imagen cuando exista
-    # el campo; hasta entonces la familia elige "Sin foto".
     return Image.objects.for_tenant(tenant).filter(persons=person, status='approved').order_by('-upload_date')
 
 
@@ -240,11 +238,13 @@ def _card_photos(person, tenant):
 def person_card_page(request, person_id):
     """Página del cromo (#457): vista previa, elección de foto, compartir y descargar."""
     person, role = _card_person(request, person_id)
-    photos = list(_card_photos(person, request.tenant)[:24])
-    default_photo = str(photos[0].id) if photos else ('perfil' if person.photo else '0')
+    photo_allowed = card_photo_allowed(request.user, person)
+    photos = list(_card_photos(person, request.tenant)[:24]) if photo_allowed else []
+    default_photo = str(photos[0].id) if photos else ('perfil' if photo_allowed and person.photo else '0')
     return render(request, 'rosters/person_card.html', {
         'person': person,
         'role': role,
+        'photo_allowed': photo_allowed,
         'photos': photos,
         'default_photo': default_photo,
     })
@@ -265,7 +265,7 @@ def person_card(request, person_id):
 
     choice = request.GET.get('foto', '')
     photos = _card_photos(person, request.tenant)
-    if choice == '0':
+    if choice == '0' or not card_photo_allowed(request.user, person):
         photo = None
     elif choice == 'perfil':
         photo = _file_field_bytes(person.photo)
