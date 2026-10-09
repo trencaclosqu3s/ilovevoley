@@ -1,0 +1,9 @@
+{% extends "competitions/portal/base_portal.html" %}
+{% load i18n %}
+
+{% block portal_content %}
+<h1 class="text-2xl font-bold text-ink">{% trans "Resultados" %}</h1>
+{% include "competitions/portal/_league_filter.html" %}
+{% trans "Aún no hay resultados." as empty_results %}
+{% include "competitions/portal/_match_table.html" with show_league=True empty_message=empty_results %}
+{% endblock %}

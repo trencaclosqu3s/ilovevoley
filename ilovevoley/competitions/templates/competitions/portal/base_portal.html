@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} - I Love Voley{% endblock %}
+
+{% block og_meta %}
+    <meta property="og:title" content="{{ title }} - I Love Voley">
+    <meta property="og:description" content="{% trans "Calendario, resultados y clasificaciones de voleibol en I Love Voley." %}">
+    <meta property="og:url" content="{{ canonical_url }}">
+{% endblock %}
+
+{% block extra_head %}
+    <link rel="canonical" href="{{ canonical_url }}">
+{% endblock %}
+
+{% block sidebar %}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6 px-4 py-6">
+    <nav class="flex gap-4 text-sm font-medium">
+        <a href="{% url 'portal:index' %}" class="text-ink hover:underline">{% trans "Competición" %}</a>
+        <a href="{% url 'portal:league_list' %}" class="text-ink hover:underline">{% trans "Ligas" %}</a>
+        <a href="{% url 'portal:calendar' %}" class="text-ink hover:underline">{% trans "Calendario" %}</a>
+        <a href="{% url 'portal:results' %}" class="text-ink hover:underline">{% trans "Resultados" %}</a>
+        <a href="{% url 'portal:standings' %}" class="text-ink hover:underline">{% trans "Clasificación" %}</a>
+    </nav>
+
+    <form method="get" class="flex items-end gap-3">
+        <div>
+            <label for="season" class="block text-sm font-medium text-ink mb-1">{% trans "Temporada" %}</label>
+            <select name="season" id="season" class="px-3 py-2 border border-line bg-surface text-ink rounded-xl">
+                <option value="" {% if not selected_season %}selected{% endif %}>{% trans "Todas las temporadas" %}</option>
+                {% for s in seasons %}
+                    <option value="{{ s.id }}" {% if selected_season == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="px-4 py-2 bg-csj-purple-dark text-white rounded-full text-sm font-medium">{% trans "Filtrar" %}</button>
+    </form>
+
+    {% block portal_content %}{% endblock %}
+</div>
+<script type="application/ld+json" nonce="{{ csp_nonce }}">{{ jsonld_script|safe }}</script>
+{% endblock %}

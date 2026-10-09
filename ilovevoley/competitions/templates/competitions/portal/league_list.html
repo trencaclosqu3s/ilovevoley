@@ -1,0 +1,7 @@
+{% extends "competitions/portal/base_portal.html" %}
+{% load i18n %}
+
+{% block portal_content %}
+<h1 class="text-2xl font-bold text-ink">{% trans "Ligas" %}</h1>
+{% include "competitions/portal/_league_cards.html" %}
+{% endblock %}

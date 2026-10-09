@@ -17,10 +17,13 @@
     <meta name="apple-mobile-web-app-title" content="I Love Voley">
     <link rel="apple-touch-icon" href="{% static 'images/icons/apple-touch-icon-180.png' %}">
     <meta property="og:image" content="{{ tenant_share_image }}">
+    {% block og_meta %}
     <meta property="og:title" content="{% if tenant %}{{ tenant.name }}{% else %}I Love Voley{% endif %}">
     <meta property="og:description" content="{% if tenant %}{% blocktrans with club=tenant.name %}Vídeos y resultados de {{ club }} en I Love Voley.{% endblocktrans %}{% else %}{% blocktrans %}Vídeos y resultados de tu club en I Love Voley.{% endblocktrans %}{% endif %}">
+    {% endblock %}
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary_large_image">
+    {% block extra_head %}{% endblock %}
     <script src="{% static 'js/lightbox.js' %}"></script>
     <script src="{% static 'js/csp_actions.js' %}"></script>
     <script src="{% static 'js/pwa_nav.js' %}" defer></script>
