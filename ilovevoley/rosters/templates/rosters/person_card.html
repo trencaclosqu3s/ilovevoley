@@ -1,0 +1,80 @@
+{% extends '../base.html' %}
+{% load i18n static %}
+
+{% block title %}{% blocktrans with name=person.full_name %}Cromo de {{ name }}{% endblocktrans %} - I Love Voley{% endblock %}
+
+{% block content %}
+<div id="player-card" class="max-w-3xl mx-auto"
+     data-card-url="{% url 'rosters:person_card' person.id %}"
+     data-photo="{{ default_photo }}"
+     data-filename="cromo-{{ person.id }}.png"
+     data-share-title="{% blocktrans with name=person.full_name %}Cromo de {{ name }}{% endblocktrans %}"
+     data-msg-generating="{% trans 'Generando el cromo, puede tardar unos segundos…' %}"
+     data-msg-ready="{% trans 'Cromo listo: vuelve a tocar «Toca para compartir»' %}"
+     data-msg-tap="{% trans 'Toca para compartir' %}"
+     data-msg-downloaded="{% trans 'Imagen descargada' %}"
+     data-msg-error="{% trans 'No se pudo generar el cromo' %}">
+    <div class="mb-4">
+        <a href="{% url 'rosters:person_detail' person.id %}" class="text-sm font-semibold text-brand-text hover:underline">← {{ person.full_name }}</a>
+        <h1 class="text-2xl font-bold text-ink mt-1">{% trans "Cromo del jugador" %}</h1>
+        <p class="text-sm text-muted">{{ role.identity.core_name }} · {% blocktrans with season=role.season.name %}Temporada {{ season }}{% endblocktrans %}</p>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-6">
+        <div class="sm:w-72 shrink-0">
+            <img id="player-card-preview"
+                 src="{% url 'rosters:person_card' person.id %}?preview=1&amp;foto={{ default_photo }}"
+                 alt="{% trans 'Vista previa del cromo' %}"
+                 width="540" height="960"
+                 class="w-full h-auto rounded-2xl border border-line bg-tint transition-opacity">
+        </div>
+
+        <div class="flex-1 min-w-0 flex flex-col gap-5">
+            <div class="flex flex-wrap gap-2">
+                <button type="button" id="player-card-share"
+                        class="bg-csj-purple-dark hover:opacity-90 text-white px-5 py-3 rounded-full font-medium transition">
+                    {% trans "Compartir" %}
+                </button>
+                <button type="button" id="player-card-download"
+                        class="bg-tint hover:opacity-80 text-ink px-5 py-3 rounded-full font-medium transition">
+                    {% trans "Descargar" %}
+                </button>
+            </div>
+
+            <fieldset>
+                <legend class="text-sm font-semibold text-ink mb-2">{% trans "Foto" %}</legend>
+                <div class="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                    {% for image in photos %}
+                        <button type="button" data-photo-option="{{ image.id }}"
+                                aria-pressed="{% if default_photo == image.id|stringformat:'s' %}true{% else %}false{% endif %}"
+                                aria-label="{{ image.title|default:_('Foto etiquetada') }}"
+                                class="aspect-square rounded-lg overflow-hidden border-4 border-transparent aria-pressed:border-csj-purple-dark">
+                            {% include 'content/_thumbnail.html' with image=image css_class="w-full h-full object-cover" sizes="96px" %}
+                        </button>
+                    {% endfor %}
+                    {% if person.photo %}
+                        <button type="button" data-photo-option="perfil"
+                                aria-pressed="{% if default_photo == 'perfil' %}true{% else %}false{% endif %}"
+                                aria-label="{% trans 'Foto de perfil' %}"
+                                class="aspect-square rounded-lg overflow-hidden border-4 border-transparent aria-pressed:border-csj-purple-dark">
+                            <img src="{{ person.photo.url }}" alt="" class="w-full h-full object-cover">
+                        </button>
+                    {% endif %}
+                    <button type="button" data-photo-option="0"
+                            aria-pressed="{% if default_photo == '0' %}true{% else %}false{% endif %}"
+                            class="aspect-square rounded-lg border-4 border-transparent bg-tint text-xs font-medium text-muted aria-pressed:border-csj-purple-dark">
+                        {% trans "Sin foto" %}
+                    </button>
+                </div>
+                {% if not photos %}
+                    <p class="text-sm text-muted mt-2">{% trans "Para usar otra foto, súbela a la galería del club y etiquétalo en ella." %}</p>
+                {% endif %}
+            </fieldset>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/player_card.js' %}"></script>
+{% endblock %}

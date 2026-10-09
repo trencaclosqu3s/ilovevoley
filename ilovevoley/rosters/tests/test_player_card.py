@@ -1,12 +1,18 @@
+import tempfile
 from datetime import timedelta
+from io import BytesIO
+
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from PIL import Image as PILImage
 
 from ilovevoley.competitions.models import League, Match
+from ilovevoley.content.models import Image
 from ilovevoley.competitions.services.lineups import store_match_lineups
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.rosters.models import Person, PlayerRole
@@ -16,6 +22,12 @@ from ilovevoley.teams.tests.helpers import identity_of
 from ilovevoley.users.models import Membership
 
 JERSEY = 7
+
+
+def _png():
+    buffer = BytesIO()
+    PILImage.new('RGB', (4, 4)).save(buffer, 'PNG')
+    return buffer.getvalue()
 
 
 def _entry(position, number, sub=None):
@@ -121,7 +133,7 @@ class PlayerCardProfileTests(PlayerCardTestBase):
         self.assertEqual(self.highlight()['key'], 'revulsivo')
 
 
-@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'], MEDIA_ROOT=tempfile.mkdtemp())
 class PlayerCardViewTests(PlayerCardTestBase):
     """Es la imagen de un menor para redes: solo la familia, él mismo o los gestores."""
 
@@ -156,4 +168,17 @@ class PlayerCardViewTests(PlayerCardTestBase):
 
         response = self.client.get(reverse('rosters:my_profile'), HTTP_HOST='testclub.ilovevoley.es')
 
-        self.assertContains(response, self.url)
+        self.assertContains(response, reverse('rosters:person_card_page', args=[self.person.id]))
+
+    def test_no_se_puede_usar_una_foto_donde_no_esta_etiquetado(self):
+        # El id de la foto viene por URL: sin este filtro saldría la foto de otro menor.
+        user = self.member('padre')
+        user.children.add(self.person)
+        other = Image.objects.create(
+            image=SimpleUploadedFile('x.png', _png(), content_type='image/png'),
+            title='Otro', status='approved', uploaded_by=user, organization=self.org,
+        )
+
+        response = self.client.get(f'{self.url}?foto={other.id}', HTTP_HOST='testclub.ilovevoley.es')
+
+        self.assertEqual(response.status_code, 404)

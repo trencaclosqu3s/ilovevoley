@@ -1,5 +1,7 @@
 import logging
+from io import BytesIO
 
+from PIL import Image as PILImage
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
@@ -213,9 +215,8 @@ def _card_role(person, tenant):
     )
 
 
-@tenant_access_required()
-def person_card(request, person_id):
-    """Cromo del jugador en PNG Story para compartir (#457).
+def _card_person(request, person_id):
+    """Ficha y rol del cromo, o 403/404.
 
     Lo generan el propio jugador, su familia y los gestores del club: es la
     imagen de un menor pensada para redes.
@@ -226,19 +227,55 @@ def person_card(request, person_id):
     role = _card_role(person, request.tenant)
     if role is None:
         raise Http404
+    return person, role
 
+
+def _card_photos(person, tenant):
+    # TODO(#122): sin foto si la ficha no tiene consentimiento de imagen cuando exista
+    # el campo; hasta entonces la familia elige "Sin foto".
+    return Image.objects.for_tenant(tenant).filter(persons=person, status='approved').order_by('-upload_date')
+
+
+@tenant_access_required()
+def person_card_page(request, person_id):
+    """Página del cromo (#457): vista previa, elección de foto, compartir y descargar."""
+    person, role = _card_person(request, person_id)
+    photos = list(_card_photos(person, request.tenant)[:24])
+    default_photo = str(photos[0].id) if photos else ('perfil' if person.photo else '0')
+    return render(request, 'rosters/person_card.html', {
+        'person': person,
+        'role': role,
+        'photos': photos,
+        'default_photo': default_photo,
+    })
+
+
+@tenant_access_required()
+def person_card(request, person_id):
+    """Cromo del jugador en PNG Story (o WebP reducido con ``?preview=1``).
+
+    ``?foto=`` elige la imagen: el id de una foto etiquetada, ``perfil`` o ``0``
+    (sin foto). Sin parámetro, la etiquetada más reciente o la de perfil.
+    """
+    person, role = _card_person(request, person_id)
     teams = Team.objects.for_tenant(request.tenant).filter(identity=role.identity)
     has_actas = MatchLineup.objects.filter(
         person=person, team__in=teams, match__league__season=role.season,
     ).exclude(match__status='withdrawn').exists()
 
-    photo = None
-    if request.GET.get('foto') != '0':
-        # TODO(#122): sin foto si la ficha no tiene consentimiento de imagen cuando exista
-        # el campo; hasta entonces la familia puede pedirlo sin foto (?foto=0).
-        tagged = Image.objects.for_tenant(request.tenant).filter(
-            persons=person, status='approved'
-        ).order_by('-upload_date').first()
+    choice = request.GET.get('foto', '')
+    photos = _card_photos(person, request.tenant)
+    if choice == '0':
+        photo = None
+    elif choice == 'perfil':
+        photo = _file_field_bytes(person.photo)
+    elif choice.isdecimal():
+        tagged = photos.filter(id=choice).first()
+        if tagged is None:
+            raise Http404
+        photo = _file_field_bytes(tagged.thumbnail_large or tagged.image)
+    else:
+        tagged = photos.first()
         photo = (tagged and _file_field_bytes(tagged.thumbnail_large or tagged.image)) or _file_field_bytes(person.photo)
 
     png = render_player_card(
@@ -249,6 +286,14 @@ def person_card(request, person_id):
         stats=get_player_season_stats(person, role.season, teams) if has_actas else None,
         photo=photo,
     )
+    if request.GET.get('preview') == '1':
+        preview = PILImage.open(BytesIO(png))
+        preview.thumbnail((540, 960))
+        buffer = BytesIO()
+        preview.save(buffer, 'WEBP', quality=85)
+        response = HttpResponse(buffer.getvalue(), content_type='image/webp')
+        response['Cache-Control'] = 'no-store'
+        return response
     response = HttpResponse(png, content_type='image/png')
     response['Content-Disposition'] = f'attachment; filename="cromo-{person.id}.png"'
     return response
