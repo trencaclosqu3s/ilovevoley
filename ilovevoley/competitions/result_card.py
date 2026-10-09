@@ -416,25 +416,24 @@ def _fit_team_names(draw, match, max_width: int, scale: float = 1.0):
     return home_name, home_font, away_name, away_font, row_height
 
 
-def _sets_row_size(draw, set_list, font, pad_x: int, pad_y: int, gap: int) -> tuple[int, int]:
-    if not set_list:
+def _sets_row_size(draw, pills, font, pad_x: int, pad_y: int, gap: int) -> tuple[int, int]:
+    if not pills:
         return 0, 0
     height = 0
     total_width = 0
-    for index, (home, away) in enumerate(set_list):
-        bbox = draw.textbbox((0, 0), f'{home}-{away}', font=font)
+    for index, text in enumerate(pills):
+        bbox = draw.textbbox((0, 0), text, font=font)
         width = (bbox[2] - bbox[0]) + 2 * pad_x
         height = max(height, (bbox[3] - bbox[1]) + 2 * pad_y)
         total_width += width + (gap if index else 0)
     return total_width, height
 
 
-def _draw_sets_row(draw, set_list, font, *, center_x, y, bg, text_color, scale: float = 1.0):
+def _draw_sets_row(draw, pills, font, *, center_x, y, bg, text_color, scale: float = 1.0):
     pad_x, pad_y, gap = round(20 * scale), round(9 * scale), round(14 * scale)
-    total_width, height = _sets_row_size(draw, set_list, font, pad_x, pad_y, gap)
+    total_width, height = _sets_row_size(draw, pills, font, pad_x, pad_y, gap)
     x = center_x - total_width // 2
-    for home, away in set_list:
-        text = f'{home}-{away}'
+    for text in pills:
         bbox = draw.textbbox((0, 0), text, font=font)
         width = (bbox[2] - bbox[0]) + 2 * pad_x
         draw.rounded_rectangle([x, y, x + width, y + height], radius=height // 2, fill=bg)
@@ -521,6 +520,7 @@ def render_result_card(
     card_format: str = 'square',
     card_style: str = 'completa',
     sets: Iterable[tuple[int, int]] | None = None,
+    pills: Iterable[str] | None = None,
     photo: bytes | None = None,
     layout: dict | None = None,
     report: dict | None = None,
@@ -529,6 +529,9 @@ def render_result_card(
     layer: str | None = None,
 ) -> bytes:
     """Renderiza la tarjeta. `layout` (ver `normalize_layout`) solo aplica al estilo "marco".
+
+    Un partido sin resultado se pinta como previa (#456): "VS" en lugar del marcador, título
+    de día de partido, `pills` (hora, clasificación) en lugar de los sets y el pabellón.
 
     Con `preview_width` devuelve un WebP reducido a ese ancho en vez del PNG completo: se
     dibuja a tamaño completo pero sin codificar el PNG intermedio (el 70 % del coste).
@@ -588,8 +591,11 @@ def render_result_card(
     font_xs = _load_font(_FONT_REGULAR, 26)
     font_pill = _load_font(_FONT_REGULAR, round(26 * scale))
 
-    score = f'{match.home_score} - {match.away_score}'
-    set_list = list(sets or [])
+    upcoming = match.home_score is None or match.away_score is None
+    if upcoming and card_style != 'completa':
+        raise ValueError(_('la previa solo admite el estilo "completa"'))
+    score = 'VS' if upcoming else f'{match.home_score} - {match.away_score}'
+    set_list = list(pills) if pills is not None else [f'{home}-{away}' for home, away in sets or []]
 
     score_layer = None
     if card_style == 'marco':
@@ -682,13 +688,36 @@ def render_result_card(
             draw, match, name_max_width
         )
         _unused_width, sets_height = _sets_row_size(draw, set_list, font_pill, 20, 9, 14)
+        venue_text, venue_font, venue_height = '', None, 0
+        venue_name = match.venue_ref.name if getattr(match, 'venue_ref_id', None) else match.venue
+        if upcoming and venue_name:
+            venue_text, venue_font = _fit_text(
+                draw, venue_name, font_path=_FONT_REGULAR, size=30,
+                max_width=card_interior_width, min_size=22,
+            )
+            venue_height = _text_height(draw, venue_text, venue_font)
         card_height = (
             2 * card_pad + crest_size + 24 + name_row_height
             + (24 + sets_height if set_list else 0)
+            + (20 + venue_height if venue_text else 0)
         )
         header_bottom = metrics['header_y'] + HEADER_LOGO_SIZE + 28
         footer_top = height - metrics['card_pad']
-        card_top = header_bottom + (footer_top - header_bottom - card_height) // 2
+        title_text, title_font, title_block = '', None, 0
+        if upcoming:
+            is_today = timezone.localtime(match.match_date).date() == timezone.localdate()
+            title_text = (_('¡Hoy jugamos!') if is_today else _('Próximo partido')).upper()
+            title_font = _load_font(_FONT_BOLD, round(metrics['score_font_size'] * 0.7))
+            title_block = _text_height(draw, title_text, title_font) + 48
+        card_top = (
+            header_bottom + (footer_top - header_bottom - card_height - title_block) // 2 + title_block
+        )
+        if title_text:
+            title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
+            draw.text(
+                ((width - (title_bbox[2] - title_bbox[0])) // 2, card_top - title_block - title_bbox[1]),
+                title_text, font=title_font, fill=WHITE,
+            )
         card_left, card_right = MARGIN, width - MARGIN
         card_box = [card_left, card_top, card_right, card_top + card_height]
 
@@ -717,6 +746,13 @@ def render_result_card(
             _draw_sets_row(
                 draw, set_list, font_pill, center_x=width // 2, y=sets_y,
                 bg=pill_bg, text_color=primary,
+            )
+        if venue_text:
+            venue_y = names_y + name_row_height + (24 + sets_height if set_list else 0) + 20
+            venue_bbox = draw.textbbox((0, 0), venue_text, font=venue_font)
+            draw.text(
+                ((width - (venue_bbox[2] - venue_bbox[0])) // 2, venue_y - venue_bbox[1]),
+                venue_text, font=venue_font, fill=DARK_TEXT,
             )
 
         footer_measured = _measure_footer(draw, font_xs)
@@ -807,6 +843,8 @@ def card_cache_key(*, match, organization, card_format, card_style, photo, layou
         _RENDER_VERSION, match.id, card_format, card_style, photo,
         json.dumps(layout, sort_keys=True), list(sets),
         match.home_score, match.away_score, str(match.match_date),
+        # La previa depende del pabellón y del día ("hoy jugamos" frente a "próximo partido").
+        match.venue, getattr(getattr(match, 'venue_ref', None), 'name', ''), str(timezone.localdate()),
         getattr(getattr(match, 'league', None), 'name', ''),
         crest(match.home_team), crest(match.away_team),
         organization.id, organization.primary_color, organization.secondary_color,

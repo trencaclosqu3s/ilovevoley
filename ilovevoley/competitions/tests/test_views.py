@@ -713,15 +713,38 @@ class MatchResultCardViewTests(TestCase):
         image = Image.open(BytesIO(response.content))
         self.assertEqual(image.size, (1080, 1920))
 
-    def test_not_finished_returns_json_400(self):
+    def test_scheduled_match_returns_preview_card(self):
+        """Un partido programado se comparte como previa (#456); uno aplazado, no."""
+        with patch('ilovevoley.competitions.result_card.fetch_logo_bytes', return_value=None):
+            response = self.client.get(self._url(self.scheduled.id), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content.startswith(b'\x89PNG'))
+        self.assertIn(f'partido-{self.scheduled.id}-', response['Content-Disposition'])
+
+        Match.objects.filter(pk=self.scheduled.pk).update(status='postponed')
+        response = self.client.get(self._url(self.scheduled.id), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('finalizado', response.json()['error'].lower())
+
+    def test_preview_card_rejects_photo_style(self):
         response = self.client.get(
-            self._url(self.scheduled.id),
+            self._url(self.scheduled.id) + '?style=marco&photo_id=1',
             HTTP_HOST='testclub.ilovevoley.es',
         )
-
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response['Content-Type'], 'application/json')
-        self.assertIn('finalizado', response.json()['error'].lower())
+
+    def test_preview_pills_hide_unknown_time_and_need_both_positions(self):
+        from ilovevoley.competitions.services.preview import preview_card_pills
+
+        local = timezone.localtime(self.scheduled.match_date)
+        self.scheduled.match_date = local.replace(hour=18, minute=30)
+        Standing.objects.create(league=self.league, team=self.team, position=3)
+        self.assertEqual(preview_card_pills(self.scheduled), ['18:30'])
+
+        Standing.objects.create(league=self.league, team=self.rival_team, position=5)
+        # 00:00 es la convención de "hora por confirmar".
+        self.scheduled.match_date = local.replace(hour=0, minute=0)
+        self.assertEqual(preview_card_pills(self.scheduled), ['3º vs 5º'])
 
     def test_invalid_format_returns_json_400(self):
         response = self.client.get(

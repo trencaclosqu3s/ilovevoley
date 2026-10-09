@@ -237,6 +237,29 @@
                         {{ match.get_status_display }}
                     </div>
                 {% endif %}
+                {% if is_own_match and match.status == 'scheduled' and match.home_team_id and match.away_team_id %}
+                    {# Previa compartible (#456): misma tarjeta que el resultado, sin selector de foto. #}
+                    <div id="result-card-actions"
+                         class="flex flex-wrap items-center gap-2 mt-2"
+                         data-card-url="{% url 'competitions:match_result_card' match.id %}"
+                         data-card-style="completa">
+                        <button type="button"
+                                data-card-format="story"
+                                class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-csj-purple-dark hover:opacity-90 text-white transition">
+                            {% trans "Compartir Story del partido" %}
+                        </button>
+                        <button type="button"
+                                data-card-format="square"
+                                class="result-card-share inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-tint text-ink hover:opacity-80 transition">
+                            {% trans "Compartir 1:1" %}
+                        </button>
+                        <button type="button"
+                                data-card-format="story"
+                                class="result-card-download inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-tint text-ink hover:opacity-80 transition">
+                            {% trans "Descargar Story" %}
+                        </button>
+                    </div>
+                {% endif %}
 
                 {% if is_own_match and stream_url %}
                     {% if is_live_window %}
@@ -1082,7 +1105,7 @@ function closeImageLightbox() {
 
         return {
             blob: await response.blob(),
-            filename: `resultado-{{ match.id }}-${format}.png`
+            filename: `{% if match.is_finished %}resultado{% else %}partido{% endif %}-{{ match.id }}-${format}.png`
         };
     }
 
@@ -1113,7 +1136,13 @@ function closeImageLightbox() {
         }
     }
 
+    {% if match.is_finished %}
     const SHARE_TEXT = '{{ match.home_team_display|escapejs }} {{ match.result_display|escapejs }} {{ match.away_team_display|escapejs }} · {{ match.match_date|date:"d/m/Y"|escapejs }}';
+    const SHARE_TITLE = '{% trans "Resultado" as js_msg %}{{ js_msg|escapejs }}';
+    {% else %}
+    const SHARE_TEXT = '{{ match.home_team_display|escapejs }} vs {{ match.away_team_display|escapejs }} · {{ match.match_date|date:"d/m/Y H:i"|escapejs }}';
+    const SHARE_TITLE = '{% trans "Día de partido" as js_msg %}{{ js_msg|escapejs }}';
+    {% endif %}
 
     const actionButtons = root.querySelectorAll('.result-card-share, .result-card-download');
 
@@ -1138,7 +1167,7 @@ function closeImageLightbox() {
                 const { blob, filename, file } = ready;
                 ready = null;
                 button.textContent = originalLabel;
-                navigator.share({ files: [file], title: '{% trans "Resultado" as js_msg %}{{ js_msg|escapejs }}', text: SHARE_TEXT }).catch(function(error) {
+                navigator.share({ files: [file], title: SHARE_TITLE, text: SHARE_TEXT }).catch(function(error) {
                     if (error && error.name === 'AbortError') return;
                     downloadBlob(blob, filename);
                     if (window.showToast) window.showToast('info', '{% trans "Imagen descargada" as js_msg %}{{ js_msg|escapejs }}');
