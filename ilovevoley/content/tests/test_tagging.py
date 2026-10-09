@@ -102,6 +102,21 @@ class ImageTaggingTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(list(self.image.persons.values_list('id', flat=True)), [self.person_a.id])
 
+    def test_tagging_person_without_image_consent_tags_and_warns(self):
+        # Se etiqueta igual: la etiqueta es lo que permite avisar al moderar (#122).
+        self.person_a.image_consent = Person.ImageConsent.NONE
+        self.person_a.save()
+        self.client.force_login(self.uploader)
+        response = self.client.post(
+            reverse('content:image_tag', args=[self.image.id]),
+            {'person_ids': [self.person_a.id], 'action': 'replace'},
+            HTTP_HOST='testclub.ilovevoley.es', follow=True,
+        )
+        self.assertEqual(list(self.image.persons.values_list('id', flat=True)), [self.person_a.id])
+        warnings = [str(m) for m in response.context['messages'] if m.level_tag == 'warning']
+        self.assertEqual(len(warnings), 1)
+        self.assertIn(self.person_a.full_name, warnings[0])
+
     def test_uploader_sees_tag_picker_on_image_detail(self):
         self.image.persons.add(self.person_a)
         self.client.force_login(self.uploader)

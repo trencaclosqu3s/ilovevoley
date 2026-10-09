@@ -44,6 +44,23 @@ class PersonIdentityConstraintTests(TestCase):
             Person.objects.create(first_name='Ana', last_name='Gomez', birth_year=2010)
 
 
+class PersonImageConsentTests(TestCase):
+    """La fecha del consentimiento solo registra decisiones reales (#122)."""
+
+    def test_fecha_solo_cambia_cuando_cambia_el_consentimiento(self):
+        person = Person.objects.create(first_name='Ana', last_name='Gomez', birth_year=2012)
+        self.assertIsNone(person.image_consent_updated_at)
+
+        person.notes = 'otra cosa'
+        person.save()
+        self.assertIsNone(person.image_consent_updated_at)
+
+        person.image_consent = Person.ImageConsent.NONE
+        person.save(update_fields=['image_consent'])
+        person.refresh_from_db()
+        self.assertIsNotNone(person.image_consent_updated_at)
+
+
 class PlayerRoleSeasonConstraintTests(TestCase):
     """Los roles se identifican por temporada: mismo jugador/dorsal en otra temporada es válido."""
 
