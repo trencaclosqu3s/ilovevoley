@@ -380,7 +380,7 @@ def scrape_and_enrich_all_task(self, round_number=None, category_filter=None, de
 @shared_task(name='scrape_json_results', bind=True)
 def scrape_json_results_task(self, league_id=None, category_filter=None, delay=1.0, create_endpoint=False):
     """
-    Ejecuta scraping de resultados usando el endpoint JSON op=2.
+    Ejecuta scraping de resultados usando el endpoint JSON op=0 (op=2 dejó de ser válido, #463).
     Usa el nuevo sistema unificado para máxima eficiencia.
     
     Args:
@@ -393,7 +393,7 @@ def scrape_json_results_task(self, league_id=None, category_filter=None, delay=1
         dict: Estadísticas del scraping realizado
     """
     # Usar la tarea genérica para procesar resultados
-    json_url = "https://www.voleibolib.net/JSON/get_partidos_desglose_competiciones.asp?op=2&fini=&ffin="
+    json_url = "https://www.voleibolib.net/JSON/get_partidos_desglose_competiciones.asp?op=0&fini=&ffin="
     
     return process_json_unified_task(
         json_url=json_url,
