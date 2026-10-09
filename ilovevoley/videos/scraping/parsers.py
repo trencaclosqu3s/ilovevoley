@@ -154,7 +154,14 @@ class MatchesParser(BaseParser):
             
         home_team = team_spans[0].get_text(strip=True)
         away_team = team_spans[1].get_text(strip=True)
-        
+
+        # Id de club del escudo (clubes/{id}mini.jpg): no cambia con el patrocinador (#464)
+        def club_id(span):
+            td = span.find_parent('td')
+            img = td.find('img') if td else None
+            found = re.search(r'clubes/(\d+)mini', img.get('src', '')) if img else None
+            return found.group(1) if found else ''
+
         # Extraer resultado si existe
         score_spans = datos_partido.find_all('span', class_='marcador')
         home_score = None
@@ -196,6 +203,8 @@ class MatchesParser(BaseParser):
         return {
             'home_team': home_team,
             'away_team': away_team,
+            'federation_club_local_id': club_id(team_spans[0]),
+            'federation_club_away_id': club_id(team_spans[1]),
             'match_date': match_datetime,
             'venue': venue_span.get_text(strip=True) if venue_span else '',
             'city': city_span.get_text(strip=True) if city_span else '',
