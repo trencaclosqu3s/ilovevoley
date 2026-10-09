@@ -48,6 +48,7 @@ QUEUE_BY_TASK = {
     'scrape_balearic_callups': 'scraping',
     'scrape_balearic_tracking': 'scraping',
     'scrape_match_actas': 'scraping',
+    'process_pending_acta_photos': 'scraping',
 }
 
 
@@ -81,6 +82,11 @@ class BeatScheduleTest(SimpleTestCase):
             inspect.signature(app.tasks[task_name].run).bind(
                 *entry.get('args', ()), **entry.get('kwargs', {})
             )
+
+    def test_manual_acta_photos_task_is_scheduled(self):
+        """Sin entrada en el schedule, las fotos de actas manuales (#462) no se descargan ni leen nunca."""
+        scheduled = {entry['task'] for entry in settings.CELERY_BEAT_SCHEDULE.values()}
+        self.assertIn('process_pending_acta_photos', scheduled)
 
     def test_beat_timezone_matches_django_timezone(self):
         """Los crontab se interpretan en CELERY_TIMEZONE; si deja de coincidir con

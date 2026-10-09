@@ -307,15 +307,11 @@ def scrape_match_actas_task(limit=ACTA_BATCH_SIZE):
         pending = (
             Match.objects.filter(tenant_q, status='finished', is_friendly=False, acta_data__isnull=True)
             .exclude(acta_html='')
-            .exclude(acta_photo__isnull=False, acta_html='')
             .select_related('home_team', 'away_team', 'league__season')
             .distinct()
             .order_by('-match_date')[:limit]
         )
         for match in pending:
-            # Comprobación de seguridad adicional: partidos con foto de acta manual y sin acta_html se saltan (#462)
-            if hasattr(match, 'acta_photo') and not match.acta_html:
-                continue
             try:
                 fetch_and_store_acta(match)
                 processed += 1

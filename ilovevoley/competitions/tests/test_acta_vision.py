@@ -303,14 +303,16 @@ class ActaVisionBatchExecutionTests(TestCase):
 
     @override_settings(ACTA_VISION_ENABLED=False)
     def test_batch_skips_vision_when_disabled(self):
-        """Con ACTA_VISION_ENABLED=False no se realizan llamadas de visión y la foto no avanza a pending_review."""
+        """Con ACTA_VISION_ENABLED=False no se llama al modelo y la foto pasa a pending_review sin datos,
+        para poder teclear los convocados a mano en el admin sin quedar atascada ni ocupar el lote."""
         with patch('ilovevoley.competitions.services.acta_vision.read_acta') as mock_read:
             processed = process_acta_photo_batch(limit=5)
-            self.assertEqual(processed, 0)
+            self.assertEqual(processed, 1)
             mock_read.assert_not_called()
 
         self.photo.refresh_from_db()
-        self.assertEqual(self.photo.status, 'downloaded')
+        self.assertEqual(self.photo.status, 'pending_review')
+        self.assertIsNone(self.photo.extracted_data)
 
     @override_settings(ACTA_VISION_ENABLED=True, GEMINI_API_KEY='valid-key')
     @patch('ilovevoley.competitions.services.acta_vision.read_acta')

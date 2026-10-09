@@ -85,14 +85,6 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute=30, hour=7),
         'options': {'expire_seconds': 3600},
     },
-    # --- Actas oficiales de partidos federativos (#455) -------------------------
-    # Descarga y parsea el acta HTML de los partidos oficiales de los tenants que
-    # aún no la tienen. Cada 6 h es suficiente para ponerse al día.
-    'scrape-match-actas': {
-        'task': 'scrape_match_actas',
-        'schedule': crontab(minute=30, hour='*/6'),
-        'options': {'expire_seconds': 3600},
-    },
     # --- Convocatorias y seguimiento federativo (#287 / #288) ------------------
     # La federación publica circulares de forma esporádica; cada 6 h es de sobra.
     # El seguimiento va 15 min después para no solapar la descarga de PDFs.
@@ -136,5 +128,13 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'scrape_match_actas',
         'schedule': crontab(minute=30, hour='*/6'),
         'options': {'expire_seconds': 3600},
+    },
+    # --- Actas manuales (foto) de los tenants (#462) -----------------------------
+    # Descarga la foto y, con ACTA_VISION_ENABLED, la lee con Gemini; el resultado queda
+    # pendiente de revisión en el admin. Pocas fotos a la semana: cada 2 h sobra.
+    'process-pending-acta-photos': {
+        'task': 'process_pending_acta_photos',
+        'schedule': crontab(minute=15, hour='*/2'),
+        'options': {'expire_seconds': 1800},
     },
 }

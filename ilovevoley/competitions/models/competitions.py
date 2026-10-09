@@ -1029,6 +1029,8 @@ class MatchActaPhoto(models.Model):
 
     STATUS_CHOICES = [
         ('pending_download', _('Pendiente de descarga')),
+        ('downloaded', _('Descargada')),
+        ('pending_read', _('Pendiente de lectura')),
         ('pending_review', _('Pendiente de revisión')),
         ('approved', _('Aprobada')),
         ('rejected', _('Rechazada')),

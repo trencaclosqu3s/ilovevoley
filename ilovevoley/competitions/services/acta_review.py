@@ -35,6 +35,41 @@ def _names_match(name_acta: str, last_name: str, first_name: str = '') -> bool:
     return bool(w_acta & (w_last | w_first))
 
 
+def _read_set_points(data_sets) -> list[tuple[int, int]]:
+    """Parciales (local, visitante) de ``sets`` con puntos numéricos; ignora los incompletos."""
+    points = []
+    if not isinstance(data_sets, list):
+        return points
+    for s in data_sets:
+        if isinstance(s, dict) and 'home_points' in s and 'away_points' in s:
+            try:
+                points.append((int(s['home_points']), int(s['away_points'])))
+            except (ValueError, TypeError):
+                continue
+    return points
+
+
+def _normalize_sets(match: Match, data_sets) -> list[dict]:
+    """Sets en el esquema de ``parse_acta_lineup`` (``teams[].points``) que leen player_card, el detalle y ``extract_set_scores``.
+
+    Si el partido ya tiene los parciales oficiales de la federación, prevalecen sobre
+    lo leído de la foto (el modelo falla a menudo con ellos).
+    """
+    titles = {i: s.get('title') for i, s in enumerate(data_sets or [], 1) if isinstance(s, dict)}
+    points = [tuple(score) for score in match.set_scores] if match.set_scores else _read_set_points(data_sets)
+    return [
+        {
+            'title': titles.get(i) or f'Set {i}',
+            'time': '',
+            'teams': [
+                {'name': match.home_team_display, 'lineup': [], 'points': home},
+                {'name': match.away_team_display, 'lineup': [], 'points': away},
+            ],
+        }
+        for i, (home, away) in enumerate(points, 1)
+    ]
+
+
 def validate_acta_data(match: Match, data: dict) -> Tuple[bool, list[str], list[str]]:
     """
     Valida las reglas de negocio de los datos del acta manual.
@@ -96,23 +131,19 @@ def validate_acta_data(match: Match, data: dict) -> Tuple[bool, list[str], list[
                 f"Los equipos leídos ('{acta_home_name}' vs '{acta_away_name}') están invertidos respecto al local y visitante del partido."
             )
 
-    # 3. Validar parciales leídos contra los oficiales de la federación (no bloqueante)
+    # 3. Parciales leídos (convertidos a entero una sola vez; el modelo puede devolver cadenas)
     data_sets = data.get('sets') or []
-    if match.set_scores and isinstance(data_sets, list) and data_sets:
-        official_sets = [tuple(score) for score in match.set_scores]
-        read_sets = []
-        for s in data_sets:
-            if isinstance(s, dict) and 'home_points' in s and 'away_points' in s:
-                try:
-                    read_sets.append((int(s['home_points']), int(s['away_points'])))
-                except (ValueError, TypeError):
-                    pass
+    read_sets = _read_set_points(data_sets)
 
-        if read_sets and read_sets != official_sets:
+    # Contra los oficiales de la federación (no bloqueante: al aprobar prevalecen los oficiales)
+    if match.set_scores and read_sets:
+        official_sets = [tuple(score) for score in match.set_scores]
+        if read_sets != official_sets:
             official_str = '/'.join(f'{h}-{a}' for h, a in official_sets)
             read_str = '/'.join(f'{h}-{a}' for h, a in read_sets)
             warnings.append(
-                f'Los parciales leídos ({read_str}) no coinciden con los oficiales ({official_str}). Prevalecen los oficiales.'
+                f'Los parciales leídos ({read_str}) no coinciden con los oficiales ({official_str}). '
+                'Al aprobar se guardan los oficiales.'
             )
 
     # 4. Comprobar si es un resultado sancionado por resolución federativa (no bloqueante)
@@ -122,17 +153,9 @@ def validate_acta_data(match: Match, data: dict) -> Tuple[bool, list[str], list[
         )
 
     # 5. Comprobar sets ganados contra tanteo del partido (no bloqueante)
-    if match.home_score is not None and match.away_score is not None and data_sets:
-        home_sets_won = 0
-        away_sets_won = 0
-        for s in data_sets:
-            if isinstance(s, dict):
-                hp = s.get('home_points') or 0
-                ap = s.get('away_points') or 0
-                if hp > ap:
-                    home_sets_won += 1
-                elif ap > hp:
-                    away_sets_won += 1
+    if match.home_score is not None and match.away_score is not None and read_sets:
+        home_sets_won = sum(1 for h, a in read_sets if h > a)
+        away_sets_won = sum(1 for h, a in read_sets if a > h)
         if (home_sets_won or away_sets_won) and (home_sets_won, away_sets_won) != (match.home_score, match.away_score):
             warnings.append(
                 f'Los sets ganados en el acta ({home_sets_won}-{away_sets_won}) difieren del resultado oficial ({match.home_score}-{match.away_score}).'
@@ -248,6 +271,15 @@ def approve_acta_photo(
     - Guarda los errores en photo.validation_errors.
     - Retorna (False, errors).
     """
+    # Bloqueo para que dos aprobaciones simultáneas no se pisen
+    MatchActaPhoto.objects.select_for_update().filter(pk=photo.pk).first()
+    photo.refresh_from_db(fields=['status'])
+    if photo.status != 'pending_review':
+        return False, [f'La foto no está pendiente de revisión (estado: {photo.get_status_display()}).']
+    # El acta oficial HTML manda: aprobar la foto la sobrescribiría
+    if photo.match.acta_html:
+        return False, ['El partido ya tiene acta oficial HTML; la foto ya no hace falta.']
+
     target_data = data if data is not None else (photo.extracted_data or {})
     is_valid, errors, warnings = validate_acta_data(photo.match, target_data)
 
@@ -256,6 +288,7 @@ def approve_acta_photo(
         photo.save(update_fields=['validation_errors', 'updated_at'])
         return False, errors
 
+    target_data = {**target_data, 'sets': _normalize_sets(photo.match, target_data.get('sets'))}
     store_match_lineups(photo.match, target_data)
 
     photo.extracted_data = target_data
@@ -282,7 +315,11 @@ def reject_acta_photo(
 ) -> bool:
     """
     Rechaza el acta manual y registra revisor y motivo opcional.
+
+    Una foto ya aprobada no se puede rechazar: sus alineaciones ya están guardadas.
     """
+    if photo.status == 'approved':
+        return False
     photo.status = 'rejected'
     photo.reviewed_by = user
     photo.reviewed_at = timezone.now()

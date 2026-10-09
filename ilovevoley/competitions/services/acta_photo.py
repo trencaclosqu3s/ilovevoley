@@ -25,14 +25,18 @@ DEFAULT_USER_AGENT = (
 MAX_IMAGE_DIMENSION = 1600
 
 
-def is_tenant_match(match: Match) -> bool:
-    """Comprueba si el partido pertenece a algún tenant activo."""
+def is_tenant_match(match: Match, organizations=None) -> bool:
+    """Comprueba si el partido pertenece a algún tenant activo.
+
+    ``organizations`` permite reutilizar la lista de organizaciones activas entre llamadas.
+    """
     from ilovevoley.core.models import Organization
 
-    active_orgs = Organization.objects.filter(is_active=True)
+    if organizations is None:
+        organizations = Organization.objects.filter(is_active=True)
     return any(
         Match.all_objects.filter(pk=match.pk).for_tenant(org).exists()
-        for org in active_orgs
+        for org in organizations
     )
 
 
@@ -121,7 +125,8 @@ def fetch_acta_image(source_url: str, timeout: int = 30) -> Tuple[Optional[bytes
     """
     Descarga el PDF de la URL dada y extrae la imagen del acta normalizada.
 
-    Devuelve (jpeg_bytes, status) con status en ('ok', 'expired', 'unreadable').
+    Devuelve (jpeg_bytes, status) con status en ('ok', 'expired', 'unreadable', 'error').
+    'error' es un fallo transitorio de red o del servidor federativo: la foto se reintenta.
     """
     headers = {
         'User-Agent': DEFAULT_USER_AGENT,
@@ -134,9 +139,14 @@ def fetch_acta_image(source_url: str, timeout: int = 30) -> Tuple[Optional[bytes
             allow_redirects=True,
             timeout=timeout,
         )
-        response.raise_for_status()
-    except Exception as e:
+    except requests.RequestException as e:
         logger.warning(f'Error descargando acta desde {source_url}: {e}')
+        return None, 'error'
+
+    if response.status_code >= 500:
+        logger.warning(f'Error {response.status_code} del servidor federativo descargando {source_url}')
+        return None, 'error'
+    if response.status_code >= 400:
         return None, 'expired'
 
     return extract_image_from_pdf(response.content)
@@ -146,13 +156,18 @@ def download_and_prepare_acta_photo(photo: MatchActaPhoto) -> bool:
     """
     Descarga y prepara la imagen del acta para un registro MatchActaPhoto.
 
-    Actualiza el estado a 'expired' o 'unreadable' si la descarga o extracción falla.
+    Actualiza el estado a 'expired' o 'unreadable' si la descarga o extracción falla;
+    un fallo transitorio de red o 5xx no cambia el estado.
     Si tiene éxito, guarda la imagen normalizada en photo.image.
     """
     if photo.status in ('approved', 'rejected'):
         return False
 
     jpeg_bytes, status = fetch_acta_image(photo.source_url)
+    if status == 'error':
+        # Transitorio: se queda en pending_download para el siguiente ciclo
+        return False
+
     if status == 'expired':
         photo.status = 'expired'
         photo.save(update_fields=['status', 'updated_at'])
@@ -186,6 +201,9 @@ def process_acta_photos_from_html(
     if not html:
         return 0
 
+    from ilovevoley.core.models import Organization
+
+    organizations = list(Organization.objects.filter(is_active=True))
     created_or_updated = 0
     blocks = html.split("class='info_partido")[1:]
 
@@ -235,7 +253,7 @@ def process_acta_photos_from_html(
             continue
 
         # Solo para partidos de un tenant
-        if not is_tenant_match(match):
+        if not is_tenant_match(match, organizations):
             continue
 
         # Idempotencia: no pisar estados aprobados ni rechazados

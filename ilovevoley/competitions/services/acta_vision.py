@@ -8,7 +8,6 @@ normalizando la respuesta al esquema de parse_acta_lineup para su posterior revi
 import base64
 import json
 import logging
-import os
 from typing import Optional
 
 from django.conf import settings
@@ -20,6 +19,9 @@ from ilovevoley.competitions.services.acta_photo import download_and_prepare_act
 logger = logging.getLogger(__name__)
 
 DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite'
+
+# Límite de cuota o saturación del servicio: se reintenta en la siguiente ejecución
+TRANSIENT_HTTP_CODES = (429, 500, 502, 503, 504)
 
 
 class ActaVisionError(Exception):
@@ -220,7 +222,7 @@ def read_acta(
     Devuelve un diccionario conforme al esquema de parse_acta_lineup con los metadatos
     de extracción en la clave '_meta'.
     """
-    key = api_key or getattr(settings, 'GEMINI_API_KEY', '') or os.environ.get('GEMINI_API_KEY', '')
+    key = api_key or settings.GEMINI_API_KEY
     if not key:
         raise ValueError('GEMINI_API_KEY no está configurada')
 
@@ -259,7 +261,7 @@ def read_acta(
     except requests.exceptions.RequestException as e:
         raise ActaVisionTransientError(f'Error de red conectando con Gemini API: {e}')
 
-    if response.status_code in (429, 503):
+    if response.status_code in TRANSIENT_HTTP_CODES:
         raise ActaVisionTransientError(
             f'Gemini API rate limit o sobrecarga HTTP {response.status_code}: {response.text}'
         )
@@ -274,7 +276,7 @@ def read_acta(
     if 'error' in data:
         code = data['error'].get('code')
         msg = data['error'].get('message', '')
-        if code in (429, 503):
+        if code in TRANSIENT_HTTP_CODES:
             raise ActaVisionTransientError(f'Gemini API error {code}: {msg}')
         raise ActaVisionError(f'Gemini API error {code}: {msg}')
 
@@ -301,11 +303,12 @@ def process_acta_photo_batch(limit: int = 5) -> int:
     Procesa un lote de MatchActaPhoto pendientes de descarga o lectura.
 
     1. Descarga y normaliza imagen para registros en 'pending_download'.
-    2. Si ACTA_VISION_ENABLED está activo, transcribe las fotos pendientes de leer.
-    3. Errores transitorios (429/503) dejan la foto en 'pending_read' para el siguiente ciclo.
+    2. Si ACTA_VISION_ENABLED está activo, transcribe las fotos pendientes de leer; si no,
+       las pasa a 'pending_review' sin datos para revisión manual.
+    3. Errores transitorios (429/5xx) dejan la foto en 'pending_read' para el siguiente ciclo.
     """
     vision_enabled = getattr(settings, 'ACTA_VISION_ENABLED', False)
-    api_key = getattr(settings, 'GEMINI_API_KEY', '') or os.environ.get('GEMINI_API_KEY', '')
+    api_key = settings.GEMINI_API_KEY
 
     pending_qs = (
         MatchActaPhoto.objects.filter(
@@ -331,8 +334,11 @@ def process_acta_photo_batch(limit: int = 5) -> int:
                 continue
             photo.refresh_from_db()
 
-        # Si la visión no está habilitada o no hay clave, la foto queda descargada y lista
+        # Sin visión (o sin clave) la foto queda lista para teclear los convocados a mano en el admin
         if not vision_enabled or not api_key:
+            photo.status = 'pending_review'
+            photo.save(update_fields=['status', 'updated_at'])
+            processed_count += 1
             continue
 
         # 2. Transcripción con Gemini Vision
@@ -347,14 +353,8 @@ def process_acta_photo_batch(limit: int = 5) -> int:
             photo.save(update_fields=['status', 'updated_at'])
             # Ante saturación de API, detenemos el lote actual para esperar a la siguiente ejecución
             break
-        except ActaVisionBrokenJsonError as e:
-            logger.warning(f'JSON roto de Gemini Vision en acta {photo.id}: {e}')
-            photo.status = 'pending_review'
-            photo.extraction_meta = {'error': str(e)}
-            photo.save(update_fields=['status', 'extraction_meta', 'updated_at'])
-            processed_count += 1
         except Exception as e:
-            logger.warning(f'Error inesperado procesando acta con visión {photo.id}: {e}')
+            logger.warning(f'Error leyendo el acta {photo.id} con visión (se revisa a mano): {e}')
             photo.status = 'pending_review'
             photo.extraction_meta = {'error': str(e)}
             photo.save(update_fields=['status', 'extraction_meta', 'updated_at'])

@@ -183,6 +183,43 @@ class ActaReviewValidationAndApprovalTests(TestCase):
         self.match.refresh_from_db()
         self.assertEqual(self.match.set_scores, [[25, 10], [25, 11], [25, 11]])
 
+    def test_approve_stores_sets_in_parse_acta_lineup_schema_with_official_scores(self):
+        """Los sets aprobados siguen el esquema ``teams[].points`` que leen el detalle y las estadísticas,
+        y los parciales oficiales de la federación prevalecen sobre los leídos de la foto."""
+        data = dict(self.valid_data)
+        data['sets'] = [{'title': 'Set 1', 'home_points': 15, 'away_points': 14}] * 3
+
+        ok, _ = approve_acta_photo(self.photo, data, user=self.user)
+        self.assertTrue(ok)
+
+        self.match.refresh_from_db()
+        stored = self.match.acta_data['sets']
+        self.assertEqual([[t['points'] for t in s['teams']] for s in stored], [[25, 10], [25, 11], [25, 11]])
+        self.assertEqual(stored[0]['title'], 'Set 1')
+
+    def test_approve_refuses_when_match_already_has_official_html_acta(self):
+        """El acta HTML oficial manda: aprobar la foto no la sobrescribe."""
+        self.match.acta_html = 'https://voleibolib.federatio.com/actas/85271/acta_1.html'
+        self.match.save(update_fields=['acta_html'])
+
+        ok, errors = approve_acta_photo(self.photo, self.valid_data, user=self.user)
+
+        self.assertFalse(ok)
+        self.assertTrue(errors)
+        self.match.refresh_from_db()
+        self.assertIsNone(self.match.acta_data)
+        self.assertFalse(MatchLineup.objects.filter(match=self.match).exists())
+
+    def test_approve_and_reject_ignore_photos_not_pending_review(self):
+        """Idempotencia: una foto ya aprobada no se vuelve a aprobar ni se puede rechazar."""
+        ok, _ = approve_acta_photo(self.photo, self.valid_data, user=self.user)
+        self.assertTrue(ok)
+
+        self.assertFalse(approve_acta_photo(self.photo, self.valid_data, user=self.user)[0])
+        self.assertFalse(reject_acta_photo(self.photo, user=self.user))
+        self.photo.refresh_from_db()
+        self.assertEqual(self.photo.status, 'approved')
+
     def test_validation_penalty_result_flags_warning_without_blocking(self):
         """Partidos con resultado sancionado (0-25x3 o penalty) emiten aviso para revisión humana."""
         self.match.set_scores = [[0, 25], [0, 25], [0, 25]]

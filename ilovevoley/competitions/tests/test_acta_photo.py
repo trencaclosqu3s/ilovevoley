@@ -369,6 +369,21 @@ class ActaPhotoDownloadTests(TestCase):
         self.assertTrue(bool(self.photo.image))
         self.assertTrue(self.photo.image.name.endswith('.jpg'))
 
+    def test_download_transient_failure_keeps_photo_pending(self):
+        """Un timeout o un 5xx de la federación no marca la foto como caducada: se reintenta en el siguiente ciclo."""
+        import requests
+
+        server_error = MagicMock(status_code=503)
+        for label, patcher in (
+            ('timeout', patch('requests.get', side_effect=requests.exceptions.Timeout('lento'))),
+            ('503', patch('requests.get', return_value=server_error)),
+        ):
+            with self.subTest(label), patcher:
+                self.assertFalse(download_and_prepare_acta_photo(self.photo))
+
+                self.photo.refresh_from_db()
+                self.assertEqual(self.photo.status, 'pending_download')
+
     @patch('requests.get')
     def test_download_expired_marks_status_expired(self, mock_get):
         """Descarga de acta caducada actualiza el estado a 'expired'."""
