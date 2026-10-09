@@ -9,6 +9,7 @@ from ilovevoley.competitions.models import League, Match, Standing
 from ilovevoley.competitions.services.preview import build_match_preview
 from ilovevoley.core.models import Category, Season
 from ilovevoley.teams.models import Team
+from ilovevoley.teams.tests.helpers import identity_of
 
 
 class MatchPreviewTests(TestCase):
@@ -74,6 +75,29 @@ class MatchPreviewTests(TestCase):
         preview = build_match_preview(self.match)
 
         self.assertEqual(preview['head_to_head'], [same_clubs])
+
+    def test_head_to_head_crosses_seasons_by_team_identity_without_club_ids(self):
+        # #483: el partido nuevo aún no trae ids de club y sus Team son filas
+        # distintas de las del año pasado; solo la TeamIdentity las une.
+        self.match.federation_club_local_id = self.match.federation_club_away_id = ''
+        self.match.save()
+        old_home = Team.objects.create(name='Local 25-26', federation_id='T8')
+        old_away = Team.objects.create(name='Visitante 25-26', federation_id='T9')
+        old_home.identity, old_away.identity = identity_of(self.home), identity_of(self.away)
+        old_home.save()
+        old_away.save()
+        last_season = League.objects.create(
+            name='Liga 25-26', federation_id='L0', season=Season.objects.resolve('2025-2026'),
+        )
+        last_season.categories.add(self.category)
+        past = Match.objects.create(
+            league=last_season, home_team=old_away, away_team=old_home, status='finished',
+            match_date=self.now - timedelta(days=300), home_score=0, away_score=3,
+        )
+
+        preview = build_match_preview(self.match)
+
+        self.assertEqual(preview['head_to_head'], [past])
 
     def test_head_to_head_includes_matches_from_inactive_historical_leagues(self):
         # #404: las ligas históricas se crean inactivas (fuera de navegación y de
