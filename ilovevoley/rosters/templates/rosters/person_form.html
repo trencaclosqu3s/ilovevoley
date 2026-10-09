@@ -189,6 +189,22 @@
             </div>
             {% endif %}
 
+            <!-- Consentimiento de imagen -->
+            {% if form.image_consent %}
+            <div>
+                <label for="{{ form.image_consent.id_for_label }}" class="block text-sm font-semibold text-ink mb-2">
+                    {{ form.image_consent.label }}
+                </label>
+                {{ form.image_consent }}
+                {% if form.image_consent.help_text %}
+                    <p class="mt-2 text-sm text-muted">{{ form.image_consent.help_text }}</p>
+                {% endif %}
+                {% if form.image_consent.errors %}
+                    <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.image_consent.errors.0 }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
             <!-- Botones -->
             <div class="flex flex-col-reverse sm:flex-row gap-3 pt-4">
                 <a href="{% if person %}{% url 'rosters:person_detail' person.id %}{% else %}{% url 'rosters:person_list' %}{% endif %}" class="w-full sm:w-auto text-center px-6 py-3 border-2 border-line rounded-lg text-ink hover:bg-tint font-semibold transition">

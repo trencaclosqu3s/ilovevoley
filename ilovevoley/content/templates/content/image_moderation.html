@@ -26,6 +26,9 @@
                     {% include 'content/_thumbnail.html' with image=image alt=image.title|default:fallback_title css_class="w-full h-48 object-cover rounded-md mb-2" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" %}
                     <p class="font-medium text-sm text-ink truncate">{{ image.title|default:untitled }}</p>
                     <p class="text-xs text-muted">{% blocktrans with uploader=image.uploaded_by.username %}Por {{ uploader }}{% endblocktrans %}</p>
+                    {% if image.no_consent_count %}
+                        <p class="mt-1 text-xs text-amber-700 dark:text-amber-300"><i class="fas fa-triangle-exclamation mr-1"></i>{% blocktrans count counter=image.no_consent_count %}{{ counter }} deportista sin consentimiento de imagen{% plural %}{{ counter }} deportistas sin consentimiento de imagen{% endblocktrans %}</p>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>

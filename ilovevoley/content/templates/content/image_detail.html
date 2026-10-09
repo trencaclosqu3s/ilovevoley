@@ -132,8 +132,9 @@
                     <div class="flex flex-wrap gap-2 mb-4">
                         {% for person in tagged_persons %}
                             <a href="{% url 'rosters:person_detail' person.id %}"
-                               class="inline-flex items-center gap-1 bg-tint text-ink px-3 py-1 rounded-full text-sm hover:opacity-80 transition">
-                                <i class="fas fa-user text-muted"></i>{{ person.full_name }}
+                               {% if can_tag and person.image_consent == 'none' %}title="{% trans 'Sin consentimiento de imagen' %}"{% endif %}
+                               class="inline-flex items-center gap-1 {% if can_tag and person.image_consent == 'none' %}bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300{% else %}bg-tint text-ink{% endif %} px-3 py-1 rounded-full text-sm hover:opacity-80 transition">
+                                <i class="fas {% if can_tag and person.image_consent == 'none' %}fa-triangle-exclamation{% else %}fa-user text-muted{% endif %}"></i>{{ person.full_name }}
                             </a>
                         {% endfor %}
                     </div>
