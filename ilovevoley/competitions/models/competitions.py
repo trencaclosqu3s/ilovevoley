@@ -702,13 +702,16 @@ class LeagueCandidate(models.Model):
                 self.league, self.status = locked.league, locked.status
                 return locked.league
 
+            def _link(league):
+                locked.league, locked.status = league, 'approved'
+                locked.save(update_fields=['league', 'status'])
+                self.league, self.status = league, 'approved'
+                return league
+
             # Liga ya dada de alta (a mano o por una sincronización) tras crearse la candidata
             existing = League.objects.filter(federation_id=locked.federation_id).first()
             if existing:
-                locked.league, locked.status = existing, 'approved'
-                locked.save(update_fields=['league', 'status'])
-                self.league, self.status = existing, 'approved'
-                return existing
+                return _link(existing)
 
             name = ' '.join(filter(None, [locked.category_label.title(), locked.phase_label]))
             is_cup = re.search(r'copa|campeonato|torneo', f'{locked.section} {locked.phase_label}', re.I)
@@ -720,31 +723,26 @@ class LeagueCandidate(models.Model):
             match_format = 'tournament_3sets' if locked.modality == League.MODALITY_BEACH else 'standard'
 
             try:
-                league = League.objects.create(
-                    name=name, federation_id=locked.federation_id, season_id=locked.season_id,
-                    competition_type='cup' if is_cup else 'regular',
-                    parent_league_id=locked.parent_league_id,
-                    phase_name=locked.phase_label if locked.parent_league_id else '',
-                    phase_order=1 if locked.parent_league_id else 0,
-                    visibility_type=visibility_type,
-                    is_historical=locked.is_historical,
-                    is_active=not locked.is_historical,
-                    modality=locked.modality,
-                    match_format=match_format,
-                )
+                # Savepoint: sin él, IntegrityError aborta toda la atomic externa en PostgreSQL
+                with transaction.atomic():
+                    league = League.objects.create(
+                        name=name, federation_id=locked.federation_id, season_id=locked.season_id,
+                        competition_type='cup' if is_cup else 'regular',
+                        parent_league_id=locked.parent_league_id,
+                        phase_name=locked.phase_label if locked.parent_league_id else '',
+                        phase_order=1 if locked.parent_league_id else 0,
+                        visibility_type=visibility_type,
+                        is_historical=locked.is_historical,
+                        is_active=not locked.is_historical,
+                        modality=locked.modality,
+                        match_format=match_format,
+                    )
             except IntegrityError:
-                league = League.objects.get(federation_id=locked.federation_id)
-                locked.league, locked.status = league, 'approved'
-                locked.save(update_fields=['league', 'status'])
-                self.league, self.status = league, 'approved'
-                return league
+                return _link(League.objects.get(federation_id=locked.federation_id))
 
             if locked.category_id:
                 league.categories.add(locked.category_id)
-            locked.league, locked.status = league, 'approved'
-            locked.save(update_fields=['league', 'status'])
-            self.league, self.status = league, 'approved'
-        return league
+            return _link(league)
 
 
 class ScrapingEndpoint(models.Model):
