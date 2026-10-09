@@ -40,4 +40,5 @@
 
     {% block portal_content %}{% endblock %}
 </div>
+<script type="application/ld+json" nonce="{{ csp_nonce }}">{{ jsonld_script|safe }}</script>
 {% endblock %}

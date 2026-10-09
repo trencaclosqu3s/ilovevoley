@@ -1,4 +1,6 @@
 # ilovevoley/competitions/services/public_portal.py
+import json
+
 from django.db.models import QuerySet
 
 from ilovevoley.competitions.models import League, Match, Standing
@@ -53,6 +55,22 @@ def sports_event_jsonld(match, absolute_url: str) -> dict:
     if match.status == 'finished' and match.home_score is not None and match.away_score is not None:
         data['description'] = f'{match.home_score}-{match.away_score}'
     return data
+
+
+def sports_organization_jsonld(absolute_url: str) -> dict:
+    """SportsOrganization de la marca para índice y listados; sin datos de personas."""
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'SportsOrganization',
+        'name': 'I Love Voley',
+        'sport': 'Volleyball',
+        'url': absolute_url,
+    }
+
+
+def jsonld_script_payload(data: dict) -> str:
+    """JSON listo para <script type="application/ld+json">; escapa "<" para no cerrar el script."""
+    return json.dumps(data, ensure_ascii=False).replace('<', '\\u003c')
 
 
 def portal_sitemap_paths() -> list[str]:

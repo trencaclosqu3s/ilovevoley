@@ -1,4 +1,3 @@
-import json
 from functools import wraps
 
 from django.http import Http404
@@ -9,10 +8,12 @@ from django.utils.translation import gettext as _
 
 from ilovevoley.competitions.models import Standing
 from ilovevoley.competitions.services.public_portal import (
+    jsonld_script_payload,
     public_leagues,
     public_matches,
     public_standings_for_league,
     sports_event_jsonld,
+    sports_organization_jsonld,
 )
 from ilovevoley.core.models import Season
 from ilovevoley.core.season_utils import resolve_season_filter
@@ -39,6 +40,11 @@ def brand_portal_required(view_func):
 def _render(request, template, ctx):
     # Canonical sin querystring: ?season=/?league= no generan URLs duplicadas.
     ctx['canonical_url'] = build_absolute_url(request.path, request=request)
+    # El detalle de partido aporta su propio SportsEvent; el resto, la organización.
+    if 'jsonld_script' not in ctx:
+        ctx['jsonld_script'] = jsonld_script_payload(
+            sports_organization_jsonld(build_absolute_url(reverse('portal:index'), request=request)),
+        )
     return render(request, template, ctx)
 
 
@@ -166,6 +172,5 @@ def match_detail(request, match_id):
         'match': match,
         'set_scores': _public_set_scores(match),
         'title': jsonld['name'],
-        # Escapa "<" para que ningún nombre cierre el <script>.
-        'jsonld_script': json.dumps(jsonld, ensure_ascii=False).replace('<', '\\u003c'),
+        'jsonld_script': jsonld_script_payload(jsonld),
     })

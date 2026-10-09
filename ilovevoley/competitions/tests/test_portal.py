@@ -1,4 +1,6 @@
 # ilovevoley/competitions/tests/test_portal.py
+import json
+import re
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -9,11 +11,10 @@ from django.utils import timezone
 from ilovevoley.competitions.models import League, Match, Standing
 from ilovevoley.competitions.services.public_portal import (
     public_leagues,
-    public_matches,
     sports_event_jsonld,
 )
 from ilovevoley.content.models import Video
-from ilovevoley.core.models import Category, Organization, Season
+from ilovevoley.core.models import Organization, Season
 from ilovevoley.teams.models import Club, Team
 
 
@@ -47,6 +48,11 @@ class PublicLeaguesCatalogTest(TestCase):
             season=self.current, visibility_type='reference',
             is_our_team_related=True, is_active=True,
         )
+        self.external = League.objects.create(
+            name='Liga Ext', federation_id='PORTAL-EXT',
+            season=self.current, visibility_type='external',
+            is_our_team_related=False, is_active=True,
+        )
         self.friendly = League.objects.create(
             name='Amistosos', federation_id='PORTAL-FRI',
             season=self.current, visibility_type='main',
@@ -62,6 +68,7 @@ class PublicLeaguesCatalogTest(TestCase):
         qs = public_leagues(self.current)
         self.assertIn(self.main, qs)
         self.assertNotIn(self.reference, qs)
+        self.assertNotIn(self.external, qs)
         self.assertNotIn(self.friendly, qs)
 
     def test_public_leagues_does_not_require_our_team_related(self):
@@ -248,6 +255,27 @@ class BrandPortalLeagueViewsTest(TestCase):
         response = self.get('portal:standings', league=self.reference.pk)
         self.assertEqual(response.status_code, 404)
 
+    def test_listing_pages_emit_sports_organization_jsonld_without_people(self):
+        # Spec §5: índice y listados llevan SportsOrganization (SEO), nunca datos de personas.
+        for name, args in (
+            ('portal:index', ()),
+            ('portal:league_list', ()),
+            ('portal:league_detail', (self.league.pk,)),
+            ('portal:calendar', ()),
+            ('portal:results', ()),
+            ('portal:standings', ()),
+        ):
+            with self.subTest(view=name):
+                response = self.get(name, *args)
+                match = re.search(
+                    r'<script type="application/ld\+json"[^>]*>(.*?)</script>',
+                    response.content.decode(), re.S,
+                )
+                self.assertIsNotNone(match)
+                data = json.loads(match.group(1))
+                self.assertEqual(data['@type'], 'SportsOrganization')
+                self.assertNotIn('Person', str(data))
+
     def test_tenant_host_returns_404(self):
         for name, args in (
             ('portal:league_detail', (self.league.pk,)),
@@ -318,6 +346,9 @@ class PortalMatchPrivacyAndJsonLdTest(TestCase):
         self.assertNotIn('VIDEO_PRIVADO_XYZ', body)
         self.assertNotIn('stream.example', body)
         self.assertNotIn('Jugador Secreto', body)
+        # El detalle emite solo SportsEvent, sin duplicar la organización.
+        self.assertEqual(body.count('application/ld+json'), 1)
+        self.assertIn('"@type": "SportsEvent"', body)
         # Parciales no numéricos se descartan, no se renderizan.
         self.assertNotIn('<b>x</b>', body)
 
