@@ -827,4 +827,16 @@ class ImageTransparencyViewTests(TestCase):
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
 
+    def test_image_transparency_explains_consent_levels_and_links(self):
+        url = reverse('core:image_transparency')
+        self.client.force_login(self.user)
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        # Niveles reales de Person.ImageConsent (#122)
+        self.assertContains(response, 'Sin consentimiento')
+        self.assertContains(response, 'Solo uso interno del club')
+        self.assertContains(response, 'Uso público')
+        self.assertContains(response, reverse('rosters:my_profile'))
+        self.assertContains(response, reverse('core:privacy_policy'))
+
 
