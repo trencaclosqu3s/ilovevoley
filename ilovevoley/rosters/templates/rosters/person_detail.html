@@ -72,10 +72,45 @@
                             {% trans "Editar" %}
                         </a>
                     {% endif %}
+                    {% if can_manage %}
+                        {% if membership and not membership.is_active %}
+                            <form method="post" action="{% url 'rosters:person_membership_toggle' person.id %}" id="membership-toggle-form"
+                                  data-confirm-message="{% trans "¿Reactivar a esta persona en el club?" %}"
+                                  class="inline-flex">
+                                {% csrf_token %}
+                                <input type="hidden" name="target" value="alta">
+                                <button type="submit" class="bg-green-600 hover:opacity-80 text-white px-4 py-2 rounded-full font-medium transition text-sm whitespace-nowrap inline-flex items-center">
+                                    {% trans "Reactivar en el club" %}
+                                </button>
+                            </form>
+                        {% else %}
+                            <form method="post" action="{% url 'rosters:person_membership_toggle' person.id %}" id="membership-toggle-form"
+                                  data-confirm-message="{% trans "¿Dar de baja a esta persona en el club? Su ficha e histórico se conservan." %}"
+                                  class="inline-flex">
+                                {% csrf_token %}
+                                <input type="hidden" name="target" value="baja">
+                                <button type="submit" class="bg-red-600 hover:opacity-80 text-white px-4 py-2 rounded-full font-medium transition text-sm whitespace-nowrap inline-flex items-center">
+                                    {% trans "Dar de baja en el club" %}
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
                     {% if has_card %}
                         {% include "rosters/_card_links.html" with card_person=person %}
                     {% endif %}
                 </div>
+
+                {% if membership and not membership.is_active %}
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-3 rounded mb-3">
+                        <p class="text-sm text-yellow-800 dark:text-yellow-200">
+                            {% trans "Ficha dada de baja en este club." %}
+                            {% if membership.end_date %}
+                                {% blocktrans with end_date=membership.end_date|date:"SHORT_DATE_FORMAT" %}Baja desde {{ end_date }}.{% endblocktrans %}
+                            {% endif %}
+                            {% trans "Solo aparece en los históricos de plantillas." %}
+                        </p>
+                    </div>
+                {% endif %}
                 
                 <!-- Información de contacto (solo quien puede editar la ficha) -->
                 {% if can_edit and person.email or can_edit and person.phone %}
@@ -326,4 +361,29 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+    const form = document.getElementById('membership-toggle-form');
+    if (form) {
+        form.addEventListener('submit', function (event) {
+            const message = form.dataset.confirmMessage;
+            if (message && !confirm(message)) {
+                event.preventDefault();
+                return;
+            }
+            // El POST es idempotente (target explícito); el botón se deshabilita
+            // tras el ciclo de envío para evitar el doble clic accidental.
+            const button = form.querySelector('button');
+            if (button) {
+                setTimeout(function () {
+                    button.disabled = true;
+                }, 0);
+            }
+        });
+    }
+})();
+</script>
 {% endblock %}

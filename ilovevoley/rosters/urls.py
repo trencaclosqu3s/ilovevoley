@@ -12,6 +12,7 @@ urlpatterns = [
     path('personas/yo/', views.my_profile, name='my_profile'),
     path('personas/yo/hijos/<int:person_id>/', views.child_profile, name='child_profile'),
     path('personas/<int:person_id>/', views.person_detail, name='person_detail'),
+    path('personas/<int:person_id>/baja-alta/', views.person_membership_toggle, name='person_membership_toggle'),
     path('personas/<int:person_id>/cromo/', views.person_card_page, name='person_card_page'),
     path('personas/<int:person_id>/cromo.png', views.person_card, name='person_card'),
     path('personas/<int:person_id>/editar/', views.person_edit, name='person_edit'),
