@@ -8,6 +8,7 @@ urlpatterns = [
     path('', portal_views.index, name='index'),
     path('ligas/', portal_views.league_list, name='league_list'),
     path('ligas/<int:league_id>/', portal_views.league_detail, name='league_detail'),
+    path('partidos/<int:match_id>/', portal_views.match_detail, name='match_detail'),
     path('calendario/', portal_views.calendar_view, name='calendar'),
     path('resultados/', portal_views.results_view, name='results'),
     path('clasificacion/', portal_views.standings_view, name='standings'),

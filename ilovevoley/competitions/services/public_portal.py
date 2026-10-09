@@ -31,3 +31,24 @@ def public_standings_for_league(league) -> QuerySet:
         .select_related('team')
         .order_by('position')
     )
+
+
+def sports_event_jsonld(match, absolute_url: str) -> dict:
+    """SportsEvent schema.org del partido; nunca incluye jugadores ni acta."""
+    home = match.home_team_display
+    away = match.away_team_display
+    location_name = match.venue_ref.name if match.venue_ref_id else match.venue
+    data = {
+        '@context': 'https://schema.org',
+        '@type': 'SportsEvent',
+        'name': f'{home} vs {away}',
+        'url': absolute_url,
+        'startDate': match.match_date.isoformat(),
+        'homeTeam': {'@type': 'SportsTeam', 'name': home},
+        'awayTeam': {'@type': 'SportsTeam', 'name': away},
+    }
+    if location_name:
+        data['location'] = {'@type': 'Place', 'name': location_name}
+    if match.status == 'finished' and match.home_score is not None and match.away_score is not None:
+        data['description'] = f'{match.home_score}-{match.away_score}'
+    return data

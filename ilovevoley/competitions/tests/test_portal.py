@@ -1,12 +1,18 @@
 # ilovevoley/competitions/tests/test_portal.py
 from datetime import timedelta
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match, Standing
-from ilovevoley.competitions.services.public_portal import public_leagues, public_matches
+from ilovevoley.competitions.services.public_portal import (
+    public_leagues,
+    public_matches,
+    sports_event_jsonld,
+)
+from ilovevoley.content.models import Video
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.teams.models import Club, Team
 
@@ -243,3 +249,77 @@ class BrandPortalLeagueViewsTest(TestCase):
                     reverse(name, args=args), HTTP_HOST='testclub.ilovevoley.es',
                 )
                 self.assertEqual(response.status_code, 404)
+
+
+@override_settings(
+    ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'],
+    TENANT_BASE_DOMAIN='ilovevoley.es',
+    SECURE_SSL_REDIRECT=False,
+)
+class PortalMatchPrivacyAndJsonLdTest(TestCase):
+    """Detalle público: federación sí, media/acta de personas no; SportsEvent sí."""
+
+    def setUp(self):
+        user = get_user_model().objects.create_user('u', 'u@example.com', 'x')
+        self.season = Season.objects.create(
+            name='2026-27', start_year=2026, end_year=2027, is_current=True,
+        )
+        self.league = League.objects.create(
+            name='Liga', federation_id='PORTAL-M-1',
+            season=self.season, visibility_type='main', is_active=True,
+        )
+        home = Team.objects.create(name='Local FC', federation_id='PT-LOC')
+        away = Team.objects.create(name='Visitante FC', federation_id='PT-VIS')
+        self.match = Match.objects.create(
+            league=self.league, home_team=home, away_team=away,
+            match_date=timezone.now(), status='finished',
+            home_score=3, away_score=1,
+            set_scores=[[25, 20], [25, 22], [20, 25], ['<b>x</b>', 1]],
+            federation_id='PORTAL-MATCH-1',
+            stream_url='https://stream.example/secret',
+            acta_data={'home': {'players': [{'name': 'Jugador Secreto'}]}},
+        )
+        Video.objects.create(
+            title='VIDEO_PRIVADO_XYZ', youtube_url='https://youtu.be/dQw4w9WgXcQ',
+            created_by=user, match=self.match, season=self.season,
+        )
+        ref_league = League.objects.create(
+            name='Ref', federation_id='PORTAL-M-REF',
+            season=self.season, visibility_type='reference', is_active=True,
+        )
+        self.hidden_match = Match.objects.create(
+            league=ref_league, home_team=home, away_team=away,
+            match_date=timezone.now(), status='finished',
+            federation_id='PORTAL-MATCH-HID',
+        )
+
+    def get(self, match, host='ilovevoley.es'):
+        return self.client.get(
+            reverse('portal:match_detail', args=[match.id]), HTTP_HOST=host,
+        )
+
+    def test_match_detail_hides_media_stream_and_lineup_names(self):
+        response = self.get(self.match)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Local FC')
+        self.assertContains(response, '25-20')
+        body = response.content.decode()
+        self.assertNotIn('VIDEO_PRIVADO_XYZ', body)
+        self.assertNotIn('stream.example', body)
+        self.assertNotIn('Jugador Secreto', body)
+        # Parciales no numéricos se descartan, no se renderizan.
+        self.assertNotIn('<b>x</b>', body)
+
+    def test_match_outside_catalog_is_404(self):
+        self.assertEqual(self.get(self.hidden_match).status_code, 404)
+
+    def test_match_detail_on_tenant_host_is_404(self):
+        self.assertEqual(self.get(self.match, 'testclub.ilovevoley.es').status_code, 404)
+
+    def test_sports_event_jsonld_shape(self):
+        data = sports_event_jsonld(self.match, 'https://ilovevoley.es/competicion/partidos/1/')
+        self.assertEqual(data['@type'], 'SportsEvent')
+        self.assertEqual(data['homeTeam']['name'], 'Local FC')
+        self.assertEqual(data['awayTeam']['name'], 'Visitante FC')
+        self.assertEqual(data['description'], '3-1')
+        self.assertNotIn('Jugador Secreto', str(data))

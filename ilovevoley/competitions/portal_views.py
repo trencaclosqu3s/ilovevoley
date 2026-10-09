@@ -1,7 +1,9 @@
+import json
 from functools import wraps
 
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -10,9 +12,11 @@ from ilovevoley.competitions.services.public_portal import (
     public_leagues,
     public_matches,
     public_standings_for_league,
+    sports_event_jsonld,
 )
 from ilovevoley.core.models import Season
 from ilovevoley.core.season_utils import resolve_season_filter
+from ilovevoley.core.tenant_utils import build_absolute_url
 
 INDEX_LEAGUE_LIMIT = 12
 DETAIL_MATCH_LIMIT = 30
@@ -130,3 +134,32 @@ def standings_view(request):
         'title': _('Clasificación'),
     })
     return render(request, 'competitions/portal/standings.html', ctx)
+
+
+def _public_set_scores(match):
+    """Parciales [[local, visitante], ...] solo si son enteros; descarta cualquier otra cosa."""
+    sets = []
+    for item in match.set_scores or []:
+        if (
+            isinstance(item, (list, tuple)) and len(item) == 2
+            and all(isinstance(n, int) and not isinstance(n, bool) for n in item)
+        ):
+            sets.append((item[0], item[1]))
+    return sets
+
+
+@brand_portal_required
+def match_detail(request, match_id):
+    match = get_object_or_404(public_matches(None), pk=match_id)
+    jsonld = sports_event_jsonld(
+        match,
+        build_absolute_url(reverse('portal:match_detail', args=[match.pk]), request=request),
+    )
+    # Solo datos federativos: sin vídeos, imágenes, stream, acta ni enlaces de compartir.
+    return render(request, 'competitions/portal/match_detail.html', {
+        'match': match,
+        'set_scores': _public_set_scores(match),
+        'title': jsonld['name'],
+        # Escapa "<" para que ningún nombre cierre el <script>.
+        'jsonld_script': json.dumps(jsonld, ensure_ascii=False).replace('<', '\\u003c'),
+    })
