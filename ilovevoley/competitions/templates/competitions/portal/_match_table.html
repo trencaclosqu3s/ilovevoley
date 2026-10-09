@@ -1,0 +1,29 @@
+{% load i18n %}
+{% if matches %}
+<div class="overflow-x-auto bg-surface rounded-2xl border border-line">
+    <table class="w-full text-sm text-ink">
+        <thead class="text-left text-muted">
+            <tr>
+                <th class="px-3 py-2">{% trans "Fecha" %}</th>
+                {% if show_league %}<th class="px-3 py-2">{% trans "Liga" %}</th>{% endif %}
+                <th class="px-3 py-2">{% trans "Local" %}</th>
+                <th class="px-3 py-2 text-center">{% trans "Resultado" %}</th>
+                <th class="px-3 py-2">{% trans "Visitante" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for match in matches %}
+            <tr class="border-t border-line">
+                <td class="px-3 py-2 whitespace-nowrap"><a href="/competicion/partidos/{{ match.pk }}/" class="hover:underline">{{ match.match_date|date:"d/m/Y H:i" }}</a></td>
+                {% if show_league %}<td class="px-3 py-2">{{ match.league.name }}</td>{% endif %}
+                <td class="px-3 py-2">{% firstof match.home_team.name match.home_team_text %}</td>
+                <td class="px-3 py-2 text-center font-semibold">{% if match.home_score is not None and match.away_score is not None %}{{ match.home_score }} - {{ match.away_score }}{% else %}-{% endif %}</td>
+                <td class="px-3 py-2">{% firstof match.away_team.name match.away_team_text %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-surface rounded-2xl border border-line p-6 text-center text-muted">{{ empty_message }}</div>
+{% endif %}

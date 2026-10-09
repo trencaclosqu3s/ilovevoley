@@ -1,0 +1,14 @@
+{% load i18n %}
+<form method="get" class="flex items-end gap-3">
+    <input type="hidden" name="season" value="{{ selected_season }}">
+    <div>
+        <label for="league" class="block text-sm font-medium text-ink mb-1">{% trans "Liga" %}</label>
+        <select name="league" id="league" class="px-3 py-2 border border-line bg-surface text-ink rounded-xl">
+            <option value="">{% trans "Todas las ligas" %}</option>
+            {% for l in leagues %}
+                <option value="{{ l.id }}" {% if selected_league_id == l.id|stringformat:"s" %}selected{% endif %}>{{ l.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="px-4 py-2 bg-csj-purple-dark text-white rounded-full text-sm font-medium">{% trans "Filtrar" %}</button>
+</form>

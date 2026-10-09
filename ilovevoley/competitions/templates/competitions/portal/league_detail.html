@@ -1,0 +1,23 @@
+{% extends "competitions/portal/base_portal.html" %}
+{% load i18n %}
+
+{% block portal_content %}
+<div>
+    <h1 class="text-2xl font-bold text-ink">{{ league.name }}</h1>
+    <div class="mt-1 flex flex-wrap gap-2 text-xs text-muted">
+        <span>{{ league.season }}</span>
+        {% for category in league.categories.all %}<span>· {{ category.name }}</span>{% endfor %}
+    </div>
+</div>
+
+<h2 class="text-lg font-bold text-ink">{% trans "Clasificación" %}</h2>
+{% include "competitions/portal/_standings_table.html" %}
+
+<h2 class="text-lg font-bold text-ink">{% trans "Próximos partidos" %}</h2>
+{% trans "No hay partidos programados." as empty_upcoming %}
+{% include "competitions/portal/_match_table.html" with matches=upcoming empty_message=empty_upcoming %}
+
+<h2 class="text-lg font-bold text-ink">{% trans "Últimos resultados" %}</h2>
+{% trans "Aún no hay resultados." as empty_recent %}
+{% include "competitions/portal/_match_table.html" with matches=recent empty_message=empty_recent %}
+{% endblock %}

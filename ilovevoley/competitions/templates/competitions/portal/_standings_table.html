@@ -1,0 +1,33 @@
+{% load i18n %}
+{% if standings %}
+<div class="overflow-x-auto bg-surface rounded-2xl border border-line">
+    <table class="w-full text-sm text-ink">
+        <thead class="text-left text-muted">
+            <tr>
+                <th class="px-3 py-2">#</th>
+                <th class="px-3 py-2">{% trans "Equipo" %}</th>
+                <th class="px-3 py-2 text-center">{% trans "PJ" %}</th>
+                <th class="px-3 py-2 text-center">{% trans "G" %}</th>
+                <th class="px-3 py-2 text-center">{% trans "P" %}</th>
+                <th class="px-3 py-2 text-center">{% trans "Sets" %}</th>
+                <th class="px-3 py-2 text-center">{% trans "Pts" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in standings %}
+            <tr class="border-t border-line">
+                <td class="px-3 py-2">{{ row.position }}</td>
+                <td class="px-3 py-2 font-medium">{{ row.team.name }}</td>
+                <td class="px-3 py-2 text-center">{{ row.played }}</td>
+                <td class="px-3 py-2 text-center">{{ row.won }}</td>
+                <td class="px-3 py-2 text-center">{{ row.lost }}</td>
+                <td class="px-3 py-2 text-center">{{ row.sets_for }}-{{ row.sets_against }}</td>
+                <td class="px-3 py-2 text-center font-bold">{{ row.total_points }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-surface rounded-2xl border border-line p-6 text-center text-muted">{% trans "Sin clasificación disponible." %}</div>
+{% endif %}
