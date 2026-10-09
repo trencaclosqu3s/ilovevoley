@@ -320,6 +320,14 @@
                             class="block text-white/80 hover:text-white transition-colors text-sm">
                             {% trans "Resultados" %}
                         </a>
+                        <a href="{% url 'core:privacy_policy' %}"
+                            class="block text-white/80 hover:text-white transition-colors text-sm">
+                            {% trans "Política de Privacidad" %}
+                        </a>
+                        <a href="{% url 'core:image_transparency' %}"
+                            class="block text-white/80 hover:text-white transition-colors text-sm">
+                            {% trans "Quién ve las fotos" %}
+                        </a>
                         {% endif %}
                     </nav>
                 </div>

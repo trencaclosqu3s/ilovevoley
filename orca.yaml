@@ -1,0 +1,7 @@
+scripts:
+  # Copia al worktree nuevo todo lo ignorado por git del checkout principal (.env, .mcp.json, credenciales, media, dump...).
+  setup: |
+    cd "$ORCA_ROOT_PATH" && git ls-files -z --others --ignored --exclude-standard --directory | grep -zvE '(^|/)(\.DS_Store|\.idea/|\.pytest_cache/|__pycache__/|staticfiles/|tests/)$' | rsync -a -r --from0 --files-from=- --ignore-existing ./ "$ORCA_WORKTREE_PATH"/
+  # Borra contenedores, volúmenes e imágenes de los proyectos compose levantados desde el worktree.
+  archive: |
+    for p in $(docker ps -a --filter "label=com.docker.compose.project.working_dir=$ORCA_WORKTREE_PATH" --format '{{.Label "com.docker.compose.project"}}' | sort -u); do docker compose -p "$p" down --remove-orphans; docker volume ls -q --filter "label=com.docker.compose.project=$p" | xargs docker volume rm; docker images -q --filter "label=com.docker.compose.project=$p" | xargs docker rmi -f; done; true

@@ -10,6 +10,7 @@ from ilovevoley.competitions.services.lineups import (
     build_match_lineups,
     fetch_and_store_acta,
     get_player_season_stats,
+    get_season_rivals,
     store_match_lineups,
 )
 from ilovevoley.core.models import Category, Organization, Season
@@ -311,6 +312,49 @@ class PlayerSeasonStatsTests(TestCase):
         self.assertEqual(stats['sets_disputados'], 5)
 
 
+class SeasonRivalsTests(TestCase):
+    """El rival se identifica por (equipo, dorsal, apellido) dentro de la temporada (#459)."""
+
+    def setUp(self):
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(name='Test Club Senior', category=self.category, federation_id='TEAM-1')
+        self.rival = Team.objects.create(name='Soller Senior', category=self.category, federation_id='TEAM-2')
+        self.season = Season.objects.resolve('2025-26')
+        self.person = Person.objects.create(first_name='Ana', last_name='Ruiz')
+
+    def _match(self, home_score, away_score, season=None, friendly=False):
+        season = season or self.season
+        league, _ = League.objects.get_or_create(
+            federation_id=f'L-{season.name}',
+            defaults={'name': 'Liga', 'season': season, 'visibility_type': 'main'},
+        )
+        match = Match.objects.create(
+            league=league, home_team=self.team, away_team=self.rival, match_date=timezone.now(),
+            round_number=1, status='finished', home_score=home_score, away_score=away_score,
+            federation_id=None if friendly else f'M-{Match.all_objects.count()}', is_friendly=friendly,
+        )
+        MatchLineup.objects.create(match=match, team=self.team, person=self.person, jersey_number=4, sets_played=3)
+        return match
+
+    def _rival(self, match, jersey, name, played=3):
+        MatchLineup.objects.create(match=match, team=self.rival, jersey_number=jersey, name_acta=name, sets_played=played)
+
+    def test_agrupa_por_dorsal_y_apellido_y_cuenta_victorias(self):
+        won, lost = self._match(3, 1), self._match(0, 3)
+        for match in (won, lost):
+            self._rival(match, 7, 'RAYA')
+            self._rival(match, 9, 'GARCIA')
+        self._rival(won, 12, 'GARCIA')  # Mismo apellido, otro dorsal: otra persona.
+        self._rival(lost, 15, 'BANQUILLO', played=0)
+        MatchLineup.objects.create(match=won, team=self.team, jersey_number=5, name_acta='COMPAÑERA', sets_played=3)
+        self._rival(self._match(3, 0, friendly=True), 7, 'RAYA')
+        self._rival(self._match(3, 0, season=Season.objects.resolve('2024-25')), 7, 'RAYA')
+
+        rivals = {(r['jersey_number'], r['name']): (r['matches'], r['wins']) for r in get_season_rivals(self.person, self.season)}
+
+        self.assertEqual(rivals, {(7, 'RAYA'): (2, 1), (9, 'GARCIA'): (2, 1), (12, 'GARCIA'): (1, 1)})
+
+
 @override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
 class BackfillActasCommandTests(TestCase):
     def setUp(self):
@@ -334,9 +378,9 @@ class BackfillActasCommandTests(TestCase):
             home_convocados=['1 Uno'],
             sets=[_set('Set 1', _six(1), _six(11))],
         )
-        with patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.safe_get',
+        with patch('ilovevoley.competitions.services.lineups.safe_get',
                    return_value=b'<html></html>') as get, \
-                patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.parse_acta_lineup',
+                patch('ilovevoley.videos.scraping.parse_acta_lineup',
                       return_value=data):
             call_command('backfill_acta_lineups')
 
@@ -348,7 +392,7 @@ class BackfillActasCommandTests(TestCase):
     def test_backfill_ignora_los_ya_procesados(self):
         self.match.acta_data = {'sets': []}
         self.match.save(update_fields=['acta_data'])
-        with patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.safe_get') as get:
+        with patch('ilovevoley.competitions.services.lineups.safe_get') as get:
             call_command('backfill_acta_lineups')
         get.assert_not_called()
 
@@ -390,9 +434,9 @@ class BackfillActasCommandTests(TestCase):
             home_convocados=['1 Uno'],
             sets=[_set('Set 1', _six(1), _six(11))],
         )
-        with patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.safe_get',
+        with patch('ilovevoley.competitions.services.lineups.safe_get',
                    return_value=b'<html></html>') as mock_safe_get, \
-                patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.parse_acta_lineup',
+                patch('ilovevoley.videos.scraping.parse_acta_lineup',
                       return_value=data):
             call_command('backfill_acta_lineups')
 
@@ -558,3 +602,4 @@ class ScrapeMatchActasTaskTests(TestCase):
         self.assertEqual(result['processed'], 2)  # self.own + photo_with_html
         photo_with_html.refresh_from_db()
         self.assertIsNotNone(photo_with_html.acta_data)
+

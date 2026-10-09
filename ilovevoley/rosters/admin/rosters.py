@@ -27,9 +27,9 @@ class StaffRoleInline(TabularInline):
 class PersonAdmin(ModelAdmin):
     """Admin para el modelo Person"""
     list_display = ('__str__', 'birth_year', 'age_display', 'contact_info', 'parents_info', 'is_active', 'photo_preview', 'active_teams_count')
-    list_filter = ('organizations', 'is_active', 'created_at', 'birth_date')
+    list_filter = ('organizations', 'is_active', 'image_consent', 'created_at', 'birth_date')
     search_fields = ('first_name', 'last_name', 'email', 'phone')
-    readonly_fields = ('age_display', 'created_at', 'updated_at', 'photo_preview')
+    readonly_fields = ('age_display', 'created_at', 'updated_at', 'photo_preview', 'image_consent_updated_at')
     autocomplete_fields = ('organizations', 'user')
     actions = ['activate_people', 'deactivate_people']
     inlines = [PlayerRoleInline, StaffRoleInline]
@@ -50,6 +50,9 @@ class PersonAdmin(ModelAdmin):
             'fields': ('user',),
             'classes': ('collapse',),
             'description': 'Opcional: vincular con un usuario de la plataforma'
+        }),
+        ('Consentimiento de imagen', {
+            'fields': ('image_consent', 'image_consent_updated_at')
         }),
         ('Estado', {
             'fields': ('is_active', 'notes')

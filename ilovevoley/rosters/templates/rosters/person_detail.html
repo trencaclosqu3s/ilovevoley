@@ -72,6 +72,9 @@
                             {% trans "Editar" %}
                         </a>
                     {% endif %}
+                    {% if has_card %}
+                        {% include "rosters/_card_links.html" with card_person=person %}
+                    {% endif %}
                 </div>
                 
                 <!-- Información de contacto (solo quien puede editar la ficha) -->
@@ -116,6 +119,19 @@
                     </div>
                 {% endif %}
                 
+                <!-- Consentimiento de imagen (solo quien puede editar la ficha) -->
+                {% if can_edit %}
+                    <div class="mt-4 rounded-lg p-4 {% if person.image_consent == 'none' %}bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500{% else %}bg-tint{% endif %}">
+                        <h3 class="text-sm font-semibold text-ink mb-1">{% trans "Consentimiento de imagen" %}</h3>
+                        <p class="text-sm text-muted">
+                            {{ person.get_image_consent_display }}
+                            {% if person.image_consent_updated_at %}
+                                · {% blocktrans with date=person.image_consent_updated_at|date:"d/m/Y" %}actualizado el {{ date }}{% endblocktrans %}
+                            {% endif %}
+                        </p>
+                    </div>
+                {% endif %}
+
                 <!-- Notas (solo quien puede editar la ficha) -->
                 {% if can_edit and person.notes %}
                     <div class="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-csj-purple p-4 rounded">

@@ -12,6 +12,7 @@ from django.db import transaction
 from django.db.models import Count, Q, Sum
 from unidecode import unidecode
 
+from ilovevoley.core.models import Season
 from ilovevoley.core.security import safe_get
 from ilovevoley.rosters.models import PlayerRole
 
@@ -171,6 +172,7 @@ def fetch_and_store_acta(match):
     Propaga ``UnsafeURL``, ``requests.RequestException`` y ``ValueError`` para que
     cada llamador decida si reintenta o lo da por perdido.
     """
+    # Import local: el paquete de scraping legado importa modelos de competitions.
     from ilovevoley.videos.scraping import parse_acta_lineup
 
     content = safe_get(match.official_acta_url or match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS)
@@ -230,3 +232,58 @@ def get_player_season_stats(person, season=None, teams=None):
         'sets_disputados': totals['sets_disputados'] or 0,
         'sets_titular': totals['sets_titular'] or 0,
     }
+
+
+def _played_official_lineups(person):
+    return MatchLineup.objects.filter(
+        person=person, sets_played__gt=0,
+        match__is_friendly=False, match__federation_id__isnull=False,
+    ).exclude(match__status='withdrawn')
+
+
+def get_rival_seasons(person):
+    """Temporadas en las que el deportista jugó algún partido oficial."""
+    season_ids = _played_official_lineups(person).values('match__league__season_id')
+    return Season.objects.filter(pk__in=season_ids).order_by('-start_year')
+
+
+def get_season_rivals(person, season):
+    """Rivales con los que coincidió en pista el deportista en una temporada.
+
+    El acta no trae licencia ni año y casi siempre solo el apellido, así que
+    el rival se identifica por (identidad del equipo, dorsal, apellido) dentro
+    de la temporada: agrupar solo por nombre fusionaría a todos los «Garcia».
+    Es información de menores de otros clubes: solo para la vista «Tú».
+    """
+    own_team_by_match = dict(
+        _played_official_lineups(person)
+        .filter(match__league__season=season)
+        .values_list('match_id', 'team_id')
+    )
+    rows = (
+        MatchLineup.objects
+        .filter(match_id__in=own_team_by_match, sets_played__gt=0, jersey_number__isnull=False)
+        .select_related('match', 'team__identity')
+    )
+
+    rivals = {}
+    for row in rows:
+        own_team_id = own_team_by_match[row.match_id]
+        if row.team_id == own_team_id:
+            continue
+        name = row.name_acta.strip()
+        key = (row.team.identity_id or f'team-{row.team_id}', row.jersey_number, name.casefold())
+        rival = rivals.setdefault(key, {
+            'name': name,
+            'jersey_number': row.jersey_number,
+            'team_name': row.team.identity.core_name if row.team.identity else row.team.name,
+            'matches': 0,
+            'wins': 0,
+        })
+        rival['matches'] += 1
+        match = row.match
+        if match.status == 'finished' and match.home_score is not None and match.away_score is not None:
+            home_won = match.home_score > match.away_score
+            rival['wins'] += home_won == (match.home_team_id == own_team_id)
+
+    return sorted(rivals.values(), key=lambda r: (-r['matches'], -r['wins'], r['name']))

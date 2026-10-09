@@ -1,6 +1,8 @@
+import threading
 from unittest import mock
 
 import pytest
+from django.db import connection
 
 from ilovevoley.competitions.models import League, LeagueCandidate
 from ilovevoley.competitions.services import discovery
@@ -108,6 +110,60 @@ def test_approve_links_league_already_created_for_same_federation_id():
     assert candidate.approve() == existing
     candidate.refresh_from_db()
     assert (candidate.status, candidate.league) == ('approved', existing)
+    assert League.objects.filter(federation_id='4472').count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_approve_concurrent_double_submit_creates_one_league():
+    """Doble envío del admin: no IntegrityError y una sola League (#465)."""
+    season = Season.objects.resolve('2023-24')
+    candidate = LeagueCandidate.objects.create(
+        federation_id='4472', season=season,
+        category_label='Infantil Masculina', phase_label='Liga Regular - CÚBER',
+    )
+    barrier = threading.Barrier(2)
+    results, errors = [], []
+
+    def run():
+        try:
+            barrier.wait(timeout=5)
+            results.append(LeagueCandidate.objects.get(pk=candidate.pk).approve())
+        except Exception as exc:  # noqa: BLE001 — queremos ver cualquier fallo de carrera
+            errors.append(exc)
+        finally:
+            connection.close()
+
+    threads = [threading.Thread(target=run) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=10)
+
+    assert errors == []
+    assert len(results) == 2
+    assert League.objects.filter(federation_id='4472').count() == 1
+    candidate.refresh_from_db()
+    assert candidate.status == 'approved'
+    assert results[0] == results[1] == candidate.league
+
+
+@pytest.mark.django_db
+def test_approve_recovers_when_create_hits_duplicate_federation_id():
+    """Savepoint: IntegrityError real de PG no deja la transacción abortada (#465)."""
+    season = Season.objects.resolve('2023-24')
+    candidate = LeagueCandidate.objects.create(
+        federation_id='4472', season=season,
+        category_label='Infantil Masculina', phase_label='Liga Regular',
+    )
+    winner = League.objects.create(name='Concurrente', federation_id='4472', season=season)
+    # La pre-comprobación «no ve» la liga: el create choca con el unique real
+    with mock.patch.object(
+        League.objects, 'filter',
+        return_value=mock.Mock(first=lambda: None),
+    ):
+        assert candidate.approve() == winner
+    candidate.refresh_from_db()
+    assert (candidate.status, candidate.league_id) == ('approved', winner.pk)
     assert League.objects.filter(federation_id='4472').count() == 1
 
 
