@@ -802,3 +802,72 @@ class PrivacyPolicyViewTest(TestCase):
         self.assertContains(response, 'Responsable del Tractament')
 
 
+@override_settings(ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'])
+class ImageTransparencyViewTests(TestCase):
+    """Página de transparencia de imagen (#222): acceso y descubrimiento."""
+
+    def setUp(self):
+        from ilovevoley.core.models import Organization
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club', is_active=True
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='transparency_user', password='password123')
+
+    def test_image_transparency_requires_login(self):
+        url = reverse('core:image_transparency')
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_image_transparency_ok_for_authenticated_user(self):
+        url = reverse('core:image_transparency')
+        self.client.force_login(self.user)
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+
+    def test_image_transparency_explains_consent_levels_and_links(self):
+        url = reverse('core:image_transparency')
+        self.client.force_login(self.user)
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        # Niveles reales de Person.ImageConsent (#122)
+        self.assertContains(response, 'Sin consentimiento')
+        self.assertContains(response, 'Solo uso interno del club')
+        self.assertContains(response, 'Uso público')
+        self.assertContains(response, reverse('rosters:my_profile'))
+        self.assertContains(response, reverse('core:privacy_policy'))
+        self.assertContains(response, 'El cromo respeta el nivel de consentimiento elegido')
+        self.assertContains(
+            response,
+            'La foto que aparece en la ficha no se oculta actualmente según ese nivel',
+        )
+        self.assertContains(
+            response,
+            'El nivel elegido no oculta automáticamente las imágenes etiquetadas',
+        )
+
+    def test_image_transparency_catalan_translation(self):
+        url = reverse('core:image_transparency')
+        self.client.force_login(self.user)
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = 'ca'
+        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Qui veu les fotos')
+
+    def test_image_transparency_footer_link_only_for_authenticated_users(self):
+        transparency_url = reverse('core:image_transparency')
+
+        response_anon = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response_anon.status_code, 200)
+        footer_anon = response_anon.content.decode().split('<footer')[1].split('</footer>')[0]
+        self.assertNotIn(transparency_url, footer_anon)
+
+        self.client.force_login(self.user)
+        response_auth = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response_auth.status_code, 200)
+        footer_auth = response_auth.content.decode().split('<footer')[1].split('</footer>')[0]
+        self.assertIn(transparency_url, footer_auth)
+
+
