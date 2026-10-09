@@ -1,11 +1,15 @@
 {% extends '../base.html' %}
 {% load i18n %}
 
-{% block title %}{% trans "Tú" %} - I Love Voley{% endblock %}
+{% block title %}{% if is_child %}{{ person.full_name }}{% else %}{% trans "Tú" %}{% endif %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto">
-    <div class="bg-surface rounded-3xl border border-line p-6 mb-6 flex items-center gap-4">
+    {% if is_child %}
+        <a href="{% url 'rosters:my_profile' %}" class="inline-block mb-3 text-sm font-semibold text-brand-text hover:underline">← {% trans "Tú" %}</a>
+    {% endif %}
+    {% if person %}
+    <div class="bg-surface rounded-3xl border border-line p-6 mb-6 flex flex-wrap items-center gap-4">
         {% if person.photo %}
             <img src="{{ person.photo.url }}" alt="{{ person.full_name }}" class="w-16 h-16 rounded-full object-cover">
         {% endif %}
@@ -15,17 +19,52 @@
         {% if in_current_tenant %}
             <a href="{% url 'rosters:person_detail' person.id %}" class="text-sm font-semibold text-brand-text hover:underline">{% trans "Ver ficha completa" %}</a>
         {% endif %}
+        {% if has_card %}
+            {% include "rosters/_card_links.html" with card_person=person %}
+        {% endif %}
     </div>
+    {% endif %}
 
+    {% if children %}
+        <section class="bg-surface rounded-[20px] border border-line p-5 mb-6">
+            <h2 class="text-lg font-bold text-ink mb-3">{% trans "Tus hijos" %}</h2>
+            <ul class="space-y-2">
+                {% for child in children %}
+                    <li class="bg-tint rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
+                        <a href="{% url 'rosters:child_profile' child.person.id %}" class="font-semibold text-ink hover:underline">{{ child.person.full_name }}</a>
+                        {% if child.has_card %}
+                            {% include "rosters/_card_links.html" with card_person=child.person %}
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+
+    {% if person %}
+    {% if not is_child %}
     <a href="{% url 'content:favorite_images' %}"
        class="bg-surface rounded-3xl border border-line p-4 mb-6 flex items-center gap-3 hover:border-accent transition">
         {% icon 'heart' 'w-6 h-6 text-red-400' %}
         <span class="font-semibold text-ink">{% trans "Mis fotos favoritas" %}</span>
     </a>
+    {% endif %}
 
     {% include 'rosters/_tagged_photos.html' with person=person tagged_images=tagged_images tagged_images_count=tagged_images_count %}
 
-    {% for entry in seasons %}
+{% if seasons|length > 1 %}
+    <nav class="flex gap-2 overflow-x-auto whitespace-nowrap pb-1 mb-4 -mx-1 px-1" aria-label="{% trans 'Temporadas' %}">
+        {% for entry in seasons %}
+        <a href="?season={{ entry.season.pk }}"{% if entry == active_entry %} aria-current="page"{% endif %}
+           class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold touch-manipulation transition bg-surface text-ink hover:bg-tint aria-[current=page]:bg-csj-purple-dark aria-[current=page]:text-white">
+            {{ entry.season }}
+        </a>
+        {% endfor %}
+    </nav>
+    {% endif %}
+
+    {% if active_entry %}
+    {% with entry=active_entry %}
         <section class="bg-surface rounded-[20px] border border-line p-5 mb-4">
             <h2 class="text-lg font-bold text-ink mb-3">{% blocktrans with season=entry.season %}Temporada {{ season }}{% endblocktrans %}</h2>
             <ul class="space-y-2">
@@ -35,6 +74,12 @@
                         {% if role.jersey_number %}<span class="ml-2 text-sm font-bold text-brand-text">#{{ role.jersey_number }}</span>{% endif %}
                         {% if role.position %}<span class="ml-2 text-xs text-muted">{{ role.display_position }}</span>{% endif %}
                         <p class="text-sm text-muted">{{ role.identity.club|default_if_none:"" }}{% if role.identity.category %} · {{ role.identity.category.name }}{% endif %}</p>
+                        {% if role.summary %}
+                            {% if role.summary.sentence %}<p class="text-sm text-ink mt-2">{{ role.summary.sentence }}</p>{% endif %}
+                            {% if role.summary.highlight %}
+                                <p class="text-sm mt-1"><span class="font-bold text-brand-text">{{ role.summary.highlight.title }}</span> <span class="text-muted">· {{ role.summary.highlight.text }}</span></p>
+                            {% endif %}
+                        {% endif %}
                     </li>
                 {% endfor %}
                 {% for role in entry.staff_roles %}
@@ -45,9 +90,28 @@
                     </li>
                 {% endfor %}
             </ul>
+            {% if entry.rivals is not None %}
+                <h3 class="text-base font-bold text-ink mt-5 mb-3">{% trans "Tus rivales" %}</h3>
+                <ul class="space-y-2">
+                    {% for rival in entry.rivals %}
+                        <li class="bg-tint rounded-lg p-3">
+                            <span class="font-semibold text-ink">{{ rival.name|default:_("Sin nombre") }}</span>
+                            <span class="ml-2 text-sm font-bold text-brand-text">#{{ rival.jersey_number }}</span>
+                            <span class="ml-2 text-xs text-muted">{{ rival.team_name }}</span>
+                            <p class="text-sm text-muted">
+                                {% blocktrans count counter=rival.matches with wins=rival.wins %}Te has enfrentado {{ counter }} vez y has ganado {{ wins }}{% plural %}Te has enfrentado {{ counter }} veces y has ganado {{ wins }}{% endblocktrans %}
+                            </p>
+                        </li>
+                    {% empty %}
+                        <li class="text-sm text-muted italic">{% trans "Las actas de esta temporada no tienen alineación del rival" %}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
         </section>
-    {% empty %}
-        <p class="text-center text-muted py-8 italic">{% trans "Todavía no tienes roles registrados" %}</p>
-    {% endfor %}
+    {% endwith %}
+    {% else %}
+        <p class="text-center text-muted py-8 italic">{% if is_child %}{% trans "Todavía no tiene roles registrados" %}{% else %}{% trans "Todavía no tienes roles registrados" %}{% endif %}</p>
+    {% endif %}
+    {% endif %}
 </div>
 {% endblock %}

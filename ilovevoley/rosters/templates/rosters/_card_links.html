@@ -1,0 +1,8 @@
+{% load i18n %}
+<a href="{% url 'rosters:person_card_page' card_person.id %}"
+   class="bg-csj-purple-dark hover:opacity-90 text-white px-4 py-2 rounded-full font-medium transition text-sm whitespace-nowrap inline-flex items-center">
+    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"></path>
+    </svg>
+    {% trans "Cromo" %}
+</a>

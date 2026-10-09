@@ -309,7 +309,8 @@ def match_callup_player(
             ).distinct()
         )
         if not candidates:
-            candidates = list(Person.objects.for_tenant(org))
+            # Ficha dada de baja deportivamente: no se auto-asigna (#478).
+            candidates = list(Person.objects.active_for_tenant(org))
 
         for person in candidates:
             score, year_match, notes = evaluate_person(person)

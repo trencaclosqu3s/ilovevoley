@@ -64,6 +64,55 @@ class PersonTenantQuerySet(TenantQuerySet):
             return self.none()
         return self.filter(pk__in=self.model._base_manager.filter(self.tenant_filter(tenant)).values('pk'))
 
+    def active_for_tenant(self, tenant):
+        """Fichas para navegación del tenant (#478): alta activa en el club o
+        rol activo en un equipo del club en la temporada actual.
+
+        Más estrecho que ``for_tenant`` (que mantiene el acceso histórico por
+        URL a fichas dadas de baja): los listados y selectores no deben
+        ofrecer fichas con baja deportiva. La baja gana: una ficha dada de
+        baja aquí no sale aunque conserve un rol activo de la temporada
+        (dar de baja debe limpiar también las plantillas vigentes). Sin
+        temporada activa configurada solo cuenta la pertenencia.
+        """
+        if tenant is None:
+            return self.none()
+        from ilovevoley.core.models import Season
+        from ilovevoley.teams.models import Team
+
+        qs = self.model._base_manager.filter(
+            models.Q(
+                club_memberships__organization=tenant,
+                club_memberships__is_active=True,
+            )
+        )
+        season = Season.objects.current()
+        if season is not None:
+            club_identities = Team.objects.for_tenant(tenant).values('identity')
+            qs = qs | self.model._base_manager.filter(
+                models.Q(
+                    player_roles__identity__in=club_identities,
+                    player_roles__is_active=True,
+                    player_roles__season=season,
+                )
+                | models.Q(
+                    staff_roles__identity__in=club_identities,
+                    staff_roles__is_active=True,
+                    staff_roles__season=season,
+                )
+            )
+        # La baja del club precede a cualquier rol activo de la temporada. Con
+        # pertenencias múltiples (baja aquí, alta en otro club) hay que restar
+        # por pk de la ficha: el exclude directo del join alteraría la
+        # semántica del multi-valued.
+        given_leave = self.model._base_manager.filter(
+            models.Q(
+                club_memberships__organization=tenant,
+                club_memberships__is_active=False,
+            )
+        )
+        return self.filter(pk__in=qs.values('pk')).exclude(pk__in=given_leave.values('pk'))
+
 
 class PersonRoleTenantQuerySet(TenantQuerySet):
     """Roles de una persona: pertenecen al club de los equipos de su identidad.

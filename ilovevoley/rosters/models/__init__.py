@@ -1,4 +1,10 @@
-from .rosters import Person, PlayerRole, StaffRole, person_photo_upload_path  # noqa: F401
+from .rosters import (  # noqa: F401
+    Person,
+    PersonOrganization,
+    PlayerRole,
+    StaffRole,
+    person_photo_upload_path,
+)
 from .legacy import (  # noqa: F401
     player_photo_upload_path,
     staff_photo_upload_path,
@@ -6,6 +12,7 @@ from .legacy import (  # noqa: F401
 
 __all__ = [
     'Person',
+    'PersonOrganization',
     'PlayerRole',
     'StaffRole',
     'person_photo_upload_path',

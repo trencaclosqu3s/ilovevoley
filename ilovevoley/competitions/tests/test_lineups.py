@@ -5,10 +5,12 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from ilovevoley.competitions.models import League, Match, MatchLineup
+from ilovevoley.competitions.models import League, Match, MatchActaPhoto, MatchLineup
 from ilovevoley.competitions.services.lineups import (
     build_match_lineups,
+    fetch_and_store_acta,
     get_player_season_stats,
+    get_season_rivals,
     store_match_lineups,
 )
 from ilovevoley.core.models import Category, Organization, Season
@@ -310,6 +312,49 @@ class PlayerSeasonStatsTests(TestCase):
         self.assertEqual(stats['sets_disputados'], 5)
 
 
+class SeasonRivalsTests(TestCase):
+    """El rival se identifica por (equipo, dorsal, apellido) dentro de la temporada (#459)."""
+
+    def setUp(self):
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(name='Test Club Senior', category=self.category, federation_id='TEAM-1')
+        self.rival = Team.objects.create(name='Soller Senior', category=self.category, federation_id='TEAM-2')
+        self.season = Season.objects.resolve('2025-26')
+        self.person = Person.objects.create(first_name='Ana', last_name='Ruiz')
+
+    def _match(self, home_score, away_score, season=None, friendly=False):
+        season = season or self.season
+        league, _ = League.objects.get_or_create(
+            federation_id=f'L-{season.name}',
+            defaults={'name': 'Liga', 'season': season, 'visibility_type': 'main'},
+        )
+        match = Match.objects.create(
+            league=league, home_team=self.team, away_team=self.rival, match_date=timezone.now(),
+            round_number=1, status='finished', home_score=home_score, away_score=away_score,
+            federation_id=None if friendly else f'M-{Match.all_objects.count()}', is_friendly=friendly,
+        )
+        MatchLineup.objects.create(match=match, team=self.team, person=self.person, jersey_number=4, sets_played=3)
+        return match
+
+    def _rival(self, match, jersey, name, played=3):
+        MatchLineup.objects.create(match=match, team=self.rival, jersey_number=jersey, name_acta=name, sets_played=played)
+
+    def test_agrupa_por_dorsal_y_apellido_y_cuenta_victorias(self):
+        won, lost = self._match(3, 1), self._match(0, 3)
+        for match in (won, lost):
+            self._rival(match, 7, 'RAYA')
+            self._rival(match, 9, 'GARCIA')
+        self._rival(won, 12, 'GARCIA')  # Mismo apellido, otro dorsal: otra persona.
+        self._rival(lost, 15, 'BANQUILLO', played=0)
+        MatchLineup.objects.create(match=won, team=self.team, jersey_number=5, name_acta='COMPAÑERA', sets_played=3)
+        self._rival(self._match(3, 0, friendly=True), 7, 'RAYA')
+        self._rival(self._match(3, 0, season=Season.objects.resolve('2024-25')), 7, 'RAYA')
+
+        rivals = {(r['jersey_number'], r['name']): (r['matches'], r['wins']) for r in get_season_rivals(self.person, self.season)}
+
+        self.assertEqual(rivals, {(7, 'RAYA'): (2, 1), (9, 'GARCIA'): (2, 1), (12, 'GARCIA'): (1, 1)})
+
+
 @override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
 class BackfillActasCommandTests(TestCase):
     def setUp(self):
@@ -333,9 +378,9 @@ class BackfillActasCommandTests(TestCase):
             home_convocados=['1 Uno'],
             sets=[_set('Set 1', _six(1), _six(11))],
         )
-        with patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.safe_get',
+        with patch('ilovevoley.competitions.services.lineups.safe_get',
                    return_value=b'<html></html>') as get, \
-                patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.parse_acta_lineup',
+                patch('ilovevoley.videos.scraping.parse_acta_lineup',
                       return_value=data):
             call_command('backfill_acta_lineups')
 
@@ -347,7 +392,7 @@ class BackfillActasCommandTests(TestCase):
     def test_backfill_ignora_los_ya_procesados(self):
         self.match.acta_data = {'sets': []}
         self.match.save(update_fields=['acta_data'])
-        with patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.safe_get') as get:
+        with patch('ilovevoley.competitions.services.lineups.safe_get') as get:
             call_command('backfill_acta_lineups')
         get.assert_not_called()
 
@@ -389,9 +434,9 @@ class BackfillActasCommandTests(TestCase):
             home_convocados=['1 Uno'],
             sets=[_set('Set 1', _six(1), _six(11))],
         )
-        with patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.safe_get',
+        with patch('ilovevoley.competitions.services.lineups.safe_get',
                    return_value=b'<html></html>') as mock_safe_get, \
-                patch('ilovevoley.competitions.management.commands.backfill_acta_lineups.parse_acta_lineup',
+                patch('ilovevoley.videos.scraping.parse_acta_lineup',
                       return_value=data):
             call_command('backfill_acta_lineups')
 
@@ -399,4 +444,162 @@ class BackfillActasCommandTests(TestCase):
             'https://voleibolib.federatio.com/actas/85846/acta_10932.html',
             allowed_hosts=['federacion.example'],
         )
+
+
+class ScrapeMatchActasTaskTests(TestCase):
+    """La tarea periódica (#455, #462) procesa partidos oficiales de los tenants y gestiona actas manuales."""
+
+    def setUp(self):
+        self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-T')
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', club=self.club, is_active=True)
+        category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(name='Test Club Senior', category=category, club=self.club, federation_id='TEAM-1')
+        self.rival = Team.objects.create(
+            name='Rival Team Senior', category=category, federation_id='TEAM-2',
+            club=Club.objects.create(official_name='Rival', federation_id='CLUB-R'),
+        )
+        other = Team.objects.create(
+            name='Otro', category=category, federation_id='TEAM-3',
+            club=Club.objects.create(official_name='Otro', federation_id='CLUB-O'),
+        )
+        self.season = Season.objects.resolve('2025-26')
+        league = League.objects.create(
+            name='Liga', federation_id='L-1', season=self.season,
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+
+        def match(home, away, n, **extra):
+            return Match.objects.create(
+                league=league, home_team=home, away_team=away, match_date=timezone.now(),
+                round_number=n, status='finished', acta_html=f'https://federacion.example/acta/{n}', **extra,
+            )
+
+        self.own = match(self.team, self.rival, 1)
+        self.friendly = match(self.team, self.rival, 2, is_friendly=True)
+        self.rivals_only = match(self.rival, other, 3)
+
+    @override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
+    def test_solo_procesa_oficiales_del_tenant_y_enlaza_la_plantilla_cargada_despues(self):
+        from ilovevoley.competitions.services.lineups import relink_orphan_lineups
+        from ilovevoley.competitions.tasks import scrape_match_actas_task
+
+        data = _lineup_data(home_convocados=['7 Ruiz'], sets=[_set('Set 1', _six(7), _six(21))])
+        with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
+                patch('ilovevoley.videos.scraping.parse_acta_lineup', return_value=data):
+            result = scrape_match_actas_task()
+
+        get.assert_called_once_with('https://federacion.example/acta/1', allowed_hosts=['federacion.example'])
+        self.assertEqual(result['processed'], 1)
+        self.assertIsNone(Match.all_objects.get(pk=self.friendly.pk).acta_data)
+        self.assertIsNone(Match.all_objects.get(pk=self.rivals_only.pk).acta_data)
+        row = MatchLineup.objects.get(match=self.own, team=self.team, jersey_number=7)
+        self.assertIsNone(row.person_id)
+
+        # La plantilla se rellena después del acta: la siguiente pasada enlaza la fila.
+        person = Person.objects.create(first_name='Ana', last_name='Ruiz')
+        PlayerRole.objects.create(
+            person=person, identity=identity_of(self.team), season=self.season, jersey_number=7, is_active=True,
+        )
+        self.assertEqual(relink_orphan_lineups(), 1)
+        row.refresh_from_db()
+        self.assertEqual(row.person_id, person.id)
+        self.assertFalse(MatchLineup.objects.filter(team=self.rival, person__isnull=False).exists())
+
+    @override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
+    def test_ignora_partidos_con_acta_foto_sin_acta_html(self):
+        """Los partidos con foto manual y sin acta_html no deben ser intentados por la tarea HTML (#462)."""
+        from ilovevoley.competitions.tasks import scrape_match_actas_task
+
+        photo_match = Match.objects.create(
+            league=self.own.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now(), round_number=4, status='finished',
+            acta_html='',
+        )
+        MatchActaPhoto.objects.create(
+            match=photo_match,
+            source_url='https://federacion.example/pdf.asp?o=81768.jpeg',
+            status='pending_download',
+        )
+
+        data = _lineup_data(home_convocados=['7 Ruiz'], sets=[_set('Set 1', _six(7), _six(21))])
+        with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
+                patch('ilovevoley.videos.scraping.parse_acta_lineup', return_value=data):
+            result = scrape_match_actas_task()
+
+        # Solo se procesa self.own (que tiene acta_html válida), no photo_match
+        get.assert_called_once_with('https://federacion.example/acta/1', allowed_hosts=['federacion.example'])
+        self.assertEqual(result['processed'], 1)
+        photo_match.refresh_from_db()
+        self.assertIsNone(photo_match.acta_data)
+
+    @override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
+    def test_fetch_and_store_acta_sobreescribe_alineaciones_si_llega_html(self):
+        """Si un partido tenía foto manual y llega el HTML oficial, prevalece el HTML y sobreescribe (#462)."""
+        photo_match = Match.objects.create(
+            league=self.own.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now(), round_number=5, status='finished',
+            acta_html='https://federacion.example/acta/5',
+        )
+        MatchActaPhoto.objects.create(
+            match=photo_match,
+            source_url='https://federacion.example/pdf.asp?o=81768.jpeg',
+            status='approved',
+        )
+        initial_photo_data = _lineup_data(
+            home_convocados=['7 Ruiz Provisional'],
+            sets=[],
+        )
+        store_match_lineups(photo_match, initial_photo_data)
+        self.assertEqual(MatchLineup.objects.filter(match=photo_match).count(), 1)
+        lineup_entry = MatchLineup.objects.get(match=photo_match)
+        self.assertEqual(lineup_entry.jersey_number, 7)
+        self.assertEqual(lineup_entry.sets_played, 0)
+        self.assertEqual(lineup_entry.name_acta, 'Ruiz Provisional')
+
+        html_data = _lineup_data(
+            home_convocados=['7 Ruiz', '9 Gomila'],
+            sets=[_set('Set 1', [_entry('I', 7), _entry('II', 9), _entry('III', 1),
+                                 _entry('IV', 2), _entry('V', 3), _entry('VI', 4)], _six(21))],
+        )
+        with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
+                patch('ilovevoley.videos.scraping.parse_acta_lineup', return_value=html_data):
+            fetch_and_store_acta(photo_match)
+
+        get.assert_called_once_with('https://federacion.example/acta/5', allowed_hosts=['federacion.example'])
+        photo_match.refresh_from_db()
+        self.assertEqual(photo_match.acta_data['home_convocados'], ['7 Ruiz', '9 Gomila'])
+
+        rows = {r.jersey_number: r for r in MatchLineup.objects.filter(match=photo_match, team=self.team)}
+        self.assertIn(7, rows)
+        self.assertIn(9, rows)
+        self.assertEqual(rows[7].name_acta, 'Ruiz')
+        self.assertEqual(rows[7].sets_played, 1)
+        self.assertEqual(rows[7].sets_started, 1)
+        self.assertEqual(rows[9].name_acta, 'Gomila')
+        self.assertEqual(rows[9].sets_played, 1)
+
+    @override_settings(ACTA_ALLOWED_HOSTS=['federacion.example'])
+    def test_procesa_partido_con_foto_si_tiene_acta_html(self):
+        """Si un partido tiene foto pero también tiene acta_html, la tarea sí lo procesa (#462)."""
+        from ilovevoley.competitions.tasks import scrape_match_actas_task
+
+        photo_with_html = Match.objects.create(
+            league=self.own.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now(), round_number=6, status='finished',
+            acta_html='https://federacion.example/acta/6',
+        )
+        MatchActaPhoto.objects.create(
+            match=photo_with_html,
+            source_url='https://federacion.example/pdf.asp?o=81769.jpeg',
+            status='pending_download',
+        )
+
+        data = _lineup_data(home_convocados=['7 Ruiz'], sets=[_set('Set 1', _six(7), _six(21))])
+        with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
+                patch('ilovevoley.videos.scraping.parse_acta_lineup', return_value=data):
+            result = scrape_match_actas_task()
+
+        self.assertEqual(result['processed'], 2)  # self.own + photo_with_html
+        photo_with_html.refresh_from_db()
+        self.assertIsNotNone(photo_with_html.acta_data)
 

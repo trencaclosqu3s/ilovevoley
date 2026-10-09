@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.tenancy import PersonRoleTenantQuerySet, PersonTenantQuerySet
@@ -62,9 +63,11 @@ class Person(models.Model):
     )
     
     # Clubes que ven la ficha sin necesidad de rol (alta o adopción). Además,
-    # una ficha es visible en el club donde tenga roles.
+    # una ficha es visible en el club donde tenga roles. El estado por club
+    # (alta/baja) vive en PersonOrganization (#478).
     organizations = models.ManyToManyField(
         'core.Organization',
+        through='PersonOrganization',
         related_name='people',
         blank=True,
         verbose_name=_('Organizaciones'),
@@ -88,6 +91,26 @@ class Person(models.Model):
         help_text=_('Notas adicionales sobre la persona')
     )
     
+    # Consentimiento de imagen dado por la familia (#122). Por defecto se
+    # presupone uso interno: la galería solo la ven miembros aprobados del club.
+    class ImageConsent(models.TextChoices):
+        NONE = 'none', _('Sin consentimiento')
+        INTERNAL_ONLY = 'internal_only', _('Solo uso interno del club')
+        FULL_PUBLIC = 'full_public', _('Uso público')
+
+    image_consent = models.CharField(
+        max_length=20,
+        choices=ImageConsent.choices,
+        default=ImageConsent.INTERNAL_ONLY,
+        verbose_name=_('Consentimiento de imagen'),
+        help_text=_('Uso de la imagen autorizado por el deportista o su familia'),
+    )
+    image_consent_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Consentimiento actualizado'),
+    )
+
     # Estado y metadata
     is_active = models.BooleanField(
         default=True,
@@ -129,6 +152,16 @@ class Person(models.Model):
         sanitize_model_image_field(self, 'photo', max_size=2048)
         if self.birth_date:
             self.birth_year = self.birth_date.year
+        # La fecha solo refleja decisiones reales: el valor por defecto de una
+        # ficha nueva no cuenta como consentimiento recogido.
+        previous = (
+            Person._base_manager.filter(pk=self.pk).values_list('image_consent', flat=True).first()
+            if self.pk else self.ImageConsent.INTERNAL_ONLY
+        )
+        if previous is not None and previous != self.image_consent:
+            self.image_consent_updated_at = timezone.now()
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = {*kwargs['update_fields'], 'image_consent_updated_at'}
         super().save(*args, **kwargs)
 
     @property
@@ -169,6 +202,18 @@ class Person(models.Model):
             contact_parts.append(self.phone)
         return " / ".join(contact_parts) or _("Sin contacto")
     
+    def enroll(self, organization):
+        """Da de alta (o reactiva) la pertenencia deportiva de la ficha a un club.
+
+        `save()` del M2M sobre una fila existente es un no-op y no reactivaría
+        una baja, de ahí este punto único de escritura (#478).
+        """
+        PersonOrganization.objects.update_or_create(
+            person=self,
+            organization=organization,
+            defaults={'is_active': True, 'end_date': None},
+        )
+
     def get_player_roles(self):
         """Obtiene todos los roles de jugador de esta persona"""
         return self.player_roles.filter(is_active=True).select_related('identity', 'identity__category')
@@ -372,3 +417,59 @@ class StaffRole(models.Model):
     def display_role(self):
         """Devuelve el rol en formato legible"""
         return self.get_role_display()
+
+
+class PersonOrganization(models.Model):
+    """Pertenencia deportiva de una ficha a un club (#478).
+
+    Estado por club: "está en la plantilla/alta del club". La baja
+    (``is_active=False`` con ``end_date``) no toca la ficha global ni los
+    roles históricos (siguen visibles en plantillas de temporadas
+    anteriores); la relación de seguidor del usuario vive aparte en
+    ``users.models.Membership``.
+    """
+    person = models.ForeignKey(
+        Person,
+        on_delete=models.CASCADE,
+        related_name='club_memberships',
+        verbose_name=_('Persona'),
+    )
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.CASCADE,
+        related_name='person_memberships',
+        verbose_name=_('Organización'),
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_('Activa'),
+        help_text=_('¿Está la ficha dada de alta en el club?'),
+    )
+    start_date = models.DateField(
+        auto_now_add=True,
+        verbose_name=_('Fecha de alta'),
+    )
+    end_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name=_('Fecha de baja'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Creado'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Actualizado'))
+
+    class Meta:
+        ordering = ['person__last_name', 'person__first_name']
+        verbose_name = _('Pertenencia a club')
+        verbose_name_plural = _('Pertenencias a club')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['person', 'organization'],
+                name='unique_person_organization',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['organization', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.person.full_name} - {self.organization.name}"

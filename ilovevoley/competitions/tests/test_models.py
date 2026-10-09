@@ -3,10 +3,10 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
-from ilovevoley.competitions.models import League, Match, MatchChangeLog, Venue
+from ilovevoley.competitions.models import League, Match, MatchChangeLog, ScrapingEndpoint, Venue
 from ilovevoley.core.models import Organization, Season
 from ilovevoley.teams.models import Club, Team
 
@@ -417,3 +417,16 @@ class MatchStreamUrlTest(TestCase):
         self.assertFalse(match_future.is_live_window)
         self.assertFalse(match_future.is_live)
 
+
+
+class ScrapingEndpointFullUrlTest(SimpleTestCase):
+    """La federación responde 400 a `jor=None`: sin jornada, el parámetro va vacío (#463)."""
+
+    def test_round_none_is_left_empty(self):
+        endpoint = ScrapingEndpoint(
+            league=League(federation_id='8286'), url_pattern='JSON/get_resultados.asp?id={league_id}&jor={round}',
+        )
+
+        self.assertEqual(
+            endpoint.get_full_url(round=None), 'https://www.voleibolib.net/JSON/get_resultados.asp?id=8286&jor='
+        )

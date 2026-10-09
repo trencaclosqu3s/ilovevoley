@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional
 from django.db import models, transaction
 from django.utils import timezone
 import requests
-from unidecode import unidecode
 
 from ilovevoley.competitions.services.delta_detector import (
     detect_and_record_match_changes,
@@ -82,6 +81,16 @@ class FederationScraper:
                 else:
                     raise last_error
 
+    @staticmethod
+    def _parse_json_response(response: requests.Response) -> Any:
+        """Parsea el JSON incluyendo en el error el cuerpo recibido: la federación responde a veces con texto plano (#463)."""
+        try:
+            return json.loads(response.text)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Respuesta no JSON ({response.status_code}) de {response.url}: {response.text[:200]!r}"
+            ) from e
+
     def scrape_endpoint(self, endpoint: ScrapingEndpoint, **kwargs) -> Dict[str, Any]:
         """Ejecuta scraping de un endpoint específico"""
         
@@ -127,11 +136,17 @@ class FederationScraper:
             # Fuera de rango el servidor devuelve la jornada 1, no un error.
             if not header or (round_number and int(header.group(1)) != round_number):
                 return None
+            current_round_num = int(header.group(1))
+            try:
+                from ilovevoley.competitions.services.acta_photo import process_acta_photos_from_html
+                process_acta_photos_from_html(html, league=league, round_number=current_round_num)
+            except Exception as e:
+                logger.warning(f'Error procesando fotos de acta en {league.name}: {e}')
             for block in html.split("class='info_partido")[1:]:
                 clubs = re.findall(r'clubes/(\d+)mini', block)
                 if len(clubs) >= 2:
-                    round_map[(clubs[0], clubs[1])] = int(header.group(1))
-            return int(header.group(1))
+                    round_map[(clubs[0], clubs[1])] = current_round_num
+            return current_round_num
 
         try:
             if needed is None:
@@ -169,7 +184,7 @@ class FederationScraper:
 
             # Obtener datos del JSON
             response = self._fetch_json_with_retry(json_url)
-            json_data = json.loads(response.text)
+            json_data = self._parse_json_response(response)
 
             # Obtener IDs de ligas que tenemos en la base de datos (si se requiere filtrado)
             db_league_ids = set()
@@ -578,14 +593,6 @@ class FederationScraper:
 
         return withdrawn_teams
     
-    def _normalize_team_name(self, name: str) -> str:
-        """Normaliza nombres de equipos para comparación"""
-        # Remover acentos y convertir a mayúsculas
-        normalized = unidecode(name).upper()
-        # Remover espacios extra y caracteres especiales
-        normalized = ' '.join(normalized.split())
-        return normalized
-    
     def _calculate_won_lost_from_matches(self, team) -> Dict[str, int]:
         """
         Calcula partidos ganados y perdidos desde los partidos finalizados.
@@ -724,11 +731,22 @@ class FederationScraper:
                     home_team = self._find_similar_team(home_team_name)
                 if not away_team:
                     away_team = self._find_similar_team(away_team_name)
-                    
+                if not home_team:
+                    home_team = self._find_league_team_by_club(
+                        home_team_name, match_data.get('federation_club_local_id', ''))
+                if not away_team:
+                    away_team = self._find_league_team_by_club(
+                        away_team_name, match_data.get('federation_club_away_id', ''))
+
                 if not home_team or not away_team:
                     logger.error(f"Could not match teams: {home_team_name} vs {away_team_name}")
                     continue
-            
+
+            # El id de club del escudo sitúa también al equipo encontrado por nombre (#464)
+            for team, club_key in ((home_team, 'federation_club_local_id'), (away_team, 'federation_club_away_id')):
+                if self._assign_federation_club(team, match_data.get(club_key, '')):
+                    team.save(update_fields=['club'])
+
             match_date = match_data.get('match_date')
             round_number = match_data.get('round_number')
             is_result_only = match_data.get('is_result_only', False)
@@ -1013,7 +1031,30 @@ class FederationScraper:
                 return team
 
         return None
-    
+
+    def _find_league_team_by_club(self, team_name: str, club_fed_id: str) -> Optional[Team]:
+        """Equipo de la liga que difiere solo en el patrocinador, si es el único (#464).
+
+        El club solo no basta: un club tiene varios equipos por liga (MAYURQA BLACK,
+        Portol Rojo/Negro) y equipos antiguos sin club asignado. Se exige además que
+        las palabras de un nombre estén contenidas en las del otro (patrocinador
+        añadido o quitado). Un patrocinador sustituido por otro no casa: se descarta.
+        El club se asigna en ``update_matches``, igual que a los encontrados por nombre.
+        """
+        from ilovevoley.teams.services import EMPTY_CLUB_IDS
+        if club_fed_id in EMPTY_CLUB_IDS:
+            return None
+        words = set(self._normalize_team_name(team_name).split())
+        candidates = [
+            team for team in Team.objects.filter(
+                models.Q(club__isnull=True) | models.Q(club__federation_id=club_fed_id),
+            ).filter(
+                models.Q(home_matches__league=self.league) | models.Q(away_matches__league=self.league)
+            ).distinct()
+            if (other := set(self._normalize_team_name(team.name).split())) <= words or words <= other
+        ]
+        return candidates[0] if len(candidates) == 1 else None
+
     def get_max_rounds(self) -> int:
         """
         Determina el número máximo de jornadas para la liga.
@@ -1143,7 +1184,7 @@ class FederationScraper:
             response = self._fetch_json_with_retry(json_url)
 
             # Parsear JSON
-            json_data = json.loads(response.text)
+            json_data = self._parse_json_response(response)
             
             enriched_count = 0
             new_matches_count = 0

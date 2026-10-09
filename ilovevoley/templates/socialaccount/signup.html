@@ -56,6 +56,11 @@
             <button type="submit" class="w-full bg-csj-purple-dark hover:bg-csj-purple-dark text-white py-3 sm:py-2 rounded-lg font-semibold transition touch-manipulation">
                 {% trans "Completar Registro" %}
             </button>
+            
+            <p class="text-xs text-muted text-center">
+                {% url 'core:privacy_policy' as privacy_url %}
+                {% blocktrans trimmed with privacy_url=privacy_url %}Al completar el registro, aceptas el tratamiento de tus datos según nuestra <a href="{{ privacy_url }}" target="_blank" rel="noopener" class="text-brand-text hover:underline font-semibold">Política de Privacidad</a>.{% endblocktrans %}
+            </p>
         </form>
         
         <p class="mt-6 text-center text-sm text-muted">
