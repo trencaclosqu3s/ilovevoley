@@ -87,6 +87,9 @@ def portal_sitemap_paths() -> list[str]:
         reverse('portal:standings'),
     ]
     season = Season.objects.current()
+    if season is None:
+        # Sin temporada activa no volcamos el histórico entero en el sitemap.
+        return paths
     league_ids = public_leagues(season).values_list('id', flat=True)[:SITEMAP_LEAGUE_LIMIT]
     for league_id in league_ids:
         paths.append(reverse('portal:league_detail', args=[league_id]))

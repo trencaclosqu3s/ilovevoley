@@ -1,5 +1,6 @@
 from functools import wraps
 
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -22,7 +23,21 @@ from ilovevoley.core.tenant_utils import build_absolute_url
 INDEX_LEAGUE_LIMIT = 12
 DETAIL_MATCH_LIMIT = 30
 LIST_MATCH_LIMIT = 200
-UPCOMING_STATUSES = ('scheduled', 'in_progress')
+
+
+def _parse_league_id(raw):
+    """Id de liga desde querystring; rechaza dígitos Unicode (p. ej. '²') que romperían el ORM."""
+    if raw and raw.isascii() and raw.isdigit():
+        return int(raw)
+    return None
+
+
+def _upcoming_matches(qs):
+    """Próximos: scheduled futuros + todos los in_progress (aunque match_date ya haya pasado)."""
+    now = timezone.now()
+    return qs.filter(
+        Q(status='in_progress') | Q(status='scheduled', match_date__gte=now),
+    ).order_by('match_date')
 
 
 def brand_portal_required(view_func):
@@ -83,9 +98,7 @@ def league_detail(request, league_id):
     ctx.update({
         'league': league,
         'standings': public_standings_for_league(league),
-        'upcoming': matches.filter(
-            status__in=UPCOMING_STATUSES, match_date__gte=timezone.now(),
-        )[:DETAIL_MATCH_LIMIT],
+        'upcoming': _upcoming_matches(matches)[:DETAIL_MATCH_LIMIT],
         'recent': matches.filter(status='finished').order_by('-match_date')[:DETAIL_MATCH_LIMIT],
         'title': league.name,
     })
@@ -93,8 +106,8 @@ def league_detail(request, league_id):
 
 
 def _filter_by_league(request, matches):
-    league_id = request.GET.get('league')
-    if league_id and league_id.isdigit():
+    league_id = _parse_league_id(request.GET.get('league'))
+    if league_id is not None:
         matches = matches.filter(league_id=league_id)
     return matches
 
@@ -102,9 +115,7 @@ def _filter_by_league(request, matches):
 @brand_portal_required
 def calendar_view(request):
     ctx = _season_context(request)
-    matches = public_matches(ctx['season']).filter(
-        status__in=UPCOMING_STATUSES, match_date__gte=timezone.now(),
-    )
+    matches = _upcoming_matches(public_matches(ctx['season']))
     ctx.update({
         'matches': _filter_by_league(request, matches)[:LIST_MATCH_LIMIT],
         'leagues': public_leagues(ctx['season']),
@@ -131,11 +142,11 @@ def results_view(request):
 def standings_view(request):
     ctx = _season_context(request)
     leagues = public_leagues(ctx['season'])
-    league_id = request.GET.get('league')
+    league_id = _parse_league_id(request.GET.get('league'))
     selected_league = None
     standings = Standing.objects.none()
-    if league_id:
-        if not league_id.isdigit():
+    if request.GET.get('league'):
+        if league_id is None:
             raise Http404()
         selected_league = get_object_or_404(leagues, pk=league_id)
         standings = public_standings_for_league(selected_league)

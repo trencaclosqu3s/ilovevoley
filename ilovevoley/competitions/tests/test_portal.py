@@ -238,6 +238,29 @@ class BrandPortalLeagueViewsTest(TestCase):
         response = self.get('portal:calendar', league=self.other.pk)
         self.assertEqual(list(response.context['matches']), [self.other_future])
 
+    def test_in_progress_past_kickoff_stays_on_calendar_and_upcoming(self):
+        # Caso límite detectado en pre-push: in_progress con match_date pasado
+        # desaparecía del calendario y de «próximos» (tampoco es finished).
+        live = Match.objects.create(
+            league=self.league, home_team=self.alpha, away_team=self.beta,
+            match_date=timezone.now() - timedelta(hours=1), status='in_progress',
+            federation_id='PM-LIVE',
+        )
+        calendar = self.get('portal:calendar')
+        self.assertIn(live, calendar.context['matches'])
+        detail = self.get('portal:league_detail', self.league.pk)
+        self.assertIn(live, detail.context['upcoming'])
+
+    def test_unicode_digit_league_query_does_not_500(self):
+        # str.isdigit() acepta '²'; el ORM rompía con ValueError → 500 en URL pública.
+        response = self.get('portal:calendar', league='²')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            set(response.context['matches']), {self.future, self.other_future},
+        )
+        response = self.get('portal:standings', league='²')
+        self.assertEqual(response.status_code, 404)
+
     def test_results_lists_only_finished(self):
         response = self.get('portal:results')
         self.assertEqual(list(response.context['matches']), [self.done])
