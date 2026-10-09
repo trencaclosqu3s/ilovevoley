@@ -1,3 +1,4 @@
+from ilovevoley.teams.tests.helpers import identity_of
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -202,8 +203,8 @@ class TeamRosterSeasonFilterTests(TestCase):
         actual.organizations.add(self.org)
         pasado = Person.objects.create(first_name='Pasado', last_name='Dos')
         pasado.organizations.add(self.org)
-        PlayerRole.objects.create(person=actual, team=self.team, season=self.current, jersey_number=1)
-        PlayerRole.objects.create(person=pasado, team=self.team, season=self.past, jersey_number=2)
+        PlayerRole.objects.create(person=actual, identity=identity_of(self.team), season=self.current, jersey_number=1)
+        PlayerRole.objects.create(person=pasado, identity=identity_of(self.team), season=self.past, jersey_number=2)
 
     def _names(self, response):
         return {role.person.full_name for role in response.context['player_roles']}
@@ -263,15 +264,15 @@ class TeamRosterStatsConsistencyTests(TestCase):
         coach = Person.objects.create(first_name='Carla', last_name='Entrena')
         coach.organizations.add(self.org)
         PlayerRole.objects.create(
-            person=setter, team=self.team, season=self.season,
+            person=setter, identity=identity_of(self.team), season=self.season,
             position='setter', jersey_number=1,
         )
         PlayerRole.objects.create(
-            person=libero, team=self.team, season=self.season,
+            person=libero, identity=identity_of(self.team), season=self.season,
             position='libero', jersey_number=2,
         )
         StaffRole.objects.create(
-            person=coach, team=self.team, season=self.season, role='head_coach',
+            person=coach, identity=identity_of(self.team), season=self.season, role='head_coach',
         )
 
     def _get(self, query=''):

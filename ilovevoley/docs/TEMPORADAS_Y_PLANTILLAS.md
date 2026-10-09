@@ -15,7 +15,15 @@ El modelo `Season` actúa como **fuente única de verdad** para las temporadas d
 
 - **`normalize_season_name(raw)`**: Convierte variantes como `2025-26`, `2025-2026` o `2025/26` al formato canónico `2025-26`. Devuelve `None` para entradas inválidas.
 - **`season_start_year_for_date(value)`**: Determina el año de inicio de temporada a partir de una fecha arbitraria, usando el corte estándar federativo del **1 de septiembre** (septiembre–diciembre pertenece a la temporada iniciada en ese año; enero–agosto pertenece a la temporada iniciada el año anterior).
-- **`Season.objects.current()`**: Devuelve la temporada marcada como activa, o en su defecto la más reciente por año de inicio.
+- **`Season.objects.current(for_date=None)`**: Devuelve la temporada activa.
+  Se apoya en la regla del corte del 1 de septiembre (#448): si existe una
+  temporada marcada con `is_current=True` cuyo periodo sigue vigente (o futuro,
+  p.ej. activada manualmente con el wizard), se respeta. Si no hay ninguna marcada
+  o la marcada quedó obsoleta tras superar el 1 de septiembre, resuelve la
+  temporada correspondiente a la fecha de referencia y autoasigna atómicamente
+  `is_current=True` (desmarcando la anterior). Las temporadas futuras creadas por
+  scraping (`resolve`) se registran con `is_current=False` y no desplazan a la
+  vigente antes de tiempo.
 - **`Season.objects.resolve(raw)`**: Normaliza el string recibido y devuelve (creándola si no existe) la instancia de `Season`.
 - **`Season.objects.for_date(value)`**: Devuelve la temporada correspondiente a la fecha indicada.
 

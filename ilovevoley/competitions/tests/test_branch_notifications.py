@@ -1,3 +1,4 @@
+from ilovevoley.teams.tests.helpers import identity_of
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -42,7 +43,7 @@ class MatchBranchEmailFilterTest(TestCase):
         )
         person_a.organizations.add(cls.org_a)
         StaffRole.objects.create(
-            person=person_a, team=cls.team_a, role='delegate', season=cls.season, is_active=True,
+            person=person_a, identity=identity_of(cls.team_a), role='delegate', season=cls.season, is_active=True,
         )
         user_b = User.objects.create_user(username='mgrb', email='b@example.com')
         Membership.objects.create(user=user_b, organization=cls.org_b, role='manager', is_approved=True)
@@ -50,7 +51,7 @@ class MatchBranchEmailFilterTest(TestCase):
             first_name='Pep', last_name='C', email='c@example.com',
         )
         StaffRole.objects.create(
-            person=person_c, team=cls.team_c, role='delegate', season=cls.season, is_active=True,
+            person=person_c, identity=identity_of(cls.team_c), role='delegate', season=cls.season, is_active=True,
         )
 
     def _log(self, match=None):

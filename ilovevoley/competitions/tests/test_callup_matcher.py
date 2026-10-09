@@ -1,3 +1,4 @@
+from ilovevoley.teams.tests.helpers import identity_of
 import pytest
 from datetime import date
 from ilovevoley.core.models import Season, Organization
@@ -18,7 +19,7 @@ def test_match_callup_player_lluc_variations():
         birth_date=date(2013, 3, 15),
     )
     person.organizations.add(org)
-    PlayerRole.objects.create(person=person, team=team, season=season, is_active=True)
+    PlayerRole.objects.create(person=person, identity=identity_of(team), season=season, is_active=True)
 
     # 1. Caso real foto: LLUC / RIERA MARTÍN / 2013 / CV SANT JOSEP
     res1 = match_callup_player({
@@ -95,7 +96,7 @@ def test_match_callup_player_gender_conflict():
         birth_date=date(2012, 3, 15),
     )
     person.organizations.add(org)
-    PlayerRole.objects.create(person=person, team=team, season=season, is_active=True)
+    PlayerRole.objects.create(person=person, identity=identity_of(team), season=season, is_active=True)
 
     from ilovevoley.competitions.models import FederationCallUp
     female_callup = FederationCallUp(gender='F', category_name='Cadete')
@@ -125,7 +126,7 @@ def test_match_callup_player_name_variants_and_single_surname():
         birth_date=date(2012, 5, 10),
     )
     javi.organizations.add(org)
-    PlayerRole.objects.create(person=javi, team=team, season=season, is_active=True)
+    PlayerRole.objects.create(person=javi, identity=identity_of(team), season=season, is_active=True)
 
     # Ficha dada de alta como "Joan Pérez"
     joan = Person.objects.create(
@@ -134,7 +135,7 @@ def test_match_callup_player_name_variants_and_single_surname():
         birth_date=date(2012, 1, 1),
     )
     joan.organizations.add(org)
-    PlayerRole.objects.create(person=joan, team=team, season=season, is_active=True)
+    PlayerRole.objects.create(person=joan, identity=identity_of(team), season=season, is_active=True)
 
     # 1. PDF con variante Javier y 2 apellidos: JAVIER ROCA PUJOL
     res1 = match_callup_player({
@@ -174,7 +175,7 @@ def test_match_callup_player_club_match_no_roster_card():
         birth_date=date(2012, 3, 15),
     )
     marc.organizations.add(org)
-    PlayerRole.objects.create(person=marc, team=team, season=season, is_active=True)
+    PlayerRole.objects.create(person=marc, identity=identity_of(team), season=season, is_active=True)
 
     from ilovevoley.competitions.models import FederationCallUp
     callup = FederationCallUp(gender='M', category_name='Cadete')

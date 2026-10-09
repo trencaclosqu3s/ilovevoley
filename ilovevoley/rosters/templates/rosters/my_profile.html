@@ -31,17 +31,17 @@
             <ul class="space-y-2">
                 {% for role in entry.player_roles %}
                     <li class="bg-tint rounded-lg p-3 {% if not role.is_active %}opacity-60{% endif %}">
-                        <span class="font-semibold text-ink">{{ role.team.name }}</span>
+                        <span class="font-semibold text-ink">{{ role.identity.core_name }}</span>
                         {% if role.jersey_number %}<span class="ml-2 text-sm font-bold text-brand-text">#{{ role.jersey_number }}</span>{% endif %}
                         {% if role.position %}<span class="ml-2 text-xs text-muted">{{ role.display_position }}</span>{% endif %}
-                        <p class="text-sm text-muted">{{ role.team.club|default_if_none:"" }}{% if role.team.category %} · {{ role.team.category.name }}{% endif %}</p>
+                        <p class="text-sm text-muted">{{ role.identity.club|default_if_none:"" }}{% if role.identity.category %} · {{ role.identity.category.name }}{% endif %}</p>
                     </li>
                 {% endfor %}
                 {% for role in entry.staff_roles %}
                     <li class="bg-tint rounded-lg p-3 {% if not role.is_active %}opacity-60{% endif %}">
-                        <span class="font-semibold text-ink">{{ role.team.name }}</span>
+                        <span class="font-semibold text-ink">{{ role.identity.core_name }}</span>
                         <span class="ml-2 text-xs text-muted">{{ role.get_role_display }}</span>
-                        <p class="text-sm text-muted">{{ role.team.club|default_if_none:"" }}{% if role.team.category %} · {{ role.team.category.name }}{% endif %}</p>
+                        <p class="text-sm text-muted">{{ role.identity.club|default_if_none:"" }}{% if role.identity.category %} · {{ role.identity.category.name }}{% endif %}</p>
                     </li>
                 {% endfor %}
             </ul>

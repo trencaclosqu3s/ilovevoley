@@ -11,6 +11,20 @@ from ilovevoley.videos.utils import normalize_team_name
 CANDIDATE_SIMILARITY_MIN = 0.85
 
 
+def one_team_per_identity(teams):
+    """Una fila por identidad (la más reciente), conservando el orden.
+
+    Un equipo que juega varias fases tiene varias filas activas con la misma
+    plantilla (#447). Las filas sin identidad se conservan todas.
+    """
+    teams = list(teams)
+    latest = {}
+    for team in teams:
+        if team.identity_id and team.id > latest.get(team.identity_id, 0):
+            latest[team.identity_id] = team.id
+    return [t for t in teams if not t.identity_id or latest[t.identity_id] == t.id]
+
+
 def effective_gender(team) -> str:
     if getattr(team, 'gender', None):
         return team.gender
@@ -161,6 +175,39 @@ class IdentityAssignError(ValueError):
     """La selección no se puede unificar bajo una sola identidad."""
 
 
+def move_roles_to_identity(from_ids, target):
+    """Mueve la plantilla de ``from_ids`` a ``target`` al fusionar identidades.
+
+    Un rol activo que choca con otro de ``target`` (misma persona y temporada,
+    y mismo rol en técnicos) se resuelve como en la migración de #447: gana el
+    último editado. Un dorsal repetido con personas distintas no se elige solo:
+    aborta con ``IdentityAssignError``. Llamar dentro de una transacción.
+    """
+    from django.db import transaction
+
+    from ilovevoley.rosters.models import PlayerRole, StaffRole
+
+    for model, keys in ((PlayerRole, ('season_id', 'person_id')), (StaffRole, ('season_id', 'person_id', 'role'))):
+        for role in model.objects.filter(identity_id__in=from_ids):
+            if role.is_active:
+                clash = model.objects.filter(
+                    identity=target, is_active=True, **{k: getattr(role, k) for k in keys},
+                ).first()
+                if clash and (clash.updated_at, clash.id) >= (role.updated_at, role.id):
+                    role.delete()
+                    continue
+                if clash:
+                    clash.delete()
+            role.identity = target
+            try:
+                with transaction.atomic():
+                    role.save(update_fields=['identity'])
+            except IntegrityError as e:
+                raise IdentityAssignError(
+                    f'Dorsal {role.jersey_number} repetido con otra persona en la temporada {role.season}.'
+                ) from e
+
+
 def _team_family_ids(teams):
     """PKs de los equipos dados más su root y todas las variantes de cada root."""
     from ilovevoley.teams.models import Team
@@ -179,8 +226,11 @@ def _team_family_ids(teams):
 def assign_common_identity(teams):
     """Asigna una misma ``TeamIdentity`` a ``teams`` y a toda su familia de variantes.
 
-    Exige mismo club + categoría + género (la clave de la identidad). Si ya hay
-    identidades, gana la más usada (empate: la más antigua) y las demás se
+    Exige misma categoría + género. El club puede diferir: un equipo puede
+    competir inscrito en otro club federativo (p. ej. para poder jugar un
+    campeonato) sin dejar de ser el mismo equipo; la identidad conserva el club
+    de la ganadora. Si ya hay identidades, gana la más usada (empate: la del
+    equipo más antiguo, que es la que lleva el historial) y las demás se
     absorben; las candidatas pendientes de la familia se cierran. Devuelve
     ``(identity, n_teams)``.
     """
@@ -194,26 +244,31 @@ def assign_common_identity(teams):
         family = list(
             Team.objects.filter(pk__in=_team_family_ids(teams)).select_related('category', 'club')
         )
-        keys = {(t.club_id, t.category_id, effective_gender(t)) for t in family}
-        if len(keys) != 1 or None in next(iter(keys))[:2]:
+        keys = {(t.category_id, effective_gender(t)) for t in family}
+        if len(keys) != 1 or next(iter(keys))[0] is None:
             detail = '; '.join(
                 f'{t.name} ({t.club or "sin club"} / {t.category or "sin categoría"}'
                 f' / {effective_gender(t) or "sin género"})'
                 for t in family
             )
             raise IdentityAssignError(
-                f'Los equipos deben compartir club, categoría y género: {detail}'
+                f'Los equipos deben compartir categoría y género: {detail}'
             )
 
         counts = Counter(t.identity_id for t in family if t.identity_id)
         if counts:
-            winner_id = min(counts, key=lambda pk: (-counts[pk], pk))
+            oldest_team = {}
+            for t in family:
+                if t.identity_id:
+                    oldest_team[t.identity_id] = min(t.pk, oldest_team.get(t.identity_id, t.pk))
+            winner_id = min(counts, key=lambda pk: (-counts[pk], oldest_team[pk]))
             winner = TeamIdentity.objects.get(pk=winner_id)
         else:
             winner = create_identity_for_team(_root_team(teams[0]))
 
         losers = [pk for pk in counts if pk != winner.pk]
         if losers:
+            move_roles_to_identity(losers, winner)
             Team.objects.filter(identity_id__in=losers).update(identity=winner)
             TeamIdentityCandidate.objects.filter(suggested_identity_id__in=losers).update(
                 suggested_identity=winner,

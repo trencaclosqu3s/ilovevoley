@@ -1104,19 +1104,21 @@ def ajax_acta_lineup(request, match_id):
     # Pre-fetch todos los PlayerRole activos de ambos equipos en una sola query
     # acotando a personas de la organización actual para no exponer fotos ajenas
     roles_lookup = {}  # {(team_id, jersey_number): role}
-    teams_to_query = [t for t in [match.home_team, match.away_team] if t]
+    teams_to_query = [t for t in [match.home_team, match.away_team] if t and t.identity_id]
     if teams_to_query:
         for role in (
             PlayerRole.objects
             .filter(
-                team__in=teams_to_query,
+                identity_id__in=[t.identity_id for t in teams_to_query],
                 is_active=True,
                 jersey_number__isnull=False,
                 person__organizations=request.tenant,
             )
-            .select_related('person', 'team')
+            .select_related('person')
         ):
-            roles_lookup[(role.team_id, role.jersey_number)] = role
+            for team in teams_to_query:
+                if team.identity_id == role.identity_id:
+                    roles_lookup[(team.id, role.jersey_number)] = role
 
     def _person_data(role):
         if not role or not role.person:

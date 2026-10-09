@@ -308,12 +308,16 @@ def person_belongs_to_tenant(person, tenant):
     if type(person).objects.for_tenant(tenant).filter(pk=person.pk).exists():
         return True
 
-    player_roles = list(person.player_roles.select_related('team').all())
-    staff_roles = list(person.staff_roles.select_related('team').all())
-    all_roles = player_roles + staff_roles
+    from ilovevoley.teams.models import Team
 
-    if all_roles:
-        return any(team_belongs_to_tenant(role.team, tenant) for role in all_roles)
+    identity_ids = set(person.player_roles.values_list('identity_id', flat=True))
+    identity_ids |= set(person.staff_roles.values_list('identity_id', flat=True))
+
+    if identity_ids:
+        return any(
+            team_belongs_to_tenant(team, tenant)
+            for team in Team.objects.filter(identity_id__in=identity_ids)
+        )
 
     from ilovevoley.users.models import Membership
 

@@ -42,10 +42,11 @@ def _roles_lookup(match):
     No se filtra por ``is_active``: un rol desactivado al acabar la temporada
     sigue siendo el dueño de ese dorsal en sus partidos.
     """
-    teams = [t for t in (match.home_team, match.away_team) if t]
+    # La plantilla es de la identidad, no de la fase del partido (#447).
+    teams = [t for t in (match.home_team, match.away_team) if t and t.identity_id]
     if not teams:
         return {}
-    roles = PlayerRole.objects.filter(team__in=teams, jersey_number__isnull=False)
+    roles = PlayerRole.objects.filter(identity_id__in=[t.identity_id for t in teams], jersey_number__isnull=False)
     season = match.league.season if match.league_id else None
     if season is not None:
         roles = roles.filter(season=season)
@@ -53,8 +54,9 @@ def _roles_lookup(match):
     # igualdad, el más reciente (id mayor) para que el orden sea determinista.
     roles = roles.order_by('is_active', 'id')
     return {
-        (role.team_id, role.jersey_number): role
+        (team.id, role.jersey_number): role
         for role in roles.select_related('person')
+        for team in teams if team.identity_id == role.identity_id
     }
 
 

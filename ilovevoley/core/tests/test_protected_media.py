@@ -1,3 +1,4 @@
+from ilovevoley.teams.tests.helpers import identity_of
 import tempfile
 from pathlib import Path
 
@@ -149,14 +150,14 @@ class ProtectedPersonMediaTests(TestCase):
         self.person = Person.objects.create(
             first_name='Ana', last_name='Garcia', photo='people/ana_1.jpg'
         )
-        PlayerRole.objects.create(person=self.person, team=self.team, season=self.season)
+        PlayerRole.objects.create(person=self.person, identity=identity_of(self.team), season=self.season)
 
         other_club = Club.objects.create(federation_id='club-2', official_name='Club Dos')
         other_team = Team.objects.create(name='Otro', federation_id='team-2', club=other_club)
         self.foreign_person = Person.objects.create(
             first_name='Luis', last_name='Perez', photo='people/luis_2.jpg'
         )
-        PlayerRole.objects.create(person=self.foreign_person, team=other_team, season=self.season)
+        PlayerRole.objects.create(person=self.foreign_person, identity=identity_of(other_team), season=self.season)
 
         noclub_org = Organization.objects.create(slug='noclub', name='Sin Club')
         self.noclub_member = User.objects.create_user(username='noclub', password='pass')
@@ -222,13 +223,13 @@ class ProtectedPersonMediaTests(TestCase):
             first_name='Marta', last_name='Inactiva', photo='people/marta_inactive.jpg'
         )
         PlayerRole.objects.create(
-            person=inactive_player, team=self.team, season=self.season, is_active=False
+            person=inactive_player, identity=identity_of(self.team), season=self.season, is_active=False
         )
         inactive_staff = Person.objects.create(
             first_name='Carlos', last_name='StaffInactivo', photo='people/carlos_inactive.jpg'
         )
         StaffRole.objects.create(
-            person=inactive_staff, team=self.team, season=self.season, is_active=False, role='coach'
+            person=inactive_staff, identity=identity_of(self.team), season=self.season, is_active=False, role='coach'
         )
 
         self.client.force_login(self.member)

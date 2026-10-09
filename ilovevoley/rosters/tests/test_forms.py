@@ -2,8 +2,10 @@ from datetime import date
 
 from django.test import TestCase
 
+from ilovevoley.teams.tests.helpers import identity_of
+from ilovevoley.competitions.models import League, Standing
 from ilovevoley.core.models import Organization, Season
-from ilovevoley.rosters.forms import PersonForm, PlayerRoleForm, StaffRoleForm
+from ilovevoley.rosters.forms import PersonForm, PlayerRoleForm, StaffRoleForm, _club_teams_for_seasons
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
 from ilovevoley.teams.models import Team
 
@@ -45,15 +47,16 @@ class RoleFormDuplicateValidationTests(TestCase):
             slug='club', name='Club', club_team_names={'1': 'Club'},
         )
         self.team = Team.objects.create(name='Club Senior', federation_id='T-F')
+        identity_of(self.team)
         self.person = Person.objects.create(first_name='Ana', last_name='Gomez')
         self.season = Season.objects.resolve('2025-26')
 
     def test_staff_role_duplicado_no_valida(self):
         StaffRole.objects.create(
-            person=self.person, team=self.team, role='head_coach', season=self.season,
+            person=self.person, identity=identity_of(self.team), role='head_coach', season=self.season,
         )
         form = StaffRoleForm(
-            data={'team': self.team.id, 'season': self.season.id, 'role': 'head_coach'},
+            data={'identity': self.team.identity_id, 'season': self.season.id, 'role': 'head_coach'},
             person=self.person, organization=self.org,
         )
         self.assertFalse(form.is_valid())
@@ -61,12 +64,40 @@ class RoleFormDuplicateValidationTests(TestCase):
 
     def test_player_role_duplicado_no_valida(self):
         PlayerRole.objects.create(
-            person=self.person, team=self.team, season=self.season, jersey_number=7,
+            person=self.person, identity=identity_of(self.team), season=self.season, jersey_number=7,
         )
         form = PlayerRoleForm(
-            data={'team': self.team.id, 'season': self.season.id, 'jersey_number': 8},
+            data={'identity': self.team.identity_id, 'season': self.season.id, 'jersey_number': 8},
             person=self.person, organization=self.org,
         )
         self.assertFalse(form.is_valid())
-        # El equipo con rol activo en esa temporada se excluye del queryset.
-        self.assertIn('team', form.errors)
+        # La identidad con rol activo en esa temporada se excluye del queryset.
+        self.assertIn('identity', form.errors)
+
+
+class RoleFormTeamChoicesTests(TestCase):
+    """El selector de equipo solo ofrece equipos con presencia en la temporada (#445)."""
+
+    def setUp(self):
+        self.org = Organization.objects.create(
+            slug='club', name='Club', club_team_names={'1': 'Club'},
+        )
+        self.season = Season.objects.resolve('2026-27')
+        Season.objects.filter(pk=self.season.pk).update(is_current=True)
+        old_season = Season.objects.resolve('2025-26')
+        self.current = Team.objects.create(name='Club Senior', federation_id='T-CUR')
+        self.old = Team.objects.create(name='Club Senior', federation_id='T-OLD')
+        for team, season in ((self.current, self.season), (self.old, old_season)):
+            league = League.objects.create(name=f'L {team.federation_id}', federation_id=team.federation_id, season=season)
+            Standing.objects.create(league=league, team=team, position=1)
+            identity_of(team)
+
+    def test_no_ofrece_equipos_de_otras_temporadas(self):
+        form = PlayerRoleForm(organization=self.org)
+        self.assertEqual(list(form.fields['identity'].queryset), [self.current.identity])
+
+    def test_temporada_sin_presencia_ofrece_todos_los_equipos_activos(self):
+        # Temporada recién creada y sin scrapear (#344): hay que poder prepararla.
+        empty = Season.objects.resolve('2027-28')
+        teams = _club_teams_for_seasons(self.org, [empty])
+        self.assertEqual(set(teams), {self.current, self.old})

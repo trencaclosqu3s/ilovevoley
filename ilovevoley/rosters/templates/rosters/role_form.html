@@ -54,15 +54,15 @@
 
             <!-- Equipo -->
             <div>
-                <label for="{{ form.team.id_for_label }}" class="block text-sm font-semibold text-ink mb-2">
-                    {{ form.team.label }} <span class="text-red-500">*</span>
+                <label for="{{ form.identity.id_for_label }}" class="block text-sm font-semibold text-ink mb-2">
+                    {{ form.identity.label }} <span class="text-red-500">*</span>
                 </label>
-                {{ form.team }}
-                {% if form.team.help_text %}
-                    <p class="mt-2 text-sm text-muted">{{ form.team.help_text }}</p>
+                {{ form.identity }}
+                {% if form.identity.help_text %}
+                    <p class="mt-2 text-sm text-muted">{{ form.identity.help_text }}</p>
                 {% endif %}
-                {% if form.team.errors %}
-                    <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.team.errors.0 }}</p>
+                {% if form.identity.errors %}
+                    <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.identity.errors.0 }}</p>
                 {% endif %}
             </div>
 

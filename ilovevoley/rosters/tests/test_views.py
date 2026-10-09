@@ -1,3 +1,4 @@
+from ilovevoley.teams.tests.helpers import identity_of
 import base64
 from datetime import date
 import shutil
@@ -14,7 +15,7 @@ from PIL import Image
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.competitions.models import League, Match, MatchLineup
 from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
-from ilovevoley.teams.models import Club, Team
+from ilovevoley.teams.models import Club, Team, TeamIdentity
 from ilovevoley.videos.forms import rosters as vid_forms_rosters
 from ilovevoley.videos.views import rosters as vid_views_rosters
 
@@ -109,7 +110,7 @@ class RosterViewUrlTests(TestCase):
         self.person.organizations.add(self.org)
         self.player_role = PlayerRole.objects.create(
             person=self.person,
-            team=self.team,
+            identity=identity_of(self.team),
             season=Season.objects.resolve('2025-26'),
             jersey_number=7,
             position='setter',
@@ -192,7 +193,7 @@ class RosterViewUrlTests(TestCase):
         person_b = Person.objects.create(first_name='Marta', last_name='Navarro')
         PlayerRole.objects.create(
             person=person_b,
-            team=team_b,
+            identity=identity_of(team_b),
             season=Season.objects.resolve('2025-26'),
             jersey_number=10,
             is_active=True,
@@ -216,7 +217,7 @@ class RosterViewUrlTests(TestCase):
         person_b = Person.objects.create(first_name='Carla', last_name='Sanz')
         role_b = PlayerRole.objects.create(
             person=person_b,
-            team=team_b,
+            identity=identity_of(team_b),
             season=Season.objects.resolve('2025-26'),
             jersey_number=5,
             is_active=True,
@@ -238,7 +239,7 @@ class RosterViewUrlTests(TestCase):
         person_b = Person.objects.create(first_name='Elena', last_name='Marin')
         PlayerRole.objects.create(
             person=person_b,
-            team=team_b,
+            identity=identity_of(team_b),
             season=Season.objects.resolve('2025-26'),
             jersey_number=3,
             is_active=True,
@@ -374,11 +375,11 @@ class RostersTenantIsolationTests(TestCase):
             name='Club B Junior', federation_id='TEAM-B1', is_active=True,
         )
         PlayerRole.objects.create(
-            person=self.person_a, team=self.team_a, season=season, jersey_number=3,
+            person=self.person_a, identity=identity_of(self.team_a), season=season, jersey_number=3,
         )
         # Rol cruzado heredado: no debe mostrarse en el tenant A.
         PlayerRole.objects.create(
-            person=self.person_a, team=self.team_b, season=season, jersey_number=4,
+            person=self.person_a, identity=identity_of(self.team_b), season=season, jersey_number=4,
         )
 
     def test_person_list_solo_muestra_fichas_del_club(self):
@@ -428,11 +429,11 @@ class RostersTenantIsolationTests(TestCase):
         self.person_b.user = self.member
         self.person_b.save()
         PlayerRole.objects.create(
-            person=self.person_b, team=self.team_b,
+            person=self.person_b, identity=identity_of(self.team_b),
             season=Season.objects.resolve('2025-26'), position='setter',
         )
         PlayerRole.objects.create(
-            person=self.person_b, team=self.team_a,
+            person=self.person_b, identity=identity_of(self.team_a),
             season=Season.objects.resolve('2026-27'), position='opposite',
         )
         self.client.force_login(self.member)
@@ -454,7 +455,7 @@ class RostersTenantIsolationTests(TestCase):
         self.person_b.notes = 'nota privada'
         self.person_b.save()
         PlayerRole.objects.create(
-            person=self.person_b, team=self.team_a,
+            person=self.person_b, identity=identity_of(self.team_a),
             season=Season.objects.resolve('2026-27'),
         )
         url = reverse('rosters:person_detail', args=[self.person_b.id])
@@ -480,12 +481,12 @@ class RostersTenantIsolationTests(TestCase):
         self.assertContains(response, 'name="season"')
 
         response = self.client.post(
-            url, {'team': self.team_a.id, 'season': season.id, 'jersey_number': 9},
+            url, {'identity': identity_of(self.team_a).id, 'season': season.id, 'jersey_number': 9},
             HTTP_HOST='club-a.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 302)
         self.assertTrue(
-            PlayerRole.objects.filter(person=self.person_a, team=self.team_a, season=season).exists(),
+            PlayerRole.objects.filter(person=self.person_a, identity=identity_of(self.team_a), season=season).exists(),
         )
 
     def test_basic_member_cannot_access_person_create(self):
@@ -503,9 +504,9 @@ class RostersTenantIsolationTests(TestCase):
 
     def test_basic_member_cannot_manage_roles(self):
         """Los roles deportivos exigen manager: un member no puede crear/editar/togglear (#90)."""
-        role = PlayerRole.objects.filter(person=self.person_a, team=self.team_a).first()
+        role = PlayerRole.objects.filter(person=self.person_a, identity=identity_of(self.team_a)).first()
         staff_role = StaffRole.objects.create(
-            person=self.person_a, team=self.team_a, season=role.season, role='head_coach',
+            person=self.person_a, identity=identity_of(self.team_a), season=role.season, role='head_coach',
         )
         self.client.force_login(self.member)
         cases = [
@@ -663,7 +664,7 @@ class PersonDetailStatsTests(TestCase):
         self.person = Person.objects.create(first_name='Laura', last_name='García')
         self.person.organizations.add(self.org)
         PlayerRole.objects.create(
-            person=self.person, team=self.team, season=self.season,
+            person=self.person, identity=identity_of(self.team), season=self.season,
             jersey_number=7, is_active=True,
         )
         self.match = Match.objects.create(
@@ -714,3 +715,130 @@ class PersonDetailStatsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.context['player_stats'])
         self.assertNotContains(response, 'Sets disputados')
+
+
+@override_settings(ALLOWED_HOSTS=['club-a.ilovevoley.es', 'localhost'])
+class PlayerRosterBulkAddTests(TestCase):
+    """Alta masiva de plantilla (#446): reglas de dorsal, aislamiento y copia por identidad."""
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org_a = Organization.objects.create(
+            slug='club-a', name='Club A', club_team_names={'1': 'Club A'}, is_active=True,
+        )
+        self.org_b = Organization.objects.create(
+            slug='club-b', name='Club B', club_team_names={'1': 'Club B'}, is_active=True,
+        )
+        self.manager = get_user_model().objects.create_user(username='manager-a', password='pass')
+        Membership.objects.create(user=self.manager, organization=self.org_a, is_approved=True, role='manager')
+        self.client.force_login(self.manager)
+        self.ana = Person.objects.create(first_name='Ana', last_name='Uno')
+        self.leo = Person.objects.create(first_name='Leo', last_name='Dos')
+        for person in (self.ana, self.leo):
+            person.organizations.add(self.org_a)
+        self.outsider = Person.objects.create(first_name='Bea', last_name='Ajena')
+        self.outsider.organizations.add(self.org_b)
+        self.old_season = Season.objects.resolve('2025-26')
+        self.season = Season.objects.resolve('2026-27')
+        self.team = Team.objects.create(name='Club A Senior', federation_id='BULK-A1', is_active=True)
+        identity_of(self.team)
+        self.url = reverse('rosters:player_roster_bulk_add', args=[self.team.id])
+
+    def _post(self, data):
+        return self.client.post(
+            self.url, {'season': self.season.id, **data}, HTTP_HOST='club-a.ilovevoley.es',
+        )
+
+    def test_crea_los_roles_marcados_e_ignora_personas_de_otro_club(self):
+        response = self._post({
+            'selected': [self.ana.id, self.outsider.id],
+            f'jersey_{self.ana.id}': '7', f'position_{self.ana.id}': 'setter',
+        })
+        self.assertRedirects(
+            response, f"{reverse('teams:team_roster', args=[self.team.id])}?season={self.season.id}",
+            fetch_redirect_response=False,
+        )
+        role = PlayerRole.objects.get(person=self.ana, identity=identity_of(self.team), season=self.season)
+        self.assertEqual((role.jersey_number, role.position), (7, 'setter'))
+        self.assertFalse(PlayerRole.objects.filter(person=self.outsider).exists())
+
+    def test_dorsal_repetido_en_el_lote_no_guarda_ninguno(self):
+        response = self._post({
+            'selected': [self.ana.id, self.leo.id],
+            f'jersey_{self.ana.id}': '7', f'jersey_{self.leo.id}': '7',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(PlayerRole.objects.filter(identity=identity_of(self.team)).exists())
+        errors = [row['error'] for row in response.context['form'].rows if row['error']]
+        self.assertEqual(len(errors), 1)
+
+    def test_dorsal_ya_usado_en_el_equipo_da_error_de_fila(self):
+        PlayerRole.objects.create(person=self.leo, identity=identity_of(self.team), season=self.season, jersey_number=4)
+        # Leo ya está en la plantilla: no es candidato; Ana pide su dorsal.
+        response = self._post({'selected': [self.ana.id], f'jersey_{self.ana.id}': '4'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(PlayerRole.objects.filter(person=self.ana).exists())
+        self.assertTrue(response.context['form'].rows[0]['error'])
+
+    def test_post_a_equipo_de_otro_club_devuelve_404_y_no_crea_roles(self):
+        foreign = Team.objects.create(name='Club B Junior', federation_id='BULK-B1', is_active=True)
+        response = self.client.post(
+            reverse('rosters:player_roster_bulk_add', args=[foreign.id]),
+            {'season': self.season.id, 'selected': [self.ana.id]},
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(PlayerRole.objects.filter(identity=identity_of(foreign)).exists())
+
+    def test_copiar_precarga_la_plantilla_de_la_misma_identidad(self):
+        # Cada fase federativa es otra fila de Team; la identidad las une.
+        identity = TeamIdentity.objects.create(core_name='Club A Senior', core_name_normalized='club a senior')
+        phase_one = Team.objects.create(
+            name='Club A Senior Fase 1', federation_id='BULK-A0', is_active=False, identity=identity,
+        )
+        self.team.identity = identity
+        self.team.save(update_fields=['identity'])
+        PlayerRole.objects.create(person=self.ana, identity=identity_of(phase_one), season=self.old_season, jersey_number=5)
+        # Una temporada aún anterior no debe ganar a la inmediata.
+        PlayerRole.objects.create(
+            person=self.ana, identity=identity_of(phase_one), season=Season.objects.resolve('2024-25'), jersey_number=9,
+        )
+
+        response = self.client.get(
+            self.url, {'season': self.season.id, 'copy': '1'}, HTTP_HOST='club-a.ilovevoley.es',
+        )
+        rows = {row['person']: row for row in response.context['form'].rows}
+        self.assertTrue(rows[self.ana]['checked'])
+        self.assertEqual(rows[self.ana]['jersey'], '5')
+        self.assertFalse(rows[self.leo]['checked'])
+
+    def test_alta_rapida_crea_la_ficha_en_el_club_sin_vincularla_al_usuario(self):
+        response = self.client.post(
+            reverse('rosters:person_quick_create'),
+            {'first_name': 'Nuria', 'last_name': 'Nueva', 'birth_year': '2012'},
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        person = Person.objects.get(first_name='Nuria', last_name='Nueva', birth_year=2012)
+        self.assertEqual(response.json()['id'], person.pk)
+        self.assertIn(self.org_a, person.organizations.all())
+        # person_create vincula la primera ficha al usuario; aquí se crean fichas ajenas.
+        self.assertIsNone(person.user)
+
+    def test_alta_rapida_de_ficha_existente_pide_adoptar_y_no_duplica(self):
+        data = {'first_name': 'Bea', 'last_name': 'Ajena', 'birth_year': '2012'}
+        self.outsider.birth_year = 2012
+        self.outsider.save()
+        response = self.client.post(
+            reverse('rosters:person_quick_create'), data, HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(Person._base_manager.filter(first_name='Bea', last_name='Ajena').count(), 1)
+        self.assertNotIn(self.org_a, self.outsider.organizations.all())
+
+        response = self.client.post(
+            reverse('rosters:person_quick_create'), {**data, 'adopt': '1'}, HTTP_HOST='club-a.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.org_a, self.outsider.organizations.all())

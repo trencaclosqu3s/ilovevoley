@@ -4,6 +4,7 @@ Protege la decisión de diseño: cada forma de pertenencia (FK ``organization``
 o club) resuelve dentro del queryset, y sin tenant no se expone nada.
 """
 
+from ilovevoley.teams.tests.helpers import identity_of
 from django.contrib.auth import get_user_model
 from django.http import Http404
 from django.test import TestCase
@@ -101,10 +102,10 @@ class TenantQuerysetTests(TestCase):
         )
         cls.person_b.organizations.add(cls.org_b)
         cls.player_role_a = PlayerRole.objects.create(
-            person=cls.person_a, team=cls.team_a, season=season, jersey_number=1,
+            person=cls.person_a, identity=identity_of(cls.team_a), season=season, jersey_number=1,
         )
         cls.player_role_b = PlayerRole.objects.create(
-            person=cls.person_b, team=cls.team_b, season=season, jersey_number=1,
+            person=cls.person_b, identity=identity_of(cls.team_b), season=season, jersey_number=1,
         )
 
     def test_match_for_tenant_includes_own_and_excludes_other(self):

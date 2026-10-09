@@ -50,11 +50,11 @@ class PersonTenantQuerySet(TenantQuerySet):
     def tenant_filter(self, tenant):
         from ilovevoley.teams.models import Team
 
-        club_teams = Team.objects.for_tenant(tenant)
+        club_identities = Team.objects.for_tenant(tenant).values('identity')
         return (
             models.Q(organizations=tenant)
-            | models.Q(player_roles__team__in=club_teams)
-            | models.Q(staff_roles__team__in=club_teams)
+            | models.Q(player_roles__identity__in=club_identities)
+            | models.Q(staff_roles__identity__in=club_identities)
         )
 
     def for_tenant(self, tenant):
@@ -66,12 +66,16 @@ class PersonTenantQuerySet(TenantQuerySet):
 
 
 class PersonRoleTenantQuerySet(TenantQuerySet):
-    """Roles de una persona: pertenecen al club del equipo, no al de la ficha."""
+    """Roles de una persona: pertenecen al club de los equipos de su identidad.
+
+    Se pasa por ``Team.for_tenant`` (y no por ``identity.club``) para conservar
+    los equipos que entran en el tenant por nombre y no por FK (#447).
+    """
 
     def tenant_filter(self, tenant):
         from ilovevoley.teams.models import Team
 
-        return models.Q(team__in=Team.objects.for_tenant(tenant))
+        return models.Q(identity__in=Team.objects.for_tenant(tenant).values('identity'))
 
 
 class MatchTenantQuerySet(TenantQuerySet):

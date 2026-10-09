@@ -103,7 +103,12 @@ class TeamIdentityCandidateAdmin(ModelAdmin):
 
     @admin.action(description=_('Aprobar vínculo'))
     def approve(self, request, queryset):
-        done = [c.approve() for c in queryset.filter(status='pending')]
+        done = []
+        for candidate in queryset.filter(status='pending'):
+            try:
+                done.append(candidate.approve())
+            except IdentityAssignError as e:
+                self.message_user(request, f'{candidate}: {e}', level='ERROR')
         self.message_user(request, _('%(n)s vínculos aprobados') % {'n': len(done)})
 
     @admin.action(description=_('Rechazar (identidad nueva)'))
@@ -177,12 +182,12 @@ class TeamAdmin(ModelAdmin):
 
     def players_count(self, obj):
         """Muestra el número de jugadores activos usando nueva estructura Person-Role"""
-        return obj.player_roles.filter(is_active=True).count()
+        return obj.identity.player_roles.filter(is_active=True).count() if obj.identity_id else 0
     players_count.short_description = _('Jugadores')
     
     def staff_count(self, obj):
         """Muestra el número de miembros del staff activos usando nueva estructura Person-Role"""
-        return obj.staff_roles.filter(is_active=True).count()
+        return obj.identity.staff_roles.filter(is_active=True).count() if obj.identity_id else 0
     staff_count.short_description = _('Staff')
     
     def logo_preview(self, obj):
@@ -208,6 +213,18 @@ class TeamAdmin(ModelAdmin):
             _('%(count)s equipo(s) asignados a la identidad «%(identity)s»')
             % {'count': count, 'identity': identity},
         )
+        clubs = sorted({str(t.club or _('sin club')) for t in identity.teams.select_related('club')})
+        if len(clubs) > 1:
+            # Se permite (equipo inscrito en otro club federativo, #452), pero se
+            # avisa por si la selección fue un error.
+            self.message_user(
+                request,
+                _('La identidad «%(identity)s» agrupa equipos de clubes distintos: %(clubs)s. '
+                  'Todos ellos podrán ver y editar las fichas de su plantilla. '
+                  'Si no es el mismo equipo, reasigna la identidad en cada equipo.')
+                % {'identity': identity, 'clubs': ', '.join(clubs)},
+                level='WARNING',
+            )
 
     def match_to_clubs(self, request, queryset):
         """Acción para hacer matching automático de equipos seleccionados"""

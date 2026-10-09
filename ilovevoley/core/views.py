@@ -860,7 +860,7 @@ def season_wizard(request):
 
     return render(request, 'core/season_wizard.html', {
         'form': form,
-        'current_season': Season.objects.filter(is_current=True).first(),
+        'current_season': Season.objects.current(),
     })
 
 

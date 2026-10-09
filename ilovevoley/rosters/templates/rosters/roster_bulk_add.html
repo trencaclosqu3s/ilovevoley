@@ -1,0 +1,184 @@
+{% extends '../base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Añadir jugadores" %} - {{ team }} - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="mb-4 sm:mb-6">
+        <a href="{% url 'rosters:roster_overview' %}?season={{ season.pk }}" class="inline-flex items-center text-brand-text hover:opacity-80 font-semibold transition py-2">
+            <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            {% trans "Volver a plantillas" %}
+        </a>
+    </div>
+
+    <div class="bg-surface rounded-3xl border border-line p-6 border-t-4 border-csj-purple">
+        <h1 class="text-2xl font-bold text-ink">{% trans "Añadir jugadores" %}</h1>
+        <p class="text-muted mt-1">{{ team }} · {{ season.name }}</p>
+
+        <div class="flex flex-wrap items-center gap-3 mt-4">
+            <form method="get" class="flex items-center gap-2">
+                <label for="season" class="text-sm font-semibold text-ink">{% trans "Temporada" %}</label>
+                <select id="season" name="season" class="px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                    {% for s in seasons %}<option value="{{ s.pk }}" {% if s.pk == season.pk %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+                </select>
+            </form>
+            <a href="?season={{ season.pk }}&copy=1" class="px-4 py-2 rounded-full border border-line text-brand-text hover:bg-tint text-sm font-medium transition">
+                {% trans "Copiar de la temporada anterior" %}
+            </a>
+            <a href="?season={{ season.pk }}" class="px-4 py-2 rounded-full border border-line text-brand-text hover:bg-tint text-sm font-medium transition">
+                {% trans "Desde cero" %}
+            </a>
+        </div>
+        {% if previous_season %}
+            <p class="text-sm text-muted mt-2">{% blocktrans with name=previous_season.name %}Precargado con la plantilla de {{ name }}. Revisa casillas, dorsales y posiciones antes de guardar.{% endblocktrans %}</p>
+        {% endif %}
+
+        <form method="post" id="bulk-form" class="mt-6 space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="season" value="{{ season.pk }}">
+
+            {% for error in form.errors %}
+                <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded text-red-700 dark:text-red-400">{{ error }}</div>
+            {% endfor %}
+
+            <input type="search" id="person-filter" placeholder="{% trans 'Buscar persona…' %}" aria-label="{% trans 'Buscar persona…' %}" class="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+
+            <ul id="person-list" class="divide-y divide-line">
+                {% for row in form.rows %}
+                    {% include 'rosters/_bulk_row.html' with pid=row.person.pk name=row.person.full_name year=row.person.birth_year checked=row.checked jersey=row.jersey position=row.position error=row.error %}
+                {% endfor %}
+            </ul>
+            <p id="empty-msg" class="text-muted" {% if form.rows %}hidden{% endif %}>{% trans "Todas las personas del club ya están en esta plantilla." %}</p>
+
+            <p class="text-sm text-muted">
+                {% trans "¿No está en la lista?" %}
+                <button type="button" id="open-person-dialog" class="text-brand-text font-semibold hover:underline">{% trans "Crear persona" %}</button>
+            </p>
+
+            <button type="submit" id="bulk-submit" class="w-full bg-csj-purple-dark hover:opacity-90 text-white py-3 rounded-full font-semibold transition">
+                {% trans "Guardar jugadores" %}
+            </button>
+        </form>
+    </div>
+</div>
+
+<template id="row-template">
+    {% include 'rosters/_bulk_row.html' with pid='__ID__' name='__NAME__' year='__YEAR__' checked=True jersey='' position='' error='' %}
+</template>
+
+{% trans "ya está en la plataforma. ¿Añadirla a tu club?" as dup_text %}
+{% trans "No se ha podido crear la persona." as generic_error %}
+<dialog id="person-dialog" data-url="{% url 'rosters:person_quick_create' %}" data-dup="{{ dup_text }}" data-error="{{ generic_error }}" class="rounded-2xl p-6 w-full max-w-md bg-surface text-ink border border-line backdrop:bg-black/50">
+    <form id="person-dialog-form" method="dialog" class="space-y-4">
+        <h2 class="text-lg font-bold">{% trans "Crear persona" %}</h2>
+        <div>
+            <label for="qp-first-name" class="block text-sm font-semibold mb-1">{% trans "Nombre" %}</label>
+            <input id="qp-first-name" name="first_name" required class="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+        </div>
+        <div>
+            <label for="qp-last-name" class="block text-sm font-semibold mb-1">{% trans "Apellidos" %}</label>
+            <input id="qp-last-name" name="last_name" required class="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+        </div>
+        <div>
+            <label for="qp-birth-year" class="block text-sm font-semibold mb-1">{% trans "Año de nacimiento" %}</label>
+            <input id="qp-birth-year" name="birth_year" type="number" min="1900" required class="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+        </div>
+        <p id="qp-error" class="text-sm text-red-600 dark:text-red-400" role="alert" hidden></p>
+        <div id="qp-existing" hidden class="bg-tint rounded-lg p-3 text-sm">
+            <p id="qp-existing-text" class="mb-2"></p>
+            <button type="button" id="qp-adopt" class="px-4 py-2 rounded-full bg-csj-purple-dark text-white font-medium">{% trans "Añadir a mi club" %}</button>
+        </div>
+        <div class="flex justify-end gap-2">
+            <button type="button" id="qp-cancel" class="px-4 py-2 rounded-full border border-line text-sm font-medium">{% trans "Cancelar" %}</button>
+            <button type="submit" id="qp-submit" class="px-4 py-2 rounded-full bg-csj-purple-dark text-white text-sm font-medium">{% trans "Crear y añadir" %}</button>
+        </div>
+    </form>
+</dialog>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+    const dialog = document.getElementById('person-dialog');
+    const form = document.getElementById('person-dialog-form');
+    const list = document.getElementById('person-list');
+    const errorBox = document.getElementById('qp-error');
+    const existingBox = document.getElementById('qp-existing');
+    const csrf = document.querySelector('#bulk-form [name=csrfmiddlewaretoken]').value;
+
+    const submitButtons = [document.getElementById('qp-submit'), document.getElementById('qp-adopt')];
+
+    function reset() { errorBox.hidden = true; existingBox.hidden = true; }
+
+    function addRow(person) {
+        // Ya estaba en la lista (ficha del club aún sin plantilla): se marca, no se duplica.
+        const existing = list.querySelector('input[name=selected][value="' + person.id + '"]');
+        if (existing) {
+            existing.checked = true;
+            dialog.close();
+            form.reset();
+            existing.closest('li').querySelector('input[type=number]').focus();
+            return;
+        }
+        const html = document.getElementById('row-template').innerHTML
+            .replaceAll('__ID__', person.id).replaceAll('__YEAR__', person.birth_year).replace('__NAME__', '');
+        list.insertAdjacentHTML('afterbegin', html);
+        const li = list.firstElementChild;
+        li.querySelector('.person-name').textContent = person.name;
+        li.dataset.name = person.name.toLowerCase();
+        document.getElementById('empty-msg').hidden = true;
+        dialog.close();
+        form.reset();
+        li.querySelector('input[type=number]').focus();
+    }
+
+    async function send(extra) {
+        reset();
+        submitButtons.forEach(b => { b.disabled = true; });
+        try {
+            await post(extra);
+        } finally {
+            submitButtons.forEach(b => { b.disabled = false; });
+        }
+    }
+
+    async function post(extra) {
+        const body = new FormData(form);
+        body.append('csrfmiddlewaretoken', csrf);
+        if (extra) body.append('adopt', '1');
+        let response;
+        try {
+            response = await fetch(dialog.dataset.url, { method: 'POST', body, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        } catch (e) {
+            errorBox.textContent = dialog.dataset.error; errorBox.hidden = false; return;
+        }
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) return addRow(data);
+        if (response.status === 409) {
+            document.getElementById('qp-existing-text').textContent =
+                data.existing.name + ' (' + data.existing.birth_year + ') ' + dialog.dataset.dup;
+            existingBox.hidden = false;
+            return;
+        }
+        const messages = data.errors ? Object.values(data.errors).flat() : [dialog.dataset.error];
+        errorBox.textContent = messages.join(' ');
+        errorBox.hidden = false;
+    }
+
+    document.getElementById('open-person-dialog').addEventListener('click', () => { reset(); dialog.showModal(); });
+    document.getElementById('qp-cancel').addEventListener('click', () => dialog.close());
+    form.addEventListener('submit', (e) => { e.preventDefault(); send(false); });
+    document.getElementById('qp-adopt').addEventListener('click', () => send(true));
+
+    document.getElementById('bulk-form').addEventListener('submit', function () {
+        document.getElementById('bulk-submit').disabled = true;
+    });
+    document.getElementById('season').addEventListener('change', function () { this.form.submit(); });
+    document.getElementById('person-filter').addEventListener('input', function (e) {
+        const q = e.target.value.trim().toLowerCase();
+        list.querySelectorAll('li[data-name]').forEach(li => { li.hidden = q && !li.dataset.name.includes(q); });
+    });
+})();
+</script>
+{% endblock %}
