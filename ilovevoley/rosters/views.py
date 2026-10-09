@@ -171,8 +171,16 @@ def my_profile(request):
     padres ven además a sus hijos, para generarles el cromo (#457).
     """
     person = Person.objects.filter(user=request.user).first()
+    # El enlace a la ficha usa el mismo filtro que person_detail: un hijo que no
+    # es del club se lista sin enlace en vez de llevar a un 404.
+    visible = Person.objects.all() if request.user.is_superuser else Person.objects.for_tenant(request.tenant)
+    visible_ids = set(visible.filter(parents=request.user).values_list('pk', flat=True))
     children = [
-        {'person': child, 'has_card': _card_role(child, request.tenant) is not None}
+        {
+            'person': child,
+            'in_tenant': child.pk in visible_ids,
+            'has_card': child.pk in visible_ids and _card_role(child, request.tenant) is not None,
+        }
         for child in request.user.children.order_by('first_name')
     ]
     if person is None and not children:

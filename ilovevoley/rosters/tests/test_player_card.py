@@ -170,6 +170,16 @@ class PlayerCardViewTests(PlayerCardTestBase):
 
         self.assertContains(response, reverse('rosters:person_card_page', args=[self.person.id]))
 
+    def test_hijo_de_otro_club_sale_en_tu_sin_enlace_a_una_ficha_que_daria_404(self):
+        other_child = Person.objects.create(first_name='Pau', last_name='Ferrer', birth_year=2014)
+        self.member('padre').children.add(self.person, other_child)
+
+        response = self.client.get(reverse('rosters:my_profile'), HTTP_HOST='testclub.ilovevoley.es')
+
+        self.assertContains(response, 'Pau Ferrer')
+        self.assertNotContains(response, reverse('rosters:person_detail', args=[other_child.id]))
+        self.assertContains(response, reverse('rosters:person_detail', args=[self.person.id]))
+
     def test_no_se_puede_usar_una_foto_donde_no_esta_etiquetado(self):
         # El id de la foto viene por URL: sin este filtro saldría la foto de otro menor.
         user = self.member('padre')

@@ -34,6 +34,10 @@
         });
     });
     preview.addEventListener('load', function () { preview.classList.remove('opacity-50'); });
+    preview.addEventListener('error', function () {
+        preview.classList.remove('opacity-50');
+        toast('error', msg.msgError);
+    });
 
     async function fetchCard() {
         const response = await fetch(cardUrl(false)).catch(function () { return null; });

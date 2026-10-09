@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import Q
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 import secrets
 
@@ -121,6 +123,15 @@ class User(AbstractUser):
             elif tenant and getattr(tenant, 'is_active', False):
                 orgs = [tenant]
         return orgs
+
+    @cached_property
+    def has_my_profile(self):
+        """Si «Tú» tiene algo que mostrar: ficha propia o hijos vinculados (#457).
+
+        La navbar lo consulta dos veces por página: una sola query por petición.
+        """
+        from ilovevoley.rosters.models import Person
+        return Person.objects.filter(Q(user=self) | Q(parents=self)).exists()
 
     def can_edit_person(self, person, tenant=None):
         """Verifica si el usuario puede editar una ficha específica."""

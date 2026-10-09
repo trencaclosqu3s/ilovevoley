@@ -28,7 +28,11 @@
             <ul class="space-y-2">
                 {% for child in children %}
                     <li class="bg-tint rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
-                        <a href="{% url 'rosters:person_detail' child.person.id %}" class="font-semibold text-ink hover:underline">{{ child.person.full_name }}</a>
+                        {% if child.in_tenant %}
+                            <a href="{% url 'rosters:person_detail' child.person.id %}" class="font-semibold text-ink hover:underline">{{ child.person.full_name }}</a>
+                        {% else %}
+                            <span class="font-semibold text-ink">{{ child.person.full_name }}</span>
+                        {% endif %}
                         {% if child.has_card %}
                             {% include "rosters/_card_links.html" with card_person=child.person %}
                         {% endif %}

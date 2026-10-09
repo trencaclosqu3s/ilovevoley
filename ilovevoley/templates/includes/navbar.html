@@ -185,7 +185,7 @@
                             </a>
                         {% endif %}
                         <!-- Enlace "Tú" si el usuario tiene una persona asociada o hijos vinculados -->
-                        {% if user.person or user.children.exists %}
+                        {% if user.has_my_profile %}
                             <a href="{% url 'rosters:my_profile' %}" class="text-sm lg:text-base text-brand-text hover:opacity-80 transition font-medium flex items-center gap-2">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
@@ -365,7 +365,7 @@
                 </button>
                 
                 <!-- Enlace "Tú" en móvil si el usuario tiene una persona asociada o hijos vinculados -->
-                {% if user.person or user.children.exists %}
+                {% if user.has_my_profile %}
                     <a href="{% url 'rosters:my_profile' %}" class="flex items-center px-4 py-4 text-brand-text hover:bg-tint transition touch-manipulation">
                         <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
