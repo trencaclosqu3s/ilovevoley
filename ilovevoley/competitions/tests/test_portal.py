@@ -121,6 +121,17 @@ class BrandPortalHostTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Liga Main')
 
+    def test_canonical_points_to_brand_url_without_query_string(self):
+        response = self.client.get(
+            reverse('portal:index') + '?season=1', HTTP_HOST='ilovevoley.es',
+        )
+        self.assertContains(
+            response, '<link rel="canonical" href="https://ilovevoley.es/competicion/">',
+        )
+        self.assertContains(
+            response, '<meta property="og:url" content="https://ilovevoley.es/competicion/">',
+        )
+
     def test_tenant_host_returns_404(self):
         for name in ('portal:index', 'portal:league_list'):
             with self.subTest(view=name):

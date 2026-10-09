@@ -211,7 +211,9 @@ def robots_txt(request):
 
 def sitemap_xml(request):
     """Sitemap con las páginas públicas informativas (sin contenido de club)."""
-    public_paths = [reverse('landing'), reverse('core:about')]
+    from ilovevoley.competitions.services.public_portal import portal_sitemap_paths
+
+    public_paths = [reverse('landing'), reverse('core:about'), *portal_sitemap_paths()]
     urls = ''.join(
         f'  <url><loc>{build_absolute_url(path, request=request)}</loc></url>\n'
         for path in public_paths

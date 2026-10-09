@@ -582,6 +582,45 @@ class SeoEndpointsTest(TestCase):
         self.assertNotIn('/content/', body)
         self.assertNotIn('/accounts/', body)
 
+    def test_sitemap_includes_brand_competition_portal(self):
+        from django.utils import timezone
+
+        from ilovevoley.competitions.models import League, Match
+        from ilovevoley.core.models import Season
+        from ilovevoley.teams.models import Team
+
+        season = Season.objects.create(
+            name='2026-27', start_year=2026, end_year=2027, is_current=True,
+        )
+        league = League.objects.create(
+            name='Liga SEO', federation_id='SEO-1',
+            season=season, visibility_type='main', is_active=True,
+        )
+        reference = League.objects.create(
+            name='Liga Ref SEO', federation_id='SEO-REF',
+            season=season, visibility_type='reference', is_active=True,
+        )
+        home = Team.objects.create(name='Home SEO', federation_id='seo-h')
+        away = Team.objects.create(name='Away SEO', federation_id='seo-a')
+        done = Match.objects.create(
+            league=league, home_team=home, away_team=away,
+            match_date=timezone.now(), status='finished',
+            home_score=3, away_score=0, federation_id='SEO-M1',
+        )
+        pending = Match.objects.create(
+            league=league, home_team=home, away_team=away,
+            match_date=timezone.now() + timedelta(days=2), status='scheduled',
+            federation_id='SEO-M2',
+        )
+        response = self.client.get('/sitemap.xml', HTTP_HOST='ilovevoley.es')
+        body = response.content.decode()
+        self.assertIn('<loc>https://ilovevoley.es/competicion/</loc>', body)
+        self.assertIn(f'<loc>https://ilovevoley.es/competicion/ligas/{league.id}/</loc>', body)
+        self.assertIn(f'/competicion/partidos/{done.id}/</loc>', body)
+        self.assertNotIn(f'/competicion/partidos/{pending.id}/</loc>', body)
+        self.assertNotIn(f'/competicion/ligas/{reference.id}/</loc>', body)
+        self.assertNotIn('testclub.ilovevoley.es', body)
+
     def test_favicon_redirects_to_static_svg(self):
         response = self.client.get('/favicon.ico', HTTP_HOST='ilovevoley.es')
         self.assertEqual(response.status_code, 301)

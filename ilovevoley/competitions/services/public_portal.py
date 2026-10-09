@@ -5,6 +5,7 @@ from ilovevoley.competitions.models import League, Match, Standing
 
 PORTAL_VISIBILITY = ('main', 'historical')
 SITEMAP_MATCH_LIMIT = 200
+SITEMAP_LEAGUE_LIMIT = 500
 
 
 def public_leagues(season=None, *, include_friendly=False) -> QuerySet:
@@ -52,3 +53,26 @@ def sports_event_jsonld(match, absolute_url: str) -> dict:
     if match.status == 'finished' and match.home_score is not None and match.away_score is not None:
         data['description'] = f'{match.home_score}-{match.away_score}'
     return data
+
+
+def portal_sitemap_paths() -> list[str]:
+    """Paths relativos del portal para el sitemap; el host de marca lo pone quien llama."""
+    from django.urls import reverse
+
+    from ilovevoley.core.models import Season
+
+    paths = [
+        reverse('portal:index'),
+        reverse('portal:league_list'),
+        reverse('portal:calendar'),
+        reverse('portal:results'),
+        reverse('portal:standings'),
+    ]
+    season = Season.objects.current()
+    league_ids = public_leagues(season).values_list('id', flat=True)[:SITEMAP_LEAGUE_LIMIT]
+    for league_id in league_ids:
+        paths.append(reverse('portal:league_detail', args=[league_id]))
+    finished = public_matches(season).filter(status='finished').order_by('-match_date')
+    for match_id in finished.values_list('id', flat=True)[:SITEMAP_MATCH_LIMIT]:
+        paths.append(reverse('portal:match_detail', args=[match_id]))
+    return paths

@@ -36,6 +36,12 @@ def brand_portal_required(view_func):
     return wrapper
 
 
+def _render(request, template, ctx):
+    # Canonical sin querystring: ?season=/?league= no generan URLs duplicadas.
+    ctx['canonical_url'] = build_absolute_url(request.path, request=request)
+    return render(request, template, ctx)
+
+
 def _season_context(request):
     season, selected = resolve_season_filter(request)
     return {
@@ -50,7 +56,7 @@ def index(request):
     ctx = _season_context(request)
     ctx['leagues'] = public_leagues(ctx['season'])[:INDEX_LEAGUE_LIMIT]
     ctx['title'] = _('Competición')
-    return render(request, 'competitions/portal/index.html', ctx)
+    return _render(request, 'competitions/portal/index.html', ctx)
 
 
 @brand_portal_required
@@ -58,7 +64,7 @@ def league_list(request):
     ctx = _season_context(request)
     ctx['leagues'] = public_leagues(ctx['season'])
     ctx['title'] = _('Ligas')
-    return render(request, 'competitions/portal/league_list.html', ctx)
+    return _render(request, 'competitions/portal/league_list.html', ctx)
 
 
 @brand_portal_required
@@ -77,7 +83,7 @@ def league_detail(request, league_id):
         'recent': matches.filter(status='finished').order_by('-match_date')[:DETAIL_MATCH_LIMIT],
         'title': league.name,
     })
-    return render(request, 'competitions/portal/league_detail.html', ctx)
+    return _render(request, 'competitions/portal/league_detail.html', ctx)
 
 
 def _filter_by_league(request, matches):
@@ -99,7 +105,7 @@ def calendar_view(request):
         'selected_league_id': request.GET.get('league', ''),
         'title': _('Calendario'),
     })
-    return render(request, 'competitions/portal/calendar.html', ctx)
+    return _render(request, 'competitions/portal/calendar.html', ctx)
 
 
 @brand_portal_required
@@ -112,7 +118,7 @@ def results_view(request):
         'selected_league_id': request.GET.get('league', ''),
         'title': _('Resultados'),
     })
-    return render(request, 'competitions/portal/results.html', ctx)
+    return _render(request, 'competitions/portal/results.html', ctx)
 
 
 @brand_portal_required
@@ -133,7 +139,7 @@ def standings_view(request):
         'standings': standings,
         'title': _('Clasificación'),
     })
-    return render(request, 'competitions/portal/standings.html', ctx)
+    return _render(request, 'competitions/portal/standings.html', ctx)
 
 
 def _public_set_scores(match):
@@ -156,7 +162,7 @@ def match_detail(request, match_id):
         build_absolute_url(reverse('portal:match_detail', args=[match.pk]), request=request),
     )
     # Solo datos federativos: sin vídeos, imágenes, stream, acta ni enlaces de compartir.
-    return render(request, 'competitions/portal/match_detail.html', {
+    return _render(request, 'competitions/portal/match_detail.html', {
         'match': match,
         'set_scores': _public_set_scores(match),
         'title': jsonld['name'],

@@ -3,6 +3,16 @@
 
 {% block title %}{{ title }} - I Love Voley{% endblock %}
 
+{% block og_meta %}
+    <meta property="og:title" content="{{ title }} - I Love Voley">
+    <meta property="og:description" content="{% trans "Calendario, resultados y clasificaciones de voleibol en I Love Voley." %}">
+    <meta property="og:url" content="{{ canonical_url }}">
+{% endblock %}
+
+{% block extra_head %}
+    <link rel="canonical" href="{{ canonical_url }}">
+{% endblock %}
+
 {% block sidebar %}{% endblock %}
 
 {% block content %}
