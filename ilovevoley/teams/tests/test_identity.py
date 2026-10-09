@@ -330,6 +330,23 @@ class AssignCommonIdentityTests(TestCase):
             t.refresh_from_db()
             self.assertEqual(t.identity_id, identity.pk)
 
+    def test_merges_across_clubs_keeping_identity_of_oldest_team(self):
+        # Pórtol Rojo pasa a competir inscrito en otro club federativo y sigue
+        # siendo el mismo equipo; la identidad conserva el historial (#452).
+        old = self._team('a', 'UNILOG CV PORTOL ROJO')
+        other_club = Club.objects.create(federation_id='c2', official_name='Marratxí Vòlei Pòrtol')
+        new = self._team('b', 'CAS TORD CMV PORTOL ROJO', club=other_club)
+        new.identity = create_identity_for_team(new)  # id menor que la del equipo antiguo
+        new.save(update_fields=['identity'])
+        old.identity = create_identity_for_team(old)
+        old.save(update_fields=['identity'])
+
+        identity, _n = assign_common_identity([old, new])
+
+        self.assertEqual((identity.pk, identity.club_id), (old.identity_id, self.club.pk))
+        new.refresh_from_db()
+        self.assertEqual(new.identity_id, identity.pk)
+
     def test_rejects_mixed_categories(self):
         infantil = Category.objects.create(name='Infantil')
         with self.assertRaises(IdentityAssignError):

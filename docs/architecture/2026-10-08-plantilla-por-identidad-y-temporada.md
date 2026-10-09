@@ -165,10 +165,17 @@ Un jugador con posiciones distintas en **dos identidades** del mismo club en
 la misma temporada (central en el infantil, líbero en el cadete) no es un
 conflicto: son dos roles en dos plantillas distintas.
 - **2, 7, 14, 22, 38, 47**: son de otros clubes y no tienen roles, así que no
-  afectan a la migración. Sí conviene revisar en el admin la **7**: agrupa
-  "MPT CV. PORTOL NEGRO" mientras "PORTOL ROJO" tiene identidad propia (38), y
-  el club del equipo 190 (47) no coincide con el de su identidad (30). Es
-  limpieza de datos, no un bloqueo.
+  afectan a la migración. La **7** es correcta: es el Pórtol Negro alevín
+  (el 89 es el nombre sin patrocinador del Campeonato de España).
+
+**El club de la identidad es el club deportivo, no el federativo (#452).** Un
+equipo puede competir un año inscrito en otro club (p. ej. Pórtol Rojo en
+"Club Marratxí Vòlei Pòrtol", para poder jugar campeonatos) y seguir siendo el
+mismo equipo. `Team.club` es el club federativo de esa temporada e
+`identity.club` el club al que pertenece el equipo, así que pueden no
+coincidir. "Asignar identidad común" exige solo la misma categoría y género. Si
+dos identidades empatan, gana la del equipo más antiguo, que es la que lleva el
+historial.
 
 ### 3.7 Pantallas
 

@@ -226,8 +226,11 @@ def _team_family_ids(teams):
 def assign_common_identity(teams):
     """Asigna una misma ``TeamIdentity`` a ``teams`` y a toda su familia de variantes.
 
-    Exige mismo club + categoría + género (la clave de la identidad). Si ya hay
-    identidades, gana la más usada (empate: la más antigua) y las demás se
+    Exige misma categoría + género. El club puede diferir: un equipo puede
+    competir inscrito en otro club federativo (p. ej. para poder jugar un
+    campeonato) sin dejar de ser el mismo equipo; la identidad conserva el club
+    de la ganadora. Si ya hay identidades, gana la más usada (empate: la del
+    equipo más antiguo, que es la que lleva el historial) y las demás se
     absorben; las candidatas pendientes de la familia se cierran. Devuelve
     ``(identity, n_teams)``.
     """
@@ -241,20 +244,24 @@ def assign_common_identity(teams):
         family = list(
             Team.objects.filter(pk__in=_team_family_ids(teams)).select_related('category', 'club')
         )
-        keys = {(t.club_id, t.category_id, effective_gender(t)) for t in family}
-        if len(keys) != 1 or None in next(iter(keys))[:2]:
+        keys = {(t.category_id, effective_gender(t)) for t in family}
+        if len(keys) != 1 or next(iter(keys))[0] is None:
             detail = '; '.join(
                 f'{t.name} ({t.club or "sin club"} / {t.category or "sin categoría"}'
                 f' / {effective_gender(t) or "sin género"})'
                 for t in family
             )
             raise IdentityAssignError(
-                f'Los equipos deben compartir club, categoría y género: {detail}'
+                f'Los equipos deben compartir categoría y género: {detail}'
             )
 
         counts = Counter(t.identity_id for t in family if t.identity_id)
         if counts:
-            winner_id = min(counts, key=lambda pk: (-counts[pk], pk))
+            oldest_team = {}
+            for t in family:
+                if t.identity_id:
+                    oldest_team[t.identity_id] = min(t.pk, oldest_team.get(t.identity_id, t.pk))
+            winner_id = min(counts, key=lambda pk: (-counts[pk], oldest_team[pk]))
             winner = TeamIdentity.objects.get(pk=winner_id)
         else:
             winner = create_identity_for_team(_root_team(teams[0]))
