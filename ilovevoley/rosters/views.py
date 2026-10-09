@@ -26,7 +26,7 @@ from ilovevoley.teams.models import Team
 from ilovevoley.competitions.result_card import _file_field_bytes
 from .forms import BulkPlayerRosterForm, PersonForm, PlayerRoleForm, StaffRoleForm
 from .models import Person, PlayerRole, StaffRole
-from .player_card import card_highlight, card_photo_allowed, render_player_card
+from .player_card import card_highlight, card_photo_allowed, render_player_card, season_summary
 
 logger = logging.getLogger(__name__)
 
@@ -190,23 +190,29 @@ def child_profile(request, person_id):
     que un id ajeno da 404 sin importar el tenant.
     """
     person = get_object_or_404(request.user.children.all(), pk=person_id)
-    return render(request, 'rosters/my_profile.html', {**_trajectory_context(request, person), 'is_child': True})
+    return render(request, 'rosters/my_profile.html', {**_trajectory_context(request, person, is_child=True), 'is_child': True})
 
 
-def _trajectory_context(request, person):
+def _trajectory_context(request, person, is_child=False):
     by_season = {}
     for kind, model in (('player_roles', PlayerRole), ('staff_roles', StaffRole)):
         roles = model.objects.filter(person=person).select_related('identity__category', 'identity__club', 'season')
         for role in roles.order_by('identity__core_name'):
             by_season.setdefault(role.season, {'season': role.season, 'player_roles': [], 'staff_roles': []})[kind].append(role)
+            if kind == 'player_roles':
+                role.summary = season_summary(person, role.identity, role.season, second_person=not is_child)
     tagged_images_qs = Image.objects.for_tenant(request.tenant).filter(
         persons=person, status='approved'
     ).order_by('-upload_date')
     # La ficha del club se abre con el mismo filtro que person_detail, para no enlazar a un 404.
     visible = Person.objects.all() if request.user.is_superuser else Person.objects.for_tenant(request.tenant)
+    seasons = sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True)
+    names = [entry['season'].name for entry in seasons]
+    requested = request.GET.get('temporada')
     return {
         'person': person,
-        'seasons': sorted(by_season.values(), key=lambda s: s['season'].start_year, reverse=True),
+        'seasons': seasons,
+        'active_season': requested if requested in names else (names[0] if names else None),
         'in_current_tenant': visible.filter(pk=person.pk).exists(),
         'has_card': _card_role(person, request.tenant) is not None,
         'tagged_images': list(tagged_images_qs[:8]),

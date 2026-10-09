@@ -228,3 +228,88 @@ class PlayerCardConsentTests(PlayerCardTestBase):
             with self.subTest(consent=value, user=user.username):
                 self.person.image_consent = value
                 self.assertIs(card_photo_allowed(user, self.person), expected)
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class SeasonSummaryTests(PlayerCardTestBase):
+    """Cifras en «Tú» (#472): segunda persona para uno mismo, tercera para el hijo, y nada sin actas."""
+
+    def visit(self, name, **kwargs):
+        return self.client.get(reverse(name, kwargs=kwargs), HTTP_HOST='testclub.ilovevoley.es')
+
+    def test_tu_habla_en_segunda_persona_y_el_hijo_en_tercera(self):
+        self.play([(25, 20, _lineup())] * 3)
+        user = get_user_model().objects.create_user(username='jugador', password='pass')
+        Membership.objects.create(user=user, organization=self.org, is_approved=True)
+        self.client.force_login(user)
+        self.person.user = user
+        self.person.save()
+        self.assertContains(self.visit('rosters:my_profile'), 'Has jugado 1 partido y 3 sets; titular en 1.')
+
+        self.person.user = None
+        self.person.save()
+        user.children.add(self.person)
+        self.assertContains(self.visit('rosters:child_profile', person_id=self.person.id), 'Ha jugado 1 partido')
+
+    def test_rol_sin_actas_no_muestra_cifras_ni_perfil(self):
+        user = get_user_model().objects.create_user(username='jugador', password='pass')
+        Membership.objects.create(user=user, organization=self.org, is_approved=True)
+        self.client.force_login(user)
+        self.person.user = user
+        self.person.save()
+
+        response = self.visit('rosters:my_profile')
+
+        self.assertNotContains(response, 'Has jugado')
+        self.assertNotContains(response, 'Momento')
+
+    def test_pestana_activa_es_la_pedida_o_la_ultima_y_solo_hay_de_temporadas_con_rol(self):
+        PlayerRole.objects.create(
+            person=self.person, identity=identity_of(self.team), season=Season.objects.resolve('2024-25'),
+            jersey_number=JERSEY, is_active=False,
+        )
+        user = get_user_model().objects.create_user(username='jugador', password='pass')
+        Membership.objects.create(user=user, organization=self.org, is_approved=True)
+        self.client.force_login(user)
+        self.person.user = user
+        self.person.save()
+
+        default = self.visit('rosters:my_profile')
+        asked = self.client.get(reverse('rosters:my_profile') + '?temporada=2024-25', HTTP_HOST='testclub.ilovevoley.es')
+        invalid = self.client.get(reverse('rosters:my_profile') + '?temporada=1999-00', HTTP_HOST='testclub.ilovevoley.es')
+
+        self.assertEqual(default.context['active_season'], '2025-26')
+        self.assertEqual(asked.context['active_season'], '2024-25')
+        self.assertEqual(invalid.context['active_season'], '2025-26')
+        self.assertNotContains(default, 'data-season-tab="1999-00"')
+
+    def test_cifras_de_una_temporada_en_otro_club_salen_entrando_por_este_tenant(self):
+        # «Tú» es universal: el rol está en el club rival y el usuario entra por testclub.
+        other = Person.objects.create(first_name='Pau', last_name='Ferrer', birth_year=2012)
+        PlayerRole.objects.create(
+            person=other, identity=identity_of(self.rival), season=self.season, jersey_number=JERSEY, is_active=True,
+        )
+        match = Match.objects.create(
+            league=self.league, home_team=self.rival, away_team=self.team, round_number=1,
+            match_date=timezone.now() - timedelta(days=5), status='finished', home_score=3, away_score=0,
+        )
+        store_match_lineups(match, {
+            'home_team': self.rival.name, 'away_team': self.team.name,
+            'home_convocados': [f'{JERSEY} Pau Ferrer'], 'away_convocados': [],
+            'sets': [
+                {'title': f'Set {i}', 'teams': [
+                    {'name': self.rival.name, 'points': 25, 'lineup': _lineup()},
+                    {'name': self.team.name, 'points': 20, 'lineup': _lineup(False)},
+                ]}
+                for i in range(1, 4)
+            ],
+        })
+        user = get_user_model().objects.create_user(username='pau', password='pass')
+        Membership.objects.create(user=user, organization=self.org, is_approved=True)
+        self.client.force_login(user)
+        other.user = user
+        other.save()
+
+        response = self.visit('rosters:my_profile')
+
+        self.assertContains(response, 'Has jugado 1 partido y 3 sets; titular en 1.')

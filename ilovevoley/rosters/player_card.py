@@ -33,7 +33,8 @@ from ilovevoley.competitions.result_card import (
     _paste_crest_circle,
     _vertical_alpha_gradient,
 )
-from ilovevoley.competitions.services.lineups import _SET_POSITIONS, resolve_acta_team
+from ilovevoley.competitions.services.lineups import _SET_POSITIONS, get_player_season_stats, resolve_acta_team
+from ilovevoley.teams.models import Team
 
 TALISMAN_MIN_SETS = 15
 TALISMAN_MIN_DIFF = 0.10
@@ -129,8 +130,12 @@ def season_facts(person, teams, season):
     return facts
 
 
-def pick_profile(facts):
-    """Primer perfil que se cumple, en orden de prioridad, o ``None``."""
+def pick_profile(facts, second_person=False):
+    """Primer perfil que se cumple, en orden de prioridad, o ``None``.
+
+    Solo tres textos hablan del jugador y no del equipo; con ``second_person`` («Tú»)
+    van en segunda persona. El cromo, que se comparte, usa siempre la tercera.
+    """
     sets, team_sets = facts['sets'], facts['team_sets']
     if sets >= TALISMAN_MIN_SETS and team_sets:
         mine, team = facts['sets_won'] / sets, facts['team_sets_won'] / team_sets
@@ -141,8 +146,9 @@ def pick_profile(facts):
         return 'sangre_fria', _('Sangre fría'), _('En pista en %(n)s sets ajustados que ganó el equipo') % {
             'n': facts['tight_wins']}
     if facts['sub_sets'] >= SUB_MIN_SETS and facts['sub_sets_won'] * 2 > facts['sub_sets']:
-        return 'revulsivo', _('Revulsivo'), _('Entró desde el banquillo en %(n)s sets y el equipo ganó %(won)s') % {
-            'n': facts['sub_sets'], 'won': facts['sub_sets_won']}
+        text = _('Entraste desde el banquillo en %(n)s sets y el equipo ganó %(won)s') if second_person else _(
+            'Entró desde el banquillo en %(n)s sets y el equipo ganó %(won)s')
+        return 'revulsivo', _('Revulsivo'), text % {'n': facts['sub_sets'], 'won': facts['sub_sets_won']}
     if team_sets and facts['starts'] >= STARTER_MIN_SHARE * team_sets:
         return 'fijo', _('Fijo en el seis'), _('Titular en %(n)s de los %(total)s sets del equipo') % {
             'n': facts['starts'], 'total': team_sets}
@@ -152,10 +158,12 @@ def pick_profile(facts):
             'En pista en %(n)s partidos que el equipo remontó', facts['comebacks'],
         ) % {'n': facts['comebacks']}
     if facts['five_setters'] >= FIVE_SET_MIN_MATCHES:
-        return 'maraton', _('Maratón'), _('Jugó %(n)s partidos a cinco sets') % {'n': facts['five_setters']}
+        text = _('Jugaste %(n)s partidos a cinco sets') if second_person else _('Jugó %(n)s partidos a cinco sets')
+        return 'maraton', _('Maratón'), text % {'n': facts['five_setters']}
     if facts['away'] >= AWAY_MIN_MATCHES and facts['away'] >= AWAY_MIN_SHARE * facts['team_away']:
-        return 'viajero', _('Viajero'), _('Jugó %(n)s de los %(total)s partidos fuera de casa') % {
-            'n': facts['away'], 'total': facts['team_away']}
+        text = _('Jugaste %(n)s de los %(total)s partidos fuera de casa') if second_person else _(
+            'Jugó %(n)s de los %(total)s partidos fuera de casa')
+        return 'viajero', _('Viajero'), text % {'n': facts['away'], 'total': facts['team_away']}
     return None
 
 
@@ -200,9 +208,9 @@ def season_moment(person, teams, season):
     return None
 
 
-def card_highlight(person, teams, season):
+def card_highlight(person, teams, season, second_person=False):
     """Lo que va en el recuadro del cromo: ``{key, caption, title, text}`` o ``None``."""
-    profile = pick_profile(season_facts(person, teams, season))
+    profile = pick_profile(season_facts(person, teams, season), second_person)
     if profile:
         key, title, text = profile
         return {'key': key, 'caption': _('Perfil de la temporada'), 'title': title, 'text': text}
@@ -211,6 +219,35 @@ def card_highlight(person, teams, season):
         title, text = moment
         return {'key': 'momento', 'caption': _('Momento de la temporada'), 'title': title, 'text': text}
     return None
+
+
+def season_summary(person, identity, season, second_person):
+    """Cifras y perfil de un rol de jugador en «Tú»: ``{sentence, highlight}`` o ``None``.
+
+    Los equipos son los de la identidad en cualquier club (sin filtrar por tenant:
+    «Tú» es universal). Sin actas no hay nada que mostrar, ni ceros ni recuadros vacíos.
+    ``season_facts`` recorre las actas de la temporada: si una trayectoria larga pesa,
+    cachear por persona y temporada.
+    """
+    teams = list(Team.objects.filter(identity=identity))
+    if not MatchLineup.objects.filter(
+        person=person, team__in=teams, match__league__season=season,
+    ).exclude(match__status='withdrawn').exists():
+        return None
+    stats = get_player_season_stats(person, season, teams)
+    params = {
+        'matches': ngettext('%(n)s partido', '%(n)s partidos', stats['partidos_jugados']) % {
+            'n': stats['partidos_jugados']},
+        'sets': ngettext('%(n)s set', '%(n)s sets', stats['sets_disputados']) % {'n': stats['sets_disputados']},
+        'starts': stats['titularidades'],
+    }
+    sentence = None
+    if stats['partidos_jugados']:
+        sentence = (
+            _('Has jugado %(matches)s y %(sets)s; titular en %(starts)s.') if second_person
+            else _('Ha jugado %(matches)s y %(sets)s; titular en %(starts)s.')
+        ) % params
+    return {'sentence': sentence, 'highlight': card_highlight(person, teams, season, second_person)}
 
 
 # Iconos en una rejilla de 24×24 (los mismos trazos que el diseño): polilíneas y círculos.
