@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.tenancy import PersonRoleTenantQuerySet, PersonTenantQuerySet
@@ -88,6 +89,26 @@ class Person(models.Model):
         help_text=_('Notas adicionales sobre la persona')
     )
     
+    # Consentimiento de imagen dado por la familia (#122). Por defecto se
+    # presupone uso interno: la galería solo la ven miembros aprobados del club.
+    class ImageConsent(models.TextChoices):
+        NONE = 'none', _('Sin consentimiento')
+        INTERNAL_ONLY = 'internal_only', _('Solo uso interno del club')
+        FULL_PUBLIC = 'full_public', _('Uso público')
+
+    image_consent = models.CharField(
+        max_length=20,
+        choices=ImageConsent.choices,
+        default=ImageConsent.INTERNAL_ONLY,
+        verbose_name=_('Consentimiento de imagen'),
+        help_text=_('Uso de la imagen autorizado por el deportista o su familia'),
+    )
+    image_consent_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Consentimiento actualizado'),
+    )
+
     # Estado y metadata
     is_active = models.BooleanField(
         default=True,
@@ -129,6 +150,16 @@ class Person(models.Model):
         sanitize_model_image_field(self, 'photo', max_size=2048)
         if self.birth_date:
             self.birth_year = self.birth_date.year
+        # La fecha solo refleja decisiones reales: el valor por defecto de una
+        # ficha nueva no cuenta como consentimiento recogido.
+        previous = (
+            Person._base_manager.filter(pk=self.pk).values_list('image_consent', flat=True).first()
+            if self.pk else self.ImageConsent.INTERNAL_ONLY
+        )
+        if previous is not None and previous != self.image_consent:
+            self.image_consent_updated_at = timezone.now()
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = {*kwargs['update_fields'], 'image_consent_updated_at'}
         super().save(*args, **kwargs)
 
     @property
