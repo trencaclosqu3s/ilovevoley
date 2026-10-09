@@ -402,9 +402,14 @@ a alguien le interesa. Estimación: ~2 partidos alevín seguros a la semana y, c
    - En el prompt, para el equipo propio, pasar la lista `dorsal → apellido` conocida y pedir que **solo corrija/confirme** (no que invente): reduce los errores «Lepe/López».
    - En la pantalla, mostrar por fila: dorsal leído · apellido leído por el modelo · **apellido de la plantilla para ese dorsal** · indicador si no coinciden
      (acción de un clic «usar el de la plantilla»). Para el rival no hay plantilla: lo leído tal cual, editable.
-5. **Pantalla de comprobación (§5.6) con enlace directo:** cada `MatchActaPhoto` en `pending_review` debe tener una URL estable (p. ej. `/competiciones/actas-foto/<id>/revisar/`)
-   y, ideal, un aviso al usuario revisor (lista de pendientes en el panel de moderación `/core/moderacion/`, o una notificación existente) para llegar al enlace sin buscarlo.
-   Foto a un lado, filas editables al otro, parciales de la federación (`Match.set_scores`) visibles como referencia, botón **Aprobar** (→ `store_match_lineups`) / **Rechazar**.
+5. **Revisión en el admin de Django (Unfold), sin front** — **decisión del usuario, la implementa él**, igual que `LeagueCandidateAdmin`
+   (`competitions/admin/competitions.py`: `ModelAdmin` de `unfold.admin`, `list_filter` por `status`, acciones `approve`/`reject`/`reopen`, `readonly_fields`).
+   **El siguiente agente NO construye esta pantalla** (se sustituye §5.6). Debe dejarle listo lo que necesita:
+   - Modelo `MatchActaPhoto` con campos legibles en el admin: `status`, `image` (para mostrarla), `extracted_data` (JSON editable), `extraction_meta`, `validation_errors`, `source_url`.
+   - **Un servicio de aprobación**, p. ej. `approve_acta_photo(photo, data, user)` en `competitions/services/`, que revalide (§5.5), llame a `store_match_lineups(match, data)`,
+     marque `approved` y registre `reviewed_by/at`; y `reject_acta_photo(photo, user)`. El admin solo los invoca. Con tests de las reglas de negocio.
+   - **Un servicio que devuelva la comparación con la plantilla** por dorsal (leído · plantilla · coincide) para que el admin la pueda mostrar sin lógica propia.
+   - El enlace a revisar es la URL estándar del admin (`admin:competitions_matchactaphoto_change`); el aviso de pendientes puede ser el contador/filtro `status=pending_review` del propio admin.
 6. **Parciales:** no se piden al modelo como dato (ver §11). Se muestran los oficiales de la federación y se usan para validar; si el modelo los lee y no coinciden,
    se **ignora su lectura** y se avisa, sin bloquear la revisión del resto.
 7. **Reintentos y límites:** con este volumen el nivel gratuito sobra. Aun así, backoff ante 503/429 y dejar la foto en `pending_download`/`pending_read` para la siguiente ejecución.
@@ -414,7 +419,7 @@ a alguien le interesa. Estimación: ~2 partidos alevín seguros a la semana y, c
 1. Scraping: guardar el enlace «Ver Foto Acta» **solo para partidos de tenants sin acta HTML** + modelo `MatchActaPhoto` (+ `makemigrations`, parar y avisar).
 2. Descarga/extracción de imagen (§5.3) — también cubre `.png`, 2 páginas, HEIC vacío y «caducada».
 3. Lectura con Gemini gratuito (§10/§11) con plantilla del equipo propio en el prompt; `ACTA_VISION_ENABLED=False` por defecto; clave por variable de entorno.
-4. Pantalla de revisión con foto + comparación con plantilla + enlace estable (§12.1.4-5).
+4. ~~Pantalla de revisión~~ → **la hace el usuario en el admin Unfold** (§12.1.5). Este agente solo entrega modelo, servicios de aprobación/rechazo y comparación con plantilla.
 5. Cambio de #455 (dejar de reintentar estos partidos por la vía HTML).
 
 ### 12.3 Qué NO hace falta construir (por el volumen)
