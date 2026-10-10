@@ -1,12 +1,80 @@
 {% load i18n %}
 {% if leagues %}
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
     {% for league in leagues %}
-    <div class="bg-surface rounded-2xl border border-line p-4">
-        <h2 class="text-lg font-bold text-ink line-clamp-2"><a href="{% url 'portal:league_detail' league.pk %}" class="hover:underline">{{ league.name }}</a></h2>
-        <div class="mt-2 flex flex-wrap gap-2 text-xs text-muted">
-            <span>{{ league.season }}</span>
-            {% for category in league.categories.all %}<span>· {{ category.name }}</span>{% endfor %}
+    <div class="bg-surface rounded-[20px] border border-line overflow-hidden transition-shadow">
+        <!-- Header de la liga -->
+        <div class="bg-csj-purple-dark p-4 sm:p-6 {% if league.is_past_league %}opacity-75{% endif %}">
+            <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                    <h2 class="text-lg sm:text-xl font-bold text-white line-clamp-2 mb-2">
+                        <a href="{% url 'portal:league_detail' league.pk %}" class="hover:underline">{{ league.name }}</a>
+                    </h2>
+                    <div class="flex flex-wrap items-center gap-2">
+                        {% for category in league.categories.all %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                                {{ category.name }}
+                            </span>
+                        {% endfor %}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                            {{ league.season }}
+                        </span>
+                    </div>
+                </div>
+                <div class="ml-4 flex-shrink-0">
+                    <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        {% if league.competition_type == 'playoff' %}
+                            <span class="text-2xl text-white">{% icon 'trophy' %}</span>
+                        {% elif league.competition_type == 'cup' %}
+                            <span class="text-2xl text-white">{% icon 'medal' 'text-yellow-500' %}</span>
+                        {% elif league.competition_type == 'friendly' %}
+                            <span class="text-2xl text-white">{% icon 'users' %}</span>
+                        {% else %}
+                            <span class="text-2xl text-white">{% icon 'ball' 'w-4 h-4 inline align-text-bottom' %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenido de la liga -->
+        <div class="p-4 sm:p-6">
+            <!-- Estadísticas -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-brand-text">{{ league.matches.count }}</div>
+                    <div class="text-xs text-muted">{% trans "Partidos" %}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-brand-text">{% if league.has_standings %}{{ league.standings.count }}{% else %}{{ league.season }}{% endif %}</div>
+                    <div class="text-xs text-muted">{% if league.has_standings %}{% trans "Equipos" %}{% else %}{% trans "Temporada" %}{% endif %}</div>
+                </div>
+            </div>
+
+            <!-- Información adicional -->
+            <div class="space-y-2 mb-4">
+                <div class="flex items-center text-sm text-muted">
+                    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                    </svg>
+                    <span class="capitalize">{{ league.get_competition_type_display }}</span>
+                </div>
+            </div>
+
+            <!-- Acciones -->
+            <div class="flex flex-col sm:flex-row gap-2">
+                <a href="{% url 'portal:league_detail' league.pk %}"
+                   class="flex-1 inline-flex items-center justify-center px-4 py-2 bg-csj-purple-dark hover:bg-csj-purple-dark text-white text-sm font-medium rounded-lg transition touch-manipulation">
+                    {% trans "Ver detalles" %}
+                </a>
+                {% if league.has_standings %}
+                    <a href="{% url 'portal:standings' %}?league={{ league.pk }}"
+                       class="inline-flex items-center justify-center px-3 py-2 bg-csj-purple-dark hover:opacity-90 text-white text-sm font-medium rounded-full transition touch-manipulation"
+                       title="{% trans 'Clasificación' %}">
+                        {% icon 'trophy' %}
+                    </a>
+                {% endif %}
+            </div>
         </div>
     </div>
     {% endfor %}
