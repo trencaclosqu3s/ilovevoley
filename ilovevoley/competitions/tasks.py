@@ -1,8 +1,6 @@
 """Tareas Celery de la app competitions."""
 import logging
 from datetime import time, timedelta
-from time import sleep
-
 from celery import shared_task
 from django.utils import timezone
 
@@ -227,19 +225,38 @@ def discover_historical_leagues_task(seasons=5):
     return len(discover_historical(past_seasons))
 
 
-@shared_task(name='scrape_historical_leagues')
+@shared_task(
+    name='scrape_historical_leagues',
+    soft_time_limit=1500,
+    time_limit=1800,
+)
 def scrape_historical_leagues_task(league_ids, delay=2.0):
     """Scrapea una sola vez clasificación, calendario y resultados de ligas históricas (#404).
 
     Acepta ligas inactivas (las históricas lo son) y trae los marcadores con
     ``scrape_all_results_rounds``, que es lo que alimenta el H2H. Una liga caída
     no aborta el resto.
+
+    Varias ligas se encolan en jobs separados: un único job con N ligas superaba
+    el hard limit de 900s y mataba el worker (ILOVEVOLEY-92..95).
     """
     from ilovevoley.videos.scraping import FederationScraper
 
+    leagues = list(
+        League.objects.filter(pk__in=league_ids, is_historical=True).order_by('pk')
+    )
+    if len(leagues) > 1:
+        # countdown: con concurrency>1 no martillar voleibolib a la vez
+        for i, league in enumerate(leagues):
+            scrape_historical_leagues_task.apply_async(
+                args=[[league.pk]],
+                kwargs={'delay': delay},
+                countdown=int(i * delay),
+            )
+        return [{'league_id': league.pk, 'enqueued': True} for league in leagues]
+
     summary = []
-    leagues = list(League.objects.filter(pk__in=league_ids, is_historical=True))
-    for i, league in enumerate(leagues):
+    for league in leagues:
         matches = 0
         try:
             scraper = FederationScraper(league)
@@ -249,8 +266,6 @@ def scrape_historical_leagues_task(league_ids, delay=2.0):
         except Exception:  # noqa: BLE001 - una liga caída no debe abortar la ingesta
             logger.error('Error scrapeando la liga histórica %s', league.pk, exc_info=True)
         summary.append({'league_id': league.pk, 'matches': matches})
-        if i < len(leagues) - 1:
-            sleep(delay)
     return summary
 
 

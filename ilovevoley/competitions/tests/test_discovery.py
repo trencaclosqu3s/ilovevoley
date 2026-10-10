@@ -338,7 +338,8 @@ def test_command_windows_previous_seasons_and_leaves_candidates_pending():
 
 
 @pytest.mark.django_db
-def test_scrape_historical_task_only_touches_historical_leagues():
+def test_scrape_historical_task_fans_out_one_job_per_league():
+    """Varias históricas se encolan por separado para no matar el worker a los 900s."""
     from ilovevoley.competitions.tasks import scrape_historical_leagues_task
 
     season = Season.objects.resolve('2023-24')
@@ -351,14 +352,32 @@ def test_scrape_historical_task_only_touches_historical_leagues():
         visibility_type='historical', is_historical=True, is_active=False,
     )
     active = League.objects.create(name='Activa', federation_id='A1', season=season)
+    with mock.patch.object(scrape_historical_leagues_task, 'apply_async') as apply_async:
+        summary = scrape_historical_leagues_task([first.pk, second.pk, active.pk], delay=2.0)
+
+    assert {item['league_id'] for item in summary} == {first.pk, second.pk}
+    assert all(item.get('enqueued') for item in summary)
+    assert apply_async.call_count == 2
+    apply_async.assert_any_call(args=[[first.pk]], kwargs={'delay': 2.0}, countdown=0)
+    apply_async.assert_any_call(args=[[second.pk]], kwargs={'delay': 2.0}, countdown=2)
+
+
+@pytest.mark.django_db
+def test_scrape_historical_task_single_league_runs_inline():
+    from ilovevoley.competitions.tasks import scrape_historical_leagues_task
+
+    season = Season.objects.resolve('2023-24')
+    league = League.objects.create(
+        name='Histórica 1', federation_id='H1', season=season,
+        visibility_type='historical', is_historical=True, is_active=False,
+    )
     with mock.patch('ilovevoley.videos.scraping.FederationScraper') as scraper_cls:
         scraper_cls.return_value.scrape_all_endpoints.return_value = {}
         scraper_cls.return_value.scrape_all_results_rounds.return_value = {'total_matches': 4}
-        summary = scrape_historical_leagues_task([first.pk, second.pk, active.pk], delay=0)
+        summary = scrape_historical_leagues_task([league.pk], delay=0)
 
-    assert {item['league_id'] for item in summary} == {first.pk, second.pk}
-    assert all(item['matches'] == 4 for item in summary)
-    assert {call.args[0].pk for call in scraper_cls.call_args_list} == {first.pk, second.pk}
+    assert summary == [{'league_id': league.pk, 'matches': 4}]
+    assert scraper_cls.call_args_list[0].args[0].pk == league.pk
 
 
 @pytest.mark.django_db
