@@ -19,11 +19,11 @@
         <a href="{% url 'rosters:my_profile' %}" class="text-sm font-semibold text-brand-text hover:underline">← {% trans "Tú" %}</a>
         <h1 class="text-2xl font-bold text-ink mt-1">{% trans "Wrapped de temporada" %}</h1>
         <form method="get" class="flex gap-2 mt-2">
-            <select name="season" onchange="this.form.submit()" class="rounded-lg border border-line px-3 py-1 text-sm" aria-label="{% trans 'Temporada' %}">
+            <select name="season" data-submit-on-change class="rounded-lg border border-line px-3 py-1 text-sm" aria-label="{% trans 'Temporada' %}">
                 {% for season in seasons %}<option value="{{ season.id }}"{% if season.id == wrapped.season_id %} selected{% endif %}>{{ season.name }}</option>{% endfor %}
             </select>
             {% if modalities %}
-            <select name="modality" onchange="this.form.submit()" class="rounded-lg border border-line px-3 py-1 text-sm" aria-label="{% trans 'Modalidad' %}">
+            <select name="modality" data-submit-on-change class="rounded-lg border border-line px-3 py-1 text-sm" aria-label="{% trans 'Modalidad' %}">
                 {% for m in modalities %}<option value="{{ m }}"{% if m == modality %} selected{% endif %}>{% if m == 'beach' %}{% trans "Vóley Playa" %}{% else %}{% trans "Vóley Pista" %}{% endif %}</option>{% endfor %}
             </select>
             {% endif %}
