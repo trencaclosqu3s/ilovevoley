@@ -557,7 +557,6 @@ function createIndividualFieldsOptimized() {
                         <input type="text" 
                                name="title_${index}" 
                                value="${defaultTitle}"
-                               oninput="this.dataset.userEdited = 'true'"
                                placeholder="{% trans "Título de la imagen" as js_msg %}{{ js_msg|escapejs }}"
                                class="w-full px-2 py-1 text-sm border border-line rounded focus:ring-1 focus:ring-accent focus:border-transparent">
                     </div>
@@ -687,6 +686,14 @@ if (albumNameInput) {
 const sharedTitleInput = document.getElementById('id_shared_title');
 if (sharedTitleInput) {
     sharedTitleInput.addEventListener('input', updateIndividualTitlesFromContext);
+}
+
+if (individualFields) {
+    individualFields.addEventListener('input', function(e) {
+        if (e.target && e.target.name && e.target.name.startsWith('title_')) {
+            e.target.dataset.userEdited = 'true';
+        }
+    });
 }
 
 // Estado inicial
