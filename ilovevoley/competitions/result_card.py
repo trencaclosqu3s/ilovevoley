@@ -54,8 +54,8 @@ _FORMAT_METRICS = {
         scrim_bottom=820,
         frame_outer=14,
         frame_inner=6,
-        blob_top=(640, -160, -180),
-        blob_bottom=(520, 140, 140),
+        blob_top=(560, -90, -110),
+        blob_bottom=(500, 70, 70),
         photo_letterbox=True,
     ),
 }
@@ -294,21 +294,28 @@ def _dither(image: Image.Image, amount: float = 0.05) -> Image.Image:
 
 
 def _draw_background_blobs(image: Image.Image, width: int, height: int, metrics: dict):
-    """Manchas circulares difuminadas para romper la monotonía del degradado plano."""
-    blur_radius = 24
+    """Manchas circulares difuminadas para romper la monotonía del degradado plano.
+
+    Cada mancha se dibuja sobre una máscara del tamaño del lienzo: con una máscara del
+    tamaño de la mancha, el difuminado se recortaba contra su borde y, al quedar casi
+    todo el círculo fuera del lienzo, solo se veía una esquina con un borde recto.
+    """
+    blur_radius = 70
+    alpha = 34
+
+    def blob(box, color):
+        mask = Image.new('L', (width, height), 0)
+        ImageDraw.Draw(mask).ellipse(box, fill=alpha)
+        mask = mask.filter(ImageFilter.GaussianBlur(blur_radius))
+        image.paste(Image.new('RGB', (width, height), color), (0, 0), mask)
 
     top_size, top_x, top_y = metrics['blob_top']
-    top_alpha = Image.new('L', (top_size, top_size), 0)
-    ImageDraw.Draw(top_alpha).ellipse([0, 0, top_size, top_size], fill=26)
-    top_alpha = top_alpha.filter(ImageFilter.GaussianBlur(blur_radius))
-    image.paste(Image.new('RGB', (top_size, top_size), (255, 255, 255)), (top_x, top_y), top_alpha)
+    blob([top_x, top_y, top_x + top_size, top_y + top_size], (255, 255, 255))
 
     bottom_size, right_inset, bottom_inset = metrics['blob_bottom']
-    bottom_alpha = Image.new('L', (bottom_size, bottom_size), 0)
-    ImageDraw.Draw(bottom_alpha).ellipse([0, 0, bottom_size, bottom_size], fill=26)
-    bottom_alpha = bottom_alpha.filter(ImageFilter.GaussianBlur(blur_radius))
-    bottom_pos = (width - bottom_size + right_inset, height - bottom_size + bottom_inset)
-    image.paste(Image.new('RGB', (bottom_size, bottom_size), (0, 0, 0)), bottom_pos, bottom_alpha)
+    bottom_x = width - bottom_size + right_inset
+    bottom_y = height - bottom_size + bottom_inset
+    blob([bottom_x, bottom_y, bottom_x + bottom_size, bottom_y + bottom_size], (0, 0, 0))
 
 
 def _place_photo(
