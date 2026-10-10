@@ -1,9 +1,11 @@
 import tempfile
 from io import BytesIO
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from PIL import Image as PILImage
 
 from ilovevoley.competitions.models import League, Match
@@ -15,8 +17,10 @@ from ilovevoley.rosters.season_wrapped import (
     build_screens,
     build_wrapped_stats,
 )
+from ilovevoley.rosters.tasks import generate_season_wrappeds_task
 from ilovevoley.rosters.tests.test_player_card import PlayerCardTestBase, _lineup
 from ilovevoley.rosters.wrapped_render import render_wrapped_screen
+from ilovevoley.users.models import Membership
 
 
 class WrappedTestBase(PlayerCardTestBase):
@@ -108,3 +112,80 @@ class WrappedRenderTests(PlayerCardTestBase):
         ):
             png = render_wrapped_screen(organization=self.org, screen=screen)
             self.assertEqual(PILImage.open(BytesIO(png)).size, (1080, 1920))
+
+
+class GenerateWrappedsTests(WrappedTestBase):
+    def run_task(self):
+        with mock.patch('ilovevoley.rosters.tasks.notify_web_push_organization_task.delay') as push, \
+                mock.patch('ilovevoley.rosters.tasks.send_notification_email') as email:
+            created = generate_season_wrappeds_task(self.season.pk)
+        return created, push, email
+
+    def test_relanzar_no_duplica_filas_ni_vuelve_a_notificar(self):
+        # Idempotencia del cierre: get_or_create + aviso solo en fila nueva (Foco 4).
+        self.play_official([(25, 20, _lineup())] * 3)
+        parent = get_user_model().objects.create_user(username='madre', password='x', email='m@x.es')
+        parent.children.add(self.person)
+
+        created, push, email = self.run_task()
+        self.assertEqual(created, 1)
+        self.assertEqual(SeasonWrapped.objects.count(), 1)
+        self.assertEqual(push.call_count, 1)   # un push a la familia (el jugador no tiene usuario)
+        self.assertEqual(email.call_count, 1)
+
+        created, push, email = self.run_task()
+        self.assertEqual(created, 0)
+        self.assertEqual(SeasonWrapped.objects.count(), 1)
+        push.assert_not_called()
+        email.assert_not_called()
+
+    def test_jugador_sin_actas_ni_fotos_no_recibe_wrapped(self):
+        # Sin datos no se crea fila ni se avisa (Foco 5).
+        created, push, email = self.run_task()
+        self.assertEqual(created, 0)
+        self.assertFalse(SeasonWrapped.objects.exists())
+        push.assert_not_called()
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'], MEDIA_ROOT=tempfile.mkdtemp())
+class WrappedViewTests(WrappedTestBase):
+    HOST = 'testclub.ilovevoley.es'
+
+    def setUp(self):
+        super().setUp()
+        self.play_official([(25, 20, _lineup())] * 3)
+        SeasonWrapped.objects.create(
+            person=self.person, season=self.season, stats=build_wrapped_stats(self.person, self.season),
+        )
+        self.page = reverse('rosters:season_wrapped_page', args=[self.person.id])
+
+    def login(self, username, parent=False):
+        user = get_user_model().objects.create_user(username=username, password='x')
+        Membership.objects.create(user=user, organization=self.org, is_approved=True)
+        if parent:
+            user.children.add(self.person)
+        self.client.force_login(user)
+        return user
+
+    def test_padre_ve_el_visor_y_un_png(self):
+        # Permisos de menor + PNG Story legible (Foco 3/5: familia ve el visor).
+        self.login('padre', parent=True)
+        self.assertEqual(self.client.get(self.page, HTTP_HOST=self.HOST).status_code, 200)
+        png = self.client.get(reverse('rosters:season_wrapped_png', args=[self.person.id, 0]), HTTP_HOST=self.HOST)
+        self.assertTrue(png.content.startswith(b'\x89PNG'))
+
+    def test_otro_socio_no_puede_verlo(self):
+        # Solo familia, jugador o gestores (Foco permisos).
+        self.login('socio')
+        self.assertEqual(self.client.get(self.page, HTTP_HOST=self.HOST).status_code, 403)
+
+    def test_sin_fila_para_la_temporada_da_404(self):
+        # Sin SeasonWrapped no hay visor (Foco 5).
+        self.login('padre', parent=True)
+        SeasonWrapped.objects.all().delete()
+        self.assertEqual(self.client.get(self.page, HTTP_HOST=self.HOST).status_code, 404)
+
+    def test_png_de_pantalla_inexistente_da_404(self):
+        self.login('padre', parent=True)
+        url = reverse('rosters:season_wrapped_png', args=[self.person.id, 99])
+        self.assertEqual(self.client.get(url, HTTP_HOST=self.HOST).status_code, 404)

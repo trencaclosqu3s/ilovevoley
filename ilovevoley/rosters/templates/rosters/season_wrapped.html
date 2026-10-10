@@ -1,0 +1,52 @@
+{% extends '../base.html' %}
+{% load i18n static %}
+
+{% block title %}{% blocktrans with name=person.full_name %}Wrapped de {{ name }}{% endblocktrans %} - I Love Voley{% endblock %}
+
+{% block content %}
+<div id="wrapped" class="max-w-md mx-auto"
+     data-png-url="{% url 'rosters:season_wrapped_png' person.id 0 %}"
+     data-count="{{ screens|length }}"
+     data-query="season={{ wrapped.season_id }}&amp;modality={{ modality }}"
+     data-filename="wrapped-{{ person.id }}"
+     data-share-title="{% blocktrans with name=person.full_name %}Wrapped de {{ name }}{% endblocktrans %}"
+     data-msg-generating="{% trans 'Generando, puede tardar unos segundos…' %}"
+     data-msg-ready="{% trans 'Listo: vuelve a tocar «Toca para compartir»' %}"
+     data-msg-tap="{% trans 'Toca para compartir' %}"
+     data-msg-downloaded="{% trans 'Imagen descargada' %}"
+     data-msg-error="{% trans 'No se pudo generar la imagen' %}">
+    <div class="mb-4">
+        <a href="{% url 'rosters:my_profile' %}" class="text-sm font-semibold text-brand-text hover:underline">← {% trans "Tú" %}</a>
+        <h1 class="text-2xl font-bold text-ink mt-1">{% trans "Wrapped de temporada" %}</h1>
+        <form method="get" class="flex gap-2 mt-2">
+            <select name="season" onchange="this.form.submit()" class="rounded-lg border border-line px-3 py-1 text-sm" aria-label="{% trans 'Temporada' %}">
+                {% for season in seasons %}<option value="{{ season.id }}"{% if season.id == wrapped.season_id %} selected{% endif %}>{{ season.name }}</option>{% endfor %}
+            </select>
+            {% if modalities %}
+            <select name="modality" onchange="this.form.submit()" class="rounded-lg border border-line px-3 py-1 text-sm" aria-label="{% trans 'Modalidad' %}">
+                {% for m in modalities %}<option value="{{ m }}"{% if m == modality %} selected{% endif %}>{% if m == 'beach' %}{% trans "Vóley Playa" %}{% else %}{% trans "Vóley Pista" %}{% endif %}</option>{% endfor %}
+            </select>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="flex gap-1 mb-2" id="wrapped-progress" aria-hidden="true">
+        {% for n, screen in screens %}<span class="h-1 flex-1 rounded bg-line" data-bar></span>{% endfor %}
+    </div>
+    <div class="relative select-none" id="wrapped-stage">
+        <img id="wrapped-image" src="" alt="" width="540" height="960"
+             class="w-full h-auto rounded-2xl border border-line bg-tint transition-opacity">
+        <button type="button" id="wrapped-prev" class="absolute inset-y-0 left-0 w-1/3" aria-label="{% trans 'Anterior' %}"></button>
+        <button type="button" id="wrapped-next" class="absolute inset-y-0 right-0 w-2/3" aria-label="{% trans 'Siguiente' %}"></button>
+    </div>
+    <div class="flex flex-wrap gap-2 mt-4">
+        <button type="button" id="wrapped-share" class="bg-csj-purple-dark hover:opacity-90 text-white px-5 py-3 rounded-full font-medium transition">{% trans "Compartir esta" %}</button>
+        <button type="button" id="wrapped-share-all" class="bg-tint hover:opacity-80 text-ink px-5 py-3 rounded-full font-medium transition">{% trans "Compartir todas" %}</button>
+        <button type="button" id="wrapped-download" class="bg-tint hover:opacity-80 text-ink px-5 py-3 rounded-full font-medium transition">{% trans "Descargar" %}</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/season_wrapped.js' %}"></script>
+{% endblock %}
