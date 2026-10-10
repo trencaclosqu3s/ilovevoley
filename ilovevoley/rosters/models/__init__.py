@@ -2,6 +2,7 @@ from .rosters import (  # noqa: F401
     Person,
     PersonOrganization,
     PlayerRole,
+    SeasonWrapped,
     StaffRole,
     person_photo_upload_path,
 )
@@ -14,6 +15,7 @@ __all__ = [
     'Person',
     'PersonOrganization',
     'PlayerRole',
+    'SeasonWrapped',
     'StaffRole',
     'person_photo_upload_path',
     'player_photo_upload_path',

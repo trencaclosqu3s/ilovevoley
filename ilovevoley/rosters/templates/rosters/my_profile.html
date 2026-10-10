@@ -22,6 +22,9 @@
         {% if has_card %}
             {% include "rosters/_card_links.html" with card_person=person %}
         {% endif %}
+        {% if has_wrapped %}
+            {% include "rosters/_wrapped_link.html" with wrapped_person=person %}
+        {% endif %}
     </div>
     {% endif %}
 
@@ -34,6 +37,9 @@
                         <a href="{% url 'rosters:child_profile' child.person.id %}" class="font-semibold text-ink hover:underline">{{ child.person.full_name }}</a>
                         {% if child.has_card %}
                             {% include "rosters/_card_links.html" with card_person=child.person %}
+                        {% endif %}
+                        {% if child.has_wrapped %}
+                            {% include "rosters/_wrapped_link.html" with wrapped_person=child.person %}
                         {% endif %}
                     </li>
                 {% endfor %}

@@ -234,11 +234,14 @@ def get_player_season_stats(person, season=None, teams=None):
     }
 
 
-def _played_official_lineups(person):
-    return MatchLineup.objects.filter(
+def _played_official_lineups(person, modality=None):
+    lineups = MatchLineup.objects.filter(
         person=person, sets_played__gt=0,
         match__is_friendly=False, match__federation_id__isnull=False,
     ).exclude(match__status='withdrawn')
+    if modality is not None:
+        lineups = lineups.filter(match__league__modality=modality)
+    return lineups
 
 
 def get_rival_seasons(person):

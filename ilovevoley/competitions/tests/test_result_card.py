@@ -560,11 +560,12 @@ class PasteCrestCircleTests(SimpleTestCase):
 class DrawBackgroundBlobsTests(SimpleTestCase):
     def test_blobs_lighten_and_darken_the_flat_background(self):
         """El fondo 'completa' no debe quedar liso: lleva manchas difuminadas (issue #241)."""
-        width, height = 400, 400
+        # Tamaño y métricas reales: el difuminado es de decenas de píxeles y en un lienzo
+        # diminuto alcanzaría el centro.
+        width, height = result_card.CARD_SIZES['square']
         base = Image.new('RGB', (width, height), (100, 100, 100))
-        metrics = {'blob_top': (200, -50, -50), 'blob_bottom': (200, 50, 50)}
 
-        result_card._draw_background_blobs(base, width, height, metrics)
+        result_card._draw_background_blobs(base, width, height, result_card._FORMAT_METRICS['square'])
 
         top_left = base.getpixel((10, 10))
         bottom_right = base.getpixel((width - 10, height - 10))
