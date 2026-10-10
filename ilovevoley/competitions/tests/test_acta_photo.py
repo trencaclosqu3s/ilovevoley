@@ -12,6 +12,7 @@ from ilovevoley.competitions.services.acta_photo import (
     download_and_prepare_acta_photo,
     extract_image_from_pdf,
     process_acta_photos_from_html,
+    scoped_tenant_matches,
 )
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.teams.models import Club, Team
@@ -422,3 +423,98 @@ class ActaPhotoDownloadTests(TestCase):
 
         self.photo.refresh_from_db()
         self.assertEqual(self.photo.status, 'approved')
+
+
+class ScopedTenantActaMatchesTests(TestCase):
+    """
+    Justificación (testing-guidelines): el backfill de actas en papel (#495) debe
+    quedarse en el club/temporadas/categorías pedidas; si el filtro se ensancha,
+    se dispara un backfill general (coste visión + datos ajenos al alcance).
+    """
+
+    def setUp(self):
+        self.season_target = Season.objects.create(name='2025-26', is_current=True)
+        self.season_other = Season.objects.create(name='2023-24', is_current=False)
+        self.cat_infantil = Category.objects.create(name='Infantil Femenino')
+        self.cat_senior = Category.objects.create(name='Senior Femenino')
+
+        self.club = Club.objects.create(federation_id='100', official_name='CLUB ESPORTIU SANT JOSEP OBRER')
+        self.org, _ = Organization.objects.update_or_create(
+            slug='santjosep',
+            defaults={'name': 'Sant Josep', 'club': self.club, 'is_active': True},
+        )
+        self.rival = Club.objects.create(federation_id='200', official_name='CLUB VOLEIBOL MURO')
+
+        self.team_infantil = Team.objects.create(
+            name='CV SANT JOSEP INF',
+            federation_id='t-inf',
+            club=self.club,
+            category=self.cat_infantil,
+            is_active=True,
+        )
+        self.team_senior = Team.objects.create(
+            name='CV SANT JOSEP SEN',
+            federation_id='t-sen',
+            club=self.club,
+            category=self.cat_senior,
+            is_active=True,
+        )
+        self.rival_team = Team.objects.create(
+            name='VOLEI MURO',
+            federation_id='t-muro',
+            club=self.rival,
+            category=self.cat_infantil,
+            is_active=True,
+        )
+
+        self.league_inf = League.objects.create(
+            name='Liga Infantil 25-26',
+            season=self.season_target,
+            federation_id='L-INF',
+        )
+        self.league_inf.categories.add(self.cat_infantil)
+        self.league_sen = League.objects.create(
+            name='Liga Senior 25-26',
+            season=self.season_target,
+            federation_id='L-SEN',
+        )
+        self.league_sen.categories.add(self.cat_senior)
+        self.league_old = League.objects.create(
+            name='Liga Infantil 23-24',
+            season=self.season_other,
+            federation_id='L-OLD',
+        )
+        self.league_old.categories.add(self.cat_infantil)
+
+        now = timezone.now()
+        self.match_in_scope = Match.objects.create(
+            league=self.league_inf,
+            home_team=self.team_infantil,
+            away_team=self.rival_team,
+            federation_id='m1',
+            match_date=now,
+        )
+        self.match_wrong_category = Match.objects.create(
+            league=self.league_sen,
+            home_team=self.team_senior,
+            away_team=self.rival_team,
+            federation_id='m2',
+            match_date=now,
+        )
+        self.match_wrong_season = Match.objects.create(
+            league=self.league_old,
+            home_team=self.team_infantil,
+            away_team=self.rival_team,
+            federation_id='m3',
+            match_date=now,
+        )
+
+    def test_scoped_matches_keep_only_season_and_category(self):
+        ids = set(
+            scoped_tenant_matches(
+                self.org,
+                seasons=['2025-26'],
+                category_substrings=['infantil'],
+            ).values_list('pk', flat=True)
+        )
+        self.assertEqual(ids, {self.match_in_scope.pk})
