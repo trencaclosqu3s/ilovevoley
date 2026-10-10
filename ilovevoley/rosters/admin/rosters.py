@@ -114,7 +114,7 @@ class PersonAdmin(ModelAdmin):
         memberships = list(obj.club_memberships.all())
         if not memberships:
             return format_html('<span style="color: gray;">{}</span>', '—')
-        lines = format_html('<br>').join(
+        parts = [
             format_html(
                 '<span style="color: {};">{}: {}</span>',
                 '#27ae60' if m.is_active else '#e74c3c',
@@ -122,8 +122,8 @@ class PersonAdmin(ModelAdmin):
                 'alta' if m.is_active else 'baja',
             )
             for m in memberships
-        )
-        return lines
+        ]
+        return format_html('<br>'.join(['{}'] * len(parts)), *parts)
     membership_state.short_description = 'Clubes'
 
     def active_teams_count(self, obj):
