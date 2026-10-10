@@ -42,18 +42,25 @@ def _head_to_head_filter(match):
     """Enfrentamientos entre los dos equipos, también de temporadas anteriores.
 
     ``Team`` no sirve como identidad entre temporadas: la federación cambia su id
-    cada año y el emparejamiento por nombre falla con patrocinadores. Los ids de
-    club que trae cada partido de la federación sí son estables, así que se
-    cruzan por club dentro de la misma categoría (que ya fija el género). Si un
-    club tiene dos equipos en la categoría (Groc/Lila), aparecen ambos; cada
-    fila muestra su nombre. Los partidos sin ids de club (RFEVB, amistosos)
-    entran por el par de ``Team``.
+    cada año y el nombre cambia con los patrocinadores. La identidad estable es
+    ``TeamIdentity`` (#428), así que el cruce principal es por el par de
+    identidades. Los ids de club que trae cada partido de la federación son el
+    respaldo para equipos aún sin identidad, dentro de la misma categoría (que ya
+    fija el género). Si una identidad agrupa varios equipos (Groc/Lila), aparecen
+    todos; cada fila muestra su nombre. Los partidos sin ids de club (RFEVB,
+    amistosos) entran por el par de ``Team``.
     """
     home_id, away_id = match.home_team_id, match.away_team_id
     by_team = (
         Q(home_team_id=home_id, away_team_id=away_id)
         | Q(home_team_id=away_id, away_team_id=home_id)
     )
+    home_identity, away_identity = match.home_team.identity_id, match.away_team.identity_id
+    if home_identity and away_identity:
+        by_team |= (
+            Q(home_team__identity_id=home_identity, away_team__identity_id=away_identity)
+            | Q(home_team__identity_id=away_identity, away_team__identity_id=home_identity)
+        )
     if match.league_id:
         categories_pks = match.league.categories.values('pk')
         by_team = by_team & (

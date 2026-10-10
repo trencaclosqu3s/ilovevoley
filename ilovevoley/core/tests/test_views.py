@@ -52,6 +52,29 @@ class LandingViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Selecciona tu club')
 
+    def test_brand_navbar_links_anonymous_to_public_portal(self):
+        # Decisión de producto #124: en dominio de marca el menú Competición
+        # apunta al portal público sin exigir login.
+        response = self.client.get('/', HTTP_HOST='ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'href="/competicion/calendario/"')
+        self.assertContains(response, 'href="/competicion/ligas/"')
+        self.assertNotContains(response, 'href="/competitions/calendario/"')
+
+    def test_tenant_navbar_keeps_club_competition_urls(self):
+        from ilovevoley.users.models import Membership
+
+        User = get_user_model()
+        user = User.objects.create_user(username='nav_member', password='pass')
+        Membership.objects.create(
+            user=user, organization=self.org, is_approved=True,
+        )
+        self.client.force_login(user)
+        response = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'href="/competitions/calendario/"')
+        self.assertNotContains(response, 'href="/competicion/calendario/"')
+
     def test_tenant_root_redirects_authenticated_to_videos(self):
         User = get_user_model()
         user = User.objects.create_user(username='member', password='pass')

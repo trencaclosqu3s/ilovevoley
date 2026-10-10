@@ -170,30 +170,31 @@ class LeagueAdmin(ModelAdmin):
         """Personaliza las acciones disponibles"""
         actions = super().get_actions(request)
 
-        # Agregar acciones personalizadas para superusuarios
+        # Agregar acciones personalizadas para superusuarios. Django llama a
+        # func(modeladmin, request, queryset): va la función sin enlazar, no self.X.
         if request.user.is_superuser:
             actions['mark_as_main'] = (
-                self.mark_as_main,
+                type(self).mark_as_main,
                 'mark_as_main',
                 'Marcar como ligas principales'
             )
             actions['mark_as_reference'] = (
-                self.mark_as_reference,
+                type(self).mark_as_reference,
                 'mark_as_reference',
                 'Marcar como ligas de referencia'
             )
             actions['mark_as_historical'] = (
-                self.mark_as_historical,
+                type(self).mark_as_historical,
                 'mark_as_historical',
                 'Marcar como ligas históricas'
             )
             actions['mark_as_external'] = (
-                self.mark_as_external,
+                type(self).mark_as_external,
                 'mark_as_external',
                 'Marcar como ligas externas'
             )
             actions['scrape_historical'] = (
-                self.scrape_historical,
+                type(self).scrape_historical,
                 'scrape_historical',
                 'Sincronizar resultados históricos (una pasada)'
             )

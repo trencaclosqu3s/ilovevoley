@@ -16,27 +16,49 @@
 {% block sidebar %}{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-6 px-4 py-6">
-    <nav class="flex gap-4 text-sm font-medium">
-        <a href="{% url 'portal:index' %}" class="text-ink hover:underline">{% trans "Competición" %}</a>
-        <a href="{% url 'portal:league_list' %}" class="text-ink hover:underline">{% trans "Ligas" %}</a>
-        <a href="{% url 'portal:calendar' %}" class="text-ink hover:underline">{% trans "Calendario" %}</a>
-        <a href="{% url 'portal:results' %}" class="text-ink hover:underline">{% trans "Resultados" %}</a>
-        <a href="{% url 'portal:standings' %}" class="text-ink hover:underline">{% trans "Clasificación" %}</a>
+<div class="space-y-6">
+    <!-- Navegación del portal -->
+    <nav class="flex gap-2 overflow-x-auto whitespace-nowrap pb-1 -mx-1 px-1" role="tablist" aria-label="{% trans 'Secciones de competición' %}">
+        <a href="{% url 'portal:index' %}"
+           class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold touch-manipulation transition {% if request.resolver_match.url_name == 'index' %}bg-csj-purple-dark text-white{% else %}bg-surface text-ink hover:bg-tint border border-line{% endif %}">
+            {% icon 'trophy' %} {% trans "Competición" %}
+        </a>
+        <a href="{% url 'portal:league_list' %}"
+           class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold touch-manipulation transition {% if request.resolver_match.url_name == 'league_list' or request.resolver_match.url_name == 'league_detail' %}bg-csj-purple-dark text-white{% else %}bg-surface text-ink hover:bg-tint border border-line{% endif %}">
+            {% icon 'clipboard' %} {% trans "Ligas" %}
+        </a>
+        <a href="{% url 'portal:calendar' %}"
+           class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold touch-manipulation transition {% if request.resolver_match.url_name == 'calendar' %}bg-csj-purple-dark text-white{% else %}bg-surface text-ink hover:bg-tint border border-line{% endif %}">
+            {% icon 'calendar' %} {% trans "Calendario" %}
+        </a>
+        <a href="{% url 'portal:results' %}"
+           class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold touch-manipulation transition {% if request.resolver_match.url_name == 'results' %}bg-csj-purple-dark text-white{% else %}bg-surface text-ink hover:bg-tint border border-line{% endif %}">
+            {% icon 'check-circle' %} {% trans "Resultados" %}
+        </a>
+        <a href="{% url 'portal:standings' %}"
+           class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold touch-manipulation transition {% if request.resolver_match.url_name == 'standings' %}bg-csj-purple-dark text-white{% else %}bg-surface text-ink hover:bg-tint border border-line{% endif %}">
+            {% icon 'medal' %} {% trans "Clasificación" %}
+        </a>
     </nav>
 
-    <form method="get" class="flex items-end gap-3">
-        <div>
-            <label for="season" class="block text-sm font-medium text-ink mb-1">{% trans "Temporada" %}</label>
-            <select name="season" id="season" class="px-3 py-2 border border-line bg-surface text-ink rounded-xl">
-                <option value="" {% if not selected_season %}selected{% endif %}>{% trans "Todas las temporadas" %}</option>
-                {% for s in seasons %}
-                    <option value="{{ s.id }}" {% if selected_season == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <button type="submit" class="px-4 py-2 bg-csj-purple-dark text-white rounded-full text-sm font-medium">{% trans "Filtrar" %}</button>
-    </form>
+    {% block portal_season_filter %}
+    {% if seasons and request.resolver_match.url_name in 'index league_list' %}
+    <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
+        <form method="get" class="flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
+            <div class="w-full sm:flex-1">
+                <label for="season" class="block text-sm font-medium text-ink mb-1">{% trans "Temporada" %}</label>
+                <select name="season" id="season" class="w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent text-sm sm:text-base">
+                    <option value="" {% if not selected_season %}selected{% endif %}>{% trans "Todas las temporadas" %}</option>
+                    {% for s in seasons %}
+                        <option value="{{ s.id }}" {% if selected_season == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="w-full sm:w-auto px-4 py-2 bg-csj-purple-dark hover:opacity-90 text-white rounded-full text-sm font-medium transition touch-manipulation">{% trans "Filtrar" %}</button>
+        </form>
+    </div>
+    {% endif %}
+    {% endblock %}
 
     {% block portal_content %}{% endblock %}
 </div>

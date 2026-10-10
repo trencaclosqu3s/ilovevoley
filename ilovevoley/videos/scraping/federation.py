@@ -302,6 +302,9 @@ class FederationScraper:
         matches_created = 0
         matches_updated = 0
         self._new_identity_candidates = []
+        # Partidos que este scrape confirma como vigentes: la federación es la
+        # autoridad de qué fila del calendario vive y cuál es espejo (#485).
+        confirmed_pks = set()
 
         for partido_data in partidos_data:
             try:
@@ -348,21 +351,15 @@ class FederationScraper:
                 if fed_id:
                     match = Match.all_objects.filter(federation_id=fed_id, league=league).first()
 
-                # 2. Fallback: Buscar por equipos y fecha en el mismo día dentro de la liga (para partidos creados sin ID)
+                # 2. Fallback: Buscar por equipos y fecha en el mismo día dentro de la liga,
+                # también con local/visitante invertidos (#485).
                 if not match:
-                    match_dt = match_data['match_date']
-                    date_start = match_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-                    date_end = date_start + timedelta(days=1)
-                    match = Match.all_objects.filter(
-                        league=league,
-                        home_team=home_team,
-                        away_team=away_team,
-                        match_date__gte=date_start,
-                        match_date__lt=date_end,
-                        is_friendly=False
-                    ).first()
+                    match = self._find_calendar_match(
+                        league, home_team, away_team, match_data['match_date']
+                    )
 
                 if match:
+                    confirmed_pks.add(match.pk)
                     # Un partido withdrawn solo se reactiva cuando sus equipos vuelven a
                     # aparecer en la federación (is_active la gestiona update_teams). El JSON
                     # sirve los partidos como 'scheduled', así que por sí solo no debe
@@ -460,6 +457,8 @@ class FederationScraper:
 
         if self._new_identity_candidates:
             notify_new_identity_candidates(self._new_identity_candidates)
+
+        self._deduplicate_mirror_matches(league, confirmed_pks)
 
         return matches_created, matches_updated
     
@@ -713,7 +712,11 @@ class FederationScraper:
     def update_matches(self, matches_data: List[Dict[str, Any]], team_objects: Dict[str, Team]):
         """Actualiza partidos en la base de datos evitando duplicados"""
         from datetime import timedelta
-        
+
+        # Partidos que este scrape confirma como vigentes: la federación es la
+        # autoridad de qué fila del calendario vive y cuál es espejo (#485).
+        confirmed_pks = set()
+
         for match_data in matches_data:
             home_team_name = match_data.pop('home_team')
             away_team_name = match_data.pop('away_team')
@@ -737,6 +740,19 @@ class FederationScraper:
                 if not away_team:
                     away_team = self._find_league_team_by_club(
                         away_team_name, match_data.get('federation_club_away_id', ''))
+
+                if self.league.is_historical and (not home_team or not away_team):
+                    # La clasificación de una temporada pasada omite equipos retirados:
+                    # sin su Team el partido jugado se perdería del H2H.
+                    category = self.league.categories.first()
+                    if category and not home_team:
+                        home_team = self._find_or_create_team_by_name(
+                            home_team_name, self.league, category,
+                            match_data.get('federation_club_local_id', ''))
+                    if category and not away_team:
+                        away_team = self._find_or_create_team_by_name(
+                            away_team_name, self.league, category,
+                            match_data.get('federation_club_away_id', ''))
 
                 if not home_team or not away_team:
                     logger.error(f"Could not match teams: {home_team_name} vs {away_team_name}")
@@ -762,6 +778,7 @@ class FederationScraper:
                 ).first()
                 
                 if existing_match:
+                    confirmed_pks.add(existing_match.pk)
                     # Validar resultado antes de actualizar
                     home_score = match_data.get('home_score')
                     away_score = match_data.get('away_score')
@@ -809,25 +826,19 @@ class FederationScraper:
                 if existing_match:
                     logger.info(f"Found existing match by round: {home_team.name} vs {away_team.name} in round {round_number}")
 
-            # PRIORIDAD 2: Si no se encontró por jornada, buscar por fecha (fallback)
+            # PRIORIDAD 2: Si no se encontró por jornada, buscar por fecha (fallback),
+            # también con local/visitante invertidos si la federación los cambió (#485)
             if not existing_match and match_date:
-                date_start = match_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                date_end = date_start + timedelta(days=1)
-
-                existing_match = Match.all_objects.filter(
-                    league=self.league,
-                    home_team=home_team,
-                    away_team=away_team,
-                    match_date__gte=date_start,
-                    match_date__lt=date_end,
-                    is_friendly=False  # Solo actualizar partidos oficiales, no amistosos
-                ).first()
+                existing_match = self._find_calendar_match(
+                    self.league, home_team, away_team, match_date
+                )
                 
                 if existing_match:
                     logger.info(f"Found existing match by date: {home_team.name} vs {away_team.name} on {match_date.date()}")
             
             # Crear o actualizar el partido con merge inteligente
             if existing_match:
+                confirmed_pks.add(existing_match.pk)
                 # Detectar y registrar modificaciones federativas
                 already_finished = self._result_already_published(existing_match)
                 detect_and_record_match_changes(existing_match, match_data)
@@ -844,6 +855,15 @@ class FederationScraper:
                 # 2. O están vacíos/None en el partido existente
                 # 3. O representan información más específica (ej: hora específica vs 00:00)
                 updated_fields = []
+
+                # El match_data ya no lleva los equipos (se pop-ean arriba): si el
+                # partido recuperado estaba con localía invertida (#485), reasignarlos.
+                if home_team and existing_match.home_team_id != home_team.id:
+                    existing_match.home_team = home_team
+                    updated_fields.append('home_team')
+                if away_team and existing_match.away_team_id != away_team.id:
+                    existing_match.away_team = away_team
+                    updated_fields.append('away_team')
 
                 if self._apply_set_scores(existing_match, match_data):
                     updated_fields.append('set_scores')
@@ -941,6 +961,7 @@ class FederationScraper:
         
         # MARCAR PARTIDOS COMO WITHDRAWN: partidos que involucran equipos inactivos
         self._mark_withdrawn_matches()
+        self._deduplicate_mirror_matches(self.league, confirmed_pks)
     
     def _mark_withdrawn_matches(self):
         """Marca como 'withdrawn' los partidos que involucran equipos inactivos"""
@@ -976,7 +997,109 @@ class FederationScraper:
             )
 
         logger.info(f"Marked {len(withdrawn_matches)} matches as withdrawn in {self.league.name}")
-    
+
+    def _find_calendar_match(self, league, home_team, away_team, match_date):
+        """Localiza el partido del calendario que corresponde a uno del scrape.
+
+        El empate por ``federation_id`` es la via principal (la gestiona cada
+        llamador); este fallback cubre partidos en BD sin id (calendario HTML).
+        Empareja por liga + dia + par de equipos, prefiriendo la fila que ya
+        lleva id federativo. Si la federacion ha cambiado la localia del
+        partido ya programado (#485), el par aparece invertido: se busca
+        tambien visitante/local en la misma fecha, que solo puede ser el mismo
+        cruce (un cruce no se juega dos veces el mismo dia).
+        """
+        date_start = match_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_end = date_start + timedelta(days=1)
+        match = Match.all_objects.filter(
+            league=league,
+            home_team=home_team,
+            away_team=away_team,
+            match_date__gte=date_start,
+            match_date__lt=date_end,
+            is_friendly=False,
+        ).order_by(models.F('federation_id').desc(nulls_last=True), 'pk').first()
+        if match:
+            return match
+        # Solo crucees aun por jugar: reclamar un match finalizado con el par
+        # invertido reescribiria el resultado ya publicado.
+        return Match.all_objects.filter(
+            league=league,
+            home_team=away_team,
+            away_team=home_team,
+            match_date__gte=date_start,
+            match_date__lt=date_end,
+            is_friendly=False,
+            status__in=['scheduled', 'postponed'],
+        ).order_by(models.F('federation_id').desc(nulls_last=True), 'pk').first()
+
+    def _deduplicate_mirror_matches(self, league, confirmed_pks=None):
+        """Retira los duplicados en espejo dejados atrás por las dos fuentes (#485).
+
+        Un mismo cruce no puede estar programado dos veces el mismo día. La
+        federación es la autoridad: en cada scrape, el partido que se empareja
+        y actualiza (sea por id, por orden de equipos o con la localía
+        invertida) es el vigente; el resto de filas del mismo cruce y fecha
+        quedan reflejos de ejecuciones anteriores y pasan a ``withdrawn``.
+
+        El barrido es convergente: en una ejecución sin confirmaciones no se
+        toca nada, y las filas duplicadas con id distinto entre sí quedan en
+        warning para revisión manual.
+        """
+        if not confirmed_pks:
+            return
+        confirmed_pks = set(confirmed_pks)
+
+        unfinished = list(
+            Match.all_objects.filter(
+                league=league,
+                status__in=['scheduled', 'postponed'],
+                is_friendly=False,
+            ).select_related('home_team', 'away_team')
+        )
+        groups = {}
+        for fixture in unfinished:
+            if fixture.home_team_id and fixture.away_team_id and fixture.home_team_id != fixture.away_team_id:
+                key = (
+                    fixture.match_date.date(),
+                    frozenset({fixture.home_team_id, fixture.away_team_id}),
+                )
+                groups.setdefault(key, []).append(fixture)
+
+        to_withdraw = []
+        for members in groups.values():
+            if len(members) < 2:
+                continue
+            confirmed = [fixture for fixture in members if fixture.pk in confirmed_pks]
+            if len(confirmed) > 1:
+                logger.warning(
+                    f'More than one confirmed match in {league.name} on '
+                    f'{members[0].match_date:%d/%m/%Y}, skipping auto-withdraw: '
+                    + ', '.join(f'#{fixture.pk}' for fixture in confirmed)
+                )
+                continue
+            if len(confirmed) != 1:
+                continue
+            for fixture in members:
+                if fixture.pk != confirmed[0].pk:
+                    to_withdraw.append(fixture)
+
+        if not to_withdraw:
+            return
+
+        # Re-verificar estado: un scrape concurrente pudo finalizar un cruce del
+        # listado entre el snapshot y este UPDATE.
+        Match.objects.filter(
+            pk__in=[m.pk for m in to_withdraw],
+            status__in=['scheduled', 'postponed'],
+        ).update(status='withdrawn')
+        for fixture in to_withdraw:
+            logger.warning(
+                f'Mirror duplicate withdrawn: {fixture.home_team.name} vs {fixture.away_team.name} '
+                f'on {fixture.match_date:%d/%m/%Y} in {league.name} (#{fixture.pk} without '
+                f'federation confirmation)'
+            )
+
     def _is_empty_value(self, value) -> bool:
         """Determina si un valor está vacío o es None"""
         if value is None:
