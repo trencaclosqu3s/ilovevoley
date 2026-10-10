@@ -22,7 +22,12 @@ El paquete raíz es `ilovevoley`. La lógica se divide en apps de dominio:
   (`parent_team`, `variant_type` para equipos filiales/colores).
 - **`rosters`**: Plantillas históricas (`Person`, `PlayerRole`, `StaffRole`)
   vinculadas a `Season`, con constraints de dorsal y rol por temporada, y
-  soporte multi-rol para cuerpo técnico.
+  soporte multi-rol para cuerpo técnico. `SeasonWrapped` (#458): snapshot por
+  persona, temporada y modalidad, generado al cierre por `generate_season_wrappeds`
+  (acción de `SeasonAdmin` o `PeriodicTask`); las fotos se filtran por consentimiento
+  al mostrar, no al congelar; el rival es el equipo, nunca un jugador; el aspecto
+  (colores y escudo) sale del club del rol de esa temporada (`season_organization`),
+  no del dominio.
 - **`content`**: Vídeos (`Video`), imágenes (`Image`), comentarios (`Comment`),
   álbumes grupales (`album_group_id`), etiquetado automático y moderación con
   Google Vision API, vinculados a `Season` y filtrados por temporada activa.

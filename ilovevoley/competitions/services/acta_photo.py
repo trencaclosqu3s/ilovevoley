@@ -2,15 +2,16 @@ import hashlib
 import io
 import logging
 import re
-from typing import Optional, Tuple
+from typing import Iterable, Optional, Sequence, Tuple
 from urllib.parse import urljoin
 
 from django.core.files.base import ContentFile
+from django.db.models import Q, QuerySet
 from PIL import Image, ImageOps
 import pypdf
 import requests
 
-from ilovevoley.competitions.models import Match, MatchActaPhoto
+from ilovevoley.competitions.models import League, Match, MatchActaPhoto
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,70 @@ def is_tenant_match(match: Match, organizations=None) -> bool:
         Match.all_objects.filter(pk=match.pk).for_tenant(org).exists()
         for org in organizations
     )
+
+
+def scoped_tenant_matches(
+    organization,
+    *,
+    seasons: Optional[Sequence[str]] = None,
+    category_substrings: Optional[Sequence[str]] = None,
+) -> QuerySet:
+    """Partidos del tenant acotados por temporada y categoría (p. ej. backfill #495)."""
+    matches = Match.all_objects.for_tenant(organization)
+    if seasons:
+        matches = matches.filter(league__season__name__in=list(seasons))
+    if category_substrings:
+        # Categoría de la competición (liga), no la del rival: un senior vs
+        # infantil ajeno no debe entrar en el alcance del backfill.
+        cat_q = Q()
+        for fragment in category_substrings:
+            fragment = (fragment or '').strip()
+            if not fragment:
+                continue
+            cat_q |= (
+                Q(league__categories__name__icontains=fragment)
+                | Q(league__name__icontains=fragment)
+            )
+        if cat_q:
+            matches = matches.filter(cat_q)
+    return matches.distinct()
+
+
+def scoped_acta_photos(
+    organization,
+    *,
+    seasons: Optional[Sequence[str]] = None,
+    category_substrings: Optional[Sequence[str]] = None,
+    statuses: Optional[Iterable[str]] = None,
+) -> QuerySet:
+    """Fotos de acta del alcance tenant/temporada/categoría."""
+    match_ids = scoped_tenant_matches(
+        organization,
+        seasons=seasons,
+        category_substrings=category_substrings,
+    ).values('pk')
+    photos = MatchActaPhoto.objects.filter(match_id__in=match_ids)
+    if statuses is not None:
+        photos = photos.filter(status__in=list(statuses))
+    return photos
+
+
+def discover_acta_photos_for_matches(matches: QuerySet, *, delay: float = 1.0) -> int:
+    """Relee el HTML de resultados de las ligas del queryset para crear MatchActaPhoto.
+
+    Reutiliza ``FederationScraper._fetch_round_map`` (mismo camino que el scrape
+    periódico). Idempotente: no pisa approved/rejected. Devuelve cuántas ligas
+    se han recorrido.
+    """
+    from ilovevoley.videos.scraping import FederationScraper
+
+    league_ids = list(
+        matches.exclude(league_id__isnull=True).values_list('league_id', flat=True).distinct()
+    )
+    leagues = list(League.objects.filter(pk__in=league_ids))
+    for league in leagues:
+        FederationScraper(league)._fetch_round_map(league, needed=None, delay=delay)
+    return len(leagues)
 
 
 def extract_image_from_pdf(pdf_bytes: bytes) -> Tuple[Optional[bytes], str]:

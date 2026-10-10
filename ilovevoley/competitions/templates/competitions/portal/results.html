@@ -2,8 +2,22 @@
 {% load i18n %}
 
 {% block portal_content %}
-<h1 class="text-2xl font-bold text-ink">{% trans "Resultados" %}</h1>
-{% include "competitions/portal/_league_filter.html" %}
-{% trans "Aún no hay resultados." as empty_results %}
-{% include "competitions/portal/_match_table.html" with show_league=True empty_message=empty_results %}
+<div class="space-y-6">
+    <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div class="flex-1 min-w-0">
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink mb-1 sm:mb-2">{% icon 'check-circle' %} {% trans "Resultados" %}</h1>
+                <p class="text-sm sm:text-base text-muted">{% trans "Últimos resultados registrados" %}</p>
+            </div>
+            <a href="{% url 'portal:calendar' %}" class="inline-flex items-center px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
+                {% icon 'calendar' %} <span class="ml-1.5">{% trans "Ir al calendario" %}</span>
+            </a>
+        </div>
+    </div>
+
+    {% include "competitions/portal/_league_filter.html" %}
+
+    {% trans "Aún no hay resultados." as empty_results %}
+    {% include "competitions/portal/_match_table.html" with show_league=True empty_message=empty_results %}
+</div>
 {% endblock %}

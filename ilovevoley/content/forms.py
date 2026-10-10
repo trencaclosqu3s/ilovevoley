@@ -159,7 +159,7 @@ class ImageUploadForm(forms.ModelForm):
             }),
             'title': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
-                'placeholder': _('Título descriptivo de la imagen')
+                'placeholder': _('Título descriptivo (opcional si se selecciona un partido)')
             }),
             'description': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-csj-purple focus:border-transparent',
@@ -210,6 +210,7 @@ class ImageUploadForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         # Hacer campos opcionales
+        self.fields['title'].required = False
         self.fields['description'].required = False
         self.fields['categories'].required = False
         self.fields['tags'].required = False

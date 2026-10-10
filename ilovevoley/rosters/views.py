@@ -19,15 +19,18 @@ from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import person_belongs_to_tenant, tenant_access_required, user_is_tenant_manager
-from ilovevoley.competitions.models import MatchLineup
+from ilovevoley.competitions.models import League, MatchLineup
 from ilovevoley.content.models import Image
 from ilovevoley.competitions.services.lineups import get_player_season_stats, get_rival_seasons, get_season_rivals
+from ilovevoley.core.security import fetch_logo_bytes
 from ilovevoley.teams.identity import one_team_per_identity
 from ilovevoley.teams.models import Team
-from ilovevoley.competitions.result_card import _file_field_bytes
+from ilovevoley.competitions.result_card import _file_field_bytes, _team_logo_bytes
 from .forms import BulkPlayerRosterForm, PersonForm, PlayerRoleForm, StaffRoleForm
-from .models import Person, PlayerRole, StaffRole
+from .models import Person, PlayerRole, SeasonWrapped, StaffRole
 from .player_card import card_highlight, card_photo_allowed, render_player_card, season_summary
+from .season_wrapped import build_screens, season_organization
+from .wrapped_render import render_wrapped_screen
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +178,11 @@ def my_profile(request):
     """
     person = Person.objects.filter(user=request.user).first()
     children = [
-        {'person': child, 'has_card': _card_role(child, request.tenant) is not None}
+        {
+            'person': child,
+            'has_card': _card_role(child, request.tenant) is not None,
+            'has_wrapped': SeasonWrapped.objects.filter(person=child).exists(),
+        }
         for child in request.user.children.order_by('first_name')
     ]
     if person is None and not children:
@@ -223,6 +230,7 @@ def _trajectory_context(request, person, is_child=False):
         'active_entry': active,
         'in_current_tenant': visible.filter(pk=person.pk).exists(),
         'has_card': _card_role(person, request.tenant) is not None,
+        'has_wrapped': SeasonWrapped.objects.filter(person=person).exists(),
         'tagged_images': list(tagged_images_qs[:8]),
         'tagged_images_count': tagged_images_qs.count(),
     }
@@ -320,6 +328,75 @@ def person_card(request, person_id):
         return response
     response = HttpResponse(png, content_type='image/png')
     response['Content-Disposition'] = f'attachment; filename="cromo-{person.id}.png"'
+    return response
+
+
+def _wrapped_person(request, person_id):
+    """Ficha del Wrapped: el propio jugador, su familia o un gestor del club (como el cromo)."""
+    person = get_object_or_404(Person, pk=person_id)
+    user = request.user
+    is_family = person.user_id == user.id or user.children.filter(pk=person.pk).exists()
+    in_tenant = Person.objects.for_tenant(request.tenant).filter(pk=person.pk).exists()
+    if not (is_family or (in_tenant and user.can_edit_person(person, request.tenant))):
+        raise PermissionDenied
+    return person
+
+
+def _wrapped_for(request, person):
+    """Fila elegida por ``?modality=`` y ``?season=``; la más reciente si no se pide; 404 si no hay."""
+    modality = request.GET.get('modality', League.MODALITY_INDOOR)
+    if modality not in dict(League.MODALITY_CHOICES):
+        modality = League.MODALITY_INDOOR
+    rows = list(SeasonWrapped.objects.filter(person=person, modality=modality).select_related('season', 'person'))
+    if not rows:
+        raise Http404
+    requested = request.GET.get('season', '')
+    wrapped = next((r for r in rows if str(r.season_id) == requested), rows[0])
+    return wrapped, rows, modality
+
+
+@tenant_access_required()
+def season_wrapped_page(request, person_id):
+    """Visor del Wrapped (#458): pantallas tipo Story, compartir y descargar."""
+    person = _wrapped_person(request, person_id)
+    wrapped, rows, modality = _wrapped_for(request, person)
+    screens = build_screens(wrapped, request.user, request.tenant)
+    all_modalities = SeasonWrapped.objects.filter(person=person, season=wrapped.season).values_list('modality', flat=True)
+    return render(request, 'rosters/season_wrapped.html', {
+        'person': person, 'wrapped': wrapped, 'screens': list(enumerate(screens)),
+        'seasons': [r.season for r in rows], 'modality': modality,
+        'modalities': list(all_modalities) if len(all_modalities) > 1 else [],
+    })
+
+
+@tenant_access_required()
+def season_wrapped_png(request, person_id, n):
+    """PNG Story de la pantalla ``n`` (WebP reducido con ``?preview=1``)."""
+    person = _wrapped_person(request, person_id)
+    wrapped, _rows, _modality = _wrapped_for(request, person)
+    screens = build_screens(wrapped, request.user, request.tenant)
+    if n >= len(screens):
+        raise Http404
+    screen = screens[n]
+    photo = None
+    if screen.photo_id:
+        image = get_object_or_404(Image.objects.for_tenant(request.tenant), pk=screen.photo_id)
+        photo = _file_field_bytes(image.thumbnail_large or image.image)
+    rival_logo = None
+    if screen.crest_team_id:
+        rival_logo = _team_logo_bytes(Team.objects.filter(pk=screen.crest_team_id).first(), fetch_logo_bytes)
+    organization = season_organization(person, wrapped.season) or request.tenant
+    png = render_wrapped_screen(organization=organization, screen=screen, photo=photo, rival_logo=rival_logo)
+    if request.GET.get('preview') == '1':
+        preview = PILImage.open(BytesIO(png))
+        preview.thumbnail((540, 960))
+        buffer = BytesIO()
+        preview.save(buffer, 'WEBP', quality=85)
+        response = HttpResponse(buffer.getvalue(), content_type='image/webp')
+        response['Cache-Control'] = 'no-store'
+        return response
+    response = HttpResponse(png, content_type='image/png')
+    response['Content-Disposition'] = f'attachment; filename="wrapped-{person.id}-{n + 1}.png"'
     return response
 
 

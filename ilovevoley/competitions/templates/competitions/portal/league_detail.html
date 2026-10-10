@@ -2,22 +2,92 @@
 {% load i18n %}
 
 {% block portal_content %}
-<div>
-    <h1 class="text-2xl font-bold text-ink">{{ league.name }}</h1>
-    <div class="mt-1 flex flex-wrap gap-2 text-xs text-muted">
-        <span>{{ league.season }}</span>
-        {% for category in league.categories.all %}<span>· {{ category.name }}</span>{% endfor %}
+<div class="space-y-6">
+    <!-- Header de la liga -->
+    <div class="bg-surface rounded-[20px] border border-line overflow-hidden">
+        <div class="bg-csj-purple-dark p-4 sm:p-6">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div class="flex-1 min-w-0">
+                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2">
+                        {{ league.name }}
+                    </h1>
+                    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                        {% for category in league.categories.all %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                                {{ category.name }}
+                            </span>
+                        {% endfor %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                            {{ league.season }}
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white capitalize">
+                            {{ league.get_competition_type_display }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Estadísticas rápidas -->
+                <div class="grid grid-cols-2 gap-4 lg:gap-6 text-center text-white">
+                    <div>
+                        <div class="text-2xl font-bold">{{ league.matches.count }}</div>
+                        <div class="text-xs opacity-80">{% trans "Partidos" %}</div>
+                    </div>
+                    {% if standings %}
+                        <div>
+                            <div class="text-2xl font-bold">{{ standings.count }}</div>
+                            <div class="text-xs opacity-80">{% trans "Equipos" %}</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección Clasificación -->
+    {% if standings %}
+    <div class="space-y-4">
+        <h2 class="text-lg sm:text-xl font-bold text-ink flex items-center gap-2">
+            {% icon 'trophy' %} {% trans "Clasificación" %}
+        </h2>
+        {% include "competitions/portal/_standings_table.html" %}
+    </div>
+    {% endif %}
+
+    <!-- Sección Próximos partidos -->
+    <div class="space-y-4">
+        <h2 class="text-lg sm:text-xl font-bold text-ink flex items-center gap-2">
+            {% icon 'calendar' %} {% trans "Próximos partidos" %}
+        </h2>
+        {% trans "No hay partidos programados." as empty_upcoming %}
+        {% include "competitions/portal/_match_table.html" with matches=upcoming empty_message=empty_upcoming show_league=False %}
+    </div>
+
+    <!-- Sección Últimos resultados -->
+    <div class="space-y-4">
+        <h2 class="text-lg sm:text-xl font-bold text-ink flex items-center gap-2">
+            {% icon 'check-circle' %} {% trans "Últimos resultados" %}
+        </h2>
+        {% trans "Aún no hay resultados." as empty_recent %}
+        {% include "competitions/portal/_match_table.html" with matches=recent empty_message=empty_recent show_league=False %}
+    </div>
+
+    <!-- Enlaces relacionados -->
+    <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold text-ink mb-3">{% icon 'link' %} {% trans "Enlaces relacionados" %}</h3>
+        <div class="flex flex-wrap gap-2 sm:gap-3">
+            <a href="{% url 'portal:league_list' %}?season={{ league.season_id }}"
+               class="inline-flex items-center px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
+                ← {% trans "Volver a ligas" %}
+            </a>
+            <a href="{% url 'portal:calendar' %}?league={{ league.id }}"
+               class="inline-flex items-center px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
+                {% icon 'calendar' %} <span class="ml-1.5">{% trans "Ver calendario completo" %}</span>
+            </a>
+            <a href="{% url 'portal:results' %}?league={{ league.id }}"
+               class="inline-flex items-center px-4 py-2 bg-tint hover:opacity-80 text-ink rounded-lg font-medium transition text-sm">
+                {% icon 'check-circle' %} <span class="ml-1.5">{% trans "Ver todos los resultados" %}</span>
+            </a>
+        </div>
     </div>
 </div>
-
-<h2 class="text-lg font-bold text-ink">{% trans "Clasificación" %}</h2>
-{% include "competitions/portal/_standings_table.html" %}
-
-<h2 class="text-lg font-bold text-ink">{% trans "Próximos partidos" %}</h2>
-{% trans "No hay partidos programados." as empty_upcoming %}
-{% include "competitions/portal/_match_table.html" with matches=upcoming empty_message=empty_upcoming %}
-
-<h2 class="text-lg font-bold text-ink">{% trans "Últimos resultados" %}</h2>
-{% trans "Aún no hay resultados." as empty_recent %}
-{% include "competitions/portal/_match_table.html" with matches=recent empty_message=empty_recent %}
 {% endblock %}

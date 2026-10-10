@@ -180,6 +180,19 @@
                         </div>
                     </div>
 
+                    <!-- Título base compartido (opcional) -->
+                    <div>
+                        <label class="block text-sm font-medium text-ink mb-1">
+                            {% trans "Título base compartido (opcional)" %}
+                        </label>
+                        <input type="text" 
+                               name="shared_title" 
+                               id="id_shared_title"
+                               placeholder="{% trans "Ej: Entrenamiento Senior, Celebración..." %}"
+                               class="w-full px-4 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent">
+                        <p class="text-xs text-muted mt-1">{% trans "Aplica a fotos sueltas con secuencial (001, 002...)" %}</p>
+                    </div>
+
                     <!-- Etiquetas compartidas -->
                     <div>
                         <label class="block text-sm font-medium text-ink mb-1">
@@ -481,6 +494,38 @@ async function displayPreviewsOptimized() {
     }
 }
 
+function getContextBaseTitle(index) {
+    const seqStr = String(index + 1).padStart(3, '0');
+    const matchSel = document.getElementById('id_match');
+    if (matchSel && matchSel.value && matchSel.selectedOptions && matchSel.selectedOptions[0]) {
+        const text = matchSel.selectedOptions[0].text.trim();
+        if (text && text !== '{% trans "Seleccionar partido (opcional)" as js_msg %}{{ js_msg|escapejs }}') {
+            return `${text} - ${seqStr}`;
+        }
+    }
+    const albumNameInput = document.getElementById('id_album_name');
+    if (albumNameInput && albumNameInput.value.trim()) {
+        return `${albumNameInput.value.trim()} - ${seqStr}`;
+    }
+    const sharedTitleInput = document.getElementById('id_shared_title');
+    if (sharedTitleInput && sharedTitleInput.value.trim()) {
+        return `${sharedTitleInput.value.trim()} - ${seqStr}`;
+    }
+    return '';
+}
+
+function updateIndividualTitlesFromContext() {
+    const inputs = individualFields.querySelectorAll('input[name^="title_"]');
+    inputs.forEach((input, index) => {
+        if (!input.dataset.userEdited) {
+            const computed = getContextBaseTitle(index);
+            if (computed) {
+                input.value = computed;
+            }
+        }
+    });
+}
+
 function createIndividualFieldsOptimized() {
     individualFields.innerHTML = '';
     individualData.classList.remove('hidden');
@@ -493,7 +538,8 @@ function createIndividualFieldsOptimized() {
         const fieldDiv = document.createElement('div');
         fieldDiv.className = 'border border-line rounded-lg p-3';
         
-        const defaultTitle = file.name.replace(/\.[^/.]+$/, '');
+        const contextTitle = getContextBaseTitle(index);
+        const defaultTitle = contextTitle || file.name.replace(/\.[^/.]+$/, '');
         
         fieldDiv.innerHTML = `
             <div class="flex items-start gap-3">
@@ -627,7 +673,28 @@ if (createAlbumCheckbox) {
 }
 
 // Actualizar estado al cambiar partido
-matchSelect.addEventListener('change', updateCategoriesState);
+matchSelect.addEventListener('change', function() {
+    updateCategoriesState();
+    updateIndividualTitlesFromContext();
+});
+
+const albumNameInput = document.getElementById('id_album_name');
+if (albumNameInput) {
+    albumNameInput.addEventListener('input', updateIndividualTitlesFromContext);
+}
+
+const sharedTitleInput = document.getElementById('id_shared_title');
+if (sharedTitleInput) {
+    sharedTitleInput.addEventListener('input', updateIndividualTitlesFromContext);
+}
+
+if (individualFields) {
+    individualFields.addEventListener('input', function(e) {
+        if (e.target && e.target.name && e.target.name.startsWith('title_')) {
+            e.target.dataset.userEdited = 'true';
+        }
+    });
+}
 
 // Estado inicial
 updateCategoriesState();

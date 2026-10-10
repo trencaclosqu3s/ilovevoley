@@ -298,7 +298,7 @@ def read_acta(
     return result
 
 
-def process_acta_photo_batch(limit: int = 5) -> int:
+def process_acta_photo_batch(limit: int = 5, queryset=None) -> int:
     """
     Procesa un lote de MatchActaPhoto pendientes de descarga o lectura.
 
@@ -306,12 +306,16 @@ def process_acta_photo_batch(limit: int = 5) -> int:
     2. Si ACTA_VISION_ENABLED está activo, transcribe las fotos pendientes de leer; si no,
        las pasa a 'pending_review' sin datos para revisión manual.
     3. Errores transitorios (429/5xx) dejan la foto en 'pending_read' para el siguiente ciclo.
+
+    ``queryset`` opcional acota el lote (p. ej. tenant + temporadas del #495);
+    si se omite, usa todas las fotos pendientes.
     """
     vision_enabled = getattr(settings, 'ACTA_VISION_ENABLED', False)
     api_key = settings.GEMINI_API_KEY
 
+    base_qs = queryset if queryset is not None else MatchActaPhoto.objects.all()
     pending_qs = (
-        MatchActaPhoto.objects.filter(
+        base_qs.filter(
             status__in=['pending_download', 'downloaded', 'pending_read']
         )
         .select_related(

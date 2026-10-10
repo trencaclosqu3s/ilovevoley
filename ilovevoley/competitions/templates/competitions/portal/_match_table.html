@@ -1,29 +1,126 @@
 {% load i18n %}
 {% if matches %}
-<div class="overflow-x-auto bg-surface rounded-2xl border border-line">
-    <table class="w-full text-sm text-ink">
-        <thead class="text-left text-muted">
-            <tr>
-                <th class="px-3 py-2">{% trans "Fecha" %}</th>
-                {% if show_league %}<th class="px-3 py-2">{% trans "Liga" %}</th>{% endif %}
-                <th class="px-3 py-2">{% trans "Local" %}</th>
-                <th class="px-3 py-2 text-center">{% trans "Resultado" %}</th>
-                <th class="px-3 py-2">{% trans "Visitante" %}</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for match in matches %}
-            <tr class="border-t border-line">
-                <td class="px-3 py-2 whitespace-nowrap"><a href="{% url 'portal:match_detail' match.pk %}" class="hover:underline">{{ match.match_date|date:"d/m/Y H:i" }}</a></td>
-                {% if show_league %}<td class="px-3 py-2">{{ match.league.name }}</td>{% endif %}
-                <td class="px-3 py-2">{% firstof match.home_team.name match.home_team_text %}</td>
-                <td class="px-3 py-2 text-center font-semibold">{% if match.home_score is not None and match.away_score is not None %}{{ match.home_score }} - {{ match.away_score }}{% else %}-{% endif %}</td>
-                <td class="px-3 py-2">{% firstof match.away_team.name match.away_team_text %}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="bg-surface rounded-[20px] border border-line overflow-hidden divide-y divide-line">
+    {% for match in matches %}
+    <div class="p-4 sm:p-6 hover:bg-tint transition">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <!-- Información del partido -->
+            <div class="flex-1 min-w-0">
+                <!-- Badges y fecha -->
+                <div class="flex flex-wrap items-center gap-2 mb-2 sm:mb-3">
+                    <div class="flex items-center space-x-2 text-xs sm:text-sm text-muted">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span class="font-medium">{{ match.match_date|date:"d/m/Y" }}</span>
+                        {% if match.match_date|date:"H:i" == "00:00" %}
+                            <span class="text-orange-600 dark:text-orange-400 font-medium text-xs">{% trans "Sin horario confirmado" %}</span>
+                        {% else %}
+                            <span>{{ match.match_date|date:"H:i" }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if match.round_number %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                        J{{ match.round_number }}
+                    </span>
+                    {% endif %}
+
+                    {% if show_league and match.league %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-tint text-ink">
+                        {{ match.league.name }}
+                    </span>
+                    {% endif %}
+
+                    {% if match.is_finished %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            {% trans "Finalizado" %}
+                        </span>
+                    {% elif match.status == 'in_progress' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                            {% trans "En curso" %}
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-tint text-ink">
+                            {% trans "Programado" %}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Equipos y Marcador -->
+                <div class="flex items-center flex-wrap gap-2 sm:gap-3 mb-2">
+                    <div class="flex items-center space-x-2">
+                        {% if match.home_team and match.home_team.display_logo %}
+                            <img src="{{ match.home_team.display_logo }}" alt="{{ match.home_team_display }}"
+                                 class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
+                                 data-hide-on-error>
+                        {% endif %}
+                        <span class="font-semibold text-sm sm:text-base text-ink">
+                            {{ match.home_team_display }}
+                        </span>
+                        {% if match.home_team and match.home_team.is_variant %}
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                                {{ match.home_team.variant_name }}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <span class="text-muted text-xs sm:text-sm">{% trans "vs" %}</span>
+
+                    <div class="flex items-center space-x-2">
+                        {% if match.away_team and match.away_team.display_logo %}
+                            <img src="{{ match.away_team.display_logo }}" alt="{{ match.away_team_display }}"
+                                 class="w-6 h-6 object-contain rounded-sm flex-shrink-0"
+                                 data-hide-on-error>
+                        {% endif %}
+                        <span class="font-semibold text-sm sm:text-base text-ink">
+                            {{ match.away_team_display }}
+                        </span>
+                        {% if match.away_team and match.away_team.is_variant %}
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                                {{ match.away_team.variant_name }}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    {% if match.home_score is not None and match.away_score is not None %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-bold bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 ml-1">
+                            {{ match.home_score }} - {{ match.away_score }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Parciales por set si están disponibles -->
+                {% if match.set_scores %}
+                    <div class="flex flex-wrap items-center gap-1.5 mb-2 text-xs text-muted">
+                        {% for set in match.set_scores %}
+                            <span class="px-2 py-0.5 rounded bg-tint font-medium">{{ set.0 }}-{{ set.1 }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- Ubicación -->
+                {% if match.venue_ref or match.venue %}
+                    <div class="flex items-center space-x-2 text-xs sm:text-sm text-muted">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                        </svg>
+                        <span>{% if match.venue_ref %}{{ match.venue_ref.name }}{% else %}{{ match.venue }}{% endif %}{% if match.city %} - {{ match.city }}{% endif %}</span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Acciones -->
+            <div class="flex items-center self-end sm:self-center mt-2 lg:mt-0 flex-shrink-0">
+                <a href="{% url 'portal:match_detail' match.pk %}"
+                   class="inline-flex items-center px-4 py-2 border border-csj-purple dark:border-csj-purple-dark text-sm font-medium rounded-lg text-brand-text hover:bg-csj-purple hover:text-white transition">
+                    {% trans "Ver detalles" %}
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
 </div>
 {% else %}
-<div class="bg-surface rounded-2xl border border-line p-6 text-center text-muted">{{ empty_message }}</div>
+<div class="bg-surface rounded-2xl border border-line p-8 text-center text-muted">{{ empty_message }}</div>
 {% endif %}
