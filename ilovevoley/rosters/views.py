@@ -29,7 +29,7 @@ from ilovevoley.competitions.result_card import _file_field_bytes, _team_logo_by
 from .forms import BulkPlayerRosterForm, PersonForm, PlayerRoleForm, StaffRoleForm
 from .models import Person, PlayerRole, SeasonWrapped, StaffRole
 from .player_card import card_highlight, card_photo_allowed, render_player_card, season_summary
-from .season_wrapped import build_screens
+from .season_wrapped import build_screens, season_organization
 from .wrapped_render import render_wrapped_screen
 
 logger = logging.getLogger(__name__)
@@ -385,7 +385,8 @@ def season_wrapped_png(request, person_id, n):
     rival_logo = None
     if screen.crest_team_id:
         rival_logo = _team_logo_bytes(Team.objects.filter(pk=screen.crest_team_id).first(), fetch_logo_bytes)
-    png = render_wrapped_screen(organization=request.tenant, screen=screen, photo=photo, rival_logo=rival_logo)
+    organization = season_organization(person, wrapped.season) or request.tenant
+    png = render_wrapped_screen(organization=organization, screen=screen, photo=photo, rival_logo=rival_logo)
     if request.GET.get('preview') == '1':
         preview = PILImage.open(BytesIO(png))
         preview.thumbnail((540, 960))

@@ -9,6 +9,8 @@ from ilovevoley.competitions.models import League
 from ilovevoley.competitions.services.lineups import _played_official_lineups
 from ilovevoley.content.favorites import annotate_favorites
 from ilovevoley.content.models import Image
+from ilovevoley.core.models import Organization
+from ilovevoley.rosters.models import PlayerRole
 from ilovevoley.rosters.player_card import card_photo_allowed
 
 TOP_PHOTOS = 5
@@ -76,6 +78,21 @@ def _season_images(person, season, modality):
     if modality == League.MODALITY_BEACH:
         return images.filter(match__league__modality=League.MODALITY_BEACH)
     return images.filter(Q(match__isnull=True) | Q(match__league__modality=League.MODALITY_INDOOR))
+
+
+def season_organization(person, season):
+    """Organización (colores y escudo) del club donde jugó la persona en esa temporada, o ``None``.
+
+    El Wrapped se ve con los colores del club de entonces, no con los del dominio desde el que
+    se abre: una familia con hijos en clubes distintos, o un jugador que ha cambiado de club,
+    ve cada temporada con su club. Si jugó en varios clubes el mismo curso, gana el rol activo
+    más reciente.
+    """
+    role = (
+        PlayerRole.objects.filter(person=person, season=season, identity__club__isnull=False)
+        .select_related('identity__club').order_by('-is_active', '-id').first()
+    )
+    return Organization.objects.filter(club=role.identity.club).first() if role else None
 
 
 def build_wrapped_stats(person, season, modality=League.MODALITY_INDOOR):

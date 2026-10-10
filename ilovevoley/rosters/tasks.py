@@ -6,10 +6,10 @@ from django.utils.translation import gettext as _
 from ilovevoley.competitions.models import League
 from ilovevoley.core.email_utils import send_notification_email
 from ilovevoley.core.i18n import push_message
-from ilovevoley.core.models import Organization, Season
+from ilovevoley.core.models import Season
 from ilovevoley.core.tenant_utils import build_absolute_url
-from ilovevoley.rosters.models import Person, PlayerRole, SeasonWrapped
-from ilovevoley.rosters.season_wrapped import build_wrapped_stats
+from ilovevoley.rosters.models import Person, SeasonWrapped
+from ilovevoley.rosters.season_wrapped import build_wrapped_stats, season_organization
 from ilovevoley.users.tasks import notify_web_push_organization_task
 
 
@@ -66,9 +66,7 @@ def generate_season_wrappeds_task(season_id):
             created += was_created
             person_created = person_created or was_created
         if person_created:
-            role = (PlayerRole.objects.filter(person=person, season=season)
-                    .select_related('identity__club').first())
-            organization = Organization.objects.filter(club=role.identity.club).first() if role else None
+            organization = season_organization(person, season)
             if organization:
                 _notify(person, season, organization)
     return created

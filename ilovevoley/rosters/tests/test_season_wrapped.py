@@ -16,6 +16,7 @@ from ilovevoley.rosters.season_wrapped import (
     Screen,
     build_screens,
     build_wrapped_stats,
+    season_organization,
 )
 from ilovevoley.rosters.tasks import generate_season_wrappeds_task
 from ilovevoley.rosters.tests.test_player_card import PlayerCardTestBase, _lineup
@@ -189,3 +190,30 @@ class WrappedViewTests(WrappedTestBase):
         self.login('padre', parent=True)
         url = reverse('rosters:season_wrapped_png', args=[self.person.id, 99])
         self.assertEqual(self.client.get(url, HTTP_HOST=self.HOST).status_code, 404)
+
+
+class WrappedOrganizationTests(WrappedTestBase):
+    def test_cada_temporada_se_ve_con_el_club_donde_jugo(self):
+        # Marc jugó en Sant Josep un curso y en otro club al siguiente: cada Wrapped, con su club.
+        from ilovevoley.core.models import Category, Organization, Season
+        from ilovevoley.rosters.models import PlayerRole
+        from ilovevoley.teams.models import Club, Team
+        from ilovevoley.teams.tests.helpers import identity_of
+
+        other_club = Club.objects.create(official_name='Otro Club', federation_id='CLUB-O')
+        other_org = Organization.objects.create(
+            slug='otroclub', name='Otro Club', club=other_club, club_team_names={'1': 'Otro Club'}, is_active=True,
+        )
+        other_team = Team.objects.create(
+            name='Otro Club Cadete', category=Category.objects.first(), club=other_club,
+            federation_id='TEAM-O', is_active=True,
+        )
+        next_season = Season.objects.resolve('2026-27')
+        PlayerRole.objects.create(
+            person=self.person, identity=identity_of(other_team), season=next_season,
+            jersey_number=5, position='setter', is_active=True,
+        )
+
+        self.assertEqual(season_organization(self.person, self.season), self.org)
+        self.assertEqual(season_organization(self.person, next_season), other_org)
+        self.assertIsNone(season_organization(self.person, Season.objects.resolve('2019-20')))
