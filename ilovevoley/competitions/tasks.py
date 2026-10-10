@@ -1,8 +1,6 @@
 """Tareas Celery de la app competitions."""
 import logging
 from datetime import time, timedelta
-from time import sleep
-
 from celery import shared_task
 from django.utils import timezone
 
@@ -244,17 +242,21 @@ def scrape_historical_leagues_task(league_ids, delay=2.0):
     """
     from ilovevoley.videos.scraping import FederationScraper
 
-    historical_ids = list(
-        League.objects.filter(pk__in=league_ids, is_historical=True).values_list('pk', flat=True)
+    leagues = list(
+        League.objects.filter(pk__in=league_ids, is_historical=True).order_by('pk')
     )
-    if len(historical_ids) > 1:
-        for league_id in historical_ids:
-            scrape_historical_leagues_task.delay([league_id], delay=delay)
-        return [{'league_id': league_id, 'enqueued': True} for league_id in historical_ids]
+    if len(leagues) > 1:
+        # countdown: con concurrency>1 no martillar voleibolib a la vez
+        for i, league in enumerate(leagues):
+            scrape_historical_leagues_task.apply_async(
+                args=[[league.pk]],
+                kwargs={'delay': delay},
+                countdown=int(i * delay),
+            )
+        return [{'league_id': league.pk, 'enqueued': True} for league in leagues]
 
     summary = []
-    leagues = list(League.objects.filter(pk__in=historical_ids, is_historical=True))
-    for i, league in enumerate(leagues):
+    for league in leagues:
         matches = 0
         try:
             scraper = FederationScraper(league)
@@ -264,8 +266,6 @@ def scrape_historical_leagues_task(league_ids, delay=2.0):
         except Exception:  # noqa: BLE001 - una liga caída no debe abortar la ingesta
             logger.error('Error scrapeando la liga histórica %s', league.pk, exc_info=True)
         summary.append({'league_id': league.pk, 'matches': matches})
-        if i < len(leagues) - 1:
-            sleep(delay)
     return summary
 
 

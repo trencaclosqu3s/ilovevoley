@@ -352,14 +352,14 @@ def test_scrape_historical_task_fans_out_one_job_per_league():
         visibility_type='historical', is_historical=True, is_active=False,
     )
     active = League.objects.create(name='Activa', federation_id='A1', season=season)
-    with mock.patch.object(scrape_historical_leagues_task, 'delay') as delay:
-        summary = scrape_historical_leagues_task([first.pk, second.pk, active.pk], delay=0)
+    with mock.patch.object(scrape_historical_leagues_task, 'apply_async') as apply_async:
+        summary = scrape_historical_leagues_task([first.pk, second.pk, active.pk], delay=2.0)
 
     assert {item['league_id'] for item in summary} == {first.pk, second.pk}
     assert all(item.get('enqueued') for item in summary)
-    assert delay.call_count == 2
-    delay.assert_any_call([first.pk], delay=0)
-    delay.assert_any_call([second.pk], delay=0)
+    assert apply_async.call_count == 2
+    apply_async.assert_any_call(args=[[first.pk]], kwargs={'delay': 2.0}, countdown=0)
+    apply_async.assert_any_call(args=[[second.pk]], kwargs={'delay': 2.0}, countdown=2)
 
 
 @pytest.mark.django_db
