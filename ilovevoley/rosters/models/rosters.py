@@ -473,3 +473,26 @@ class PersonOrganization(models.Model):
 
     def __str__(self):
         return f"{self.person.full_name} - {self.organization.name}"
+
+
+class SeasonWrapped(models.Model):
+    """Resumen de temporada de un jugador (#458), congelado al cierre.
+
+    Existir es lo que lo hace visible: no hay estado de borrador. El snapshot guarda
+    cifras y ids de foto candidatos; el consentimiento de imagen se comprueba al mostrar.
+    """
+
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='season_wrappeds')
+    season = models.ForeignKey('core.Season', on_delete=models.CASCADE, related_name='wrappeds')
+    modality = models.CharField(max_length=10, default='indoor')
+    stats = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['person', 'season', 'modality'], name='unique_wrapped_per_season_modality'),
+        ]
+        ordering = ['-season__start_year']
+
+    def __str__(self):
+        return f'{self.person} · {self.season} · {self.modality}'
