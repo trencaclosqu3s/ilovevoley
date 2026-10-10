@@ -2,6 +2,16 @@
 {% load i18n %}
 
 {% block portal_content %}
-<h1 class="text-2xl font-bold text-ink">{% trans "Ligas" %}</h1>
-{% include "competitions/portal/_league_cards.html" %}
+<div class="space-y-6">
+    <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div class="flex-1 min-w-0">
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink mb-1 sm:mb-2">{% icon 'clipboard' %} {% trans "Ligas" %}</h1>
+                <p class="text-sm sm:text-base text-muted">{% trans "Todas las competiciones disponibles" %}</p>
+            </div>
+        </div>
+    </div>
+
+    {% include "competitions/portal/_league_cards.html" %}
+</div>
 {% endblock %}

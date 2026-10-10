@@ -312,52 +312,7 @@
     <!-- Sección de Clasificación -->
     {% if standings %}
         <div id="clasificacion-section" class="content-section hidden bg-surface rounded-[20px] border border-line overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-line">
-                    <thead class="bg-tint">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">{% trans "Pos" %}</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">{% trans "Equipo" %}</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">{% trans "PJ" %}</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">{% trans "G" %}</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">{% trans "P" %}</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">{% trans "Sets" %}</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">{% trans "Pts" %}</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-surface divide-y divide-line">
-                        {% for standing in standings %}
-                            <tr class="{% if 'SANT JOSEP' in standing.team.name %}bg-csj-purple bg-opacity-10 dark:bg-opacity-20 border-l-4 border-csj-purple dark:border-csj-purple-dark{% endif %}">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-ink">
-                                    {{ standing.position }}
-                                    {% if standing.position <= 3 %}
-                                        {% if standing.position == 1 %}{% icon 'medal' 'text-yellow-500' %}
-                                        {% elif standing.position == 2 %}{% icon 'medal' 'text-gray-400' %}
-                                        {% elif standing.position == 3 %}{% icon 'medal' 'text-amber-700' %}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-ink{% if 'SANT JOSEP' in standing.team.name %} font-bold{% endif %}">
-                                        {{ standing.team.name }}
-                                        {% if 'SANT JOSEP' in standing.team.name %}{% icon 'ball' 'w-4 h-4 inline align-text-bottom' %}{% endif %}
-                                    </div>
-                                </td>
-                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-ink">{{ standing.played }}</td>
-                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-medium text-green-600 dark:text-green-400">{{ standing.won }}</td>
-                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-medium text-red-600 dark:text-red-400">{{ standing.lost }}</td>
-                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-ink">
-                                    {{ standing.sets_for }}-{{ standing.sets_against }}
-                                    <div class="text-xs text-muted">({% if standing.set_difference > 0 %}+{% endif %}{{ standing.set_difference }})</div>
-                                </td>
-                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-bold text-ink">
-                                    {{ standing.total_points }}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            {% include "competitions/_standings_table.html" with standings=standings highlight_club=True %}
         </div>
     {% endif %}
 

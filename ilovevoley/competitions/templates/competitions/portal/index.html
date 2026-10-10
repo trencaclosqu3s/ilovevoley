@@ -2,7 +2,23 @@
 {% load i18n %}
 
 {% block portal_content %}
-<h1 class="text-2xl font-bold text-ink">{% trans "Competición" %}</h1>
-{% include "competitions/portal/_league_cards.html" %}
-<a href="{% url 'portal:league_list' %}?season={{ selected_season }}" class="inline-block text-sm font-medium text-ink hover:underline">{% trans "Ver todas las ligas" %}</a>
+<div class="space-y-6">
+    <div class="bg-surface rounded-3xl border border-line p-4 sm:p-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div class="flex-1 min-w-0">
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink mb-1 sm:mb-2">{% icon 'trophy' %} {% trans "Competición" %}</h1>
+                <p class="text-sm sm:text-base text-muted">{% trans "Ligas y competiciones destacadas" %}</p>
+            </div>
+        </div>
+    </div>
+
+    {% include "competitions/portal/_league_cards.html" %}
+
+    <div class="text-center pt-2">
+        <a href="{% url 'portal:league_list' %}?season={{ selected_season }}"
+           class="inline-flex items-center px-5 py-2.5 bg-csj-purple-dark hover:opacity-90 text-white rounded-full text-sm font-medium transition touch-manipulation">
+            {% trans "Ver todas las ligas" %} →
+        </a>
+    </div>
+</div>
 {% endblock %}
