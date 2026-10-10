@@ -164,10 +164,9 @@ class Comment(models.Model):
 
 
 def image_upload_path(instance, filename):
-    """Genera ruta de subida para imágenes organizadas por año y mes con identificador UUID"""
-    from ilovevoley.videos.utils import build_uuid_upload_path
-    now = timezone.now()
-    return build_uuid_upload_path(f'images/{now.year}/{now.month:02d}', filename)
+    """Genera ruta de subida descriptiva (o UUID fallback) organizada por año y mes"""
+    from ilovevoley.content.image_naming import get_image_upload_path
+    return get_image_upload_path(instance, filename)
 
 
 class Image(models.Model):
@@ -401,6 +400,26 @@ class Image(models.Model):
         if self.match_id is None and self.set_number is not None:
             self.set_number = None
             changed.add('set_number')
+
+        # Auto-asignar título descriptivo si está vacío o es genérico
+        from ilovevoley.content.image_naming import (
+            build_descriptive_title,
+            get_next_sequence_number,
+            is_generic_camera_filename,
+        )
+        if not self.title or is_generic_camera_filename(self.title):
+            seq = get_next_sequence_number(
+                match=self.match if self.match_id else None,
+                album_group_id=self.album_group_id,
+                organization=self.organization,
+                exclude_image_id=self.pk,
+            )
+            if self.match_id:
+                self.title = build_descriptive_title(match=self.match, seq=seq)
+                changed.add('title')
+            elif self.album_name:
+                self.title = build_descriptive_title(album_name=self.album_name, seq=seq)
+                changed.add('title')
 
         update_fields = kwargs.get('update_fields')
         if update_fields is not None and changed:

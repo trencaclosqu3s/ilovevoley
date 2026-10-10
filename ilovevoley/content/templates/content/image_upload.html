@@ -50,7 +50,7 @@
             <!-- Título -->
             <div class="mb-6">
                 <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-ink mb-2">
-                    {{ form.title.label }}
+                    {{ form.title.label }} <span class="text-xs text-muted font-normal">({% trans "opcional" %})</span>
                 </label>
                 {{ form.title }}
                 {% if form.title.errors %}
