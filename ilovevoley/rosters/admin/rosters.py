@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.db.models import Prefetch
-from django.utils.html import format_html, format_html_join
-from django.utils.safestring import mark_safe
+from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 
 from ..models import Person, PersonOrganization, PlayerRole, StaffRole
@@ -115,18 +114,16 @@ class PersonAdmin(ModelAdmin):
         memberships = list(obj.club_memberships.all())
         if not memberships:
             return format_html('<span style="color: gray;">{}</span>', '—')
-        return format_html_join(
-            mark_safe('<br>'),
-            '<span style="color: {};">{}: {}</span>',
-            (
-                (
-                    '#27ae60' if m.is_active else '#e74c3c',
-                    m.organization.name,
-                    'alta' if m.is_active else 'baja',
-                )
-                for m in memberships
-            ),
-        )
+        parts = [
+            format_html(
+                '<span style="color: {};">{}: {}</span>',
+                '#27ae60' if m.is_active else '#e74c3c',
+                m.organization.name,
+                'alta' if m.is_active else 'baja',
+            )
+            for m in memberships
+        ]
+        return format_html('<br>'.join(['{}'] * len(parts)), *parts)
     membership_state.short_description = 'Clubes'
 
     def active_teams_count(self, obj):
