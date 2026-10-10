@@ -655,6 +655,21 @@ def image_upload(request):
             image.uploaded_by = request.user
             image.organization = request.tenant
 
+            from ilovevoley.content.image_naming import (
+                build_descriptive_title,
+                get_next_sequence_number,
+                is_generic_camera_filename,
+            )
+            if not image.title or is_generic_camera_filename(image.title):
+                seq = get_next_sequence_number(
+                    match=image.match,
+                    organization=request.tenant,
+                )
+                if image.match:
+                    image.title = build_descriptive_title(match=image.match, seq=seq)
+                else:
+                    image.title = build_descriptive_title(base_title=_('Foto'), seq=seq)
+
             # Si el usuario es superuser, aprobar directamente sin pasar por Vision API
             enqueue_vision = False
             if request.user.is_superuser:
@@ -836,9 +851,27 @@ def image_bulk_upload(request):
                 shared_data['album_group_id'] = album_group_id
                 shared_data['album_name'] = album_name
         
-        # Etiquetas compartidas
+        # Etiquetas compartidas y título base compartido
         shared_tags = request.POST.get('tags', '').strip()
-        
+        shared_title = request.POST.get('shared_title', '').strip()
+
+        from ilovevoley.content.image_naming import (
+            build_descriptive_title,
+            get_next_sequence_number,
+            is_generic_camera_filename,
+        )
+
+        base_match = shared_data.get('match')
+        base_album_name = shared_data.get('album_name', '')
+        base_album_id = shared_data.get('album_group_id')
+
+        start_seq = get_next_sequence_number(
+            match=base_match,
+            album_group_id=base_album_id,
+            base_title=shared_title,
+            organization=request.tenant,
+        )
+
         # Procesar cada imagen de forma optimizada
         success_count = 0
         approved_count = 0
@@ -858,8 +891,24 @@ def image_bulk_upload(request):
                     errors.append(_('%(name)s: Archivo demasiado grande (máx 10MB)') % {'name': uploaded_file.name})
                     continue
 
-                # Obtener título y descripción individual
-                title = request.POST.get(f'title_{idx}', uploaded_file.name.rsplit('.', 1)[0])
+                # Obtener título y descripción individual con formateo descriptivo
+                raw_title = request.POST.get(f'title_{idx}', '').strip()
+                original_base_name = uploaded_file.name.rsplit('.', 1)[0]
+                seq_for_file = start_seq + success_count
+
+                if raw_title and raw_title != original_base_name and not is_generic_camera_filename(raw_title):
+                    title = raw_title
+                elif base_match:
+                    title = build_descriptive_title(match=base_match, seq=seq_for_file)
+                elif base_album_name:
+                    title = build_descriptive_title(album_name=base_album_name, seq=seq_for_file)
+                elif shared_title:
+                    title = build_descriptive_title(base_title=shared_title, seq=seq_for_file)
+                elif raw_title and not is_generic_camera_filename(raw_title):
+                    title = raw_title
+                else:
+                    title = build_descriptive_title(base_title=_('Foto'), seq=seq_for_file)
+
                 description = request.POST.get(f'description_{idx}', '')
 
                 # Crear imagen

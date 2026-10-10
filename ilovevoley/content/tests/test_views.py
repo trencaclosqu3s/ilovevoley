@@ -326,8 +326,17 @@ class ImageModerationTenantIsolationTests(TestCase):
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
 class ImageUploadSanitizationViewTests(TestCase):
     def setUp(self):
+        import shutil
+        import tempfile
         from ilovevoley.users.models import Membership
+
         cache.clear()
+        self.media_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media_root, ignore_errors=True)
+        self.settings_override = override_settings(MEDIA_ROOT=self.media_root)
+        self.settings_override.enable()
+        self.addCleanup(self.settings_override.disable)
+
         self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
         User = get_user_model()
         self.user = User.objects.create_user(username='uploader', password='pass')
@@ -336,8 +345,7 @@ class ImageUploadSanitizationViewTests(TestCase):
             name='2026-27', start_year=2026, end_year=2027, is_current=True
         )
 
-    def test_image_upload_view_sanitizes_exif_gps_and_assigns_uuid(self):
-        import uuid
+    def test_image_upload_view_sanitizes_exif_gps_and_assigns_descriptive_filename(self):
         from io import BytesIO
         from PIL import Image as PILImage
         from PIL.ExifTags import Base, GPS
@@ -367,18 +375,16 @@ class ImageUploadSanitizationViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
 
         created = Image.objects.get(title='Foto con GPS subida')
-        # Check that filename in storage uses UUID
+        # Check that filename in storage uses descriptive slug
         filename = created.image.name.split('/')[-1]
-        base_name = filename.split('.')[0]
-        self.assertEqual(uuid.UUID(base_name).hex, base_name)
+        self.assertEqual(filename, 'foto-con-gps-subida-001.jpg')
 
         # Check that EXIF/GPS info is stripped
         created.image.open()
         saved_img = PILImage.open(created.image)
         self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
 
-    def test_image_bulk_upload_view_sanitizes_exif_and_assigns_uuid(self):
-        import uuid
+    def test_image_bulk_upload_view_sanitizes_exif_and_assigns_descriptive_filename(self):
         from io import BytesIO
         from PIL import Image as PILImage
         from PIL.ExifTags import Base, GPS
@@ -409,12 +415,127 @@ class ImageUploadSanitizationViewTests(TestCase):
 
         created = Image.objects.get(title='Foto masiva test')
         filename = created.image.name.split('/')[-1]
-        base_name = filename.split('.')[0]
-        self.assertEqual(uuid.UUID(base_name).hex, base_name)
+        self.assertEqual(filename, 'foto-masiva-test-001.jpg')
 
         created.image.open()
         saved_img = PILImage.open(created.image)
         self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class ImageDescriptiveNamingViewTests(TestCase):
+    """Verifica el renombrado automático descriptivo en subidas individuales y masivas (#494).
+
+    Justificación según docs/ai-guidelines/testing-guidelines.md:
+    - Protege una regla de negocio del producto: formato descriptivo para partidos, álbumes y títulos compartidos.
+    - Cubre flujos con efectos persistentes (títulos y rutas en storage asignados en views).
+    """
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        from datetime import datetime, timezone as dt_timezone
+        from django.test import override_settings
+        from ilovevoley.competitions.models import League, Match
+        from ilovevoley.teams.models import Club, Team
+        from ilovevoley.users.models import Membership
+
+        cache.clear()
+        self.media_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media_root, ignore_errors=True)
+        self.settings_override = override_settings(MEDIA_ROOT=self.media_root)
+        self.settings_override.enable()
+        self.addCleanup(self.settings_override.disable)
+
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
+        User = get_user_model()
+        self.user = User.objects.create_user(username='uploader', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+        self.season = Season.objects.create(
+            name='2026-27', start_year=2026, end_year=2027, is_current=True
+        )
+        self.club = Club.objects.create(official_name='CV Sant Josep', federation_id='SJ01')
+        self.league = League.objects.create(name='1ª Balear', federation_id='L-BAL', season=self.season)
+        self.home_team = Team.objects.create(name='CV Sant Josep', federation_id='T-SJ', club=self.club)
+        self.away_team = Team.objects.create(name='CV Manacor', federation_id='T-MAN', club=self.club)
+        self.match = Match.objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=datetime(2026, 10, 15, 18, 0, tzinfo=dt_timezone.utc),
+            federation_id='M-BAL-01',
+        )
+
+    def test_image_upload_with_match_generates_descriptive_title_and_filename(self):
+        self.client.force_login(self.user)
+        uploaded = SimpleUploadedFile('IMG_20261015.jpg', TINY_GIF, content_type='image/jpeg')
+        response = self.client.post(
+            reverse('content:image_upload'),
+            {
+                'image': uploaded,
+                'title': '',
+                'match': self.match.id,
+                'image_type': 'match',
+                'season': self.season.id,
+            },
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+
+        created = Image.objects.latest('id')
+        self.assertEqual(created.title, 'CV Sant Josep vs CV Manacor - 15/10/2026 - 001')
+        filename = created.image.name.split('/')[-1]
+        self.assertEqual(filename, 'cv-sant-josep-vs-cv-manacor-2026-10-15-001.jpg')
+
+    def test_image_bulk_upload_with_match_assigns_sequential_titles_and_paths(self):
+        self.client.force_login(self.user)
+        file1 = SimpleUploadedFile('DCIM001.jpg', TINY_GIF, content_type='image/jpeg')
+        file2 = SimpleUploadedFile('DCIM002.jpg', TINY_GIF, content_type='image/jpeg')
+        response = self.client.post(
+            reverse('content:image_bulk_upload'),
+            {
+                'images': [file1, file2],
+                'match': self.match.id,
+                'title_0': '',
+                'title_1': '',
+                'image_type': 'match',
+                'season': self.season.id,
+            },
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+
+        images = list(Image.objects.filter(match=self.match).order_by('id'))
+        self.assertEqual(len(images), 2)
+        self.assertEqual(images[0].title, 'CV Sant Josep vs CV Manacor - 15/10/2026 - 001')
+        self.assertEqual(images[1].title, 'CV Sant Josep vs CV Manacor - 15/10/2026 - 002')
+        self.assertTrue(images[0].image.name.endswith('cv-sant-josep-vs-cv-manacor-2026-10-15-001.jpg'))
+        self.assertTrue(images[1].image.name.endswith('cv-sant-josep-vs-cv-manacor-2026-10-15-002.jpg'))
+
+    def test_image_bulk_upload_with_shared_title_assigns_sequential_titles_and_paths(self):
+        self.client.force_login(self.user)
+        file1 = SimpleUploadedFile('IMG_01.jpg', TINY_GIF, content_type='image/jpeg')
+        file2 = SimpleUploadedFile('IMG_02.jpg', TINY_GIF, content_type='image/jpeg')
+        response = self.client.post(
+            reverse('content:image_bulk_upload'),
+            {
+                'images': [file1, file2],
+                'shared_title': 'Entrega de Trofeos',
+                'title_0': '',
+                'title_1': '',
+                'image_type': 'celebration',
+                'season': self.season.id,
+            },
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+
+        images = list(Image.objects.filter(image_type='celebration').order_by('id'))
+        self.assertEqual(len(images), 2)
+        self.assertEqual(images[0].title, 'Entrega de Trofeos - 001')
+        self.assertEqual(images[1].title, 'Entrega de Trofeos - 002')
+        self.assertTrue(images[0].image.name.endswith('entrega-de-trofeos-001.jpg'))
+        self.assertTrue(images[1].image.name.endswith('entrega-de-trofeos-002.jpg'))
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'otherclub.ilovevoley.es', 'localhost'])
