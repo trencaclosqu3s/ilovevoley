@@ -154,3 +154,16 @@ class LeagueHistoricalScrapeActionTest(TestCase):
                 self._request(), League.objects.filter(pk__in=[historical.pk, active.pk]),
             )
         delay.assert_called_once_with([historical.pk])
+
+    def test_action_dispatched_like_django_does_not_crash(self):
+        # #483: get_actions devolvía métodos enlazados y Django, que pasa
+        # modeladmin explícito, fallaba con "takes 3 positional arguments but 4 were given".
+        historical = League.objects.create(
+            name='Histórica', federation_id='sh-hist3',
+            visibility_type='historical', is_historical=True, is_active=False,
+        )
+        request = self._request()
+        func, _, _ = self.admin.get_actions(request)['scrape_historical']
+        with patch('ilovevoley.competitions.tasks.scrape_historical_leagues_task.delay') as delay:
+            func(self.admin, request, League.objects.filter(pk=historical.pk))
+        delay.assert_called_once_with([historical.pk])
