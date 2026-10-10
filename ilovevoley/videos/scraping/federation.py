@@ -541,6 +541,9 @@ class FederationScraper:
 
             team_objects[team_data['name']] = team
             team_objects[self._normalize_team_name(team_data['name'])] = team
+            if team.sponsor_name:
+                team_objects[team.sponsor_name] = team
+                team_objects[self._normalize_team_name(team.sponsor_name)] = team
 
             if created:
                 logger.info(f"Created new team: {team.name} with category: {league_category}")
@@ -755,7 +758,11 @@ class FederationScraper:
                             match_data.get('federation_club_away_id', ''))
 
                 if not home_team or not away_team:
-                    logger.error(f"Could not match teams: {home_team_name} vs {away_team_name}")
+                    # warning + mensaje estable: Sentry fingerprintaba cada par (#hotfix)
+                    logger.warning(
+                        'Could not match teams',
+                        extra={'home_team': home_team_name, 'away_team': away_team_name},
+                    )
                     continue
 
             # El id de club del escudo sitúa también al equipo encontrado por nombre (#464)
@@ -1142,15 +1149,21 @@ class FederationScraper:
         """Busca equipos similares en la base de datos, prefiriendo la categoría de la liga"""
         normalized_name = self._normalize_team_name(team_name)
 
-        # Primero buscar por nombre normalizado en la categoría de la liga
+        def _name_or_sponsor_matches(team: Team) -> bool:
+            if self._normalize_team_name(team.name) == normalized_name:
+                return True
+            # La federación a menudo manda el PAT como nombre del partido (#hotfix)
+            return bool(team.sponsor_name) and self._normalize_team_name(team.sponsor_name) == normalized_name
+
+        # Primero buscar por nombre/patrocinador normalizado en la categoría de la liga
         league_categories = self.league.categories.all()
         for team in Team.objects.filter(category__in=league_categories):
-            if self._normalize_team_name(team.name) == normalized_name:
+            if _name_or_sponsor_matches(team):
                 return team
 
-        # Fallback: buscar por nombre normalizado en todas las categorías
+        # Fallback: buscar por nombre/patrocinador normalizado en todas las categorías
         for team in Team.objects.all():
-            if self._normalize_team_name(team.name) == normalized_name:
+            if _name_or_sponsor_matches(team):
                 return team
 
         return None
@@ -1163,19 +1176,37 @@ class FederationScraper:
         las palabras de un nombre estén contenidas en las del otro (patrocinador
         añadido o quitado). Un patrocinador sustituido por otro no casa: se descarta.
         El club se asigna en ``update_matches``, igual que a los encontrados por nombre.
+
+        Si aún no hay partidos en la liga (primera jornada / scrape parcial), se mira
+        la misma categoría: sin ese fallback Sentry veía ``Could not match teams``
+        con nombres ya conocidos (#hotfix).
         """
         from ilovevoley.teams.services import EMPTY_CLUB_IDS
         if club_fed_id in EMPTY_CLUB_IDS:
             return None
         words = set(self._normalize_team_name(team_name).split())
-        candidates = [
-            team for team in Team.objects.filter(
-                models.Q(club__isnull=True) | models.Q(club__federation_id=club_fed_id),
-            ).filter(
-                models.Q(home_matches__league=self.league) | models.Q(away_matches__league=self.league)
-            ).distinct()
-            if (other := set(self._normalize_team_name(team.name).split())) <= words or words <= other
-        ]
+        club_q = models.Q(club__isnull=True) | models.Q(club__federation_id=club_fed_id)
+
+        def _word_match(team: Team) -> bool:
+            for label in (team.name, team.sponsor_name):
+                if not label:
+                    continue
+                other = set(self._normalize_team_name(label).split())
+                if other <= words or words <= other:
+                    return True
+            return False
+
+        league_qs = Team.objects.filter(club_q).filter(
+            models.Q(home_matches__league=self.league) | models.Q(away_matches__league=self.league)
+        ).distinct()
+        candidates = [team for team in league_qs if _word_match(team)]
+        if len(candidates) == 1:
+            return candidates[0]
+        if candidates:
+            return None
+
+        category_qs = Team.objects.filter(club_q, category__in=self.league.categories.all())
+        candidates = [team for team in category_qs if _word_match(team)]
         return candidates[0] if len(candidates) == 1 else None
 
     def get_max_rounds(self) -> int:

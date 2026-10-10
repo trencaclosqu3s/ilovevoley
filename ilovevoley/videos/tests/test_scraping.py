@@ -1271,6 +1271,26 @@ class UpdateMatchesClubFallbackTests(TestCase):
 
         self.assertFalse(Match.objects.filter(league=self.league, round_number=1).exists())
 
+    def test_category_fallback_without_prior_league_matches(self):
+        """Sin partidos previos en la liga, el club + categoría aún desempata (#464 / Sentry)."""
+        Match.objects.filter(league=self.league).delete()
+
+        self.scraper.update_matches(self.matches, {})
+
+        self.assertTrue(
+            Match.objects.filter(league=self.league, round_number=1, home_team=self.natur, away_team=self.portol).exists()
+        )
+
+    def test_find_similar_matches_sponsor_name(self):
+        """El PAT federativo a veces llega como nombre del partido, no como Team.name."""
+        self.natur.name = 'MAYURQA'
+        self.natur.sponsor_name = 'NATUR VOLEY PALMA MAYURQA'
+        self.natur.save(update_fields=['name', 'sponsor_name'])
+
+        found = self.scraper._find_similar_team('NATUR VOLEY PALMA MAYURQA')
+
+        self.assertEqual(found, self.natur)
+
 
 class UpdateMatchesHistoricalMissingTeamTests(TestCase):
     """Liga histórica: un equipo ausente de la clasificación se crea para no perder el partido (#483)."""

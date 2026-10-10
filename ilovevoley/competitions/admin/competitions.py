@@ -143,7 +143,13 @@ class LeagueAdmin(ModelAdmin):
 
     def get_queryset(self, request):
         """Optimiza las consultas"""
-        return super().get_queryset(request).prefetch_related('matches', 'categories')
+        # season/parent_league: list_display sin select_related → N+1 (ILOVEVOLEY-90)
+        return (
+            super()
+            .get_queryset(request)
+            .select_related('season', 'parent_league')
+            .prefetch_related('matches', 'categories')
+        )
 
     def get_list_display(self, request):
         """Personaliza la lista según el usuario"""
