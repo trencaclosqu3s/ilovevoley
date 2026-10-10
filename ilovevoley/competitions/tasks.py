@@ -227,18 +227,33 @@ def discover_historical_leagues_task(seasons=5):
     return len(discover_historical(past_seasons))
 
 
-@shared_task(name='scrape_historical_leagues')
+@shared_task(
+    name='scrape_historical_leagues',
+    soft_time_limit=1500,
+    time_limit=1800,
+)
 def scrape_historical_leagues_task(league_ids, delay=2.0):
     """Scrapea una sola vez clasificación, calendario y resultados de ligas históricas (#404).
 
     Acepta ligas inactivas (las históricas lo son) y trae los marcadores con
     ``scrape_all_results_rounds``, que es lo que alimenta el H2H. Una liga caída
     no aborta el resto.
+
+    Varias ligas se encolan en jobs separados: un único job con N ligas superaba
+    el hard limit de 900s y mataba el worker (ILOVEVOLEY-92..95).
     """
     from ilovevoley.videos.scraping import FederationScraper
 
+    historical_ids = list(
+        League.objects.filter(pk__in=league_ids, is_historical=True).values_list('pk', flat=True)
+    )
+    if len(historical_ids) > 1:
+        for league_id in historical_ids:
+            scrape_historical_leagues_task.delay([league_id], delay=delay)
+        return [{'league_id': league_id, 'enqueued': True} for league_id in historical_ids]
+
     summary = []
-    leagues = list(League.objects.filter(pk__in=league_ids, is_historical=True))
+    leagues = list(League.objects.filter(pk__in=historical_ids, is_historical=True))
     for i, league in enumerate(leagues):
         matches = 0
         try:
