@@ -1,16 +1,25 @@
 from django.contrib import admin, messages
 from django.contrib.admin import helpers
+from django.http import HttpResponseRedirect
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
 from ilovevoley.content.admin.content import ImageInline
 from ..forms import MatchAdminForm
 from ..models import (
-    League, LeagueCandidate, Match, MatchChangeLog, MatchChangeLogReview,
+    League, LeagueCandidate, Match, MatchActaPhoto, MatchChangeLog, MatchChangeLogReview,
     ScrapingEndpoint, Standing, Venue,
+)
+from ..services.acta_review import (
+    apply_roster_edits_from_post,
+    approve_acta_photo,
+    get_acta_roster_comparison,
+    reject_acta_photo,
 )
 from ..services.delta_detector import notify_match_result_after_save
 
@@ -653,3 +662,151 @@ class LeagueCandidateAdmin(ModelAdmin):
         discover_seasonal_beach_leagues_task.delay()
         self.message_user(request, 'Búsqueda de vóley playa lanzada: las candidatas estivales aparecerán aquí.')
         return redirect('admin:competitions_leaguecandidate_changelist')
+
+
+@admin.register(MatchActaPhoto)
+class MatchActaPhotoAdmin(ModelAdmin):
+    """Revisión humana de actas en foto: filas editables + comparación con plantilla."""
+
+    list_display = (
+        'match_label',
+        'status',
+        'season_label',
+        'match_date_label',
+        'reviewed_at',
+        'created_at',
+    )
+    list_filter = ('status', 'match__league__season')
+    search_fields = (
+        'match__home_team__name',
+        'match__away_team__name',
+        'match__federation_id',
+        'source_url',
+    )
+    readonly_fields = (
+        'match',
+        'status',
+        'source_url',
+        'validation_errors',
+        'extraction_meta',
+        'reviewed_by',
+        'reviewed_at',
+        'created_at',
+        'updated_at',
+        'photo_preview',
+    )
+    autocomplete_fields = ('reviewed_by',)
+    change_form_after_template = 'admin/competitions/matchactaphoto/review_panel.html'
+    fieldsets = (
+        (None, {
+            'fields': ('match', 'status', 'photo_preview', 'source_url'),
+        }),
+        (_('Revisión'), {
+            'fields': ('validation_errors', 'reviewed_by', 'reviewed_at'),
+        }),
+        (_('Avanzado'), {
+            'classes': ('collapse',),
+            'fields': ('image', 'extracted_data', 'extraction_meta', 'created_at', 'updated_at'),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'match',
+            'match__home_team',
+            'match__away_team',
+            'match__league',
+            'match__league__season',
+            'reviewed_by',
+        )
+
+    @admin.display(description=_('Partido'), ordering='match__match_date')
+    def match_label(self, obj):
+        return str(obj.match)
+
+    @admin.display(description=_('Temporada'))
+    def season_label(self, obj):
+        season = getattr(obj.match.league, 'season', None) if obj.match.league_id else None
+        return str(season) if season else '—'
+
+    @admin.display(description=_('Fecha'), ordering='match__match_date')
+    def match_date_label(self, obj):
+        if obj.match.match_date:
+            return timezone.localtime(obj.match.match_date).strftime('%d/%m/%Y')
+        return '—'
+
+    @admin.display(description=_('Foto'))
+    def photo_preview(self, obj):
+        if not obj.image:
+            return '—'
+        return format_html(
+            '<a href="{0}" target="_blank" rel="noopener">'
+            '<img src="{0}" alt="{1}" style="max-width:280px;max-height:360px;object-fit:contain;border:1px solid #ddd;"/>'
+            '</a>',
+            obj.image.url,
+            _('Foto del acta'),
+        )
+
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        if obj is not None:
+            data = obj.extracted_data or {}
+            if (
+                request.method == 'POST'
+                and obj.status == 'pending_review'
+                and any(k.startswith(('home_jersey_', 'away_jersey_', 'home_name_', 'away_name_')) for k in request.POST)
+            ):
+                data = apply_roster_edits_from_post(data, request.POST)
+            comparison = get_acta_roster_comparison(obj.match, data)
+            for side in ('home', 'away'):
+                n = len(comparison[side]['players'])
+                extra = max(3, len(comparison[side].get('missing_from_acta') or []))
+                comparison[side]['extra_rows'] = list(range(n, n + extra))
+            context['acta_comparison'] = comparison
+            context['acta_can_review'] = obj.status == 'pending_review'
+            context['acta_photo'] = obj
+        return super().render_change_form(request, context, add, change, form_url, obj)
+
+    def save_model(self, request, obj, form, change):
+        if (
+            change
+            and obj.status == 'pending_review'
+            and any(k.startswith(('home_jersey_', 'away_jersey_', 'home_name_', 'away_name_')) for k in request.POST)
+        ):
+            obj.extracted_data = apply_roster_edits_from_post(obj.extracted_data or {}, request.POST)
+        super().save_model(request, obj, form, change)
+
+    def response_change(self, request, obj):
+        pending_list = (
+            reverse('admin:competitions_matchactaphoto_changelist')
+            + '?status__exact=pending_review'
+        )
+        if '_approve' in request.POST:
+            ok, msgs = approve_acta_photo(obj, user=request.user)
+            if ok:
+                self.message_user(request, _('Acta aprobada.'), messages.SUCCESS)
+                if msgs:
+                    self.message_user(request, '; '.join(msgs), messages.WARNING)
+                return HttpResponseRedirect(pending_list)
+            self.message_user(
+                request,
+                _('No se pudo aprobar: %(errors)s') % {'errors': '; '.join(msgs)},
+                messages.ERROR,
+            )
+            return HttpResponseRedirect(request.path)
+
+        if '_reject' in request.POST:
+            reason = (request.POST.get('reject_reason') or '').strip()
+            if reject_acta_photo(obj, user=request.user, reason=reason):
+                self.message_user(request, _('Acta rechazada.'), messages.WARNING)
+                return HttpResponseRedirect(pending_list)
+            self.message_user(
+                request,
+                _('No se puede rechazar una acta ya aprobada.'),
+                messages.ERROR,
+            )
+            return HttpResponseRedirect(request.path)
+
+        return super().response_change(request, obj)
