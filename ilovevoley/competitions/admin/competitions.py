@@ -1,6 +1,5 @@
 from django.contrib import admin, messages
 from django.contrib.admin import helpers
-from django.contrib.admin.utils import unquote
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -697,13 +696,6 @@ class MatchActaPhotoAdmin(ModelAdmin):
         'photo_preview',
     )
     autocomplete_fields = ('reviewed_by',)
-    list_select_related = (
-        'match',
-        'match__home_team',
-        'match__away_team',
-        'match__league',
-        'match__league__season',
-    )
     change_form_after_template = 'admin/competitions/matchactaphoto/review_panel.html'
     fieldsets = (
         (None, {
@@ -758,28 +750,31 @@ class MatchActaPhotoAdmin(ModelAdmin):
             _('Foto del acta'),
         )
 
-    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        if object_id:
-            obj = self.get_object(request, unquote(object_id))
-            if obj is not None:
-                data = obj.extracted_data or {}
-                if request.method == 'POST' and any(
-                    k.startswith(('home_jersey_', 'away_jersey_')) for k in request.POST
-                ):
-                    data = apply_roster_edits_from_post(data, request.POST)
-                comparison = get_acta_roster_comparison(obj.match, data)
-                # Filas vacías para añadir convocados a mano
-                for side in ('home', 'away'):
-                    n = len(comparison[side]['players'])
-                    comparison[side]['extra_rows'] = list(range(n, n + 3))
-                extra_context['acta_comparison'] = comparison
-                extra_context['acta_can_review'] = obj.status == 'pending_review'
-                extra_context['acta_photo'] = obj
-        return super().changeform_view(request, object_id, form_url, extra_context)
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        if obj is not None:
+            data = obj.extracted_data or {}
+            if (
+                request.method == 'POST'
+                and obj.status == 'pending_review'
+                and any(k.startswith(('home_jersey_', 'away_jersey_', 'home_name_', 'away_name_')) for k in request.POST)
+            ):
+                data = apply_roster_edits_from_post(data, request.POST)
+            comparison = get_acta_roster_comparison(obj.match, data)
+            for side in ('home', 'away'):
+                n = len(comparison[side]['players'])
+                extra = max(3, len(comparison[side].get('missing_from_acta') or []))
+                comparison[side]['extra_rows'] = list(range(n, n + extra))
+            context['acta_comparison'] = comparison
+            context['acta_can_review'] = obj.status == 'pending_review'
+            context['acta_photo'] = obj
+        return super().render_change_form(request, context, add, change, form_url, obj)
 
     def save_model(self, request, obj, form, change):
-        if change and any(k.startswith(('home_jersey_', 'away_jersey_')) for k in request.POST):
+        if (
+            change
+            and obj.status == 'pending_review'
+            and any(k.startswith(('home_jersey_', 'away_jersey_', 'home_name_', 'away_name_')) for k in request.POST)
+        ):
             obj.extracted_data = apply_roster_edits_from_post(obj.extracted_data or {}, request.POST)
         super().save_model(request, obj, form, change)
 

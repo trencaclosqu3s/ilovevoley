@@ -369,3 +369,19 @@ class ApplyRosterEditsFromPostTests(TestCase):
         self.assertEqual(result['sets'], data['sets'])
         self.assertEqual(result['home_team'], 'SANT JOSEP')
         self.assertEqual(result['observations'], 'ok')
+
+    def test_missing_side_keys_leave_that_side_untouched(self):
+        """POST parcial (solo local) no vacía los convocados del visitante."""
+        data = {
+            'home_convocados': ['4 Oliver'],
+            'away_convocados': ['1 Gomez'],
+        }
+        post = {
+            'home_jersey_0': '4',
+            'home_name_0': 'Oliver',
+            'home_jersey_1': '7',
+            'home_name_1': 'Raya',
+        }
+        result = apply_roster_edits_from_post(data, post)
+        self.assertEqual(result['home_convocados'], ['4 Oliver', '7 Raya'])
+        self.assertEqual(result['away_convocados'], ['1 Gomez'])

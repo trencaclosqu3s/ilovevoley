@@ -29,13 +29,14 @@
                    class="border border-base-200 rounded-default px-3 py-2 w-full bg-white dark:bg-base-900"
                    placeholder="{% trans 'Ej. foto ilegible, dorsal incorrecto…' %}">
         </div>
-        <button type="submit" name="_reject" value="1"
-                class="border border-red-300 text-red-700 dark:text-red-300 rounded-default px-4 py-2 font-medium">
-            {% trans "Rechazar" %}
-        </button>
+        {# Aprobar primero en el DOM: Enter en un input no debe disparar Rechazar #}
         <button type="submit" name="_approve" value="1"
                 class="bg-primary-600 text-white rounded-default px-4 py-2 font-medium">
             {% trans "Aprobar y guardar alineación" %}
+        </button>
+        <button type="submit" name="_reject" value="1"
+                class="border border-red-300 text-red-700 dark:text-red-300 rounded-default px-4 py-2 font-medium">
+            {% trans "Rechazar" %}
         </button>
     </div>
     {% else %}
