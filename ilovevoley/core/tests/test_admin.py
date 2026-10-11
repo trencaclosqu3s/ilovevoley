@@ -1,11 +1,14 @@
+from unittest import mock
+
 from django.contrib import admin as django_admin
 from django.test import TestCase
 from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match
-from ilovevoley.core.admin import OrganizationAdmin
+from ilovevoley.core.admin import OrganizationAdmin, SeasonAdmin
 from ilovevoley.core.models import Organization, Season
 from ilovevoley.teams.models import Club, Team
+
 
 
 class OrganizationAdminClubHelpersTest(TestCase):
@@ -53,3 +56,23 @@ class OrganizationAdminClubHelpersTest(TestCase):
         unrelated.refresh_from_db()
         self.assertEqual(orphan.club_id, self.club.id)
         self.assertIsNone(unrelated.club_id)
+
+
+class SeasonAdminActionsTest(TestCase):
+    def setUp(self):
+        self.admin = SeasonAdmin(Season, django_admin.site)
+        self.season = Season.objects.create(name='2025-26', start_year=2025, end_year=2026)
+        self.admin.message_user = mock.MagicMock()
+
+    @mock.patch('ilovevoley.rosters.tasks.generate_season_wrappeds_task.delay')
+    def test_generate_wrappeds_action_dispatches_task(self, mock_delay):
+        self.admin.generate_wrappeds(None, Season.objects.filter(pk=self.season.pk))
+        mock_delay.assert_called_once_with(self.season.pk)
+        self.admin.message_user.assert_called_once()
+
+    @mock.patch('ilovevoley.rosters.tasks.generate_season_wrappeds_task.delay')
+    def test_generate_wrappeds_no_notify_action_dispatches_with_notify_false(self, mock_delay):
+        self.admin.generate_wrappeds_no_notify(None, Season.objects.filter(pk=self.season.pk))
+        mock_delay.assert_called_once_with(self.season.pk, notify=False)
+        self.admin.message_user.assert_called_once()
+

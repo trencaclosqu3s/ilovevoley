@@ -65,8 +65,12 @@ function applyFilters(changedElement) {
     }
     
     if (filterValue === '' || filterValue === null) {
-        // Si el valor está vacío, eliminar el parámetro
-        url.searchParams.delete(filterName);
+        if (filterName === 'season') {
+            url.searchParams.set('season', '');
+        } else {
+            // Si el valor está vacío, eliminar el parámetro
+            url.searchParams.delete(filterName);
+        }
     } else {
         // Actualizar el parámetro
         url.searchParams.set(filterName, filterValue);

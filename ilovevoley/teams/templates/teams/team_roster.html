@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static i18n %}
 
-{% block title %}{{ team.name }} - {% trans "Plantilla" %} - I Love Voley{% endblock %}
+{% block title %}{{ roster_title }} - {% trans "Plantilla" %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
@@ -20,7 +20,7 @@
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div class="flex items-center">
                 {% if team.display_logo %}
-                    <img src="{{ team.display_logo }}" alt="{% trans 'Logo' %} {{ team.name }}"
+                    <img src="{{ team.display_logo }}" alt="{% trans 'Logo' %} {{ roster_title }}"
                          class="w-16 h-16 object-contain rounded border mr-4">
                 {% else %}
                     <div class="w-16 h-16 bg-tint rounded border mr-4 flex items-center justify-center">
@@ -30,15 +30,10 @@
                     </div>
                 {% endif %}
                 <div>
-                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink">{{ team.name }}</h1>
-                    <div class="flex items-center gap-2 mt-1">
-                        {% if team.category %}
-                            <span class="bg-csj-purple-dark dark:bg-csj-purple-dark text-white px-2 py-1 rounded text-sm font-medium">{{ team.category.name }}</span>
-                        {% endif %}
-                        {% if team.club %}
-                            <span class="text-sm text-muted">{{ team.club.official_name }}</span>
-                        {% endif %}
-                    </div>
+                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink">{{ roster_title }}</h1>
+                    {% if roster_season_name %}
+                        <p class="text-sm text-muted mt-1">{{ roster_season_name }}</p>
+                    {% endif %}
                 </div>
             </div>
             
@@ -83,7 +78,7 @@
             {% if selected_position %}<input type="hidden" name="position" value="{{ selected_position }}">{% endif %}
             {% if selected_role %}<input type="hidden" name="role" value="{{ selected_role }}">{% endif %}
             <label for="season" class="text-sm font-medium text-ink">{% trans "Temporada" %}</label>
-            <select name="season" id="season" class="auto-filter px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent dark:text-white">
+            <select name="season" id="season" data-submit-on-change class="px-3 py-2 border border-line bg-surface text-ink rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent dark:text-white">
                 <option value="">{% trans "Todas las temporadas" %}</option>
                 {% for season in seasons %}
                     <option value="{{ season.id }}" {% if selected_season == season.id|stringformat:"s" %}selected{% endif %}>{{ season.name }}</option>
@@ -120,11 +115,11 @@
         <!-- Filtros de posición -->
         {% if player_roles %}
             <div class="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2">
-                <a href="?{% if season_filtered %}season={{ selected_season }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if not selected_position %}bg-csj-purple-dark dark:bg-csj-purple-dark text-white{% else %}bg-tint text-ink hover:opacity-80 {% endif %}">
+                <a href="?{% if season_filtered %}season={{ selected_season }}{% if selected_role %}&{% endif %}{% endif %}{% if selected_role %}role={{ selected_role }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if not selected_position %}bg-csj-purple-dark dark:bg-csj-purple-dark text-white{% else %}bg-tint text-ink hover:opacity-80 {% endif %}">
                     {% trans "Todas las posiciones" %}
                 </a>
                 {% for value, display in position_choices %}
-                    <a href="?{% if season_filtered %}season={{ selected_season }}&{% endif %}position={{ value }}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if selected_position == value %}bg-csj-purple-dark dark:bg-csj-purple-dark text-white{% else %}bg-tint text-ink hover:opacity-80 {% endif %}">
+                    <a href="?{% if season_filtered %}season={{ selected_season }}&{% endif %}position={{ value }}{% if selected_role %}&role={{ selected_role }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if selected_position == value %}bg-csj-purple-dark dark:bg-csj-purple-dark text-white{% else %}bg-tint text-ink hover:opacity-80 {% endif %}">
                         {{ display }}
                     </a>
                 {% endfor %}
@@ -331,11 +326,11 @@
         <!-- Filtros de rol -->
         {% if staff_roles %}
             <div class="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2">
-                <a href="?{% if season_filtered %}season={{ selected_season }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if not selected_role %}bg-csj-purple-dark text-white {% else %}bg-tint text-ink hover:opacity-80 {% endif %}">
+                <a href="?{% if season_filtered %}season={{ selected_season }}{% if selected_position %}&{% endif %}{% endif %}{% if selected_position %}position={{ selected_position }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if not selected_role %}bg-csj-purple-dark text-white {% else %}bg-tint text-ink hover:opacity-80 {% endif %}">
                     {% trans "Todos los roles" %}
                 </a>
                 {% for value, display in role_choices %}
-                    <a href="?{% if season_filtered %}season={{ selected_season }}&{% endif %}role={{ value }}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if selected_role == value %}bg-csj-purple-dark text-white {% else %}bg-tint text-ink hover:opacity-80 {% endif %}">
+                    <a href="?{% if season_filtered %}season={{ selected_season }}&{% endif %}role={{ value }}{% if selected_position %}&position={{ selected_position }}{% endif %}" class="px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap {% if selected_role == value %}bg-csj-purple-dark text-white {% else %}bg-tint text-ink hover:opacity-80 {% endif %}">
                         {{ display }}
                     </a>
                 {% endfor %}

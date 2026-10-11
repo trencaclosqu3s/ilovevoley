@@ -110,7 +110,7 @@ class SeasonAdmin(ModelAdmin):
     search_fields = ('name',)
     ordering = ('-start_year',)
     readonly_fields = ('start_year', 'end_year', 'created_at')
-    actions = ('mark_as_current', 'generate_wrappeds')
+    actions = ('mark_as_current', 'generate_wrappeds', 'generate_wrappeds_no_notify')
 
     @admin.action(description=_('Marcar como temporada activa'))
     def mark_as_current(self, request, queryset):
@@ -129,6 +129,15 @@ class SeasonAdmin(ModelAdmin):
         for season in queryset:
             generate_season_wrappeds_task.delay(season.pk)
         self.message_user(request, _('Generación del Wrapped lanzada para %(n)s temporada(s).') % {'n': queryset.count()})
+
+    @admin.action(description=_('Generar Wrapped de la temporada (sin aviso a jugadores)'))
+    def generate_wrappeds_no_notify(self, request, queryset):
+        from ilovevoley.rosters.tasks import generate_season_wrappeds_task
+
+        for season in queryset:
+            generate_season_wrappeds_task.delay(season.pk, notify=False)
+        self.message_user(request, _('Generación del Wrapped (sin avisos) lanzada para %(n)s temporada(s).') % {'n': queryset.count()})
+
 
     def changelist_view(self, request, extra_context=None):
         Season.objects.current()
