@@ -1,0 +1,124 @@
+{% load i18n %}
+<div>
+    <h3 class="font-semibold mb-1">
+        {% if side == 'home' %}{% trans "Local" %}{% else %}{% trans "Visitante" %}{% endif %}:
+        {{ side_data.team_name }}
+        {% if side_data.is_tenant %}
+            <span class="text-xs font-normal text-primary-600">({% trans "equipo del club" %})</span>
+        {% endif %}
+    </h3>
+
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-sm border border-base-200 rounded-default">
+            <thead class="bg-base-50 dark:bg-base-800">
+                <tr>
+                    <th class="px-2 py-1 text-left w-16">{% trans "Dorsal" %}</th>
+                    <th class="px-2 py-1 text-left">{% trans "Leído / editable" %}</th>
+                    <th class="px-2 py-1 text-left">{% trans "Plantilla" %}</th>
+                    <th class="px-2 py-1 text-left w-28">{% trans "¿Coincide?" %}</th>
+                    <th class="px-2 py-1 w-24"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player in side_data.players %}
+                <tr class="{% if player.matches == False %}bg-amber-50 dark:bg-amber-950/30{% endif %}">
+                    <td class="px-2 py-1 align-top">
+                        <input type="text" inputmode="numeric"
+                               name="{{ side }}_jersey_{{ forloop.counter0 }}"
+                               id="{{ side }}_jersey_{{ forloop.counter0 }}"
+                               value="{% if player.jersey_number != None %}{{ player.jersey_number }}{% endif %}"
+                               {% if not can_review %}readonly{% endif %}
+                               class="border border-base-200 rounded-default px-2 py-1 w-14 bg-white dark:bg-base-900">
+                    </td>
+                    <td class="px-2 py-1 align-top">
+                        <input type="text"
+                               name="{{ side }}_name_{{ forloop.counter0 }}"
+                               id="{{ side }}_name_{{ forloop.counter0 }}"
+                               value="{{ player.name_acta }}"
+                               {% if not can_review %}readonly{% endif %}
+                               class="border border-base-200 rounded-default px-2 py-1 w-full bg-white dark:bg-base-900">
+                    </td>
+                    <td class="px-2 py-1 align-top text-font-subtle-light dark:text-font-subtle-dark">
+                        {{ player.roster_name|default:"—" }}
+                    </td>
+                    <td class="px-2 py-1 align-top">
+                        {% if player.matches == True %}
+                            <span class="text-green-700 dark:text-green-400">{% trans "Sí" %}</span>
+                        {% elif player.matches == False %}
+                            <span class="text-amber-700 dark:text-amber-400">{% trans "No" %}</span>
+                        {% else %}
+                            <span class="text-font-subtle-light dark:text-font-subtle-dark">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-2 py-1 align-top">
+                        {% if can_review and player.roster_name and player.matches == False %}
+                        <button type="button"
+                                data-use-roster
+                                data-target="{{ side }}_name_{{ forloop.counter0 }}"
+                                data-roster="{{ player.roster_name }}"
+                                class="text-xs text-primary-600 underline">
+                            {% trans "Usar plantilla" %}
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-2 py-2 text-font-subtle-light dark:text-font-subtle-dark">
+                        {% trans "Sin convocados leídos; rellena las filas vacías." %}
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% for idx in side_data.extra_rows %}
+                <tr>
+                    <td class="px-2 py-1">
+                        <input type="text" inputmode="numeric"
+                               name="{{ side }}_jersey_{{ idx }}"
+                               id="{{ side }}_jersey_{{ idx }}"
+                               value=""
+                               {% if not can_review %}readonly{% endif %}
+                               class="border border-base-200 rounded-default px-2 py-1 w-14 bg-white dark:bg-base-900"
+                               placeholder="#">
+                    </td>
+                    <td class="px-2 py-1" colspan="4">
+                        <input type="text"
+                               name="{{ side }}_name_{{ idx }}"
+                               id="{{ side }}_name_{{ idx }}"
+                               value=""
+                               {% if not can_review %}readonly{% endif %}
+                               class="border border-base-200 rounded-default px-2 py-1 w-full bg-white dark:bg-base-900"
+                               placeholder="{% trans 'Añadir convocado…' %}">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if side_data.missing_from_acta %}
+    <div class="mt-2 text-sm">
+        <p class="font-medium mb-1">{% trans "En plantilla y no en el acta:" %}</p>
+        <ul class="flex flex-wrap gap-2">
+            {% for missing in side_data.missing_from_acta %}
+            <li>
+                {% if can_review %}
+                <button type="button"
+                        data-add-missing
+                        data-side="{{ side }}"
+                        data-jersey="{{ missing.jersey_number }}"
+                        data-name="{{ missing.roster_name }}"
+                        class="border border-base-200 rounded-default px-2 py-0.5 text-xs hover:bg-base-50 dark:hover:bg-base-800">
+                    #{{ missing.jersey_number }} {{ missing.roster_name }} +
+                </button>
+                {% else %}
+                <span class="text-font-subtle-light dark:text-font-subtle-dark">
+                    #{{ missing.jersey_number }} {{ missing.roster_name }}
+                </span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>

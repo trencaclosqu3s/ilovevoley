@@ -1,0 +1,78 @@
+{% load i18n %}
+{% if acta_comparison %}
+<section class="border border-base-200 rounded-default p-4 flex flex-col gap-6">
+    <div class="flex flex-col lg:flex-row gap-6">
+        <div class="lg:w-2/5">
+            <h2 class="font-semibold mb-2">{% trans "Foto del acta" %}</h2>
+            {% if acta_photo.image %}
+                <a href="{{ acta_photo.image.url }}" target="_blank" rel="noopener">
+                    <img src="{{ acta_photo.image.url }}"
+                         alt="{% trans 'Foto del acta' %}"
+                         class="w-full max-h-[70vh] object-contain border border-base-200 rounded-default bg-base-50">
+                </a>
+            {% else %}
+                <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">{% trans "Sin imagen descargada." %}</p>
+            {% endif %}
+        </div>
+
+        <div class="lg:w-3/5 flex flex-col gap-6">
+            {% include "admin/competitions/matchactaphoto/_roster_side.html" with side="home" side_data=acta_comparison.home can_review=acta_can_review %}
+            {% include "admin/competitions/matchactaphoto/_roster_side.html" with side="away" side_data=acta_comparison.away can_review=acta_can_review %}
+        </div>
+    </div>
+
+    {% if acta_can_review %}
+    <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end border-t border-base-200 pt-4">
+        <div class="flex-1">
+            <label for="id_reject_reason" class="block text-sm mb-1">{% trans "Motivo de rechazo (opcional)" %}</label>
+            <input type="text" name="reject_reason" id="id_reject_reason"
+                   class="border border-base-200 rounded-default px-3 py-2 w-full bg-white dark:bg-base-900"
+                   placeholder="{% trans 'Ej. foto ilegible, dorsal incorrecto…' %}">
+        </div>
+        <button type="submit" name="_reject" value="1"
+                class="border border-red-300 text-red-700 dark:text-red-300 rounded-default px-4 py-2 font-medium">
+            {% trans "Rechazar" %}
+        </button>
+        <button type="submit" name="_approve" value="1"
+                class="bg-primary-600 text-white rounded-default px-4 py-2 font-medium">
+            {% trans "Aprobar y guardar alineación" %}
+        </button>
+    </div>
+    {% else %}
+    <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
+        {% blocktrans with status=acta_photo.get_status_display %}Esta acta está en estado «{{ status }}»; solo se pueden aprobar/rechazar las pendientes de revisión.{% endblocktrans %}
+    </p>
+    {% endif %}
+</section>
+
+<script>
+(function () {
+    document.querySelectorAll('[data-use-roster]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var nameInput = document.getElementById(btn.getAttribute('data-target'));
+            if (nameInput) {
+                nameInput.value = btn.getAttribute('data-roster') || '';
+            }
+        });
+    });
+    document.querySelectorAll('[data-add-missing]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var side = btn.getAttribute('data-side');
+            var jersey = btn.getAttribute('data-jersey') || '';
+            var name = btn.getAttribute('data-name') || '';
+            var jerseyInputs = document.querySelectorAll('input[name^="' + side + '_jersey_"]');
+            for (var i = 0; i < jerseyInputs.length; i++) {
+                var jInput = jerseyInputs[i];
+                var idx = jInput.name.replace(side + '_jersey_', '');
+                var nInput = document.getElementById(side + '_name_' + idx);
+                if (jInput.value === '' && (!nInput || nInput.value === '')) {
+                    jInput.value = jersey;
+                    if (nInput) nInput.value = name;
+                    return;
+                }
+            }
+        });
+    });
+})();
+</script>
+{% endif %}

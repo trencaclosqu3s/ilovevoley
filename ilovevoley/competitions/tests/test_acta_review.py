@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match, MatchActaPhoto, MatchLineup
 from ilovevoley.competitions.services.acta_review import (
+    apply_roster_edits_from_post,
     approve_acta_photo,
     get_acta_roster_comparison,
     reject_acta_photo,
@@ -338,3 +339,33 @@ class ActaRosterComparisonTests(TestCase):
         self.assertEqual(len(missing), 1)
         self.assertEqual(missing[0]['jersey_number'], 12)
         self.assertEqual(missing[0]['roster_name'], 'Gomez')
+
+
+class ApplyRosterEditsFromPostTests(TestCase):
+    """Transformación del POST del admin → convocados; protege que no se pierdan sets ni se inventen filas vacías."""
+
+    def test_rebuilds_convocados_and_keeps_other_keys(self):
+        data = {
+            'home_team': 'SANT JOSEP',
+            'away_team': 'RIVAL',
+            'home_convocados': ['4 Lepe'],
+            'away_convocados': ['1 X'],
+            'sets': [{'home_points': 25, 'away_points': 10}],
+            'observations': 'ok',
+        }
+        post = {
+            'home_jersey_0': '4',
+            'home_name_0': 'Oliver',
+            'home_jersey_1': '7',
+            'home_name_1': 'Raya',
+            'home_jersey_2': '',
+            'home_name_2': '',
+            'away_jersey_0': '9',
+            'away_name_0': 'Perez',
+        }
+        result = apply_roster_edits_from_post(data, post)
+        self.assertEqual(result['home_convocados'], ['4 Oliver', '7 Raya'])
+        self.assertEqual(result['away_convocados'], ['9 Perez'])
+        self.assertEqual(result['sets'], data['sets'])
+        self.assertEqual(result['home_team'], 'SANT JOSEP')
+        self.assertEqual(result['observations'], 'ok')

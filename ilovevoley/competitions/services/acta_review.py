@@ -331,7 +331,38 @@ def reject_acta_photo(
     return True
 
 
+def apply_roster_edits_from_post(data: Optional[dict], post) -> dict:
+    """Reconstruye home/away_convocados desde los campos del formulario de revisión del admin.
+
+    Espera claves ``{side}_jersey_{i}`` y ``{side}_name_{i}``. Filas vacías se omiten.
+    El resto de claves de ``data`` (sets, equipos, observations…) se conserva.
+    """
+    result = dict(data or {})
+    for side in ('home', 'away'):
+        prefix = f'{side}_jersey_'
+        indices = []
+        for key in post:
+            if key.startswith(prefix):
+                try:
+                    indices.append(int(key[len(prefix):]))
+                except ValueError:
+                    continue
+        convocados = []
+        for i in sorted(set(indices)):
+            jersey = (post.get(f'{side}_jersey_{i}') or '').strip()
+            name = (post.get(f'{side}_name_{i}') or '').strip()
+            if not jersey and not name:
+                continue
+            if jersey:
+                convocados.append(f'{jersey} {name}'.strip() if name else jersey)
+            else:
+                convocados.append(name)
+        result[f'{side}_convocados'] = convocados
+    return result
+
+
 __all__ = [
+    'apply_roster_edits_from_post',
     'approve_acta_photo',
     'get_acta_roster_comparison',
     'reject_acta_photo',
