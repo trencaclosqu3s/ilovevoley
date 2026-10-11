@@ -27,7 +27,8 @@
             <label for="id_reject_reason" class="block text-sm mb-1">{% trans "Motivo de rechazo (opcional)" %}</label>
             <input type="text" name="reject_reason" id="id_reject_reason"
                    class="border border-base-200 rounded-default px-3 py-2 w-full bg-white dark:bg-base-900"
-                   placeholder="{% trans 'Ej. foto ilegible, dorsal incorrecto…' %}">
+                   placeholder="{% trans 'Ej. foto ilegible, dorsal incorrecto…' %}"
+                   data-reject-reason>
         </div>
         {# Aprobar primero en el DOM: Enter en un input no debe disparar Rechazar #}
         <button type="submit" name="_approve" value="1"
@@ -48,6 +49,16 @@
 
 <script>
 (function () {
+    var rejectReason = document.querySelector('[data-reject-reason]');
+    if (rejectReason) {
+        rejectReason.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                var rejectBtn = rejectReason.form && rejectReason.form.querySelector('button[name="_reject"]');
+                if (rejectBtn) rejectBtn.click();
+            }
+        });
+    }
     document.querySelectorAll('[data-use-roster]').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var nameInput = document.getElementById(btn.getAttribute('data-target'));
