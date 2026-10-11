@@ -21,7 +21,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <label class="text-sm text-ink">
                     {% trans "Periodo" %}
-                    <select name="period" class="mt-1 w-full rounded-lg border-line">
+                    <select name="period" data-submit-on-change class="mt-1 w-full rounded-lg border-line">
                         <option value="recent" {% if period == 'recent' %}selected{% endif %}>{% trans "Últimos registrados" %}</option>
                         <option value="month" {% if period == 'month' %}selected{% endif %}>{% trans "Último mes" %}</option>
                         <option value="season" {% if period == 'season' %}selected{% endif %}>{% trans "Toda la temporada" %}</option>
@@ -29,7 +29,7 @@
                 </label>
                 <label class="text-sm text-ink">
                     {% trans "Temporada" %}
-                    <select name="season" class="mt-1 w-full rounded-lg border-line">
+                    <select name="season" data-submit-on-change class="mt-1 w-full rounded-lg border-line">
                         <option value="" {% if not selected_season %}selected{% endif %}>{% trans "Todas" %}</option>
                         {% for s in seasons %}
                         <option value="{{ s.pk }}" {% if selected_season == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
@@ -38,7 +38,7 @@
                 </label>
                 <label class="text-sm text-ink">
                     {% trans "Categoría" %}
-                    <select name="category" class="mt-1 w-full rounded-lg border-line">
+                    <select name="category" data-submit-on-change class="mt-1 w-full rounded-lg border-line">
                         <option value="">{% trans "Mis categorías" %}</option>
                         {% for c in categories %}
                         <option value="{{ c.pk }}" {% if selected_category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
@@ -65,7 +65,7 @@
 
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <label class="inline-flex items-center gap-2 text-sm text-ink">
-                    <input type="checkbox" name="all_teams" value="1" {% if show_all_teams %}checked{% endif %}>
+                    <input type="checkbox" name="all_teams" value="1" {% if show_all_teams %}checked{% endif %} data-submit-on-change>
                     {% trans "Mostrar todos los equipos" %}
                 </label>
                 <button type="submit" class="px-4 py-2 bg-csj-purple-dark dark:bg-csj-purple-dark text-white rounded-lg text-sm font-medium hover:opacity-90 transition">
