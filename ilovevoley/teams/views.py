@@ -12,8 +12,13 @@ from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
 from ilovevoley.rosters.models import PlayerRole, StaffRole
-from ilovevoley.teams.identity import one_team_per_identity
+from ilovevoley.teams.identity import (
+    one_team_per_identity,
+    seasonal_appearance_name,
+    stable_roster_label,
+)
 from ilovevoley.teams.models import Club, Team
+from ilovevoley.videos.utils import normalize_team_name
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +157,9 @@ def team_list(request):
 def team_roster(request, team_id):
     """Vista de plantilla de un equipo específico"""
     team = get_tenant_object_or_404(
-        Team.objects.select_related("category", "club"),
+        Team.objects.select_related(
+            "category", "club", "identity__club", "identity__category",
+        ),
         request.tenant, user=request.user, id=team_id,
     )
     
@@ -215,6 +222,20 @@ def team_roster(request, team_id):
     position_choices = PlayerRole.POSITION_CHOICES
     role_choices = StaffRole.STAFF_ROLES
 
+    # Título estable (club + categoría) y nombre federativo de la temporada (#512).
+    if team.identity_id:
+        roster_title = stable_roster_label(team.identity)
+        appearance = seasonal_appearance_name(team.identity, season_filter)
+        roster_season_name = (
+            appearance
+            if appearance
+            and normalize_team_name(appearance) != normalize_team_name(roster_title)
+            else None
+        )
+    else:
+        roster_title = team.name
+        roster_season_name = None
+
     # Resumen de clasificación: temporada del filtro, o la activa si el selector
     # apunta a ella (selected_season). Con «todas» no hay agregación.
     summary_season = season_filter
@@ -226,6 +247,8 @@ def team_roster(request, team_id):
 
     context = {
         "team": team,
+        "roster_title": roster_title,
+        "roster_season_name": roster_season_name,
         "player_roles": player_roles,
         "staff_roles": staff_roles,
         "stats": stats,

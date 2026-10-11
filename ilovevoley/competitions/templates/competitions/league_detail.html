@@ -92,7 +92,7 @@
         <form method="get" class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <!-- Filtro de jornada -->
-                <select name="round" class="rounded-lg border-line focus:border-csj-purple focus:ring focus:ring-accent focus:ring-opacity-50 text-sm">
+                <select name="round" data-submit-on-change class="rounded-lg border-line focus:border-csj-purple focus:ring focus:ring-accent focus:ring-opacity-50 text-sm">
                     <option value="">{% trans "Todas las jornadas" %}</option>
                     {% for round in available_rounds %}
                         <option value="{{ round }}" {% if selected_round == round|stringformat:"s" %}selected{% endif %}>
@@ -106,6 +106,7 @@
                     <label class="flex items-center cursor-pointer">
                         <input type="checkbox" name="with_videos" value="1" 
                                {% if request.GET.with_videos %}checked{% endif %}
+                               data-submit-on-change
                                class="w-4 h-4 text-brand-text border-line rounded focus:ring-accent">
                         <span class="ml-2 text-sm text-ink">{% trans "Solo con videos" %}</span>
                     </label>

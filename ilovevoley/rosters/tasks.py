@@ -43,15 +43,17 @@ def _notify(person, season, organization):
 
 
 @shared_task(name='generate_season_wrappeds')
-def generate_season_wrappeds_task(season_id):
-    """Cierre de temporada (#458): congela el Wrapped de cada jugador y avisa a su familia.
+def generate_season_wrappeds_task(season_id, notify=True, no_notify=False):
+    """Cierre de temporada (#458, #506): congela el Wrapped de cada jugador y avisa a su familia.
 
     Idempotente: ``get_or_create`` por (persona, temporada, modalidad); solo se avisa a quien
     recibe una fila nueva. Una corrección de acta posterior exige borrar la fila y relanzar.
+    ``notify=False`` o ``no_notify=True`` permite generar wrappeds de prueba sin enviar notificaciones.
     """
     season = Season.objects.filter(pk=season_id).first()
     if season is None:
         return 0
+    should_notify = notify and not no_notify
     created = 0
     people = Person.objects.filter(player_roles__season=season).distinct()
     for person in people:
@@ -65,7 +67,7 @@ def generate_season_wrappeds_task(season_id):
             )
             created += was_created
             person_created = person_created or was_created
-        if person_created:
+        if person_created and should_notify:
             organization = season_organization(person, season)
             if organization:
                 _notify(person, season, organization)
