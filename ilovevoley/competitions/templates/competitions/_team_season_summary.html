@@ -1,0 +1,48 @@
+{% load i18n %}
+{% if team_season_summary %}
+<div class="bg-surface rounded-[20px] border border-line p-4 sm:p-6 mb-6">
+    <div class="border-l-4 border-csj-purple pl-4 mb-6">
+        <h2 class="text-xl sm:text-2xl font-bold text-ink">
+            {% if team_season_summary_roster_url %}
+                <a href="{{ team_season_summary_roster_url }}" class="hover:opacity-80 transition">
+            {% endif %}
+            {% if team_season_summary_heading %}
+                {{ team_season_summary_heading }}
+            {% else %}
+                {% trans "Resumen de la temporada" %}
+            {% endif %}
+            {% if team_season_summary_roster_url %}
+                </a>
+            {% endif %}
+        </h2>
+        <p class="text-sm text-muted">{% trans "Balance del equipo en la temporada" %}</p>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {% if team_season_summary.position %}
+            <div class="bg-tint rounded-lg border border-line p-4 text-center">
+                <div class="text-2xl font-bold text-brand-text">{{ team_season_summary.position }}</div>
+                <div class="text-sm text-muted">{% trans "Posición" %}</div>
+            </div>
+        {% endif %}
+        <div class="bg-tint rounded-lg border border-line p-4 text-center">
+            <div class="text-2xl font-bold text-brand-text">{{ team_season_summary.won }}-{{ team_season_summary.lost }}</div>
+            <div class="text-sm text-muted">{% trans "V/D" %}</div>
+        </div>
+        <div class="bg-tint rounded-lg border border-line p-4 text-center">
+            <div class="text-2xl font-bold text-brand-text">{{ team_season_summary.sets_for }}-{{ team_season_summary.sets_against }}</div>
+            <div class="text-sm text-muted">{% trans "Sets" %} ({{ team_season_summary.set_difference }})</div>
+        </div>
+        {% if team_season_summary.total_points %}
+            <div class="bg-tint rounded-lg border border-line p-4 text-center">
+                <div class="text-2xl font-bold text-brand-text">{{ team_season_summary.total_points }}</div>
+                <div class="text-sm text-muted">{% trans "Puntos" %}</div>
+            </div>
+        {% else %}
+            <div class="bg-tint rounded-lg border border-line p-4 text-center">
+                <div class="text-2xl font-bold text-brand-text">{{ team_season_summary.points_for }}-{{ team_season_summary.points_against }}</div>
+                <div class="text-sm text-muted">{% trans "Puntos" %} ({{ team_season_summary.point_difference }})</div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

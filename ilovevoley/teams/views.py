@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
+from ilovevoley.competitions.services.team_season_stats import get_team_season_summary
 from ilovevoley.core.mixins import get_club_team_name_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
@@ -213,7 +214,16 @@ def team_roster(request, team_id):
     # Opciones para filtros - usar las opciones de los nuevos modelos
     position_choices = PlayerRole.POSITION_CHOICES
     role_choices = StaffRole.STAFF_ROLES
-    
+
+    # Resumen de clasificación: temporada del filtro, o la activa si el selector
+    # apunta a ella (selected_season). Con «todas» no hay agregación.
+    summary_season = season_filter
+    if summary_season is None and selected_season:
+        summary_season = Season.objects.filter(pk=selected_season).first()
+    team_season_summary = get_team_season_summary(
+        team.identity, summary_season, request.tenant,
+    )
+
     context = {
         "team": team,
         "player_roles": player_roles,
@@ -227,6 +237,7 @@ def team_roster(request, team_id):
         "season_filtered": "season" in request.GET,
         "selected_position": position_filter,
         "selected_role": role_filter,
+        "team_season_summary": team_season_summary,
     }
     
     return render(request, "teams/team_roster.html", context)
