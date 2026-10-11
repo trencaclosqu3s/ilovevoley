@@ -1,10 +1,11 @@
 """Entrega autorizada de medios privados.
 
-Nginx no sirve directamente ``/media/images/`` ni ``/media/people/``: reenvía
-esas peticiones a Django, que resuelve el tenant del subdominio, comprueba la
-propiedad/estado del recurso y delega la entrega del archivo a nginx mediante
-``X-Accel-Redirect`` (zona interna ``/protected-media/``). Los recursos no
-sensibles (logos de organizaciones, escudos de clubes/equipos y avatares) siguen sirviéndose estáticos.
+Nginx no sirve directamente ``/media/images/``, ``/media/people/`` ni
+``/media/actas_photos/``: reenvía esas peticiones a Django, que resuelve el
+tenant del subdominio, comprueba la propiedad/estado del recurso y delega la
+entrega del archivo a nginx mediante ``X-Accel-Redirect`` (zona interna
+``/protected-media/``). Los recursos no sensibles (logos de organizaciones,
+escudos de clubes/equipos y avatares) siguen sirviéndose estáticos.
 """
 import mimetypes
 import os
@@ -62,6 +63,7 @@ def _person_is_allowed(person, user, tenant):
 
 
 def _authorize(path, user, tenant):
+    from ilovevoley.competitions.models import MatchActaPhoto
     from ilovevoley.content.models import Image
     from ilovevoley.rosters.models import Person
 
@@ -85,6 +87,13 @@ def _authorize(path, user, tenant):
         if person is None:
             raise Http404
         if not _person_is_allowed(person, user, tenant):
+            raise Http404
+        return
+    if path.startswith('actas_photos/'):
+        # Actas en papel: nombres/firmas de menores. Solo staff del admin.
+        if not user.is_authenticated or not (user.is_staff or user.is_superuser):
+            raise Http404
+        if not MatchActaPhoto.objects.filter(image=path).exists():
             raise Http404
         return
     raise Http404

@@ -113,6 +113,57 @@ class ProtectedMediaTests(TestCase):
         response = self.client.get('/media/secret.txt', HTTP_HOST=HOST)
         self.assertEqual(response.status_code, 404)
 
+    def test_actas_photos_staff_can_access_known_file(self):
+        """Staff ve actas_photos registradas; el prefijo no era público y daba 404 (#503)."""
+        from django.utils import timezone
+
+        from ilovevoley.competitions.models import League, Match, MatchActaPhoto
+        from ilovevoley.teams.models import Club, Team
+
+        club = Club.objects.create(federation_id='c-acta', official_name='Club Acta')
+        home = Team.objects.create(name='Local', federation_id='t-h', club=club)
+        away = Team.objects.create(name='Visitante', federation_id='t-a', club=club)
+        league = League.objects.create(name='Liga', season=self.season, federation_id='L1')
+        match = Match.objects.create(
+            league=league, home_team=home, away_team=away,
+            federation_id='7998', match_date=timezone.now(),
+        )
+        path = 'actas_photos/2026/10/acta_7998.jpg'
+        MatchActaPhoto.objects.create(
+            match=match,
+            source_url='https://example.com/acta.jpg',
+            status='pending_review',
+            image=path,
+        )
+        self.client.force_login(self.staff)
+        response = self.client.get(f'/media/{path}', HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['X-Accel-Redirect'], f'/protected-media/{path}')
+
+    def test_actas_photos_member_is_denied(self):
+        from ilovevoley.competitions.models import League, Match, MatchActaPhoto
+        from ilovevoley.teams.models import Club, Team
+        from django.utils import timezone
+
+        club = Club.objects.create(federation_id='c-acta2', official_name='Club Acta 2')
+        home = Team.objects.create(name='Local2', federation_id='t-h2', club=club)
+        away = Team.objects.create(name='Visitante2', federation_id='t-a2', club=club)
+        league = League.objects.create(name='Liga2', season=self.season, federation_id='L2')
+        match = Match.objects.create(
+            league=league, home_team=home, away_team=away,
+            federation_id='7999', match_date=timezone.now(),
+        )
+        path = 'actas_photos/2026/10/acta_7999.jpg'
+        MatchActaPhoto.objects.create(
+            match=match,
+            source_url='https://example.com/acta2.jpg',
+            status='pending_review',
+            image=path,
+        )
+        self.client.force_login(self.member)
+        response = self.client.get(f'/media/{path}', HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 404)
+
     def test_superuser_without_tenant_can_access(self):
         su = get_user_model().objects.create_superuser(username='root', password='pass')
         self.client.force_login(su)
