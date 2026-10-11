@@ -121,6 +121,7 @@ class TeamIdentityCandidateAdmin(ModelAdmin):
 class TeamAdmin(ModelAdmin):
     list_display = ('display_name_admin', 'category', 'gender', 'club_name', 'identity', 'variant_indicator', 'sponsor_name', 'federation_id', 'is_active', 'logo_preview', 'players_count', 'staff_count')
     list_filter = ('is_active', 'category', 'gender', 'club', ('parent_team', admin.RelatedOnlyFieldListFilter), 'variant_type', 'is_temporary_variant', 'created_at')
+    list_select_related = ('category', 'club', 'identity', 'parent_team')  # N+1 category (ILOVEVOLEY-6F)
     search_fields = ('name', 'federation_id', 'sponsor_name', 'club__official_name', 'category__name')
     readonly_fields = ('created_at', 'display_logo', 'players_count', 'staff_count')
     autocomplete_fields = ('club', 'category', 'parent_team', 'identity')
