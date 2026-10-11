@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static i18n %}
 
-{% block title %}{{ team.name }} - {% trans "Plantilla" %} - I Love Voley{% endblock %}
+{% block title %}{{ roster_title }} - {% trans "Plantilla" %} - I Love Voley{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
@@ -20,7 +20,7 @@
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div class="flex items-center">
                 {% if team.display_logo %}
-                    <img src="{{ team.display_logo }}" alt="{% trans 'Logo' %} {{ team.name }}"
+                    <img src="{{ team.display_logo }}" alt="{% trans 'Logo' %} {{ roster_title }}"
                          class="w-16 h-16 object-contain rounded border mr-4">
                 {% else %}
                     <div class="w-16 h-16 bg-tint rounded border mr-4 flex items-center justify-center">
@@ -30,15 +30,10 @@
                     </div>
                 {% endif %}
                 <div>
-                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink">{{ team.name }}</h1>
-                    <div class="flex items-center gap-2 mt-1">
-                        {% if team.category %}
-                            <span class="bg-csj-purple-dark dark:bg-csj-purple-dark text-white px-2 py-1 rounded text-sm font-medium">{{ team.category.name }}</span>
-                        {% endif %}
-                        {% if team.club %}
-                            <span class="text-sm text-muted">{{ team.club.official_name }}</span>
-                        {% endif %}
-                    </div>
+                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-ink">{{ roster_title }}</h1>
+                    {% if roster_season_name %}
+                        <p class="text-sm text-muted mt-1">{{ roster_season_name }}</p>
+                    {% endif %}
                 </div>
             </div>
             

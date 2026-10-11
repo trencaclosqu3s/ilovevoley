@@ -2,8 +2,10 @@ from unittest.mock import patch
 
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
-from ilovevoley.core.models import Category
+from ilovevoley.competitions.models import League, Match
+from ilovevoley.core.models import Category, Season
 from ilovevoley.teams.identity import (
     IdentityAssignError,
     assign_common_identity,
@@ -12,6 +14,8 @@ from ilovevoley.teams.identity import (
     extract_core_name,
     notify_new_identity_candidates,
     resolve_team_identity,
+    seasonal_appearance_name,
+    stable_roster_label,
 )
 from ilovevoley.teams.models import Club, Team, TeamIdentity, TeamIdentityCandidate
 
@@ -414,3 +418,102 @@ class MergeIdentityRosterTests(TestCase):
             assign_common_identity([self.groc, self.lila])
 
         self.assertEqual(TeamIdentity.objects.count(), 2)
+
+
+class RosterLabelTests(TestCase):
+    """Etiqueta estable de plantilla + nombre de aparición por temporada (#512)."""
+
+    def setUp(self):
+        self.club = Club.objects.create(federation_id='c-soller', official_name='CV Soller')
+        self.category = Category.objects.create(name='Cadete')
+        self.season = Season.objects.resolve('2023-24')
+        self.identity = TeamIdentity.objects.create(
+            club=self.club,
+            category=self.category,
+            gender='female',
+            core_name='SOLLER',
+            core_name_normalized='SOLLER',
+        )
+
+    def test_single_identity_is_club_and_category(self):
+        self.assertEqual(stable_roster_label(self.identity), 'CV Soller Cadete')
+
+    def test_multi_identity_adds_core_name_disambiguator(self):
+        TeamIdentity.objects.create(
+            club=self.club,
+            category=self.category,
+            gender='female',
+            core_name='PORTOL ROJO',
+            core_name_normalized='PORTOL ROJO',
+        )
+        negro = TeamIdentity.objects.create(
+            club=self.club,
+            category=self.category,
+            gender='female',
+            core_name='PORTOL NEGRO',
+            core_name_normalized='PORTOL NEGRO',
+        )
+        # El club de prueba no contiene PORTOL; el desambiguador es el core completo.
+        self.assertEqual(stable_roster_label(negro), 'CV Soller Cadete PORTOL NEGRO')
+
+        portol = Club.objects.create(federation_id='c-portol', official_name='CV Portol')
+        rojo = TeamIdentity.objects.create(
+            club=portol,
+            category=self.category,
+            gender='male',
+            core_name='PORTOL ROJO',
+            core_name_normalized='PORTOL ROJO',
+        )
+        TeamIdentity.objects.create(
+            club=portol,
+            category=self.category,
+            gender='male',
+            core_name='PORTOL NEGRO',
+            core_name_normalized='PORTOL NEGRO',
+        )
+        self.assertEqual(stable_roster_label(rojo), 'CV Portol Cadete ROJO')
+
+    def test_seasonal_appearance_name_from_match_in_season(self):
+        past_team = Team.objects.create(
+            name='Pizzeria la cuarta Cadete',
+            federation_id='t-past',
+            club=self.club,
+            category=self.category,
+            identity=self.identity,
+        )
+        Team.objects.create(
+            name='Bar Bini Soller Cadete',
+            federation_id='t-now',
+            club=self.club,
+            category=self.category,
+            identity=self.identity,
+        )
+        league = League.objects.create(
+            name='Liga',
+            federation_id='lg-past',
+            season=self.season,
+            competition_type='regular',
+            match_format='standard',
+            visibility_type='main',
+        )
+        rival = Team.objects.create(name='Rival', federation_id='t-rival')
+        Match.objects.create(
+            league=league,
+            home_team=past_team,
+            away_team=rival,
+            match_date=timezone.now(),
+        )
+        self.assertEqual(
+            seasonal_appearance_name(self.identity, self.season),
+            'Pizzeria la cuarta Cadete',
+        )
+
+    def test_seasonal_appearance_name_none_without_matches(self):
+        Team.objects.create(
+            name='Bar Bini Soller Cadete',
+            federation_id='t-lonely',
+            club=self.club,
+            category=self.category,
+            identity=self.identity,
+        )
+        self.assertIsNone(seasonal_appearance_name(self.identity, self.season))

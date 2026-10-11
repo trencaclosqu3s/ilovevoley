@@ -25,6 +25,71 @@ def one_team_per_identity(teams):
     return [t for t in teams if not t.identity_id or latest[t.identity_id] == t.id]
 
 
+def _identity_disambiguator(identity, club_name: str) -> str:
+    """Tokens de ``core_name`` que no están en el club (p. ej. ROJO)."""
+    core = (identity.core_name or identity.core_name_normalized or '').strip()
+    if not core:
+        return ''
+    club_tokens = set(normalize_team_name(club_name).split())
+    remaining = [t for t in normalize_team_name(core).split() if t not in club_tokens]
+    return ' '.join(remaining) if remaining else core
+
+
+def stable_roster_label(identity) -> str:
+    """Etiqueta estable de plantilla: club + categoría (+ desambiguador) (#512)."""
+    if identity is None:
+        return ''
+    club_name = ''
+    if getattr(identity, 'club', None) is not None:
+        club_name = identity.club.official_name or ''
+    category_name = ''
+    if getattr(identity, 'category', None) is not None:
+        category_name = identity.category.name or ''
+    parts = [p for p in (club_name, category_name) if p]
+
+    needs_disambiguator = False
+    if identity.club_id and identity.category_id:
+        from ilovevoley.teams.models import TeamIdentity
+
+        needs_disambiguator = (
+            TeamIdentity.objects.filter(
+                club_id=identity.club_id,
+                category_id=identity.category_id,
+                gender=identity.gender,
+            ).count()
+            > 1
+        )
+    if needs_disambiguator:
+        disambiguator = _identity_disambiguator(identity, club_name)
+        if disambiguator:
+            parts.append(disambiguator)
+
+    if parts:
+        return ' '.join(parts)
+    return (identity.core_name or '').strip()
+
+
+def seasonal_appearance_name(identity, season) -> str | None:
+    """``Team.name`` de una aparición con partidos en ``season``, o None (#512)."""
+    if identity is None or season is None:
+        return None
+    from django.db.models import Q
+
+    from ilovevoley.teams.models import Team
+
+    team = (
+        Team.objects.filter(identity_id=identity.pk)
+        .filter(
+            Q(home_matches__league__season=season)
+            | Q(away_matches__league__season=season)
+        )
+        .distinct()
+        .order_by('-id')
+        .first()
+    )
+    return team.name if team else None
+
+
 def effective_gender(team) -> str:
     if getattr(team, 'gender', None):
         return team.gender
