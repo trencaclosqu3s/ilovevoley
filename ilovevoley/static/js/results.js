@@ -62,9 +62,13 @@
         remove.type = 'button';
         remove.textContent = '×';
         remove.setAttribute('aria-label', form.dataset.removeLabel + ' ' + team.name);
-        remove.addEventListener('click', function () { chip.remove(); });
+        remove.addEventListener('click', function () {
+            chip.remove();
+            form.submit();
+        });
         chip.append(hidden, remove);
         chips.appendChild(chip);
+        form.submit();
     }
 
     function clearSuggestions() {
@@ -108,7 +112,10 @@
     });
 
     chips.querySelectorAll('button').forEach(function (btn) {
-        btn.addEventListener('click', function () { btn.closest('span').remove(); });
+        btn.addEventListener('click', function () {
+            btn.closest('span').remove();
+            form.submit();
+        });
     });
 
     // Enter en el buscador no debe enviar el formulario con el texto a medias.
