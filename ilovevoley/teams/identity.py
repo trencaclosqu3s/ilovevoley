@@ -1,6 +1,7 @@
 """Identidad estable de equipo entre temporadas (#428)."""
 
 from difflib import SequenceMatcher
+from html import unescape
 
 from django.db import IntegrityError
 
@@ -27,7 +28,8 @@ def one_team_per_identity(teams):
 
 def _identity_disambiguator(identity, club_name: str) -> str:
     """Tokens de ``core_name`` que no están en el club (p. ej. ROJO)."""
-    core = (identity.core_name or identity.core_name_normalized or '').strip()
+    # Desescapar antes de normalizar: &#39; / &apos; en scrape parten mal el token.
+    core = unescape((identity.core_name or identity.core_name_normalized or '').strip())
     if not core:
         return ''
     club_tokens = set(normalize_team_name(club_name).split())
@@ -41,10 +43,10 @@ def stable_roster_label(identity) -> str:
         return ''
     club_name = ''
     if getattr(identity, 'club', None) is not None:
-        club_name = identity.club.official_name or ''
+        club_name = unescape(identity.club.official_name or '')
     category_name = ''
     if getattr(identity, 'category', None) is not None:
-        category_name = identity.category.name or ''
+        category_name = unescape(identity.category.name or '')
     parts = [p for p in (club_name, category_name) if p]
 
     needs_disambiguator = False
@@ -66,7 +68,7 @@ def stable_roster_label(identity) -> str:
 
     if parts:
         return ' '.join(parts)
-    return (identity.core_name or '').strip()
+    return unescape((identity.core_name or '').strip())
 
 
 def seasonal_appearance_name(identity, season) -> str | None:
