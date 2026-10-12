@@ -22,6 +22,7 @@ from ilovevoley.core.tenant_utils import person_belongs_to_tenant, tenant_access
 from ilovevoley.competitions.models import League, MatchLineup
 from ilovevoley.content.models import Image
 from ilovevoley.competitions.services.lineups import get_player_season_stats, get_rival_seasons, get_season_rivals
+from ilovevoley.competitions.services.team_season_stats import get_team_season_summary
 from ilovevoley.core.security import fetch_logo_bytes
 from ilovevoley.teams.identity import one_team_per_identity
 from ilovevoley.teams.models import Team
@@ -432,6 +433,40 @@ def person_detail(request, person_id):
     stat_season = _resolve_person_stat_season(request, seasons)
     player_stats = get_player_season_stats(person, stat_season, tenant_teams) if person_lineups.exists() else None
 
+    team_season_summary = None
+    team_season_summary_heading = None
+    team_season_summary_roster_url = None
+    if stat_season is not None:
+        season_role = (
+            player_roles.filter(season=stat_season, is_active=True)
+            .select_related('identity')
+            .first()
+        ) or (
+            player_roles.filter(season=stat_season)
+            .select_related('identity')
+            .first()
+        )
+        if season_role is not None and season_role.identity_id:
+            team_season_summary = get_team_season_summary(
+                season_role.identity, stat_season, request.tenant,
+            )
+            if team_season_summary:
+                team_season_summary_heading = season_role.identity.core_name
+                roster_team = (
+                    Team.objects.for_tenant(request.tenant)
+                    .filter(identity_id=season_role.identity_id, is_active=True)
+                    .first()
+                ) or (
+                    Team.objects.for_tenant(request.tenant)
+                    .filter(identity_id=season_role.identity_id)
+                    .first()
+                )
+                if roster_team is not None:
+                    team_season_summary_roster_url = (
+                        reverse('teams:team_roster', args=[roster_team.id])
+                        + f'?season={stat_season.pk}'
+                    )
+
     tagged_images_qs = Image.objects.for_tenant(request.tenant).filter(
         persons=person, status='approved'
     ).order_by('-upload_date')
@@ -447,6 +482,9 @@ def person_detail(request, person_id):
         'seasons': seasons,
         'stat_season': stat_season,
         'player_stats': player_stats,
+        'team_season_summary': team_season_summary,
+        'team_season_summary_heading': team_season_summary_heading,
+        'team_season_summary_roster_url': team_season_summary_roster_url,
         'tagged_images': list(tagged_images_qs[:8]),
         'tagged_images_count': tagged_images_qs.count(),
     }
