@@ -60,6 +60,7 @@ class SeasonHighlightsSendTests(TestCase):
 
     @mock.patch('ilovevoley.users.season_highlights.send_notification_email', return_value=True)
     def test_send_builds_avisos_and_deactivation_urls(self, mocked_send):
+        """URLs del tenant; marca de producto (no el club) y logo embebido."""
         self.assertTrue(send_season_highlights_email(self.user))
         mocked_send.assert_called_once()
         kwargs = mocked_send.call_args.kwargs
@@ -67,3 +68,8 @@ class SeasonHighlightsSendTests(TestCase):
         self.assertIn('tab=avisos', ctx['avisos_url'])
         self.assertIn('/deactivate-account/', ctx['deactivation_url'])
         self.assertEqual(kwargs['recipient_list'], ['sendme@example.com'])
+        # Decisión de producto: mail de plataforma, no del club del membership.
+        self.assertEqual(ctx['site_name'], 'I Love Voley')
+        self.assertNotEqual(ctx['site_name'], self.org.name)
+        self.assertEqual(ctx['logo_cid'], 'ilovevoley_logo')
+        self.assertIn('ilovevoley_logo', kwargs['embedded_images'])

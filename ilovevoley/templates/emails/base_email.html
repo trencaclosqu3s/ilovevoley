@@ -99,6 +99,10 @@
 <body>
     <div class="container">
         <div class="header">
+            {% if logo_cid %}
+            <img src="cid:{{ logo_cid }}" alt="{{ site_name }}" width="72" height="72"
+                 style="display:block;margin:0 auto 12px auto;border:0;border-radius:16px;">
+            {% endif %}
             <h1>{{ site_name }}</h1>
             <p style="margin: 5px 0 0 0;">{% block header_subtitle %}{% trans "Sistema de Notificaciones" %}{% endblock %}</p>
         </div>
