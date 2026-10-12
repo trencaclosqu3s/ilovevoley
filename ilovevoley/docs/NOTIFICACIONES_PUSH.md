@@ -17,6 +17,23 @@ El sistema de notificaciones Web Push permite enviar avisos instantáneos y segm
 
 ---
 
+## 📲 Onboarding de avisos (perfil en 3 pestañas)
+
+El onboarding de avisos vive en `/profile/` con tres pestañas (`?tab=perfil|avisos|calendario`).
+En la pestaña **Avisos** se unifican en una sola vista la caja «Este móvil o dispositivo»
+(activar/desactivar la suscripción Web Push en el navegador, con muro ámbar en iOS fuera de
+la PWA instalada y aviso rojo si el permiso está bloqueado) y el formulario de preferencias
+por club (`NotificationPreferencesForm`: categorías, equipos y tipos de aviso). Al guardar
+preferencias sin suscripción en el dispositivo se redirecta a `?tab=avisos#activar` con aviso
+ámbar ("Un paso más: activa los avisos en este móvil"), que además resalta con borde ámbar la
+caja de activación. Fuera del perfil, `category_preferences_banner.html` distingue dos estados:
+sin categorías configuradas (banner morado → `?tab=avisos`) y con categorías pero sin suscripción
+push (banner ámbar → `?tab=avisos#activar`). Deep links válidos: `/profile/?tab=avisos`,
+`/profile/?tab=avisos#activar` y `/profile/?tab=calendario` (la URL de suscripción ICS reutiliza
+las categorías/equipos de la pestaña Avisos).
+
+---
+
 ## ⚙️ Configuración y Variables de Entorno
 
 ### 1. Variables de Entorno (`.env`)
