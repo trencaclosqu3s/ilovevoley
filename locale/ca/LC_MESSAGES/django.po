@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 18:06+0200\n"
+"POT-Creation-Date: 2026-10-12 18:33+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -7316,6 +7316,7 @@ msgid "nº %(n)s"
 msgstr "núm. %(n)s"
 
 #: ilovevoley/rosters/season_wrapped.py:51
+#: ilovevoley/templates/emails/season_highlights.html:22
 msgid "Tu temporada"
 msgstr "La teva temporada"
 
@@ -9859,6 +9860,7 @@ msgstr ""
 #: ilovevoley/templates/emails/admin_direct_message.html:16
 #: ilovevoley/templates/emails/image_approved.html:14
 #: ilovevoley/templates/emails/image_rejected.html:14
+#: ilovevoley/templates/emails/season_highlights.html:9
 #: ilovevoley/templates/emails/user_approved.html:14
 #: ilovevoley/templates/emails/user_inactivity_warning.html:33
 #: ilovevoley/templates/emails/user_rejected.html:9
@@ -10707,6 +10709,163 @@ msgid ""
 msgstr ""
 "Revisa la sol·licitud des del panell de moderació i decideix si reactives el"
 " compte o el descartes."
+
+#: ilovevoley/templates/emails/season_highlights.html:4
+#: ilovevoley/users/season_highlights.py:52
+msgid "Novedades I Love Voley · temporada 26/27"
+msgstr "Novetats I Love Voley · temporada 26/27"
+
+#: ilovevoley/templates/emails/season_highlights.html:6
+#| msgid "Resumen de la temporada"
+msgid "Novedades de la temporada 26/27"
+msgstr "Novetats de la temporada 26/27"
+
+#: ilovevoley/templates/emails/season_highlights.html:11
+msgid ""
+"Somos <strong>I Love Voley</strong>. Este curso (temporada "
+"<strong>26/27</strong>) hemos sumado bastante y preferimos contártelo "
+"<strong>una sola vez</strong> por correo — no vamos a llenarte la bandeja "
+"cada semana."
+msgstr ""
+"Som <strong>I Love Voley</strong>. Aquest curs (temporada "
+"<strong>26/27</strong>) hem afegit unes quantes coses i preferim "
+"explicar-t’ho <strong>una sola vegada</strong> per correu — no t’omplirem la"
+" safata cada setmana."
+
+#: ilovevoley/templates/emails/season_highlights.html:13
+msgid "App en el móvil"
+msgstr "App al mòbil"
+
+#: ilovevoley/templates/emails/season_highlights.html:14
+msgid ""
+"I Love Voley se puede <strong>instalar</strong> como aplicación (PWA). Desde"
+" ahí puedes recibir <strong>avisos</strong> cuando hay resultados de tus "
+"equipos o se publican fotos. Si ya elegiste categorías o equipos pero no ves"
+" notificaciones, entra en <strong>Perfil → Avisos</strong> y actívalas en "
+"este móvil (en iPhone hace falta añadir la app a la pantalla de inicio)."
+msgstr ""
+"I Love Voley es pot <strong>instal·lar</strong> com a aplicació (PWA). Des "
+"d’allà pots rebre <strong>avisos</strong> quan hi ha resultats dels teus "
+"equips o es publiquen fotos. Si ja vas triar categories o equips però no "
+"veus notificacions, entra a <strong>Perfil → Avisos</strong> i activa-les en"
+" aquest mòbil (a l’iPhone cal afegir l’app a la pantalla d’inici)."
+
+#: ilovevoley/templates/emails/season_highlights.html:16
+msgid "El partido, sin lápiz en la grada"
+msgstr "El partit, sense llapis a la graderia"
+
+#: ilovevoley/templates/emails/season_highlights.html:17
+msgid ""
+"Las <strong>estadísticas</strong> salen de las <strong>actas "
+"federativas</strong> (y, cuando toca, de fotos del acta). Nadie está ahí con"
+" un bloc anotando puntos o recepciones a mano. También hay previas contra el"
+" rival, historial y, si hay enlace, aviso de retransmisión."
+msgstr ""
+"Les <strong>estadístiques</strong> surten de les <strong>actes "
+"federatives</strong> (i, quan cal, de fotos de l’acta). Ningú no hi és amb "
+"un bloc anotant punts o recepcions a mà. També hi ha prèvies contra el "
+"rival, historial i, si hi ha enllaç, avís de retransmissió."
+
+#: ilovevoley/templates/emails/season_highlights.html:19
+#| msgid "Notas importantes:"
+msgid "Fotos que importan"
+msgstr "Fotos que importen"
+
+#: ilovevoley/templates/emails/season_highlights.html:20
+msgid ""
+"Puedes <strong>etiquetar</strong> deportistas, ver la galería de "
+"<strong>fotos de tu hijo</strong>, marcar favoritas o el “top” del partido, "
+"y generar stories y tarjetas para compartir (“hoy jugamos”, resultados…)."
+msgstr ""
+"Pots <strong>etiquetar</strong> esportistes, veure la galeria de "
+"<strong>fotos del teu fill</strong>, marcar favorites o el “top” del partit,"
+" i generar stories i targetes per compartir («avui juguem», resultats…)."
+
+#: ilovevoley/templates/emails/season_highlights.html:23
+msgid ""
+"En <strong>Tú</strong> tienes cifras de la temporada, un "
+"<strong>cromo</strong> compartible y, al cerrar el curso, un "
+"<strong>Wrapped</strong> con el resumen del año (también a nivel de equipo)."
+msgstr ""
+"A <strong>Tu</strong> tens xifres de la temporada, un <strong>cromo</strong>"
+" compartible i, en tancar el curs, un <strong>Wrapped</strong> amb el resum "
+"de l’any (també a nivell d’equip)."
+
+#: ilovevoley/templates/emails/season_highlights.html:25
+msgid "En catalán, si lo prefieres"
+msgstr "En català, si ho prefereixes"
+
+#: ilovevoley/templates/emails/season_highlights.html:26
+msgid ""
+"La web y la app están en <strong>castellano y catalán</strong>. Puedes "
+"elegir el idioma en tu perfil: si el año pasado solo la usaste en "
+"castellano, esta es la novedad."
+msgstr ""
+"El web i l’app són en <strong>castellà i català</strong>. Pots triar "
+"l’idioma al perfil: si l’any passat només la feies servir en castellà, "
+"aquesta és la novetat."
+
+#: ilovevoley/templates/emails/season_highlights.html:28
+#| msgid "No hay resultados con estos filtros."
+msgid "Si ya estabas con nosotros"
+msgstr "Si ja eres amb nosaltres"
+
+#: ilovevoley/templates/emails/season_highlights.html:29
+msgid ""
+"Vídeos, fotos y datos de <strong>temporadas anteriores siguen ahí</strong>. "
+"Puedes mirarlos cuando quieras. Si te has cambiado de club o solo pasas de "
+"vez en cuando: <strong>no molestas</strong>; nos alegra que sigas por aquí."
+msgstr ""
+"Vídeos, fotos i dades de <strong>temporades anteriors hi són</strong>. Les "
+"pots mirar quan vulguis. Si has canviat de club o només passes de tant en "
+"tant: <strong>no molestes</strong>; ens alegra que continuïs per aquí."
+
+#: ilovevoley/templates/emails/season_highlights.html:31
+msgid "Privacidad, en serio"
+msgstr "Privacitat, de debò"
+
+#: ilovevoley/templates/emails/season_highlights.html:32
+msgid ""
+"Hay política de privacidad, consentimiento de imagen de menores y una página"
+" clara de <strong>quién puede ver las fotos</strong>. Mejor preguntar de más"
+" que de menos."
+msgstr ""
+"Hi ha política de privacitat, consentiment d’imatge de menors i una pàgina "
+"clara de <strong>qui pot veure les fotos</strong>. Millor preguntar de més "
+"que de menys."
+
+#: ilovevoley/templates/emails/season_highlights.html:36
+#| msgid "Activar avisos en este móvil"
+msgid "Activar avisos / instalar la app"
+msgstr "Activar avisos / instal·lar l’app"
+
+#: ilovevoley/templates/emails/season_highlights.html:40
+#| msgid "Tu cuenta ha sido aprobada en I Love Voley"
+msgid "Gracias por estar en I Love Voley."
+msgstr "Gràcies per ser a I Love Voley."
+
+#: ilovevoley/templates/emails/season_highlights.html:41
+msgid "El equipo de I Love Voley"
+msgstr "L’equip d’I Love Voley"
+
+#: ilovevoley/templates/emails/season_highlights.html:45
+#, python-format
+msgid ""
+"¿Ya no te encaja esta cuenta (otro club, fin de etapa…)? Puedes <a "
+"href=\"%(deactivation_url)s\" style=\"color: #e74c3c; text-decoration: "
+"underline;\">desactivar tu usuario</a>. Te echaremos de menos a ti… y a tu "
+"hijo."
+msgstr ""
+"Ja no et va bé aquest compte (un altre club, final d’etapa…)? Pots <a "
+"href=\"%(deactivation_url)s\" style=\"color: #e74c3c; text-decoration: "
+"underline;\">desactivar l’usuari</a>. Et trobarem a faltar a tu… i al teu "
+"fill."
+
+#: ilovevoley/templates/emails/season_highlights.html:46
+msgid ""
+"Esto no es una newsletter: es un único aviso de novedades de la temporada."
+msgstr ""
+"Això no és una newsletter: és un únic avís de novetats de la temporada."
 
 #: ilovevoley/templates/emails/season_wrapped.html:4
 #, python-format
@@ -12705,9 +12864,6 @@ msgstr ""
 
 #~ msgid "¡Listo! Los eventos se actualizarán automáticamente 🎉"
 #~ msgstr "A punt! Els esdeveniments s'actualitzaran automàticament 🎉"
-
-#~ msgid "Notas importantes:"
-#~ msgstr "Notes importants:"
 
 #~ msgid ""
 #~ "<strong>Privacidad:</strong> La URL es única y personal. No la compartas."
