@@ -106,13 +106,20 @@ class WrappedScreensTests(WrappedTestBase):
 
 class WrappedRenderTests(PlayerCardTestBase):
     def test_render_aguanta_nombre_de_rival_larguisimo_y_foto_ausente(self):
+        # El contrato es no reventar con texto desbordado o foto ausente y
+        # devolver un PNG no vacío; el tamaño Story se comprueba una sola vez.
+        rendered = {}
         for screen in (
             Screen('rival', 'Tu rival más repetido', 'Club Voleibol ' * 12, '9 partidos', 'Partidos oficiales'),
             Screen('top_photo', 'Tu foto más votada', photo_id=1),
             Screen('cover', 'Marc Ferrer', '2025-26', 'Tu temporada'),
         ):
-            png = render_wrapped_screen(organization=self.org, screen=screen)
-            self.assertEqual(PILImage.open(BytesIO(png)).size, (1080, 1920))
+            with self.subTest(kind=screen.kind):
+                png = render_wrapped_screen(organization=self.org, screen=screen)
+                self.assertTrue(png.startswith(b'\x89PNG'))
+                self.assertGreater(len(png), 0)
+                rendered[screen.kind] = png
+        self.assertEqual(PILImage.open(BytesIO(rendered['cover'])).size, (1080, 1920))
 
 
 class GenerateWrappedsTests(WrappedTestBase):
@@ -148,33 +155,24 @@ class GenerateWrappedsTests(WrappedTestBase):
         push.assert_not_called()
 
     def test_generar_sin_notificar_crea_filas_y_no_envia_push_ni_email(self):
-        # Opción no-notify (#506): genera el Wrapped pero suprime push y email para pruebas.
+        # #506: `notify=False` y `no_notify=True` son la misma rama
+        # (`should_notify = notify and not no_notify`): generan el Wrapped pero
+        # suprimen push y email para pruebas.
         self.play_official([(25, 20, _lineup())] * 3)
         parent = get_user_model().objects.create_user(username='madre_no_notify', password='x', email='m@x.es')
         parent.children.add(self.person)
 
-        with mock.patch('ilovevoley.rosters.tasks.notify_web_push_organization_task.delay') as push, \
-                mock.patch('ilovevoley.rosters.tasks.send_notification_email') as email:
-            created = generate_season_wrappeds_task(self.season.pk, notify=False)
+        for kwargs in ({'notify': False}, {'no_notify': True}):
+            with self.subTest(kwargs=kwargs):
+                SeasonWrapped.objects.all().delete()
+                with mock.patch('ilovevoley.rosters.tasks.notify_web_push_organization_task.delay') as push, \
+                        mock.patch('ilovevoley.rosters.tasks.send_notification_email') as email:
+                    created = generate_season_wrappeds_task(self.season.pk, **kwargs)
 
-        self.assertEqual(created, 1)
-        self.assertEqual(SeasonWrapped.objects.count(), 1)
-        push.assert_not_called()
-        email.assert_not_called()
-
-    def test_generar_con_no_notify_kwarg_no_envia_push_ni_email(self):
-        # Permite invocar con no_notify=True directamente.
-        self.play_official([(25, 20, _lineup())] * 3)
-        parent = get_user_model().objects.create_user(username='padre_no_notify', password='x', email='p@x.es')
-        parent.children.add(self.person)
-
-        with mock.patch('ilovevoley.rosters.tasks.notify_web_push_organization_task.delay') as push, \
-                mock.patch('ilovevoley.rosters.tasks.send_notification_email') as email:
-            created = generate_season_wrappeds_task(self.season.pk, no_notify=True)
-
-        self.assertEqual(created, 1)
-        push.assert_not_called()
-        email.assert_not_called()
+                self.assertEqual(created, 1)
+                self.assertEqual(SeasonWrapped.objects.count(), 1)
+                push.assert_not_called()
+                email.assert_not_called()
 
 
 

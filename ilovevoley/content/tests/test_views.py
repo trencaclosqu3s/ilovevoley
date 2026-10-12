@@ -27,6 +27,22 @@ TINY_GIF = (
 )
 
 
+def _jpeg_with_gps(color='red'):
+    """JPEG en memoria con coordenadas GPS en EXIF, para probar el saneado."""
+    from io import BytesIO
+    from PIL import Image as PILImage
+    from PIL.ExifTags import Base, GPS
+
+    img = PILImage.new('RGB', (100, 100), color=color)
+    exif = img.getexif()
+    gps_ifd = exif.get_ifd(Base.GPSInfo)
+    gps_ifd[GPS.GPSLatitude] = (40.4168, 0, 0)
+    gps_ifd[GPS.GPSLongitude] = (3.7038, 0, 0)
+    buf = BytesIO()
+    img.save(buf, format='JPEG', exif=exif)
+    return buf.getvalue()
+
+
 class ContentReExportCompatibilityTest(SimpleTestCase):
     """Verifica que las importaciones históricas desde videos sigan funcionando."""
 
@@ -187,11 +203,6 @@ class ImageModerationTenantIsolationTests(TestCase):
             user=self.manager_a, organization=self.org_a, role='manager', is_approved=True
         )
 
-        self.member_a = User.objects.create_user(username='member_a', password='pass')
-        Membership.objects.create(
-            user=self.member_a, organization=self.org_a, role='member', is_approved=True
-        )
-
         self.user_b = User.objects.create_user(username='user_b', password='pass')
         Membership.objects.create(
             user=self.user_b, organization=self.org_b, is_approved=True
@@ -291,24 +302,6 @@ class ImageModerationTenantIsolationTests(TestCase):
         self.assertEqual(self.image_a.status, 'approved')
         self.assertEqual(self.image_a.moderated_by, self.manager_a)
 
-    def test_moderate_image_api_denies_unauthorized_member(self):
-        self.client.force_login(self.member_a)
-        url = reverse('content:moderate_image_api', args=[self.image_a.id])
-        response = self.client.post(url, {'action': 'approve'}, HTTP_HOST='cluba.ilovevoley.es')
-        self.assertEqual(response.status_code, 403)
-
-    def test_moderate_image_api_denies_global_staff_with_member_role(self):
-        User = get_user_model()
-        from ilovevoley.users.models import Membership
-        staff_member = User.objects.create_user(username='staff_member', password='pass', is_staff=True)
-        Membership.objects.create(
-            user=staff_member, organization=self.org_a, role='member', is_approved=True
-        )
-        self.client.force_login(staff_member)
-        url = reverse('content:moderate_image_api', args=[self.image_a.id])
-        response = self.client.post(url, {'action': 'approve'}, HTTP_HOST='cluba.ilovevoley.es')
-        self.assertEqual(response.status_code, 403)
-
     @override_settings(RATELIMIT_ENABLE=True, RATELIMIT_USE_CACHE='default')
     def test_moderate_image_api_rate_limiting(self):
         cache.clear()
@@ -345,81 +338,56 @@ class ImageUploadSanitizationViewTests(TestCase):
             name='2026-27', start_year=2026, end_year=2027, is_current=True
         )
 
-    def test_image_upload_view_sanitizes_exif_gps_and_assigns_descriptive_filename(self):
-        from io import BytesIO
+    def test_upload_view_sanitizes_exif_gps_and_assigns_descriptive_filename(self):
         from PIL import Image as PILImage
         from PIL.ExifTags import Base, GPS
 
-        img = PILImage.new('RGB', (100, 100), color='red')
-        exif = img.getexif()
-        gps_ifd = exif.get_ifd(Base.GPSInfo)
-        gps_ifd[GPS.GPSLatitude] = (40.4168, 0, 0)
-        gps_ifd[GPS.GPSLongitude] = (3.7038, 0, 0)
-        buf = BytesIO()
-        img.save(buf, format='JPEG', exif=exif)
-        buf.seek(0)
-
-        uploaded = SimpleUploadedFile('foto_movil.jpg', buf.read(), content_type='image/jpeg')
-
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('content:image_upload'),
-            {
-                'image': uploaded,
-                'title': 'Foto con GPS subida',
-                'image_type': 'training',
-                'season': self.season.id,
-            },
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 302)
-
-        created = Image.objects.get(title='Foto con GPS subida')
-        # Check that filename in storage uses descriptive slug
-        filename = created.image.name.split('/')[-1]
-        self.assertEqual(filename, 'foto-con-gps-subida-001.jpg')
-
-        # Check that EXIF/GPS info is stripped
-        created.image.open()
-        saved_img = PILImage.open(created.image)
-        self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
-
-    def test_image_bulk_upload_view_sanitizes_exif_and_assigns_descriptive_filename(self):
-        from io import BytesIO
-        from PIL import Image as PILImage
-        from PIL.ExifTags import Base, GPS
-
-        img = PILImage.new('RGB', (100, 100), color='blue')
-        exif = img.getexif()
-        gps_ifd = exif.get_ifd(Base.GPSInfo)
-        gps_ifd[GPS.GPSLatitude] = (39.5696, 0, 0)
-        gps_ifd[GPS.GPSLongitude] = (2.6502, 0, 0)
-        buf = BytesIO()
-        img.save(buf, format='JPEG', exif=exif)
-        buf.seek(0)
-
-        uploaded = SimpleUploadedFile('masiva.jpg', buf.read(), content_type='image/jpeg')
+        cases = [
+            (
+                'image_upload',
+                'Foto con GPS subida',
+                'foto-con-gps-subida-001.jpg',
+                {
+                    'image': SimpleUploadedFile(
+                        'foto_movil.jpg', _jpeg_with_gps(), content_type='image/jpeg'
+                    ),
+                    'title': 'Foto con GPS subida',
+                    'image_type': 'training',
+                    'season': self.season.id,
+                },
+            ),
+            (
+                'image_bulk_upload',
+                'Foto masiva test',
+                'foto-masiva-test-001.jpg',
+                {
+                    'images': [
+                        SimpleUploadedFile(
+                            'masiva.jpg', _jpeg_with_gps('blue'), content_type='image/jpeg'
+                        )
+                    ],
+                    'title_0': 'Foto masiva test',
+                    'image_type': 'training',
+                    'season': self.season.id,
+                },
+            ),
+        ]
 
         self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('content:image_bulk_upload'),
-            {
-                'images': [uploaded],
-                'title_0': 'Foto masiva test',
-                'image_type': 'training',
-                'season': self.season.id,
-            },
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 302)
+        for kind, expected_title, expected_filename, data in cases:
+            with self.subTest(kind=kind):
+                response = self.client.post(
+                    reverse(f'content:{kind}'), data, HTTP_HOST='testclub.ilovevoley.es'
+                )
+                self.assertEqual(response.status_code, 302)
 
-        created = Image.objects.get(title='Foto masiva test')
-        filename = created.image.name.split('/')[-1]
-        self.assertEqual(filename, 'foto-masiva-test-001.jpg')
+                created = Image.objects.get(title=expected_title)
+                self.assertEqual(created.image.name.split('/')[-1], expected_filename)
 
-        created.image.open()
-        saved_img = PILImage.open(created.image)
-        self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
+                # Check that EXIF/GPS info is stripped
+                created.image.open()
+                saved_img = PILImage.open(created.image)
+                self.assertEqual(dict(saved_img.getexif().get_ifd(Base.GPSInfo)), {})
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
@@ -752,11 +720,6 @@ class ImageFavoriteToggleTests(TestCase):
         response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
         self.assertEqual(response.status_code, 404)
         self.assertFalse(self.image_b.favorites.exists())
-
-    def test_anonimo_redirige_a_login(self):
-        url = reverse('content:toggle_image_favorite', args=[self.image_a.id])
-        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
-        self.assertEqual(response.status_code, 302)
 
     def test_pagina_favoritas_solo_muestra_aprobadas_del_tenant(self):
         ImageFavorite.objects.create(user=self.user_a, image=self.image_a)

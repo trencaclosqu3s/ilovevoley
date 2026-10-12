@@ -166,33 +166,22 @@ class DeltaDetectorTest(TestCase):
         self.assertEqual(len(changes), 0)
         self.assertEqual(MatchChangeLog.objects.count(), 0)
 
-    def test_lifecycle_scheduled_to_finished_not_recorded(self):
+    def test_lifecycle_transitions_to_finished_not_recorded(self):
         """Finalizar un partido es ciclo de vida normal, no alteración federativa."""
-        match = Match.objects.create(
-            league=self.league,
-            home_team=self.team_a,
-            away_team=self.team_b,
-            match_date=timezone.now() - timedelta(hours=3),
-            status='scheduled',
-        )
+        for from_status, hours_ago in (('scheduled', 3), ('in_progress', 1)):
+            with self.subTest(from_status=from_status):
+                match = Match.objects.create(
+                    league=self.league,
+                    home_team=self.team_a,
+                    away_team=self.team_b,
+                    match_date=timezone.now() - timedelta(hours=hours_ago),
+                    status=from_status,
+                )
 
-        changes = detect_and_record_match_changes(match, {'status': 'finished'})
+                changes = detect_and_record_match_changes(match, {'status': 'finished'})
 
-        self.assertEqual(changes, [])
-        self.assertEqual(MatchChangeLog.objects.filter(change_type='status').count(), 0)
-
-    def test_lifecycle_in_progress_to_finished_not_recorded(self):
-        match = Match.objects.create(
-            league=self.league,
-            home_team=self.team_a,
-            away_team=self.team_b,
-            match_date=timezone.now() - timedelta(hours=1),
-            status='in_progress',
-        )
-
-        changes = detect_and_record_match_changes(match, {'status': 'finished'})
-
-        self.assertEqual(changes, [])
+                self.assertEqual(changes, [])
+                self.assertEqual(MatchChangeLog.objects.filter(change_type='status').count(), 0)
 
     def test_non_lifecycle_status_change_still_recorded(self):
         """Una corrección federativa posterior (finished -> scheduled) sí se registra."""

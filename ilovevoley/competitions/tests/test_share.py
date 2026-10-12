@@ -231,22 +231,21 @@ class PublicTimelineViewTest(TestCase):
         self.assertContains(response, 'Foto del club')
         self.assertNotContains(response, 'Foto ajena')
 
-    def test_public_timeline_404_for_revoked_link(self):
+    def test_public_timeline_404_for_revoked_or_unknown_link(self):
         from django.urls import reverse
+
         revoke_match_share_link(self.link)
-        response = self.client.get(
+        revoked = self.client.get(
             reverse('public:match_timeline', args=[self.link.token]),
             HTTP_HOST='testclub.ilovevoley.es',
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(revoked.status_code, 404)
 
-    def test_public_timeline_404_for_unknown_token(self):
-        from django.urls import reverse
-        response = self.client.get(
+        unknown = self.client.get(
             reverse('public:match_timeline', args=[uuid.uuid4()]),
             HTTP_HOST='testclub.ilovevoley.es',
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(unknown.status_code, 404)
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'], PROTECTED_MEDIA_USE_X_ACCEL=True)
@@ -296,74 +295,41 @@ class PublicMatchMediaViewTest(TestCase):
         self.assertEqual(response['Cache-Control'], 'private, no-store')
         self.assertEqual(response['X-Robots-Tag'], 'noindex, nofollow')
 
-    def test_404_for_revoked_link(self):
+    def test_404_for_invalid_link_or_unauthorized_image(self):
+        """Enlace caducado/revocado/desconocido o imagen fuera de alcance: nunca se sirve."""
         from django.urls import reverse
-        image = self._image(self.match)
-        revoke_match_share_link(self.link)
-        response = self.client.get(
-            reverse('public:match_media', args=[self.link.token, image.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 404)
 
-    def test_404_for_expired_link(self):
-        from django.urls import reverse
-        image = self._image(self.match)
-        MatchShareLink.objects.filter(pk=self.link.pk).update(
-            expires_at=timezone.now() - timedelta(minutes=1)
-        )
-        response = self.client.get(
-            reverse('public:match_media', args=[self.link.token, image.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 404)
+        for case in (
+            'revoked', 'expired', 'unknown_token', 'another_match',
+            'non_approved', 'different_organization', 'without_organization',
+        ):
+            with self.subTest(case=case):
+                link = create_match_share_link(self.match, self.org, self.user, hours=48)
+                image = self._image(self.match)
+                token = link.token
+                if case == 'revoked':
+                    revoke_match_share_link(link)
+                elif case == 'expired':
+                    MatchShareLink.objects.filter(pk=link.pk).update(
+                        expires_at=timezone.now() - timedelta(minutes=1)
+                    )
+                elif case == 'unknown_token':
+                    token = uuid.uuid4()
+                elif case == 'another_match':
+                    image = self._image(self.other_match)
+                elif case == 'non_approved':
+                    image = self._image(self.match, status='pending')
+                elif case == 'different_organization':
+                    image = self._image(self.match, organization=self.other_org)
+                else:  # without_organization
+                    image.organization = None
+                    image.save(update_fields=['organization'])
 
-    def test_404_for_unknown_token(self):
-        from django.urls import reverse
-        image = self._image(self.match)
-        response = self.client.get(
-            reverse('public:match_media', args=[uuid.uuid4(), image.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 404)
-
-    def test_404_for_image_of_another_match(self):
-        from django.urls import reverse
-        image = self._image(self.other_match)
-        response = self.client.get(
-            reverse('public:match_media', args=[self.link.token, image.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 404)
-
-    def test_404_for_non_approved_image(self):
-        from django.urls import reverse
-        image = self._image(self.match, status='pending')
-        response = self.client.get(
-            reverse('public:match_media', args=[self.link.token, image.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 404)
-
-    def test_404_for_image_of_a_different_organization(self):
-        from django.urls import reverse
-        image = self._image(self.match, organization=self.other_org)
-        response = self.client.get(
-            reverse('public:match_media', args=[self.link.token, image.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 404)
-
-    def test_404_for_image_without_organization(self):
-        from django.urls import reverse
-        image = self._image(self.match)
-        image.organization = None
-        image.save(update_fields=['organization'])
-        response = self.client.get(
-            reverse('public:match_media', args=[self.link.token, image.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 404)
+                response = self.client.get(
+                    reverse('public:match_media', args=[token, image.id]),
+                    HTTP_HOST='testclub.ilovevoley.es',
+                )
+                self.assertEqual(response.status_code, 404)
 
     def test_media_variants_resolve_to_expected_field(self):
         from django.urls import reverse

@@ -52,19 +52,19 @@ class ImageRemovalRequestTests(TestCase):
             {'reason': reason}, HTTP_HOST='testclub.ilovevoley.es',
         )
 
-    def test_family_can_request_removal(self):
-        response = self._request_removal(self.parent)
-        self.assertEqual(response.status_code, 302)
-        removal = ImageRemovalRequest.objects.get()
-        self.assertEqual(removal.person, self.person)
-        self.assertEqual(removal.requested_by, self.parent)
-        self.assertEqual(removal.reason, 'Quiero que se retire')
-        self.assertEqual(removal.status, 'pending')
-
-    def test_player_can_request_removal(self):
-        response = self._request_removal(self.player)
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(ImageRemovalRequest.objects.filter(requested_by=self.player).exists())
+    def test_player_or_family_can_request_removal(self):
+        for actor_attr in ('parent', 'player'):
+            with self.subTest(actor=actor_attr):
+                # Evita que la guarda anti-duplicados bloquee la segunda iteración.
+                ImageRemovalRequest.objects.all().delete()
+                actor = getattr(self, actor_attr)
+                response = self._request_removal(actor)
+                self.assertEqual(response.status_code, 302)
+                removal = ImageRemovalRequest.objects.get()
+                self.assertEqual(removal.person, self.person)
+                self.assertEqual(removal.requested_by, actor)
+                self.assertEqual(removal.reason, 'Quiero que se retire')
+                self.assertEqual(removal.status, 'pending')
 
     def test_unrelated_user_cannot_request_removal(self):
         response = self._request_removal(self.stranger)

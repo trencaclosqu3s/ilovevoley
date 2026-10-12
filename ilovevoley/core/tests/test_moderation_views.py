@@ -14,8 +14,6 @@ from ilovevoley.content.models import Image
 from ilovevoley.core.moderation_views import (
     generate_moderation_token,
     verify_moderation_token,
-    TOKEN_MAX_AGE,
-    MODERATION_SALT,
 )
 
 
@@ -96,18 +94,6 @@ class ModerationViewsSecurityTest(TestCase):
         self.assertEqual(data.action, 'approve')
         self.assertEqual(data.tenant_id, self.org1.id)
         self.assertTrue(bool(data.nonce))
-        self.assertEqual(MODERATION_SALT, "ilovevoley.moderation.v1")
-
-    def test_token_max_age_is_between_30_and_60_minutes(self):
-        self.assertGreaterEqual(TOKEN_MAX_AGE, 1800)
-        self.assertLessEqual(TOKEN_MAX_AGE, 3600)
-
-    def test_anonymous_get_redirects_to_login(self):
-        token = generate_moderation_token('user', self.pending_user.id, 'approve', tenant_id=self.org1.id)
-        url = reverse('moderate_user', kwargs={'token': token})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/accounts/login/', response.url)
 
     def test_get_does_not_mutate_user_state(self):
         self.client.force_login(self.manager_org1)

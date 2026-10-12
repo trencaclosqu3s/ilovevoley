@@ -104,18 +104,15 @@ class UserLanguageMiddlewareTests(TestCase):
 class CatalanCatalogTests(TestCase):
     """El catálogo catalán debe traducir cadenas reales de la interfaz."""
 
-    def test_template_renders_catalan_strings(self):
-        with translation.override('ca'):
-            html = render_to_string('account/password_reset.html')
-
-        self.assertIn('Recuperar contrasenya', html)
-        self.assertIn('Enviar enllaç de recuperació', html)
-        self.assertNotIn('Enviar Enlace de Recuperación', html)
-
-    def test_backend_strings_are_translated(self):
+    def test_catalan_catalog_translates_ui_strings(self):
         with translation.override('ca'):
             from django.utils.translation import gettext as _
 
+            html = render_to_string('account/password_reset.html')
+
+            self.assertIn('Recuperar contrasenya', html)
+            self.assertIn('Enviar enllaç de recuperació', html)
+            self.assertNotIn('Enviar Enlace de Recuperación', html)
             self.assertEqual(_('Calendario de partidos'), 'Calendari de partits')
 
 

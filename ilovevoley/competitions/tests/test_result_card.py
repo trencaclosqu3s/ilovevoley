@@ -193,30 +193,21 @@ class RenderResultCardTests(SimpleTestCase):
                 logo_fetcher=lambda url: None,
             )
 
-    def test_marco_style_with_photo_and_sets_returns_png(self):
-        png = result_card.render_result_card(
-            match=_fake_match(),
-            organization=_fake_org(),
-            card_format='story',
-            card_style='marco',
-            photo=_fake_photo_bytes(),
-            sets=[(25, 20), (18, 25), (25, 22)],
-            logo_fetcher=lambda url: None,
-        )
-        img = Image.open(BytesIO(png))
-        self.assertEqual(img.format, 'PNG')
-        self.assertEqual(img.size, (1080, 1920))
-
-    def test_marco_style_without_sets_still_returns_png(self):
-        png = result_card.render_result_card(
-            match=_fake_match(),
-            organization=_fake_org(),
-            card_style='marco',
-            photo=_fake_photo_bytes(),
-            sets=[],
-            logo_fetcher=lambda url: None,
-        )
-        self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
+    def test_marco_style_returns_png_with_and_without_sets(self):
+        for label, sets in (('with_sets', [(25, 20), (18, 25), (25, 22)]), ('no_sets', [])):
+            with self.subTest(label):
+                png = result_card.render_result_card(
+                    match=_fake_match(),
+                    organization=_fake_org(),
+                    card_format='story',
+                    card_style='marco',
+                    photo=_fake_photo_bytes(),
+                    sets=sets,
+                    logo_fetcher=lambda url: None,
+                )
+                img = Image.open(BytesIO(png))
+                self.assertEqual(img.format, 'PNG')
+                self.assertEqual(img.size, (1080, 1920))
 
     def test_marco_style_falls_back_to_gradient_on_invalid_photo(self):
         png = result_card.render_result_card(
@@ -298,34 +289,22 @@ class RenderResultCardTests(SimpleTestCase):
 
         self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
 
-    def test_footer_renders_ilovevoley_es_in_completa_style(self):
-        calls, spy = _capture_drawn_text()
-        with spy:
-            result_card.render_result_card(
-                match=_fake_match(),
-                organization=_fake_org(),
-                card_style='completa',
-                sets=[],
-                logo_fetcher=lambda url: None,
-            )
-        drawn = [content for _, content, _ in calls]
-        self.assertIn('ilovevoley.es', drawn)
-        self.assertNotIn('ilovevoley', drawn)
-
-    def test_footer_renders_ilovevoley_es_in_marco_style(self):
-        calls, spy = _capture_drawn_text()
-        with spy:
-            result_card.render_result_card(
-                match=_fake_match(),
-                organization=_fake_org(),
-                card_style='marco',
-                photo=_fake_photo_bytes(),
-                sets=[],
-                logo_fetcher=lambda url: None,
-            )
-        drawn = [content for _, content, _ in calls]
-        self.assertIn('ilovevoley.es', drawn)
-        self.assertNotIn('ilovevoley', drawn)
+    def test_footer_renders_ilovevoley_es(self):
+        for card_style in ('completa', 'marco'):
+            with self.subTest(card_style):
+                calls, spy = _capture_drawn_text()
+                with spy:
+                    result_card.render_result_card(
+                        match=_fake_match(),
+                        organization=_fake_org(),
+                        card_style=card_style,
+                        photo=_fake_photo_bytes(),
+                        sets=[],
+                        logo_fetcher=lambda url: None,
+                    )
+                drawn = [content for _, content, _ in calls]
+                self.assertIn('ilovevoley.es', drawn)
+                self.assertNotIn('ilovevoley', drawn)
 
 
 class NormalizeLayoutTests(SimpleTestCase):
@@ -525,21 +504,18 @@ class TeamLogoCacheTests(SimpleTestCase):
         self.assertEqual(first, second)
         fetcher.assert_called_once()
 
-    def test_download_exception_is_remembered_briefly(self):
-        fetcher = MagicMock(side_effect=TimeoutError)
-
-        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
-        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
-
-        fetcher.assert_called_once()
-
     def test_failed_download_is_remembered_briefly(self):
-        fetcher = MagicMock(return_value=None)
+        for label, fetcher in (
+            ('exception', MagicMock(side_effect=TimeoutError)),
+            ('none', MagicMock(return_value=None)),
+        ):
+            with self.subTest(label):
+                cache.clear()
 
-        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
-        self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
+                self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
+                self.assertIsNone(result_card._team_logo_bytes(self.team, fetcher))
 
-        fetcher.assert_called_once()
+                fetcher.assert_called_once()
 
 
 class PasteCrestCircleTests(SimpleTestCase):

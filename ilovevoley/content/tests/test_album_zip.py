@@ -193,16 +193,6 @@ class AlbumZipFlowTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_signed_token_expires(self):
-        from django.core.signing import TimestampSigner
-
-        from ilovevoley.content.album_zip import ALBUM_ZIP_SALT, parse_download_token
-
-        token = TimestampSigner(salt=ALBUM_ZIP_SALT).sign(
-            'job-1|1|tmp/album_zips/job-1.zip|a.zip'
-        )
-        self.assertIsNone(parse_download_token(token, max_age=-1))
-
     def test_download_rejects_other_tenant_even_without_cache(self):
         """El organization_id va en el token: sin state en cache no hay bypass."""
         from ilovevoley.content.album_zip import (

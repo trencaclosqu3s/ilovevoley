@@ -25,7 +25,7 @@ class AddMessageSuppressionTest(TestCase):
     def _messages(self):
         return [m.message for m in messages.get_messages(self.request)]
 
-    def test_suppresses_login_message_with_spanish_language(self):
+    def test_suppresses_known_login_messages_in_spanish(self):
         with translation.override('es'):
             self.adapter.add_message(
                 self.request,
@@ -33,11 +33,6 @@ class AddMessageSuppressionTest(TestCase):
                 'account/messages/logged_in.txt',
                 {'user': None},
             )
-
-        self.assertEqual(self._messages(), [])
-
-    def test_suppresses_account_connected_message(self):
-        with translation.override('es'):
             self.adapter.add_message(
                 self.request,
                 messages.INFO,

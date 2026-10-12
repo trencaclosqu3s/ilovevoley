@@ -80,108 +80,103 @@ class MatchMediaPushTest(TestCase):
         self.assertTrue(pending.get('videos'))
 
     @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
-    def test_notify_match_media_push_task_photos_only(self, mock_push):
+    def test_notify_match_media_push_task_builds_message_by_media_type(self, mock_push):
         from ilovevoley.content.tasks import notify_match_media_push_task
 
-        cache.set(
-            f"match_media_push_pending:{self.org.id}:{self.match.id}",
-            {'photos': True, 'videos': False},
-            timeout=120,
-        )
+        cases = [
+            (True, False, 'Fotos: Senior A vs Rival B', 'Se han subido fotos del partido Senior A - Rival B'),
+            (False, True, 'Vídeos: Senior A vs Rival B', 'Se han subido vídeos del partido Senior A - Rival B'),
+            (
+                True,
+                True,
+                'Fotos y vídeos: Senior A vs Rival B',
+                'Se han subido fotos y vídeos del partido Senior A - Rival B',
+            ),
+        ]
 
-        res = notify_match_media_push_task(self.org.id, self.match.id)
-        self.assertTrue(res)
+        for photos, videos, title_fragment, body_fragment in cases:
+            with self.subTest(photos=photos, videos=videos):
+                mock_push.reset_mock()
+                cache.set(
+                    f"match_media_push_pending:{self.org.id}:{self.match.id}",
+                    {'photos': photos, 'videos': videos},
+                    timeout=120,
+                )
 
-        mock_push.assert_called_once()
-        _, kwargs = mock_push.call_args
-        self.assertEqual(kwargs['organization_id'], self.org.id)
-        self.assertIn('Fotos: Senior A vs Rival B', kwargs['title'])
-        self.assertIn('Se han subido fotos del partido Senior A - Rival B', kwargs['body'])
-        self.assertEqual(kwargs['notification_type'], 'match_media')
-        self.assertIn(self.category.id, kwargs['category_ids'])
-        self.assertEqual(kwargs['url'], reverse('competitions:match_detail', args=[self.match.id]))
+                res = notify_match_media_push_task(self.org.id, self.match.id)
+                self.assertTrue(res)
 
-    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
-    def test_notify_match_media_push_task_videos_only(self, mock_push):
-        from ilovevoley.content.tasks import notify_match_media_push_task
-
-        cache.set(
-            f"match_media_push_pending:{self.org.id}:{self.match.id}",
-            {'photos': False, 'videos': True},
-            timeout=120,
-        )
-
-        res = notify_match_media_push_task(self.org.id, self.match.id)
-        self.assertTrue(res)
-
-        mock_push.assert_called_once()
-        _, kwargs = mock_push.call_args
-        self.assertEqual(kwargs['organization_id'], self.org.id)
-        self.assertIn('Vídeos: Senior A vs Rival B', kwargs['title'])
-        self.assertIn('Se han subido vídeos del partido Senior A - Rival B', kwargs['body'])
-        self.assertEqual(kwargs['notification_type'], 'match_media')
-
-    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
-    def test_notify_match_media_push_task_both_photos_and_videos(self, mock_push):
-        from ilovevoley.content.tasks import notify_match_media_push_task
-
-        cache.set(
-            f"match_media_push_pending:{self.org.id}:{self.match.id}",
-            {'photos': True, 'videos': True},
-            timeout=120,
-        )
-
-        res = notify_match_media_push_task(self.org.id, self.match.id)
-        self.assertTrue(res)
-
-        mock_push.assert_called_once()
-        _, kwargs = mock_push.call_args
-        self.assertEqual(kwargs['organization_id'], self.org.id)
-        self.assertIn('Fotos y vídeos: Senior A vs Rival B', kwargs['title'])
-        self.assertIn('Se han subido fotos y vídeos del partido Senior A - Rival B', kwargs['body'])
-        self.assertEqual(kwargs['notification_type'], 'match_media')
+                mock_push.assert_called_once()
+                _, kwargs = mock_push.call_args
+                self.assertEqual(kwargs['organization_id'], self.org.id)
+                self.assertIn(title_fragment, kwargs['title'])
+                self.assertIn(body_fragment, kwargs['body'])
+                self.assertEqual(kwargs['notification_type'], 'match_media')
+                self.assertIn(self.category.id, kwargs['category_ids'])
+                self.assertEqual(
+                    kwargs['url'], reverse('competitions:match_detail', args=[self.match.id])
+                )
 
     @patch('ilovevoley.content.views.queue_match_media_push')
-    def test_image_bulk_upload_with_match_queues_match_media_push(self, mock_queue):
-        uploaded = _create_test_image_file()
-        response = self.client.post(
-            reverse('content:image_bulk_upload'),
-            {
-                'images': [uploaded],
-                'title_0': 'Foto Partido',
-                'image_type': 'match',
-                'season': self.season.id,
-                'match': self.match.id,
-            },
-            HTTP_HOST='santjust.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 302)
-        mock_queue.assert_called_once_with(
-            match_id=self.match.id,
-            media_type='photo',
-            organization_id=self.org.id,
-        )
+    def test_upload_with_match_queues_match_media_push(self, mock_queue):
+        cases = {
+            'image_upload': (
+                'photo',
+                {
+                    'image': _create_test_image_file(),
+                    'title': 'Foto Individual Partido',
+                    'image_type': 'match',
+                    'season': self.season.id,
+                    'match': self.match.id,
+                },
+            ),
+            'image_bulk_upload': (
+                'photo',
+                {
+                    'images': [_create_test_image_file()],
+                    'title_0': 'Foto Partido',
+                    'image_type': 'match',
+                    'season': self.season.id,
+                    'match': self.match.id,
+                },
+            ),
+            'video_create': (
+                'video',
+                {
+                    'title': 'Vídeo Partido',
+                    'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                    'match': self.match.id,
+                    'category': self.category.id,
+                },
+            ),
+            'video_bulk_create': (
+                'video',
+                {
+                    'match': self.match.id,
+                    'category': self.category.id,
+                    'videos-TOTAL_FORMS': '1',
+                    'videos-INITIAL_FORMS': '0',
+                    'videos-MIN_NUM_FORMS': '0',
+                    'videos-MAX_NUM_FORMS': '10',
+                    'videos-0-title': 'Set 1 Partido',
+                    'videos-0-youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                    'videos-0-set_number': '1',
+                },
+            ),
+        }
 
-    @patch('ilovevoley.content.views.queue_match_media_push')
-    def test_image_upload_with_match_queues_match_media_push(self, mock_queue):
-        uploaded = _create_test_image_file()
-        response = self.client.post(
-            reverse('content:image_upload'),
-            {
-                'image': uploaded,
-                'title': 'Foto Individual Partido',
-                'image_type': 'match',
-                'season': self.season.id,
-                'match': self.match.id,
-            },
-            HTTP_HOST='santjust.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 302)
-        mock_queue.assert_called_once_with(
-            match_id=self.match.id,
-            media_type='photo',
-            organization_id=self.org.id,
-        )
+        for kind, (media_type, data) in cases.items():
+            with self.subTest(kind=kind):
+                mock_queue.reset_mock()
+                response = self.client.post(
+                    reverse(f'content:{kind}'), data, HTTP_HOST='santjust.ilovevoley.es'
+                )
+                self.assertEqual(response.status_code, 302)
+                mock_queue.assert_called_once_with(
+                    match_id=self.match.id,
+                    media_type=media_type,
+                    organization_id=self.org.id,
+                )
 
     @patch('ilovevoley.content.views.queue_match_media_push')
     def test_pending_image_upload_does_not_queue_match_media_push(self, mock_queue):
@@ -206,49 +201,6 @@ class MatchMediaPushTest(TestCase):
 
         self.assertEqual(response.status_code, 302)
         mock_queue.assert_not_called()
-
-    @patch('ilovevoley.content.views.queue_match_media_push')
-    def test_video_create_with_match_queues_match_media_push(self, mock_queue):
-        response = self.client.post(
-            reverse('content:video_create'),
-            {
-                'title': 'Vídeo Partido',
-                'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-                'match': self.match.id,
-                'category': self.category.id,
-            },
-            HTTP_HOST='santjust.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 302)
-        mock_queue.assert_called_once_with(
-            match_id=self.match.id,
-            media_type='video',
-            organization_id=self.org.id,
-        )
-
-    @patch('ilovevoley.content.views.queue_match_media_push')
-    def test_video_bulk_create_with_match_queues_match_media_push(self, mock_queue):
-        response = self.client.post(
-            reverse('content:video_bulk_create'),
-            {
-                'match': self.match.id,
-                'category': self.category.id,
-                'videos-TOTAL_FORMS': '1',
-                'videos-INITIAL_FORMS': '0',
-                'videos-MIN_NUM_FORMS': '0',
-                'videos-MAX_NUM_FORMS': '10',
-                'videos-0-title': 'Set 1 Partido',
-                'videos-0-youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-                'videos-0-set_number': '1',
-            },
-            HTTP_HOST='santjust.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 302)
-        mock_queue.assert_called_once_with(
-            match_id=self.match.id,
-            media_type='video',
-            organization_id=self.org.id,
-        )
 
     @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
     def test_multiple_rapid_uploads_same_match_send_single_push(self, mock_push):

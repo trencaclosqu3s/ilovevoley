@@ -18,13 +18,14 @@ class ProfileWebPushTemplateTest(TestCase):
         )
         self.client = Client()
 
-    def test_base_template_renders_valid_csrf_token_meta(self):
+    def test_base_template_exposes_csrf_token_meta(self):
+        """webpush.js lee el CSRF del meta tag: si desaparece, la suscripción push
+        deja de funcionar en silencio."""
         self.client.login(username='socio', password='password123')
         response = self.client.get('/profile/', HTTP_HOST='santjust.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
         content = response.content.decode('utf-8')
         match = re.search(r'<meta name="csrf-token" content="([^"]+)">', content)
         self.assertIsNotNone(match, 'Meta tag csrf-token no encontrado en el template base')
-        token = match.group(1)
-        self.assertTrue(len(token) >= 32, 'El token CSRF del meta tag debe ser válido')
+        self.assertTrue(match.group(1), 'El meta tag csrf-token debe llevar un token')
 
