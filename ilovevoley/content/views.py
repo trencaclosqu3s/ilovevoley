@@ -662,6 +662,16 @@ SHARE_TARGET_MAX_BYTES = 10 * 1024 * 1024
 SHARE_TARGET_TTL = timedelta(hours=24)
 
 
+def _purge_expired_shared_uploads():
+    """Borra filas caducadas una a una: queryset.delete() no invoca el modelo y
+    dejaría los ficheros huérfanos en MEDIA_ROOT. Se llama al recibir y al
+    consumir, para que el TTL no dependa de que alguien vuelva a compartir."""
+    for row in list(SharedUpload.objects.filter(
+        created_at__lt=timezone.now() - SHARE_TARGET_TTL
+    )):
+        row.delete()
+
+
 @csrf_exempt
 @require_POST
 def image_share_target(request):
@@ -698,9 +708,7 @@ def image_share_target(request):
             {'reason': 'files' if files else 'empty'}, status=200,
         )
 
-    # delete() de queryset no invoca el modelo (no liberaría el archivo): uno a uno.
-    for row in list(SharedUpload.objects.filter(created_at__lt=timezone.now() - SHARE_TARGET_TTL)):
-        row.delete()
+    _purge_expired_shared_uploads()
 
     kept = valid[:SHARE_TARGET_MAX_FILES]
     dropped = len(valid) - len(kept)
@@ -747,6 +755,7 @@ def image_upload(request):
     if request.method == 'POST':
         share_token = request.POST.get('share_token')
         if share_token:
+            _purge_expired_shared_uploads()
             try:
                 share_row = SharedUpload.objects.filter(
                     token=share_token, owner=request.user, organization=request.tenant
@@ -873,6 +882,7 @@ def image_upload(request):
 
         share_param = request.GET.get('share')
         if share_param:
+            _purge_expired_shared_uploads()
             try:
                 share_row = SharedUpload.objects.filter(
                     token=share_param, owner=request.user, organization=request.tenant
@@ -930,6 +940,7 @@ def image_bulk_upload(request):
         share_batch = request.POST.get('share_batch')
         share_rows = []
         if share_batch and not uploaded_files:
+            _purge_expired_shared_uploads()
             try:
                 share_rows = list(SharedUpload.objects.filter(
                     batch=share_batch, owner=request.user, organization=request.tenant
@@ -1199,6 +1210,10 @@ def image_bulk_upload(request):
 
             # Redirigir al álbum si se agregaron fotos a uno existente
             existing_album_id = request.POST.get('existing_album_id')
+            if share_batch and failed_idx:
+                # Éxito parcial (share target): las filas que fallaron siguen vivas.
+                # Sin ?share= el usuario nunca las ve y caducan sin reintento (#529).
+                return redirect(f"{reverse('content:image_bulk_upload')}?share={share_batch}")
             if existing_album_id:
                 messages.success(
                     request,
@@ -1282,6 +1297,7 @@ def image_bulk_upload(request):
     shared_rows = []
     share_param = request.GET.get('share')
     if share_param:
+        _purge_expired_shared_uploads()
         try:
             shared_rows = list(SharedUpload.objects.filter(
                 batch=share_param, owner=request.user, organization=request.tenant

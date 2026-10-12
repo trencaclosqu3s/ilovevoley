@@ -216,6 +216,22 @@ class ShareTargetSingleUploadTests(TestCase):
         from django.core.files.storage import default_storage
         self.assertFalse(default_storage.exists(row_path))
 
+    def test_get_consume_also_purges_expired_rows(self):
+        """El TTL no puede depender de que alguien vuelva a compartir (revisión #529)."""
+        stale = self._make_row()
+        SharedUpload.objects.filter(pk=stale.pk).update(
+            created_at=timezone.now() - timedelta(hours=25)
+        )
+        from django.core.files.storage import default_storage
+        stale_path = stale.file.name
+        live = self._make_row()
+        self.client.get(
+            reverse('content:image_upload'), {'share': str(live.token)},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertFalse(SharedUpload.objects.filter(pk=stale.pk).exists())
+        self.assertFalse(default_storage.exists(stale_path))
+
     def test_post_with_invalid_token_does_not_create_anything(self):
         import uuid as uuid_mod
         from ilovevoley.content.models import Image as ImageModel
@@ -267,6 +283,31 @@ class ShareTargetBulkUploadTests(TestCase):
         from ilovevoley.content.models import Image as ImageModel
         self.assertEqual(ImageModel.objects.filter(organization=self.org).count(), 2)
         self.assertEqual(SharedUpload.objects.filter(batch=batch).count(), 0)
+
+    def test_bulk_partial_failure_returns_to_remaining_batch(self):
+        """Spec §6 en parcial: si alguna foto falla, el redirect conserva ?share=
+        para reintentar solo la que quedó."""
+        big = SimpleUploadedFile('grande.jpg', b'x' * (10 * 1024 * 1024 + 1), content_type='image/jpeg')
+        batch = uuid_mod.uuid4()
+        SharedUpload.objects.create(
+            batch=batch, file=jpeg_bytes('ok.jpg'), owner=self.user, organization=self.org,
+            original_name='ok.jpg', content_type='image/jpeg',
+        )
+        bad_row = SharedUpload.objects.create(
+            batch=batch, file=big, owner=self.user, organization=self.org,
+            original_name='grande.jpg', content_type='image/jpeg',
+        )
+        response = self.client.post(
+            reverse('content:image_bulk_upload'),
+            {'share_batch': str(batch), 'image_type': 'training'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f'share={batch}', response['Location'])
+        self.assertIn(reverse('content:image_bulk_upload'), response['Location'])
+        from ilovevoley.content.models import Image as ImageModel
+        self.assertEqual(ImageModel.objects.count(), 1)
+        self.assertTrue(SharedUpload.objects.filter(pk=bad_row.pk).exists())
 
     def test_bulk_all_failed_keeps_rows_and_returns_to_share(self):
         """Spec §6: si ninguna imagen se crea, el lote sobrevive para reintentar."""
