@@ -925,6 +925,27 @@ def image_bulk_upload(request):
     """Vista para subir múltiples imágenes a la vez"""
     if request.method == 'POST':
         uploaded_files = request.FILES.getlist('images')
+        share_batch = request.POST.get('share_batch')
+        share_rows = []
+        if share_batch and not uploaded_files:
+            try:
+                share_rows = list(SharedUpload.objects.filter(
+                    batch=share_batch, owner=request.user, organization=request.tenant
+                ))
+            except (ValueError, ValidationError):
+                share_rows = []
+            if share_rows:
+                uploaded_files = [
+                    SimpleUploadedFile(
+                        row.original_name or f'compartida_{row.pk}.jpg',
+                        row.file.read(),
+                        content_type=row.content_type or 'image/jpeg',
+                    )
+                    for row in share_rows
+                ]
+            else:
+                messages.error(request, _('El enlace de las fotos compartidas ya no es válido.'))
+                return redirect('content:image_bulk_upload')
         
         if not uploaded_files:
             messages.error(request, _('No se seleccionaron imágenes.'))
@@ -984,12 +1005,6 @@ def image_bulk_upload(request):
         # Etiquetas compartidas y título base compartido
         shared_tags = request.POST.get('tags', '').strip()
         shared_title = request.POST.get('shared_title', '').strip()
-
-        from ilovevoley.content.image_naming import (
-            build_descriptive_title,
-            get_next_sequence_number,
-            is_generic_camera_filename,
-        )
 
         base_match = shared_data.get('match')
         base_album_name = shared_data.get('album_name', '')
@@ -1112,6 +1127,11 @@ def image_bulk_upload(request):
             except Exception as e:
                 logger.error(f"Error procesando {uploaded_file.name}: {str(e)}")
                 errors.append(_('%(name)s: %(error)s') % {'name': uploaded_file.name, 'error': str(e)})
+
+        # El lote compartido ya está copiado en cada Image (o descartado con error):
+        # las filas temporales no vuelven a servir para nada.
+        for row in share_rows:
+            row.delete()
 
         if vision_ids or pending_ids:
             from ilovevoley.content.tasks import analyze_image_with_vision_task
@@ -1248,6 +1268,18 @@ def image_bulk_upload(request):
     # Tipos de imagen
     image_types = Image.IMAGE_TYPES
 
+    shared_rows = []
+    share_param = request.GET.get('share')
+    if share_param:
+        try:
+            shared_rows = list(SharedUpload.objects.filter(
+                batch=share_param, owner=request.user, organization=request.tenant
+            ))
+        except (ValueError, ValidationError):
+            shared_rows = []
+        if not shared_rows:
+            messages.error(request, _('El enlace de las fotos compartidas ya no es válido.'))
+
     context = {
         'recent_matches': recent_matches,
         'categories': categories,
@@ -1256,6 +1288,7 @@ def image_bulk_upload(request):
         'current_season': Season.objects.current(),
         'selected_match': selected_match,
         'existing_album': existing_album,
+        'shared_rows': shared_rows,
     }
 
     return render(request, 'content/image_bulk_upload.html', context)

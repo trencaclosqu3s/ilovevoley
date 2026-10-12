@@ -7,6 +7,7 @@ solo puede romperse en producción.
 """
 import shutil
 import tempfile
+import uuid as uuid_mod
 from datetime import timedelta
 from io import BytesIO
 
@@ -208,3 +209,60 @@ class ShareTargetSingleUploadTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(ImageModel.objects.count(), 0)
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class ShareTargetBulkUploadTests(TestCase):
+    """Lote consumido desde batch: múltiples filas -> múltiples Images y limpieza
+    (guía: flujo con efectos persistentes)."""
+
+    setUp = ShareTargetSingleUploadTests.setUp
+
+    def _make_rows(self, n):
+        batch = uuid_mod.uuid4()
+        rows = [
+            SharedUpload.objects.create(
+                batch=batch, file=jpeg_bytes(f'IMG_{i}.jpg'), owner=self.user,
+                organization=self.org, original_name=f'IMG_{i}.jpg',
+                content_type='image/jpeg',
+            )
+            for i in range(n)
+        ]
+        return batch, rows
+
+    def test_get_share_batch_previews_all(self):
+        batch, rows = self._make_rows(2)
+        response = self.client.get(
+            reverse('content:image_bulk_upload'), {'share': str(batch)},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertContains(response, 'share_batch')
+        self.assertContains(response, rows[0].file.url)
+        self.assertContains(response, rows[1].file.url)
+
+    def test_post_with_share_batch_creates_images_and_deletes_rows(self):
+        batch, rows = self._make_rows(2)
+        response = self.client.post(
+            reverse('content:image_bulk_upload'),
+            {'share_batch': str(batch), 'image_type': 'training'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        from ilovevoley.content.models import Image as ImageModel
+        self.assertEqual(ImageModel.objects.filter(organization=self.org).count(), 2)
+        self.assertEqual(SharedUpload.objects.filter(batch=batch).count(), 0)
+
+    def test_post_with_foreign_batch_creates_nothing(self):
+        """Review focus 3 en lote: batch de otro usuario es ignorado."""
+        from ilovevoley.content.models import Image as ImageModel
+        response = self.client.post(
+            reverse('content:image_bulk_upload'),
+            {'share_batch': str(uuid_mod.uuid4()), 'image_type': 'training'},
+            HTTP_HOST='testclub.ilovevoley.es',
+            follow=True,
+        )
+        self.assertEqual(ImageModel.objects.count(), 0)
+        self.assertEqual(
+            [m.message for m in response.context['messages']],
+            ['El enlace de las fotos compartidas ya no es válido.'],
+        )
