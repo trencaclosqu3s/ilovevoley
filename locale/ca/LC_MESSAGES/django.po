@@ -9350,7 +9350,7 @@ msgstr "Configurar ara"
 
 #: ilovevoley/templates/category_preferences_banner.html:23
 #: ilovevoley/templates/category_preferences_banner.html:50
-#: ilovevoley/templates/includes/navbar.html:434
+#: ilovevoley/templates/includes/navbar.html:443
 msgid "Ahora no"
 msgstr "Ara no"
 
@@ -11416,11 +11416,11 @@ msgstr "El meu perfil"
 msgid "Añadir Video"
 msgstr "Afegir vídeo"
 
-#: ilovevoley/templates/includes/navbar.html:431
+#: ilovevoley/templates/includes/navbar.html:428
 msgid "¿Quieres recibir avisos?"
 msgstr "Vols rebre avisos?"
 
-#: ilovevoley/templates/includes/navbar.html:432
+#: ilovevoley/templates/includes/navbar.html:429
 msgid ""
 "Activa las notificaciones para enterarte de partidos y novedades de tus "
 "categorías."
@@ -11428,7 +11428,24 @@ msgstr ""
 "Activa les notificacions per assabentar-te de partits i novetats de les "
 "teves categories."
 
-#: ilovevoley/templates/includes/navbar.html:435
+#: ilovevoley/templates/includes/navbar.html:430
+#| msgid "Tus preferencias de avisos"
+msgid "Tus preferencias están guardadas"
+msgstr "Les teves preferències estan desades"
+
+#: ilovevoley/templates/includes/navbar.html:431
+msgid ""
+"Este móvil aún no recibe avisos. Actívalos para enterarte de partidos y "
+"fotos."
+msgstr ""
+"Aquest mòbil encara no rep avisos. Activa'ls per assabentar-te de partits i "
+"fotos."
+
+#: ilovevoley/templates/includes/navbar.html:442
+msgid "No, gracias"
+msgstr "No, gràcies"
+
+#: ilovevoley/templates/includes/navbar.html:444
 msgid "Activar"
 msgstr "Activar"
 

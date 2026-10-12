@@ -1,7 +1,11 @@
 (function () {
     "use strict";
 
-    var PROMPT_KEY = "ilovevoley.webpush.prompt_seen";
+    // #412 avisaba una sola vez (prompt_seen). Ahora: snooze temporal vs rechazo
+    // definitivo, para recuperar a quien creyó tener avisos y no los activó.
+    var PROMPT_NEVER_KEY = "ilovevoley.webpush.prompt_never";
+    var PROMPT_SNOOZE_KEY = "ilovevoley.webpush.prompt_snooze_until";
+    var PROMPT_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 
     function urlB64ToUint8Array(base64String) {
         var padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -85,30 +89,66 @@
             this.maybeShowPrompt();
         },
 
-        // Aviso único (#412): solo en la PWA instalada, con sesión y sin suscripción.
+        // PWA instalada + sin suscripción: reavisar salvo «No, gracias» o snooze activo.
         maybeShowPrompt: function () {
+            var self = this;
             var banner = document.getElementById('webpush-prompt');
             var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-            if (!banner || !standalone || !this.isSupported() || Notification.permission === 'denied' || this.promptSeen()) return;
+            if (!banner || !standalone || !this.isSupported() || Notification.permission === 'denied') return;
+            if (this.promptNever() || this.promptSnoozed()) return;
             navigator.serviceWorker.ready.then(function (reg) {
                 return reg.pushManager.getSubscription();
             }).then(function (sub) {
                 if (!sub) {
+                    self.applyPromptCopy(banner);
                     banner.classList.remove('hidden');
-                } else {
-                    try { localStorage.setItem(PROMPT_KEY, '1'); } catch (e) { /* almacenamiento no disponible */ }
                 }
             }).catch(function () {});
         },
 
-        promptSeen: function () {
-            try { return localStorage.getItem(PROMPT_KEY) === '1'; } catch (e) { return false; }
+        applyPromptCopy: function (banner) {
+            var title = banner.querySelector('[data-webpush-prompt-title]');
+            var body = banner.querySelector('[data-webpush-prompt-body]');
+            if (!title || !body) return;
+            if (banner.getAttribute('data-has-preferences') === '1') {
+                if (banner.dataset.promptTitlePrefs) title.textContent = banner.dataset.promptTitlePrefs;
+                if (banner.dataset.promptBodyPrefs) body.textContent = banner.dataset.promptBodyPrefs;
+            }
         },
 
-        closePrompt: function () {
-            try { localStorage.setItem(PROMPT_KEY, '1'); } catch (e) { /* almacenamiento no disponible */ }
+        promptNever: function () {
+            try { return localStorage.getItem(PROMPT_NEVER_KEY) === '1'; } catch (e) { return false; }
+        },
+
+        promptSnoozed: function () {
+            try {
+                var until = parseInt(localStorage.getItem(PROMPT_SNOOZE_KEY) || '', 10);
+                return Boolean(until && Date.now() < until);
+            } catch (e) {
+                return false;
+            }
+        },
+
+        hidePrompt: function () {
             var banner = document.getElementById('webpush-prompt');
             if (banner) banner.classList.add('hidden');
+        },
+
+        // «Ahora no»: reaparece a los 7 días si sigue sin suscripción.
+        snoozePrompt: function () {
+            try {
+                localStorage.setItem(PROMPT_SNOOZE_KEY, String(Date.now() + PROMPT_SNOOZE_MS));
+            } catch (e) { /* almacenamiento no disponible */ }
+            this.hidePrompt();
+        },
+
+        // «No, gracias»: no volver a preguntar en este dispositivo.
+        declinePromptForever: function () {
+            try {
+                localStorage.setItem(PROMPT_NEVER_KEY, '1');
+                localStorage.removeItem(PROMPT_SNOOZE_KEY);
+            } catch (e) { /* almacenamiento no disponible */ }
+            this.hidePrompt();
         },
 
         acceptPrompt: function () {
@@ -118,11 +158,15 @@
             navigator.serviceWorker.ready.then(function (reg) {
                 return self.subscribe(reg);
             }).then(function () {
-                self.closePrompt();
+                try {
+                    localStorage.removeItem(PROMPT_SNOOZE_KEY);
+                    localStorage.removeItem(PROMPT_NEVER_KEY);
+                } catch (e) { /* almacenamiento no disponible */ }
+                self.hidePrompt();
                 window.location.href = target;
             }).catch(function () {
-                // Fallo transitorio o permiso no concedido: se oculta sin marcarlo como visto ni navegar.
-                banner.classList.add('hidden');
+                // Fallo transitorio o permiso no concedido: se oculta sin snooze ni «nunca».
+                self.hidePrompt();
             });
         },
 
@@ -306,7 +350,8 @@
     };
 
     window.acceptWebPushPrompt = function () { window.WebPushManager.acceptPrompt(); };
-    window.dismissWebPushPrompt = function () { window.WebPushManager.closePrompt(); };
+    window.dismissWebPushPrompt = function () { window.WebPushManager.snoozePrompt(); };
+    window.declineWebPushPrompt = function () { window.WebPushManager.declinePromptForever(); };
 
     window.toggleWebPush = function () {
         window.WebPushManager.toggle();
