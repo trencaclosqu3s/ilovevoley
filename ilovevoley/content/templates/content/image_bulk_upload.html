@@ -51,6 +51,17 @@
                     {% trans "Imágenes" %} <span class="text-red-500 dark:text-red-400">*</span>
                 </label>
                 
+                {% if shared_rows %}
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+                    {% for row in shared_rows %}
+                    <figure class="text-center">
+                        <img src="{{ row.file.url }}" alt="{{ row.original_name }}" class="max-h-40 mx-auto rounded object-contain">
+                        <figcaption class="text-xs text-muted">{{ row.original_name }}</figcaption>
+                    </figure>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="share_batch" value="{{ shared_rows.0.batch }}">
+                {% else %}
                 <div id="drop-zone" class="border-2 border-dashed border-line rounded-3xl p-8 text-center hover:border-accent transition-colors duration-200 cursor-pointer">
                     <div id="drop-zone-content">
                         <i class="fas fa-cloud-upload-alt text-muted text-4xl mb-4"></i>
@@ -84,6 +95,7 @@
                         <i class="fas fa-spinner fa-spin mr-2"></i>{% trans "Procesando imágenes..." %}
                     </div>
                 </div>
+                {% endif %}
             </div>
 
             <!-- Datos Compartidos -->
@@ -254,7 +266,7 @@
                 
                 <button type="submit" 
                         id="submit-btn"
-                        disabled
+                        {% if not shared_rows %}disabled{% endif %}
                         class="w-full sm:w-auto text-center inline-flex items-center justify-center px-6 py-2.5 bg-csj-purple-dark text-white rounded-full hover:opacity-90 transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed font-medium">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
@@ -284,7 +296,8 @@ const submitBtn = document.getElementById('submit-btn');
 // Detectar si es móvil
 const isMobile = window.innerWidth <= 768;
 
-// Drag & Drop
+// Drag & Drop (el drop-zone no existe en el flujo share target: lote ya adjunto)
+if (dropZone && imagesInput) {
 dropZone.addEventListener('click', () => imagesInput.click());
 
 dropZone.addEventListener('dragover', (e) => {
@@ -309,6 +322,7 @@ imagesInput.addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
     handleFiles(files);
 });
+}
 
 function handleFiles(files) {
     if (isProcessing) return;
@@ -515,6 +529,7 @@ function getContextBaseTitle(index) {
 }
 
 function updateIndividualTitlesFromContext() {
+    if (!individualFields) return;
     const inputs = individualFields.querySelectorAll('input[name^="title_"]');
     inputs.forEach((input, index) => {
         if (!input.dataset.userEdited) {
@@ -700,8 +715,9 @@ if (individualFields) {
 updateCategoriesState();
 
 // Prevenir envío del formulario si no hay imágenes
+const shareBatchInput = document.querySelector('input[name="share_batch"]');
 document.getElementById('bulk-upload-form').addEventListener('submit', (e) => {
-    if (selectedFiles.length === 0) {
+    if (!shareBatchInput && selectedFiles.length === 0) {
         e.preventDefault();
         alert('{% trans "Por favor, selecciona al menos una imagen." as js_msg %}{{ js_msg|escapejs }}');
         return false;
@@ -719,9 +735,11 @@ document.getElementById('bulk-upload-form').addEventListener('submit', (e) => {
     }
     
     // Crear un DataTransfer para asignar los archivos al input
-    const dataTransfer = new DataTransfer();
-    selectedFiles.forEach(file => dataTransfer.items.add(file));
-    imagesInput.files = dataTransfer.files;
+    if (imagesInput) {
+        const dataTransfer = new DataTransfer();
+        selectedFiles.forEach(file => dataTransfer.items.add(file));
+        imagesInput.files = dataTransfer.files;
+    }
     
     // Mostrar indicador de carga
     submitBtn.disabled = true;

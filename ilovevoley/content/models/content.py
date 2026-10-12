@@ -644,3 +644,37 @@ class ImageRemovalRequest(models.Model):
 
     def __str__(self):
         return f'{self.image_title} ({self.get_status_display()})'
+
+
+class SharedUpload(models.Model):
+    """Foto recibida por el share target de la PWA pendiente de incorporarse a una subida.
+
+    Fila efímera (24 h): se consume en image_upload/image_bulk_upload y se borra.
+    """
+
+    token = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch = models.UUIDField(default=uuid.uuid4, db_index=True)
+    file = models.FileField(upload_to='shared_uploads/%Y/%m/')
+    original_name = models.CharField(max_length=255, blank=True)
+    content_type = models.CharField(max_length=100, blank=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='shared_uploads'
+    )
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE)
+    shared_title = models.CharField(max_length=255, blank=True)
+    shared_text = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def delete(self, *args, **kwargs):
+        # Django no borra el FileField con instance/queryset delete: sin esto cada
+        # share dejaría basura binaria en MEDIA_ROOT (mismo motivo que
+        # services.delete_image_with_files para Image).
+        if self.file.name:
+            self.file.delete(save=False)
+        super().delete(*args, **kwargs)
+
+    def __str__(self):
+        return f'SharedUpload {self.token} ({self.original_name})'

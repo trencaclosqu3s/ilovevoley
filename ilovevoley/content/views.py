@@ -1,4 +1,5 @@
 from collections import Counter, defaultdict
+from datetime import timedelta
 import logging
 import uuid
 
@@ -7,6 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.paginator import Paginator
 from django.db.models import Count, F, Max, Q, Window
 from django.db.models.functions import RowNumber
@@ -16,6 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
@@ -28,11 +31,17 @@ from ilovevoley.core.tenant_utils import (
     can_moderate_images,
     can_tag_image,
     tenant_access_required,
+    user_has_approved_membership,
     user_is_tenant_manager,
 )
 from ilovevoley.rosters.models import Person
 from ilovevoley.teams.models import Team
 from ilovevoley.core.email_utils import enqueue_on_commit
+from .image_naming import (
+    build_descriptive_title,
+    get_next_sequence_number,
+    is_generic_camera_filename,
+)
 from .services import apply_image_tags, moderate_image, taggable_persons
 from .forms import (
     CommentForm,
@@ -44,7 +53,7 @@ from .forms import (
     VideoForm,
 )
 from .favorites import annotate_favorites
-from .models import Comment, Image, ImageFavorite, ImageRemovalRequest, Video
+from .models import Comment, Image, ImageFavorite, ImageRemovalRequest, SharedUpload, Video
 from .services import queue_match_media_push
 from .thumbnails import schedule_thumbnail_generation
 
@@ -645,21 +654,133 @@ def image_gallery_albums(request):
     return render(request, 'content/image_gallery.html', context)
 
 
+SHARE_TARGET_ACCEPTED_TYPES = {
+    'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif',
+}
+SHARE_TARGET_MAX_FILES = 20
+SHARE_TARGET_MAX_BYTES = 10 * 1024 * 1024
+SHARE_TARGET_TTL = timedelta(hours=24)
+
+
+def _purge_expired_shared_uploads():
+    """Borra filas caducadas una a una: queryset.delete() no invoca el modelo y
+    dejaría los ficheros huérfanos en MEDIA_ROOT. Se llama al recibir y al
+    consumir, para que el TTL no dependa de que alguien vuelva a compartir."""
+    for row in list(SharedUpload.objects.filter(
+        created_at__lt=timezone.now() - SHARE_TARGET_TTL
+    )):
+        row.delete()
+
+
+@csrf_exempt
+@require_POST
+def image_share_target(request):
+    """Recibe el POST multipart del share target de la PWA (#524).
+
+    Guarda las imágenes válidas en SharedUpload (24 h) y redirige al flujo de
+    subida normal. El navegador no puede enviar CSRF aquí: por eso csrf_exempt,
+    compensado con gate de sesión+membresía y sin efectos hasta el consumo.
+    """
+    tenant = getattr(request, 'tenant', None)
+    user = request.user
+    allowed = (
+        user.is_authenticated
+        and tenant is not None
+        and (user.is_superuser or user_has_approved_membership(user, tenant))
+    )
+    if not allowed:
+        return render(
+            request, 'content/share_target_notice.html',
+            {'reason': 'auth'}, status=200,
+        )
+
+    files = request.FILES.getlist('image')
+    valid, rejected = [], []
+    for f in files:
+        if f.content_type not in SHARE_TARGET_ACCEPTED_TYPES or f.size > SHARE_TARGET_MAX_BYTES:
+            rejected.append(f)
+        else:
+            valid.append(f)
+
+    if not valid:
+        return render(
+            request, 'content/share_target_notice.html',
+            {'reason': 'files' if files else 'empty'}, status=200,
+        )
+
+    _purge_expired_shared_uploads()
+
+    kept = valid[:SHARE_TARGET_MAX_FILES]
+    dropped = len(valid) - len(kept)
+    batch = uuid.uuid4()
+    shared_title = (request.POST.get('title') or '')[:255]
+    shared_text = request.POST.get('text') or ''
+    first_token = None
+    for f in kept:
+        row = SharedUpload.objects.create(
+            batch=batch,
+            file=f,
+            original_name=f.name[:255],
+            content_type=f.content_type or '',
+            owner=user,
+            organization=tenant,
+            shared_title=shared_title,
+            shared_text=shared_text,
+        )
+        if first_token is None:
+            first_token = row.token
+
+    if rejected:
+        messages.error(
+            request,
+            _('%(n)s archivo(s) no admitidos: solo JPG, PNG, WebP o HEIC de hasta 10 MB.')
+            % {'n': len(rejected)},
+        )
+    if dropped:
+        messages.error(
+            request,
+            _('Demasiadas fotos: se han descartado %(n)s (máximo %(max)s por compartir).')
+            % {'n': dropped, 'max': SHARE_TARGET_MAX_FILES},
+        )
+
+    if len(kept) == 1:
+        return redirect(f"{reverse('content:image_upload')}?share={first_token}")
+    return redirect(f"{reverse('content:image_bulk_upload')}?share={batch}")
+
+
 @tenant_access_required()
 def image_upload(request):
     """Vista para subir imágenes"""
+    share_row = None
     if request.method == 'POST':
-        form = ImageUploadForm(request.POST, request.FILES, organization=request.tenant)
+        share_token = request.POST.get('share_token')
+        if share_token:
+            _purge_expired_shared_uploads()
+            try:
+                share_row = SharedUpload.objects.filter(
+                    token=share_token, owner=request.user, organization=request.tenant
+                ).first()
+            except (ValueError, ValidationError):
+                share_row = None
+            if not share_row:
+                messages.error(request, _('El enlace de la foto compartida ya no es válido.'))
+                form = ImageUploadForm(request.POST, request.FILES, organization=request.tenant)
+            else:
+                restored = SimpleUploadedFile(
+                    share_row.original_name or 'compartida.jpg',
+                    share_row.file.read(),
+                    content_type=share_row.content_type or 'image/jpeg',
+                )
+                form = ImageUploadForm(
+                    request.POST, {'image': restored}, organization=request.tenant
+                )
+        else:
+            form = ImageUploadForm(request.POST, request.FILES, organization=request.tenant)
         if form.is_valid():
             image = form.save(commit=False)
             image.uploaded_by = request.user
             image.organization = request.tenant
 
-            from ilovevoley.content.image_naming import (
-                build_descriptive_title,
-                get_next_sequence_number,
-                is_generic_camera_filename,
-            )
             if not image.title or is_generic_camera_filename(image.title):
                 seq = get_next_sequence_number(
                     match=image.match,
@@ -739,6 +860,9 @@ def image_upload(request):
             if image.status == 'approved' and image.match_id and request.tenant:
                 queue_match_media_push(match_id=image.match_id, media_type='photo', organization_id=request.tenant.id)
 
+            if share_row:
+                share_row.delete()
+
             return redirect('content:image_gallery')
         else:
             # El formulario no es válido, mostrar errores
@@ -755,7 +879,24 @@ def image_upload(request):
                 initial_data['match'] = match
             except Match.DoesNotExist:
                 pass
-        
+
+        share_param = request.GET.get('share')
+        if share_param:
+            _purge_expired_shared_uploads()
+            try:
+                share_row = SharedUpload.objects.filter(
+                    token=share_param, owner=request.user, organization=request.tenant
+                ).first()
+            except (ValueError, ValidationError):
+                share_row = None
+            if not share_row:
+                messages.error(request, _('El enlace de la foto compartida ya no es válido.'))
+        if share_row:
+            if share_row.shared_title and not is_generic_camera_filename(share_row.shared_title):
+                initial_data['title'] = share_row.shared_title[:200]
+            if share_row.shared_text:
+                initial_data['description'] = share_row.shared_text
+
         form = ImageUploadForm(initial=initial_data, organization=request.tenant)
 
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
@@ -785,6 +926,7 @@ def image_upload(request):
     context = {
         'form': form,
         'recent_matches': recent_matches,
+        'shared_upload': share_row,
     }
     
     return render(request, 'content/image_upload.html', context)
@@ -795,6 +937,28 @@ def image_bulk_upload(request):
     """Vista para subir múltiples imágenes a la vez"""
     if request.method == 'POST':
         uploaded_files = request.FILES.getlist('images')
+        share_batch = request.POST.get('share_batch')
+        share_rows = []
+        if share_batch and not uploaded_files:
+            _purge_expired_shared_uploads()
+            try:
+                share_rows = list(SharedUpload.objects.filter(
+                    batch=share_batch, owner=request.user, organization=request.tenant
+                ))
+            except (ValueError, ValidationError):
+                share_rows = []
+            if share_rows:
+                uploaded_files = [
+                    SimpleUploadedFile(
+                        row.original_name or f'compartida_{row.pk}.jpg',
+                        row.file.read(),
+                        content_type=row.content_type or 'image/jpeg',
+                    )
+                    for row in share_rows
+                ]
+            else:
+                messages.error(request, _('El enlace de las fotos compartidas ya no es válido.'))
+                return redirect('content:image_bulk_upload')
         
         if not uploaded_files:
             messages.error(request, _('No se seleccionaron imágenes.'))
@@ -855,12 +1019,6 @@ def image_bulk_upload(request):
         shared_tags = request.POST.get('tags', '').strip()
         shared_title = request.POST.get('shared_title', '').strip()
 
-        from ilovevoley.content.image_naming import (
-            build_descriptive_title,
-            get_next_sequence_number,
-            is_generic_camera_filename,
-        )
-
         base_match = shared_data.get('match')
         base_album_name = shared_data.get('album_name', '')
         base_album_id = shared_data.get('album_group_id')
@@ -878,6 +1036,7 @@ def image_bulk_upload(request):
         errors = []
         pending_ids = []
         vision_ids = []
+        failed_idx = set()
 
         for idx, uploaded_file in enumerate(uploaded_files):
             try:
@@ -885,10 +1044,12 @@ def image_bulk_upload(request):
                 content_type = getattr(uploaded_file, 'content_type', '') or ''
                 if not content_type.startswith('image/'):
                     errors.append(_('%(name)s: No es una imagen válida') % {'name': uploaded_file.name})
+                    failed_idx.add(idx)
                     continue
 
                 if uploaded_file.size > 10 * 1024 * 1024:  # 10MB
                     errors.append(_('%(name)s: Archivo demasiado grande (máx 10MB)') % {'name': uploaded_file.name})
+                    failed_idx.add(idx)
                     continue
 
                 # Obtener título y descripción individual con formateo descriptivo
@@ -982,6 +1143,13 @@ def image_bulk_upload(request):
             except Exception as e:
                 logger.error(f"Error procesando {uploaded_file.name}: {str(e)}")
                 errors.append(_('%(name)s: %(error)s') % {'name': uploaded_file.name, 'error': str(e)})
+                failed_idx.add(idx)
+
+        # Solo se consumen las filas que llegaron a Image: una fallo mantiene su
+        # fila temporal para poder reintentar (spec §6 de #524).
+        for idx, row in enumerate(share_rows):
+            if idx not in failed_idx:
+                row.delete()
 
         if vision_ids or pending_ids:
             from ilovevoley.content.tasks import analyze_image_with_vision_task
@@ -1042,6 +1210,10 @@ def image_bulk_upload(request):
 
             # Redirigir al álbum si se agregaron fotos a uno existente
             existing_album_id = request.POST.get('existing_album_id')
+            if share_batch and failed_idx:
+                # Éxito parcial (share target): las filas que fallaron siguen vivas.
+                # Sin ?share= el usuario nunca las ve y caducan sin reintento (#529).
+                return redirect(f"{reverse('content:image_bulk_upload')}?share={share_batch}")
             if existing_album_id:
                 messages.success(
                     request,
@@ -1051,6 +1223,10 @@ def image_bulk_upload(request):
             else:
                 return redirect('content:image_gallery')
         else:
+            if share_batch:
+                # Sin éxito: devolver al usuario al lote pendiente (?share=) en vez
+                # de a un formulario vacío que le haría perder las fotos compartidas.
+                return redirect(f"{reverse('content:image_bulk_upload')}?share={share_batch}")
             return redirect('content:image_bulk_upload')
     
     # GET request
@@ -1118,6 +1294,19 @@ def image_bulk_upload(request):
     # Tipos de imagen
     image_types = Image.IMAGE_TYPES
 
+    shared_rows = []
+    share_param = request.GET.get('share')
+    if share_param:
+        _purge_expired_shared_uploads()
+        try:
+            shared_rows = list(SharedUpload.objects.filter(
+                batch=share_param, owner=request.user, organization=request.tenant
+            ))
+        except (ValueError, ValidationError):
+            shared_rows = []
+        if not shared_rows:
+            messages.error(request, _('El enlace de las fotos compartidas ya no es válido.'))
+
     context = {
         'recent_matches': recent_matches,
         'categories': categories,
@@ -1126,6 +1315,7 @@ def image_bulk_upload(request):
         'current_season': Season.objects.current(),
         'selected_match': selected_match,
         'existing_album': existing_album,
+        'shared_rows': shared_rows,
     }
 
     return render(request, 'content/image_bulk_upload.html', context)
@@ -1618,6 +1808,7 @@ __all__ = [
     'image_gallery',
     'image_gallery_albums',
     'image_upload',
+    'image_share_target',
     'image_bulk_upload',
     'image_detail',
     'match_images',

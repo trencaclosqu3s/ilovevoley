@@ -1,0 +1,21 @@
+{% extends 'base_error.html' %}
+{% load i18n icons %}
+{% block title_tag %}{% trans "Compartir fotos - I Love Voley" %}{% endblock %}
+{% block art %}{% icon 'ball' 'w-12 h-12' %}{% endblock %}
+{% block code_class %}text-3xl sm:text-4xl{% endblock %}
+{% block code %}{% trans "¡Compartición no completada!" %}{% endblock %}
+{% block heading %}{% trans "La foto no llegó a la cancha" %}{% endblock %}
+{% block subtitle %}
+    {% if reason == 'auth' %}{% trans "Abre la app, inicia sesión en tu club y vuelve a compartir la foto." %}
+    {% elif reason == 'files' %}{% trans "No se admitió ninguna imagen: solo JPG, PNG, WebP o HEIC de hasta 10 MB." %}
+    {% else %}{% trans "No llegó ningún archivo. Prueba a compartir la foto de nuevo." %}{% endif %}
+{% endblock %}
+{% block quote %}{% trans "Has sacado fuerte, pero el balón se ha ido fuera: vuelve a intentarlo desde la galería." %}{% endblock %}
+{% block info_title %}{% trans "Para que la jugada salga bien" %}{% endblock %}
+{% block info_items %}
+    <li class="flex items-start"><span class="text-brand-text mr-2">&bull;</span><span>{% trans "La app de I Love Voley debe estar instalada y abierta con tu sesión del club." %}</span></li>
+    <li class="flex items-start"><span class="text-brand-text mr-2">&bull;</span><span>{% trans "Desde la galería, selecciona la foto y usa Compartir, luego elige I Love Voley." %}</span></li>
+    <li class="flex items-start"><span class="text-brand-text mr-2">&bull;</span><span>{% trans "Se te pedirá elegir el partido antes de publicar: las fotos pasan por moderación." %}</span></li>
+{% endblock %}
+{% block tip_label %}{% trans "Pizarra táctica:" %}{% endblock %}
+{% block tip %}{% trans "Las fotos del partido se comparten en caliente; si hay dudas de cobertura, repite la jugada" %}{% endblock %}
