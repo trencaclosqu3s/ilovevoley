@@ -13042,3 +13042,20 @@ msgstr ""
 
 #~ msgid "❌ Error al regenerar la URL. Por favor, inténtalo de nuevo."
 #~ msgstr "❌ Error en regenerar la URL. Si us plau, torna-ho a intentar."
+
+#: ilovevoley/core/views.py
+msgid "Hoy / este finde"
+msgstr "Avui / aquest cap de setmana"
+
+#: ilovevoley/core/views.py
+msgid "Partidos y calendario de competición"
+msgstr "Partits i calendari de competició"
+
+#: ilovevoley/core/views.py
+msgid "Galerías de fotos de partidos"
+msgstr "Galeries de fotos de partits"
+
+#: ilovevoley/core/views.py
+msgid "Activar y configurar avisos y notificaciones"
+msgstr "Activar i configurar avisos i notificacions"
+
