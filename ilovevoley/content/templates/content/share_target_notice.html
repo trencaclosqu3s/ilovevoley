@@ -1,0 +1,20 @@
+{% load i18n %}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% trans "I Love Voley — Compartir fotos" %}</title>
+</head>
+<body style="font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 30rem;">
+  {% if reason == 'auth' %}
+    <h1>I Love Voley</h1>
+    <p>{% trans "Abre la app, inicia sesión en tu club y vuelve a compartir la foto." %}</p>
+  {% elif reason == 'files' %}
+    <h1>I Love Voley</h1>
+    <p>{% trans "No se admitió ninguna imagen: solo JPG, PNG, WebP o HEIC de hasta 10 MB." %}</p>
+  {% else %}
+    <h1>I Love Voley</h1>
+    <p>{% trans "No llegó ningún archivo. Prueba a compartir la foto de nuevo." %}</p>
+  {% endif %}
+</body>
+</html>

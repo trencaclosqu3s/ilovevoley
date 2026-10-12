@@ -1,4 +1,5 @@
 from collections import Counter, defaultdict
+from datetime import timedelta
 import logging
 import uuid
 
@@ -16,6 +17,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
@@ -28,6 +30,7 @@ from ilovevoley.core.tenant_utils import (
     can_moderate_images,
     can_tag_image,
     tenant_access_required,
+    user_has_approved_membership,
     user_is_tenant_manager,
 )
 from ilovevoley.rosters.models import Person
@@ -44,7 +47,7 @@ from .forms import (
     VideoForm,
 )
 from .favorites import annotate_favorites
-from .models import Comment, Image, ImageFavorite, ImageRemovalRequest, Video
+from .models import Comment, Image, ImageFavorite, ImageRemovalRequest, SharedUpload, Video
 from .services import queue_match_media_push
 from .thumbnails import schedule_thumbnail_generation
 
@@ -643,6 +646,90 @@ def image_gallery_albums(request):
     }
 
     return render(request, 'content/image_gallery.html', context)
+
+
+SHARE_TARGET_ACCEPTED_TYPES = {
+    'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif',
+}
+SHARE_TARGET_MAX_FILES = 20
+SHARE_TARGET_MAX_BYTES = 10 * 1024 * 1024
+SHARE_TARGET_TTL = timedelta(hours=24)
+
+
+@csrf_exempt
+@require_POST
+def image_share_target(request):
+    """Recibe el POST multipart del share target de la PWA (#524).
+
+    Guarda las imágenes válidas en SharedUpload (24 h) y redirige al flujo de
+    subida normal. El navegador no puede enviar CSRF aquí: por eso csrf_exempt,
+    compensado con gate de sesión+membresía y sin efectos hasta el consumo.
+    """
+    tenant = getattr(request, 'tenant', None)
+    user = request.user
+    allowed = (
+        user.is_authenticated
+        and tenant is not None
+        and (user.is_superuser or user_has_approved_membership(user, tenant))
+    )
+    if not allowed:
+        return render(
+            request, 'content/share_target_notice.html',
+            {'reason': 'auth'}, status=200,
+        )
+
+    files = request.FILES.getlist('image')
+    valid, rejected = [], []
+    for f in files:
+        if f.content_type not in SHARE_TARGET_ACCEPTED_TYPES or f.size > SHARE_TARGET_MAX_BYTES:
+            rejected.append(f)
+        else:
+            valid.append(f)
+
+    if not valid:
+        return render(
+            request, 'content/share_target_notice.html',
+            {'reason': 'files' if files else 'empty'}, status=200,
+        )
+
+    SharedUpload.objects.filter(created_at__lt=timezone.now() - SHARE_TARGET_TTL).delete()
+
+    kept = valid[:SHARE_TARGET_MAX_FILES]
+    dropped = len(valid) - len(kept)
+    batch = uuid.uuid4()
+    shared_title = (request.POST.get('title') or '')[:255]
+    shared_text = request.POST.get('text') or ''
+    first_token = None
+    for f in kept:
+        row = SharedUpload.objects.create(
+            batch=batch,
+            file=f,
+            original_name=f.name[:255],
+            content_type=f.content_type or '',
+            owner=user,
+            organization=tenant,
+            shared_title=shared_title,
+            shared_text=shared_text,
+        )
+        if first_token is None:
+            first_token = row.token
+
+    if rejected:
+        messages.error(
+            request,
+            _('%(n)s archivo(s) no admitidos: solo JPG, PNG, WebP o HEIC de hasta 10 MB.')
+            % {'n': len(rejected)},
+        )
+    if dropped:
+        messages.error(
+            request,
+            _('Demasiadas fotos: se han descartado %(n)s (máximo %(max)s por compartir).')
+            % {'n': dropped, 'max': SHARE_TARGET_MAX_FILES},
+        )
+
+    if len(kept) == 1:
+        return redirect(f"{reverse('content:image_upload')}?share={first_token}")
+    return redirect(f"{reverse('content:image_bulk_upload')}?share={batch}")
 
 
 @tenant_access_required()
@@ -1618,6 +1705,7 @@ __all__ = [
     'image_gallery',
     'image_gallery_albums',
     'image_upload',
+    'image_share_target',
     'image_bulk_upload',
     'image_detail',
     'match_images',
