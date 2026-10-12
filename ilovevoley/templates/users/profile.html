@@ -3,446 +3,583 @@
 
 {% block title %}{% trans "Mi Perfil" %} - I Love Voley{% endblock %}
 
+{% block extra_head %}
+<!-- Cropper.js para recorte de avatar -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+{% endblock %}
+
 {% block content %}
-{% trans "No especificado" as no_especificado %}
 <div class="container mx-auto px-4 py-8 max-w-4xl">
     <!-- Header -->
-    <div class="mb-8">
+    <div class="mb-6">
         <h1 class="text-3xl font-bold text-ink mb-2">{% trans "Mi Perfil" %}</h1>
-        <p class="text-muted">{% trans "Gestiona tu información personal y preferencias" %}</p>
+        <p class="text-muted">{% trans "Gestiona tu información personal, avisos y suscripciones" %}</p>
     </div>
 
-    <!-- Información del Usuario -->
-    <div class="bg-surface rounded-[20px] border border-line overflow-hidden mb-6">
-        <div class="bg-csj-purple-dark dark:brightness-75 dark:contrast-125 h-24"></div>
-        <div class="relative px-6 pb-6">
-            <div class="flex items-center -mt-12 mb-6">
-                <div class="bg-surface rounded-full p-2 shadow-lg">
-                    {% if user.avatar %}
-                        <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="w-20 h-20 rounded-full object-cover">
+    <!-- Pestañas de Navegación -->
+    <div class="border-b border-line mb-6">
+        <nav class="flex space-x-2 sm:space-x-6" aria-label="{% trans 'Pestañas de perfil' %}">
+            <button type="button"
+                    id="tab-btn-perfil"
+                    data-tab-target="perfil"
+                    class="tab-btn pb-3 px-2 font-semibold text-sm border-b-2 transition flex items-center gap-2 {% if active_tab == 'perfil' %}border-csj-purple text-brand-text{% else %}border-transparent text-muted hover:text-ink{% endif %}"
+                    aria-selected="{% if active_tab == 'perfil' %}true{% else %}false{% endif %}"
+                    role="tab">
+                {% icon 'user' %}
+                <span>{% trans "Perfil" %}</span>
+            </button>
+            <button type="button"
+                    id="tab-btn-avisos"
+                    data-tab-target="avisos"
+                    class="tab-btn pb-3 px-2 font-semibold text-sm border-b-2 transition flex items-center gap-2 {% if active_tab == 'avisos' %}border-csj-purple text-brand-text{% else %}border-transparent text-muted hover:text-ink{% endif %}"
+                    aria-selected="{% if active_tab == 'avisos' %}true{% else %}false{% endif %}"
+                    role="tab">
+                {% icon 'bell' %}
+                <span>{% trans "Avisos" %}</span>
+            </button>
+            <button type="button"
+                    id="tab-btn-calendario"
+                    data-tab-target="calendario"
+                    class="tab-btn pb-3 px-2 font-semibold text-sm border-b-2 transition flex items-center gap-2 {% if active_tab == 'calendario' %}border-csj-purple text-brand-text{% else %}border-transparent text-muted hover:text-ink{% endif %}"
+                    aria-selected="{% if active_tab == 'calendario' %}true{% else %}false{% endif %}"
+                    role="tab">
+                {% icon 'calendar' %}
+                <span>{% trans "Calendario" %}</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- PESTAÑA 1: PERFIL (IDENTIDAD)              -->
+    <!-- ========================================== -->
+    <div id="panel-perfil" class="tab-panel space-y-6{% if active_tab != 'perfil' %} hidden{% endif %}" role="tabpanel">
+        <div class="bg-surface rounded-[20px] border border-line p-6">
+            <!-- Estado de la cuenta -->
+            <div class="flex items-center justify-between pb-6 mb-6 border-b border-line flex-wrap gap-3">
+                <div>
+                    <h2 class="text-lg font-bold text-ink">{% trans "Datos de la Cuenta" %}</h2>
+                    <p class="text-xs text-muted">{% trans "Tu información básica y estado de aprobación." %}</p>
+                </div>
+                <div>
+                    {% if user.is_approved %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800">
+                            {% icon 'check-circle' %}
+                            <span class="ml-1.5">{% trans "Cuenta Aprobada" %}</span>
+                        </span>
                     {% else %}
-                        <div class="w-20 h-20 rounded-full bg-csj-purple-dark flex items-center justify-center text-white text-3xl font-bold">
-                            {{ user.username|first|upper }}
-                        </div>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800">
+                            {% icon 'warning' %}
+                            <span class="ml-1.5">{% trans "Pendiente de Aprobación" %}</span>
+                        </span>
                     {% endif %}
                 </div>
-                <div class="ml-4 mt-12">
-                    <h2 class="text-2xl font-bold text-ink">{{ user.username }}</h2>
-                    <p class="text-muted">{{ user.email }}</p>
-                </div>
             </div>
 
-            <!-- Información Básica -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                    <label class="block text-sm font-medium text-ink mb-1">{% trans "Nombre" %}</label>
-                    <p class="text-ink">{{ user.first_name|default:no_especificado }}</p>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-ink mb-1">{% trans "Apellidos" %}</label>
-                    <p class="text-ink">{{ user.last_name|default:no_especificado }}</p>
-                </div>
-            </div>
+            <form method="post" enctype="multipart/form-data" action="{% url 'profile' %}" class="space-y-6">
+                {% csrf_token %}
+                <input type="hidden" name="tab" value="perfil">
 
-            <!-- Información Familiar -->
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-ink mb-1">{% trans "Información Familiar" %}</label>
-                <div class="bg-tint p-4 rounded-lg border border-line">
-                    {% if user.parent_info %}
-                        <p class="text-ink">{{ user.parent_info }}</p>
-                    {% else %}
-                        <p class="text-muted italic">{% trans "No especificado" %}</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Estado de Aprobación -->
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-ink mb-2">{% trans "Estado de la Cuenta" %}</label>
-                {% if user.is_approved %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200">
-                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                        </svg>
-                        {% trans "Cuenta Aprobada" %}
-                    </span>
-                {% else %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200">
-                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
-                        </svg>
-                        {% trans "Pendiente de Aprobación" %}
-                    </span>
-                {% endif %}
-            </div>
-
-            <!-- Categorías de Interés -->
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-ink mb-2">{% trans "Categorías de Interés" %}</label>
-                {% if organization_preferences %}
-                    <div class="space-y-4">
-                        {% for item in organization_preferences %}
-                            <div class="bg-tint p-4 rounded-lg border border-line">
-                                <h3 class="text-sm font-semibold text-ink mb-2 flex items-center gap-2">
-                                    <span>{% icon 'ball' %}</span>
-                                    <span>{{ item.organization.name }}</span>
-                                </h3>
-                                {% if item.categories %}
-                                    <div class="flex flex-wrap gap-2">
-                                        {% for category in item.categories %}
-                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple-dark text-white">
-                                                {{ category.name }}
-                                            </span>
-                                        {% endfor %}
-                                    </div>
-                                {% else %}
-                                    <p class="text-muted text-sm italic">{% trans "No has seleccionado categorías de interés en este club aún." %}</p>
-                                {% endif %}
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% elif preferred_categories %}
-                    <div class="flex flex-wrap gap-2">
-                        {% for category in preferred_categories %}
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-csj-purple-dark text-white">
-                                {{ category.name }}
-                            </span>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="text-muted italic">{% trans "No has seleccionado categorías de interés aún. Edita tu perfil para seleccionarlas." %}</p>
-                {% endif %}
-            </div>
-
-            <!-- Suscripción a Calendario -->
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-ink mb-2">{% trans "Suscripción al Calendario de Partidos" %}</label>
-                
-                {% if has_any_preferences or preferred_categories %}
-                    <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                        <div class="flex items-start">
-                            <div class="flex-shrink-0">
-                                <svg class="h-6 w-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                </svg>
-                            </div>
-                            <div class="ml-3 flex-1">
-                                <h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">{% trans "Sincroniza los partidos con tu calendario" %}</h3>
-                                <p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
-                                    {% trans "Suscríbete para recibir automáticamente los partidos de tus categorías preferidas en Google Calendar, Outlook, Apple Calendar o cualquier app de calendario." %}
-                                </p>
-                                <div class="mt-4 space-y-3">
-                                    <!-- URL para copiar -->
-                                    <div>
-                                        <label class="block text-xs font-medium text-blue-900 dark:text-blue-200 mb-1">{% trans "URL de suscripción:" %}</label>
-                                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                            <input 
-                                                type="text" 
-                                                id="calendar-url" 
-                                                readonly 
-                                                value="{{ request.scheme }}://{{ request.get_host }}{% url 'competitions:calendar_feed' token='LOADING' %}"
-                                                class="flex-1 min-w-0 text-sm bg-surface border border-blue-300 dark:border-blue-800 rounded px-3 py-2 text-ink font-mono"
-                                            >
-                                            <button 
-                                                data-call="copyCalendarUrl" 
-                                                class="flex-shrink-0 inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition whitespace-nowrap"
-                                            >
-                                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                                </svg>
-                                                {% trans "Copiar" %}
-                                            </button>
-                                        </div>
-                                        <p class="mt-1 text-xs text-blue-600 dark:text-blue-400">{% trans "Esta URL es única y privada. No la compartas con nadie." %}</p>
-                                    </div>
-                                    
-                                    <!-- Botones de acción -->
-                                    <div class="flex flex-wrap gap-2">
-                                        <button 
-                                            data-call="showCalendarTutorial" 
-                                            class="inline-flex items-center px-4 py-2 bg-surface border border-blue-300 dark:border-blue-800 hover:bg-blue-50 text-blue-700 dark:text-blue-300 text-sm font-medium rounded transition"
-                                        >
-                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                            </svg>
-                                            {% trans "¿Cómo suscribirme?" %}
-                                        </button>
-                                        
-                                        <button 
-                                            data-call="confirmRegenerateToken" 
-                                            class="inline-flex items-center px-4 py-2 bg-surface border border-orange-300 dark:border-orange-800 hover:bg-orange-50 text-orange-700 dark:text-orange-300 text-sm font-medium rounded transition"
-                                        >
-                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                            </svg>
-                                            {% trans "Regenerar URL" %}
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- Explicación de Regenerar -->
-                                    <div class="mt-2 p-3 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
-                                        <p class="text-xs text-blue-800 dark:text-blue-200">
-                                            {% blocktrans trimmed %}<strong>💡 ¿Cuándo regenerar la URL?</strong><br>
-                                            • Si cambias de categoría de interés<br>
-                                            • Si quieres dejar de recibir partidos (regenera y no vuelvas a suscribirte)<br>
-                                            • Si compartiste la URL por error<br>
-                                            <span class="text-blue-900 dark:text-blue-200 font-medium">⚠️ La URL antigua dejará de funcionar automáticamente.</span>{% endblocktrans %}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                {% else %}
-                    <div class="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                        <div class="flex items-start">
-                            <div class="flex-shrink-0">
-                                <svg class="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm text-yellow-700 dark:text-yellow-300">
-                                    {% trans 'Para suscribirte al calendario, primero debes seleccionar tus categorías de interés en "Editar Perfil".' %}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                {% endif %}
-            </div>
-
-            <!-- Notificaciones Push PWA -->
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-ink mb-2">{% trans "Notificaciones Push (PWA)" %}</label>
-                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <div class="flex items-start">
+                <!-- Avatar / Foto de Perfil -->
+                <div class="border-b border-line pb-6">
+                    <label class="block text-sm font-semibold text-ink mb-3">
+                        {% trans "Foto de Perfil" %} <span class="text-muted font-normal">{% trans "(opcional)" %}</span>
+                    </label>
+                    <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6">
                         <div class="flex-shrink-0">
-                            <svg class="h-6 w-6 text-brand-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                            </svg>
-                        </div>
-                        <div class="ml-3 flex-1">
-                            <div class="flex items-center justify-between flex-wrap gap-2">
-                                <h3 class="text-sm font-medium text-purple-900 dark:text-purple-300">{% trans "Avisos en tiempo real en tu dispositivo" %}</h3>
-                                <span id="webpush-status-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-tint text-ink">{% trans "Comprobando..." %}</span>
-                            </div>
-                            <p class="mt-1 text-sm text-purple-700">
-                                {% trans "Recibe avisos inmediatos cuando finalicen partidos de tus equipos y cuando se publiquen nuevos álbumes de fotos o vídeos del club." %}
-                            </p>
-                            <div id="webpush-ios-hint" class="hidden mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded text-xs text-yellow-800 dark:text-yellow-200">
-                                {% icon 'info' %} {% trans "En iPhone/iPad, para recibir notificaciones añade primero la aplicación a la pantalla de inicio (Compartir > Añadir a pantalla de inicio) y ábrela desde allí." %}
-                            </div>
-                            <div class="mt-4 flex gap-3">
-                                <button id="webpush-toggle-btn" data-call="toggleWebPush" class="px-4 py-2 bg-csj-purple-dark hover:bg-purple-700 text-white text-sm font-medium rounded transition">
-                                    {% trans "Activar notificaciones" %}
-                                </button>
-                            </div>
-                            {% if organization_preferences %}
-                                <div class="mt-4 border-t border-purple-200 pt-3">
-                                    <h4 class="text-xs font-semibold text-purple-900 dark:text-purple-300 uppercase tracking-wider mb-2">{% trans "Avisos activos por club:" %}</h4>
-                                    <div class="space-y-2">
-                                        {% for item in organization_preferences %}
-                                            <div class="text-xs text-purple-800">
-                                                <span class="font-medium">{% icon 'ball' %} {{ item.organization.name }}:</span>
-                                                {% if item.notification_types %}
-                                                    <span class="text-muted">{{ item.notification_types|join:", " }}</span>
-                                                {% else %}
-                                                    <span class="italic text-muted">{% trans "Ningún aviso activo" %}</span>
-                                                {% endif %}
-                                            </div>
-                                        {% endfor %}
-                                    </div>
+                            {% if user.avatar %}
+                                <img id="avatar-preview" src="{{ user.avatar.url }}" alt="{{ user.username }}" class="w-28 h-28 rounded-full object-cover border-4 border-line shadow-md">
+                            {% else %}
+                                <div id="avatar-preview" class="w-28 h-28 rounded-full bg-csj-purple-dark flex items-center justify-center text-white text-4xl font-bold border-4 border-line shadow-md">
+                                    {{ user.username|first|upper }}
                                 </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex-1 w-full">
+                            {{ identity_form.avatar }}
+                            <input type="hidden" id="cropped-avatar" name="cropped_avatar_data" />
+                            <div id="drop-area" class="border-2 border-dashed border-line rounded-xl p-5 text-center hover:border-accent transition-colors cursor-pointer bg-tint">
+                                <svg class="mx-auto h-10 w-10 text-muted mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <div class="space-y-1 text-sm">
+                                    <label for="{{ identity_form.avatar.id_for_label }}" class="relative cursor-pointer rounded-md font-semibold text-brand-text hover:opacity-80">
+                                        <span>{% trans "Subir una foto" %}</span>
+                                    </label>
+                                    <p class="text-xs text-muted">{% trans "o arrastra y suelta aquí" %}</p>
+                                </div>
+                                <p class="text-xs text-muted mt-1">{% trans "JPG, PNG, WebP o HEIC hasta 5MB" %}</p>
+                            </div>
+                            {% if identity_form.avatar.errors %}
+                                <p class="mt-2 text-xs text-red-600 dark:text-red-400">{{ identity_form.avatar.errors.0 }}</p>
                             {% endif %}
                         </div>
                     </div>
                 </div>
-            </div>
 
+                <!-- Campos de identidad -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label for="{{ identity_form.username.id_for_label }}" class="block text-sm font-semibold text-ink mb-1.5">
+                            {{ identity_form.username.label }}
+                        </label>
+                        {{ identity_form.username }}
+                        {% if identity_form.username.errors %}
+                            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ identity_form.username.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-ink mb-1.5">{% trans "Correo Electrónico" %}</label>
+                        <p class="w-full px-4 py-2 border border-line rounded-xl bg-tint text-muted text-sm">{{ user.email|default:"—" }}</p>
+                        {% url 'account_email' as account_email_url %}
+                        <p class="mt-1 text-xs text-muted">
+                            {% blocktrans %}Para cambiarlo, <a href="{{ account_email_url }}" class="text-brand-text hover:underline">gestiona tus emails</a>.{% endblocktrans %}
+                        </p>
+                    </div>
+                </div>
 
-            {% if story_page %}
-            <!-- Mis creaciones -->
-            <div id="mis-creaciones" class="mt-6 bg-surface rounded-[20px] border border-line p-4">
-                <h2 class="text-lg font-semibold text-ink mb-1">{% trans "Mis creaciones" %}</h2>
-                <p class="text-sm text-muted mb-3">{% trans "Stories que has personalizado y guardado." %}</p>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {% for composition in story_page %}
-                        <div class="rounded-xl border border-line overflow-hidden flex flex-col">
-                            <img src="{% url 'competitions:match_result_card' composition.match_id %}?composition={{ composition.id }}&preview=1&v={{ composition.updated|date:'U' }}"
-                                 alt="{{ composition.match.home_team_display }} - {{ composition.match.away_team_display }}"
-                                 loading="lazy" class="w-full aspect-[9/16] object-cover bg-tint">
-                            <div class="p-2 text-xs text-ink space-y-2">
-                                <p class="font-medium truncate">{{ composition.match.home_team_display }} - {{ composition.match.away_team_display }}</p>
-                                <div class="flex flex-wrap gap-1">
-                                    <a href="{% url 'competitions:match_detail' composition.match_id %}?story={{ composition.id }}"
-                                       class="px-2 py-1 rounded-full bg-csj-purple-dark text-white">{% trans "Editar" %}</a>
-                                    <a href="{% url 'competitions:match_result_card' composition.match_id %}?composition={{ composition.id }}"
-                                       class="px-2 py-1 rounded-full bg-tint text-ink">{% trans "Descargar" %}</a>
-                                    <form method="post" action="{% url 'competitions:story_composition_delete' composition.id %}">
-                                        {% csrf_token %}
-                                        <button type="submit" class="px-2 py-1 rounded-full bg-tint text-ink">{% trans "Eliminar" %}</button>
-                                    </form>
-                                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label for="{{ identity_form.first_name.id_for_label }}" class="block text-sm font-semibold text-ink mb-1.5">
+                            {{ identity_form.first_name.label }}
+                        </label>
+                        {{ identity_form.first_name }}
+                        {% if identity_form.first_name.errors %}
+                            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ identity_form.first_name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ identity_form.last_name.id_for_label }}" class="block text-sm font-semibold text-ink mb-1.5">
+                            {{ identity_form.last_name.label }}
+                        </label>
+                        {{ identity_form.last_name }}
+                        {% if identity_form.last_name.errors %}
+                            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ identity_form.last_name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Información Familiar -->
+                <div>
+                    <label for="{{ identity_form.parent_info.id_for_label }}" class="block text-sm font-semibold text-ink mb-1.5">
+                        {{ identity_form.parent_info.label }}
+                    </label>
+                    {{ identity_form.parent_info }}
+                    {% if identity_form.parent_info.errors %}
+                        <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ identity_form.parent_info.errors.0 }}</p>
+                    {% endif %}
+                    {% if identity_form.parent_info.help_text %}
+                        <p class="mt-1 text-xs text-muted">{{ identity_form.parent_info.help_text }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Botón Guardar Perfil -->
+                <div class="pt-4 flex justify-end">
+                    <button type="submit" name="save_profile" value="1" class="px-6 py-2.5 bg-csj-purple-dark hover:opacity-90 text-white font-semibold rounded-xl transition">
+                        {% trans "Guardar Perfil" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Selector de Idioma -->
+        <div class="bg-surface rounded-[20px] border border-line p-6">
+            <h2 class="text-base font-bold text-ink mb-1">{% trans "Idioma de la interfaz" %}</h2>
+            <p class="text-xs text-muted mb-4">{% trans "Elige el idioma con el que prefieres usar I Love Voley." %}</p>
+            {% include 'includes/language_selector.html' %}
+        </div>
+
+        {% if story_page %}
+        <!-- Mis Creaciones -->
+        <div id="mis-creaciones" class="bg-surface rounded-[20px] border border-line p-6">
+            <h2 class="text-lg font-bold text-ink mb-1">{% trans "Mis creaciones" %}</h2>
+            <p class="text-xs text-muted mb-4">{% trans "Stories y tarjetas de partido que has personalizado." %}</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {% for composition in story_page %}
+                    <div class="rounded-xl border border-line overflow-hidden flex flex-col bg-tint">
+                        <img src="{% url 'competitions:match_result_card' composition.match_id %}?composition={{ composition.id }}&preview=1&v={{ composition.updated|date:'U' }}"
+                             alt="{{ composition.match.home_team_display }} - {{ composition.match.away_team_display }}"
+                             loading="lazy" class="w-full aspect-[9/16] object-cover">
+                        <div class="p-2 text-xs text-ink space-y-2">
+                            <p class="font-semibold truncate">{{ composition.match.home_team_display }} - {{ composition.match.away_team_display }}</p>
+                            <div class="flex flex-wrap gap-1">
+                                <a href="{% url 'competitions:match_detail' composition.match_id %}?story={{ composition.id }}"
+                                   class="px-2 py-1 rounded-full bg-csj-purple-dark text-white">{% trans "Editar" %}</a>
+                                <a href="{% url 'competitions:match_result_card' composition.match_id %}?composition={{ composition.id }}"
+                                   class="px-2 py-1 rounded-full bg-surface text-ink border border-line">{% trans "Descargar" %}</a>
+                                <form method="post" action="{% url 'competitions:story_composition_delete' composition.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="px-2 py-1 rounded-full bg-surface text-ink border border-line">{% trans "Eliminar" %}</button>
+                                </form>
                             </div>
                         </div>
-                    {% endfor %}
-                </div>
-                {% if story_page.has_other_pages %}
-                    <nav class="mt-4 flex items-center justify-between text-sm" aria-label="{% trans 'Paginación' %}">
-                        {% if story_page.has_previous %}
-                            <a href="?creaciones={{ story_page.previous_page_number }}#mis-creaciones" class="px-3 py-1 rounded-full bg-tint text-ink">{% trans "Anterior" %}</a>
-                        {% else %}<span></span>{% endif %}
-                        <span class="text-muted">{{ story_page.number }} / {{ story_page.paginator.num_pages }}</span>
-                        {% if story_page.has_next %}
-                            <a href="?creaciones={{ story_page.next_page_number }}#mis-creaciones" class="px-3 py-1 rounded-full bg-tint text-ink">{% trans "Siguiente" %}</a>
-                        {% else %}<span></span>{% endif %}
-                    </nav>
-                {% endif %}
+                    </div>
+                {% endfor %}
             </div>
+            {% if story_page.has_other_pages %}
+                <nav class="mt-4 flex items-center justify-between text-xs" aria-label="{% trans 'Paginación' %}">
+                    {% if story_page.has_previous %}
+                        <a href="?tab=perfil&creaciones={{ story_page.previous_page_number }}#mis-creaciones" class="px-3 py-1 rounded-full bg-tint text-ink">{% trans "Anterior" %}</a>
+                    {% else %}<span></span>{% endif %}
+                    <span class="text-muted">{{ story_page.number }} / {{ story_page.paginator.num_pages }}</span>
+                    {% if story_page.has_next %}
+                        <a href="?tab=perfil&creaciones={{ story_page.next_page_number }}#mis-creaciones" class="px-3 py-1 rounded-full bg-tint text-ink">{% trans "Siguiente" %}</a>
+                    {% else %}<span></span>{% endif %}
+                </nav>
             {% endif %}
+        </div>
+        {% endif %}
+    </div>
 
-            <!-- Idioma -->
-            <div class="mt-6 bg-surface rounded-[20px] border border-line p-4">
-                <h2 class="text-lg font-semibold text-ink mb-1">{% trans "Idioma" %}</h2>
-                <p class="text-sm text-muted mb-3">{% trans "Elige el idioma de la interfaz." %}</p>
-                {% include 'includes/language_selector.html' %}
+    <!-- ========================================== -->
+    <!-- PESTAÑA 2: AVISOS                          -->
+    <!-- ========================================== -->
+    <div id="panel-avisos" class="tab-panel space-y-6 hidden" role="tabpanel">
+        <!-- Caja "Este móvil" con anchor #activar -->
+        <div id="este-movil-box" class="scroll-mt-6 bg-surface rounded-[20px] border-2 border-line p-6 transition-colors duration-200">
+            <span id="activar" class="sr-only">{% trans "Activar avisos" %}</span>
+            <div class="flex items-start">
+                <div class="flex-shrink-0 mr-4">
+                    <div class="w-12 h-12 rounded-2xl bg-tint flex items-center justify-center text-brand-text">
+                        {% icon 'bell' %}
+                    </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
+                        <h2 class="text-lg font-bold text-ink">{% trans "Este móvil o dispositivo" %}</h2>
+                        <span id="webpush-status-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-tint text-ink">
+                            {% trans "Comprobando..." %}
+                        </span>
+                    </div>
+                    <p class="text-sm text-muted mb-4">
+                        {% trans "Recibe avisos inmediatos en este dispositivo cuando finalicen partidos de tus equipos y cuando se publiquen nuevos álbumes de fotos o vídeos del club." %}
+                    </p>
+
+                    <!-- Muro iOS cuando es iPhone/iPad fuera de PWA instalada -->
+                    <div id="webpush-ios-hint" class="hidden my-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 text-ink">
+                        <div class="flex items-center gap-2 mb-2 font-bold text-amber-900 dark:text-amber-200 text-sm">
+                            {% icon 'info' %}
+                            <span>{% trans "Paso previo necesario en iPhone / iPad:" %}</span>
+                        </div>
+                        <p class="text-xs text-amber-800 dark:text-amber-200 mb-3">
+                            {% trans "Apple exige que la aplicación esté añadida a la pantalla de inicio para permitir notificaciones push." %}
+                        </p>
+                        <ol class="list-decimal list-inside space-y-2 text-xs text-amber-900 dark:text-amber-200 leading-relaxed font-medium">
+                            <li>{% blocktrans %}En Safari, pulsa el botón <strong>Compartir</strong> <span class="inline-block px-1 bg-amber-200 dark:bg-amber-800 rounded">⎋</span> (barra inferior).{% endblocktrans %}</li>
+                            <li>{% blocktrans %}Elige la opción <strong>«Añadir a pantalla de inicio»</strong>.{% endblocktrans %}</li>
+                            <li>{% blocktrans %}Abre <strong>I Love Voley</strong> desde el icono nuevo en tu inicio.{% endblocktrans %}</li>
+                            <li>{% blocktrans %}Entra en <strong>Perfil → Avisos</strong> y activa los avisos.{% endblocktrans %}</li>
+                        </ol>
+                    </div>
+
+                    <!-- Mensaje si permiso está bloqueado por el navegador -->
+                    <div id="webpush-blocked-hint" class="hidden my-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-xs text-red-800 dark:text-red-200 flex items-start gap-2">
+                        {% icon 'warning' %}
+                        <span>{% trans "Has bloqueado las notificaciones para esta web en tu navegador. Para recibirlas, desbloquea los permisos en los ajustes de tu navegador." %}</span>
+                    </div>
+
+                    <div class="mt-4 flex flex-wrap gap-3 items-center">
+                        <button id="webpush-toggle-btn"
+                                data-call="toggleWebPush"
+                                class="px-5 py-2.5 bg-csj-purple-dark hover:opacity-90 text-white text-sm font-semibold rounded-xl transition">
+                            {% trans "Activar avisos en este móvil" %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario de Selección de Equipos, Categorías y Tipos de Aviso -->
+        <div class="bg-surface rounded-[20px] border border-line p-6">
+            <div class="mb-6">
+                <h2 class="text-lg font-bold text-ink mb-1">{% trans "Tus preferencias de avisos" %}</h2>
+                <p class="text-xs text-muted">{% trans "Configura qué clubes, categorías y tipos de aviso quieres recibir cuando estén activados." %}</p>
             </div>
 
-            <!-- Botón de Edición -->
-            <div class="mt-6">
-                <a href="{% url 'profile_edit' %}" class="inline-flex items-center px-6 py-3 bg-csj-purple-dark hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                    </svg>
-                    {% trans "Editar Perfil" %}
-                </a>
+            <form method="post" action="{% url 'profile' %}" class="space-y-6">
+                {% csrf_token %}
+                <input type="hidden" name="tab" value="avisos">
+                <input type="hidden" name="has_device_push_subscription" id="has-device-push-subscription" value="0">
+
+                <!-- Categorías de Interés -->
+                <div>
+                    <h3 class="text-base font-bold text-ink mb-3 flex items-center gap-2">
+                        {% icon 'ball' %}
+                        <span>{% trans "Categorías de Interés" %}</span>
+                    </h3>
+                    {% if avisos_form.organization_category_fields %}
+                        <div class="space-y-4">
+                            {% for org, field in avisos_form.organization_category_fields %}
+                                <div class="bg-tint p-4 rounded-xl border border-line">
+                                    <h4 class="text-sm font-bold text-ink mb-1">{{ org.name }}</h4>
+                                    <p class="text-xs text-muted mb-3">{{ field.help_text }}</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                                        {% for choice in field %}
+                                            <label class="flex items-center gap-2 text-sm text-ink cursor-pointer p-1 rounded hover:bg-surface/50">
+                                                {{ choice.tag }}
+                                                <span>{{ choice.choice_label }}</span>
+                                            </label>
+                                        {% endfor %}
+                                    </div>
+                                    {% if field.errors %}
+                                        <p class="mt-2 text-xs text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-muted italic">{% trans "No tienes ningún club asociado para configurar categorías." %}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Mis Equipos (Opcional) -->
+                {% if avisos_form.organization_team_fields %}
+                    <div>
+                        <h3 class="text-base font-bold text-ink mb-3 flex items-center gap-2">
+                            {% icon 'users' %}
+                            <span>{% trans "Mis equipos específicos (opcional)" %}</span>
+                        </h3>
+                        <div class="space-y-4">
+                            {% for org, field in avisos_form.organization_team_fields %}
+                                <div class="bg-tint p-4 rounded-xl border border-line">
+                                    <h4 class="text-sm font-bold text-ink mb-1">{{ org.name }}</h4>
+                                    <p class="text-xs text-muted mb-3">{{ field.help_text }}</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                                        {% for choice in field %}
+                                            <label class="flex items-center gap-2 text-sm text-ink cursor-pointer p-1 rounded hover:bg-surface/50">
+                                                {{ choice.tag }}
+                                                <span>{{ choice.choice_label }}</span>
+                                            </label>
+                                        {% endfor %}
+                                    </div>
+                                    {% if field.errors %}
+                                        <p class="mt-2 text-xs text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Tipos de Notificaciones Push (con copy "cuando estén activados") -->
+                <div>
+                    <h3 class="text-base font-bold text-ink mb-1 flex items-center gap-2">
+                        {% icon 'bell' %}
+                        <span>{% trans "Tipos de aviso" %}</span>
+                    </h3>
+                    <p class="text-xs text-muted mb-3">{% trans "Se enviarán únicamente cuando los avisos estén activados en este dispositivo:" %}</p>
+
+                    {% if avisos_form.organization_notification_fields %}
+                        <div class="space-y-4">
+                            {% for org, field in avisos_form.organization_notification_fields %}
+                                <div class="bg-tint p-4 rounded-xl border border-line">
+                                    <h4 class="text-sm font-bold text-ink mb-2">{{ org.name }}</h4>
+                                    <div class="space-y-2">
+                                        {% for choice in field %}
+                                            <label class="flex items-center gap-2 text-sm text-ink cursor-pointer p-1 rounded hover:bg-surface/50">
+                                                {{ choice.tag }}
+                                                <span>{{ choice.choice_label }} <span class="text-xs text-muted">({% trans "cuando estén activados" %})</span></span>
+                                            </label>
+                                        {% endfor %}
+                                    </div>
+                                    {% if field.errors %}
+                                        <p class="mt-2 text-xs text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Botón Guardar Avisos -->
+                <div class="pt-4 flex justify-end">
+                    <button type="submit" name="save_avisos" value="1" class="px-6 py-2.5 bg-csj-purple-dark hover:opacity-90 text-white font-semibold rounded-xl transition">
+                        {% trans "Guardar preferencias" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- PESTAÑA 3: CALENDARIO                      -->
+    <!-- ========================================== -->
+    <div id="panel-calendario" class="tab-panel space-y-6 hidden" role="tabpanel">
+        <div class="bg-surface rounded-[20px] border border-line p-6">
+            <div class="mb-6">
+                <h2 class="text-lg font-bold text-ink mb-1 flex items-center gap-2">
+                    {% icon 'calendar' %}
+                    <span>{% trans "Suscripción al Calendario de Partidos" %}</span>
+                </h2>
+                <p class="text-sm text-muted">
+                    {% trans "Sincroniza automáticamente los partidos con Google Calendar, Apple Calendar o Microsoft Outlook." %}
+                </p>
+            </div>
+
+            <!-- Nota sobre equipos de Avisos -->
+            <div class="p-3 mb-6 rounded-xl bg-tint border border-line text-xs text-ink flex items-center gap-2">
+                {% icon 'info' %}
+                <span>
+                    {% blocktrans trimmed %}
+                    El calendario utiliza automáticamente las categorías y equipos que hayas seleccionado en la pestaña <button type="button" data-tab-target="avisos" class="font-bold text-brand-text underline">Avisos</button>.
+                    {% endblocktrans %}
+                </span>
+            </div>
+
+            {% if has_any_preferences or preferred_categories %}
+                <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-2xl p-5 space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-blue-900 dark:text-blue-200 mb-1.5">{% trans "URL de suscripción privada:" %}</label>
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <input
+                                type="text"
+                                id="calendar-url"
+                                readonly
+                                value="{{ request.scheme }}://{{ request.get_host }}{% url 'competitions:calendar_feed' token='LOADING' %}"
+                                class="flex-1 min-w-0 text-xs sm:text-sm bg-surface border border-blue-300 dark:border-blue-800 rounded-xl px-3 py-2 text-ink font-mono"
+                            >
+                            <button
+                                type="button"
+                                data-call="copyCalendarUrl"
+                                class="flex-shrink-0 inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold rounded-xl transition whitespace-nowrap"
+                            >
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                <span>{% trans "Copiar" %}</span>
+                            </button>
+                        </div>
+                        <p class="mt-1 text-xs text-blue-700 dark:text-blue-300">{% trans "Esta URL es única y privada para tu usuario. No la compartas con nadie." %}</p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 pt-2">
+                        <button
+                            type="button"
+                            data-call="showCalendarTutorial"
+                            class="inline-flex items-center px-4 py-2 bg-surface border border-blue-300 dark:border-blue-700 hover:bg-blue-50 text-blue-700 dark:text-blue-300 text-xs sm:text-sm font-semibold rounded-xl transition"
+                        >
+                            {% icon 'info' %}
+                            <span class="ml-1.5">{% trans "¿Cómo suscribirme?" %}</span>
+                        </button>
+                        <button
+                            type="button"
+                            data-call="confirmRegenerateToken"
+                            class="inline-flex items-center px-4 py-2 bg-surface border border-amber-300 dark:border-amber-700 hover:bg-amber-50 text-amber-700 dark:text-amber-300 text-xs sm:text-sm font-semibold rounded-xl transition"
+                        >
+                            {% icon 'refresh' %}
+                            <span class="ml-1.5">{% trans "Regenerar URL" %}</span>
+                        </button>
+                    </div>
+
+                    <div class="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-xl text-xs text-blue-900 dark:text-blue-200">
+                        <p>
+                            <strong>💡 {% trans "¿Cuándo regenerar la URL?" %}</strong>
+                            {% trans "Si cambias de categorías y tu app tarda en refrescar, o si quieres cancelar la sincronización anterior." %}
+                        </p>
+                    </div>
+                </div>
+            {% else %}
+                <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-2xl p-5">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 text-amber-500 mr-3">
+                            {% icon 'warning' %}
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                                {% trans "Aún no has seleccionado tus categorías o equipos." %}
+                            </p>
+                            <p class="text-xs text-amber-800 dark:text-amber-300 mt-1 mb-3">
+                                {% trans "Para poder sincronizar partidos con tu calendario personal, primero debes elegir qué equipos o categorías te interesan." %}
+                            </p>
+                            <button type="button" data-tab-target="avisos" class="inline-flex items-center px-4 py-2 bg-csj-purple-dark text-white text-xs font-semibold rounded-xl transition">
+                                {% icon 'bell' %}
+                                <span class="ml-1.5">{% trans "Configurar en pestaña Avisos" %}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Recorte de Avatar -->
+<div id="crop-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-surface rounded-[24px] border border-line max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="px-6 py-4 border-b border-line">
+            <h3 class="text-lg font-bold text-ink">{% trans "Recortar Imagen de Perfil" %}</h3>
+            <p class="text-xs text-muted">{% trans "Ajusta la imagen para tu foto de perfil cuadrada." %}</p>
+        </div>
+        <div class="p-6 overflow-hidden flex-1 flex items-center justify-center">
+            <div class="max-w-full max-h-[400px]">
+                <img id="crop-image" src="" alt="{% trans 'Imagen a recortar' %}" class="max-h-[380px] rounded-lg">
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-line flex justify-between items-center bg-tint">
+            <button type="button" id="cancel-crop" class="px-4 py-2 border border-line bg-surface text-ink rounded-xl text-xs font-semibold hover:bg-tint transition">
+                {% trans "Cancelar" %}
+            </button>
+            <div class="space-x-2">
+                <button type="button" id="reset-crop" class="px-4 py-2 border border-line bg-surface text-ink rounded-xl text-xs font-semibold hover:bg-tint transition">
+                    {% trans "Reiniciar" %}
+                </button>
+                <button type="button" id="apply-crop" class="px-4 py-2 bg-csj-purple-dark text-white rounded-xl text-xs font-semibold hover:opacity-90 transition">
+                    {% trans "Aplicar Recorte" %}
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Modal Tutorial Calendario -->
-<div id="calendar-tutorial-modal" class="fixed inset-0 bg-tint text-ink bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
-    <div class="relative top-20 mx-auto p-5 border border-line w-11/12 max-w-3xl shadow-lg rounded-lg bg-surface">
-        <!-- Header -->
+<div id="calendar-tutorial-modal" class="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 hidden flex items-center justify-center p-4">
+    <div class="relative mx-auto p-6 border border-line w-full max-w-2xl shadow-xl rounded-[24px] bg-surface">
         <div class="flex items-center justify-between pb-4 border-b border-line">
-            <h3 class="text-2xl font-bold text-ink">
-                {% icon 'calendar' %} {% trans "Cómo suscribirte al calendario" %}
+            <h3 class="text-xl font-bold text-ink flex items-center gap-2">
+                {% icon 'calendar' %}
+                <span>{% trans "Cómo suscribirte al calendario" %}</span>
             </h3>
-            <button data-call="hideCalendarTutorial" class="text-muted hover:text-ink transition">
+            <button type="button" data-call="hideCalendarTutorial" class="text-muted hover:text-ink transition p-1">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
-        
-        <!-- Content -->
-        <div class="mt-4 space-y-6">
+
+        <div class="mt-4 space-y-4 max-h-[70vh] overflow-y-auto text-sm text-ink pr-1">
             <!-- Google Calendar -->
-            <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4">
-                <h4 class="font-bold text-lg text-blue-900 dark:text-blue-200 mb-3 flex items-center">
-                    <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"/>
-                    </svg>
-                    Google Calendar
-                </h4>
-                <ol class="list-decimal list-inside space-y-2 text-sm text-ink">
-                    <li>{% trans 'Copia la URL de suscripción (botón "Copiar" arriba)' %}</li>
-                    <li>{% trans "Abre" %} <a href="https://calendar.google.com" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">Google Calendar</a></li>
-                    <li>{% blocktrans %}En la barra lateral izquierda, busca "Otros calendarios" y haz clic en el <strong>+</strong>{% endblocktrans %}</li>
-                    <li>{% blocktrans %}Selecciona <strong>"Desde URL"</strong>{% endblocktrans %}</li>
-                    <li>{% blocktrans %}Pega la URL copiada y haz clic en <strong>"Agregar calendario"</strong>{% endblocktrans %}</li>
-                    <li>{% trans "¡Listo! Los partidos aparecerán automáticamente 🎉" %}</li>
+            <div class="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-4">
+                <h4 class="font-bold text-blue-900 dark:text-blue-200 mb-2">Google Calendar (Web / Android)</h4>
+                <ol class="list-decimal list-inside space-y-1 text-xs">
+                    <li>{% trans 'Copia la URL privada de suscripción arriba.' %}</li>
+                    <li>{% trans 'Abre Google Calendar en el navegador y en "Otros calendarios" pulsa el +' %}</li>
+                    <li>{% trans 'Elige "Desde URL", pega tu enlace y confirma.' %}</li>
                 </ol>
             </div>
-            
+
             <!-- Apple Calendar -->
-            <div class="bg-tint rounded-lg p-4">
-                <h4 class="font-bold text-lg text-ink mb-3 flex items-center">
-                    <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                    </svg>
-                    Apple Calendar (iPhone/Mac)
-                </h4>
-                <ol class="list-decimal list-inside space-y-2 text-sm text-ink">
-                    <li>{% trans "Copia la URL de suscripción" %}</li>
-                    <li>{% blocktrans %}<strong>En iPhone/iPad:</strong> Ve a Ajustes → Calendario → Cuentas → Añadir cuenta → Otra → Añadir calendario por suscripción{% endblocktrans %}</li>
-                    <li>{% blocktrans %}<strong>En Mac:</strong> Abre Calendar → Archivo → Nueva suscripción a calendario{% endblocktrans %}</li>
-                    <li>{% blocktrans %}Pega la URL y haz clic en <strong>"Suscribirse"</strong>{% endblocktrans %}</li>
-                    <li>{% trans "Configura la frecuencia de actualización (recomendado: cada 12 horas o diariamente)" %}</li>
-                    <li>{% trans "¡Listo! Los partidos se sincronizarán automáticamente 🎉" %}</li>
+            <div class="bg-tint rounded-xl p-4">
+                <h4 class="font-bold text-ink mb-2">Apple Calendar (iPhone, iPad, Mac)</h4>
+                <ol class="list-decimal list-inside space-y-1 text-xs">
+                    <li>{% trans "Copia tu URL privada de suscripción." %}</li>
+                    <li>{% blocktrans %}En iPhone: Ajustes → Calendario → Cuentas → Añadir cuenta → Otra → Añadir calendario por suscripción.{% endblocktrans %}</li>
+                    <li>{% trans "Pega la URL y guarda." %}</li>
                 </ol>
             </div>
-            
+
             <!-- Outlook -->
-            <div class="bg-orange-50 dark:bg-orange-900/30 rounded-lg p-4">
-                <h4 class="font-bold text-lg text-orange-900 dark:text-orange-200 mb-3 flex items-center">
-                    <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M7 2v20l14-10L7 2z"/>
-                    </svg>
-                    Outlook / Outlook.com
-                </h4>
-                <ol class="list-decimal list-inside space-y-2 text-sm text-ink">
-                    <li>{% trans "Copia la URL de suscripción" %}</li>
-                    <li>{% trans "Abre" %} <a href="https://outlook.live.com/calendar" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">Outlook Calendar</a></li>
-                    <li>{% blocktrans %}Haz clic en <strong>"Agregar calendario"</strong> en la barra lateral{% endblocktrans %}</li>
-                    <li>{% blocktrans %}Selecciona <strong>"Suscribirse desde web"</strong>{% endblocktrans %}</li>
-                    <li>{% trans "Pega la URL y dale un nombre al calendario" %}</li>
-                    <li>{% blocktrans %}Haz clic en <strong>"Importar"</strong>{% endblocktrans %}</li>
-                    <li>{% trans "¡Listo! Los eventos se actualizarán automáticamente 🎉" %}</li>
+            <div class="bg-orange-50 dark:bg-orange-900/30 rounded-xl p-4">
+                <h4 class="font-bold text-orange-900 dark:text-orange-200 mb-2">Outlook</h4>
+                <ol class="list-decimal list-inside space-y-1 text-xs">
+                    <li>{% trans "Abre Outlook Calendar y pulsa 'Agregar calendario'." %}</li>
+                    <li>{% trans "Selecciona 'Suscribirse desde la web' y pega la URL." %}</li>
                 </ol>
-            </div>
-            
-            <!-- Notas importantes -->
-            <div class="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-400 p-4">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">{% icon 'warning' %} {% trans "Notas importantes:" %}</h3>
-                        <ul class="mt-2 text-sm text-yellow-700 dark:text-yellow-300 list-disc list-inside space-y-1">
-                            <li>{% blocktrans %}<strong>Privacidad:</strong> La URL es única y personal. No la compartas.{% endblocktrans %}</li>
-                            <li>{% blocktrans %}<strong>Actualizaciones:</strong> Los calendarios se actualizan cada 12 horas aproximadamente (configurable en tu app de calendario).{% endblocktrans %}</li>
-                            <li>{% blocktrans %}<strong>Cambios de categorías:</strong> Si cambias tus categorías preferidas, el calendario se actualizará automáticamente en la siguiente sincronización.{% endblocktrans %}</li>
-                            <li>{% blocktrans %}<strong>Solo lectura:</strong> No puedes editar los eventos desde tu calendario, son solo de consulta.{% endblocktrans %}</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Cómo desuscribirse (opcional) -->
-            <div class="bg-tint rounded-lg p-4">
-                <h4 class="font-bold text-base text-ink mb-3 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    {% trans "¿Cómo dejar de recibir partidos?" %}
-                </h4>
-                <div class="space-y-3 text-sm text-ink">
-                    <div class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded p-3">
-                        <p class="font-semibold text-green-800 dark:text-green-200 mb-1">{% icon 'check-circle' %} {% trans "Forma más fácil (Recomendada):" %}</p>
-                        <p class="text-green-700 dark:text-green-300">{% blocktrans %}Haz clic en <strong>"Regenerar URL"</strong> arriba y simplemente no vuelvas a suscribirte. La URL antigua dejará de funcionar automáticamente y tu calendario dejará de recibir actualizaciones.{% endblocktrans %}</p>
-                    </div>
-                    
-                    <div class="bg-tint border border-line rounded p-3">
-                        <p class="font-semibold text-ink mb-2">{% icon 'phone' %} {% trans "Alternativa: Borrar desde tu app de calendario" %}</p>
-                        <ul class="list-disc list-inside space-y-1 ml-2 text-muted">
-                            <li>{% blocktrans %}<strong>Google Calendar:</strong> Busca "I Love Voley - Partidos" en "Otros calendarios" → Opciones (⋮) → Darse de baja{% endblocktrans %}</li>
-                            <li>{% blocktrans %}<strong>iPhone/iPad:</strong> Ajustes → Calendario → Cuentas → Busca el calendario → Eliminar cuenta{% endblocktrans %}</li>
-                            <li>{% blocktrans %}<strong>Mac:</strong> Abre Calendar → Click derecho en el calendario → Cancelar suscripción{% endblocktrans %}</li>
-                            <li>{% blocktrans %}<strong>Outlook:</strong> Click derecho en el calendario → Eliminar{% endblocktrans %}</li>
-                        </ul>
-                    </div>
-                </div>
             </div>
         </div>
-        
-        <!-- Footer -->
+
         <div class="mt-6 flex justify-end">
-            <button data-call="hideCalendarTutorial" class="px-6 py-2 bg-csj-purple-dark hover:bg-csj-purple-dark text-white font-semibold rounded-lg transition">
+            <button type="button" data-call="hideCalendarTutorial" class="px-5 py-2 bg-csj-purple-dark text-white font-semibold rounded-xl transition text-sm">
                 {% trans "Entendido" %}
             </button>
         </div>
@@ -450,10 +587,85 @@
 </div>
 
 <script nonce="{{ csp_nonce }}">
-    // Generar el token y cargar la URL real cuando la página cargue
+    // Etiquetas de estado de webpush.js en el idioma activo (fallback en español en el JS)
+    window.WEBPUSH_I18N = {
+        unsupportedBadge: '{% trans "No soportado en este navegador" as t %}{{ t|escapejs }}',
+        unsupportedBtn: '{% trans "No soportado" as t %}{{ t|escapejs }}',
+        installBadge: '{% trans "Instalación requerida" as t %}{{ t|escapejs }}',
+        installBtn: '{% trans "Instala la app para activar" as t %}{{ t|escapejs }}',
+        blockedBadge: '{% trans "Permiso bloqueado" as t %}{{ t|escapejs }}',
+        blockedBtn: '{% trans "Permiso denegado" as t %}{{ t|escapejs }}',
+        activeBadge: '{% trans "Avisos activos en este móvil" as t %}{{ t|escapejs }}',
+        deactivateBtn: '{% trans "Desactivar avisos en este móvil" as t %}{{ t|escapejs }}',
+        offBadge: '{% trans "Avisos desactivados" as t %}{{ t|escapejs }}',
+        activateBtn: '{% trans "Activar avisos en este móvil" as t %}{{ t|escapejs }}',
+        toggleError: '{% trans "Error al modificar avisos" as t %}{{ t|escapejs }}',
+        subFail: '{% trans "No se pudo registrar la suscripción" as t %}{{ t|escapejs }}',
+        toastOn: '{% trans "¡Avisos activados con éxito en este móvil!" as t %}{{ t|escapejs }}',
+        toastOff: '{% trans "Avisos desactivados en este móvil" as t %}{{ t|escapejs }}'
+    };
+
+    // ========== GESTIÓN DE PESTAÑAS Y DEEP LINKS ==========
+    function switchTab(tabName) {
+        const validTabs = ['perfil', 'avisos', 'calendario'];
+        if (!validTabs.includes(tabName)) tabName = 'perfil';
+
+        // Ocultar todos los paneles y mostrar el seleccionado
+        document.querySelectorAll('.tab-panel').forEach(function(panel) {
+            panel.classList.add('hidden');
+        });
+        const targetPanel = document.getElementById('panel-' + tabName);
+        if (targetPanel) targetPanel.classList.remove('hidden');
+
+        // Actualizar botones de pestaña
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.classList.remove('border-csj-purple', 'text-brand-text');
+            btn.classList.add('border-transparent', 'text-muted');
+            btn.setAttribute('aria-selected', 'false');
+        });
+        const targetBtn = document.getElementById('tab-btn-' + tabName);
+        if (targetBtn) {
+            targetBtn.classList.remove('border-transparent', 'text-muted');
+            targetBtn.classList.add('border-csj-purple', 'text-brand-text');
+            targetBtn.setAttribute('aria-selected', 'true');
+        }
+
+        // Actualizar URL sin recargar
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tabName);
+        window.history.replaceState({}, '', url);
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
+        // Leer parámetro ?tab= o hash #activar
+        const params = new URLSearchParams(window.location.search);
+        let tab = params.get('tab') || '{{ active_tab|default:"perfil" }}';
+        const hash = window.location.hash;
+
+        if (hash === '#activar' || hash === '#push-notifications' || hash === '#avisos') {
+            tab = 'avisos';
+        }
+
+        switchTab(tab);
+
+        // Si hay anchor #activar, desplazarse a la caja "Este móvil"
+        if (hash === '#activar' || hash === '#push-notifications') {
+            setTimeout(function() {
+                const target = document.getElementById('este-movil-box');
+                if (target) target.scrollIntoView({ behavior: 'smooth' });
+            }, 150);
+        }
+
+        // Enlazar clics en pestañas
+        document.querySelectorAll('[data-tab-target]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const targetTab = this.getAttribute('data-tab-target');
+                switchTab(targetTab);
+            });
+        });
+
         {% if has_any_preferences or preferred_categories %}
-            // Hacer una petición para generar el token y obtener la URL
+            // Cargar URL privada del feed de calendario
             fetch('{% url "get_calendar_token" %}', {
                 method: 'POST',
                 headers: {
@@ -461,94 +673,169 @@
                     'Content-Type': 'application/json'
                 }
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
                 if (data.calendar_url) {
-                    document.getElementById('calendar-url').value = data.calendar_url;
+                    const input = document.getElementById('calendar-url');
+                    if (input) input.value = data.calendar_url;
                 }
             })
-            .catch(error => console.error('Error al obtener URL del calendario:', error));
+            .catch(function(err) { console.error('Error al obtener URL del calendario:', err); });
         {% endif %}
     });
 
-    function copyCalendarUrl() {
+    // ========== CALENDARIO FUNCIONES ==========
+    window.copyCalendarUrl = function() {
         const urlInput = document.getElementById('calendar-url');
+        if (!urlInput) return;
         urlInput.select();
-        urlInput.setSelectionRange(0, 99999); // Para móviles
-        
+        urlInput.setSelectionRange(0, 99999);
         navigator.clipboard.writeText(urlInput.value).then(function() {
-            // Cambiar el texto del botón temporalmente
-            const button = event.target.closest('button');
-            const originalHTML = button.innerHTML;
-            button.innerHTML = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>{% trans "¡Copiado!" as js_msg %}{{ js_msg|escapejs }}';
-            button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-            button.classList.add('bg-green-600');
-            
-            setTimeout(function() {
-                button.innerHTML = originalHTML;
-                button.classList.remove('bg-green-600');
-                button.classList.add('bg-blue-600', 'hover:bg-blue-700');
-            }, 2000);
+            if (window.showToast) {
+                window.showToast('success', '{% trans "¡URL copiada al portapapeles!" as js_msg %}{{ js_msg|escapejs }}');
+            }
+        });
+    };
+
+    window.showCalendarTutorial = function() {
+        const modal = document.getElementById('calendar-tutorial-modal');
+        if (modal) modal.classList.remove('hidden');
+    };
+
+    window.hideCalendarTutorial = function() {
+        const modal = document.getElementById('calendar-tutorial-modal');
+        if (modal) modal.classList.add('hidden');
+    };
+
+    window.confirmRegenerateToken = function() {
+        if (confirm('{% trans "⚠️ ¿Estás seguro de que deseas regenerar la URL de tu calendario?" as js_msg %}{{ js_msg|escapejs }}\n\n{% trans "La URL anterior dejará de funcionar y deberás volver a suscribirte." as js_msg %}{{ js_msg|escapejs }}')) {
+            fetch('{% url "regenerate_calendar_token" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    const input = document.getElementById('calendar-url');
+                    if (input) input.value = data.calendar_url;
+                    if (window.showToast) {
+                        window.showToast('success', '{% trans "URL regenerada con éxito." as js_msg %}{{ js_msg|escapejs }}');
+                    }
+                } else {
+                    if (window.showToast) {
+                        window.showToast('error', data.error || '{% trans "Error al regenerar URL" as js_msg %}{{ js_msg|escapejs }}');
+                    }
+                }
+            });
+        }
+    };
+
+    // ========== CROPPING DE AVATAR ==========
+    let cropper = null;
+    const avatarInput = document.getElementById('{{ identity_form.avatar.id_for_label }}');
+    const dropArea = document.getElementById('drop-area');
+
+    if (dropArea && avatarInput) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+            dropArea.addEventListener(eventName, function(e) { e.preventDefault(); e.stopPropagation(); }, false);
+        });
+
+        dropArea.addEventListener('drop', function(e) {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleAvatarFile(files[0]);
+        }, false);
+
+        dropArea.addEventListener('click', function(e) {
+            if (e.target === dropArea || e.target.closest('#drop-area')) {
+                avatarInput.click();
+            }
+        });
+
+        avatarInput.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                handleAvatarFile(e.target.files[0]);
+            }
         });
     }
 
-    function showCalendarTutorial() {
-        document.getElementById('calendar-tutorial-modal').classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
+    function handleAvatarFile(file) {
+        if (file.size > 5 * 1024 * 1024) {
+            alert('{% trans "El archivo supera el tamaño máximo permitido de 5MB." as js_msg %}{{ js_msg|escapejs }}');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            showCropModal(e.target.result);
+        };
+        reader.readAsDataURL(file);
     }
 
-    function hideCalendarTutorial() {
-        document.getElementById('calendar-tutorial-modal').classList.add('hidden');
-        document.body.style.overflow = 'auto';
+    function showCropModal(imgSrc) {
+        const modal = document.getElementById('crop-modal');
+        const img = document.getElementById('crop-image');
+        if (cropper) cropper.destroy();
+        img.src = imgSrc;
+        modal.classList.remove('hidden');
+
+        img.onload = function() {
+            cropper = new Cropper(img, {
+                aspectRatio: 1,
+                viewMode: 2,
+                autoCropArea: 0.85
+            });
+        };
     }
-    
-    // Cerrar modal al hacer clic fuera
-    document.getElementById('calendar-tutorial-modal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            hideCalendarTutorial();
-        }
-    });
-    
-    function confirmRegenerateToken() {
-        if (confirm('{% trans "⚠️ ¿Estás seguro de que quieres regenerar la URL?" as js_msg %}{{ js_msg|escapejs }}\n\n' +
-                    '{% trans "• La URL actual dejará de funcionar" as js_msg %}{{ js_msg|escapejs }}\n' +
-                    '{% trans "• Tendrás que volver a suscribirte con la nueva URL" as js_msg %}{{ js_msg|escapejs }}\n' +
-                    '{% trans "• Esto es útil si cambiaste de categorías o quieres dejar de recibir partidos" as js_msg %}{{ js_msg|escapejs }}\n\n' +
-                    '{% trans "¿Continuar?" as js_msg %}{{ js_msg|escapejs }}')) {
-            regenerateToken();
+
+    function closeCropModal() {
+        const modal = document.getElementById('crop-modal');
+        if (modal) modal.classList.add('hidden');
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
         }
     }
-    
-    function regenerateToken() {
-        fetch('{% url "regenerate_calendar_token" %}', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
+
+    const cancelCropBtn = document.getElementById('cancel-crop');
+    if (cancelCropBtn) {
+        cancelCropBtn.addEventListener('click', function() {
+            closeCropModal();
+            if (avatarInput) avatarInput.value = '';
+        });
+    }
+
+    const resetCropBtn = document.getElementById('reset-crop');
+    if (resetCropBtn) {
+        resetCropBtn.addEventListener('click', function() {
+            if (cropper) cropper.reset();
+        });
+    }
+
+    const applyCropBtn = document.getElementById('apply-crop');
+    if (applyCropBtn) {
+        applyCropBtn.addEventListener('click', function() {
+            if (cropper) {
+                const canvas = cropper.getCroppedCanvas({ width: 360, height: 360 });
+                const base64 = canvas.toDataURL('image/jpeg', 0.9);
+                const hiddenInput = document.getElementById('cropped-avatar');
+                if (hiddenInput) hiddenInput.value = base64;
+                const preview = document.getElementById('avatar-preview');
+                if (preview) {
+                    if (preview.tagName === 'IMG') {
+                        preview.src = base64;
+                    } else {
+                        const img = document.createElement('img');
+                        img.id = 'avatar-preview';
+                        img.src = base64;
+                        img.className = 'w-28 h-28 rounded-full object-cover border-4 border-line shadow-md';
+                        preview.parentNode.replaceChild(img, preview);
+                    }
+                }
+                closeCropModal();
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Actualizar la URL en el campo
-                document.getElementById('calendar-url').value = data.calendar_url;
-                
-                // Mostrar mensaje de éxito
-                alert('{% trans "✅ URL regenerada correctamente." as js_msg %}{{ js_msg|escapejs }}\n\n' +
-                      '{% trans "La URL anterior ya no funciona." as js_msg %}{{ js_msg|escapejs }}\n' +
-                      '{% trans "Si quieres seguir recibiendo partidos, copia la nueva URL y vuelve a suscribirte en tu calendario." as js_msg %}{{ js_msg|escapejs }}');
-            } else {
-                alert('{% trans "❌ Error al regenerar la URL: " as js_msg %}{{ js_msg|escapejs }}' + (data.error || '{% trans "Error desconocido" as js_msg %}{{ js_msg|escapejs }}'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('{% trans "❌ Error al regenerar la URL. Por favor, inténtalo de nuevo." as js_msg %}{{ js_msg|escapejs }}');
         });
     }
 </script>
-
 {% endblock %}
-
-
-

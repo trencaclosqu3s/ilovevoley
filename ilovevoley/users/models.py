@@ -103,6 +103,23 @@ class User(AbstractUser):
         """Indica si el usuario tiene alguna categoría de interés en un club."""
         return self.preferred_categories_for(organization).exists()
 
+    @property
+    def has_any_preferred_categories(self):
+        """Indica si el usuario tiene categorías de interés configuradas en algún club."""
+        return self.category_preferences.filter(categories__isnull=False).exists()
+
+    def has_push_subscription(self, organization=None):
+        """Indica si el usuario tiene alguna suscripción Web Push en el club (o global)."""
+        qs = self.web_push_subscriptions.all()
+        if organization is not None:
+            qs = qs.filter(organization=organization)
+        return qs.exists()
+
+    @property
+    def has_any_push_subscription(self):
+        """Indica si el usuario tiene alguna suscripción Web Push registrada en el servidor."""
+        return self.web_push_subscriptions.exists()
+
     def profile_organizations(self, tenant=None):
         """Organizaciones del usuario visibles y configurables en su perfil.
 
