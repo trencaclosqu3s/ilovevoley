@@ -317,6 +317,7 @@ class FollowedTeamsCurrentSeasonChoicesTest(TestCase):
             slug='sant-josep', name='Sant Josep', is_active=True, club=self.club,
         )
         self.infantil = Category.objects.create(name='Infantil', is_active=True)
+        Season.objects.filter(is_current=True).update(is_current=False)
         self.current_season = Season.objects.resolve('2026-27')
         Season.objects.filter(pk=self.current_season.pk).update(is_current=True)
         self.past_season = Season.objects.resolve('2025-26')

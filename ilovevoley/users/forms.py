@@ -35,10 +35,11 @@ def _preference_teams_for_club(club):
             | Q(identity__player_roles__season=season)
             | Q(identity__staff_roles__season=season)
         )
-        seasonal = qs.filter(in_season).distinct()
-        if seasonal.exists():
-            qs = seasonal
-    teams = one_team_per_identity(qs.order_by('category__name', 'name'))
+        seasonal_teams = list(qs.filter(in_season).distinct().order_by('category__name', 'name'))
+        qs = seasonal_teams if seasonal_teams else qs.order_by('category__name', 'name')
+    else:
+        qs = qs.order_by('category__name', 'name')
+    teams = one_team_per_identity(qs)
     return Team.objects.filter(pk__in=[t.pk for t in teams]).select_related(
         'category', 'club', 'identity', 'identity__category', 'identity__club',
     ).order_by('category__name', 'name')
@@ -49,16 +50,7 @@ class PreferenceTeamChoiceField(forms.ModelMultipleChoiceField):
 
     def label_from_instance(self, obj):
         if obj.identity_id:
-            identity = obj.identity
-            # El scrape a veces deja &#39; en core_name; hay que desescapar antes del
-            # normalizador de stable_roster_label o parte la apostrofe en tokens.
-            raw_core = identity.core_name
-            if raw_core and '&#' in raw_core:
-                identity.core_name = unescape(raw_core)
-            try:
-                label = stable_roster_label(identity)
-            finally:
-                identity.core_name = raw_core
+            label = stable_roster_label(obj.identity)
             if label:
                 return label
         name = unescape(obj.name or '')
