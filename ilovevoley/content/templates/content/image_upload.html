@@ -20,6 +20,13 @@
                     {{ form.image.label }}
                 </label>
                 
+                {% if shared_upload %}
+                <div class="border-2 border-solid border-line rounded-3xl p-8 text-center">
+                    <img src="{{ shared_upload.file.url }}" alt="{% trans "Foto compartida" %}" class="max-w-full h-48 object-contain mx-auto rounded">
+                    <p class="mt-2 text-sm text-muted">{{ shared_upload.original_name }}</p>
+                </div>
+                <input type="hidden" name="share_token" value="{{ shared_upload.token }}">
+                {% else %}
                 <div id="drop-zone" class="border-2 border-dashed border-line rounded-3xl p-8 text-center hover:border-accent transition-colors duration-200 cursor-pointer">
                     <div id="drop-zone-content">
                         <i class="fas fa-cloud-upload-alt text-muted text-4xl mb-4"></i>
@@ -37,6 +44,7 @@
                 </div>
                 
                 {{ form.image }}
+                {% endif %}
                 
                 {% if form.image.errors %}
                     <div class="mt-2 text-red-600 dark:text-red-400 text-sm">
@@ -212,7 +220,8 @@ const imagePreview = document.getElementById('image-preview');
 const previewImg = document.getElementById('preview-img');
 const previewFilename = document.getElementById('preview-filename');
 
-// Funciones de drag & drop
+// Funciones de drag & drop (el drop-zone no existe con share target: foto ya adjunta)
+if (dropZone && imageInput) {
 dropZone.addEventListener('click', () => imageInput.click());
 
 dropZone.addEventListener('dragover', (e) => {
@@ -240,6 +249,7 @@ imageInput.addEventListener('change', (e) => {
         handleFileSelect(e.target.files[0]);
     }
 });
+}
 
 function handleFileSelect(file) {
     // Validar tipo de archivo

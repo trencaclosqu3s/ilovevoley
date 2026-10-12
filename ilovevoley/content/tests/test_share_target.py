@@ -130,3 +130,81 @@ class ShareTargetReceiverTests(TestCase):
         self._post_share([jpeg_bytes('nueva.jpg')])
         self.assertFalse(SharedUpload.objects.filter(pk=stale.pk).exists())
         self.assertTrue(SharedUpload.objects.filter(original_name='nueva.jpg').exists())
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
+class ShareTargetSingleUploadTests(TestCase):
+    """Consumo del token: efectos persistentes reales (Image creada, fila borrada)
+    y rechazo de tokens ajenos (guía: camino crítico + idempotencia del intentado
+    fallido)."""
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+
+        self.media_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media_root, ignore_errors=True)
+        override = override_settings(MEDIA_ROOT=self.media_root)
+        override.enable()
+        self.addCleanup(override.disable)
+        cache.clear()
+
+        self.org = Organization.objects.create(slug='testclub', name='Test Club', is_active=True)
+        User = get_user_model()
+        self.user = User.objects.create_user(username='sharer', password='pass')
+        self.other = User.objects.create_user(username='other', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+        Season.objects.create(name='2026-27', start_year=2026, end_year=2027, is_current=True)
+        self.client.force_login(self.user)
+
+    def _make_row(self, owner=None, org=None):
+        return SharedUpload.objects.create(
+            file=jpeg_bytes('IMG_9.jpg'),
+            owner=owner or self.user,
+            organization=org or self.org,
+            original_name='IMG_9.jpg',
+            content_type='image/jpeg',
+            shared_title='IMG_9',
+        )
+
+    def test_get_share_previews_image_and_hides_file_input(self):
+        row = self._make_row()
+        response = self.client.get(
+            reverse('content:image_upload'), {'share': str(row.token)},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertContains(response, 'share_token')
+        self.assertContains(response, row.file.url)
+
+    def test_get_share_foreign_token_falls_back_to_plain_form(self):
+        """Review focus 3: token de otro usuario → formulario normal, sin imagen."""
+        row = self._make_row(owner=self.other)
+        response = self.client.get(
+            reverse('content:image_upload'), {'share': str(row.token)},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertNotContains(response, 'name="share_token"')
+        self.assertContains(response, 'no es válido')
+
+    def test_post_with_share_token_creates_image_and_deletes_row(self):
+        row = self._make_row()
+        response = self.client.post(
+            reverse('content:image_upload'),
+            {'share_token': str(row.token), 'image_type': 'match'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        from ilovevoley.content.models import Image as ImageModel
+        created = ImageModel.objects.get()
+        self.assertEqual(created.uploaded_by, self.user)
+        self.assertEqual(created.organization, self.org)
+        self.assertFalse(SharedUpload.objects.filter(pk=row.pk).exists())
+
+    def test_post_with_invalid_token_does_not_create_anything(self):
+        import uuid as uuid_mod
+        from ilovevoley.content.models import Image as ImageModel
+        response = self.client.post(
+            reverse('content:image_upload'),
+            {'share_token': str(uuid_mod.uuid4()), 'image_type': 'match'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(ImageModel.objects.count(), 0)

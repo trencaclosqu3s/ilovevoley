@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.paginator import Paginator
 from django.db.models import Count, F, Max, Q, Window
 from django.db.models.functions import RowNumber
@@ -36,6 +37,11 @@ from ilovevoley.core.tenant_utils import (
 from ilovevoley.rosters.models import Person
 from ilovevoley.teams.models import Team
 from ilovevoley.core.email_utils import enqueue_on_commit
+from .image_naming import (
+    build_descriptive_title,
+    get_next_sequence_number,
+    is_generic_camera_filename,
+)
 from .services import apply_image_tags, moderate_image, taggable_persons
 from .forms import (
     CommentForm,
@@ -735,18 +741,35 @@ def image_share_target(request):
 @tenant_access_required()
 def image_upload(request):
     """Vista para subir imágenes"""
+    share_row = None
     if request.method == 'POST':
-        form = ImageUploadForm(request.POST, request.FILES, organization=request.tenant)
+        share_token = request.POST.get('share_token')
+        if share_token:
+            try:
+                share_row = SharedUpload.objects.filter(
+                    token=share_token, owner=request.user, organization=request.tenant
+                ).first()
+            except (ValueError, ValidationError):
+                share_row = None
+            if not share_row:
+                messages.error(request, _('El enlace de la foto compartida ya no es válido.'))
+                form = ImageUploadForm(request.POST, request.FILES, organization=request.tenant)
+            else:
+                restored = SimpleUploadedFile(
+                    share_row.original_name or 'compartida.jpg',
+                    share_row.file.read(),
+                    content_type=share_row.content_type or 'image/jpeg',
+                )
+                form = ImageUploadForm(
+                    request.POST, {'image': restored}, organization=request.tenant
+                )
+        else:
+            form = ImageUploadForm(request.POST, request.FILES, organization=request.tenant)
         if form.is_valid():
             image = form.save(commit=False)
             image.uploaded_by = request.user
             image.organization = request.tenant
 
-            from ilovevoley.content.image_naming import (
-                build_descriptive_title,
-                get_next_sequence_number,
-                is_generic_camera_filename,
-            )
             if not image.title or is_generic_camera_filename(image.title):
                 seq = get_next_sequence_number(
                     match=image.match,
@@ -826,6 +849,9 @@ def image_upload(request):
             if image.status == 'approved' and image.match_id and request.tenant:
                 queue_match_media_push(match_id=image.match_id, media_type='photo', organization_id=request.tenant.id)
 
+            if share_row:
+                share_row.delete()
+
             return redirect('content:image_gallery')
         else:
             # El formulario no es válido, mostrar errores
@@ -842,7 +868,23 @@ def image_upload(request):
                 initial_data['match'] = match
             except Match.DoesNotExist:
                 pass
-        
+
+        share_param = request.GET.get('share')
+        if share_param:
+            try:
+                share_row = SharedUpload.objects.filter(
+                    token=share_param, owner=request.user, organization=request.tenant
+                ).first()
+            except (ValueError, ValidationError):
+                share_row = None
+            if not share_row:
+                messages.error(request, _('El enlace de la foto compartida ya no es válido.'))
+        if share_row:
+            if share_row.shared_title and not is_generic_camera_filename(share_row.shared_title):
+                initial_data['title'] = share_row.shared_title[:200]
+            if share_row.shared_text:
+                initial_data['description'] = share_row.shared_text
+
         form = ImageUploadForm(initial=initial_data, organization=request.tenant)
 
     # Obtener partidos recientes para sugerir (solo pasados + el próximo)
@@ -872,6 +914,7 @@ def image_upload(request):
     context = {
         'form': form,
         'recent_matches': recent_matches,
+        'shared_upload': share_row,
     }
     
     return render(request, 'content/image_upload.html', context)
