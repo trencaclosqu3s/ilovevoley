@@ -7,7 +7,6 @@ from PIL import Image, ImageDraw
 
 BG_COLOR = (1, 105, 111, 255)  # #01696f
 FG_COLOR = (255, 255, 255, 255)
-ACCENT_COLOR = (255, 255, 255, 220)
 
 OUTPUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

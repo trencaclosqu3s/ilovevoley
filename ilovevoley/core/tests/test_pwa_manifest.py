@@ -179,6 +179,3 @@ class PWAManifestTest(TestCase):
         for sc in shortcuts:
             for icon in sc['icons']:
                 self.assertIn('shortcut-', icon['src'])
-
-
-
