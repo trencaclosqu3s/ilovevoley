@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 20:13+0200\n"
+"POT-Creation-Date: 2026-10-12 20:19+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -4795,23 +4795,73 @@ msgstr "No hi ha imatges d'aquest partit"
 msgid "Sé el primero en subir imágenes de este partido."
 msgstr "Sigues el primer a pujar imatges d'aquest partit."
 
-#: ilovevoley/content/templates/content/share_target_notice.html:6
-msgid "I Love Voley — Compartir fotos"
-msgstr "I Love Voley — Compartir fotos"
+#: ilovevoley/content/templates/content/share_target_notice.html:3
+msgid "Compartir fotos - I Love Voley"
+msgstr "Compartir fotos - I Love Voley"
 
-#: ilovevoley/content/templates/content/share_target_notice.html:11
+#: ilovevoley/content/templates/content/share_target_notice.html:6
+msgid "¡Compartición no completada!"
+msgstr "¡No s'ha completat la compartició!"
+
+#: ilovevoley/content/templates/content/share_target_notice.html:7
+msgid "La foto no llegó a la cancha"
+msgstr "La foto no ha arribat a la pista"
+
+#: ilovevoley/content/templates/content/share_target_notice.html:9
 msgid "Abre la app, inicia sesión en tu club y vuelve a compartir la foto."
 msgstr "Obri l'app, inicia sessió al teu club i torna a compartir la foto."
 
-#: ilovevoley/content/templates/content/share_target_notice.html:14
+#: ilovevoley/content/templates/content/share_target_notice.html:10
 msgid ""
 "No se admitió ninguna imagen: solo JPG, PNG, WebP o HEIC de hasta 10 MB."
-msgstr ""
-"No s'ha admés cap imatge: només JPG, PNG, WebP o HEIC de fins a 10 MB."
+msgstr "No s'ha admés cap imatge: només JPG, PNG, WebP o HEIC de fins a 10 MB."
 
-#: ilovevoley/content/templates/content/share_target_notice.html:17
+#: ilovevoley/content/templates/content/share_target_notice.html:11
 msgid "No llegó ningún archivo. Prueba a compartir la foto de nuevo."
 msgstr "No ha arribat cap fitxer. Prova de compartir la foto de nou."
+
+#: ilovevoley/content/templates/content/share_target_notice.html:13
+msgid ""
+"Has sacado fuerte, pero el balón se ha ido fuera: vuelve a intentarlo desde "
+"la galería."
+msgstr ""
+"Has tret fort, però la pilota ha marxat fora: torna-ho a provar des de la galeria."
+
+#: ilovevoley/content/templates/content/share_target_notice.html:14
+msgid "Para que la jugada salga bien"
+msgstr "Perquè la jugada surti bé"
+
+#: ilovevoley/content/templates/content/share_target_notice.html:16
+msgid ""
+"La app de I Love Voley debe estar instalada y abierta con tu sesión del club."
+msgstr ""
+"L'app d'I Love Voley ha d'estar instalada i oberta amb la teva sessió del club."
+
+#: ilovevoley/content/templates/content/share_target_notice.html:17
+msgid ""
+"Desde la galería, selecciona la foto y usa Compartir, luego elige I Love "
+"Voley."
+msgstr ""
+"Des de la galeria, selecciona la foto i fes servir Compartir; després tria I Love Voley."
+
+#: ilovevoley/content/templates/content/share_target_notice.html:18
+msgid ""
+"Se te pedirá elegir el partido antes de publicar: las fotos pasan por "
+"moderación."
+msgstr ""
+"Se et demanarà triar el partit abans de publicar: les fotos passen per moderació."
+
+#: ilovevoley/content/templates/content/share_target_notice.html:20
+#: ilovevoley/templates/offline.html:19
+msgid "Pizarra táctica:"
+msgstr "Pissarra tàctica:"
+
+#: ilovevoley/content/templates/content/share_target_notice.html:21
+msgid ""
+"Las fotos del partido se comparten en caliente; si hay dudas de cobertura, "
+"repite la jugada"
+msgstr ""
+"Les fotos del partit es comparteixen en calent; si hi ha dubtes de cobertura, repeteix la jugada"
 
 #: ilovevoley/content/templates/content/video_bulk_form.html:4
 #: ilovevoley/content/templates/content/video_bulk_form.html:8
@@ -5077,8 +5127,7 @@ msgstr ""
 #, python-format
 msgid ""
 "Demasiadas fotos: se han descartado %(n)s (máximo %(max)s por compartir)."
-msgstr ""
-"Masses fotos: s'han descartat %(n)s (màxim %(max)s per compartir)."
+msgstr "Masses fotos: s'han descartat %(n)s (màxim %(max)s per compartir)."
 
 #: ilovevoley/content/views.py:755 ilovevoley/content/views.py:881
 msgid "El enlace de la foto compartida ya no es válido."
@@ -11675,10 +11724,6 @@ msgstr ""
 msgid "Reintentar saque"
 msgstr "Tornar a intentar el servei"
 
-#: ilovevoley/templates/offline.html:19
-msgid "Pizarra táctica:"
-msgstr "Pissarra tàctica:"
-
 #: ilovevoley/templates/offline.html:20
 msgid ""
 "En voleibol y en la web, la mejor jugada siempre necesita una buena conexión"
@@ -12791,6 +12836,9 @@ msgid ""
 msgstr ""
 "Arguments amb nom en JSON vàlid, per exemple {\"delay\": 2.0}. Han de "
 "coincidir amb la signatura de la tasca."
+
+#~ msgid "I Love Voley — Compartir fotos"
+#~ msgstr "I Love Voley — Compartir fotos"
 
 #~ msgid "No especificado"
 #~ msgstr "No especificat"
