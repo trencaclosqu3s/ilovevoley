@@ -1,9 +1,13 @@
+from html import unescape
+
 from django import forms
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.mixins import get_tenant_club
-from ilovevoley.core.models import Category, Organization
+from ilovevoley.core.models import Category, Organization, Season
+from ilovevoley.teams.identity import one_team_per_identity, stable_roster_label
 from ilovevoley.teams.models import Team
 from .models import CategoryPreference, NotificationPreference, NotificationType
 
@@ -11,6 +15,56 @@ AVAILABLE_NOTIFICATION_TYPES = list(NotificationType.choices)
 
 
 User = get_user_model()
+
+
+def _preference_teams_for_club(club):
+    """Equipos del club para el selector de avisos (#526).
+
+    Una fila ``Team`` por fase/año federativo: sin filtrar por temporada actual y
+    sin deduplicar por identidad salen checkboxes idénticos e inútiles.
+    """
+    qs = Team.objects.filter(club=club, is_active=True).select_related(
+        'category', 'club', 'identity', 'identity__category', 'identity__club',
+    )
+    season = Season.objects.current()
+    if season:
+        in_season = (
+            Q(standings__league__season=season)
+            | Q(home_matches__league__season=season)
+            | Q(away_matches__league__season=season)
+            | Q(identity__player_roles__season=season)
+            | Q(identity__staff_roles__season=season)
+        )
+        seasonal = qs.filter(in_season).distinct()
+        if seasonal.exists():
+            qs = seasonal
+    teams = one_team_per_identity(qs.order_by('category__name', 'name'))
+    return Team.objects.filter(pk__in=[t.pk for t in teams]).select_related(
+        'category', 'club', 'identity', 'identity__category', 'identity__club',
+    ).order_by('category__name', 'name')
+
+
+class PreferenceTeamChoiceField(forms.ModelMultipleChoiceField):
+    """Etiqueta estable (club + categoría) y sin entidades HTML crudas (#526)."""
+
+    def label_from_instance(self, obj):
+        if obj.identity_id:
+            identity = obj.identity
+            # El scrape a veces deja &#39; en core_name; hay que desescapar antes del
+            # normalizador de stable_roster_label o parte la apostrofe en tokens.
+            raw_core = identity.core_name
+            if raw_core and '&#' in raw_core:
+                identity.core_name = unescape(raw_core)
+            try:
+                label = stable_roster_label(identity)
+            finally:
+                identity.core_name = raw_core
+            if label:
+                return label
+        name = unescape(obj.name or '')
+        if obj.category_id:
+            return f'{name} ({obj.category.name})'
+        return name
 
 
 class CustomSignupForm(forms.Form):
@@ -153,8 +207,8 @@ class NotificationPreferencesForm(forms.Form):
             club = get_tenant_club(org)
             if club:
                 teams_field_name = f'followed_teams_{org.id}'
-                self.fields[teams_field_name] = forms.ModelMultipleChoiceField(
-                    queryset=Team.objects.filter(club=club, is_active=True).order_by('name'),
+                self.fields[teams_field_name] = PreferenceTeamChoiceField(
+                    queryset=_preference_teams_for_club(club),
                     required=False,
                     widget=forms.CheckboxSelectMultiple(attrs={
                         'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'
@@ -328,8 +382,8 @@ class UserProfileForm(forms.ModelForm):
             club = get_tenant_club(org)
             if club:
                 teams_field_name = f'followed_teams_{org.id}'
-                self.fields[teams_field_name] = forms.ModelMultipleChoiceField(
-                    queryset=Team.objects.filter(club=club, is_active=True).order_by('name'),
+                self.fields[teams_field_name] = PreferenceTeamChoiceField(
+                    queryset=_preference_teams_for_club(club),
                     required=False,
                     widget=forms.CheckboxSelectMultiple(attrs={
                         'class': 'h-4 w-4 text-csj-purple focus:ring-csj-purple border-gray-300 rounded'

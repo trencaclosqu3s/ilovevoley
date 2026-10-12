@@ -292,3 +292,92 @@ class UserProfileFormFollowedTeamsTest(TestCase):
         pref = self._save(categories=[self.cadete])
         self.assertFalse(pref.teams.exists())
         self.assertEqual(list(pref.categories.all()), [self.cadete])
+
+
+class FollowedTeamsCurrentSeasonChoicesTest(TestCase):
+    """Preferencias push (#526): una opción por identidad de la temporada actual.
+
+    Sin filtrar, el scrape deja varias filas Team (una por fase/año) con el mismo
+    nombre y la UI muestra checkboxes indistingibles; no tiene sentido seguir
+    apariciones de temporadas pasadas.
+    """
+
+    def setUp(self):
+        from ilovevoley.competitions.models import League, Standing
+        from ilovevoley.core.models import Season
+        from ilovevoley.teams.models import Club, Team, TeamIdentity
+        from ilovevoley.teams.tests.helpers import identity_of
+        from ilovevoley.users.forms import NotificationPreferencesForm
+
+        User = get_user_model()
+        self.NotificationPreferencesForm = NotificationPreferencesForm
+        self.user = User.objects.create_user(username='socio', password='contrasena')
+        self.club = Club.objects.create(federation_id='c-sj', official_name='CV Sant Josep')
+        self.org = Organization.objects.create(
+            slug='sant-josep', name='Sant Josep', is_active=True, club=self.club,
+        )
+        self.infantil = Category.objects.create(name='Infantil', is_active=True)
+        self.current_season = Season.objects.resolve('2026-27')
+        Season.objects.filter(pk=self.current_season.pk).update(is_current=True)
+        self.past_season = Season.objects.resolve('2025-26')
+
+        self.current_a = Team.objects.create(
+            name='CV SANT JOSEP LILA', federation_id='t-cur-a',
+            club=self.club, category=self.infantil,
+        )
+        self.current_b = Team.objects.create(
+            name='CV SANT JOSEP LILA', federation_id='t-cur-b',
+            club=self.club, category=self.infantil,
+        )
+        identity = identity_of(self.current_a)
+        self.current_b.identity = identity
+        self.current_b.save(update_fields=['identity'])
+
+        self.past = Team.objects.create(
+            name='CV SANT JOSEP LILA', federation_id='t-past',
+            club=self.club, category=self.infantil,
+        )
+        identity_of(self.past)
+
+        self.entity_team = Team.objects.create(
+            name="CVS S&#39;ANGLADA SOLLER", federation_id='t-entity',
+            club=self.club, category=self.infantil,
+        )
+        TeamIdentity.objects.filter(pk=identity_of(self.entity_team).pk).update(
+            core_name="CVS S&#39;ANGLADA SOLLER",
+            core_name_normalized='cvs sanglada soller',
+        )
+        self.entity_team.identity.refresh_from_db()
+
+        for team, season in (
+            (self.current_a, self.current_season),
+            (self.current_b, self.current_season),
+            (self.past, self.past_season),
+            (self.entity_team, self.current_season),
+        ):
+            league = League.objects.create(
+                name=f'L {team.federation_id}',
+                federation_id=f'L-{team.federation_id}',
+                season=season,
+            )
+            Standing.objects.create(league=league, team=team, position=1)
+
+    def _team_field(self):
+        form = self.NotificationPreferencesForm(user=self.user, organization=self.org)
+        return form.fields[f'followed_teams_{self.org.id}']
+
+    def test_one_choice_per_identity_of_current_season_only(self):
+        choices = list(self._team_field().queryset)
+        self.assertEqual(len(choices), 2)
+        self.assertNotIn(self.past, choices)
+        self.assertTrue(
+            {self.current_a, self.current_b} & set(choices),
+            'debe quedar una de las dos apariciones actuales de la misma identidad',
+        )
+        self.assertIn(self.entity_team, choices)
+
+    def test_labels_unescape_html_entities_and_stay_distinct(self):
+        field = self._team_field()
+        labels = {team.pk: field.label_from_instance(team) for team in field.queryset}
+        self.assertNotIn('&#39;', labels[self.entity_team.pk])
+        self.assertIn("S'ANGLADA", labels[self.entity_team.pk])
