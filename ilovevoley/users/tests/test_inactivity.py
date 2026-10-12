@@ -286,12 +286,11 @@ class VoluntaryDeactivationTokenTests(TestCase):
         )
         self.token = generate_voluntary_deactivation_token(self.user)
 
-    def test_voluntary_token_works_for_active_user_without_inactivity_warning(self):
+    def test_voluntary_token_deactivates_active_user_without_warning(self):
         from ilovevoley.users.tokens import verify_deactivation_token
 
         self.assertEqual(verify_deactivation_token(self.token), self.user)
 
-    def test_voluntary_token_post_deactivates(self):
         url = reverse('deactivate_account', args=[self.token])
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)

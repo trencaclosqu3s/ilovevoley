@@ -59,21 +59,16 @@ ACTA_HTML = """
 
 
 class ParseActaExtrasTests(SimpleTestCase):
-    def test_extrae_observaciones_y_quita_la_etiqueta(self):
+    def test_extrae_extras_del_acta(self):
         result = parse_acta_lineup(ACTA_HTML)
+        # Observaciones sin la etiqueta
         self.assertEqual(result['observations'], 'Delegado de pista Sr Bibiloni')
-
-    def test_extrae_entrenadores_de_las_firmas(self):
-        result = parse_acta_lineup(ACTA_HTML)
+        # Entrenadores desde las firmas
         self.assertEqual(result['home_coach'], 'ANDREA LOPEZ')
         self.assertEqual(result['away_coach'], 'XIM RODRIGUEZ')
-
-    def test_recoge_solo_los_arbitros_con_nombre(self):
-        result = parse_acta_lineup(ACTA_HTML)
+        # Solo los árbitros con nombre
         self.assertEqual(result['referees'], ['GARCIA, PABLO'])
-
-    def test_extrae_oficiales_de_la_tabla(self):
-        result = parse_acta_lineup(ACTA_HTML)
+        # Oficiales de la tabla LOCAL / ROL / VISITANTE
         self.assertEqual(result['officials'], [{
             'local': 'ANDREA LOPEZ MORENO',
             'role': 'C',
@@ -112,12 +107,9 @@ class ParseActaExtrasEmptyTests(SimpleTestCase):
     </body></html>
     """
 
-    def test_entrenadores_y_arbitros_vacios_si_solo_hay_imagen(self):
+    def test_extras_vacios_si_solo_hay_imagen(self):
         result = parse_acta_lineup(self.HTML)
         self.assertEqual(result['home_coach'], '')
         self.assertEqual(result['away_coach'], '')
         self.assertEqual(result['referees'], [])
-
-    def test_tabla_oficiales_sin_filas(self):
-        result = parse_acta_lineup(self.HTML)
         self.assertEqual(result['officials'], [])

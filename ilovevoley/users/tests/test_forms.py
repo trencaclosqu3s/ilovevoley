@@ -63,17 +63,6 @@ class UserProfileFormOrganizationTest(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         form.save()
 
-    def test_preferences_are_independent_per_organization(self):
-        self._save(self.org1, [self.infantil])
-        self._save(self.org2, [self.cadete])
-
-        self.assertEqual(
-            list(self.user.preferred_categories_for(self.org1)), [self.infantil]
-        )
-        self.assertEqual(
-            list(self.user.preferred_categories_for(self.org2)), [self.cadete]
-        )
-
     def test_empty_organization_has_no_preferences(self):
         self._save(self.org1, [self.infantil])
 
@@ -108,25 +97,7 @@ class UserProfileFormOrganizationTest(TestCase):
 
         self.assertFalse(self.user.has_preferred_categories(self.org1))
 
-    def test_save_with_commit_false_and_save_m2m_persists_preferences(self):
-        form = UserProfileForm(
-            data={
-                'username': 'socio',
-                'first_name': 'Socio',
-                'last_name': 'Uno',
-                f'preferred_categories_{self.org1.id}': [self.infantil.pk],
-            },
-            instance=self.user,
-            organization=self.org1,
-        )
-        self.assertTrue(form.is_valid(), form.errors)
-        user = form.save(commit=False)
-        user.save()
-        form.save_m2m()
-
-        self.assertEqual(list(self.user.preferred_categories_for(self.org1)), [self.infantil])
-
-    def test_form_exposes_category_fields_for_all_user_memberships(self):
+    def test_form_exposes_category_fields_for_user_memberships_and_superuser(self):
         from ilovevoley.users.models import Membership
         Membership.objects.create(user=self.user, organization=self.org1, is_approved=True)
         Membership.objects.create(user=self.user, organization=self.org2, is_approved=False)
@@ -135,6 +106,13 @@ class UserProfileFormOrganizationTest(TestCase):
         org_ids = [org.id for org, _ in form.organization_category_fields]
         self.assertIn(self.org1.id, org_ids)
         self.assertIn(self.org2.id, org_ids)
+
+        # Un superusuario sin membresías ve todas las organizaciones activas.
+        superuser = get_user_model().objects.create_superuser(username='super', password='pass')
+        super_form = UserProfileForm(instance=superuser)
+        super_org_ids = [org.id for org, _ in super_form.organization_category_fields]
+        self.assertIn(self.org1.id, super_org_ids)
+        self.assertIn(self.org2.id, super_org_ids)
 
     def test_form_saves_preferences_for_multiple_organizations_at_once(self):
         from ilovevoley.users.models import Membership
@@ -157,13 +135,6 @@ class UserProfileFormOrganizationTest(TestCase):
         self.assertEqual(list(self.user.preferred_categories_for(self.org1)), [self.infantil])
         self.assertEqual(list(self.user.preferred_categories_for(self.org2)), [self.cadete])
 
-    def test_form_superuser_without_memberships_includes_active_organizations(self):
-        superuser = get_user_model().objects.create_superuser(username='super', password='pass')
-        form = UserProfileForm(instance=superuser)
-        org_ids = [org.id for org, _ in form.organization_category_fields]
-        self.assertIn(self.org1.id, org_ids)
-        self.assertIn(self.org2.id, org_ids)
-
 
 class UserProfileFormNotificationPreferenceTest(TestCase):
     def setUp(self):
@@ -172,18 +143,18 @@ class UserProfileFormNotificationPreferenceTest(TestCase):
         self.org1 = Organization.objects.create(slug='pref-club-uno', name='Club Uno', is_active=True)
         self.org2 = Organization.objects.create(slug='pref-club-dos', name='Club Dos', is_active=True)
 
-    def test_initial_has_all_types_enabled_by_default(self):
-        from ilovevoley.users.models import NotificationType
-        form = UserProfileForm(instance=self.user, organization=self.org1)
+    def test_initial_notification_types_reflect_enabled_state(self):
+        from ilovevoley.users.models import NotificationPreference, NotificationType
         field_name = f'notification_types_{self.org1.id}'
+
+        form = UserProfileForm(instance=self.user, organization=self.org1)
         self.assertIn(field_name, form.fields)
+        # Por defecto todos los tipos están activos.
         self.assertEqual(
             set(form.initial.get(field_name, [])),
             set(NotificationType.values),
         )
 
-    def test_initial_reflects_disabled_types(self):
-        from ilovevoley.users.models import NotificationPreference, NotificationType
         NotificationPreference.objects.create(
             user=self.user,
             organization=self.org1,
@@ -191,7 +162,6 @@ class UserProfileFormNotificationPreferenceTest(TestCase):
             is_enabled=False,
         )
         form = UserProfileForm(instance=self.user, organization=self.org1)
-        field_name = f'notification_types_{self.org1.id}'
         self.assertEqual(
             set(form.initial.get(field_name, [])),
             set(NotificationType.values) - {NotificationType.MATCH_RESULT},

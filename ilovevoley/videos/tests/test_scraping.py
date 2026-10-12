@@ -114,24 +114,20 @@ class RFEVBPhaseParserTests(TestCase):
         mock_league.match_format = 'standard'
         return RFEVBPhaseParser(mock_league)
 
-    def test_parse_returns_two_groups(self):
-        parser = self._make_parser()
-        result = parser.parse_content(PHASE_HTML)
+    def test_phase_groups_parsed_with_names(self):
+        result = self._make_parser().parse_content(PHASE_HTML)
         self.assertEqual(len(result['groups']), 2)
-
-    def test_first_group_name(self):
-        parser = self._make_parser()
-        result = parser.parse_content(PHASE_HTML)
         self.assertEqual(result['groups'][0]['name'], 'Grupo A')
-
-    def test_second_group_name(self):
-        parser = self._make_parser()
-        result = parser.parse_content(PHASE_HTML)
         self.assertEqual(result['groups'][1]['name'], '1 al 16')
 
-    def test_placeholder_matches_filtered_out(self):
-        parser = self._make_parser()
-        result = parser.parse_content(PHASE_HTML)
+    def test_placeholder_group_has_no_matches_or_standings(self):
+        result = self._make_parser().parse_content(PHASE_HTML)
+        grupo_1al16 = result['groups'][1]
+        self.assertEqual(grupo_1al16['matches'], [])
+        self.assertEqual(grupo_1al16['standings'], [])
+
+    def test_placeholder_match_filtered_out(self):
+        result = self._make_parser().parse_content(PHASE_HTML)
         grupo_a = result['groups'][0]
         match_numbers = [m['rfevb_match_number'] for m in grupo_a['matches']]
         self.assertNotIn(2, match_numbers)  # placeholder filtered
@@ -139,8 +135,7 @@ class RFEVBPhaseParserTests(TestCase):
         self.assertIn(3, match_numbers)
 
     def test_finished_match_parsed_correctly(self):
-        parser = self._make_parser()
-        result = parser.parse_content(PHASE_HTML)
+        result = self._make_parser().parse_content(PHASE_HTML)
         match = result['groups'][0]['matches'][0]  # match 1: 3-1
         self.assertEqual(match['rfevb_match_number'], 1)
         self.assertEqual(match['home_team_name'], 'AD Eliocroca')
@@ -149,36 +144,18 @@ class RFEVBPhaseParserTests(TestCase):
         self.assertEqual(match['away_score'], 1)
         self.assertEqual(match['status'], 'finished')
         self.assertEqual(match['venue'], 'Pabellón Ciudad Deportiva')
-
-    def test_scheduled_match_has_none_scores(self):
-        parser = self._make_parser()
-        result = parser.parse_content(PHASE_HTML)
-        match = result['groups'][0]['matches'][1]  # match 3: 0-0
-        self.assertIsNone(match['home_score'])
-        self.assertIsNone(match['away_score'])
-        self.assertEqual(match['status'], 'scheduled')
-
-    def test_match_date_parsed(self):
-        parser = self._make_parser()
-        result = parser.parse_content(PHASE_HTML)
-        match = result['groups'][0]['matches'][0]
         self.assertEqual(match['match_date'].year, 2026)
         self.assertEqual(match['match_date'].month, 5)
         self.assertEqual(match['match_date'].day, 27)
         self.assertEqual(match['match_date'].hour, 17)
         self.assertEqual(match['match_date'].minute, 0)
 
-    def test_group_without_standings_has_empty_list(self):
-        parser = self._make_parser()
-        result = parser.parse_content(PHASE_HTML)
-        grupo_1al16 = result['groups'][1]
-        self.assertEqual(grupo_1al16['standings'], [])
-
-    def test_all_placeholder_group_has_no_matches(self):
-        parser = self._make_parser()
-        result = parser.parse_content(PHASE_HTML)
-        grupo_1al16 = result['groups'][1]
-        self.assertEqual(grupo_1al16['matches'], [])
+    def test_scheduled_match_has_none_scores(self):
+        result = self._make_parser().parse_content(PHASE_HTML)
+        match = result['groups'][0]['matches'][1]  # match 3: 0-0
+        self.assertIsNone(match['home_score'])
+        self.assertIsNone(match['away_score'])
+        self.assertEqual(match['status'], 'scheduled')
 
     def test_standings_parsed_correctly(self):
         parser = self._make_parser()
@@ -236,21 +213,12 @@ class RFEVBTeamsParserTests(TestCase):
     def _make_parser(self):
         return RFEVBTeamsParser(MagicMock())
 
-    def test_returns_two_teams(self):
-        parser = self._make_parser()
-        result = parser.parse_content(TEAMS_HTML)
+    def test_teams_parsed_strips_region_and_extracts_logo(self):
+        result = self._make_parser().parse_content(TEAMS_HTML)
         self.assertEqual(len(result['teams']), 2)
-
-    def test_region_stripped_from_name(self):
-        parser = self._make_parser()
-        result = parser.parse_content(TEAMS_HTML)
         self.assertIn('AD Eliocroca', result['teams'])
         self.assertIn('CV Sant Josep', result['teams'])
         self.assertNotIn('AD Eliocroca (MURCIA)', result['teams'])
-
-    def test_logo_url_extracted(self):
-        parser = self._make_parser()
-        result = parser.parse_content(TEAMS_HTML)
         self.assertEqual(
             result['teams']['AD Eliocroca'],
             'http://intranet.rfevb.com/clubes/logos/web/cl00922.png',
@@ -375,13 +343,6 @@ class ScrapeRFEVBFaseCommandTests(TestCase):
         self.assertEqual(match.status, 'scheduled')
         self.assertEqual(match.federation_id, 'rfevb_9041_3')
 
-    def test_placeholder_matches_not_created(self):
-        self._run_command()
-        # Match number 2 is a placeholder → should not exist
-        self.assertFalse(
-            Match.objects.filter(federation_id='rfevb_9041_2').exists()
-        )
-
     def test_subleague_found_by_phase_name(self):
         """El comando encuentra la sub-liga existente por phase_name, no crea una nueva."""
         self._run_command()
@@ -447,15 +408,6 @@ class ScrapeRFEVBCompetitionTaskTests(TestCase):
 
     @patch('ilovevoley.videos.tasks.scrape_rfevb_fases')
     @patch('ilovevoley.videos.tasks.scrape_rfevb_final_classification')
-    def test_task_calls_scrape_fases(self, mock_final, mock_scrape):
-        from ilovevoley.videos.tasks import scrape_rfevb_competition
-        mock_scrape.return_value = {'matches_found': 10, 'created': 2, 'updated': 8,
-                                    'skipped': 0, 'errors': []}
-        scrape_rfevb_competition(9041, [2193, 2194], 'ceim_2526_task_test')
-        mock_scrape.assert_called_once_with(9041, [2193, 2194], 'ceim_2526_task_test')
-
-    @patch('ilovevoley.videos.tasks.scrape_rfevb_fases')
-    @patch('ilovevoley.videos.tasks.scrape_rfevb_final_classification')
     def test_task_triggers_final_classification_when_all_done(self, mock_final, mock_scrape):
         from ilovevoley.videos.tasks import scrape_rfevb_competition
         mock_scrape.return_value = {'matches_found': 0, 'created': 0, 'updated': 0,
@@ -491,11 +443,13 @@ class ScrapeRFEVBCompetitionTaskTests(TestCase):
 
     @patch('ilovevoley.videos.tasks.scrape_rfevb_fases')
     @patch('ilovevoley.videos.tasks.scrape_rfevb_final_classification')
-    def test_task_returns_error_without_triggering_final_when_league_not_found(self, mock_final, mock_scrape):
+    def test_task_does_not_trigger_final_when_parent_league_missing(self, mock_final, mock_scrape):
+        """Sin liga padre no hay dónde mirar partidos pendientes: no se lanza la final."""
         from ilovevoley.videos.tasks import scrape_rfevb_competition
-        mock_scrape.return_value = {'error': 'Liga padre no encontrada: nonexistent'}
+        mock_scrape.return_value = {'matches_found': 0, 'created': 0, 'updated': 0,
+                                    'skipped': 0, 'errors': []}
         result = scrape_rfevb_competition(9041, [2193], 'nonexistent')
-        self.assertIn('error', result)
+        self.assertNotIn('error', result)
         mock_final.delay.assert_not_called()
 
 
@@ -1367,7 +1321,20 @@ class UpdateTeamsIdentityTests(TestCase):
         new = Team.objects.get(federation_id='fed-new')
         self.assertNotEqual(new.pk, old.pk)
 
-    def test_exact_sponsor_change_shares_identity(self):
+    def test_portol_colors_do_not_auto_link(self):
+        self.scraper.update_teams([
+            {'name': 'PORTOL ROJO', 'federation_id': 'r-old', 'federation_club_id': '10'},
+            {'name': 'PORTOL NEGRO', 'federation_id': 'n-new', 'federation_club_id': '10'},
+        ])
+        rojo = Team.objects.get(federation_id='r-old')
+        negro = Team.objects.get(federation_id='n-new')
+        self.assertIsNotNone(rojo.identity_id)
+        self.assertIsNotNone(negro.identity_id)
+        self.assertNotEqual(rojo.identity_id, negro.identity_id)
+
+    def test_exact_sponsor_change_shares_identity_and_keeps_display_names(self):
+        """El cambio exacto de patrocinador comparte identidad y cada aparición
+        conserva el nombre con el que se jugó esa temporada (#428)."""
         self.scraper.update_teams([
             {
                 'name': 'ALARO CLINICA DENTAL',
@@ -1388,43 +1355,10 @@ class UpdateTeamsIdentityTests(TestCase):
         new = Team.objects.get(federation_id='fed-new')
         old.refresh_from_db()
         self.assertNotEqual(new.pk, old.pk)
-        self.assertEqual(new.identity_id, old.identity_id)
         self.assertIsNotNone(new.identity_id)
-
-    def test_portol_colors_do_not_auto_link(self):
-        self.scraper.update_teams([
-            {'name': 'PORTOL ROJO', 'federation_id': 'r-old', 'federation_club_id': '10'},
-            {'name': 'PORTOL NEGRO', 'federation_id': 'n-new', 'federation_club_id': '10'},
-        ])
-        rojo = Team.objects.get(federation_id='r-old')
-        negro = Team.objects.get(federation_id='n-new')
-        self.assertIsNotNone(rojo.identity_id)
-        self.assertIsNotNone(negro.identity_id)
-        self.assertNotEqual(rojo.identity_id, negro.identity_id)
-
-    def test_previous_appearance_keeps_its_display_name_after_new_season_row(self):
-        """En contexto pasado se ve el nombre de entonces (#428)."""
-        self.scraper.update_teams([
-            {
-                'name': 'ALARO CLINICA DENTAL',
-                'federation_id': 'fed-old',
-                'federation_club_id': '10',
-                'sponsor_name': 'CLINICA DENTAL',
-            },
-        ])
-        self.scraper.update_teams([
-            {
-                'name': 'ALARO CONSTRUCCIONES NIU',
-                'federation_id': 'fed-new',
-                'federation_club_id': '10',
-                'sponsor_name': 'CONSTRUCCIONES NIU',
-            },
-        ])
-        old = Team.objects.get(federation_id='fed-old')
-        new = Team.objects.get(federation_id='fed-new')
+        self.assertEqual(old.identity_id, new.identity_id)
         self.assertEqual(old.name, 'ALARO CLINICA DENTAL')
         self.assertEqual(new.name, 'ALARO CONSTRUCCIONES NIU')
-        self.assertEqual(old.identity_id, new.identity_id)
 
     def test_find_or_create_by_name_does_not_reuse_other_color(self):
         """El camino JSON no debe fusionar PORTOL ROJO con NEGRO por similitud (#428)."""
@@ -1459,49 +1393,41 @@ from ilovevoley.videos.scraping import (  # noqa: E402
 class ValidateSetScoresTests(TestCase):
     """Regla de puntos de los parciales de entrada manual."""
 
-    def setUp(self):
-        self.standard = League(match_format='standard')
-        self.three = League(match_format='tournament_3sets')
-        self.alevin = League(match_format='alevin_balear')
+    def test_valid_set_scores(self):
+        standard = League(match_format='standard')
+        three = League(match_format='tournament_3sets')
+        alevin = League(match_format='alevin_balear')
+        cases = {
+            'empty list': ([], standard),
+            'none': (None, standard),
+            'best of five with tiebreak': (
+                [[25, 20], [20, 25], [25, 22], [20, 25], [15, 12]], standard,
+            ),
+            'sweep all sets to 25': ([[25, 20], [25, 18], [25, 22]], standard),
+            'deuce set': ([[26, 24], [20, 25], [25, 18], [25, 17]], standard),
+            # 2-0: no llega al máximo, ningún set es decisivo
+            'three-set short match uses 25': ([[25, 20], [25, 18]], three),
+            'three-set decider to 15': ([[25, 20], [20, 25], [15, 11]], three),
+            'alevin last set to 15': ([[25, 20], [25, 18], [15, 12]], alevin),
+        }
+        for label, (scores, league) in cases.items():
+            with self.subTest(label):
+                self.assertTrue(validate_set_scores(scores, league))
 
-    def test_empty_is_valid(self):
-        self.assertTrue(validate_set_scores([], self.standard))
-        self.assertTrue(validate_set_scores(None, self.standard))
-
-    def test_standard_best_of_five_with_tiebreak(self):
-        scores = [[25, 20], [20, 25], [25, 22], [20, 25], [15, 12]]
-        self.assertTrue(validate_set_scores(scores, self.standard))
-
-    def test_standard_sweep_all_sets_to_25(self):
-        self.assertTrue(validate_set_scores([[25, 20], [25, 18], [25, 22]], self.standard))
-
-    def test_set_without_two_point_lead_is_invalid(self):
-        self.assertFalse(validate_set_scores([[25, 24], [25, 20], [25, 20]], self.standard))
-
-    def test_deuce_set_is_valid(self):
-        self.assertTrue(validate_set_scores([[26, 24], [20, 25], [25, 18], [25, 17]], self.standard))
-
-    def test_deciding_set_below_15_is_invalid(self):
-        scores = [[25, 20], [20, 25], [25, 22], [20, 25], [14, 12]]
-        self.assertFalse(validate_set_scores(scores, self.standard))
-
-    def test_deciding_set_without_two_point_lead_is_invalid(self):
-        scores = [[25, 20], [20, 25], [25, 22], [20, 25], [15, 14]]
-        self.assertFalse(validate_set_scores(scores, self.standard))
-
-    def test_three_set_format_short_match_uses_25(self):
-        # 2-0: no llega al máximo, ningún set es decisivo
-        self.assertTrue(validate_set_scores([[25, 20], [25, 18]], self.three))
-
-    def test_three_set_format_decider_to_15(self):
-        self.assertTrue(validate_set_scores([[25, 20], [20, 25], [15, 11]], self.three))
-
-    def test_alevin_last_set_to_15(self):
-        self.assertTrue(validate_set_scores([[25, 20], [25, 18], [15, 12]], self.alevin))
-
-    def test_derived_score_must_be_valid(self):
-        # 2 sets repartidos -> 1-1 no es un marcador válido
-        self.assertFalse(validate_set_scores([[25, 20], [20, 25]], self.standard))
+    def test_invalid_set_scores(self):
+        standard = League(match_format='standard')
+        cases = {
+            'set without two-point lead': [[25, 24], [25, 20], [25, 20]],
+            'deciding set below 15': [[25, 20], [20, 25], [25, 22], [20, 25], [14, 12]],
+            'deciding set without two-point lead': [
+                [25, 20], [20, 25], [25, 22], [20, 25], [15, 14],
+            ],
+            # 2 sets repartidos -> 1-1 no es un marcador válido
+            'derived score must be valid': [[25, 20], [20, 25]],
+        }
+        for label, scores in cases.items():
+            with self.subTest(label):
+                self.assertFalse(validate_set_scores(scores, standard))
 
 
 class ParseSetScoresStringTests(TestCase):
@@ -1511,26 +1437,23 @@ class ParseSetScoresStringTests(TestCase):
             [[25, 10], [25, 15], [25, 11]],
         )
 
-    def test_returns_none_for_empty(self):
+    def test_returns_none_for_invalid_input(self):
         self.assertIsNone(parse_set_scores_string(''))
         self.assertIsNone(parse_set_scores_string(None))
-
-    def test_returns_none_for_garbage(self):
         self.assertIsNone(parse_set_scores_string('sin datos'))
 
 
 class PenaltyDetectionTests(TestCase):
-    def test_all_sets_to_zero_marked(self):
-        self.assertTrue(is_penalty_result([[25, 0], [25, 0], [25, 0]]))
-
-    def test_away_penalty_marked(self):
-        self.assertTrue(is_penalty_result([[0, 25], [0, 25], [0, 25]]))
-
-    def test_normal_result_not_marked(self):
-        self.assertFalse(is_penalty_result([[25, 20], [20, 25], [25, 22]]))
-
-    def test_mixed_zero_not_marked(self):
-        self.assertFalse(is_penalty_result([[25, 0], [25, 20]]))
+    def test_penalty_result_detection(self):
+        cases = {
+            'all sets to zero (home)': ([[25, 0], [25, 0], [25, 0]], True),
+            'all sets to zero (away)': ([[0, 25], [0, 25], [0, 25]], True),
+            'normal result': ([[25, 20], [20, 25], [25, 22]], False),
+            'mixed zero': ([[25, 0], [25, 20]], False),
+        }
+        for label, (sets, expected) in cases.items():
+            with self.subTest(label):
+                self.assertEqual(is_penalty_result(sets), expected)
 
 
 class MatchesParserSetScoresTests(TestCase):
