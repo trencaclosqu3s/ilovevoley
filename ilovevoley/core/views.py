@@ -305,6 +305,26 @@ def manifest_json(request):
         'start_url': '/',
         'scope': '/',
         'scope_extensions': scope_extensions,
+        'share_target': {
+            'action': '/content/imagenes/compartida/',
+            'method': 'POST',
+            'enctype': 'multipart/form-data',
+            'params': {
+                'title': 'title',
+                'text': 'text',
+                'files': [
+                    {
+                        'name': 'image',
+                        'accept': [
+                            'image/jpeg', 'image/png', 'image/webp',
+                            'image/heic', 'image/heif',
+                            '.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif',
+                        ],
+                        'multiple': True,
+                    }
+                ],
+            },
+        },
         'display': 'standalone',
         'theme_color': theme_color,
         'background_color': '#ffffff',

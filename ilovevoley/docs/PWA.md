@@ -44,6 +44,29 @@ Servido por la vista `ilovevoley.core.views.service_worker` desde la raíz con l
   - **Navegación (`mode === 'navigate'`)**: Estrategia **Network-First** con fallback a `/offline/` solo si la conexión de red falla completamente.
   - **Recursos Estáticos (`/static/`)**: Estrategia **Stale-While-Revalidate** para peticiones GET que respondan 200 OK en el mismo origen.
 
+### 2b. Share Target (`share_target` del manifiesto)
+
+- El manifiesto declara `share_target` (POST multipart a `/content/imagenes/compartida/`)
+  con `params.files[].name = "image"` y `multiple: true`: la app aparece en la hoja de
+  **Compartir** de Android (Chrome/Edge/Samsung Internet) con la PWA instalada.
+- La vista receptora (`content.views.image_share_target`) exige sesión + membresía
+  aprobada en el tenant del subdominio; valida tipo/tamaño por archivo (JPG/PNG/WebP/
+  HEIC/HEIF, ≤10 MB, máx 20 por lote) y guarda los válidos en `SharedUpload` (TTL 24 h,
+  purga oportunista al recibir). Redirige al flujo normal: 1 archivo →
+  `imagenes/subir/?share=<token>`, N → `imagenes/subir-multiples/?share=<batch>`.
+- El consumo reconstruye `FILES` desde la fila temporal y recorre la subida existente
+  sin cambios (Vision, miniaturas, nomenclatura, categorías, push). CSRF: solo el
+  receptor va exento (el navegador no puede enviar token en un share target); el
+  consumo mantiene CSRF normal.
+- **Contrato con el SW**: `sw.js` no intercepta `image_share_target` porque su guard
+  de no-GET devuelve la petición a red directa. Cualquier caché futura de
+  navegaciones NO debe envolver `POST /content/imagenes/compartida/`.
+- **iOS**: Safari no implementa `share_target`; la app no aparece en su hoja de
+  compartir. Usar la subida web normal dentro de la app instalada.
+- **Despliegue**: verificar `client_max_body_size` en Nginx (varias fotos desde el
+  móvil pueden superar el default de 1 MB → el POST del share target fallaría sin
+  explicación). Acción de servidor, no de código.
+
 ### 3. Pantalla de Fallback Offline (`/offline/`)
 - Servida por `ilovevoley.core.views.offline_view` utilizando la plantilla `ilovevoley/templates/offline.html`.
 - Informa al usuario de la pérdida de conectividad, proporciona un botón interactivo de reintento (`data-action="reload"`) y mantiene la coherencia visual de la plataforma.
