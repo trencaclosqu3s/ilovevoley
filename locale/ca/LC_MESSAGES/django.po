@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 17:59+0200\n"
+"POT-Creation-Date: 2026-10-12 18:06+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -9349,7 +9349,7 @@ msgstr "Configurar ara"
 
 #: ilovevoley/templates/category_preferences_banner.html:23
 #: ilovevoley/templates/category_preferences_banner.html:50
-#: ilovevoley/templates/includes/navbar.html:434
+#: ilovevoley/templates/includes/navbar.html:443
 msgid "Ahora no"
 msgstr "Ara no"
 
@@ -9367,7 +9367,6 @@ msgstr ""
 
 #: ilovevoley/templates/category_preferences_banner.html:47
 #: ilovevoley/templates/users/profile.html:241
-#| msgid "Activar notificaciones"
 msgid "Activar avisos"
 msgstr "Activar avisos"
 
@@ -11258,11 +11257,11 @@ msgstr "El meu perfil"
 msgid "Añadir Video"
 msgstr "Afegir vídeo"
 
-#: ilovevoley/templates/includes/navbar.html:431
+#: ilovevoley/templates/includes/navbar.html:428
 msgid "¿Quieres recibir avisos?"
 msgstr "Vols rebre avisos?"
 
-#: ilovevoley/templates/includes/navbar.html:432
+#: ilovevoley/templates/includes/navbar.html:429
 msgid ""
 "Activa las notificaciones para enterarte de partidos y novedades de tus "
 "categorías."
@@ -11270,7 +11269,24 @@ msgstr ""
 "Activa les notificacions per assabentar-te de partits i novetats de les "
 "teves categories."
 
-#: ilovevoley/templates/includes/navbar.html:435
+#: ilovevoley/templates/includes/navbar.html:430
+#| msgid "Tus preferencias de avisos"
+msgid "Tus preferencias están guardadas"
+msgstr "Les teves preferències estan desades"
+
+#: ilovevoley/templates/includes/navbar.html:431
+msgid ""
+"Este móvil aún no recibe avisos. Actívalos para enterarte de partidos y "
+"fotos."
+msgstr ""
+"Aquest mòbil encara no rep avisos. Activa'ls per assabentar-te de partits i "
+"fotos."
+
+#: ilovevoley/templates/includes/navbar.html:442
+msgid "No, gracias"
+msgstr "No, gràcies"
+
+#: ilovevoley/templates/includes/navbar.html:444
 msgid "Activar"
 msgstr "Activar"
 
@@ -11756,12 +11772,10 @@ msgid "de %(club)s"
 msgstr "de %(club)s"
 
 #: ilovevoley/templates/users/profile.html:17
-#| msgid "Gestiona tu información personal y preferencias"
 msgid "Gestiona tu información personal, avisos y suscripciones"
 msgstr "Gestiona la teva informació personal, avisos i subscripcions"
 
 #: ilovevoley/templates/users/profile.html:22
-#| msgid "Foto de perfil"
 msgid "Pestañas de perfil"
 msgstr "Pestanyes de perfil"
 
@@ -11770,7 +11784,6 @@ msgid "Avisos"
 msgstr "Avisos"
 
 #: ilovevoley/templates/users/profile.html:61
-#| msgid "Estado de la Cuenta"
 msgid "Datos de la Cuenta"
 msgstr "Dades del compte"
 
@@ -11788,7 +11801,6 @@ msgid "Foto de Perfil"
 msgstr "Foto de Perfil"
 
 #: ilovevoley/templates/users/profile.html:112
-#| msgid "JPG, PNG, WebP, HEIC hasta 5MB"
 msgid "JPG, PNG, WebP o HEIC hasta 5MB"
 msgstr "JPG, PNG, WebP o HEIC fins a 5MB"
 
@@ -11799,10 +11811,6 @@ msgstr "Correu Electrònic"
 
 #: ilovevoley/templates/users/profile.html:137
 #, python-format
-#| msgid ""
-#| "Para cambiarlo, <a href=\"%(account_email_url)s\" class=\"text-brand-text "
-#| "hover:underline\">gestiona tus direcciones de correo</a> y verifica la "
-#| "nueva."
 msgid ""
 "Para cambiarlo, <a href=\"%(account_email_url)s\" class=\"text-brand-text "
 "hover:underline\">gestiona tus emails</a>."
@@ -11811,12 +11819,10 @@ msgstr ""
 "hover:underline\">gestiona els teus emails</a>."
 
 #: ilovevoley/templates/users/profile.html:180
-#| msgid "Guardar en mi perfil"
 msgid "Guardar Perfil"
 msgstr "Desar perfil"
 
 #: ilovevoley/templates/users/profile.html:188
-#| msgid "Elige el idioma de la interfaz."
 msgid "Idioma de la interfaz"
 msgstr "Idioma de la interfície"
 
@@ -11829,7 +11835,6 @@ msgid "Mis creaciones"
 msgstr "Les meves creacions"
 
 #: ilovevoley/templates/users/profile.html:197
-#| msgid "Stories que has personalizado y guardado."
 msgid "Stories y tarjetas de partido que has personalizado."
 msgstr "Stories i targetes de partit que has personalitzat."
 
@@ -11846,9 +11851,6 @@ msgid "Comprobando..."
 msgstr "Comprovant..."
 
 #: ilovevoley/templates/users/profile.html:256
-#| msgid ""
-#| "Recibe avisos inmediatos cuando finalicen partidos de tus equipos y cuando "
-#| "se publiquen nuevos álbumes de fotos o vídeos del club."
 msgid ""
 "Recibe avisos inmediatos en este dispositivo cuando finalicen partidos de "
 "tus equipos y cuando se publiquen nuevos álbumes de fotos o vídeos del club."
@@ -11903,7 +11905,6 @@ msgid "Activar avisos en este móvil"
 msgstr "Activar avisos en aquest mòbil"
 
 #: ilovevoley/templates/users/profile.html:296
-#| msgid "Preferencias de categorías"
 msgid "Tus preferencias de avisos"
 msgstr "Les teves preferències d'avisos"
 
@@ -11927,12 +11928,10 @@ msgid "No tienes ningún club asociado para configurar categorías."
 msgstr "No tens cap club associat per configurar categories."
 
 #: ilovevoley/templates/users/profile.html:341
-#| msgid "Motivo de rechazo (opcional)"
 msgid "Mis equipos específicos (opcional)"
 msgstr "Els meus equips específics (opcional)"
 
 #: ilovevoley/templates/users/profile.html:369
-#| msgid "Tipo de registro:"
 msgid "Tipos de aviso"
 msgstr "Tipus d'avís"
 
@@ -11944,12 +11943,10 @@ msgstr ""
 "S'enviaran només quan els avisos estiguin activats en aquest dispositiu:"
 
 #: ilovevoley/templates/users/profile.html:382
-#| msgid "Jugadores Activos"
 msgid "cuando estén activados"
 msgstr "quan estiguin activats"
 
 #: ilovevoley/templates/users/profile.html:398
-#| msgid "Filtrar por preferencias"
 msgid "Guardar preferencias"
 msgstr "Desar preferències"
 
@@ -11958,10 +11955,6 @@ msgid "Suscripción al Calendario de Partidos"
 msgstr "Subscripció al calendari de partits"
 
 #: ilovevoley/templates/users/profile.html:416
-#| msgid ""
-#| "Suscríbete para recibir automáticamente los partidos de tus categorías "
-#| "preferidas en Google Calendar, Outlook, Apple Calendar o cualquier app de "
-#| "calendario."
 msgid ""
 "Sincroniza automáticamente los partidos con Google Calendar, Apple Calendar "
 "o Microsoft Outlook."
@@ -11981,7 +11974,6 @@ msgstr ""
 " class=\"font-bold text-brand-text underline\">Avisos</button>."
 
 #: ilovevoley/templates/users/profile.html:433
-#| msgid "URL de suscripción:"
 msgid "URL de suscripción privada:"
 msgstr "URL de subscripció privada:"
 
@@ -11990,7 +11982,6 @@ msgid "Copiar"
 msgstr "Copiar"
 
 #: ilovevoley/templates/users/profile.html:453
-#| msgid "Esta URL es única y privada. No la compartas con nadie."
 msgid ""
 "Esta URL es única y privada para tu usuario. No la compartas con nadie."
 msgstr ""
@@ -12006,7 +11997,6 @@ msgid "Regenerar URL"
 msgstr "Regenerar l'URL"
 
 #: ilovevoley/templates/users/profile.html:477
-#| msgid "❌ Error al regenerar la URL: "
 msgid "¿Cuándo regenerar la URL?"
 msgstr "Quan regenerar l'URL?"
 
@@ -12019,14 +12009,10 @@ msgstr ""
 "cancel·lar la sincronització anterior."
 
 #: ilovevoley/templates/users/profile.html:490
-#| msgid "No has seleccionado categorías de interés en este club aún."
 msgid "Aún no has seleccionado tus categorías o equipos."
 msgstr "Encara no has seleccionat les teves categories o equips."
 
 #: ilovevoley/templates/users/profile.html:493
-#| msgid ""
-#| "Para suscribirte al calendario, primero debes seleccionar tus categorías de "
-#| "interés en \"Editar Perfil\"."
 msgid ""
 "Para poder sincronizar partidos con tu calendario personal, primero debes "
 "elegir qué equipos o categorías te interesan."
@@ -12035,7 +12021,6 @@ msgstr ""
 "triar quins equips o categories t'interessen."
 
 #: ilovevoley/templates/users/profile.html:497
-#| msgid "Confirmar Contraseña"
 msgid "Configurar en pestaña Avisos"
 msgstr "Configurar a la pestanya Avisos"
 
@@ -12045,7 +12030,6 @@ msgid "Recortar Imagen de Perfil"
 msgstr "Retallar imatge de perfil"
 
 #: ilovevoley/templates/users/profile.html:512
-#| msgid "Ajusta la imagen para que se vea perfecta"
 msgid "Ajusta la imagen para tu foto de perfil cuadrada."
 msgstr "Ajusta la imatge per a la teva foto de perfil quadrada."
 
@@ -12054,7 +12038,6 @@ msgid "Cómo suscribirte al calendario"
 msgstr "Com subscriure't al calendari"
 
 #: ilovevoley/templates/users/profile.html:555
-#| msgid "Copia la URL de suscripción"
 msgid "Copia la URL privada de suscripción arriba."
 msgstr "Copia l'URL privada de subscripció de dalt."
 
@@ -12067,14 +12050,10 @@ msgid "Elige \"Desde URL\", pega tu enlace y confirma."
 msgstr "Tria «Des d'URL», enganxa l'enllaç i confirma."
 
 #: ilovevoley/templates/users/profile.html:565
-#| msgid "Copia la URL de suscripción"
 msgid "Copia tu URL privada de suscripción."
 msgstr "Copia la teva URL privada de subscripció."
 
 #: ilovevoley/templates/users/profile.html:566
-#| msgid ""
-#| "<strong>En iPhone/iPad:</strong> Ve a Ajustes → Calendario → Cuentas → "
-#| "Añadir cuenta → Otra → Añadir calendario por suscripción"
 msgid ""
 "En iPhone: Ajustes → Calendario → Cuentas → Añadir cuenta → Otra → Añadir "
 "calendario por suscripción."
@@ -12091,7 +12070,6 @@ msgid "Abre Outlook Calendar y pulsa 'Agregar calendario'."
 msgstr "Obre Outlook Calendar i prem «Afegeix calendari»."
 
 #: ilovevoley/templates/users/profile.html:576
-#| msgid "Selecciona <strong>\"Suscribirse desde web\"</strong>"
 msgid "Selecciona 'Suscribirse desde la web' y pega la URL."
 msgstr "Selecciona «Subscriure's des del web» i enganxa l'URL."
 
@@ -12104,12 +12082,10 @@ msgid "No soportado en este navegador"
 msgstr "No compatible amb aquest navegador"
 
 #: ilovevoley/templates/users/profile.html:593
-#| msgid "No proporcionado"
 msgid "No soportado"
 msgstr "No compatible"
 
 #: ilovevoley/templates/users/profile.html:594
-#| msgid "Información Requerida"
 msgid "Instalación requerida"
 msgstr "Instal·lació requerida"
 
@@ -12118,12 +12094,10 @@ msgid "Instala la app para activar"
 msgstr "Instal·la l'app per activar"
 
 #: ilovevoley/templates/users/profile.html:596
-#| msgid "Permiso denegado"
 msgid "Permiso bloqueado"
 msgstr "Permís bloquejat"
 
 #: ilovevoley/templates/users/profile.html:598
-#| msgid "Avisos activos por club:"
 msgid "Avisos activos en este móvil"
 msgstr "Avisos actius en aquest mòbil"
 
@@ -12132,17 +12106,14 @@ msgid "Desactivar avisos en este móvil"
 msgstr "Desactivar avisos en aquest mòbil"
 
 #: ilovevoley/templates/users/profile.html:600
-#| msgid "Avisos activos por club:"
 msgid "Avisos desactivados"
 msgstr "Avisos desactivats"
 
 #: ilovevoley/templates/users/profile.html:602
-#| msgid "Error al confirmar convocatoria"
 msgid "Error al modificar avisos"
 msgstr "Error en modificar els avisos"
 
 #: ilovevoley/templates/users/profile.html:603
-#| msgid "No se pudo cargar la alineación."
 msgid "No se pudo registrar la suscripción"
 msgstr "No s'ha pogut registrar la subscripció"
 
@@ -12151,7 +12122,6 @@ msgid "¡Avisos activados con éxito en este móvil!"
 msgstr "Avisos activats amb èxit en aquest mòbil!"
 
 #: ilovevoley/templates/users/profile.html:605
-#| msgid "Avisos de etiquetado en fotos"
 msgid "Avisos desactivados en este móvil"
 msgstr "Avisos desactivats en aquest mòbil"
 
@@ -12160,7 +12130,6 @@ msgid "¡URL copiada al portapapeles!"
 msgstr "URL copiada al porta-retalls!"
 
 #: ilovevoley/templates/users/profile.html:711
-#| msgid "⚠️ ¿Estás seguro de que quieres regenerar la URL?"
 msgid "⚠️ ¿Estás seguro de que deseas regenerar la URL de tu calendario?"
 msgstr "⚠️ Segur que vols regenerar l'URL del teu calendari?"
 
@@ -12170,17 +12139,14 @@ msgstr ""
 "L'URL anterior deixarà de funcionar i hauràs de tornar a subscriure-t'hi."
 
 #: ilovevoley/templates/users/profile.html:725
-#| msgid "✅ URL regenerada correctamente."
 msgid "URL regenerada con éxito."
 msgstr "URL regenerada correctament."
 
 #: ilovevoley/templates/users/profile.html:729
-#| msgid "❌ Error al regenerar la URL: "
 msgid "Error al regenerar URL"
 msgstr "Error en regenerar l'URL"
 
 #: ilovevoley/templates/users/profile.html:766
-#| msgid "El archivo es demasiado grande. Tamaño máximo: 5MB"
 msgid "El archivo supera el tamaño máximo permitido de 5MB."
 msgstr "El fitxer supera la mida màxima permesa de 5MB."
 
@@ -12367,7 +12333,6 @@ msgstr "Avisos Push a %(org)s"
 
 #: ilovevoley/users/forms.py:179
 #, python-format
-#| msgid "Selecciona qué avisos push deseas recibir en %(org)s"
 msgid ""
 "Selecciona qué avisos recibir cuando estén activados en este dispositivo en "
 "%(org)s"
@@ -12588,7 +12553,6 @@ msgstr ""
 "Informació familiar desada correctament. El teu compte serà revisat aviat."
 
 #: ilovevoley/users/views.py:101 ilovevoley/users/views.py:206
-#| msgid "Cuenta desactivada correctamente"
 msgid "Preferencias de avisos guardadas correctamente."
 msgstr "Preferències d'avisos desades correctament."
 
