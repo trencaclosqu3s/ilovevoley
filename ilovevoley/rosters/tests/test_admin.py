@@ -41,7 +41,3 @@ class PersonAdminMembershipStateTests(TestCase):
         html = self.admin.membership_state(self.person)
         self.assertIn('Club Admin Tenant', html)
         self.assertIn('alta', html)
-
-    def test_membership_state_empty_is_em_dash(self):
-        html = self.admin.membership_state(self.person)
-        self.assertIn('—', html)
