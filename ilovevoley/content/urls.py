@@ -15,6 +15,7 @@ urlpatterns = [
     path('imagenes/', views.image_gallery_albums, name='image_gallery'),
     path('imagenes/individual/', views.image_gallery, name='image_gallery_individual'),
     path('imagenes/subir/', views.image_upload, name='image_upload'),
+    path('imagenes/compartida/', views.image_share_target, name='image_share_target'),
     path('imagenes/subir-multiples/', views.image_bulk_upload, name='image_bulk_upload'),
     path('imagenes/favoritas/', views.favorite_images, name='favorite_images'),
     path('imagenes/<int:image_id>/', views.image_detail, name='image_detail'),

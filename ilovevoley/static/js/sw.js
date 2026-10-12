@@ -9,6 +9,9 @@ const PRECACHE_URLS = [
     '/static/images/logo_app.png',
     '/static/images/icons/icon-192.png',
     '/static/images/icons/icon-512.png',
+    '/static/images/icons/shortcut-matches.png',
+    '/static/images/icons/shortcut-photos.png',
+    '/static/images/icons/shortcut-notifications.png',
 ];
 
 self.addEventListener('install', (event) => {

@@ -28,6 +28,12 @@ Implementado en `ilovevoley.core.views.manifest_json`:
   - `icon-192.png`: 192×192 px (`purpose: any`)
   - `icon-512.png`: 512×512 px (`purpose: any`)
   - `icon-maskable-512.png`: 512×512 px (`purpose: maskable` para recorte redondeado o squircle en Android)
+- **Accesos directos (`shortcuts`)**:
+  Expone accesos rápidos al mantener pulsado el icono de la PWA (long-press en Android u opciones de la app en escritorio):
+  - **Hoy / este finde** (`/competitions/calendario/`): Acceso directo al calendario y partidos.
+  - **Fotos** (`/content/imagenes/`): Acceso directo a las galerías y álbumes fotográficos.
+  - **Avisos** (`/profile/?tab=avisos#activar`): Deep link para activación y configuración de notificaciones push (#517).
+  Cada shortcut dispone de icono dedicado de 192×192 px (`shortcut-matches.png`, `shortcut-photos.png`, `shortcut-notifications.png`) precacheado en el Service Worker. Las URLs son relativas al scope y respetan el multi-tenant y las `scope_extensions`, manteniéndose dentro de la experiencia in-app.
 - **Cabeceras HTTP**: `Content-Type: application/manifest+json; charset=utf-8`, `Vary: Host`, `Cache-Control: public, max-age=3600`.
 
 ### 2. Service Worker (`/sw.js`)
@@ -43,6 +49,29 @@ Servido por la vista `ilovevoley.core.views.service_worker` desde la raíz con l
   - **Exclusiones de Red**: Rutas mutables o privadas (`/media/`, `/admin/`, `/accounts/`, `/api/`, `sw.js`, `manifest.webmanifest`) se delegan siempre a la red sin pasar por caché.
   - **Navegación (`mode === 'navigate'`)**: Estrategia **Network-First** con fallback a `/offline/` solo si la conexión de red falla completamente.
   - **Recursos Estáticos (`/static/`)**: Estrategia **Stale-While-Revalidate** para peticiones GET que respondan 200 OK en el mismo origen.
+
+### 2b. Share Target (`share_target` del manifiesto)
+
+- El manifiesto declara `share_target` (POST multipart a `/content/imagenes/compartida/`)
+  con `params.files[].name = "image"` y `multiple: true`: la app aparece en la hoja de
+  **Compartir** de Android (Chrome/Edge/Samsung Internet) con la PWA instalada.
+- La vista receptora (`content.views.image_share_target`) exige sesión + membresía
+  aprobada en el tenant del subdominio; valida tipo/tamaño por archivo (JPG/PNG/WebP/
+  HEIC/HEIF, ≤10 MB, máx 20 por lote) y guarda los válidos en `SharedUpload` (TTL 24 h,
+  purga oportunista al recibir). Redirige al flujo normal: 1 archivo →
+  `imagenes/subir/?share=<token>`, N → `imagenes/subir-multiples/?share=<batch>`.
+- El consumo reconstruye `FILES` desde la fila temporal y recorre la subida existente
+  sin cambios (Vision, miniaturas, nomenclatura, categorías, push). CSRF: solo el
+  receptor va exento (el navegador no puede enviar token en un share target); el
+  consumo mantiene CSRF normal.
+- **Contrato con el SW**: `sw.js` no intercepta `image_share_target` porque su guard
+  de no-GET devuelve la petición a red directa. Cualquier caché futura de
+  navegaciones NO debe envolver `POST /content/imagenes/compartida/`.
+- **iOS**: Safari no implementa `share_target`; la app no aparece en su hoja de
+  compartir. Usar la subida web normal dentro de la app instalada.
+- **Despliegue**: verificar `client_max_body_size` en Nginx (varias fotos desde el
+  móvil pueden superar el default de 1 MB → el POST del share target fallaría sin
+  explicación). Acción de servidor, no de código.
 
 ### 3. Pantalla de Fallback Offline (`/offline/`)
 - Servida por `ilovevoley.core.views.offline_view` utilizando la plantilla `ilovevoley/templates/offline.html`.

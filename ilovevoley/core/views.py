@@ -305,6 +305,26 @@ def manifest_json(request):
         'start_url': '/',
         'scope': '/',
         'scope_extensions': scope_extensions,
+        'share_target': {
+            'action': '/content/imagenes/compartida/',
+            'method': 'POST',
+            'enctype': 'multipart/form-data',
+            'params': {
+                'title': 'title',
+                'text': 'text',
+                'files': [
+                    {
+                        'name': 'image',
+                        'accept': [
+                            'image/jpeg', 'image/png', 'image/webp',
+                            'image/heic', 'image/heif',
+                            '.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif',
+                        ],
+                        'multiple': True,
+                    }
+                ],
+            },
+        },
         'display': 'standalone',
         'theme_color': theme_color,
         'background_color': '#ffffff',
@@ -326,6 +346,47 @@ def manifest_json(request):
                 'sizes': '512x512',
                 'type': 'image/png',
                 'purpose': 'maskable',
+            },
+        ],
+        'shortcuts': [
+            {
+                'name': _('Hoy / este finde'),
+                'short_name': _('Partidos'),
+                'description': _('Partidos y calendario de competición'),
+                'url': reverse('competitions:calendar_view'),
+                'icons': [
+                    {
+                        'src': static('images/icons/shortcut-matches.png'),
+                        'sizes': '192x192',
+                        'type': 'image/png',
+                    },
+                ],
+            },
+            {
+                'name': _('Fotos'),
+                'short_name': _('Fotos'),
+                'description': _('Galerías de fotos de partidos'),
+                'url': reverse('content:image_gallery'),
+                'icons': [
+                    {
+                        'src': static('images/icons/shortcut-photos.png'),
+                        'sizes': '192x192',
+                        'type': 'image/png',
+                    },
+                ],
+            },
+            {
+                'name': _('Avisos'),
+                'short_name': _('Avisos'),
+                'description': _('Activar y configurar avisos y notificaciones'),
+                'url': f"{reverse('profile')}?tab=avisos#activar",
+                'icons': [
+                    {
+                        'src': static('images/icons/shortcut-notifications.png'),
+                        'sizes': '192x192',
+                        'type': 'image/png',
+                    },
+                ],
             },
         ],
     }
