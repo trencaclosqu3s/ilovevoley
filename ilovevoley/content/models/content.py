@@ -668,5 +668,13 @@ class SharedUpload(models.Model):
     class Meta:
         ordering = ['created_at']
 
+    def delete(self, *args, **kwargs):
+        # Django no borra el FileField con instance/queryset delete: sin esto cada
+        # share dejaría basura binaria en MEDIA_ROOT (mismo motivo que
+        # services.delete_image_with_files para Image).
+        if self.file.name:
+            self.file.delete(save=False)
+        super().delete(*args, **kwargs)
+
     def __str__(self):
         return f'SharedUpload {self.token} ({self.original_name})'

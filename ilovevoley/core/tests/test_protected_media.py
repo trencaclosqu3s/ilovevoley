@@ -48,6 +48,39 @@ class ProtectedMediaTests(TestCase):
             season=self.season,
         )
 
+    def test_shared_upload_preview_only_for_owner(self):
+        """#524: la vista previa del share target se sirve solo a quien la compartió."""
+        from ilovevoley.content.models import SharedUpload
+
+        # Ruta como string: sin escribir en disco (el guard authorization solo
+        # consulta la BD y, con X_ACCEL, el serve tampoco toca el filesystem).
+        path = 'shared_uploads/2026/10/IMG_1.jpg'
+        SharedUpload.objects.create(
+            file=path, owner=self.member, organization=self.org,
+            original_name='IMG_1.jpg', content_type='image/jpeg',
+        )
+
+        self.client.force_login(self.member)
+        response = self.client.get(f'/media/{path}', HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 200)
+
+        self.client.force_login(self.staff)
+        response = self.client.get(f'/media/{path}', HTTP_HOST=HOST)
+        # Otro usuario (aunque sea staff del club): 404, sin revelar que existe.
+        self.assertEqual(response.status_code, 404)
+
+    def test_shared_upload_anonymous_is_404(self):
+        from ilovevoley.content.models import SharedUpload
+
+        path = 'shared_uploads/2026/10/IMG_2.jpg'
+        SharedUpload.objects.create(
+            file=path, owner=self.member, organization=self.org,
+            original_name='IMG_2.jpg', content_type='image/jpeg',
+        )
+        response = self.client.get(f'/media/{path}', HTTP_HOST=HOST)
+        # Sin sesión responde el guard del decorator (403, convención de /media/).
+        self.assertEqual(response.status_code, 403)
+
     def test_anonymous_pending_image_is_forbidden(self):
         response = self.client.get('/media/images/2025/06/pending.jpg', HTTP_HOST=HOST)
         self.assertEqual(response.status_code, 403)

@@ -68,6 +68,15 @@ class ShareTargetReceiverTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(SharedUpload.objects.count(), 0)
 
+    def test_unapproved_membership_is_rejected_without_storing(self):
+        """Gate de membresía del receptor (decisión de diseño registrada en el
+        plan): un miembro pendiente no puede acumular archivos en MEDIA."""
+        Membership.objects.filter(user=self.user, organization=self.org).update(is_approved=False)
+        self.client.force_login(self.user)
+        response = self._post_share([jpeg_bytes()])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(SharedUpload.objects.count(), 0)
+
     def test_single_image_stores_row_and_redirects_to_upload(self):
         """Review focus 1: POST multipart sin CSRF token debe ser aceptado."""
         self.client.force_login(self.user)
@@ -128,9 +137,13 @@ class ShareTargetReceiverTests(TestCase):
         SharedUpload.objects.filter(pk=stale.pk).update(
             created_at=timezone.now() - timedelta(hours=25)
         )
+        stale_path = stale.file.name
         self._post_share([jpeg_bytes('nueva.jpg')])
         self.assertFalse(SharedUpload.objects.filter(pk=stale.pk).exists())
         self.assertTrue(SharedUpload.objects.filter(original_name='nueva.jpg').exists())
+        # El archivo físico también desaparece: la promesa de "24 h" incluye el disco.
+        from django.core.files.storage import default_storage
+        self.assertFalse(default_storage.exists(stale_path))
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
@@ -188,6 +201,7 @@ class ShareTargetSingleUploadTests(TestCase):
 
     def test_post_with_share_token_creates_image_and_deletes_row(self):
         row = self._make_row()
+        row_path = row.file.name
         response = self.client.post(
             reverse('content:image_upload'),
             {'share_token': str(row.token), 'image_type': 'match'},
@@ -199,6 +213,8 @@ class ShareTargetSingleUploadTests(TestCase):
         self.assertEqual(created.uploaded_by, self.user)
         self.assertEqual(created.organization, self.org)
         self.assertFalse(SharedUpload.objects.filter(pk=row.pk).exists())
+        from django.core.files.storage import default_storage
+        self.assertFalse(default_storage.exists(row_path))
 
     def test_post_with_invalid_token_does_not_create_anything(self):
         import uuid as uuid_mod
@@ -251,6 +267,23 @@ class ShareTargetBulkUploadTests(TestCase):
         from ilovevoley.content.models import Image as ImageModel
         self.assertEqual(ImageModel.objects.filter(organization=self.org).count(), 2)
         self.assertEqual(SharedUpload.objects.filter(batch=batch).count(), 0)
+
+    def test_bulk_all_failed_keeps_rows_and_returns_to_share(self):
+        """Spec §6: si ninguna imagen se crea, el lote sobrevive para reintentar."""
+        big = SimpleUploadedFile('grande.jpg', b'x' * (10 * 1024 * 1024 + 1), content_type='image/jpeg')
+        batch = uuid_mod.uuid4()
+        row = SharedUpload.objects.create(
+            batch=batch, file=big, owner=self.user, organization=self.org,
+            original_name='grande.jpg', content_type='image/jpeg',
+        )
+        response = self.client.post(
+            reverse('content:image_bulk_upload'),
+            {'share_batch': str(batch), 'image_type': 'training'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f'share={batch}', response['Location'])
+        self.assertTrue(SharedUpload.objects.filter(pk=row.pk).exists())
 
     def test_post_with_foreign_batch_creates_nothing(self):
         """Review focus 3 en lote: batch de otro usuario es ignorado."""

@@ -698,7 +698,9 @@ def image_share_target(request):
             {'reason': 'files' if files else 'empty'}, status=200,
         )
 
-    SharedUpload.objects.filter(created_at__lt=timezone.now() - SHARE_TARGET_TTL).delete()
+    # delete() de queryset no invoca el modelo (no liberaría el archivo): uno a uno.
+    for row in list(SharedUpload.objects.filter(created_at__lt=timezone.now() - SHARE_TARGET_TTL)):
+        row.delete()
 
     kept = valid[:SHARE_TARGET_MAX_FILES]
     dropped = len(valid) - len(kept)
@@ -1023,6 +1025,7 @@ def image_bulk_upload(request):
         errors = []
         pending_ids = []
         vision_ids = []
+        failed_idx = set()
 
         for idx, uploaded_file in enumerate(uploaded_files):
             try:
@@ -1030,10 +1033,12 @@ def image_bulk_upload(request):
                 content_type = getattr(uploaded_file, 'content_type', '') or ''
                 if not content_type.startswith('image/'):
                     errors.append(_('%(name)s: No es una imagen válida') % {'name': uploaded_file.name})
+                    failed_idx.add(idx)
                     continue
 
                 if uploaded_file.size > 10 * 1024 * 1024:  # 10MB
                     errors.append(_('%(name)s: Archivo demasiado grande (máx 10MB)') % {'name': uploaded_file.name})
+                    failed_idx.add(idx)
                     continue
 
                 # Obtener título y descripción individual con formateo descriptivo
@@ -1127,11 +1132,13 @@ def image_bulk_upload(request):
             except Exception as e:
                 logger.error(f"Error procesando {uploaded_file.name}: {str(e)}")
                 errors.append(_('%(name)s: %(error)s') % {'name': uploaded_file.name, 'error': str(e)})
+                failed_idx.add(idx)
 
-        # El lote compartido ya está copiado en cada Image (o descartado con error):
-        # las filas temporales no vuelven a servir para nada.
-        for row in share_rows:
-            row.delete()
+        # Solo se consumen las filas que llegaron a Image: una fallo mantiene su
+        # fila temporal para poder reintentar (spec §6 de #524).
+        for idx, row in enumerate(share_rows):
+            if idx not in failed_idx:
+                row.delete()
 
         if vision_ids or pending_ids:
             from ilovevoley.content.tasks import analyze_image_with_vision_task
@@ -1201,6 +1208,10 @@ def image_bulk_upload(request):
             else:
                 return redirect('content:image_gallery')
         else:
+            if share_batch:
+                # Sin éxito: devolver al usuario al lote pendiente (?share=) en vez
+                # de a un formulario vacío que le haría perder las fotos compartidas.
+                return redirect(f"{reverse('content:image_bulk_upload')}?share={share_batch}")
             return redirect('content:image_bulk_upload')
     
     # GET request

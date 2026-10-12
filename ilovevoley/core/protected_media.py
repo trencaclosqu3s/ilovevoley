@@ -96,6 +96,18 @@ def _authorize(path, user, tenant):
         if not MatchActaPhoto.objects.filter(image=path).exists():
             raise Http404
         return
+    if path.startswith('shared_uploads/'):
+        # Vista previa del share target (#524): fotos aún no publicadas, solo
+        # visibles por quien las compartió (o superuser) hasta su consumo.
+        from ilovevoley.content.models import SharedUpload
+        row = SharedUpload.objects.filter(file=path).only('owner').first()
+        if row is None:
+            raise Http404
+        if not user.is_authenticated:
+            raise Http404
+        if row.owner_id != user.pk and not user.is_superuser:
+            raise Http404
+        return
     raise Http404
 
 
