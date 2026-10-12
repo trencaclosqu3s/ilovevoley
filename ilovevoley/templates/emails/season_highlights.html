@@ -1,0 +1,49 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans %}Novedades I Love Voley · temporada 26/27{% endblocktrans %}{% endblock %}
+
+{% block header_subtitle %}{% trans "Novedades de la temporada 26/27" %}{% endblock %}
+
+{% block content %}
+    <h3>{% blocktrans with name=user.get_full_name|default:user.username %}Hola {{ name }},{% endblocktrans %}</h3>
+
+    <p>{% blocktrans %}Somos <strong>I Love Voley</strong>. Este curso (temporada <strong>26/27</strong>) hemos sumado bastante y preferimos contártelo <strong>una sola vez</strong> por correo — no vamos a llenarte la bandeja cada semana.{% endblocktrans %}</p>
+
+    <h3>{% trans "App en el móvil" %}</h3>
+    <p>{% blocktrans %}I Love Voley se puede <strong>instalar</strong> como aplicación (PWA). Desde ahí puedes recibir <strong>avisos</strong> cuando hay resultados de tus equipos o se publican fotos. Si ya elegiste categorías o equipos pero no ves notificaciones, entra en <strong>Perfil → Avisos</strong> y actívalas en este móvil (en iPhone hace falta añadir la app a la pantalla de inicio).{% endblocktrans %}</p>
+
+    <h3>{% trans "El partido, sin lápiz en la grada" %}</h3>
+    <p>{% blocktrans %}Las <strong>estadísticas</strong> salen de las <strong>actas federativas</strong> (y, cuando toca, de fotos del acta). Nadie está ahí con un bloc anotando puntos o recepciones a mano. También hay previas contra el rival, historial y, si hay enlace, aviso de retransmisión.{% endblocktrans %}</p>
+
+    <h3>{% trans "Fotos que importan" %}</h3>
+    <p>{% blocktrans %}Puedes <strong>etiquetar</strong> deportistas, ver la galería de <strong>fotos de tu hijo</strong>, marcar favoritas o el “top” del partido, y generar stories y tarjetas para compartir (“hoy jugamos”, resultados…).{% endblocktrans %}</p>
+
+    <h3>{% trans "Tu temporada" %}</h3>
+    <p>{% blocktrans %}En <strong>Tú</strong> tienes cifras de la temporada, un <strong>cromo</strong> compartible y, al cerrar el curso, un <strong>Wrapped</strong> con el resumen del año (también a nivel de equipo).{% endblocktrans %}</p>
+
+    <h3>{% trans "En catalán, si lo prefieres" %}</h3>
+    <p>{% blocktrans %}La web y la app están en <strong>castellano y catalán</strong>. Puedes elegir el idioma en tu perfil: si el año pasado solo la usaste en castellano, esta es la novedad.{% endblocktrans %}</p>
+
+    <h3>{% trans "Si ya estabas con nosotros" %}</h3>
+    <p>{% blocktrans %}Vídeos, fotos y datos de <strong>temporadas anteriores siguen ahí</strong>. Puedes mirarlos cuando quieras. Si te has cambiado de club o solo pasas de vez en cuando: <strong>no molestas</strong>; nos alegra que sigas por aquí.{% endblocktrans %}</p>
+
+    <h3>{% trans "Privacidad, en serio" %}</h3>
+    <p>{% blocktrans %}Hay política de privacidad, consentimiento de imagen de menores y una página clara de <strong>quién puede ver las fotos</strong>. Mejor preguntar de más que de menos.{% endblocktrans %}</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{ avisos_url }}" class="button" style="font-size: 16px; font-weight: bold;">
+            {% trans "Activar avisos / instalar la app" %}
+        </a>
+    </div>
+
+    <p>{% trans "Gracias por estar en I Love Voley." %}<br>
+    {% trans "El equipo de I Love Voley" %}</p>
+
+    {% if deactivation_url %}
+    <div style="margin-top: 35px; padding-top: 20px; border-top: 1px dashed #ccc; text-align: center; font-size: 13px; color: #777;">
+        <p>{% blocktrans %}¿Ya no te encaja esta cuenta (otro club, fin de etapa…)? Puedes <a href="{{ deactivation_url }}" style="color: #e74c3c; text-decoration: underline;">desactivar tu usuario</a>. Te echaremos de menos a ti… y a tu hijo.{% endblocktrans %}</p>
+        <p>{% trans "Esto no es una newsletter: es un único aviso de novedades de la temporada." %}</p>
+    </div>
+    {% endif %}
+{% endblock %}
