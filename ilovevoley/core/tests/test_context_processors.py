@@ -77,15 +77,15 @@ class TenantContextTest(TestCase):
         self.assertFalse(context['can_switch_club'])
         self.assertEqual(context['user_switch_clubs'], [])
 
-    def test_base_domain_resolves_to_ilovevoley_brand_colors(self):
+    def test_base_domain_falls_back_to_default_brand_colors(self):
+        from ilovevoley.core.context_processors import DEFAULT_BRAND, DEFAULT_BRAND_DARK
+
         context = self._context(user=None, tenant=None)
 
-        self.assertEqual(context['tenant_color'], '#01696f')
-        self.assertEqual(context['tenant_color_dark'], '#004d52')
-        self.assertEqual(context['tenant_gradient_from'], '#01696f')
-        self.assertEqual(context['tenant_gradient_to'], '#004d52')
-        self.assertEqual(context['tenant_gradient_from_rgb'], '1 105 111')
-        self.assertEqual(context['tenant_gradient_to_rgb'], '0 77 82')
+        self.assertEqual(context['tenant_color'], DEFAULT_BRAND)
+        self.assertEqual(context['tenant_color_dark'], DEFAULT_BRAND_DARK)
+        self.assertEqual(context['tenant_gradient_from'], DEFAULT_BRAND)
+        self.assertEqual(context['tenant_gradient_to'], DEFAULT_BRAND_DARK)
 
     def test_explicit_gradient_color_overrides_secondary(self):
         from ilovevoley.core.models import Organization

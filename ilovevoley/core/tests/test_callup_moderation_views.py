@@ -33,7 +33,14 @@ def test_moderation_panel_shows_pending_callups_for_manager(client, settings):
 
 
 @pytest.mark.django_db
-def test_confirm_callup_player_api(client, settings):
+@pytest.mark.parametrize(
+    'url_name, expected_status',
+    [
+        ('core:confirm_callup_api', 'confirmed'),
+        ('core:reject_callup_api', 'rejected'),
+    ],
+)
+def test_callup_player_moderation_api(client, settings, url_name, expected_status):
     settings.ALLOWED_HOSTS = ['sant-josep.ilovevoley.es', 'localhost', '127.0.0.1']
     org = Organization.objects.create(name='Sant Josep', slug='sant-josep')
     manager = User.objects.create_user(username='manager', email='mgr@example.com', password='pwd')
@@ -43,30 +50,10 @@ def test_confirm_callup_player_api(client, settings):
     player = CallUpPlayer.objects.create(callup=callup, organization=org, match_status='suspected')
 
     client.login(username='manager', password='pwd')
-    url = reverse('core:confirm_callup_api', kwargs={'player_id': player.id})
+    url = reverse(url_name, kwargs={'player_id': player.id})
     resp = client.post(url, HTTP_HOST=f"{org.slug}.ilovevoley.es")
     assert resp.status_code == 200
     assert resp.json()['success'] is True
     player.refresh_from_db()
-    assert player.match_status == 'confirmed'
-    assert player.reviewed_by == manager
-
-
-@pytest.mark.django_db
-def test_reject_callup_player_api(client, settings):
-    settings.ALLOWED_HOSTS = ['sant-josep.ilovevoley.es', 'localhost', '127.0.0.1']
-    org = Organization.objects.create(name='Sant Josep', slug='sant-josep')
-    manager = User.objects.create_user(username='manager', email='mgr@example.com', password='pwd')
-    Membership.objects.create(user=manager, organization=org, role='manager', is_approved=True)
-    season = Season.objects.create(name='2025-26', start_year=2025, end_year=2026, is_current=True)
-    callup = FederationCallUp.objects.create(season=season, title='Convocatoria 1', source_url='1.pdf')
-    player = CallUpPlayer.objects.create(callup=callup, organization=org, match_status='suspected')
-
-    client.login(username='manager', password='pwd')
-    url = reverse('core:reject_callup_api', kwargs={'player_id': player.id})
-    resp = client.post(url, HTTP_HOST=f"{org.slug}.ilovevoley.es")
-    assert resp.status_code == 200
-    assert resp.json()['success'] is True
-    player.refresh_from_db()
-    assert player.match_status == 'rejected'
+    assert player.match_status == expected_status
     assert player.reviewed_by == manager
