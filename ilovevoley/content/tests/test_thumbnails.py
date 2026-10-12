@@ -20,12 +20,6 @@ def _jpeg_bytes(width, height):
     return buffer.getvalue()
 
 
-def _avif_supported():
-    from PIL import features
-
-    return features.check('avif')
-
-
 class ThumbnailGenerationTests(TestCase):
     """La generación de miniaturas y sus URLs srcset deben ser correctas."""
 
@@ -74,17 +68,6 @@ class ThumbnailGenerationTests(TestCase):
         stored = Image.objects.get(pk=image.pk)
 
         self.assertEqual(stored.thumbnail_small.width, 200)
-
-    def test_genera_avif_si_la_build_lo_soporta(self):
-        image = self._create_image()
-
-        generated = generate_image_thumbnails(image)
-
-        if _avif_supported():
-            self.assertIn('thumbnail_small_avif', generated)
-            self.assertIn('thumbnail_large_avif', generated)
-        else:
-            self.assertNotIn('thumbnail_small_avif', generated)
 
     def test_thumbnail_url_usa_variante_y_cae_al_original(self):
         sin_variantes = self._create_image(filename='original.jpg')

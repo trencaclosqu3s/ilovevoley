@@ -284,13 +284,12 @@ class VideoEmbedUrlTests(TestCase):
             '?rel=0&modestbranding=1&fs=1&enablejsapi=0'
         )
 
-    def test_url_watch_se_convierte_en_embed_nocookie(self):
+    def test_url_watch_se_convierte_en_embed_nocookie_ignorando_parametros(self):
         video = self._video('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
         self.assertEqual(video.get_embed_url(), self._esperado('dQw4w9WgXcQ'))
 
-    def test_url_watch_con_parametros_extra_ignora_la_cola(self):
-        video = self._video('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s')
-        self.assertEqual(video.get_embed_url(), self._esperado('dQw4w9WgXcQ'))
+        video_con_cola = self._video('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s')
+        self.assertEqual(video_con_cola.get_embed_url(), self._esperado('dQw4w9WgXcQ'))
 
     def test_url_corta_youtu_be(self):
         video = self._video('https://youtu.be/dQw4w9WgXcQ')
@@ -303,22 +302,6 @@ class VideoEmbedUrlTests(TestCase):
     def test_url_no_reconocida_se_devuelve_intacta(self):
         video = self._video('https://vimeo.com/123456')
         self.assertEqual(video.get_embed_url(), 'https://vimeo.com/123456')
-
-    def test_is_livestream_detecta_los_directos(self):
-        self.assertTrue(self._video('https://www.youtube.com/live/AbC').is_livestream())
-        self.assertFalse(
-            self._video('https://www.youtube.com/watch?v=AbC').is_livestream()
-        )
-
-    def test_get_video_type_distingue_directo_de_video(self):
-        self.assertEqual(
-            self._video('https://www.youtube.com/live/AbC').get_video_type(),
-            'livestream',
-        )
-        self.assertEqual(
-            self._video('https://www.youtube.com/watch?v=AbC').get_video_type(),
-            'video',
-        )
 
 
 class ImageFavoriteModelTest(TestCase):

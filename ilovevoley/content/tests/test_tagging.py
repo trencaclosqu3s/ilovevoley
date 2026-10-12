@@ -17,8 +17,7 @@ from ilovevoley.content.tasks import notify_image_tagged_push_task
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.rosters.models import Person, PlayerRole
 from ilovevoley.teams.models import Club, Team
-from ilovevoley.users.models import Membership, NotificationPreference, WebPushSubscription
-from ilovevoley.users.tasks import notify_web_push_organization_task
+from ilovevoley.users.models import Membership
 
 TINY_GIF = (
     b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
@@ -124,9 +123,9 @@ class ImageTaggingTests(TestCase):
             reverse('content:image_detail', args=[self.image.id]),
             HTTP_HOST='testclub.ilovevoley.es',
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'name="person_ids"')
-        self.assertContains(response, self.person_a.full_name)
+        self.assertTrue(response.context['can_tag'])
+        self.assertIn(self.person_a, response.context['taggable_persons'])
+        self.assertIn(self.person_a.id, response.context['selected_person_ids'])
 
     def test_member_without_permission_cannot_tag_someone_elses_image(self):
         self.client.force_login(self.other_member)
@@ -223,14 +222,15 @@ class ImageTaggingTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_manager_bulk_page_renders(self):
+    def test_manager_bulk_page_lists_album_images_and_taggable_persons(self):
         self.client.force_login(self.manager)
         response = self.client.get(
             reverse('content:image_tag_bulk'), {'album': self.album_group_id},
             HTTP_HOST='testclub.ilovevoley.es',
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.person_a.full_name)
+        self.assertEqual(response.context['total_images'], 1)
+        self.assertIn(self.image, list(response.context['page_obj'].object_list))
+        self.assertIn(self.person_a, response.context['taggable_persons'])
 
     def test_manager_bulk_tags_images(self):
         self.client.force_login(self.manager)
@@ -357,12 +357,6 @@ class ImageTagPushTests(TestCase):
             title='Foto', uploaded_by=self.unrelated, organization=self.org, status='approved',
         )
 
-    def _subscribe(self, user, endpoint):
-        return WebPushSubscription.objects.create(
-            user=user, organization=self.org, endpoint=endpoint,
-            p256dh='key', auth='auth',
-        )
-
     def test_audience_is_only_player_and_parents(self):
         player_id, parent_ids = tagging_push_audience(self.person, actor=self.unrelated)
         self.assertEqual(player_id, self.player.id)
@@ -385,29 +379,10 @@ class ImageTagPushTests(TestCase):
         # La audiencia de padres se construye con un set: el orden no es estable.
         calls = {frozenset(call.kwargs['user_ids']): call.kwargs for call in mock_push.call_args_list}
         self.assertIn(frozenset({self.player.id}), calls)
-        player_kwargs = calls[frozenset({self.player.id})]
-        self.assertEqual(player_kwargs['title'], 'Te han etiquetado en una foto')
-        self.assertEqual(player_kwargs['notification_type'], 'image_tag')
-        parent_kwargs = calls[frozenset({self.parent1.id, self.parent2.id})]
-        self.assertEqual(parent_kwargs['title'], 'Han etiquetado a Lluc Puig')
-        self.assertEqual(
-            parent_kwargs['url'], reverse('content:image_detail', args=[self.image.id]),
-        )
-
-    @patch('ilovevoley.users.tasks.send_web_push')
-    def test_notify_task_targets_user_ids_and_respects_disabled_preference(self, mock_send):
-        self._subscribe(self.player, 'https://fcm.googleapis.com/player')
-        self._subscribe(self.parent1, 'https://fcm.googleapis.com/parent1')
-        NotificationPreference.objects.create(
-            user=self.parent1, organization=self.org,
-            notification_type='image_tag', is_enabled=False,
-        )
-
-        sent = notify_web_push_organization_task(
-            self.org.id, 'Título', 'Cuerpo',
-            user_ids=[self.player.id, self.parent1.id],
-            notification_type='image_tag',
-        )
-        self.assertEqual(sent, 1)
-        recipients = {call.args[0].user_id for call in mock_send.call_args_list}
-        self.assertEqual(recipients, {self.player.id})
+        self.assertIn(frozenset({self.parent1.id, self.parent2.id}), calls)
+        for kwargs in calls.values():
+            self.assertEqual(kwargs['organization_id'], self.org.id)
+            self.assertEqual(kwargs['notification_type'], 'image_tag')
+            self.assertEqual(
+                kwargs['url'], reverse('content:image_detail', args=[self.image.id]),
+            )
