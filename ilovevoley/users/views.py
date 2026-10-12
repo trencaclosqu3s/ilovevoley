@@ -17,7 +17,12 @@ from django_ratelimit.decorators import ratelimit
 from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
 from ilovevoley.core.models import Organization
 from ilovevoley.core.tenant_utils import ensure_pending_membership, user_has_approved_membership
-from .forms import UserProfileForm, ParentInfoForm
+from .forms import (
+    NotificationPreferencesForm,
+    ParentInfoForm,
+    UserIdentityForm,
+    UserProfileForm,
+)
 from .models import WebPushSubscription
 from .webpush import is_valid_push_endpoint
 
@@ -70,11 +75,59 @@ def pending_approval(request):
 
 @login_required
 def profile_view(request):
-    """Vista para visualizar el perfil del usuario"""
+    """Vista principal de perfil de usuario unificada con 3 pestañas (perfil, avisos, calendario)."""
     user = request.user
     tenant = getattr(request, 'tenant', None)
-    orgs = user.profile_organizations(tenant=tenant)
+    active_tab = request.GET.get('tab', 'perfil')
+    if active_tab not in ('perfil', 'avisos', 'calendario'):
+        active_tab = 'perfil'
 
+    if request.method == 'POST':
+        action_tab = request.POST.get('tab', '')
+        is_avisos_post = (
+            action_tab == 'avisos'
+            or 'save_avisos' in request.POST
+            or any(
+                k.startswith(('preferred_categories_', 'followed_teams_', 'notification_types_'))
+                for k in request.POST
+            )
+        )
+        if is_avisos_post:
+            avisos_form = NotificationPreferencesForm(request.POST, user=user, organization=tenant)
+            if avisos_form.is_valid():
+                avisos_form.save(user)
+                has_device_push = request.POST.get('has_device_push_subscription') == '1'
+                if has_device_push:
+                    messages.success(request, _('Preferencias de avisos guardadas correctamente.'))
+                    return redirect(f"{reverse('profile')}?tab=avisos")
+                else:
+                    messages.warning(request, _('Preferencias guardadas. Un paso más: activa los avisos en este móvil.'))
+                    return redirect(f"{reverse('profile')}?tab=avisos#activar")
+            else:
+                messages.error(request, _('Por favor corrige los errores en el formulario.'))
+                active_tab = 'avisos'
+                identity_form = UserIdentityForm(instance=user)
+        else:
+            identity_form = UserIdentityForm(request.POST, request.FILES, instance=user)
+            cropped_avatar_data = request.POST.get('cropped_avatar_data')
+            if cropped_avatar_data:
+                try:
+                    user.avatar = decode_cropped_image(cropped_avatar_data)
+                except InvalidImageError as e:
+                    messages.error(request, str(e))
+            if identity_form.is_valid():
+                identity_form.save()
+                messages.success(request, _('Tu perfil ha sido actualizado correctamente.'))
+                return redirect(f"{reverse('profile')}?tab=perfil")
+            else:
+                messages.error(request, _('Por favor corrige los errores en el formulario.'))
+                active_tab = 'perfil'
+                avisos_form = NotificationPreferencesForm(user=user, organization=tenant)
+    else:
+        identity_form = UserIdentityForm(instance=user)
+        avisos_form = NotificationPreferencesForm(user=user, organization=tenant)
+
+    orgs = user.profile_organizations(tenant=tenant)
     preferences_by_org = {
         pref.organization_id: list(pref.categories.all())
         for pref in (
@@ -103,11 +156,9 @@ def profile_view(request):
             'notification_types': active_notifs,
         })
 
-
     story_page = None
     if tenant is not None:
         from django.core.paginator import Paginator
-
         from ilovevoley.competitions.models import StoryComposition
 
         story_page = Paginator(
@@ -122,39 +173,52 @@ def profile_view(request):
         'organization_preferences': organization_preferences,
         'has_any_preferences': has_any_preferences,
         'preferred_categories': user.preferred_categories_for(tenant),
+        'active_tab': active_tab,
+        'identity_form': identity_form,
+        'avisos_form': avisos_form,
     })
 
 
 @login_required
 def profile_edit(request):
-    """Vista para editar el perfil del usuario"""
+    """Vista de edición delegada a /profile/ con compatibilidad para URLs existentes."""
     tenant = getattr(request, 'tenant', None)
     if request.method == 'POST':
         form = UserProfileForm(
             request.POST, request.FILES, instance=request.user, organization=tenant
         )
-        
         if form.is_valid():
-            # Procesar imagen recortada si está presente
             cropped_avatar_data = request.POST.get('cropped_avatar_data')
             if cropped_avatar_data:
                 try:
                     request.user.avatar = decode_cropped_image(cropped_avatar_data)
                 except InvalidImageError as e:
                     messages.error(request, str(e))
-                    return render(request, 'users/profile_edit.html', {'form': form})
-            
+                    return redirect(f"{reverse('profile')}?tab=perfil")
             form.save()
-            messages.success(request, _('Tu perfil ha sido actualizado correctamente.'))
-            return redirect('profile')
+            has_avisos = any(
+                k.startswith(('preferred_categories_', 'followed_teams_', 'notification_types_'))
+                for k in request.POST
+            )
+            if has_avisos:
+                has_device_push = request.POST.get('has_device_push_subscription') == '1'
+                if has_device_push:
+                    messages.success(request, _('Preferencias de avisos guardadas correctamente.'))
+                    return redirect(f"{reverse('profile')}?tab=avisos")
+                else:
+                    messages.warning(request, _('Preferencias guardadas. Un paso más: activa los avisos en este móvil.'))
+                    return redirect(f"{reverse('profile')}?tab=avisos#activar")
+            else:
+                messages.success(request, _('Tu perfil ha sido actualizado correctamente.'))
+                return redirect(f"{reverse('profile')}?tab=perfil")
         else:
             messages.error(request, _('Por favor corrige los errores en el formulario.'))
-    else:
-        form = UserProfileForm(instance=request.user, organization=tenant)
-    
-    return render(request, 'users/profile_edit.html', {
-        'form': form
-    })
+            return redirect(f"{reverse('profile')}?tab=perfil")
+
+    tab = request.GET.get('tab', '')
+    if tab == 'avisos' or tab == 'push' or 'push-notifications' in request.META.get('HTTP_REFERER', ''):
+        return redirect(f"{reverse('profile')}?tab=avisos")
+    return redirect(f"{reverse('profile')}?tab=perfil")
 
 
 @require_POST

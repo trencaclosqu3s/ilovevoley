@@ -71,6 +71,16 @@ def tenant_context(request):
     # clubes y reutiliza la selección de la landing.
     can_switch_club = len(approved_memberships) > 1
 
+    has_push_sub = False
+    has_pref_cats = False
+    preferred_categories = []
+    if user and user.is_authenticated:
+        if hasattr(user, 'has_push_subscription'):
+            has_push_sub = user.has_push_subscription(org) if org else user.has_any_push_subscription
+        if hasattr(user, 'has_preferred_categories'):
+            has_pref_cats = user.has_preferred_categories(org) if org else user.has_any_preferred_categories
+            preferred_categories = list(user.preferred_categories_for(org)) if org else []
+
     return {
         'can_switch_club': can_switch_club,
         'user_switch_clubs': user_switch_clubs,
@@ -90,4 +100,7 @@ def tenant_context(request):
         'can_moderate_memberships': is_manager,
         'is_tenant_manager': is_manager,
         'is_tenant_admin': is_admin,
+        'has_push_subscription': has_push_sub,
+        'has_preferred_categories': has_pref_cats,
+        'preferred_categories': preferred_categories,
     }

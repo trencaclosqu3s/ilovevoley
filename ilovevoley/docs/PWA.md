@@ -92,8 +92,8 @@ El Service Worker (`sw.js`) gestiona los eventos del estándar W3C Push y App Ba
     - Si existe y coincide en origen, le devuelve el foco y navega internamente a la URL de destino (`target_url`).
     - Si no existe o pertenece a otro club, abre una nueva ventana mediante `clients.openWindow(fullTargetUrl)`.
 
-### Aviso único para activar notificaciones
-`webpush.js` (cargado en todas las páginas) muestra el banner `#webpush-prompt` (en `navbar.html`) una sola vez: solo en la PWA instalada (`display-mode: standalone`), con sesión iniciada, con push soportado, permiso no denegado y sin suscripción. Descartar, o aceptar con la suscripción completada, guarda `ilovevoley.webpush.prompt_seen` en `localStorage` (también se guarda si ya había suscripción) y aceptar lleva a la selección de categorías (`profile_edit#push-notifications`); si suscribir falla, el banner se oculta sin marcarse como visto ni navegar. Si `localStorage` no está disponible, el aviso reaparecerá en cada apertura.
+### Aviso para activar notificaciones (snooze / rechazo)
+`webpush.js` (cargado en todas las páginas) muestra el banner `#webpush-prompt` (en `navbar.html`) en la PWA instalada (`display-mode: standalone`), con sesión, push soportado, permiso no denegado y sin suscripción en ese dispositivo. Tres salidas: **Activar** (suscribe y lleva a `/profile/?tab=avisos#activar`), **Ahora no** (snooze 7 días en `ilovevoley.webpush.prompt_snooze_until`) y **No, gracias** (no volver a preguntar: `ilovevoley.webpush.prompt_never`). La clave antigua `prompt_seen` ya no se usa, así quien descartó el aviso único (#412) puede volver a verlo. Si el usuario tiene categorías de interés, el copy insiste en que las preferencias están guardadas pero el móvil aún no recibe avisos. Si `localStorage` no está disponible, el aviso puede reaparecer en cada apertura.
 
 ---
 
