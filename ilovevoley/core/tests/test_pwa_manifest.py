@@ -46,6 +46,26 @@ class PWAManifestTest(TestCase):
         self.assertEqual(data['background_color'], '#ffffff')
         self.assertTrue(len(data['icons']) >= 3)
 
+    def test_manifest_declares_share_target(self):
+        """share_target es el contrato de plataforma: sin él la app no aparece en la
+        hoja de compartir y no hay error visible. Cubre POST+multipart+nombre de campo
+        exactos que validan Chrome/Edge al registrar el target (guidelines: regla de
+        negocio + camino crítico detectable solo en producción)."""
+        request = self.factory.get('/manifest.webmanifest', HTTP_HOST='ilovevoley.es')
+        request.tenant = None
+        data = json.loads(manifest_json(request).content.decode('utf-8'))
+
+        share_target = data['share_target']
+        self.assertEqual(share_target['action'], '/content/imagenes/compartida/')
+        self.assertEqual(share_target['method'], 'POST')
+        self.assertEqual(share_target['enctype'], 'multipart/form-data')
+        files = share_target['params']['files']
+        self.assertEqual(files[0]['name'], 'image')
+        self.assertTrue(files[0]['multiple'])
+        self.assertIn('image/jpeg', files[0]['accept'])
+        self.assertEqual(share_target['params']['title'], 'title')
+        self.assertEqual(share_target['params']['text'], 'text')
+
     def test_manifest_tenant_domain_uses_tenant_color(self):
         self.org.primary_color = '#FF5500'
         self.org.save()
