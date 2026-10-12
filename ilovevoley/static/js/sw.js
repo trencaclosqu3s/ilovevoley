@@ -1,6 +1,6 @@
 // Subir la versión cuando cambie /offline/: el navegador solo reinstala el SW (y refresca el precaché) si sw.js cambia.
 // Fuentes y logo no se precachean: en producción se piden con hash y el SWR de /static/ los guarda al usarlos.
-const CACHE_NAME = 'ilovevoley-pwa-v2';
+const CACHE_NAME = 'ilovevoley-pwa-v3';
 const PRECACHE_URLS = [
     '/offline/',
     '/static/css/app.css',
@@ -9,6 +9,9 @@ const PRECACHE_URLS = [
     '/static/images/logo_app.png',
     '/static/images/icons/icon-192.png',
     '/static/images/icons/icon-512.png',
+    '/static/images/icons/shortcut-matches.png',
+    '/static/images/icons/shortcut-photos.png',
+    '/static/images/icons/shortcut-notifications.png',
 ];
 
 self.addEventListener('install', (event) => {

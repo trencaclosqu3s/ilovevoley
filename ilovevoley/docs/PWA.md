@@ -28,6 +28,12 @@ Implementado en `ilovevoley.core.views.manifest_json`:
   - `icon-192.png`: 192×192 px (`purpose: any`)
   - `icon-512.png`: 512×512 px (`purpose: any`)
   - `icon-maskable-512.png`: 512×512 px (`purpose: maskable` para recorte redondeado o squircle en Android)
+- **Accesos directos (`shortcuts`)**:
+  Expone accesos rápidos al mantener pulsado el icono de la PWA (long-press en Android u opciones de la app en escritorio):
+  - **Hoy / este finde** (`/competitions/calendario/`): Acceso directo al calendario y partidos.
+  - **Fotos** (`/content/imagenes/`): Acceso directo a las galerías y álbumes fotográficos.
+  - **Avisos** (`/profile/?tab=avisos#activar`): Deep link para activación y configuración de notificaciones push (#517).
+  Cada shortcut dispone de icono dedicado de 192×192 px (`shortcut-matches.png`, `shortcut-photos.png`, `shortcut-notifications.png`) precacheado en el Service Worker. Las URLs son relativas al scope y respetan el multi-tenant y las `scope_extensions`, manteniéndose dentro de la experiencia in-app.
 - **Cabeceras HTTP**: `Content-Type: application/manifest+json; charset=utf-8`, `Vary: Host`, `Cache-Control: public, max-age=3600`.
 
 ### 2. Service Worker (`/sw.js`)

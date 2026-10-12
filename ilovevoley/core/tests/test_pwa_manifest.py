@@ -132,3 +132,53 @@ class PWAManifestTest(TestCase):
             data2 = json.loads(response2.content.decode('utf-8'))
             self.assertIn(f'{protocol}://manacor.ilovevoley.es/', data2)
 
+    def test_manifest_includes_shortcuts(self):
+        """Verifica que el manifiesto expone al menos 3 shortcuts con estructura W3C estándar (#523)."""
+        request = self.factory.get('/manifest.webmanifest', HTTP_HOST='ilovevoley.es')
+        request.tenant = None
+        response = manifest_json(request)
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content.decode('utf-8'))
+        self.assertIn('shortcuts', data)
+        shortcuts = data['shortcuts']
+        self.assertGreaterEqual(len(shortcuts), 3)
+
+        urls = [s.get('url') for s in shortcuts]
+        self.assertIn('/competitions/calendario/', urls)
+        self.assertIn('/content/imagenes/', urls)
+        self.assertIn('/profile/?tab=avisos#activar', urls)
+
+        for sc in shortcuts:
+            self.assertTrue(sc.get('name'))
+            self.assertTrue(sc.get('short_name'))
+            self.assertTrue(sc.get('url', '').startswith('/'))
+            self.assertTrue(len(sc.get('icons', [])) >= 1)
+            for icon in sc['icons']:
+                self.assertTrue(icon.get('src'))
+                self.assertEqual(icon.get('sizes'), '192x192')
+                self.assertEqual(icon.get('type'), 'image/png')
+
+    def test_manifest_shortcuts_on_tenant_domain(self):
+        """Verifica que los shortcuts se exponen también en subdominios de tenant (#523)."""
+        request = self.factory.get('/manifest.webmanifest', HTTP_HOST='santjosep.ilovevoley.es')
+        request.tenant = self.org
+        response = manifest_json(request)
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content.decode('utf-8'))
+        self.assertIn('shortcuts', data)
+        shortcuts = data['shortcuts']
+        self.assertGreaterEqual(len(shortcuts), 3)
+
+        urls = [s.get('url') for s in shortcuts]
+        self.assertIn('/competitions/calendario/', urls)
+        self.assertIn('/content/imagenes/', urls)
+        self.assertIn('/profile/?tab=avisos#activar', urls)
+
+        for sc in shortcuts:
+            for icon in sc['icons']:
+                self.assertIn('shortcut-', icon['src'])
+
+
+
