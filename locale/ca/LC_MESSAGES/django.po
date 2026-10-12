@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 20:19+0200\n"
+"POT-Creation-Date: 2026-10-12 23:25+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -87,7 +87,7 @@ msgstr "Vídeos"
 #: ilovevoley/competitions/templates/competitions/league_list.html:152
 #: ilovevoley/competitions/templates/competitions/portal/_league_cards.html:46
 #: ilovevoley/competitions/templates/competitions/portal/league_detail.html:33
-#: ilovevoley/rosters/player_card.py:353
+#: ilovevoley/core/views.py:354 ilovevoley/rosters/player_card.py:353
 msgid "Partidos"
 msgstr "Partits"
 
@@ -229,7 +229,7 @@ msgstr "Data"
 #: ilovevoley/competitions/admin/competitions.py:747
 #: ilovevoley/competitions/models/story.py:33
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:45
-#: ilovevoley/content/views.py:781 ilovevoley/content/views.py:1055
+#: ilovevoley/content/views.py:792 ilovevoley/content/views.py:1071
 #: ilovevoley/rosters/forms.py:117 ilovevoley/rosters/models/rosters.py:48
 #: ilovevoley/rosters/templates/rosters/person_card.html:55
 #: ilovevoley/teams/templates/teams/team_roster.html:239
@@ -3514,8 +3514,8 @@ msgid "Información de verificación automática de contenido"
 msgstr "Informació de verificació automàtica de contingut"
 
 #: ilovevoley/content/admin/content.py:93 ilovevoley/content/views.py:218
-#: ilovevoley/content/views.py:984 ilovevoley/content/views.py:1224
-#: ilovevoley/content/views.py:1431 ilovevoley/content/views.py:1546
+#: ilovevoley/content/views.py:997 ilovevoley/content/views.py:1250
+#: ilovevoley/content/views.py:1458 ilovevoley/content/views.py:1573
 msgid "Álbum"
 msgstr "Àlbum"
 
@@ -3760,7 +3760,7 @@ msgstr "El fitxer és massa gran. Mida màxima: 10MB"
 #: ilovevoley/content/forms.py:286
 #: ilovevoley/content/templates/content/image_upload.html:265
 #: ilovevoley/templates/users/profile_edit.html:429
-#: ilovevoley/users/forms.py:101 ilovevoley/users/forms.py:438
+#: ilovevoley/users/forms.py:147 ilovevoley/users/forms.py:484
 msgid "Formato no válido. Use JPG, PNG, WebP o HEIC"
 msgstr "Format no vàlid. Utilitza JPG, PNG, WebP o HEIC"
 
@@ -4691,6 +4691,7 @@ msgid "Volver al álbum"
 msgstr "Tornar a l'àlbum"
 
 #: ilovevoley/content/templates/content/image_tag_bulk.html:37
+#: ilovevoley/core/views.py:366 ilovevoley/core/views.py:367
 #: ilovevoley/rosters/templates/rosters/_tagged_photos.html:14
 #: ilovevoley/templates/includes/bottom_nav.html:15
 msgid "Fotos"
@@ -4825,7 +4826,8 @@ msgid ""
 "Has sacado fuerte, pero el balón se ha ido fuera: vuelve a intentarlo desde "
 "la galería."
 msgstr ""
-"Has tret fort, però la pilota ha marxat fora: torna-ho a provar des de la galeria."
+"Has tret fort, però la pilota ha marxat fora: torna-ho a provar des de la "
+"galeria."
 
 #: ilovevoley/content/templates/content/share_target_notice.html:14
 msgid "Para que la jugada salga bien"
@@ -4835,21 +4837,24 @@ msgstr "Perquè la jugada surti bé"
 msgid ""
 "La app de I Love Voley debe estar instalada y abierta con tu sesión del club."
 msgstr ""
-"L'app d'I Love Voley ha d'estar instalada i oberta amb la teva sessió del club."
+"L'app d'I Love Voley ha d'estar instalada i oberta amb la teva sessió del "
+"club."
 
 #: ilovevoley/content/templates/content/share_target_notice.html:17
 msgid ""
 "Desde la galería, selecciona la foto y usa Compartir, luego elige I Love "
 "Voley."
 msgstr ""
-"Des de la galeria, selecciona la foto i fes servir Compartir; després tria I Love Voley."
+"Des de la galeria, selecciona la foto i fes servir Compartir; després tria I "
+"Love Voley."
 
 #: ilovevoley/content/templates/content/share_target_notice.html:18
 msgid ""
 "Se te pedirá elegir el partido antes de publicar: las fotos pasan por "
 "moderación."
 msgstr ""
-"Se et demanarà triar el partit abans de publicar: les fotos passen per moderació."
+"Se et demanarà triar el partit abans de publicar: les fotos passen per "
+"moderació."
 
 #: ilovevoley/content/templates/content/share_target_notice.html:20
 #: ilovevoley/templates/offline.html:19
@@ -4861,7 +4866,8 @@ msgid ""
 "Las fotos del partido se comparten en caliente; si hay dudas de cobertura, "
 "repite la jugada"
 msgstr ""
-"Les fotos del partit es comparteixen en calent; si hi ha dubtes de cobertura, repeteix la jugada"
+"Les fotos del partit es comparteixen en calent; si hi ha dubtes de "
+"cobertura, repeteix la jugada"
 
 #: ilovevoley/content/templates/content/video_bulk_form.html:4
 #: ilovevoley/content/templates/content/video_bulk_form.html:8
@@ -5116,205 +5122,205 @@ msgstr "No s'ha afegit cap vídeo. Emplena almenys un títol i URL."
 msgid "¡Comentario añadido correctamente!"
 msgstr "Comentari afegit correctament!"
 
-#: ilovevoley/content/views.py:726
+#: ilovevoley/content/views.py:736
 #, python-format
 msgid ""
 "%(n)s archivo(s) no admitidos: solo JPG, PNG, WebP o HEIC de hasta 10 MB."
 msgstr ""
 "%(n)s fitxer(s) no admesos: només JPG, PNG, WebP o HEIC de fins a 10 MB."
 
-#: ilovevoley/content/views.py:732
+#: ilovevoley/content/views.py:742
 #, python-format
 msgid ""
 "Demasiadas fotos: se han descartado %(n)s (máximo %(max)s por compartir)."
 msgstr "Masses fotos: s'han descartat %(n)s (màxim %(max)s per compartir)."
 
-#: ilovevoley/content/views.py:755 ilovevoley/content/views.py:881
+#: ilovevoley/content/views.py:766 ilovevoley/content/views.py:893
 msgid "El enlace de la foto compartida ya no es válido."
 msgstr "L'enllaç de la foto compartida ja no és vàlid."
 
-#: ilovevoley/content/views.py:789 ilovevoley/content/views.py:1074
+#: ilovevoley/content/views.py:800 ilovevoley/content/views.py:1090
 msgid "Aprobada automáticamente por superusuario"
 msgstr "Aprovada automàticament per superusuari"
 
-#: ilovevoley/content/views.py:837 ilovevoley/content/views.py:842
+#: ilovevoley/content/views.py:848 ilovevoley/content/views.py:853
 #, python-format
 msgid " Se detectaron automáticamente las etiquetas: %(tags)s."
 msgstr " S'han detectat automàticament les etiquetes: %(tags)s."
 
-#: ilovevoley/content/views.py:839
+#: ilovevoley/content/views.py:850
 msgid "Imagen subida y aprobada automáticamente."
 msgstr "Imatge pujada i aprovada automàticament."
 
-#: ilovevoley/content/views.py:844
+#: ilovevoley/content/views.py:855
 msgid "Imagen subida correctamente. Está pendiente de moderación."
 msgstr "Imatge pujada correctament. Està pendent de moderació."
 
-#: ilovevoley/content/views.py:860
+#: ilovevoley/content/views.py:871
 #, python-format
 msgid "%(field)s: %(error)s"
 msgstr "%(field)s: %(error)s"
 
-#: ilovevoley/content/views.py:947 ilovevoley/content/views.py:1281
+#: ilovevoley/content/views.py:960 ilovevoley/content/views.py:1308
 msgid "El enlace de las fotos compartidas ya no es válido."
 msgstr "L'enllaç de les fotos compartides ja no és vàlid."
 
-#: ilovevoley/content/views.py:951
+#: ilovevoley/content/views.py:964
 msgid "No se seleccionaron imágenes."
 msgstr "No s'han seleccionat imatges."
 
-#: ilovevoley/content/views.py:988
+#: ilovevoley/content/views.py:1001
 msgid "El álbum especificado no existe."
 msgstr "L'àlbum especificat no existeix."
 
-#: ilovevoley/content/views.py:991
+#: ilovevoley/content/views.py:1004
 msgid "ID de álbum inválido."
 msgstr "ID d'àlbum invàlid."
 
-#: ilovevoley/content/views.py:999
+#: ilovevoley/content/views.py:1012
 msgid "El nombre del álbum es obligatorio cuando se agrupan imágenes."
 msgstr "El nom de l'àlbum és obligatori quan s'agrupen imatges."
 
-#: ilovevoley/content/views.py:1032
+#: ilovevoley/content/views.py:1046
 #, python-format
 msgid "%(name)s: No es una imagen válida"
 msgstr "%(name)s: No és una imatge vàlida"
 
-#: ilovevoley/content/views.py:1036
+#: ilovevoley/content/views.py:1051
 #, python-format
 msgid "%(name)s: Archivo demasiado grande (máx 10MB)"
 msgstr "%(name)s: Fitxer massa gran (màx 10MB)"
 
-#: ilovevoley/content/views.py:1129
+#: ilovevoley/content/views.py:1145
 #, python-format
 msgid "%(name)s: %(error)s"
 msgstr "%(name)s: %(error)s"
 
-#: ilovevoley/content/views.py:1154
+#: ilovevoley/content/views.py:1172
 #, python-format
 msgid "✅ %(count)s imagen(es) subida(s) correctamente."
 msgstr "✅ %(count)s imatge(s) pujada(s) correctament."
 
-#: ilovevoley/content/views.py:1160
+#: ilovevoley/content/views.py:1178
 #, python-format
 msgid "... y %(count)s error(es) más."
 msgstr "... i %(count)s error(s) més."
 
-#: ilovevoley/content/views.py:1176
+#: ilovevoley/content/views.py:1194
 msgid "Nuevo Álbum"
 msgstr "Nou àlbum"
 
-#: ilovevoley/content/views.py:1177
+#: ilovevoley/content/views.py:1195
 #, python-format
 msgid "Se han subido nuevas fotos: %(album)s"
 msgstr "S'han pujat fotos noves: %(album)s"
 
-#: ilovevoley/content/views.py:1178
+#: ilovevoley/content/views.py:1196
 msgid "Se han subido nuevas fotos"
 msgstr "S'han pujat fotos noves"
 
-#: ilovevoley/content/views.py:1198
+#: ilovevoley/content/views.py:1220
 #, python-format
 msgid "✅ %(count)s imagen(es) agregada(s) al álbum correctamente."
 msgstr "✅ %(count)s imatge(s) afegida(es) a l'àlbum correctament."
 
-#: ilovevoley/content/views.py:1313
+#: ilovevoley/content/views.py:1340
 msgid "Imagen no disponible."
 msgstr "Imatge no disponible."
 
-#: ilovevoley/content/views.py:1365
+#: ilovevoley/content/views.py:1392
 msgid "Ya hay una solicitud de retirada pendiente para esta foto."
 msgstr "Ja hi ha una sol·licitud de retirada pendent per a aquesta foto."
 
-#: ilovevoley/content/views.py:1376
+#: ilovevoley/content/views.py:1403
 msgid "Solicitud enviada. Un administrador la revisará."
 msgstr "Sol·licitud enviada. Un administrador la revisarà."
 
-#: ilovevoley/content/views.py:1386
+#: ilovevoley/content/views.py:1413
 #, python-format
 msgid ""
 "Sin consentimiento de imagen: %(names)s. Revisa si la foto debe publicarse."
 msgstr ""
 "Sense consentiment d'imatge: %(names)s. Revisa si la foto s'ha de publicar."
 
-#: ilovevoley/content/views.py:1408
+#: ilovevoley/content/views.py:1435
 msgid "Etiquetas actualizadas."
 msgstr "Etiquetes actualitzades."
 
-#: ilovevoley/content/views.py:1433
+#: ilovevoley/content/views.py:1460
 msgid "No se indicó álbum ni partido"
 msgstr "No s'ha indicat àlbum ni partit"
 
-#: ilovevoley/content/views.py:1446
+#: ilovevoley/content/views.py:1473
 #, python-format
 msgid "Etiquetas actualizadas en %(count)s imágenes."
 msgstr "Etiquetes actualitzades en %(count)s imatges."
 
-#: ilovevoley/content/views.py:1525 ilovevoley/content/views_album_zip.py:75
+#: ilovevoley/content/views.py:1552 ilovevoley/content/views_album_zip.py:75
 msgid "Álbum no encontrado"
 msgstr "Àlbum no trobat"
 
-#: ilovevoley/content/views.py:1618 ilovevoley/content/views.py:1702
+#: ilovevoley/content/views.py:1645 ilovevoley/content/views.py:1729
 #: ilovevoley/core/moderation_views.py:362
 #: ilovevoley/core/moderation_views.py:409 ilovevoley/core/tasks.py:324
 msgid "aprobada"
 msgstr "aprovada"
 
-#: ilovevoley/content/views.py:1618 ilovevoley/content/views.py:1702
+#: ilovevoley/content/views.py:1645 ilovevoley/content/views.py:1729
 #: ilovevoley/core/moderation_views.py:362
 #: ilovevoley/core/moderation_views.py:433 ilovevoley/core/tasks.py:324
 msgid "rechazada"
 msgstr "rebutjada"
 
-#: ilovevoley/content/views.py:1619
+#: ilovevoley/content/views.py:1646
 #, python-format
 msgid "Imagen %(action)s correctamente."
 msgstr "Imatge %(action)s correctament."
 
-#: ilovevoley/content/views.py:1660
+#: ilovevoley/content/views.py:1687
 msgid "aprobadas"
 msgstr "aprovades"
 
-#: ilovevoley/content/views.py:1660
+#: ilovevoley/content/views.py:1687
 msgid "rechazadas"
 msgstr "rebutjades"
 
-#: ilovevoley/content/views.py:1661
+#: ilovevoley/content/views.py:1688
 #, python-format
 msgid "%(count)s imágenes %(action)s."
 msgstr "%(count)s imatges %(action)s."
 
-#: ilovevoley/content/views.py:1675 ilovevoley/content/views.py:1683
-#: ilovevoley/content/views.py:1735 ilovevoley/core/moderation_views.py:211
-#: ilovevoley/core/moderation_views.py:351 ilovevoley/core/views.py:456
-#: ilovevoley/core/views.py:628 ilovevoley/core/views.py:674
-#: ilovevoley/core/views.py:778 ilovevoley/core/views.py:810
-#: ilovevoley/core/views.py:834 ilovevoley/core/views.py:850
-#: ilovevoley/core/views.py:869 ilovevoley/core/views.py:880
+#: ilovevoley/content/views.py:1702 ilovevoley/content/views.py:1710
+#: ilovevoley/content/views.py:1762 ilovevoley/core/moderation_views.py:211
+#: ilovevoley/core/moderation_views.py:351 ilovevoley/core/views.py:497
+#: ilovevoley/core/views.py:669 ilovevoley/core/views.py:715
+#: ilovevoley/core/views.py:819 ilovevoley/core/views.py:851
+#: ilovevoley/core/views.py:875 ilovevoley/core/views.py:891
+#: ilovevoley/core/views.py:910 ilovevoley/core/views.py:921
 #: ilovevoley/templates/users/profile.html:597
 msgid "Permiso denegado"
 msgstr "Permís denegat"
 
-#: ilovevoley/content/views.py:1691
+#: ilovevoley/content/views.py:1718
 msgid "Acción no válida"
 msgstr "Acció no vàlida"
 
-#: ilovevoley/content/views.py:1706
+#: ilovevoley/content/views.py:1733
 #, python-format
 msgid "Imagen \"%(title)s\" %(action)s correctamente"
 msgstr "Imatge \"%(title)s\" %(action)s correctament"
 
-#: ilovevoley/content/views.py:1714
+#: ilovevoley/content/views.py:1741
 msgid "Imagen no encontrada o ya moderada"
 msgstr "Imatge no trobada o ja moderada"
 
-#: ilovevoley/content/views.py:1720 ilovevoley/core/views.py:665
-#: ilovevoley/core/views.py:718 ilovevoley/core/views.py:802
-#: ilovevoley/core/views.py:826
+#: ilovevoley/content/views.py:1747 ilovevoley/core/views.py:706
+#: ilovevoley/core/views.py:759 ilovevoley/core/views.py:843
+#: ilovevoley/core/views.py:867
 msgid "Error interno del servidor"
 msgstr "Error intern del servidor"
 
-#: ilovevoley/content/views.py:1741
+#: ilovevoley/content/views.py:1768
 msgid "Imagen no encontrada"
 msgstr "Imatge no trobada"
 
@@ -6787,67 +6793,88 @@ msgstr ""
 msgid "Plataforma comunitaria de gestión, vídeos y seguimiento de voleibol"
 msgstr "Plataforma comunitària de gestió, vídeos i seguiment de voleibol"
 
-#: ilovevoley/core/views.py:454
+#: ilovevoley/core/views.py:353
+msgid "Hoy / este finde"
+msgstr "Avui / aquest cap de setmana"
+
+#: ilovevoley/core/views.py:355
+msgid "Partidos y calendario de competición"
+msgstr "Partits i calendari de competició"
+
+#: ilovevoley/core/views.py:368
+msgid "Galerías de fotos de partidos"
+msgstr "Galeries de fotos de partits"
+
+#: ilovevoley/core/views.py:379 ilovevoley/core/views.py:380
+#: ilovevoley/templates/users/profile.html:39
+msgid "Avisos"
+msgstr "Avisos"
+
+#: ilovevoley/core/views.py:381
+msgid "Activar y configurar avisos y notificaciones"
+msgstr "Activar i configurar avisos i notificacions"
+
+#: ilovevoley/core/views.py:495
 msgid "No autenticado"
 msgstr "No autenticat"
 
-#: ilovevoley/core/views.py:652
+#: ilovevoley/core/views.py:693
 #, python-format
 msgid "Usuario %(username)s aprobado correctamente"
 msgstr "Usuari %(username)s aprovat correctament"
 
-#: ilovevoley/core/views.py:659
+#: ilovevoley/core/views.py:700
 msgid "Usuario no encontrado o ya aprobado"
 msgstr "Usuari no trobat o ja aprovat"
 
-#: ilovevoley/core/views.py:705
+#: ilovevoley/core/views.py:746
 #, python-format
 msgid "Usuario %(username)s rechazado correctamente"
 msgstr "Usuari %(username)s rebutjat correctament"
 
-#: ilovevoley/core/views.py:712
+#: ilovevoley/core/views.py:753
 msgid "Usuario no encontrado o ya procesado"
 msgstr "Usuari no trobat o ja processat"
 
-#: ilovevoley/core/views.py:732
+#: ilovevoley/core/views.py:773
 msgid "La solicitud ya no está pendiente."
 msgstr "La sol·licitud ja no està pendent."
 
-#: ilovevoley/core/views.py:749
+#: ilovevoley/core/views.py:790
 msgid "Foto eliminada."
 msgstr "Foto eliminada."
 
-#: ilovevoley/core/views.py:752
+#: ilovevoley/core/views.py:793
 msgid "Solicitud descartada."
 msgstr "Sol·licitud descartada."
 
-#: ilovevoley/core/views.py:754
+#: ilovevoley/core/views.py:795
 msgid "Acción no válida."
 msgstr "Acció no vàlida."
 
-#: ilovevoley/core/views.py:795
+#: ilovevoley/core/views.py:836
 #, python-format
 msgid "Usuario %(username)s reactivado correctamente"
 msgstr "Usuari %(username)s reactivat correctament"
 
-#: ilovevoley/core/views.py:799 ilovevoley/core/views.py:823
+#: ilovevoley/core/views.py:840 ilovevoley/core/views.py:864
 msgid "Solicitud no encontrada"
 msgstr "Sol·licitud no trobada"
 
-#: ilovevoley/core/views.py:819
+#: ilovevoley/core/views.py:860
 #, python-format
 msgid "Solicitud de %(username)s descartada"
 msgstr "Sol·licitud de %(username)s descartada"
 
-#: ilovevoley/core/views.py:852 ilovevoley/core/views.py:882
+#: ilovevoley/core/views.py:893 ilovevoley/core/views.py:923
 msgid "Jugador convocado no encontrado"
 msgstr "Jugador convocat no trobat"
 
-#: ilovevoley/core/views.py:925
+#: ilovevoley/core/views.py:966
 msgid "Formato de temporada no válido."
 msgstr "Format de temporada no vàlid."
 
-#: ilovevoley/core/views.py:932
+#: ilovevoley/core/views.py:973
 #, python-format
 msgid "Temporada %(name)s activada (%(count)s liga(s) archivada(s))."
 msgstr "Temporada %(name)s activada (%(count)s lliga(es) arxivada(es))."
@@ -6873,13 +6900,13 @@ msgstr "Alguna cosa que vulguis que sapiguem sobre aquesta persona..."
 #: ilovevoley/teams/admin/teams.py:167
 #: ilovevoley/teams/templates/teams/team_roster.html:240
 #: ilovevoley/teams/templates/teams/team_roster.html:467
-#: ilovevoley/users/forms.py:86 ilovevoley/users/forms.py:274
+#: ilovevoley/users/forms.py:132 ilovevoley/users/forms.py:320
 msgid "Nombre"
 msgstr "Nom"
 
 #: ilovevoley/rosters/forms.py:114 ilovevoley/rosters/models/rosters.py:29
 #: ilovevoley/rosters/templates/rosters/roster_bulk_add.html:82
-#: ilovevoley/users/forms.py:87 ilovevoley/users/forms.py:275
+#: ilovevoley/users/forms.py:133 ilovevoley/users/forms.py:321
 msgid "Apellidos"
 msgstr "Cognoms"
 
@@ -6947,7 +6974,7 @@ msgstr "Any de naixement no vàlid."
 #: ilovevoley/rosters/forms.py:178
 #: ilovevoley/rosters/templates/rosters/person_form.html:385
 #: ilovevoley/templates/users/profile_edit.html:435
-#: ilovevoley/users/forms.py:99 ilovevoley/users/forms.py:434
+#: ilovevoley/users/forms.py:145 ilovevoley/users/forms.py:480
 msgid "El archivo es demasiado grande. Tamaño máximo: 5MB"
 msgstr "El fitxer és massa gran. Mida màxima: 5MB"
 
@@ -7408,7 +7435,6 @@ msgid "nº %(n)s"
 msgstr "núm. %(n)s"
 
 #: ilovevoley/rosters/season_wrapped.py:51
-#: ilovevoley/templates/emails/season_highlights.html:22
 msgid "Tu temporada"
 msgstr "La teva temporada"
 
@@ -8359,7 +8385,7 @@ msgstr "Tots els equips seleccionats ja estaven inactius."
 msgid "Desactivar equipos seleccionados"
 msgstr "Desactivar equips seleccionats"
 
-#: ilovevoley/teams/identity.py:364
+#: ilovevoley/teams/identity.py:366
 #, python-format
 msgid "%(count)s vínculos de equipo pendientes de validar"
 msgstr "%(count)s vincles d'equip pendents de validar"
@@ -9086,9 +9112,9 @@ msgstr "Repeteix la contrasenya"
 msgid "Información Familiar <span class=\"text-red-500\">*</span>"
 msgstr "Informació Familiar <span class=\"text-red-500\">*</span>"
 
-#: ilovevoley/templates/account/signup.html:79 ilovevoley/users/forms.py:25
-#: ilovevoley/users/forms.py:46 ilovevoley/users/forms.py:71
-#: ilovevoley/users/forms.py:258
+#: ilovevoley/templates/account/signup.html:79 ilovevoley/users/forms.py:71
+#: ilovevoley/users/forms.py:92 ilovevoley/users/forms.py:117
+#: ilovevoley/users/forms.py:304
 msgid "Ejemplo: Madre/Padre/etc de Pepito Pérez del equipo Infantil"
 msgstr "Exemple: Mare/Pare/etc de Pepito Pérez de l'equip Infantil"
 
@@ -9994,20 +10020,20 @@ msgstr ""
 "%(admin_email)s\">%(admin_email)s</a>)."
 
 #: ilovevoley/templates/emails/admin_direct_message.html:36
-#: ilovevoley/templates/emails/base_email.html:114
+#: ilovevoley/templates/emails/base_email.html:118
 msgid "Todos los derechos reservados."
 msgstr "Tots els drets reservats."
 
-#: ilovevoley/templates/emails/base_email.html:103
+#: ilovevoley/templates/emails/base_email.html:107
 msgid "Sistema de Notificaciones"
 msgstr "Sistema de Notificacions"
 
-#: ilovevoley/templates/emails/base_email.html:112
+#: ilovevoley/templates/emails/base_email.html:116
 #, python-format
 msgid "Este es un mensaje automático del sistema %(site_name)s."
 msgstr "Aquest és un missatge automàtic del sistema %(site_name)s."
 
-#: ilovevoley/templates/emails/base_email.html:113
+#: ilovevoley/templates/emails/base_email.html:117
 msgid "No responda a este email."
 msgstr "No respongueu a aquest correu."
 
@@ -10800,29 +10826,33 @@ msgstr ""
 "compte o el descartes."
 
 #: ilovevoley/templates/emails/season_highlights.html:4
-#: ilovevoley/users/season_highlights.py:52
+#: ilovevoley/users/season_highlights.py:59
 msgid "Novedades I Love Voley · temporada 26/27"
 msgstr "Novetats I Love Voley · temporada 26/27"
 
 #: ilovevoley/templates/emails/season_highlights.html:6
-msgid "Novedades de la temporada 26/27"
-msgstr "Novetats de la temporada 26/27"
+msgid "Novedades de la temporada 26/27 · ilovevoley.es"
+msgstr "Novetats de la temporada 26/27 · ilovevoley.es"
 
-#: ilovevoley/templates/emails/season_highlights.html:11
+#: ilovevoley/templates/emails/season_highlights.html:12
 msgid ""
-"Somos <strong>I Love Voley</strong>. Este curso (temporada <strong>26/27</"
-"strong>) hemos sumado bastante y preferimos contártelo <strong>una sola vez</"
-"strong> por correo — no vamos a llenarte la bandeja cada semana."
+"Somos <strong>I Love Voley</strong> (ilovevoley.es), la web y la app de tu "
+"club — <strong>no</strong> es un correo del club. Este curso (temporada "
+"<strong>26/27</strong>) hemos sumado bastante y preferimos contártelo "
+"<strong>una sola vez</strong> por correo — no vamos a llenarte la bandeja "
+"cada semana."
 msgstr ""
-"Som <strong>I Love Voley</strong>. Aquest curs (temporada <strong>26/27</"
-"strong>) hem afegit unes quantes coses i preferim explicar-t’ho <strong>una "
-"sola vegada</strong> per correu — no t’omplirem la safata cada setmana."
+"Som <strong>I Love Voley</strong> (ilovevoley.es), el web i l’app del teu "
+"club — <strong>no</strong> és un correu del club. Aquest curs (temporada "
+"<strong>26/27</strong>) hem afegit unes quantes coses i preferim explicar-"
+"t’ho <strong>una sola vegada</strong> per correu — no t’omplirem la safata "
+"cada setmana."
 
-#: ilovevoley/templates/emails/season_highlights.html:13
-msgid "App en el móvil"
-msgstr "App al mòbil"
+#: ilovevoley/templates/emails/season_highlights.html:16
+msgid "📱 App en el móvil"
+msgstr "📱 App al mòbil"
 
-#: ilovevoley/templates/emails/season_highlights.html:14
+#: ilovevoley/templates/emails/season_highlights.html:17
 msgid ""
 "I Love Voley se puede <strong>instalar</strong> como aplicación (PWA). Desde "
 "ahí puedes recibir <strong>avisos</strong> cuando hay resultados de tus "
@@ -10836,11 +10866,11 @@ msgstr ""
 "veus notificacions, entra a <strong>Perfil → Avisos</strong> i activa-les en "
 "aquest mòbil (a l’iPhone cal afegir l’app a la pantalla d’inici)."
 
-#: ilovevoley/templates/emails/season_highlights.html:16
-msgid "El partido, sin lápiz en la grada"
-msgstr "El partit, sense llapis a la graderia"
+#: ilovevoley/templates/emails/season_highlights.html:21
+msgid "🏐 El partido, sin lápiz en la grada"
+msgstr "🏐 El partit, sense llapis a la graderia"
 
-#: ilovevoley/templates/emails/season_highlights.html:17
+#: ilovevoley/templates/emails/season_highlights.html:22
 msgid ""
 "Las <strong>estadísticas</strong> salen de las <strong>actas federativas</"
 "strong> (y, cuando toca, de fotos del acta). Nadie está ahí con un bloc "
@@ -10852,11 +10882,11 @@ msgstr ""
 "anotant punts o recepcions a mà. També hi ha prèvies contra el rival, "
 "historial i, si hi ha enllaç, avís de retransmissió."
 
-#: ilovevoley/templates/emails/season_highlights.html:19
-msgid "Fotos que importan"
-msgstr "Fotos que importen"
+#: ilovevoley/templates/emails/season_highlights.html:26
+msgid "📸 Fotos que importan"
+msgstr "📸 Fotos que importen"
 
-#: ilovevoley/templates/emails/season_highlights.html:20
+#: ilovevoley/templates/emails/season_highlights.html:27
 msgid ""
 "Puedes <strong>etiquetar</strong> deportistas, ver la galería de "
 "<strong>fotos de tu hijo</strong>, marcar favoritas o el “top” del partido, "
@@ -10866,7 +10896,11 @@ msgstr ""
 "<strong>fotos del teu fill</strong>, marcar favorites o el “top” del partit, "
 "i generar stories i targetes per compartir («avui juguem», resultats…)."
 
-#: ilovevoley/templates/emails/season_highlights.html:23
+#: ilovevoley/templates/emails/season_highlights.html:31
+msgid "✨ Tu temporada"
+msgstr "✨ La teva temporada"
+
+#: ilovevoley/templates/emails/season_highlights.html:32
 msgid ""
 "En <strong>Tú</strong> tienes cifras de la temporada, un <strong>cromo</"
 "strong> compartible y, al cerrar el curso, un <strong>Wrapped</strong> con "
@@ -10876,11 +10910,11 @@ msgstr ""
 "compartible i, en tancar el curs, un <strong>Wrapped</strong> amb el resum "
 "de l’any (també a nivell d’equip)."
 
-#: ilovevoley/templates/emails/season_highlights.html:25
-msgid "En catalán, si lo prefieres"
-msgstr "En català, si ho prefereixes"
+#: ilovevoley/templates/emails/season_highlights.html:36
+msgid "🗣️ En catalán, si lo prefieres"
+msgstr "🗣️ En català, si ho prefereixes"
 
-#: ilovevoley/templates/emails/season_highlights.html:26
+#: ilovevoley/templates/emails/season_highlights.html:37
 msgid ""
 "La web y la app están en <strong>castellano y catalán</strong>. Puedes "
 "elegir el idioma en tu perfil: si el año pasado solo la usaste en "
@@ -10890,11 +10924,11 @@ msgstr ""
 "l’idioma al perfil: si l’any passat només la feies servir en castellà, "
 "aquesta és la novetat."
 
-#: ilovevoley/templates/emails/season_highlights.html:28
-msgid "Si ya estabas con nosotros"
-msgstr "Si ja eres amb nosaltres"
+#: ilovevoley/templates/emails/season_highlights.html:41
+msgid "🔁 Si ya estabas con nosotros"
+msgstr "🔁 Si ja eres amb nosaltres"
 
-#: ilovevoley/templates/emails/season_highlights.html:29
+#: ilovevoley/templates/emails/season_highlights.html:42
 msgid ""
 "Vídeos, fotos y datos de <strong>temporadas anteriores siguen ahí</strong>. "
 "Puedes mirarlos cuando quieras. Si te has cambiado de club o solo pasas de "
@@ -10904,11 +10938,11 @@ msgstr ""
 "pots mirar quan vulguis. Si has canviat de club o només passes de tant en "
 "tant: <strong>no molestes</strong>; ens alegra que continuïs per aquí."
 
-#: ilovevoley/templates/emails/season_highlights.html:31
-msgid "Privacidad, en serio"
-msgstr "Privacitat, de debò"
+#: ilovevoley/templates/emails/season_highlights.html:46
+msgid "🔒 Privacidad, en serio"
+msgstr "🔒 Privacitat, de debò"
 
-#: ilovevoley/templates/emails/season_highlights.html:32
+#: ilovevoley/templates/emails/season_highlights.html:47
 msgid ""
 "Hay política de privacidad, consentimiento de imagen de menores y una página "
 "clara de <strong>quién puede ver las fotos</strong>. Mejor preguntar de más "
@@ -10918,19 +10952,19 @@ msgstr ""
 "clara de <strong>qui pot veure les fotos</strong>. Millor preguntar de més "
 "que de menys."
 
-#: ilovevoley/templates/emails/season_highlights.html:36
+#: ilovevoley/templates/emails/season_highlights.html:52
 msgid "Activar avisos / instalar la app"
 msgstr "Activar avisos / instal·lar l’app"
 
-#: ilovevoley/templates/emails/season_highlights.html:40
+#: ilovevoley/templates/emails/season_highlights.html:56
 msgid "Gracias por estar en I Love Voley."
 msgstr "Gràcies per ser a I Love Voley."
 
-#: ilovevoley/templates/emails/season_highlights.html:41
+#: ilovevoley/templates/emails/season_highlights.html:57
 msgid "El equipo de I Love Voley"
 msgstr "L’equip d’I Love Voley"
 
-#: ilovevoley/templates/emails/season_highlights.html:45
+#: ilovevoley/templates/emails/season_highlights.html:61
 #, python-format
 msgid ""
 "¿Ya no te encaja esta cuenta (otro club, fin de etapa…)? Puedes <a "
@@ -10943,7 +10977,7 @@ msgstr ""
 "underline;\">desactivar l’usuari</a>. Et trobarem a faltar a tu… i al teu "
 "fill."
 
-#: ilovevoley/templates/emails/season_highlights.html:46
+#: ilovevoley/templates/emails/season_highlights.html:62
 msgid ""
 "Esto no es una newsletter: es un único aviso de novedades de la temporada."
 msgstr ""
@@ -12009,10 +12043,6 @@ msgstr "Gestiona la teva informació personal, avisos i subscripcions"
 msgid "Pestañas de perfil"
 msgstr "Pestanyes de perfil"
 
-#: ilovevoley/templates/users/profile.html:39
-msgid "Avisos"
-msgstr "Avisos"
-
 #: ilovevoley/templates/users/profile.html:61
 msgid "Datos de la Cuenta"
 msgstr "Dades del compte"
@@ -12025,8 +12055,8 @@ msgstr "La teva informació bàsica i estat d'aprovació."
 msgid "Cuenta Aprobada"
 msgstr "Compte aprovat"
 
-#: ilovevoley/templates/users/profile.html:86 ilovevoley/users/forms.py:84
-#: ilovevoley/users/forms.py:272
+#: ilovevoley/templates/users/profile.html:86 ilovevoley/users/forms.py:130
+#: ilovevoley/users/forms.py:318
 msgid "Foto de Perfil"
 msgstr "Foto de Perfil"
 
@@ -12499,53 +12529,53 @@ msgstr ""
 "per unir-te a <strong>%(club)s</strong>. Un administrador la revisarà i "
 "tindràs accés tan bon punt l'aprovi."
 
-#: ilovevoley/users/forms.py:21 ilovevoley/users/forms.py:50
-#: ilovevoley/users/forms.py:88 ilovevoley/users/forms.py:276
+#: ilovevoley/users/forms.py:67 ilovevoley/users/forms.py:96
+#: ilovevoley/users/forms.py:134 ilovevoley/users/forms.py:322
 #: ilovevoley/users/models.py:18
 msgid "Información Familiar"
 msgstr "Informació familiar"
 
-#: ilovevoley/users/forms.py:22 ilovevoley/users/models.py:19
+#: ilovevoley/users/forms.py:68 ilovevoley/users/models.py:19
 msgid ""
 "Indica de qué niño/a eres padre/familiar (ej: \"papá de Juanito de "
 "Infantil\")"
 msgstr ""
 "Indica de quin nen/a ets pare/familiar (ex: \"pare de Juanito d'Infantil\")"
 
-#: ilovevoley/users/forms.py:53
+#: ilovevoley/users/forms.py:99
 msgid ""
 "Indica de qué niño/a eres padre/familiar para que podamos aprobar tu cuenta"
 msgstr ""
 "Indica de quin nen/a ets pare/familiar perquè puguem aprovar el teu compte"
 
-#: ilovevoley/users/forms.py:85 ilovevoley/users/forms.py:273
+#: ilovevoley/users/forms.py:131 ilovevoley/users/forms.py:319
 msgid "Nombre de Usuario"
 msgstr "Nom d'Usuari"
 
-#: ilovevoley/users/forms.py:91 ilovevoley/users/forms.py:279
+#: ilovevoley/users/forms.py:137 ilovevoley/users/forms.py:325
 msgid "Sube una imagen para tu perfil (opcional)"
 msgstr "Puja una imatge per al teu perfil (opcional)"
 
-#: ilovevoley/users/forms.py:92 ilovevoley/users/forms.py:280
+#: ilovevoley/users/forms.py:138 ilovevoley/users/forms.py:326
 msgid "Indica de qué niño/a eres padre/familiar"
 msgstr "Indica de quin nen/a ets pare/familiar"
 
-#: ilovevoley/users/forms.py:147 ilovevoley/users/forms.py:321
+#: ilovevoley/users/forms.py:193 ilovevoley/users/forms.py:367
 #, python-format
 msgid "Categorías de Interés en %(org)s"
 msgstr "Categories d'Interès a %(org)s"
 
-#: ilovevoley/users/forms.py:148 ilovevoley/users/forms.py:322
+#: ilovevoley/users/forms.py:194 ilovevoley/users/forms.py:368
 #, python-format
 msgid "Selecciona las categorías que te interesan en %(org)s"
 msgstr "Selecciona les categories que t'interessen a %(org)s"
 
-#: ilovevoley/users/forms.py:162 ilovevoley/users/forms.py:337
+#: ilovevoley/users/forms.py:208 ilovevoley/users/forms.py:383
 #, python-format
 msgid "Mis equipos en %(org)s"
 msgstr "Els meus equips a %(org)s"
 
-#: ilovevoley/users/forms.py:164 ilovevoley/users/forms.py:339
+#: ilovevoley/users/forms.py:210 ilovevoley/users/forms.py:385
 #, python-format
 msgid ""
 "Opcional. Si eliges equipos, los avisos de partido y tu calendario de "
@@ -12554,12 +12584,12 @@ msgstr ""
 "Opcional. Si tries equips, els avisos de partit i el teu calendari de "
 "%(org)s es limiten a aquests equips en lloc de les teves categories."
 
-#: ilovevoley/users/forms.py:178 ilovevoley/users/forms.py:353
+#: ilovevoley/users/forms.py:224 ilovevoley/users/forms.py:399
 #, python-format
 msgid "Avisos Push en %(org)s"
 msgstr "Avisos Push a %(org)s"
 
-#: ilovevoley/users/forms.py:179
+#: ilovevoley/users/forms.py:225
 #, python-format
 msgid ""
 "Selecciona qué avisos recibir cuando estén activados en este dispositivo en "
@@ -12568,7 +12598,7 @@ msgstr ""
 "Selecciona quins avisos rebre quan estiguin activats en aquest dispositiu a "
 "%(org)s"
 
-#: ilovevoley/users/forms.py:354
+#: ilovevoley/users/forms.py:400
 #, python-format
 msgid "Selecciona qué avisos push deseas recibir en %(org)s"
 msgstr "Selecciona quins avisos push vols rebre a %(org)s"
@@ -12836,226 +12866,3 @@ msgid ""
 msgstr ""
 "Arguments amb nom en JSON vàlid, per exemple {\"delay\": 2.0}. Han de "
 "coincidir amb la signatura de la tasca."
-
-#~ msgid "I Love Voley — Compartir fotos"
-#~ msgstr "I Love Voley — Compartir fotos"
-
-#~ msgid "No especificado"
-#~ msgstr "No especificat"
-
-#~ msgid ""
-#~ "No has seleccionado categorías de interés aún. Edita tu perfil para "
-#~ "seleccionarlas."
-#~ msgstr ""
-#~ "Encara no has seleccionat categories d'interès. Edita el teu perfil per "
-#~ "seleccionar-les."
-
-#~ msgid "Sincroniza los partidos con tu calendario"
-#~ msgstr "Sincronitza els partits amb el teu calendari"
-
-#~ msgid ""
-#~ "<strong>💡 ¿Cuándo regenerar la URL?</strong><br> • Si cambias de "
-#~ "categoría de interés<br> • Si quieres dejar de recibir partidos (regenera "
-#~ "y no vuelvas a suscribirte)<br> • Si compartiste la URL por error<br> "
-#~ "<span class=\"text-blue-900 dark:text-blue-200 font-medium\">⚠️ La URL "
-#~ "antigua dejará de funcionar automáticamente.</span>"
-#~ msgstr ""
-#~ "<strong>💡 Quan regenerar la URL?</strong><br> • Si canvies de categoria "
-#~ "d'interès<br> • Si vols deixar de rebre partits (regenera i no et tornis "
-#~ "a subscriure)<br> • Si vas compartir la URL per error<br> <span "
-#~ "class=\"text-blue-900 dark:text-blue-200 font-medium\">⚠️ La URL antiga "
-#~ "deixarà de funcionar automàticament.</span>"
-
-#~ msgid "Notificaciones Push (PWA)"
-#~ msgstr "Notificacions Push (PWA)"
-
-#~ msgid "Avisos en tiempo real en tu dispositivo"
-#~ msgstr "Avisos en temps real al teu dispositiu"
-
-#~ msgid ""
-#~ "En iPhone/iPad, para recibir notificaciones añade primero la aplicación a "
-#~ "la pantalla de inicio (Compartir > Añadir a pantalla de inicio) y ábrela "
-#~ "desde allí."
-#~ msgstr ""
-#~ "A l'iPhone/iPad, per rebre notificacions afegeix primer l'aplicació a la "
-#~ "pantalla d'inici (Compartir > Afegir a la pantalla d'inici) i obre-la des "
-#~ "d'allà."
-
-#~ msgid "Ningún aviso activo"
-#~ msgstr "Cap avís actiu"
-
-#~ msgid "Copia la URL de suscripción (botón \"Copiar\" arriba)"
-#~ msgstr "Copia la URL de subscripció (botó \"Copiar\" a dalt)"
-
-#~ msgid "Abre"
-#~ msgstr "Obre"
-
-#~ msgid ""
-#~ "En la barra lateral izquierda, busca \"Otros calendarios\" y haz clic en "
-#~ "el <strong>+</strong>"
-#~ msgstr ""
-#~ "A la barra lateral esquerra, cerca \"Altres calendaris\" i fes clic al "
-#~ "<strong>+</strong>"
-
-#~ msgid "Selecciona <strong>\"Desde URL\"</strong>"
-#~ msgstr "Selecciona <strong>\"Des d'URL\"</strong>"
-
-#~ msgid ""
-#~ "Pega la URL copiada y haz clic en <strong>\"Agregar calendario\"</strong>"
-#~ msgstr ""
-#~ "Enganxa la URL copiada i fes clic a <strong>\"Afegir calendari\"</strong>"
-
-#~ msgid "¡Listo! Los partidos aparecerán automáticamente 🎉"
-#~ msgstr "A punt! Els partits apareixeran automàticament 🎉"
-
-#~ msgid ""
-#~ "<strong>En Mac:</strong> Abre Calendar → Archivo → Nueva suscripción a "
-#~ "calendario"
-#~ msgstr ""
-#~ "<strong>A Mac:</strong> Obre Calendar → Arxiu → Nova subscripció a "
-#~ "calendari"
-
-#~ msgid "Pega la URL y haz clic en <strong>\"Suscribirse\"</strong>"
-#~ msgstr "Enganxa la URL i fes clic a <strong>\"Subscriure's\"</strong>"
-
-#~ msgid ""
-#~ "Configura la frecuencia de actualización (recomendado: cada 12 horas o "
-#~ "diariamente)"
-#~ msgstr ""
-#~ "Configura la freqüència d'actualització (recomanat: cada 12 hores o "
-#~ "diàriament)"
-
-#~ msgid "¡Listo! Los partidos se sincronizarán automáticamente 🎉"
-#~ msgstr "A punt! Els partits se sincronitzaran automàticament 🎉"
-
-#~ msgid ""
-#~ "Haz clic en <strong>\"Agregar calendario\"</strong> en la barra lateral"
-#~ msgstr "Fes clic a <strong>\"Afegir calendari\"</strong> a la barra lateral"
-
-#~ msgid "Pega la URL y dale un nombre al calendario"
-#~ msgstr "Enganxa l'URL i posa un nom al calendari"
-
-#~ msgid "Haz clic en <strong>\"Importar\"</strong>"
-#~ msgstr "Fes clic a <strong>\"Importar\"</strong>"
-
-#~ msgid "¡Listo! Los eventos se actualizarán automáticamente 🎉"
-#~ msgstr "A punt! Els esdeveniments s'actualitzaran automàticament 🎉"
-
-#~ msgid ""
-#~ "<strong>Privacidad:</strong> La URL es única y personal. No la compartas."
-#~ msgstr ""
-#~ "<strong>Privacitat:</strong> La URL és única i personal. No la "
-#~ "comparteixis."
-
-#~ msgid ""
-#~ "<strong>Actualizaciones:</strong> Los calendarios se actualizan cada 12 "
-#~ "horas aproximadamente (configurable en tu app de calendario)."
-#~ msgstr ""
-#~ "<strong>Actualitzacions:</strong> Els calendaris s'actualitzen "
-#~ "aproximadament cada 12 hores (configurable a la teva app de calendari)."
-
-#~ msgid ""
-#~ "<strong>Cambios de categorías:</strong> Si cambias tus categorías "
-#~ "preferidas, el calendario se actualizará automáticamente en la siguiente "
-#~ "sincronización."
-#~ msgstr ""
-#~ "<strong>Canvis de categories:</strong> Si canvies les teves categories "
-#~ "preferides, el calendari s'actualitzarà automàticament en la següent "
-#~ "sincronització."
-
-#~ msgid ""
-#~ "<strong>Solo lectura:</strong> No puedes editar los eventos desde tu "
-#~ "calendario, son solo de consulta."
-#~ msgstr ""
-#~ "<strong>Només lectura:</strong> No pots editar els esdeveniments des del "
-#~ "teu calendari, són només de consulta."
-
-#~ msgid "¿Cómo dejar de recibir partidos?"
-#~ msgstr "Com deixar de rebre partits?"
-
-#~ msgid "Forma más fácil (Recomendada):"
-#~ msgstr "Forma més fàcil (Recomanada):"
-
-#~ msgid ""
-#~ "Haz clic en <strong>\"Regenerar URL\"</strong> arriba y simplemente no "
-#~ "vuelvas a suscribirte. La URL antigua dejará de funcionar automáticamente "
-#~ "y tu calendario dejará de recibir actualizaciones."
-#~ msgstr ""
-#~ "Fes clic a <strong>\"Regenerar URL\"</strong> a dalt i simplement no et "
-#~ "tornis a subscriure. La URL antiga deixarà de funcionar automàticament i "
-#~ "el teu calendari deixarà de rebre actualitzacions."
-
-#~ msgid "Alternativa: Borrar desde tu app de calendario"
-#~ msgstr "Alternativa: Eliminar des de la teva app de calendari"
-
-#~ msgid ""
-#~ "<strong>Google Calendar:</strong> Busca \"I Love Voley - Partidos\" en "
-#~ "\"Otros calendarios\" → Opciones (⋮) → Darse de baja"
-#~ msgstr ""
-#~ "<strong>Google Calendar:</strong> Cerca \"I Love Voley - Partits\" a "
-#~ "\"Altres calendaris\" → Opcions (⋮) → Donar-se de baixa"
-
-#~ msgid ""
-#~ "<strong>iPhone/iPad:</strong> Ajustes → Calendario → Cuentas → Busca el "
-#~ "calendario → Eliminar cuenta"
-#~ msgstr ""
-#~ "<strong>iPhone/iPad:</strong> Ajustos → Calendari → Comptes → Cerca el "
-#~ "calendari → Eliminar compte"
-
-#~ msgid ""
-#~ "<strong>Mac:</strong> Abre Calendar → Click derecho en el calendario → "
-#~ "Cancelar suscripción"
-#~ msgstr ""
-#~ "<strong>Mac:</strong> Obre Calendar → Clic dret al calendari → Cancel·la "
-#~ "la subscripció"
-
-#~ msgid "<strong>Outlook:</strong> Click derecho en el calendario → Eliminar"
-#~ msgstr "<strong>Outlook:</strong> Clic dret al calendari → Eliminar"
-
-#~ msgid "¡Copiado!"
-#~ msgstr "Copiat!"
-
-#~ msgid "• La URL actual dejará de funcionar"
-#~ msgstr "• La URL actual deixarà de funcionar"
-
-#~ msgid "• Tendrás que volver a suscribirte con la nueva URL"
-#~ msgstr "• Hauràs de tornar-te a subscriure amb la nova URL"
-
-#~ msgid ""
-#~ "• Esto es útil si cambiaste de categorías o quieres dejar de recibir "
-#~ "partidos"
-#~ msgstr ""
-#~ "• Això és útil si vas canviar de categories o vols deixar de rebre partits"
-
-#~ msgid "¿Continuar?"
-#~ msgstr "Continuar?"
-
-#~ msgid "La URL anterior ya no funciona."
-#~ msgstr "La URL anterior ja no funciona."
-
-#~ msgid ""
-#~ "Si quieres seguir recibiendo partidos, copia la nueva URL y vuelve a "
-#~ "suscribirte en tu calendario."
-#~ msgstr ""
-#~ "Si vols continuar rebent partits, copia la nova URL i torna-te a "
-#~ "subscriure al teu calendari."
-
-#~ msgid "❌ Error al regenerar la URL. Por favor, inténtalo de nuevo."
-#~ msgstr "❌ Error en regenerar la URL. Si us plau, torna-ho a intentar."
-
-#: ilovevoley/core/views.py
-msgid "Hoy / este finde"
-msgstr "Avui / aquest cap de setmana"
-
-#: ilovevoley/core/views.py
-msgid "Partidos y calendario de competición"
-msgstr "Partits i calendari de competició"
-
-#: ilovevoley/core/views.py
-msgid "Galerías de fotos de partidos"
-msgstr "Galeries de fotos de partits"
-
-#: ilovevoley/core/views.py
-msgid "Activar y configurar avisos y notificaciones"
-msgstr "Activar i configurar avisos i notificacions"
-
