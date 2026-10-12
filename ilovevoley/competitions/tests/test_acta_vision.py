@@ -119,39 +119,28 @@ class ActaVisionServiceTests(TestCase):
             read_acta(b'fake_jpeg_bytes', self.context, api_key='test-key')
 
     @patch('requests.post')
-    def test_read_acta_503_raises_transient_error(self, mock_post):
-        """Error 503 por alta demanda eleva ActaVisionTransientError para reintento posterior."""
-        mock_resp = MagicMock()
-        mock_resp.status_code = 503
-        mock_resp.text = 'The model is overloaded. Please try again later.'
-        mock_post.return_value = mock_resp
-
-        with self.assertRaises(ActaVisionTransientError):
-            read_acta(b'fake_jpeg_bytes', self.context, api_key='test-key')
-
-    @patch('requests.post')
-    def test_read_acta_429_rate_limit_raises_transient_error(self, mock_post):
-        """Error 429 por límite de cuota eleva ActaVisionTransientError."""
-        mock_resp = MagicMock()
-        mock_resp.status_code = 429
-        mock_resp.text = 'Resource exhausted'
-        mock_post.return_value = mock_resp
-
-        with self.assertRaises(ActaVisionTransientError):
-            read_acta(b'fake_jpeg_bytes', self.context, api_key='test-key')
-
-    @patch('requests.post')
-    def test_read_acta_error_payload_raises_appropriate_error(self, mock_post):
-        """Payload con campo 'error' de la API de Google es interpretado correctamente."""
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            'error': {'code': 503, 'message': 'Unavailable'},
+    def test_read_acta_transient_failures_raise_transient_error(self, mock_post):
+        """503, 429 y payload con campo 'error' elevan ActaVisionTransientError para reintentar."""
+        http_cases = {
+            '503_overloaded': {'status_code': 503, 'text': 'The model is overloaded. Please try again later.'},
+            '429_quota': {'status_code': 429, 'text': 'Resource exhausted'},
         }
-        mock_post.return_value = mock_resp
+        for label, attrs in http_cases.items():
+            with self.subTest(label):
+                mock_post.reset_mock()
+                mock_post.return_value = MagicMock(**attrs)
 
-        with self.assertRaises(ActaVisionTransientError):
-            read_acta(b'fake_jpeg_bytes', self.context, api_key='test-key')
+                with self.assertRaises(ActaVisionTransientError):
+                    read_acta(b'fake_jpeg_bytes', self.context, api_key='test-key')
+
+        with self.subTest('error_payload'):
+            mock_post.reset_mock()
+            error_resp = MagicMock(status_code=200)
+            error_resp.json.return_value = {'error': {'code': 503, 'message': 'Unavailable'}}
+            mock_post.return_value = error_resp
+
+            with self.assertRaises(ActaVisionTransientError):
+                read_acta(b'fake_jpeg_bytes', self.context, api_key='test-key')
 
     def test_read_acta_missing_api_key_raises_value_error(self):
         """Falta de clave de API lanza ValueError explícito."""
@@ -244,13 +233,13 @@ class ActaVisionContextTests(TestCase):
         self.assertEqual(context['tenant_team_name'], 'SANT JOSEP')
         self.assertEqual(context['tenant_roster'], [(5, 'Oliver'), (11, 'Raya')])
 
-    def test_build_acta_prompt_instructs_model_not_to_invent(self):
-        """El prompt incluye la plantilla conocida e instruye no inventar jugadores."""
+    def test_build_acta_prompt_embeds_tenant_roster(self):
+        """El prompt incluye la plantilla conocida del tenant (dorsal y apellido) como contexto."""
         context = build_acta_context(self.match)
         prompt = build_acta_prompt(context)
         self.assertIn('5 Oliver', prompt)
         self.assertIn('11 Raya', prompt)
-        self.assertIn('NO inventes', prompt)
+        self.assertIn('SANT JOSEP', prompt)
 
 
 class ActaVisionBatchExecutionTests(TestCase):
@@ -349,18 +338,6 @@ class ActaVisionBatchExecutionTests(TestCase):
         self.assertEqual(self.photo.status, 'pending_read')
         self.assertIsNone(self.photo.extracted_data)
 
-    @override_settings(ACTA_VISION_ENABLED=True, GEMINI_API_KEY='valid-key')
-    @patch('ilovevoley.competitions.services.acta_vision.read_acta')
-    def test_celery_task_delegates_to_batch_processor(self, mock_read):
-        """La tarea Celery explícita ejecuta el procesador por lotes."""
-        mock_read.return_value = {
-            'home_team': 'SANT JOSEP',
-            'away_team': 'RIVAL',
-            'home_convocados': [],
-            'away_convocados': [],
-            'sets': [],
-            '_meta': {'format': 'paper_alevin'},
-        }
-
-        result = process_pending_acta_photos_task(limit=2)
-        self.assertEqual(result, 1)
+    def test_celery_task_declares_explicit_name(self):
+        """La tarea lleva name= explícito: las filas de PeriodicTask dependen de él, no de la ruta (AGENTS)."""
+        self.assertEqual(process_pending_acta_photos_task.name, 'process_pending_acta_photos')

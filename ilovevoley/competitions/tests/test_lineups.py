@@ -373,7 +373,13 @@ class BackfillActasCommandTests(TestCase):
             acta_html='https://federacion.example/acta/1',
         )
 
-    def test_backfill_persiste_actas_pendientes(self):
+    def test_backfill_persiste_actas_pendientes_y_resuelve_url_relativa(self):
+        """El comando persiste el acta pendiente y pide la URL oficial aunque el partido tuviera ruta relativa."""
+        Match.all_objects.filter(pk=self.match.pk).update(
+            federation_id='85846',
+            acta_html='acta_10932.html',
+        )
+        self.match.refresh_from_db()
         data = _lineup_data(
             home_convocados=['1 Uno'],
             sets=[_set('Set 1', _six(1), _six(11))],
@@ -384,7 +390,10 @@ class BackfillActasCommandTests(TestCase):
                       return_value=data):
             call_command('backfill_acta_lineups')
 
-        get.assert_called_once()
+        get.assert_called_once_with(
+            'https://voleibolib.federatio.com/actas/85846/acta_10932.html',
+            allowed_hosts=['federacion.example'],
+        )
         self.match.refresh_from_db()
         self.assertIsNotNone(self.match.acta_data)
         self.assertTrue(MatchLineup.objects.filter(match=self.match).exists())
@@ -421,28 +430,6 @@ class BackfillActasCommandTests(TestCase):
         self.assertEqual(
             match.acta_html,
             'https://voleibolib.federatio.com/actas/99999/acta_001.html',
-        )
-
-    def test_backfill_resolves_relative_acta_url(self):
-        """El comando de backfill debe solicitar la URL oficial aunque el partido tuviera ruta relativa."""
-        Match.all_objects.filter(pk=self.match.pk).update(
-            federation_id='85846',
-            acta_html='acta_10932.html',
-        )
-        self.match.refresh_from_db()
-        data = _lineup_data(
-            home_convocados=['1 Uno'],
-            sets=[_set('Set 1', _six(1), _six(11))],
-        )
-        with patch('ilovevoley.competitions.services.lineups.safe_get',
-                   return_value=b'<html></html>') as mock_safe_get, \
-                patch('ilovevoley.videos.scraping.parse_acta_lineup',
-                      return_value=data):
-            call_command('backfill_acta_lineups')
-
-        mock_safe_get.assert_called_once_with(
-            'https://voleibolib.federatio.com/actas/85846/acta_10932.html',
-            allowed_hosts=['federacion.example'],
         )
 
 
