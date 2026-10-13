@@ -54,6 +54,9 @@
     <!-- PESTAÑA 1: PERFIL (IDENTIDAD)              -->
     <!-- ========================================== -->
     <div id="panel-perfil" class="tab-panel space-y-6{% if active_tab != 'perfil' %} hidden{% endif %}" role="tabpanel">
+        {% if link_form %}
+            {% include "rosters/_link_request_card.html" with link_form=link_form link_next="profile" %}
+        {% endif %}
         <div class="bg-surface rounded-[20px] border border-line p-6">
             <!-- Estado de la cuenta -->
             <div class="flex items-center justify-between pb-6 mb-6 border-b border-line flex-wrap gap-3">

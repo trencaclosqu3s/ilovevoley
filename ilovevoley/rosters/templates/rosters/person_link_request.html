@@ -1,0 +1,44 @@
+{% extends '../base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Vincular cuenta con tu ficha" %} - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <a href="{% url 'rosters:my_profile' %}" class="inline-block mb-3 text-sm font-semibold text-brand-text hover:underline">← {% trans "Tú" %}</a>
+
+    {% include "rosters/_link_request_card.html" with link_form=form link_next="" %}
+
+    {% if pending_requests %}
+        <section class="bg-surface rounded-[20px] border border-line p-5 mb-6">
+            <h2 class="text-lg font-bold text-ink mb-3">{% trans "Solicitudes pendientes" %}</h2>
+            <ul class="space-y-2">
+                {% for req in pending_requests %}
+                    <li class="bg-tint rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
+                        <span class="font-semibold text-ink">{{ req.person.full_name }}</span>
+                        <span class="text-xs text-muted">{{ req.get_kind_display }} · {{ req.created_at|date:"d/m/Y" }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+            <p class="text-xs text-muted mt-3">{% trans "Un moderador del club revisará estas solicitudes." %}</p>
+        </section>
+    {% endif %}
+
+    {% if resolved_requests %}
+        <section class="bg-surface rounded-[20px] border border-line p-5 mb-6">
+            <h2 class="text-lg font-bold text-ink mb-3">{% trans "Solicitudes resueltas" %}</h2>
+            <ul class="space-y-2">
+                {% for req in resolved_requests %}
+                    <li class="bg-tint rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
+                        <span class="font-semibold text-ink">{{ req.person.full_name }}</span>
+                        <span class="text-xs text-muted">
+                            {{ req.get_kind_display }} ·
+                            {% if req.status == 'approved' %}{% trans "Aprobada" %}{% else %}{% trans "Rechazada" %}{% endif %}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+</div>
+{% endblock %}

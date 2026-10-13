@@ -27,7 +27,10 @@ El paquete raíz es `ilovevoley`. La lógica se divide en apps de dominio:
   (acción de `SeasonAdmin` o `PeriodicTask`); las fotos se filtran por consentimiento
   al mostrar, no al congelar; el rival es el equipo, nunca un jugador; el aspecto
   (colores y escudo) sale del club del rol de esa temporada (`season_organization`),
-  no del dominio.
+  no del dominio. Vínculo cuenta ↔ ficha self-service (`PersonLinkRequest`, #531):
+  el usuario solicita enlazar su ficha o la de un hijo/a identificándola por nombre,
+  apellidos y año exactos; un moderador del club la resuelve en el panel (`/core/moderacion/`)
+  y aprobar es lo único que escribe `Person.user` o `User.children`.
 - **`content`**: Vídeos (`Video`), imágenes (`Image`), comentarios (`Comment`),
   álbumes grupales (`album_group_id`), etiquetado automático y moderación con
   Google Vision API, vinculados a `Season` y filtrados por temporada activa.

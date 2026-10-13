@@ -1,5 +1,6 @@
 from .rosters import (  # noqa: F401
     Person,
+    PersonLinkRequest,
     PersonOrganization,
     PlayerRole,
     SeasonWrapped,
@@ -13,6 +14,7 @@ from .legacy import (  # noqa: F401
 
 __all__ = [
     'Person',
+    'PersonLinkRequest',
     'PersonOrganization',
     'PlayerRole',
     'SeasonWrapped',
