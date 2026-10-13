@@ -79,20 +79,16 @@ class PendingApprovalViewTests(TestCase):
         self.assertEqual(response['Location'], reverse('profile'))
         self.assertFalse(self._memberships(superuser).exists())
 
-    def test_new_account_sees_account_created_copy(self):
+    def test_pending_approval_context_flag_reflects_joining_club(self):
+        # Cuenta nueva aún sin aprobar: no se está "uniendo" a un club.
         self.client.force_login(self.user)
-
         response = self.client.get(reverse('pending_approval'), HTTP_HOST=HOST)
-
         self.assertIs(response.context['joining_club'], False)
 
-    def test_activated_user_joining_club_sees_request_copy(self):
+        # Usuario ya aprobado en otro sitio que llega a este tenant: sí se une.
         self.user.is_approved = True
         self.user.save(update_fields=['is_approved'])
-        self.client.force_login(self.user)
-
         response = self.client.get(reverse('pending_approval'), HTTP_HOST=HOST)
-
         self.assertIs(response.context['joining_club'], True)
 
 
@@ -192,74 +188,32 @@ class UserProfileViewsTests(TestCase):
         )
         self.assertTrue(pref_result_org1.is_enabled)
 
-    def test_save_preferences_without_browser_push_subscription_redirects_with_warning(self):
-        """Si el usuario guarda preferencias sin suscripción push en el navegador,
-
-        se le redirige a la pestaña avisos (#activar) con mensaje warning/ámbar.
-        """
+    def test_save_preferences_push_message_depends_on_device_subscription(self):
+        """Con suscripción push activa -> éxito; sin ella -> aviso warning (#activar)."""
         self.client.force_login(self.user)
-        response = self.client.post(reverse('profile'), {
-            'tab': 'avisos',
-            f'preferred_categories_{self.org1.id}': [self.cat1.id],
-            'has_device_push_subscription': '0',
-        }, follow=True)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['active_tab'], 'avisos')
-        messages_list = list(response.context['messages'])
-        self.assertTrue(any('activa los avisos en este móvil' in str(m.message) for m in messages_list))
-        self.assertTrue(any(m.level_tag == 'warning' for m in messages_list))
+        with self.subTest('sin suscripción push en el navegador'):
+            response = self.client.post(reverse('profile'), {
+                'tab': 'avisos',
+                f'preferred_categories_{self.org1.id}': [self.cat1.id],
+                'has_device_push_subscription': '0',
+            }, follow=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context['active_tab'], 'avisos')
+            messages_list = list(response.context['messages'])
+            self.assertTrue(
+                any('activa los avisos en este móvil' in str(m.message) for m in messages_list)
+            )
+            self.assertTrue(any(m.level_tag == 'warning' for m in messages_list))
 
-    def test_save_preferences_with_browser_push_subscription_redirects_with_success(self):
-        """Si el usuario guarda preferencias con suscripción activa en el navegador,
-
-        se le muestra mensaje de éxito completo.
-        """
-        self.client.force_login(self.user)
-        response = self.client.post(reverse('profile'), {
-            'tab': 'avisos',
-            f'preferred_categories_{self.org1.id}': [self.cat1.id],
-            'has_device_push_subscription': '1',
-        }, follow=True)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['active_tab'], 'avisos')
-        messages_list = list(response.context['messages'])
-        self.assertTrue(any('correctamente' in str(m.message) for m in messages_list))
-
-    def test_profile_edit_redirects_to_tab_avisos_or_perfil(self):
-        """profile_edit redirige a /profile/?tab=avisos o /profile/?tab=perfil según contexto."""
-        self.client.force_login(self.user)
-        res_avisos = self.client.get(reverse('profile_edit') + '?tab=avisos')
-        self.assertRedirects(res_avisos, reverse('profile') + '?tab=avisos')
-
-        res_perfil = self.client.get(reverse('profile_edit'))
-        self.assertRedirects(res_perfil, reverse('profile') + '?tab=perfil')
-
-    def test_banner_template_distinguishes_no_categories_vs_missing_push(self):
-        """El template de banner distingue entre configurar categorías vs activar avisos en el móvil."""
-        from django.template import Context, Template
-        tpl = Template('{% include "category_preferences_banner.html" %}')
-
-        # 1. Usuario con categorías pero sin suscripción push:
-        context_with_cats = Context({
-            'user': self.user,
-            'preferred_categories': [self.cat1],
-            'has_preferred_categories': True,
-            'has_push_subscription': False,
-        })
-        rendered_push = tpl.render(context_with_cats)
-        self.assertIn('Falta activar avisos en este m', rendered_push)
-        self.assertIn('tab=avisos#activar', rendered_push)
-
-        # 2. Usuario sin categorías:
-        context_no_cats = Context({
-            'user': self.user,
-            'preferred_categories': [],
-            'has_preferred_categories': False,
-            'has_push_subscription': False,
-        })
-        rendered_no_cats = tpl.render(context_no_cats)
-        self.assertIn('Personaliza tu experiencia', rendered_no_cats)
-        self.assertIn('tab=avisos', rendered_no_cats)
+        with self.subTest('con suscripción push en el navegador'):
+            response = self.client.post(reverse('profile'), {
+                'tab': 'avisos',
+                f'preferred_categories_{self.org1.id}': [self.cat1.id],
+                'has_device_push_subscription': '1',
+            }, follow=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context['active_tab'], 'avisos')
+            messages_list = list(response.context['messages'])
+            self.assertTrue(any('correctamente' in str(m.message) for m in messages_list))
 

@@ -49,47 +49,32 @@ class MatchChangePushTest(TestCase):
 
     @override_settings(MATCH_CHANGE_PUSH_ENABLED=True)
     @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
-    def test_flag_enabled_sends_push_on_datetime_change(self, mock_push):
-        """Con flag activo, cambio de fecha/hora envía push con tipo match_change y categorías."""
+    def test_flag_enabled_sends_push_per_change_type(self, mock_push):
+        """Con flag activo, cada tipo de cambio envía push match_change con su título y cuerpo."""
         new_date = self.match_date + timedelta(hours=2)
-        with self.captureOnCommitCallbacks(execute=True):
-            detect_and_record_match_changes(self.match, {'match_date': new_date})
+        cases = {
+            'datetime': ({'match_date': new_date}, 'Cambio de horario: Senior A vs Rival B', None),
+            'venue': ({'venue': 'Polideportivo San Juan'}, 'Cambio de pista: Senior A vs Rival B', 'Polideportivo San Juan'),
+            'postponed': ({'status': 'postponed'}, 'Partido aplazado: Senior A vs Rival B', 'aplazado'),
+        }
+        for label, (changes, expected_title, expected_body) in cases.items():
+            with self.subTest(label):
+                mock_push.reset_mock()
+                with self.captureOnCommitCallbacks(execute=True):
+                    detect_and_record_match_changes(self.match, changes)
 
-        mock_push.assert_called_once()
-        _, kwargs = mock_push.call_args
-        self.assertEqual(kwargs['organization_id'], self.org.id)
-        self.assertEqual(kwargs['notification_type'], 'match_change')
-        self.assertIn('Cambio de horario: Senior A vs Rival B', kwargs['title'])
-        self.assertIn(self.category.id, kwargs['category_ids'])
-        self.assertIn(f"/competitions/partidos/{self.match.id}/", kwargs['url'])
-
-    @override_settings(MATCH_CHANGE_PUSH_ENABLED=True)
-    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
-    def test_flag_enabled_sends_push_on_venue_change(self, mock_push):
-        """Con flag activo, cambio de pista envía push con el nuevo pabellón."""
-        with self.captureOnCommitCallbacks(execute=True):
-            detect_and_record_match_changes(self.match, {'venue': 'Polideportivo San Juan'})
-
-        mock_push.assert_called_once()
-        _, kwargs = mock_push.call_args
-        self.assertEqual(kwargs['organization_id'], self.org.id)
-        self.assertEqual(kwargs['notification_type'], 'match_change')
-        self.assertIn('Cambio de pista: Senior A vs Rival B', kwargs['title'])
-        self.assertIn('Polideportivo San Juan', kwargs['body'])
-
-    @override_settings(MATCH_CHANGE_PUSH_ENABLED=True)
-    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
-    def test_flag_enabled_sends_push_on_postponed(self, mock_push):
-        """Con flag activo, aplazamiento de partido envía push."""
-        with self.captureOnCommitCallbacks(execute=True):
-            detect_and_record_match_changes(self.match, {'status': 'postponed'})
-
-        mock_push.assert_called_once()
-        _, kwargs = mock_push.call_args
-        self.assertEqual(kwargs['organization_id'], self.org.id)
-        self.assertEqual(kwargs['notification_type'], 'match_change')
-        self.assertIn('Partido aplazado: Senior A vs Rival B', kwargs['title'])
-        self.assertIn('aplazado', kwargs['body'].lower())
+                mock_push.assert_called_once()
+                _, kwargs = mock_push.call_args
+                self.assertEqual(kwargs['organization_id'], self.org.id)
+                self.assertEqual(kwargs['notification_type'], 'match_change')
+                self.assertIn(self.category.id, kwargs['category_ids'])
+                self.assertIn(f"/competitions/partidos/{self.match.id}/", kwargs['url'])
+                self.assertIn(expected_title, kwargs['title'])
+                if expected_body is not None:
+                    if label == 'postponed':
+                        self.assertIn(expected_body, kwargs['body'].lower())
+                    else:
+                        self.assertIn(expected_body, kwargs['body'])
 
     @override_settings(MATCH_CHANGE_PUSH_ENABLED=True)
     @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')

@@ -41,7 +41,6 @@ class PWALandingMembershipsTest(TestCase):
         self.assertIn(self.org3, response.context['other_organizations'])
         self.assertNotIn(self.org1, response.context['other_organizations'])
         self.assertNotIn(self.org2, response.context['other_organizations'])
-        self.assertContains(response, 'Tus clubes')
 
     def test_unapproved_membership_does_not_redirect(self):
         Membership.objects.create(user=self.user, organization=self.org1, is_approved=False)

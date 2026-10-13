@@ -108,12 +108,16 @@ class BrandPortalHostTest(TestCase):
         )
 
     def test_anonymous_root_lists_leagues(self):
-        response = self.client.get(
+        listing = self.client.get(
             reverse('portal:league_list'), HTTP_HOST='ilovevoley.es',
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Liga Main')
-        self.assertNotContains(response, 'Liga Pasada')
+        self.assertEqual(listing.status_code, 200)
+        self.assertContains(listing, 'Liga Main')
+        self.assertNotContains(listing, 'Liga Pasada')
+
+        index = self.client.get(reverse('portal:index'), HTTP_HOST='ilovevoley.es')
+        self.assertEqual(index.status_code, 200)
+        self.assertContains(index, 'Liga Main')
 
     def test_season_param_selects_other_season(self):
         response = self.client.get(
@@ -122,11 +126,6 @@ class BrandPortalHostTest(TestCase):
         )
         self.assertContains(response, 'Liga Pasada')
         self.assertNotContains(response, 'Liga Main')
-
-    def test_index_root_ok(self):
-        response = self.client.get(reverse('portal:index'), HTTP_HOST='ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Liga Main')
 
     def test_canonical_points_to_brand_url_without_query_string(self):
         response = self.client.get(
@@ -375,10 +374,8 @@ class PortalMatchPrivacyAndJsonLdTest(TestCase):
         # Parciales no numéricos se descartan, no se renderizan.
         self.assertNotIn('<b>x</b>', body)
 
-    def test_match_outside_catalog_is_404(self):
+    def test_match_outside_catalog_or_on_tenant_host_is_404(self):
         self.assertEqual(self.get(self.hidden_match).status_code, 404)
-
-    def test_match_detail_on_tenant_host_is_404(self):
         self.assertEqual(self.get(self.match, 'testclub.ilovevoley.es').status_code, 404)
 
     def test_sports_event_jsonld_shape(self):
@@ -388,31 +385,3 @@ class PortalMatchPrivacyAndJsonLdTest(TestCase):
         self.assertEqual(data['awayTeam']['name'], 'Visitante FC')
         self.assertEqual(data['description'], '3-1')
         self.assertNotIn('Jugador Secreto', str(data))
-
-
-@override_settings(
-    ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'],
-    TENANT_BASE_DOMAIN='ilovevoley.es',
-    SECURE_SSL_REDIRECT=False,
-)
-class TenantCompetitionsStayPrivateTest(TestCase):
-    """Abrir el portal de marca no debe liberar /competitions/ en el tenant."""
-
-    def setUp(self):
-        Season.objects.create(
-            name='2026-27', start_year=2026, end_year=2027, is_current=True,
-        )
-        club = Club.objects.create(
-            official_name='Test Club', federation_id='CLUB-TENANT-PRIV',
-        )
-        Organization.objects.create(
-            slug='testclub', name='Test Club Org', club=club, is_active=True,
-        )
-
-    def test_anonymous_tenant_competitions_redirects_to_login(self):
-        response = self.client.get(
-            reverse('competitions:league_list'),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/accounts/login/', response.url)

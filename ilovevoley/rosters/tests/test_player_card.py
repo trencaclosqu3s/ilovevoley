@@ -168,7 +168,11 @@ class PlayerCardViewTests(PlayerCardTestBase):
 
         response = self.client.get(reverse('rosters:my_profile'), HTTP_HOST='testclub.ilovevoley.es')
 
-        self.assertContains(response, reverse('rosters:person_card_page', args=[self.person.id]))
+        # El hijo aparece en «Tú» con su cromo disponible (has_card), sin
+        # depender de que la plantilla pinte un enlace concreto.
+        child = response.context['children'][0]
+        self.assertEqual(child['person'], self.person)
+        self.assertTrue(child['has_card'])
 
     def test_padre_ve_la_trayectoria_de_su_hijo_tambien_en_otro_club(self):
         # «Tú» es universal: si el hijo jugó el año pasado en otro club, sus padres lo siguen viendo.

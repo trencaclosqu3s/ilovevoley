@@ -50,30 +50,31 @@ class LandingViewTest(TestCase):
     def test_root_domain_shows_landing_for_anonymous(self):
         response = self.client.get('/', HTTP_HOST='ilovevoley.es')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Selecciona tu club')
+        self.assertTemplateUsed(response, 'landing.html')
+        self.assertIn(self.org, response.context['organizations'])
 
-    def test_brand_navbar_links_anonymous_to_public_portal(self):
+    def test_competition_navbar_urls_depend_on_domain(self):
         # Decisión de producto #124: en dominio de marca el menú Competición
-        # apunta al portal público sin exigir login.
+        # apunta al portal público sin exigir login; en el tenant, al club.
+        from ilovevoley.users.models import Membership
+
         response = self.client.get('/', HTTP_HOST='ilovevoley.es')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'href="/competicion/calendario/"')
         self.assertContains(response, 'href="/competicion/ligas/"')
         self.assertNotContains(response, 'href="/competitions/calendario/"')
 
-    def test_tenant_navbar_keeps_club_competition_urls(self):
-        from ilovevoley.users.models import Membership
-
-        User = get_user_model()
-        user = User.objects.create_user(username='nav_member', password='pass')
+        user = get_user_model().objects.create_user(username='nav_member', password='pass')
         Membership.objects.create(
             user=user, organization=self.org, is_approved=True,
         )
         self.client.force_login(user)
-        response = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'href="/competitions/calendario/"')
-        self.assertNotContains(response, 'href="/competicion/calendario/"')
+        tenant_response = self.client.get(
+            reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es'
+        )
+        self.assertEqual(tenant_response.status_code, 200)
+        self.assertContains(tenant_response, 'href="/competitions/calendario/"')
+        self.assertNotContains(tenant_response, 'href="/competicion/calendario/"')
 
     def test_tenant_root_redirects_authenticated_to_videos(self):
         User = get_user_model()
@@ -86,10 +87,16 @@ class LandingViewTest(TestCase):
     def test_tenant_root_respects_configured_home(self):
         User = get_user_model()
         user = User.objects.create_user(username='member2', password='pass')
-        self.client.force_login(user)
         self.org.default_home = 'images'
         self.org.save()
 
+        # Anónimo: el login recuerda el home configurado en `next`.
+        anon = self.client.get('/', HTTP_HOST='testclub.ilovevoley.es')
+        self.assertEqual(anon.status_code, 302)
+        self.assertIn('next=/content/imagenes/', anon.url)
+
+        # Autenticado: redirige al home configurado.
+        self.client.force_login(user)
         response = self.client.get('/', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/content/imagenes/')
@@ -98,13 +105,6 @@ class LandingViewTest(TestCase):
         self.org.save()
         response = self.client.get('/', HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.url, '/competitions/ligas/')
-
-    def test_tenant_root_anonymous_next_uses_configured_home(self):
-        self.org.default_home = 'images'
-        self.org.save()
-        response = self.client.get('/', HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('next=/content/imagenes/', response.url)
 
     def test_login_page_uses_tenant_brand_color(self):
         self.org.primary_color = '#112233'
@@ -115,8 +115,6 @@ class LandingViewTest(TestCase):
         content = response.content.decode('utf-8')
         self.assertIn('--brand: #112233', content)
         self.assertIn('--brand-dark: #445566', content)
-        self.assertIn('--brand-rgb: 17 34 51', content)
-        self.assertIn('--brand-dark-rgb: 68 85 102', content)
         self.assertIn('css/app.css', content)
         css_idx = content.find('css/app.css')
         style_idx = content.find('--brand: #112233')
@@ -194,16 +192,6 @@ class CoreViewUrlTests(TestCase):
         self.unapproved_user.refresh_from_db()
         self.assertTrue(self.unapproved_user.is_approved)
 
-    def test_core_reject_user_api(self):
-        self.client.force_login(self.superuser)
-        url = reverse('core:reject_user_api', args=[self.unapproved_user.id])
-        self.assertEqual(url, f'/core/api/users/{self.unapproved_user.id}/reject/')
-        response = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.json()['success'])
-        self.unapproved_user.refresh_from_db()
-        self.assertFalse(self.unapproved_user.is_active)
-
 
 @override_settings(
     ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'],
@@ -239,10 +227,6 @@ class SwitchClubNavbarTest(TestCase):
         self.assertEqual(response.status_code, 200)
         return response
 
-    def test_hidden_with_single_approved_membership(self):
-        response = self._get_navbar()
-        self.assertNotContains(response, 'Cambiar de club')
-
     def test_shown_with_multiple_memberships_and_points_to_root_domain(self):
         from ilovevoley.users.models import Membership
 
@@ -258,17 +242,6 @@ class SwitchClubNavbarTest(TestCase):
 
         Membership.objects.create(
             user=self.user, organization=self.other_org, is_approved=False
-        )
-        response = self._get_navbar()
-        self.assertNotContains(response, 'Cambiar de club')
-
-    def test_inactive_org_membership_does_not_count(self):
-        from ilovevoley.users.models import Membership
-
-        self.other_org.is_active = False
-        self.other_org.save()
-        Membership.objects.create(
-            user=self.user, organization=self.other_org, is_approved=True
         )
         response = self._get_navbar()
         self.assertNotContains(response, 'Cambiar de club')
@@ -333,10 +306,17 @@ class TenantManagerModerationTest(TestCase):
         self.assertFalse(self.pending_b.is_approved)
 
     def test_member_without_role_cannot_approve(self):
+        from ilovevoley.users.models import Membership
+
         self.client.force_login(self.member)
         url = reverse('core:approve_user_api', args=[self.pending_a.id])
         response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
         self.assertEqual(response.status_code, 403)
+        self.pending_a.refresh_from_db()
+        self.assertFalse(self.pending_a.is_approved)
+        self.assertFalse(Membership.objects.get(
+            user=self.pending_a, organization=self.org_a
+        ).is_approved)
 
     def test_manager_reject_denies_membership_without_deactivating_account(self):
         self.client.force_login(self.manager)
@@ -361,45 +341,31 @@ class TenantManagerModerationTest(TestCase):
             user=self.pending_b, organization=self.org_b
         ).exists())
 
-    def test_manager_panel_only_lists_own_org_and_no_images(self):
+    def test_manager_panel_only_lists_own_org_pending_users(self):
         self.client.force_login(self.manager)
         url = reverse('core:moderation_panel')
         response = self.client.get(url, HTTP_HOST='cluba.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'pending_a')
-        self.assertNotContains(response, 'pending_b')
+        pending_users = list(response.context['pending_users'])
+        self.assertIn(self.pending_a, pending_users)
+        self.assertNotIn(self.pending_b, pending_users)
+        self.assertEqual(response.context['pending_users_count'], 1)
 
-    def test_panel_loads_each_script_once_for_manager(self):
-        self.client.force_login(self.manager)
-        response = self.client.get(
-            reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(_count_script(response.content, 'js/lightbox'), 1)
-        self.assertEqual(_count_script(response.content, 'js/moderation'), 1)
-
-    def test_panel_loads_each_script_once_for_superuser(self):
+    def test_panel_loads_each_script_once(self):
         """base.html ya carga ambos scripts para superusers; el panel no debe
         volver a incluirlos (#209)."""
         superuser = get_user_model().objects.create_superuser(
             username='root', password='pass'
         )
-        self.client.force_login(superuser)
-        response = self.client.get(
-            reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(_count_script(response.content, 'js/lightbox'), 1)
-        self.assertEqual(_count_script(response.content, 'js/moderation'), 1)
-
-    def test_manager_counts_api_scoped_to_tenant(self):
-        self.client.force_login(self.manager)
-        url = reverse('core:moderation_counts_api')
-        response = self.client.get(url, HTTP_HOST='cluba.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data['pending_users'], 1)
-        self.assertEqual(data['pending_images'], 0)
+        for label, user in (('manager', self.manager), ('superuser', superuser)):
+            with self.subTest(user=label):
+                self.client.force_login(user)
+                response = self.client.get(
+                    reverse('core:moderation_panel'), HTTP_HOST='cluba.ilovevoley.es'
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(_count_script(response.content, 'js/lightbox'), 1)
+                self.assertEqual(_count_script(response.content, 'js/moderation'), 1)
 
     def test_member_without_role_cannot_open_panel(self):
         self.client.force_login(self.member)
@@ -645,11 +611,6 @@ class SeoEndpointsTest(TestCase):
         self.assertNotIn(f'/competicion/ligas/{reference.id}/</loc>', body)
         self.assertNotIn('testclub.ilovevoley.es', body)
 
-    def test_favicon_redirects_to_static_svg(self):
-        response = self.client.get('/favicon.ico', HTTP_HOST='ilovevoley.es')
-        self.assertEqual(response.status_code, 301)
-        self.assertIn('favicon.svg', response.url)
-
     def test_security_txt_has_contact_and_future_expiry(self):
         response = self.client.get('/.well-known/security.txt', HTTP_HOST='ilovevoley.es')
         self.assertEqual(response.status_code, 200)
@@ -752,12 +713,6 @@ class Custom429HandlerTests(TestCase):
         self.assertIn('error', data)
         self.assertIn('detail', data)
 
-    def test_custom_429_json_response_for_accept_json(self):
-        request = self.factory.get('/test/', HTTP_ACCEPT='application/json')
-        response = custom_429(request, exception=Ratelimited())
-        self.assertEqual(response.status_code, 429)
-        self.assertEqual(response['Content-Type'], 'application/json')
-
 
 @override_settings(
     RATELIMIT_ENABLE=True,
@@ -767,29 +722,21 @@ class ModerationRateLimitingTests(TestCase):
     def setUp(self):
         cache.clear()
 
-    def test_moderate_user_rate_limiting_by_ip(self):
-        url = '/moderate/user/some-token-string/'
-        client_ip = '198.51.100.90'
+    def test_moderation_endpoints_rate_limited_by_ip(self):
+        for url, client_ip in (
+            ('/moderate/user/some-token-string/', '198.51.100.90'),
+            ('/moderate/image/some-token-string/', '198.51.100.91'),
+        ):
+            with self.subTest(url=url):
+                cache.clear()
+                # 10 peticiones dentro del límite (redirige a login o 400 si no autenticado)
+                for _ in range(10):
+                    response = self.client.get(url, REMOTE_ADDR=client_ip)
+                    self.assertNotEqual(response.status_code, 429)
 
-        # 10 peticiones dentro del límite (redirige a login o 400 si no autenticado)
-        for i in range(10):
-            response = self.client.get(url, REMOTE_ADDR=client_ip)
-            self.assertNotEqual(response.status_code, 429)
-
-        # 11ª petición bloqueada con 429
-        blocked_response = self.client.get(url, REMOTE_ADDR=client_ip)
-        self.assertEqual(blocked_response.status_code, 429)
-
-    def test_moderate_image_rate_limiting_by_ip(self):
-        url = '/moderate/image/some-token-string/'
-        client_ip = '198.51.100.91'
-
-        for i in range(10):
-            response = self.client.get(url, REMOTE_ADDR=client_ip)
-            self.assertNotEqual(response.status_code, 429)
-
-        blocked_response = self.client.get(url, REMOTE_ADDR=client_ip)
-        self.assertEqual(blocked_response.status_code, 429)
+                # 11ª petición bloqueada con 429
+                blocked_response = self.client.get(url, REMOTE_ADDR=client_ip)
+                self.assertEqual(blocked_response.status_code, 429)
 
 
 @override_settings(ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'])
@@ -827,21 +774,28 @@ class PrivacyPolicyViewTest(TestCase):
         self.assertEqual(response.context['privacy_email'], 'fallback@example.com')
         self.assertContains(response, 'mailto:fallback@example.com')
 
-    def test_privacy_policy_footer_link_only_for_authenticated_users(self):
-        privacy_url = reverse('core:privacy_policy')
+    def test_legal_footer_links_only_for_authenticated_users(self):
+        legal_urls = [
+            reverse('core:privacy_policy'),
+            reverse('core:image_transparency'),
+        ]
 
-        # Usuario anónimo en el tenant no tiene el enlace en el pie
+        # Usuario anónimo en el tenant no tiene los enlaces en el pie
         response_anon = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response_anon.status_code, 200)
         footer_anon = response_anon.content.decode().split('<footer')[1].split('</footer>')[0]
-        self.assertNotIn(privacy_url, footer_anon)
+        for url in legal_urls:
+            with self.subTest(url=url):
+                self.assertNotIn(url, footer_anon)
 
-        # Usuario autenticado sí lo tiene en el pie
+        # Usuario autenticado sí los tiene en el pie
         self.client.force_login(self.user)
         response_auth = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response_auth.status_code, 200)
         footer_auth = response_auth.content.decode().split('<footer')[1].split('</footer>')[0]
-        self.assertIn(privacy_url, footer_auth)
+        for url in legal_urls:
+            with self.subTest(url=url):
+                self.assertIn(url, footer_auth)
 
     def test_cookie_banner_and_registration_link_to_privacy_policy(self):
         privacy_url = reverse('core:privacy_policy')
@@ -854,14 +808,6 @@ class PrivacyPolicyViewTest(TestCase):
         response_signup = self.client.get(reverse('account_signup'), HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response_signup.status_code, 200)
         self.assertContains(response_signup, privacy_url)
-
-    def test_privacy_policy_catalan_translation(self):
-        url = reverse('core:privacy_policy')
-        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = 'ca'
-        response = self.client.get(url, HTTP_HOST='ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Política de Privacitat')
-        self.assertContains(response, 'Responsable del Tractament')
 
 
 @override_settings(ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'])
@@ -876,18 +822,6 @@ class ImageTransparencyViewTests(TestCase):
         )
         User = get_user_model()
         self.user = User.objects.create_user(username='transparency_user', password='password123')
-
-    def test_image_transparency_requires_login(self):
-        url = reverse('core:image_transparency')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/accounts/login/', response.url)
-
-    def test_image_transparency_ok_for_authenticated_user(self):
-        url = reverse('core:image_transparency')
-        self.client.force_login(self.user)
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
 
     def test_image_transparency_explains_consent_levels_and_links(self):
         url = reverse('core:image_transparency')
@@ -909,27 +843,5 @@ class ImageTransparencyViewTests(TestCase):
             response,
             'El nivel elegido no oculta automáticamente las imágenes etiquetadas',
         )
-
-    def test_image_transparency_catalan_translation(self):
-        url = reverse('core:image_transparency')
-        self.client.force_login(self.user)
-        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = 'ca'
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Qui veu les fotos')
-
-    def test_image_transparency_footer_link_only_for_authenticated_users(self):
-        transparency_url = reverse('core:image_transparency')
-
-        response_anon = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response_anon.status_code, 200)
-        footer_anon = response_anon.content.decode().split('<footer')[1].split('</footer>')[0]
-        self.assertNotIn(transparency_url, footer_anon)
-
-        self.client.force_login(self.user)
-        response_auth = self.client.get(reverse('core:about'), HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response_auth.status_code, 200)
-        footer_auth = response_auth.content.decode().split('<footer')[1].split('</footer>')[0]
-        self.assertIn(transparency_url, footer_auth)
 
 

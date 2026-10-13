@@ -288,13 +288,17 @@ class WherePlaysViewTests(TestCase):
         )
 
     def test_public_access_without_login_renders_results(self):
-        response = self.client.get(
-            reverse('where_plays') + '?q=Mayurqa',
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Mayurqa Senior')
-        self.assertContains(response, 'Cómo llegar')
+        for query, expected in (
+            ('Mayurqa', 'Mayurqa Senior'),
+            ('Ciutatprova', 'Pav. Test Ciutatprova'),
+        ):
+            with self.subTest(query=query):
+                response = self.client.get(
+                    reverse('where_plays') + f'?q={query}',
+                    HTTP_HOST='testclub.ilovevoley.es',
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, expected)
 
     def test_search_endpoint_returns_json(self):
         response = self.client.get(
@@ -316,24 +320,6 @@ class WherePlaysViewTests(TestCase):
         self.assertEqual(payload['results'][0]['type'], 'venue')
         self.assertEqual(payload['results'][0]['name'], 'Pav. Test Ciutatprova')
         self.assertEqual(len(payload['results'][0]['matches']), 1)
-
-    def test_page_renders_venue_card(self):
-        response = self.client.get(
-            reverse('where_plays') + '?q=Ciutatprova',
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Pav. Test Ciutatprova')
-        self.assertContains(response, 'Ciutatprova')
-        self.assertContains(response, 'Cómo llegar')
-
-    def test_search_endpoint_ignores_short_query(self):
-        response = self.client.get(
-            reverse('where_plays_search') + '?q=Ma',
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['results'], [])
 
     def test_root_domain_redirects_to_landing(self):
         response = self.client.get(reverse('where_plays'), HTTP_HOST='ilovevoley.es')

@@ -60,7 +60,6 @@ class SecurityHeadersTest(TestCase):
     def test_admin_uses_relaxed_csp(self):
         """El admin necesita inline/eval (Unfold/Alpine) y recibe política propia."""
         response = self.client.get('/admin/login/')
-        self.assertEqual(response.status_code, 200)
         csp = response.headers['Content-Security-Policy']
         self.assertIn("'unsafe-inline'", csp)
         self.assertIn("'unsafe-eval'", csp)

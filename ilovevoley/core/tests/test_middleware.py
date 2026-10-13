@@ -95,6 +95,7 @@ class TenantMiddlewareTest(TestCase):
         response = middleware(request)
 
         self.assertEqual(response.status_code, 404)
+        self.assertIsNone(request.tenant)
 
 
 class Error404TrackingMiddlewareTest(TestCase):
@@ -179,17 +180,14 @@ class Error404TrackingMiddlewareTest(TestCase):
             '/favicon.ico',
         ]
 
-        with patch('ilovevoley.core.middleware.logger') as mock_logger, \
-                patch('ilovevoley.core.middleware._atomic_incr') as mock_incr, \
-                patch('ilovevoley.core.middleware.send_404_immediate_alert') as mock_alert:
-            for path in scanner_paths:
-                request = self.factory.get(path)
-                request.user = AnonymousUser()
-                middleware(request)
+        for path in scanner_paths:
+            request = self.factory.get(path)
+            request.user = AnonymousUser()
+            middleware(request)
 
-        mock_logger.warning.assert_not_called()
-        mock_incr.assert_not_called()
-        mock_alert.assert_not_called()
+        # Efecto real: ni el contador diario ni la lista de errores se tocan
+        self.assertIsNone(cache.get(day_cache_key('404_count')))
+        self.assertIsNone(cache.get(day_cache_key('404_errors')))
 
     def test_404_middleware_does_not_ignore_media_uploads(self):
         """Un .log subido por el usuario no debe filtrarse por la regla de extensiones."""
@@ -361,11 +359,6 @@ class GetClientIPTests(TestCase):
 
     def test_discards_every_forged_entry(self):
         request = self._request(forwarded_for='9.9.9.9, 8.8.8.8, 203.0.113.7')
-        self.assertEqual(get_client_ip(request), '203.0.113.7')
-
-    def test_never_returns_internal_docker_ip_when_header_present(self):
-        request = self._request(remote_addr='172.18.0.5', forwarded_for='9.9.9.9, 203.0.113.7')
-        self.assertNotEqual(get_client_ip(request), '172.18.0.5')
         self.assertEqual(get_client_ip(request), '203.0.113.7')
 
     def test_falls_back_to_remote_addr_without_header(self):

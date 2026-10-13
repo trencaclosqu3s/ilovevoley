@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 from email.utils import parseaddr
+
+from decouple import config as env_config
 from django.conf import settings
 from django.test import SimpleTestCase
 
@@ -48,21 +50,27 @@ class OperationalSettingsTest(SimpleTestCase):
         )
 
     def test_institutional_sender_email(self):
-        """DEFAULT_FROM_EMAIL y SERVER_EMAIL deben usar dirección institucional."""
-        _, from_addr = parseaddr(settings.DEFAULT_FROM_EMAIL)
-        _, server_addr = parseaddr(settings.SERVER_EMAIL)
+        """El **default de código** del remitente es institucional (#121).
 
-        self.assertTrue(
-            from_addr.endswith('@ilovevoley.es'),
-            f"DEFAULT_FROM_EMAIL ({from_addr}) debe pertenecer al dominio @ilovevoley.es.",
-        )
-        self.assertNotIn('gmail.com', from_addr)
+        El valor efectivo puede sobreescribirse con `DEFAULT_FROM_EMAIL` /
+        `SERVER_EMAIL` en el entorno (p. ej. un gmail en desarrollo local), y
+        eso es legítimo. Este test solo vigila el default de `config.settings`,
+        que es el que se usa cuando no hay override: si alguien cambia el
+        default por una dirección personal, aquí salta.
+        """
+        for var, effective in (
+            ('DEFAULT_FROM_EMAIL', settings.DEFAULT_FROM_EMAIL),
+            ('SERVER_EMAIL', settings.SERVER_EMAIL),
+        ):
+            if env_config(var, default=None) is not None:
+                continue  # override explícito del entorno: no es el default
 
-        self.assertTrue(
-            server_addr.endswith('@ilovevoley.es'),
-            f"SERVER_EMAIL ({server_addr}) debe pertenecer al dominio @ilovevoley.es.",
-        )
-        self.assertNotIn('gmail.com', server_addr)
+            _, addr = parseaddr(effective)
+            self.assertTrue(
+                addr.endswith('@ilovevoley.es'),
+                f"{var} ({addr}) debe pertenecer al dominio @ilovevoley.es.",
+            )
+            self.assertNotIn('gmail.com', addr)
 
     def test_nginx_client_max_body_size(self):
         """nginx.conf debe limitar client_max_body_size a 60M en el bloque del sitio."""

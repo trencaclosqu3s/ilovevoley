@@ -158,10 +158,6 @@ class TenantQuerysetTests(TestCase):
                 Video.objects, self.org_a, user=self.user, id=self.video_b.id,
             )
 
-    def test_object_or_404_accepts_model_class(self):
-        obj = get_tenant_object_or_404(Video, self.org_a, user=self.user, id=self.video_a.id)
-        self.assertEqual(obj, self.video_a)
-
     def test_object_or_404_bypasses_for_superuser(self):
         obj = get_tenant_object_or_404(
             Video.objects, self.org_a, user=self.superuser, id=self.video_b.id,

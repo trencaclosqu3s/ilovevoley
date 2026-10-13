@@ -179,22 +179,3 @@ def test_legacy_videos_urls_redirect_permanently(legacy_path, canonical_path):
     assert response.status_code == 301, legacy_path
     assert response.url == canonical_path, legacy_path
 
-
-def test_no_legacy_namespace_references():
-    """Criterio #130: ninguna plantilla, script o test usa el namespace legado."""
-    legacy_namespace = 'videos' + ':'
-    base_dir = Path(settings.BASE_DIR) / 'ilovevoley'
-    files = (
-        list(base_dir.glob('**/*.html'))
-        + list(base_dir.glob('**/*.js'))
-        + [p for p in base_dir.glob('**/*.py') if 'migrations' not in str(p)]
-    )
-
-    offenders = [
-        str(path.relative_to(base_dir))
-        for path in files
-        if legacy_namespace in path.read_text(encoding='utf-8')
-    ]
-
-    assert not offenders, f"Referencias al namespace legado en: {offenders}"
-

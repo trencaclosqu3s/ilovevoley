@@ -81,13 +81,14 @@ class ProtectedMediaTests(TestCase):
         # Sin sesión responde el guard del decorator (403, convención de /media/).
         self.assertEqual(response.status_code, 403)
 
-    def test_anonymous_pending_image_is_forbidden(self):
-        response = self.client.get('/media/images/2025/06/pending.jpg', HTTP_HOST=HOST)
-        self.assertEqual(response.status_code, 403)
-
-    def test_anonymous_approved_image_is_forbidden(self):
-        response = self.client.get('/media/images/2025/06/approved.jpg', HTTP_HOST=HOST)
-        self.assertEqual(response.status_code, 403)
+    def test_anonymous_image_is_forbidden(self):
+        for path in (
+            '/media/images/2025/06/pending.jpg',
+            '/media/images/2025/06/approved.jpg',
+        ):
+            with self.subTest(path=path):
+                response = self.client.get(path, HTTP_HOST=HOST)
+                self.assertEqual(response.status_code, 403)
 
     def test_member_gets_approved_image_via_x_accel(self):
         self.client.force_login(self.member)
@@ -126,6 +127,9 @@ class ProtectedMediaTests(TestCase):
         self.client.force_login(self.staff)
         response = self.client.get('/media/images/2025/06/pending.jpg', HTTP_HOST=HOST)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response['X-Accel-Redirect'], '/protected-media/images/2025/06/pending.jpg'
+        )
 
     def test_uploader_can_see_own_pending_image(self):
         Image.objects.create(
@@ -135,6 +139,9 @@ class ProtectedMediaTests(TestCase):
         self.client.force_login(self.member)
         response = self.client.get('/media/images/2025/06/mine.jpg', HTTP_HOST=HOST)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response['X-Accel-Redirect'], '/protected-media/images/2025/06/mine.jpg'
+        )
 
     def test_member_cannot_see_other_tenant_image(self):
         self.client.force_login(self.member)

@@ -242,15 +242,24 @@ def test_task_aggregates_indoor_and_beach_candidates():
 
 
 @pytest.mark.django_db
-def test_discover_now_button_is_superuser_only(client):
+@pytest.mark.parametrize(
+    'url_name, task_path',
+    [
+        ('admin:competitions_leaguecandidate_discover_now',
+         'ilovevoley.competitions.tasks.discover_leagues_task.delay'),
+        ('admin:competitions_leaguecandidate_discover_historical_now',
+         'ilovevoley.competitions.tasks.discover_historical_leagues_task.delay'),
+    ],
+)
+def test_discover_buttons_are_superuser_only(client, url_name, task_path):
     from django.contrib.auth import get_user_model
     from django.urls import reverse
 
     users = get_user_model().objects
     staff = users.create_user('staff', 'staff@example.com', 'x', is_staff=True)
     root = users.create_superuser('root', 'root@example.com', 'x')
-    url = reverse('admin:competitions_leaguecandidate_discover_now')
-    with mock.patch('ilovevoley.competitions.tasks.discover_leagues_task.delay') as delay:
+    url = reverse(url_name)
+    with mock.patch(task_path) as delay:
         client.force_login(staff)
         client.get(url)
         delay.assert_not_called()
@@ -381,24 +390,6 @@ def test_scrape_historical_task_single_league_runs_inline():
 
 
 @pytest.mark.django_db
-def test_discover_historical_button_is_superuser_only(client):
-    from django.contrib.auth import get_user_model
-    from django.urls import reverse
-
-    users = get_user_model().objects
-    staff = users.create_user('staff', 'staff@example.com', 'x', is_staff=True)
-    root = users.create_superuser('root', 'root@example.com', 'x')
-    url = reverse('admin:competitions_leaguecandidate_discover_historical_now')
-    with mock.patch('ilovevoley.competitions.tasks.discover_historical_leagues_task.delay') as delay:
-        client.force_login(staff)
-        client.get(url)
-        delay.assert_not_called()
-        client.force_login(root)
-        client.get(url)
-        delay.assert_called_once_with()
-
-
-@pytest.mark.django_db
 def test_discover_links_manual_league_so_it_can_be_suggested_as_parent():
     season = Season.objects.resolve('2026-27')
     Organization.objects.create(slug='sj', name='SJ', club_team_names={'a': 'SANT JOSEP'})
@@ -415,41 +406,31 @@ def test_discover_links_manual_league_so_it_can_be_suggested_as_parent():
 
 
 @pytest.mark.django_db
-def test_candidate_approve_beach_is_admin_only():
+@pytest.mark.parametrize(
+    'federation_id, section, category_label, modality, expected',
+    [
+        ('99991', 'VOLEYPLAYA', 'INFANTIL MASCULINA PLAYA', 'beach',
+         {'modality': 'beach', 'visibility_type': 'reference',
+          'should_show_in_app': False, 'match_format': 'tournament_3sets'}),
+        ('99992', 'INSULAR', 'INFANTIL MASCULINO', 'indoor',
+         {'modality': 'indoor', 'visibility_type': 'main',
+          'should_show_in_app': True, 'match_format': 'standard'}),
+    ],
+)
+def test_candidate_approve_sets_modality_fields(federation_id, section, category_label, modality, expected):
     season = Season.objects.resolve('2026-27')
     candidate = LeagueCandidate.objects.create(
-        federation_id='99991',
+        federation_id=federation_id,
         season=season,
-        section='VOLEYPLAYA',
-        category_label='INFANTIL MASCULINA PLAYA',
-        phase_label='Campeonato de Baleares - GRUP A',
-        modality='beach',
-        is_historical=False,
-    )
-    league = candidate.approve()
-    assert league.modality == 'beach'
-    assert league.visibility_type == 'reference'
-    assert league.should_show_in_app is False
-    assert league.match_format == 'tournament_3sets'
-
-
-@pytest.mark.django_db
-def test_candidate_approve_indoor_keeps_main_and_standard():
-    season = Season.objects.resolve('2026-27')
-    candidate = LeagueCandidate.objects.create(
-        federation_id='99992',
-        season=season,
-        section='INSULAR',
-        category_label='INFANTIL MASCULINO',
+        section=section,
+        category_label=category_label,
         phase_label='Liga Regular',
-        modality='indoor',
+        modality=modality,
         is_historical=False,
     )
     league = candidate.approve()
-    assert league.modality == 'indoor'
-    assert league.visibility_type == 'main'
-    assert league.should_show_in_app is True
-    assert league.match_format == 'standard'
+    for field, value in expected.items():
+        assert getattr(league, field) == value
 
 
 def test_detect_modality():
@@ -519,7 +500,6 @@ def test_discover_seasonal_beach(monkeypatch):
 
 @pytest.mark.django_db
 def test_discover_leagues_command_seasonal(monkeypatch):
-    from io import StringIO
     from django.core.management import call_command
 
     season = Season.objects.resolve('2024-25')
@@ -533,11 +513,8 @@ def test_discover_leagues_command_seasonal(monkeypatch):
         'ilovevoley.competitions.management.commands.discover_leagues.discover_seasonal_beach',
         mock_discover_seasonal,
     )
-    out = StringIO()
-    call_command('discover_leagues', '--season', '2024-25', '--seasonal', '--date-range', '01/06/2025', '31/08/2025', stdout=out)
-    assert len(called) == 1
-    assert called[0] == (season, '01/06/2025', '31/08/2025')
-    assert '0 candidatas nuevas en 2024-25' in out.getvalue()
+    call_command('discover_leagues', '--season', '2024-25', '--seasonal', '--date-range', '01/06/2025', '31/08/2025')
+    assert called == [(season, '01/06/2025', '31/08/2025')]
 
 
 @pytest.mark.django_db

@@ -186,9 +186,6 @@ class MatchManagerTests(TestCase):
     def test_manager_por_defecto_oculta_los_retirados(self):
         self.assertEqual(list(Match.objects.all()), [self.jugado])
 
-    def test_all_objects_incluye_los_retirados(self):
-        self.assertEqual(Match.all_objects.count(), 2)
-
 
 class LeagueManagerTests(TestCase):
     """visible_in_app() exige tres condiciones a la vez, no una."""
@@ -259,32 +256,22 @@ class LeaguePhaseTests(TestCase):
             federation_id='MP-2',
         )
 
-    def test_is_phase_distingue_la_liga_raiz_de_sus_fases(self):
+    def test_is_phase_y_root_league_identifican_la_raiz(self):
         self.assertFalse(self.regular.is_phase)
         self.assertTrue(self.oro.is_phase)
-
-    def test_root_league_sube_hasta_la_raiz_desde_una_fase(self):
         self.assertEqual(self.oro.root_league, self.regular)
 
     def test_get_all_phases_devuelve_la_raiz_primero_y_luego_las_fases_ordenadas(self):
-        self.assertEqual(
-            self.regular.get_all_phases(), [self.regular, self.oro, self.plata]
-        )
-
-    def test_get_all_phases_desde_una_fase_devuelve_lo_mismo_que_desde_la_raiz(self):
-        self.assertEqual(self.oro.get_all_phases(), self.regular.get_all_phases())
+        expected = [self.regular, self.oro, self.plata]
+        self.assertEqual(self.regular.get_all_phases(), expected)
+        # Desde una fase se obtiene la misma lista que desde la raíz.
+        self.assertEqual(self.oro.get_all_phases(), expected)
 
     def test_get_combined_matches_agrega_los_partidos_de_todas_las_fases(self):
-        self.assertEqual(
-            set(self.regular.get_combined_matches()),
-            {self.partido_regular, self.partido_oro},
-        )
-
-    def test_get_combined_matches_desde_una_fase_agrega_igual(self):
-        self.assertEqual(
-            set(self.oro.get_combined_matches()),
-            {self.partido_regular, self.partido_oro},
-        )
+        expected = {self.partido_regular, self.partido_oro}
+        self.assertEqual(set(self.regular.get_combined_matches()), expected)
+        # Desde una fase se agregan los mismos partidos que desde la raíz.
+        self.assertEqual(set(self.oro.get_combined_matches()), expected)
 
     def test_display_name_prioriza_el_override_sobre_el_nombre_de_fase(self):
         self.oro.display_name_override = 'Fase de Oro 24/25'
@@ -316,25 +303,17 @@ class MatchCleanTests(TestCase):
         with self.assertRaises(ValidationError):
             partido.clean()
 
-    def test_un_partido_oficial_ya_guardado_exige_equipo_local(self):
-        partido = Match.objects.create(
-            league=self.league, home_team=self.a, away_team=self.b,
-            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
-            federation_id='MC-1',
-        )
-        partido.home_team = None
-        with self.assertRaises(ValidationError):
-            partido.clean()
-
-    def test_un_partido_oficial_ya_guardado_exige_equipo_visitante(self):
-        partido = Match.objects.create(
-            league=self.league, home_team=self.a, away_team=self.b,
-            match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
-            federation_id='MC-2',
-        )
-        partido.away_team = None
-        with self.assertRaises(ValidationError):
-            partido.clean()
+    def test_un_partido_oficial_ya_guardado_exige_ambos_equipos(self):
+        for field in ('home_team', 'away_team'):
+            with self.subTest(field=field):
+                partido = Match.objects.create(
+                    league=self.league, home_team=self.a, away_team=self.b,
+                    match_date=datetime(2024, 12, 1, 12, 0, tzinfo=dt_timezone.utc),
+                    federation_id=f'MC-{field}',
+                )
+                setattr(partido, field, None)
+                with self.assertRaises(ValidationError):
+                    partido.clean()
 
     def test_un_partido_oficial_sin_guardar_no_exige_equipos(self):
         # La validación solo aplica si self.pk is not None: durante la creación

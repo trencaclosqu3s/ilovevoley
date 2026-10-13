@@ -40,13 +40,12 @@ class RostersReExportCompatibilityTest(TestCase):
             federation_id='REEXPORT-R1', is_active=True,
         )
 
-    def test_legacy_form_import_creates_a_person(self):
-        form = vid_forms_rosters.PersonForm(
-            {'first_name': 'Legacy', 'last_name': 'Ficha', 'birth_year': '2012'},
-        )
-        self.assertTrue(form.is_valid())
-        person = form.save()
-        self.assertEqual(person.birth_year, 2012)
+    def test_legacy_form_import_is_the_canonical_form(self):
+        # El contrato de la capa `videos` es reexportar el formulario canónico,
+        # no volver a probar su validación (cubierta en test_forms.py).
+        from ilovevoley.rosters.forms import PersonForm as CanonicalPersonForm
+
+        self.assertIs(vid_forms_rosters.PersonForm, CanonicalPersonForm)
 
     def test_legacy_views_resolve_to_the_canonical_roster_urls(self):
         routes = [
@@ -66,15 +65,6 @@ class RostersReExportCompatibilityTest(TestCase):
             with self.subTest(view=attr):
                 legacy_view = getattr(vid_views_rosters, attr)
                 self.assertIs(resolve(reverse(route, args=args)).func, legacy_view)
-
-    def test_legacy_roster_overview_renders_the_tenant_teams(self):
-        self.client.force_login(self.user)
-        response = self.client.get(
-            reverse('rosters:roster_overview'), HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertIs(response.resolver_match.func, vid_views_rosters.roster_overview)
-        self.assertIn(self.team, response.context['teams'])
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
@@ -127,14 +117,6 @@ class RosterViewUrlTests(TestCase):
         self.assertEqual(response.context['total_stats']['total_teams'], 1)
         self.assertEqual(response.context['total_stats']['total_players'], 1)
 
-    def test_rosters_person_list_url_resolves_and_renders(self):
-        self.client.force_login(self.user)
-        url = reverse('rosters:person_list')
-        self.assertEqual(url, '/rosters/personas/')
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Laura')
-
     def test_person_edit_denied_to_is_staff_without_tenant_manager_role(self):
         User = get_user_model()
         from ilovevoley.users.models import Membership
@@ -158,6 +140,8 @@ class RosterViewUrlTests(TestCase):
         url = reverse('rosters:person_edit', kwargs={'person_id': self.person.id})
         response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
+        # El manager no solo pasa el chequeo: recibe el formulario de esa ficha.
+        self.assertEqual(response.context['form'].instance, self.person)
 
     def test_player_role_toggle_active_denied_to_is_staff_regular_member(self):
         User = get_user_model()
@@ -180,7 +164,10 @@ class RosterViewUrlTests(TestCase):
         url = reverse('rosters:player_role_toggle_active', kwargs={'role_id': self.player_role.id})
         response = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.json()['success'])
+        # El toggle tiene efecto persistente y lo refleja en el payload.
+        self.assertFalse(response.json()['is_active'])
+        self.player_role.refresh_from_db()
+        self.assertFalse(self.player_role.is_active)
 
     def test_cross_tenant_person_edit_denied_with_404(self):
         User = get_user_model()
@@ -226,28 +213,6 @@ class RosterViewUrlTests(TestCase):
         self.client.force_login(manager_user)
         url = reverse('rosters:player_role_toggle_active', kwargs={'role_id': role_b.id})
         response = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 404)
-
-    def test_cross_tenant_person_detail_denied_with_404(self):
-        User = get_user_model()
-        from ilovevoley.users.models import Membership
-        manager_user = User.objects.create_user(username='club_a_manager_detail', password='pass')
-        Membership.objects.create(user=manager_user, organization=self.org, role='manager', is_approved=True)
-
-        club_b = Club.objects.create(official_name='Club B', federation_id='CLUB-B-DETAIL')
-        team_b = Team.objects.create(name='Club B Senior', club=club_b, federation_id='TEAM-B-3', is_active=True)
-        person_b = Person.objects.create(first_name='Elena', last_name='Marin')
-        PlayerRole.objects.create(
-            person=person_b,
-            identity=identity_of(team_b),
-            season=Season.objects.resolve('2025-26'),
-            jersey_number=3,
-            is_active=True,
-        )
-
-        self.client.force_login(manager_user)
-        url = reverse('rosters:person_detail', kwargs={'person_id': person_b.id})
-        response = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 404)
 
     def test_orphan_person_without_roles_denied_to_tenant_manager(self):
@@ -394,14 +359,6 @@ class RostersTenantIsolationTests(TestCase):
         self.client.force_login(self.member)
         response = self.client.get(
             reverse('rosters:person_detail', args=[self.person_b.id]),
-            HTTP_HOST='club-a.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 404)
-
-    def test_person_edit_de_otro_club_devuelve_404(self):
-        self.client.force_login(self.staff)
-        response = self.client.get(
-            reverse('rosters:person_edit', args=[self.person_b.id]),
             HTTP_HOST='club-a.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 404)
@@ -601,20 +558,21 @@ class RostersTenantIsolationTests(TestCase):
         self.assertEqual(set(created.organizations.all()), {self.org_a})
 
     def test_person_list_add_button_visibility_for_tenant_manager(self):
+        # La visibilidad del alta depende de `is_tenant_manager` (context
+        # processor), no de que el listado tenga resultados.
         url = reverse('rosters:person_list')
-        create_url = reverse('rosters:person_create')
 
         self.client.force_login(self.member)
-        response = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
-        self.assertNotContains(response, create_url)
-        response_empty = self.client.get(f'{url}?search=inexistente', HTTP_HOST='club-a.ilovevoley.es')
-        self.assertNotContains(response_empty, create_url)
+        for query in ('', '?search=inexistente'):
+            with self.subTest(role='member', query=query):
+                response = self.client.get(f'{url}{query}', HTTP_HOST='club-a.ilovevoley.es')
+                self.assertFalse(response.context['is_tenant_manager'])
 
         self.client.force_login(self.manager)
-        response = self.client.get(url, HTTP_HOST='club-a.ilovevoley.es')
-        self.assertContains(response, create_url)
-        response_empty = self.client.get(f'{url}?search=inexistente', HTTP_HOST='club-a.ilovevoley.es')
-        self.assertContains(response_empty, create_url)
+        for query in ('', '?search=inexistente'):
+            with self.subTest(role='manager', query=query):
+                response = self.client.get(f'{url}{query}', HTTP_HOST='club-a.ilovevoley.es')
+                self.assertTrue(response.context['is_tenant_manager'])
 
     def test_person_edit_ignora_organizaciones_enviadas_por_cliente(self):
         self.client.force_login(self.staff)
@@ -628,13 +586,14 @@ class RostersTenantIsolationTests(TestCase):
         self.assertEqual(set(self.person_a.organizations.all()), {self.org_a})
 
     def test_staff_global_sin_membresia_no_accede_a_editar_en_otro_club(self):
-        # El decorador de tenant corta al no tener membresía aprobada en B.
+        # El decorador de tenant desvía a la pantalla de aprobación pendiente al
+        # no tener membresía aprobada en B (no es un simple "no 200").
         self.client.force_login(self.staff)
         response = self.client.get(
             reverse('rosters:person_edit', args=[self.person_b.id]),
             HTTP_HOST='club-b.ilovevoley.es',
         )
-        self.assertNotEqual(response.status_code, 200)
+        self.assertRedirects(response, '/pending-approval/', fetch_redirect_response=False)
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])

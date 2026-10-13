@@ -97,19 +97,27 @@ class ImageSanitizationTests(SimpleTestCase):
         self.assertEqual(parsed_uuid.hex, base_name)
         self.assertTrue(sanitized.name.endswith('.jpg'))
 
-    def test_process_uploaded_image_sanitizes_jpeg_and_png(self):
-        raw_image = _create_image_with_gps()
-        uploaded = SimpleUploadedFile('phone_pic.jpg', raw_image.read(), content_type='image/jpeg')
+    def test_process_uploaded_image_sanitizes_and_reports_conversion(self):
+        cases = [
+            ('phone_pic.jpg', 'image/jpeg', 'JPEG', '.jpg', False),
+            ('phone_pic.png', 'image/png', 'PNG', '.png', True),
+        ]
 
-        processed_file, original_ext, was_converted = process_uploaded_image(uploaded)
+        for filename, content_type, img_format, expected_ext, expected_converted in cases:
+            with self.subTest(filename=filename):
+                raw_image = _create_image_with_gps(format=img_format)
+                uploaded = SimpleUploadedFile(filename, raw_image.read(), content_type=content_type)
 
-        self.assertEqual(original_ext, '.jpg')
-        # Check that EXIF/GPS was purged
-        processed_img = PILImage.open(processed_file)
-        self.assertEqual(dict(processed_img.getexif().get_ifd(Base.GPSInfo)), {})
-        # Name should be UUID
-        base_name = processed_file.name.split('.')[0]
-        self.assertEqual(uuid.UUID(base_name).hex, base_name)
+                processed_file, original_ext, was_converted = process_uploaded_image(uploaded)
+
+                self.assertEqual(original_ext, expected_ext)
+                self.assertEqual(was_converted, expected_converted)
+                # Check that EXIF/GPS was purged
+                processed_img = PILImage.open(processed_file)
+                self.assertEqual(dict(processed_img.getexif().get_ifd(Base.GPSInfo)), {})
+                # Name should be UUID
+                base_name = processed_file.name.split('.')[0]
+                self.assertEqual(uuid.UUID(base_name).hex, base_name)
 
     def test_image_upload_path_generates_uuid(self):
         path = image_upload_path(None, 'foto_partido_infantil.jpg')

@@ -52,11 +52,14 @@ docker compose -f docker-compose.dev.yml run --rm web python manage.py <comando>
 Tests:
 
 ```bash
-docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db
+docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -n auto
 ```
 
-`--create-db` es **obligatorio**: sin él la BD de test queda desactualizada y
-fallan columnas inexistentes.
+`-n auto` reparte la suite entre los núcleos (`pytest-xdist`).
+
+`--create-db` es **obligatorio** en CI y siempre que cambien las migraciones: sin
+él la BD de test puede quedar desactualizada y fallan columnas inexistentes. En
+iteración local, una vez creada, `--reuse-db` evita recrearla en cada ejecución.
 
 **No ejecutar `docker-compose.dev.yml` en el servidor de producción.** Allí la
 aplicación corre como proyecto compose `videosvoley` y el compose de desarrollo
@@ -147,7 +150,10 @@ con efectos persistentes; comprueba manejo de errores en un camino crítico
 **No debe existir si**: solo comprueba que Django o el ORM hacen lo suyo; solo
 valida `status_code` sin comprobar efecto o payload; comprueba HTML decorativo o
 clases CSS; duplica otro test más fuerte; mockea tanto que solo verifica el
-mock; prueba getters, setters o properties simples.
+mock; prueba getters, setters o properties simples; pinea configuración de
+entorno que el despliegue puede sobreescribir; o testea una **migración de datos**
+de una sola vez (evento irrepetible: 10 de esos tests eran el 45 % del tiempo de
+la suite, ver #536).
 
 **Antes de añadir un test**: si falla, ¿qué comportamiento real se habría roto?
 ¿Obligaría a cambiar código de producto o solo el test? ¿Prueba nuestra lógica o

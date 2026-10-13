@@ -2,9 +2,11 @@
 
 Execute tests with:
 ```bash
-docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db
+docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -n auto
 ```
-**Nota:** Usar `--create-db` para forzar la creación de la base de datos de test y aplicar migraciones correctamente. Sin este flag la BD de test puede quedar desactualizada y los tests fallar (p. ej. columnas faltantes).
+**Nota:** Usar `--create-db` para forzar la creación de la base de datos de test y aplicar migraciones correctamente. Sin ese flag la BD de test puede quedar desactualizada y los tests fallar (p. ej. columnas faltantes).
+
+**Nota:** `-n auto` reparte la suite entre los núcleos disponibles (`pytest-xdist`). En iteración local, sustituye `--create-db` por `--reuse-db` para no recrear la BD en cada ejecución (más rápido, pero acuérdate de volver a `--create-db` si cambian las migraciones).
 
 ## Test Value Rules
 
@@ -30,6 +32,8 @@ Un test es necesario cuando protege una decisión propia del producto. No basta 
 - Reproduce literalmente la implementación en el test, en vez de comprobar comportamiento observable.
 - Prueba getters, setters, propiedades simples o filtros ORM triviales sin regla de negocio.
 - Cubre permisos genéricos de `LoginRequiredMixin` o `PermissionRequiredMixin` salvo que haya lógica de autorización propia.
+- Testea una migración de datos de una sola vez (ver "Migraciones de datos").
+- Pinea valores de configuración o de entorno que el despliegue puede sobreescribir legítimamente (p. ej. `DEFAULT_FROM_EMAIL` en un `.env` local). Si el test falla con una configuración válida, el test está mal, no la configuración.
 
 ### Preguntas de revisión antes de añadir o conservar un test
 
@@ -52,6 +56,19 @@ Si la respuesta no identifica un riesgo concreto, el test debe eliminarse o rees
 - Evita renderizar templates pesados si el test solo necesita probar una rama de `post`; stubbea el retorno visual solo si las aserciones siguen cubriendo efectos reales.
 - No mezcles ubicaciones: lógica de modelo en `test_models.py`, filtros de template en `test_templatetags.py`, APIs en `test_api.py`, vistas HTML en `test_views.py`.
 - Un test lento debe justificar su lentitud. Si abre archivos reales, llama a importadores o recorre un flujo de integración valioso, puede quedarse. Si solo mira una cabecera, no.
+
+### Migraciones de datos
+
+**No se escriben tests para migraciones de datos.** Una migración es un evento irrepetible: se ejecuta una vez y no vuelve a hacerlo. Un test que la vigila no protege ningún comportamiento futuro (el código queda congelado) y, por usar `TransactionTestCase` + `MigrationExecutor`, desaplica y reaplica **toda** la cadena de migraciones del proyecto: es, con diferencia, el test más caro de la suite con el valor más bajo. Medido en #536: 10 tests de migración consumían el 45 % del tiempo total.
+
+- Si una migración falla, se arregla la migración, no se escribe un test que la vigile.
+- La lógica reutilizable que una migración importa (p. ej. `normalize_season_name`) se prueba donde vive esa lógica, nunca a través de la migración.
+- No se testea `reverse()` de una migración: este proyecto despliega solo hacia adelante.
+- Si existe un `tests/test_migrations.py`, se elimina.
+
+### Paralelización y velocidad de la suite
+
+La suite se ejecuta en paralelo con `pytest-xdist`. En local, `--reuse-db` evita recrear la base de datos en cada iteración:
 
 ### Automatic Test Generation Rules
 When working with business logic, automatically generate tests that cover:

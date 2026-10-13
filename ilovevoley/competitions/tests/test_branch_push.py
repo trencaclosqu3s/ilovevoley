@@ -55,19 +55,16 @@ class MatchBranchPushTest(TestCase):
         self.match.home_score = 3
         self.match.away_score = 1
         self.match.save(update_fields=['status', 'home_score', 'away_score'])
-        with self.captureOnCommitCallbacks(execute=True):
-            notify_match_result(self.match)
-        mock_push.assert_not_called()
 
-    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
-    def test_result_push_tenant_skipped_when_branch_off(self, mock_push):
-        self.match.status = 'finished'
-        self.match.home_score = 3
-        self.match.away_score = 1
-        self.match.save(update_fields=['status', 'home_score', 'away_score'])
-        with self.captureOnCommitCallbacks(execute=True):
-            notify_match_result(self.match, tenant=self.org)
-        mock_push.assert_not_called()
+        for label, tenant in (('global', None), ('tenant', self.org)):
+            with self.subTest(label):
+                mock_push.reset_mock()
+                Match.objects.filter(pk=self.match.pk).update(result_notified_at=None)
+
+                with self.captureOnCommitCallbacks(execute=True):
+                    notify_match_result(self.match, tenant=tenant)
+
+                mock_push.assert_not_called()
 
     @override_settings(MATCH_CHANGE_PUSH_ENABLED=True)
     @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')

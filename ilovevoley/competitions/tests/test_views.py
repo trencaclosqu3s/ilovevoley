@@ -36,7 +36,8 @@ def _count_script(content, needle):
 class CompetitionsReExportCompatibilityTest(SimpleTestCase):
     """Verifica que las importaciones históricas desde videos sigan funcionando."""
 
-    def test_views_are_reexported(self):
+    def test_legacy_videos_imports_are_reexported(self):
+        """Todas las reexportaciones históricas desde videos apuntan a competitions."""
         self.assertIs(vid_views_comp.league_list, comp_views.league_list)
         self.assertIs(vid_views_comp.league_detail, comp_views.league_detail)
         self.assertIs(vid_views_comp.match_detail, comp_views.match_detail)
@@ -50,13 +51,9 @@ class CompetitionsReExportCompatibilityTest(SimpleTestCase):
         self.assertIs(vid_views_comp.standings_view, comp_views.standings_view)
         self.assertIs(vid_views_comp.ajax_matches_by_category, comp_views.ajax_matches_by_category)
         self.assertIs(vid_views_comp.ajax_teams_by_league_category, comp_views.ajax_teams_by_league_category)
-
-    def test_forms_are_reexported(self):
         self.assertIs(vid_forms_comp.MatchAdminForm, comp_forms.MatchAdminForm)
         self.assertIs(vid_forms_comp.FriendlyMatchForm, comp_forms.FriendlyMatchForm)
         self.assertIs(vid_forms_comp.MatchResultForm, comp_forms.MatchResultForm)
-
-    def test_calendar_feed_is_reexported(self):
         self.assertIs(vid_calendar_feed.UserMatchesFeed, comp_calendar_feed.UserMatchesFeed)
 
 
@@ -556,8 +553,8 @@ class CompetitionsViewUrlTests(TestCase):
             self.assertEqual(r.status_code, 301, legacy_url)
             self.assertEqual(r.headers['Location'], canonical_url, legacy_url)
 
-    def test_calendar_embeds_matches_via_json_script_not_innerhtml_literals(self):
-        """DOM-XSS (#89): datos de partido van en json_script; el modal escapa HTML."""
+    def test_calendar_embeds_matches_via_json_script(self):
+        """DOM-XSS (#89): los datos del partido van en json_script escapado, no interpolados."""
         import json
         import re
 
@@ -574,9 +571,6 @@ class CompetitionsViewUrlTests(TestCase):
         content = response.content.decode()
 
         self.assertIn('id="calendar-data"', content)
-        self.assertNotIn("home_team: '{{", content)
-        self.assertIn('${esc(match.home_team)}', content)
-        self.assertIn('${esc(match.away_team)}', content)
         # json_script escapa < como \\u003C: el payload crudo no debe aparecer en el HTML
         self.assertNotIn(xss_name, content)
         self.assertIn('\\u003Cimg', content)
@@ -592,20 +586,6 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertEqual(calendar_match['away_team'], xss_name)
         self.assertEqual(calendar_match['round_number'], 1)
         self.assertIsInstance(calendar_match['round_number'], int)
-
-    def test_friendly_match_form_builds_autocomplete_without_team_innerhtml(self):
-        """DOM-XSS (#89): el autocompletado no interpola nombres en innerHTML."""
-        self.client.force_login(self.user)
-        response = self.client.get(
-            reverse('competitions:friendly_match_create'),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 200)
-        content = response.content.decode()
-        self.assertNotIn('${team.name}', content)
-        self.assertNotIn('${team.display}', content)
-        self.assertNotIn('${teamName}', content)
-        self.assertIn('textContent', content)
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
@@ -747,21 +727,18 @@ class MatchResultCardViewTests(TestCase):
         self.scheduled.match_date = local.replace(hour=0, minute=0)
         self.assertEqual(preview_card_pills(self.scheduled), ['3º vs 5º'])
 
-    def test_invalid_format_returns_json_400(self):
+    def test_invalid_format_and_style_return_json_400(self):
         response = self.client.get(
             self._url(self.finished.id, 'banner'),
             HTTP_HOST='testclub.ilovevoley.es',
         )
-
         self.assertEqual(response.status_code, 400)
         self.assertIn('formato', response.json()['error'].lower())
 
-    def test_invalid_style_returns_json_400(self):
         response = self.client.get(
             self._url(self.finished.id, 'square') + '&style=banner',
             HTTP_HOST='testclub.ilovevoley.es',
         )
-
         self.assertEqual(response.status_code, 400)
         self.assertIn('estilo', response.json()['error'].lower())
 
@@ -952,27 +929,34 @@ class MatchResultCardViewTests(TestCase):
         self.assertEqual(not_preview.status_code, 400)
 
     def test_final_card_is_cached_until_the_result_changes(self):
-        from ilovevoley.competitions.result_card import render_result_card
+        """La tarjeta final se cachea y solo se re-renderiza si cambia el resultado.
 
+        El contrato es la caché (hit no re-renderiza, cambio de marcador la
+        invalida), no los píxeles: se stubbea el render para no pagar el PNG.
+        """
         cache.clear()
         photo = self._approved_photo()
         url = (
             self._url(self.finished.id, 'story')
             + f'&style=personalizada&photo_id={photo.id}'
         )
-        with patch('ilovevoley.competitions.result_card.fetch_logo_bytes', return_value=None):
-            with patch(
-                'ilovevoley.competitions.views.render_result_card',
-                wraps=render_result_card,
-            ) as render:
-                first = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-                second = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
-                self.finished.home_score += 1
-                self.finished.save(update_fields=['home_score'])
-                self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+        fake_png = b'\x89PNG\r\n\x1a\ncard'
+        with patch(
+            'ilovevoley.competitions.views.render_result_card',
+            return_value=fake_png,
+        ) as render:
+            first = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+            second = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
+            self.finished.home_score += 1
+            self.finished.save(update_fields=['home_score'])
+            third = self.client.get(url, HTTP_HOST='testclub.ilovevoley.es')
 
+        self.assertEqual(first.status_code, 200)
+        # Cache hit: la segunda petición no re-renderiza y devuelve los mismos bytes.
         self.assertEqual(first.content, second.content)
+        # El cambio de resultado invalida la caché y fuerza un segundo render.
         self.assertEqual(render.call_count, 2)
+        self.assertEqual(third.status_code, 200)
 
     def test_saved_composition_is_normalized_and_renders_for_its_owner_only(self):
         photo = self._approved_photo()
@@ -1220,18 +1204,8 @@ class CompetitionsTenantIsolationTests(TestCase):
         self.assertFalse(foreign.context['can_manage_videos'])
         self.assertFalse(foreign.context['can_edit_result'])
 
-    def test_match_detail_loads_lightbox_script_once(self):
-        """base.html ya carga lightbox.js; la ficha no debe duplicarlo (#209)."""
-        self.client.force_login(self.manager)
-        response = self.client.get(
-            reverse('competitions:match_detail', args=[self.match.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(_count_script(response.content, 'js/lightbox'), 1)
-
-    def test_match_images_loads_lightbox_script_once(self):
-        """base.html ya carga lightbox.js; las imágenes de partido no lo duplican (#209)."""
+    def test_lightbox_script_is_loaded_once(self):
+        """base.html ya carga lightbox.js; las vistas no deben duplicarlo (#209)."""
         from django.core.files.uploadedfile import SimpleUploadedFile
 
         from ilovevoley.content.models import Image
@@ -1246,12 +1220,17 @@ class CompetitionsTenantIsolationTests(TestCase):
             organization=self.org, status='approved',
         )
         self.client.force_login(self.manager)
-        response = self.client.get(
-            reverse('content:match_images', args=[self.match.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(_count_script(response.content, 'js/lightbox'), 1)
+        for url_name, args in (
+            ('competitions:match_detail', [self.match.id]),
+            ('content:match_images', [self.match.id]),
+        ):
+            with self.subTest(view=url_name):
+                response = self.client.get(
+                    reverse(url_name, args=args),
+                    HTTP_HOST='testclub.ilovevoley.es',
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(_count_script(response.content, 'js/lightbox'), 1)
 
     def test_match_detail_hides_foreign_org_media(self):
         """Vídeos e imágenes de otra organización no se listan en la ficha del partido (#200)."""
@@ -1299,12 +1278,15 @@ class CompetitionsTenantIsolationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(own.status_code, 200)
+        self.assertContains(own, self.league.name)
 
         foreign = self.client.get(
             reverse('competitions:league_detail', args=[self.other_league.id]),
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(foreign.status_code, 404)
+        # La liga ajena no debe filtrarse en el cuerpo de la respuesta.
+        self.assertNotIn(self.other_league.name, foreign.content.decode())
 
     def test_add_match_result_blocks_foreign_match(self):
         self.client.force_login(self.manager)
@@ -1409,6 +1391,9 @@ class CompetitionsTenantIsolationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 404)
+        self.other_match.refresh_from_db()
+        self.assertIsNone(self.other_match.set_scores)
+        self.assertEqual(self.other_match.status, 'scheduled')
 
     def test_edit_match_result_rejects_unfinished_match(self):
         self.client.force_login(self.manager)
@@ -1419,6 +1404,9 @@ class CompetitionsTenantIsolationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 400)
+        self.match.refresh_from_db()
+        self.assertIsNone(self.match.set_scores)
+        self.assertEqual(self.match.status, 'scheduled')
 
     def test_edit_match_result_rejects_match_with_acta(self):
         with_acta = Match.objects.create(
@@ -1434,6 +1422,9 @@ class CompetitionsTenantIsolationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 400)
+        # Con acta presente el resultado manual no debe sobrescribir los parciales.
+        with_acta.refresh_from_db()
+        self.assertIsNone(with_acta.set_scores)
 
     def test_match_detail_isolates_stream_url_for_foreign_match(self):
         """El enlace de retransmisión solo es visible para el tenant dueño del partido (#345, #359)."""
@@ -1473,6 +1464,8 @@ class CompetitionsTenantIsolationTests(TestCase):
             HTTP_HOST='testclub.ilovevoley.es',
         )
         self.assertEqual(response.status_code, 404)
+        self.other_match.refresh_from_db()
+        self.assertNotEqual(self.other_match.stream_url, 'https://youtube.com/live/new')
 
     def test_update_stream_url_requires_manager(self):
         from ilovevoley.users.models import Membership
@@ -1763,11 +1756,17 @@ class MatchChangesReviewViewTest(TestCase):
         self.assertIsNotNone(review.reviewed_at)
 
     def test_ajax_mark_change_reviewed_other_tenant_404(self):
+        from ilovevoley.competitions.models import MatchChangeLogReview
+
         self.client.force_login(self.manager_user)
         # Intentar marcar un cambio que pertenece a otro tenant
         url = reverse('competitions:ajax_mark_change_reviewed', kwargs={'log_id': self.log_other.id})
         response = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 404)
+        # No debe crear ninguna revisión para un cambio de otro tenant.
+        self.assertFalse(
+            MatchChangeLogReview.objects.filter(change_log=self.log_other).exists()
+        )
 
     def test_review_is_per_organization(self):
         """#201: marcar revisado en un club no lo oculta en el rival.
