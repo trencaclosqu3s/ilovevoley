@@ -18,8 +18,8 @@
                 <p class="text-muted">{% if can_moderate_images %}{% trans "Gestiona usuarios e imágenes pendientes de aprobación" %}{% else %}{% trans "Gestiona las solicitudes de membresía pendientes de tu club" %}{% endif %}</p>
             </div>
             <div class="text-right">
-                <div class="text-3xl font-bold text-brand-text">{{ pending_users_count|add:pending_images_count|add:pending_callups_count|add:pending_reactivations_count|add:pending_removals_count }}</div>
-                <div class="text-sm text-muted">{% blocktrans count counter=pending_users_count|add:pending_images_count|add:pending_callups_count|add:pending_reactivations_count|add:pending_removals_count %}elemento pendiente{% plural %}elementos pendientes{% endblocktrans %}</div>
+                <div class="text-3xl font-bold text-brand-text">{{ pending_users_count|add:pending_images_count|add:pending_callups_count|add:pending_reactivations_count|add:pending_removals_count|add:pending_links_count }}</div>
+                <div class="text-sm text-muted">{% blocktrans count counter=pending_users_count|add:pending_images_count|add:pending_callups_count|add:pending_reactivations_count|add:pending_removals_count|add:pending_links_count %}elemento pendiente{% plural %}elementos pendientes{% endblocktrans %}</div>
             </div>
         </div>
     </div>
@@ -68,6 +68,17 @@
                     <h3 class="text-lg font-semibold text-ink">{% trans "Reactivaciones" %}</h3>
                     <p class="text-2xl font-bold text-teal-600 dark:text-teal-400">{{ pending_reactivations_count }}</p>
                     <p class="text-sm text-muted">{% trans "Piden volver" %}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-lg p-6 border-l-4 border-indigo-500">
+            <div class="flex items-center">
+                <div class="text-3xl mr-4">{% icon 'link' %}</div>
+                <div>
+                    <h3 class="text-lg font-semibold text-ink">{% trans "Vínculos de ficha" %}</h3>
+                    <p class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{{ pending_links_count }}</p>
+                    <p class="text-sm text-muted">{% trans "Familias por confirmar" %}</p>
                 </div>
             </div>
         </div>
@@ -159,6 +170,66 @@
                         </button>
                         <button 
                             data-call="rejectUser" data-call-args='[{{ user.id }}]' data-call-this
+                            class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            {% icon 'x-circle' %} {% trans "Rechazar" %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sección de Solicitudes de Vínculo cuenta ↔ ficha (#531) -->
+    {% if pending_link_requests %}
+    <div class="mb-12">
+        <div class="flex items-center mb-6">
+            <h2 class="text-xl lg:text-2xl font-bold text-ink mr-3">{% icon 'link' %} {% trans "Solicitudes de vínculo" %}</h2>
+            <span class="bg-indigo-500 text-white px-3 py-1 rounded-full text-sm font-semibold">{{ pending_links_count }}</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {% for req in pending_link_requests %}
+            <div id="link-request-card-{{ req.id }}" class="bg-surface rounded-3xl border border-line transition-shadow">
+                <div class="p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center mr-4">
+                            <span class="text-xl">{% icon 'link' %}</span>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-ink">{{ req.person.full_name }}</h3>
+                            <p class="text-sm text-muted">{{ req.get_kind_display }}</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-muted">{% trans "Cuenta:" %}</span>
+                            <span class="text-ink">{{ req.user.username }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-muted">{% trans "Email:" %}</span>
+                            <span class="text-ink">{% trans "No proporcionado" as no_proporcionado %}{{ req.user.email|default:no_proporcionado }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-muted">{% trans "Ficha:" %}</span>
+                            <span class="text-ink">{{ req.person.full_name }}{% if req.person.birth_year %} · {{ req.person.birth_year }}{% endif %}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-muted">{% trans "Solicitado:" %}</span>
+                            <span class="text-ink">{{ req.created_at|date:"d/m/Y H:i" }}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-3">
+                        <button
+                            data-call="approveLinkRequest" data-call-args='[{{ req.id }}]' data-call-this
+                            class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+                            {% icon 'check-circle' %} {% trans "Aprobar" %}
+                        </button>
+                        <button
+                            data-call="rejectLinkRequest" data-call-args='[{{ req.id }}]' data-call-this
                             class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
                             {% icon 'x-circle' %} {% trans "Rechazar" %}
                         </button>
@@ -689,6 +760,47 @@ function rejectCallup(playerId, btn) {
         alert('{% trans "Error de conexión" as js_msg %}{{ js_msg|escapejs }}');
         btn.disabled = false;
     });
+}
+// Funciones para resolver solicitudes de vínculo cuenta ↔ ficha (#531)
+function resolveLinkRequest(requestId, path, btn, confirmText) {
+    if (!confirm(confirmText)) return;
+    btn.disabled = true;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    fetch(`/core/api/person-links/${requestId}/${path}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const card = document.getElementById(`link-request-card-${requestId}`);
+            if (card) {
+                card.style.opacity = '0.5';
+                setTimeout(() => card.remove(), 400);
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', data.message);
+            }
+        } else {
+            alert(data.error || '{% trans "Error al resolver la solicitud" as js_msg %}{{ js_msg|escapejs }}');
+            btn.disabled = false;
+        }
+    })
+    .catch(err => {
+        alert('{% trans "Error de conexión" as js_msg %}{{ js_msg|escapejs }}');
+        btn.disabled = false;
+    });
+}
+
+function approveLinkRequest(requestId, btn) {
+    resolveLinkRequest(requestId, 'approve', btn, '{% trans "¿Aprobar esta solicitud de vínculo?" as js_msg %}{{ js_msg|escapejs }}');
+}
+
+function rejectLinkRequest(requestId, btn) {
+    resolveLinkRequest(requestId, 'reject', btn, '{% trans "¿Rechazar esta solicitud de vínculo?" as js_msg %}{{ js_msg|escapejs }}');
 }
 </script>
 {% endblock %}
