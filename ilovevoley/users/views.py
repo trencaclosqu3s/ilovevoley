@@ -231,6 +231,19 @@ def profile_edit(request):
     return redirect(f"{reverse('profile')}?tab=perfil")
 
 
+@login_required
+@require_POST
+def dismiss_onboarding(request):
+    """Descarta la checklist de bienvenida familiar (#533).
+
+    Se guarda en la cuenta, no en el dispositivo: no vuelve a aparecer en
+    ningún navegador del usuario.
+    """
+    request.user.onboarding_dismissed_at = timezone.now()
+    request.user.save(update_fields=['onboarding_dismissed_at'])
+    return redirect('profile')
+
+
 @require_POST
 def set_user_language(request):
     """Cambia el idioma de la interfaz.

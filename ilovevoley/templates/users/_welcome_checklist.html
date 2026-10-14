@@ -1,0 +1,36 @@
+{% load i18n %}
+{% if welcome_checklist %}
+<section id="welcome-checklist" class="bg-surface rounded-[20px] border border-line p-6">
+    <div class="flex items-start justify-between gap-4 mb-5">
+        <div>
+            <h2 class="text-lg font-bold text-ink flex items-center gap-2">
+                {% icon 'sparkles' %}
+                <span>{% trans "Tus primeros pasos" %}</span>
+            </h2>
+            <p class="text-sm text-muted mt-1">
+                {% trans "Cuatro pasos para no perderte nada del club." %}
+            </p>
+        </div>
+        <form method="post" action="{% url 'dismiss_onboarding' %}">
+            {% csrf_token %}
+            <button type="submit" class="text-xs text-muted hover:text-ink underline whitespace-nowrap touch-manipulation">
+                {% trans "Descartar" %}
+            </button>
+        </form>
+    </div>
+    <ol class="space-y-3">
+        {% for step in welcome_checklist %}
+        <li class="flex items-center gap-3">
+            <span class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center {% if step.done %}bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300{% else %}bg-tint text-muted{% endif %}">
+                {% if step.done %}{% icon 'check' %}{% else %}{% icon step.icon %}{% endif %}
+            </span>
+            {% if step.done %}
+            <span class="flex-1 text-sm text-muted line-through">{{ step.label }}</span>
+            {% else %}
+            <a href="{{ step.url }}" class="flex-1 text-sm font-semibold text-brand-text hover:underline">{{ step.label }}</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ol>
+</section>
+{% endif %}

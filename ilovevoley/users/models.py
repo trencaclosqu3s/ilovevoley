@@ -70,6 +70,16 @@ class User(AbstractUser):
         help_text=_('Fecha en que una cuenta desactivada pidió volver a ser revisada.'),
     )
 
+    # Checklist de bienvenida familiar (#533). Se fija cuando el usuario la
+    # descarta; a diferencia del banner de avisos, la ocultación persiste por
+    # cuenta y no por dispositivo.
+    onboarding_dismissed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Checklist de bienvenida descartada'),
+        help_text=_('Fecha en que el usuario descartó la guía de primeros pasos.'),
+    )
+
     def __str__(self):
         return self.username
 

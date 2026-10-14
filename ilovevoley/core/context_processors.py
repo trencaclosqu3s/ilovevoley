@@ -81,6 +81,14 @@ def tenant_context(request):
             has_pref_cats = user.has_preferred_categories(org) if org else user.has_any_preferred_categories
             preferred_categories = list(user.preferred_categories_for(org)) if org else []
 
+    # Checklist de bienvenida familiar (#533). Reutiliza el estado ya consultado
+    # para los pasos de categorías y avisos, así que no añade consultas.
+    checklist = None
+    if user and user.is_authenticated and org:
+        from ilovevoley.users.onboarding import welcome_checklist
+
+        checklist = welcome_checklist(user, org, categories=has_pref_cats, push=has_push_sub)
+
     return {
         'can_switch_club': can_switch_club,
         'user_switch_clubs': user_switch_clubs,
@@ -103,4 +111,5 @@ def tenant_context(request):
         'has_push_subscription': has_push_sub,
         'has_preferred_categories': has_pref_cats,
         'preferred_categories': preferred_categories,
+        'welcome_checklist': checklist,
     }

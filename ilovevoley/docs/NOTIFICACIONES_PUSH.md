@@ -32,6 +32,13 @@ push (banner ámbar → `?tab=avisos#activar`). Deep links válidos: `/profile/?
 `/profile/?tab=avisos#activar` y `/profile/?tab=calendario` (la URL de suscripción ICS reutiliza
 las categorías/equipos de la pestaña Avisos).
 
+La pestaña **Perfil** muestra además la checklist de bienvenida familiar (#533): cuatro pasos
+(elegir equipos/categorías, activar avisos en este móvil, vincular la ficha propia o de los
+hijos, suscribir el calendario) con enlace al destino exacto. El estado de cada paso sale de
+datos que ya existen y la guía desaparece al completarse o al pulsar «Descartar»
+(`User.onboarding_dismissed_at`, persistencia por cuenta). El banner de avisos sigue fuera del
+perfil con sus dos estados; no se sustituye.
+
 ---
 
 ## ⚙️ Configuración y Variables de Entorno
