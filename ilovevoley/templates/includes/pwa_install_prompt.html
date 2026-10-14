@@ -26,8 +26,8 @@
 </div>
 
 <!-- Modal con instrucciones de instalación para Safari en iOS -->
-<div id="pwa-ios-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="pwa-ios-modal-title">
-    <div class="bg-surface text-ink border border-line rounded-2xl max-w-sm w-full p-5 shadow-2xl relative">
+<dialog id="pwa-ios-modal" class="backdrop:bg-black/60 rounded-2xl p-0 border border-line bg-surface text-ink shadow-2xl max-w-sm w-full m-auto" aria-labelledby="pwa-ios-modal-title">
+    <div class="p-5 relative">
         <div class="flex items-center justify-between mb-3">
             <h3 id="pwa-ios-modal-title" class="font-display font-bold text-base flex items-center gap-2">
                 {% icon 'phone' 'w-4 h-4 text-brand' %}
@@ -51,7 +51,7 @@
             </button>
         </div>
     </div>
-</div>
+</dialog>
 
 <script nonce="{{ csp_nonce }}">
     {% trans "Enlace copiado al portapapeles" as pwa_link_copied_t %}

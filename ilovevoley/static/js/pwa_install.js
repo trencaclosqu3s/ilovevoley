@@ -12,7 +12,8 @@
     }
 
     function isIos() {
-        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        return (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) && !window.MSStream;
     }
 
     function isIosNonStandalone() {
@@ -139,24 +140,27 @@
                 }).catch(function () {
                     self.hidePrompt();
                 });
-            } else if (isIosNonStandalone()) {
-                this.openIosInstructions();
             } else {
-                // Navegador sin prompt diferido ni iOS: mostrar instrucciones o descartar
                 this.openIosInstructions();
             }
         },
 
         openIosInstructions: function () {
             var modal = document.getElementById("pwa-ios-modal");
-            if (modal) {
+            if (!modal) return;
+            if (typeof modal.showModal === "function") {
+                modal.showModal();
+            } else {
                 modal.classList.remove("hidden");
             }
         },
 
         closeIosInstructions: function () {
             var modal = document.getElementById("pwa-ios-modal");
-            if (modal) {
+            if (!modal) return;
+            if (typeof modal.close === "function") {
+                modal.close();
+            } else {
                 modal.classList.add("hidden");
             }
         },
@@ -187,8 +191,6 @@
     window.acceptPwaInstallPrompt = function () { window.PwaInstallManager.acceptPrompt(); };
     window.dismissPwaInstallPrompt = function () { window.PwaInstallManager.snoozePrompt(); };
     window.declinePwaInstallPrompt = function () { window.PwaInstallManager.declinePromptForever(); };
-    window.openPwaIosInstructions = function () { window.PwaInstallManager.openIosInstructions(); };
-    window.closePwaIosInstructions = function () { window.PwaInstallManager.closeIosInstructions(); };
     window.closePwaIosModal = function () { window.PwaInstallManager.closeIosInstructions(); };
     window.shareClub = function (el) { window.PwaInstallManager.shareClub(el); };
 
