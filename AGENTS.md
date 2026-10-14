@@ -136,6 +136,13 @@ Dentro de `<script>`, todo `{% trans %}` va con `as x` + `{{ x|escapejs }}`.
   exactos). Contacto y notas solo para quien pueda editar (`can_edit_person`).
   La vista "Tú" (`rosters:my_profile`) agrega los roles del usuario en todos los
   clubes. Sustituye la decisión A de #174 (#342).
+- **Primer login tras aprobación o inactividad (#544)**: aprobar la cuenta o una
+  membresía (`approve_user_membership`, la ficha de usuario del admin o sus acciones de
+  aprobación) marca `User.pending_profile_review`; el primer login que iba a la home del
+  club aterriza en `/profile/` en vez de en la home y la marca se consume al usarse. Un
+  `next` explícito (enlace protegido) manda sobre el perfil. El umbral de inactividad es
+  `LOGIN_PROFILE_REVIEW_INACTIVITY_DAYS` (0 lo desactiva) y el `LOGIN_REDIRECT_URL` por
+  defecto cuenta también como «home».
 - **No resucitar la rama `origin/refactor_apps`**: está completamente descartada.
 
 ## Testing

@@ -95,6 +95,14 @@ AUTHENTICATION_BACKENDS = [
 LOGIN_REDIRECT_URL = '/videos/'
 LOGOUT_REDIRECT_URL = '/'
 
+# Tras la aprobación de la cuenta, o después de este número de días sin entrar,
+# el primer login que iba a la home del club aterriza en el perfil para repasar
+# avisos, categorías y ficha (#544). 0 o negativo desactiva el umbral de
+# inactividad (la aprobación sigue llevando al perfil).
+LOGIN_PROFILE_REVIEW_INACTIVITY_DAYS = env_config(
+    'LOGIN_PROFILE_REVIEW_INACTIVITY_DAYS', default=90, cast=int
+)
+
 # Allauth settings (nueva sintaxis)
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
