@@ -17,19 +17,20 @@ def onboarding_steps(user, tenant, *, categories=None, push=None):
     ficha propia o de un hijo lo resuelve ``User.has_my_profile``, cacheado por
     la navbar en cada petición.
     """
+    profile_url = reverse('profile')
     return [
         {
             'key': 'categories',
             'icon': 'target',
             'label': _('Elige tus equipos y categorías'),
-            'url': f"{reverse('profile')}?tab=avisos",
+            'url': f'{profile_url}?tab=avisos',
             'done': user.has_preferred_categories(tenant) if categories is None else categories,
         },
         {
             'key': 'push',
             'icon': 'bell',
             'label': _('Activa los avisos en este móvil'),
-            'url': f"{reverse('profile')}?tab=avisos#activar",
+            'url': f'{profile_url}?tab=avisos#activar',
             'done': user.has_push_subscription(tenant) if push is None else push,
         },
         {
@@ -43,7 +44,7 @@ def onboarding_steps(user, tenant, *, categories=None, push=None):
             'key': 'calendar',
             'icon': 'calendar',
             'label': _('Suscribe el calendario de partidos'),
-            'url': f"{reverse('profile')}?tab=calendario",
+            'url': f'{profile_url}?tab=calendario',
             'done': bool(user.calendar_token),
         },
     ]

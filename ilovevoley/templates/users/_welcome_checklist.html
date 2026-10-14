@@ -25,7 +25,9 @@
                 {% if step.done %}{% icon 'check' %}{% else %}{% icon step.icon %}{% endif %}
             </span>
             {% if step.done %}
-            <span class="flex-1 text-sm text-muted line-through">{{ step.label }}</span>
+            <span class="flex-1 text-sm text-muted line-through">
+                <span class="sr-only">{% trans "Completado:" %}</span> {{ step.label }}
+            </span>
             {% else %}
             <a href="{{ step.url }}" class="flex-1 text-sm font-semibold text-brand-text hover:underline">{{ step.label }}</a>
             {% endif %}

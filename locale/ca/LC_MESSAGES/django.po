@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-14 20:49+0200\n"
+"POT-Creation-Date: 2026-10-14 21:02+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -12149,6 +12149,10 @@ msgstr "Els teus primers passos"
 msgid "Cuatro pasos para no perderte nada del club."
 msgstr "Quatre passos per no perdre't res del club."
 
+#: ilovevoley/templates/users/_welcome_checklist.html:29
+msgid "Completado:"
+msgstr "Completat:"
+
 #: ilovevoley/templates/users/deactivate_account_confirm.html:4
 msgid "Confirmar desactivación de cuenta"
 msgstr "Confirmar desactivació del compte"
@@ -13120,19 +13124,19 @@ msgstr "Auditoria d'avís push"
 msgid "Auditorías de avisos push"
 msgstr "Auditories d'avisos push"
 
-#: ilovevoley/users/onboarding.py:24
+#: ilovevoley/users/onboarding.py:25
 msgid "Elige tus equipos y categorías"
 msgstr "Tria els teus equips i categories"
 
-#: ilovevoley/users/onboarding.py:31
+#: ilovevoley/users/onboarding.py:32
 msgid "Activa los avisos en este móvil"
 msgstr "Activa els avisos en aquest mòbil"
 
-#: ilovevoley/users/onboarding.py:38
+#: ilovevoley/users/onboarding.py:39
 msgid "Vincula tu ficha y la de tus hijos"
 msgstr "Vincula la teva fitxa i la dels teus fills"
 
-#: ilovevoley/users/onboarding.py:45
+#: ilovevoley/users/onboarding.py:46
 msgid "Suscribe el calendario de partidos"
 msgstr "Subscriu el calendari de partits"
 
