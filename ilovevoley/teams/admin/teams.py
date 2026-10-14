@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Count
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin
@@ -153,7 +154,10 @@ class TeamAdmin(ModelAdmin):
     )
     
     actions = ['match_to_clubs', 'activate_teams', 'deactivate_teams', 'assign_identity']
-    
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(variants_count=Count('variants'))
+
     def club_name(self, obj):
         """Muestra el nombre del club asociado"""
         return obj.club.official_name if obj.club else '-'
@@ -168,15 +172,18 @@ class TeamAdmin(ModelAdmin):
 
     def variant_indicator(self, obj):
         """Muestra un indicador visual si el equipo tiene variantes o es una variante"""
-        if obj.parent_team:
+        if obj.parent_team_id:
             return format_html(
                 '<span style="background: #f39c12; color: white; padding: 2px 6px; border-radius: 3px;">{}</span>',
                 obj.variant_name or 'VARIANTE'
             )
-        elif obj.variants.exists():
+        variants_count = getattr(obj, 'variants_count', None)
+        if variants_count is None:
+            variants_count = obj.variants.count()
+        if variants_count:
             return format_html(
                 '<span style="background: #95a5a6; color: white; padding: 2px 6px; border-radius: 3px;">{} VAR</span>',
-                obj.variants.count()
+                variants_count
             )
         return '-'
     variant_indicator.short_description = _('Variante')
