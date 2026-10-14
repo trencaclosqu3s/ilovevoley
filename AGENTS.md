@@ -39,7 +39,11 @@ El paquete raíz es `ilovevoley`. La lógica se divide en apps de dominio:
   con filtros de categorías y auditoría (`WebPushAudit`), autenticación Google OAuth
   (solo para identificar al usuario, sin tokens: `SOCIALACCOUNT_STORE_TOKENS = False`)
   y suscripción de partidos por feed iCal (`calendar_token`), no por la API de
-  Google Calendar.
+  Google Calendar. Checklist de bienvenida familiar (`ilovevoley/users/onboarding.py`,
+  #533): cuatro pasos con enlace al destino exacto cuyo estado sale de datos que ya
+  existen (`has_preferred_categories`, `has_push_subscription`, `has_my_profile`,
+  `calendar_token`); se muestra solo en la pestaña Perfil y se oculta al completarse
+  o al descartarla (`User.onboarding_dismissed_at`, por cuenta y no por dispositivo).
 - **`videos`**: Paquete legado que se mantiene **exclusivamente** como capa de
   compatibilidad para URLs antiguas y las tareas periódicas Celery. Nuevos modelos
   o vistas deben ir a su app de dominio correspondiente.
