@@ -8,12 +8,12 @@
             {% icon 'phone' 'w-5 h-5' %}
         </span>
         <div>
-            <p class="text-sm font-semibold mb-0.5">{% trans "Instala la app del club" %}</p>
+            <p class="text-sm font-semibold mb-0.5">{% trans "Instala la app" %}</p>
             <p class="text-xs text-muted leading-relaxed">
                 {% if tenant %}
-                    {% blocktrans with club=tenant.name %}Añade {{ club }} a tu pantalla de inicio para acceder rápidamente a partidos, fotos y resultados.{% endblocktrans %}
+                    {% blocktrans with club=tenant.name %}Ten a mano los partidos, fotos y resultados de {{ club }} desde tu pantalla de inicio.{% endblocktrans %}
                 {% else %}
-                    {% trans "Añade I Love Voley a tu pantalla de inicio para acceder rápidamente a partidos, fotos y resultados." %}
+                    {% trans "Ten a mano partidos, fotos y resultados desde tu pantalla de inicio." %}
                 {% endif %}
             </p>
         </div>
@@ -38,11 +38,10 @@
             </button>
         </div>
         <p class="text-xs text-muted mb-3">
-            {% trans "Sigue estos sencillos pasos desde Safari para añadir la aplicación a tu inicio:" %}
+            {% trans "Sigue estos pasos para añadir I Love Voley a tu pantalla de inicio:" %}
         </p>
         <ol class="list-decimal list-inside space-y-2.5 text-xs text-ink leading-relaxed font-medium bg-tint p-3 rounded-xl mb-4">
-            <li>{% blocktrans %}En Safari, pulsa el botón <strong>Compartir</strong> <span class="inline-block px-1.5 py-0.5 bg-line text-ink rounded font-mono text-[10px]">⎋</span> (barra inferior o superior).{% endblocktrans %}</li>
-            <li>{% blocktrans %}Desplázate hacia abajo y selecciona <strong>«Añadir a pantalla de inicio»</strong>.{% endblocktrans %}</li>
+            {% include 'includes/ios_add_to_home_steps.html' %}
             <li>{% blocktrans %}Pulsa <strong>Añadir</strong> en la esquina superior derecha.{% endblocktrans %}</li>
         </ol>
         <div class="flex justify-end">

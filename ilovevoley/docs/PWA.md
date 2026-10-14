@@ -85,16 +85,17 @@ Servido por la vista `ilovevoley.core.views.service_worker` desde la raíz con l
 ### 5. Instalación Guiada PWA y Compartir Club (`static/js/pwa_install.js`)
 
 #### Instalación Guiada (#534)
-- **Banner interactivo (`#pwa-install-prompt`)**: Se muestra únicamente cuando el usuario navega en el navegador web (fuera de standalone). Es mutuamente excluyente con el aviso de notificaciones push (`#webpush-prompt`), que solo opera en la app instalada.
-- **Android / Chromium**:
+- **Banner interactivo (`#pwa-install-prompt`)**: Se muestra únicamente cuando el usuario navega en el navegador web (fuera de standalone). Es mutuamente excluyente con el aviso de notificaciones push (`#webpush-prompt`), que solo opera en la app instalada. Mientras el banner de cookies esté pendiente no se muestra (ocupan el mismo hueco); aparece en la página siguiente.
+- **Android / Chromium (solo móvil, `pointer: coarse`)**:
+  - En escritorio no se intercepta `beforeinstallprompt`: Chrome ya ofrece el icono de instalar en la barra de direcciones.
   - Captura el evento `beforeinstallprompt`, previene el comportamiento por defecto del navegador y retiene el evento diferido.
-  - Al pulsar **Instalar**, lanza `deferredPrompt.prompt()` y procesa la elección del usuario.
-  - Escucha el evento `appinstalled` para auto-ocultar el banner y marcar la instalación.
-- **iOS / Safari**:
-  - Al no existir `beforeinstallprompt` en Safari iOS, detecta el entorno no standalone (`isIosNonStandalone`).
-  - Adapta la etiqueta de acción a **Cómo instalar** y, al pulsar, despliega el modal `#pwa-ios-modal` con las instrucciones ilustradas paso a paso (botón Compartir ⎋ → «Añadir a pantalla de inicio» → «Añadir»).
+  - Al pulsar **Instalar**, lanza `deferredPrompt.prompt()`; si el usuario cierra el diálogo nativo sin instalar, se pospone igual que con «Ahora no» (Chrome vuelve a lanzar el evento en cada página).
+  - Escucha `appinstalled` para ocultar el banner. No guarda marca permanente: con la app instalada Chrome deja de lanzar el evento, y si se desinstala se vuelve a ofrecer.
+- **iOS / iPadOS (Safari y, desde iOS 16.4, Chrome/Firefox)**:
+  - Al no existir `beforeinstallprompt` en iOS, detecta el entorno no standalone (`isIosNonStandalone`).
+  - Adapta la etiqueta de acción a **Cómo instalar** y, al pulsar, despliega el modal `#pwa-ios-modal` con las instrucciones paso a paso (botón Compartir ⎋ → «Añadir a pantalla de inicio» → «Añadir»). Los dos primeros pasos viven en `includes/ios_add_to_home_steps.html`, compartido con el muro iOS de avisos del perfil.
 - **Snooze y Rechazo (espejo de push)**:
-  - **Ahora no**: Pospospone el aviso 7 días guardando la fecha límite en `ilovevoley.pwa.install_snooze_until`.
+  - **Ahora no**: Pospone el aviso 7 días guardando la fecha límite en `ilovevoley.pwa.install_snooze_until`.
   - **No, gracias**: Rechazo definitivo que persiste `ilovevoley.pwa.install_never = "1"`.
 - **Integración CSP**:
   - Todos los eventos y acciones se gestionan por delegación mediante atributos `data-call` y `csp_actions.js`, sin scripts inline.

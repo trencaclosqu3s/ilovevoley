@@ -20,6 +20,12 @@
         return isIos() && !isStandalone();
     }
 
+    // El banner de cookies ocupa el mismo hueco inferior: hasta que se responda, no se muestra
+    // el de instalación (aparecerá en la siguiente página).
+    function cookieBannerPending() {
+        return !/(^|;\s*)cookie_consent=(accepted|rejected)(;|$)/.test(document.cookie);
+    }
+
     function promptNever() {
         try {
             return localStorage.getItem(PROMPT_NEVER_KEY) === "1";
@@ -98,7 +104,7 @@
 
         showPrompt: function () {
             var banner = document.getElementById("pwa-install-prompt");
-            if (banner) {
+            if (banner && !cookieBannerPending()) {
                 banner.classList.remove("hidden");
             }
         },
@@ -130,13 +136,14 @@
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then(function (choice) {
-                    if (choice && choice.outcome === "accepted") {
-                        try {
-                            localStorage.setItem(PROMPT_NEVER_KEY, "1");
-                        } catch (e) {}
-                    }
                     deferredPrompt = null;
-                    self.hidePrompt();
+                    // Chrome vuelve a lanzar beforeinstallprompt en cada página: si se cierra el
+                    // diálogo nativo sin instalar, se pospone como «Ahora no».
+                    if (choice && choice.outcome === "accepted") {
+                        self.hidePrompt();
+                    } else {
+                        self.snoozePrompt();
+                    }
                 }).catch(function () {
                     self.hidePrompt();
                 });
@@ -188,8 +195,10 @@
     window.closePwaIosModal = function () { window.PwaInstallManager.closeIosInstructions(); };
     window.shareClub = function (el) { window.PwaInstallManager.shareClub(el); };
 
-    // Captura del evento de instalación en Android / Chromium
+    // Captura del evento de instalación en Android / Chromium. En escritorio (puntero fino) no
+    // se intercepta: Chrome ya ofrece el icono de instalar en la barra de direcciones.
     window.addEventListener("beforeinstallprompt", function (event) {
+        if (!window.matchMedia("(pointer: coarse)").matches) return;
         event.preventDefault();
         deferredPrompt = event;
         if (!isStandalone() && !promptNever() && !promptSnoozed()) {
@@ -197,12 +206,10 @@
         }
     });
 
-    // Notificación tras completarse la instalación
+    // Sin marca permanente: con la app instalada Chrome deja de lanzar beforeinstallprompt, y si se
+    // desinstala se vuelve a ofrecer.
     window.addEventListener("appinstalled", function () {
         deferredPrompt = null;
-        try {
-            localStorage.setItem(PROMPT_NEVER_KEY, "1");
-        } catch (e) {}
         window.PwaInstallManager.hidePrompt();
         window.PwaInstallManager.closeIosInstructions();
     });
