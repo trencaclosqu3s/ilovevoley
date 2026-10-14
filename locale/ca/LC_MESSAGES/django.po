@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 23:25+0200\n"
+"POT-Creation-Date: 2026-10-14 09:44+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -29,7 +29,7 @@ msgstr "Anar al lloc web"
 msgid "Galería de fotos"
 msgstr "Galeria de fotos"
 
-#: config/settings.py:587 ilovevoley/users/tests/test_i18n.py:119
+#: config/settings.py:587 ilovevoley/users/tests/test_i18n.py:116
 msgid "Calendario de partidos"
 msgstr "Calendari de partits"
 
@@ -45,7 +45,7 @@ msgstr "Tauler principal"
 
 #: config/settings.py:651 ilovevoley/content/admin/content.py:64
 #: ilovevoley/templates/includes/navbar.html:140
-#: ilovevoley/templates/includes/navbar.html:400
+#: ilovevoley/templates/includes/navbar.html:428
 msgid "Moderación"
 msgstr "Moderació"
 
@@ -75,9 +75,9 @@ msgstr "Totes les fotos"
 #: ilovevoley/competitions/templates/competitions/league_list.html:271
 #: ilovevoley/competitions/templates/competitions/match_detail.html:871
 #: ilovevoley/competitions/templates/competitions/standings.html:190
-#: ilovevoley/templates/base.html:314
+#: ilovevoley/templates/base.html:328
 #: ilovevoley/templates/includes/navbar.html:78
-#: ilovevoley/templates/includes/navbar.html:256
+#: ilovevoley/templates/includes/navbar.html:284
 msgid "Videos"
 msgstr "Vídeos"
 
@@ -96,7 +96,7 @@ msgid "Club y plantilla"
 msgstr "Club i plantilla"
 
 #: config/settings.py:704 ilovevoley/templates/includes/navbar.html:115
-#: ilovevoley/templates/includes/navbar.html:281
+#: ilovevoley/templates/includes/navbar.html:309
 msgid "Personas"
 msgstr "Persones"
 
@@ -1267,7 +1267,7 @@ msgstr "Classificació"
 #: ilovevoley/competitions/templates/competitions/portal/results.html:9
 #: ilovevoley/competitions/templates/competitions/results.html:4
 #: ilovevoley/competitions/templates/competitions/results.html:14
-#: ilovevoley/templates/base.html:326
+#: ilovevoley/templates/base.html:340
 #: ilovevoley/templates/includes/navbar_competition_dropdown.html:46
 #: ilovevoley/templates/includes/navbar_competition_mobile.html:36
 msgid "Resultados"
@@ -1283,7 +1283,7 @@ msgstr "Resultats"
 #: ilovevoley/competitions/templates/competitions/portal/base_portal.html:32
 #: ilovevoley/competitions/templates/competitions/portal/calendar.html:9
 #: ilovevoley/competitions/templates/competitions/portal/match_detail.html:30
-#: ilovevoley/templates/base.html:322
+#: ilovevoley/templates/base.html:336
 #: ilovevoley/templates/includes/navbar_competition_dropdown.html:40
 #: ilovevoley/templates/includes/navbar_competition_mobile.html:30
 #: ilovevoley/templates/users/profile.html:48
@@ -1821,7 +1821,7 @@ msgstr "Pos"
 #: ilovevoley/rosters/models/rosters.py:360
 #: ilovevoley/teams/models/teams.py:174
 #: ilovevoley/templates/includes/navbar.html:98
-#: ilovevoley/templates/includes/navbar.html:270
+#: ilovevoley/templates/includes/navbar.html:298
 msgid "Equipo"
 msgstr "Equip"
 
@@ -1891,10 +1891,13 @@ msgstr "Toca per compartir"
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:16
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:75
 #: ilovevoley/rosters/templates/rosters/person_card.html:36
+#: ilovevoley/templates/includes/navbar.html:222
+#: ilovevoley/templates/includes/navbar.html:247
 msgid "Compartir"
 msgstr "Comparteix"
 
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:20
+#: ilovevoley/templates/includes/pwa_install_prompt.html:36
 msgid "Cerrar"
 msgstr "Tanca"
 
@@ -2968,9 +2971,9 @@ msgstr "No hi ha enllaços actius per a aquest partit."
 
 #: ilovevoley/competitions/templates/competitions/match_detail.html:887
 #: ilovevoley/content/templates/content/match_images.html:98
-#: ilovevoley/templates/base.html:318
+#: ilovevoley/templates/base.html:332
 #: ilovevoley/templates/includes/navbar.html:84
-#: ilovevoley/templates/includes/navbar.html:262
+#: ilovevoley/templates/includes/navbar.html:290
 msgid "Galería"
 msgstr "Galeria"
 
@@ -3222,7 +3225,7 @@ msgstr "Veure calendari"
 
 #: ilovevoley/competitions/templates/competitions/where_plays.html:4
 #: ilovevoley/competitions/templates/competitions/where_plays.html:11
-#: ilovevoley/templates/base.html:308
+#: ilovevoley/templates/base.html:312
 #: ilovevoley/templates/includes/navbar_competition_dropdown.html:66
 #: ilovevoley/templates/includes/navbar_competition_mobile.html:56
 msgid "Sedes y pabellones"
@@ -4584,7 +4587,7 @@ msgstr "Individual"
 #: ilovevoley/content/templates/content/image_gallery.html:82
 #: ilovevoley/content/templates/content/image_upload.html:4
 #: ilovevoley/content/templates/content/image_upload.html:207
-#: ilovevoley/templates/includes/navbar.html:368
+#: ilovevoley/templates/includes/navbar.html:396
 msgid "Subir Imagen"
 msgstr "Pujar imatge"
 
@@ -5391,7 +5394,7 @@ msgstr ""
 
 #: ilovevoley/core/email_utils.py:271 ilovevoley/core/email_utils.py:318
 #: ilovevoley/templates/includes/navbar.html:125
-#: ilovevoley/templates/includes/navbar.html:381
+#: ilovevoley/templates/includes/navbar.html:409
 msgid "Administración"
 msgstr "Administració"
 
@@ -5751,7 +5754,7 @@ msgstr "La teva imatge \"%(title)s\" ha estat %(status)s"
 
 #: ilovevoley/core/templates/core/about.html:4
 #: ilovevoley/core/templates/core/about.html:11
-#: ilovevoley/templates/base.html:303 ilovevoley/templates/base_auth.html:120
+#: ilovevoley/templates/base.html:307 ilovevoley/templates/base_auth.html:120
 msgid "Quiénes Somos"
 msgstr "Qui Som"
 
@@ -5915,7 +5918,7 @@ msgstr "Uneix-te a la comunitat"
 
 #: ilovevoley/core/templates/core/image_transparency.html:4
 #: ilovevoley/core/templates/core/image_transparency.html:10
-#: ilovevoley/templates/base.html:334
+#: ilovevoley/templates/base.html:348
 msgid "Quién ve las fotos"
 msgstr "Qui veu les fotos"
 
@@ -6383,7 +6386,7 @@ msgstr "Error en descartar convocatòria"
 
 #: ilovevoley/core/templates/core/privacy_policy.html:4
 #: ilovevoley/core/templates/core/privacy_policy.html:11
-#: ilovevoley/templates/base.html:330
+#: ilovevoley/templates/base.html:344
 msgid "Política de Privacidad"
 msgstr "Política de Privacitat"
 
@@ -6679,7 +6682,7 @@ msgstr "Darrera actualització: %(year)s · Plataforma comunitària I Love Voley
 #: ilovevoley/core/templates/core/season_wizard.html:4
 #: ilovevoley/core/templates/core/season_wizard.html:11
 #: ilovevoley/templates/includes/navbar.html:133
-#: ilovevoley/templates/includes/navbar.html:389
+#: ilovevoley/templates/includes/navbar.html:417
 msgid "Nueva temporada"
 msgstr "Nova temporada"
 
@@ -7536,7 +7539,7 @@ msgstr "Wrapped"
 #: ilovevoley/templates/includes/bottom_nav.html:33
 #: ilovevoley/templates/includes/navbar.html:153
 #: ilovevoley/templates/includes/navbar.html:154
-#: ilovevoley/templates/includes/navbar.html:304
+#: ilovevoley/templates/includes/navbar.html:332
 msgid "Tú"
 msgstr "Tu"
 
@@ -8887,8 +8890,8 @@ msgid "¿Olvidaste tu contraseña?"
 msgstr "Has oblidat la contrasenya?"
 
 #: ilovevoley/templates/account/login.html:64
-#: ilovevoley/templates/includes/navbar.html:222
-#: ilovevoley/templates/includes/navbar.html:416
+#: ilovevoley/templates/includes/navbar.html:250
+#: ilovevoley/templates/includes/navbar.html:444
 #: ilovevoley/templates/landing.html:62 ilovevoley/templates/landing.html:94
 msgid "Entrar"
 msgstr "Entrar"
@@ -9384,33 +9387,50 @@ msgstr "Vídeos i resultats de %(club)s a I Love Voley."
 msgid "Vídeos y resultados de tu club en I Love Voley."
 msgstr "Vídeos i resultats del teu club a I Love Voley."
 
-#: ilovevoley/templates/base.html:237
+#: ilovevoley/templates/base.html:238
 msgid "Galería del Club"
 msgstr "Galeria del Club"
 
-#: ilovevoley/templates/base.html:254
+#: ilovevoley/templates/base.html:255
 msgid "No hay fotos recientes"
 msgstr "No hi ha fotos recents"
 
-#: ilovevoley/templates/base.html:263
+#: ilovevoley/templates/base.html:264
 msgid "Ver galería completa"
 msgstr "Veure galeria completa"
 
-#: ilovevoley/templates/base.html:293
+#: ilovevoley/templates/base.html:297
 msgid ""
 "Plataforma comunitaria para compartir partidos, fotos y momentos especiales."
 msgstr ""
 "Plataforma comunitària per compartir partits, fotos i moments especials."
 
-#: ilovevoley/templates/base.html:299
+#: ilovevoley/templates/base.html:303
 msgid "Enlaces"
 msgstr "Enllaços"
 
-#: ilovevoley/templates/base.html:343
+#: ilovevoley/templates/base.html:319
+#: ilovevoley/templates/includes/navbar.html:217
+#: ilovevoley/templates/includes/navbar.html:242
+#: ilovevoley/templates/includes/navbar.html:454
+#, python-format
+msgid "Sigue los partidos y fotos de %(club)s en I Love Voley"
+msgstr "Segueix els partits i fotos de %(club)s a I Love Voley"
+
+#: ilovevoley/templates/base.html:322
+#: ilovevoley/templates/includes/navbar.html:219
+#: ilovevoley/templates/includes/navbar.html:220
+#: ilovevoley/templates/includes/navbar.html:244
+#: ilovevoley/templates/includes/navbar.html:245
+#: ilovevoley/templates/includes/navbar.html:457
+msgid "Comparte con otra familia"
+msgstr "Comparteix amb una altra família"
+
+#: ilovevoley/templates/base.html:357
 msgid "Sigue al club"
 msgstr "Segueix el club"
 
-#: ilovevoley/templates/base.html:367
+#: ilovevoley/templates/base.html:381
 #, python-format
 msgid ""
 "© %(year)s Desarrollado con 💜 por <a href=\"https://www.instagram.com/"
@@ -9425,7 +9445,7 @@ msgstr ""
 "                            class=\"font-semibold text-white underline "
 "underline-offset-2 hover:opacity-80 transition-colors\">trencaclosques</a>"
 
-#: ilovevoley/templates/base.html:374 ilovevoley/templates/base_auth.html:127
+#: ilovevoley/templates/base.html:388 ilovevoley/templates/base_auth.html:127
 msgid "Proyecto sin ánimo de lucro · Para la comunidad del voley balear"
 msgstr "Projecte sense ànim de lucre · Per a la comunitat del vòlei balear"
 
@@ -9469,7 +9489,8 @@ msgstr "Configurar ara"
 
 #: ilovevoley/templates/category_preferences_banner.html:23
 #: ilovevoley/templates/category_preferences_banner.html:50
-#: ilovevoley/templates/includes/navbar.html:443
+#: ilovevoley/templates/includes/navbar.html:485
+#: ilovevoley/templates/includes/pwa_install_prompt.html:23
 msgid "Ahora no"
 msgstr "Ara no"
 
@@ -11446,7 +11467,7 @@ msgid "Navegación principal"
 msgstr "Navegació principal"
 
 #: ilovevoley/templates/includes/language_selector.html:6
-#: ilovevoley/templates/includes/navbar.html:420
+#: ilovevoley/templates/includes/navbar.html:462
 msgid "Idioma"
 msgstr "Idioma"
 
@@ -11463,19 +11484,19 @@ msgid "Cambiar tema"
 msgstr "Canviar tema"
 
 #: ilovevoley/templates/includes/navbar.html:67
-#: ilovevoley/templates/includes/navbar.html:251
+#: ilovevoley/templates/includes/navbar.html:279
 msgid "Multimedia"
 msgstr "Multimèdia"
 
 #: ilovevoley/templates/includes/navbar.html:109
-#: ilovevoley/templates/includes/navbar.html:275
+#: ilovevoley/templates/includes/navbar.html:303
 msgid "Plantillas"
 msgstr "Plantilles"
 
 #: ilovevoley/templates/includes/navbar.html:164
 #: ilovevoley/templates/includes/navbar.html:166
 #: ilovevoley/templates/includes/navbar.html:170
-#: ilovevoley/templates/includes/navbar.html:322
+#: ilovevoley/templates/includes/navbar.html:350
 msgid "Cambiar de club"
 msgstr "Canviar de club"
 
@@ -11485,53 +11506,53 @@ msgid "Tus clubes"
 msgstr "Els teus clubs"
 
 #: ilovevoley/templates/includes/navbar.html:187
-#: ilovevoley/templates/includes/navbar.html:332
+#: ilovevoley/templates/includes/navbar.html:360
 msgid "Actual"
 msgstr "Actual"
 
 #: ilovevoley/templates/includes/navbar.html:205
-#: ilovevoley/templates/includes/navbar.html:349
+#: ilovevoley/templates/includes/navbar.html:377
 msgid "Ver todos los clubes..."
 msgstr "Veure tots els clubs..."
 
-#: ilovevoley/templates/includes/navbar.html:217
+#: ilovevoley/templates/includes/navbar.html:231
 #: ilovevoley/templates/users/profile.html:30
 msgid "Perfil"
 msgstr "Perfil"
 
-#: ilovevoley/templates/includes/navbar.html:219
-#: ilovevoley/templates/includes/navbar.html:411
+#: ilovevoley/templates/includes/navbar.html:233
+#: ilovevoley/templates/includes/navbar.html:439
 msgid "Salir"
 msgstr "Sortir"
 
-#: ilovevoley/templates/includes/navbar.html:244
+#: ilovevoley/templates/includes/navbar.html:272
 #, python-format
 msgid "Hola, %(name)s"
 msgstr "Hola, %(name)s"
 
-#: ilovevoley/templates/includes/navbar.html:295
+#: ilovevoley/templates/includes/navbar.html:323
 msgid "Modo"
 msgstr "Mode"
 
-#: ilovevoley/templates/includes/navbar.html:295
+#: ilovevoley/templates/includes/navbar.html:323
 msgid "Oscuro"
 msgstr "Fosc"
 
-#: ilovevoley/templates/includes/navbar.html:312
+#: ilovevoley/templates/includes/navbar.html:340
 #: ilovevoley/templates/users/profile.html:4
 #: ilovevoley/templates/users/profile.html:16
 msgid "Mi Perfil"
 msgstr "El meu perfil"
 
-#: ilovevoley/templates/includes/navbar.html:362
+#: ilovevoley/templates/includes/navbar.html:390
 msgid "Añadir Video"
 msgstr "Afegir vídeo"
 
-#: ilovevoley/templates/includes/navbar.html:428
+#: ilovevoley/templates/includes/navbar.html:470
 msgid "¿Quieres recibir avisos?"
 msgstr "Vols rebre avisos?"
 
-#: ilovevoley/templates/includes/navbar.html:429
+#: ilovevoley/templates/includes/navbar.html:471
 msgid ""
 "Activa las notificaciones para enterarte de partidos y novedades de tus "
 "categorías."
@@ -11539,11 +11560,11 @@ msgstr ""
 "Activa les notificacions per assabentar-te de partits i novetats de les "
 "teves categories."
 
-#: ilovevoley/templates/includes/navbar.html:430
+#: ilovevoley/templates/includes/navbar.html:472
 msgid "Tus preferencias están guardadas"
 msgstr "Les teves preferències estan desades"
 
-#: ilovevoley/templates/includes/navbar.html:431
+#: ilovevoley/templates/includes/navbar.html:473
 msgid ""
 "Este móvil aún no recibe avisos. Actívalos para enterarte de partidos y "
 "fotos."
@@ -11551,13 +11572,86 @@ msgstr ""
 "Aquest mòbil encara no rep avisos. Activa'ls per assabentar-te de partits i "
 "fotos."
 
-#: ilovevoley/templates/includes/navbar.html:442
+#: ilovevoley/templates/includes/navbar.html:484
+#: ilovevoley/templates/includes/pwa_install_prompt.html:22
 msgid "No, gracias"
 msgstr "No, gràcies"
 
-#: ilovevoley/templates/includes/navbar.html:444
+#: ilovevoley/templates/includes/navbar.html:486
 msgid "Activar"
 msgstr "Activar"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:4
+msgid "Cómo instalar"
+msgstr "Com instal·lar"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:11
+msgid "Instala la app del club"
+msgstr "Instal·la l'app del club"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:14
+#, python-format
+msgid ""
+"Añade %(club)s a tu pantalla de inicio para acceder rápidamente a partidos, "
+"fotos y resultados."
+msgstr ""
+"Afegeix %(club)s a la teva pantalla d'inici per accedir ràpidament a partits, "
+"fotos i resultats."
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:16
+msgid ""
+"Añade I Love Voley a tu pantalla de inicio para acceder rápidamente a "
+"partidos, fotos y resultados."
+msgstr ""
+"Afegeix I Love Voley a la teva pantalla d'inici per accedir ràpidament a "
+"partits, fotos i resultats."
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:24
+msgid "Instalar"
+msgstr "Instal·lar"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:34
+msgid "Instalar en iPhone / iPad"
+msgstr "Instal·lar a l'iPhone / iPad"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:41
+msgid ""
+"Sigue estos sencillos pasos desde Safari para añadir la aplicación a tu "
+"inicio:"
+msgstr ""
+"Segueix aquests passos senzills des de Safari per afegir l'aplicació al teu "
+"inici:"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:44
+msgid ""
+"En Safari, pulsa el botón <strong>Compartir</strong> <span class=\"inline-"
+"block px-1.5 py-0.5 bg-line text-ink rounded font-mono text-[10px]\">⎋</"
+"span> (barra inferior o superior)."
+msgstr ""
+"A Safari, prem el botó <strong>Compartir</strong> <span class=\"inline-"
+"block px-1.5 py-0.5 bg-line text-ink rounded font-mono text-[10px]\">⎋</"
+"span> (barra inferior o superior)."
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:45
+msgid ""
+"Desplázate hacia abajo y selecciona <strong>«Añadir a pantalla de inicio»</"
+"strong>."
+msgstr ""
+"Desplaça't cap avall i selecciona <strong>«Afegir a la pantalla d'inici»</"
+"strong>."
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:46
+msgid "Pulsa <strong>Añadir</strong> en la esquina superior derecha."
+msgstr "Prem <strong>Afegir</strong> a la cantonada superior dreta."
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:50
+#: ilovevoley/templates/users/profile.html:583
+msgid "Entendido"
+msgstr "Entesos"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:57
+msgid "Enlace copiado al portapapeles"
+msgstr "Enllaç copiat al porta-retalls"
 
 #: ilovevoley/templates/landing.html:4
 msgid "Tu plataforma de voleibol"
@@ -12331,10 +12425,6 @@ msgstr "Obre Outlook Calendar i prem «Afegeix calendari»."
 #: ilovevoley/templates/users/profile.html:576
 msgid "Selecciona 'Suscribirse desde la web' y pega la URL."
 msgstr "Selecciona «Subscriure's des del web» i enganxa l'URL."
-
-#: ilovevoley/templates/users/profile.html:583
-msgid "Entendido"
-msgstr "Entesos"
 
 #: ilovevoley/templates/users/profile.html:592
 msgid "No soportado en este navegador"

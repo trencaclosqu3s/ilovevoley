@@ -82,6 +82,29 @@ Servido por la vista `ilovevoley.core.views.service_worker` desde la raíz con l
 - Retrocede con `history.back()`; si no hay historial interno (acceso directo desde un push, por ejemplo) navega a la portada del club. Al usar el historial del navegador, los filtros de la página previa (p. ej. Resultados) se conservan.
 - Complementariamente, `static/js/results.js` guarda los filtros de Resultados en `sessionStorage` y los reaplica si se entra a la página sin parámetros (por ejemplo desde el menú).
 
+### 5. Instalación Guiada PWA y Compartir Club (`static/js/pwa_install.js`)
+
+#### Instalación Guiada (#534)
+- **Banner interactivo (`#pwa-install-prompt`)**: Se muestra únicamente cuando el usuario navega en el navegador web (fuera de standalone). Es mutuamente excluyente con el aviso de notificaciones push (`#webpush-prompt`), que solo opera en la app instalada.
+- **Android / Chromium**:
+  - Captura el evento `beforeinstallprompt`, previene el comportamiento por defecto del navegador y retiene el evento diferido.
+  - Al pulsar **Instalar**, lanza `deferredPrompt.prompt()` y procesa la elección del usuario.
+  - Escucha el evento `appinstalled` para auto-ocultar el banner y marcar la instalación.
+- **iOS / Safari**:
+  - Al no existir `beforeinstallprompt` en Safari iOS, detecta el entorno no standalone (`isIosNonStandalone`).
+  - Adapta la etiqueta de acción a **Cómo instalar** y, al pulsar, despliega el modal `#pwa-ios-modal` con las instrucciones ilustradas paso a paso (botón Compartir ⎋ → «Añadir a pantalla de inicio» → «Añadir»).
+- **Snooze y Rechazo (espejo de push)**:
+  - **Ahora no**: Pospospone el aviso 7 días guardando la fecha límite en `ilovevoley.pwa.install_snooze_until`.
+  - **No, gracias**: Rechazo definitivo que persiste `ilovevoley.pwa.install_never = "1"`.
+- **Integración CSP**:
+  - Todos los eventos y acciones se gestionan por delegación mediante atributos `data-call` y `csp_actions.js`, sin scripts inline.
+
+#### Compartir Club con otra Familia (#534)
+- **Ubicación**: En navbar (escritorio y menú móvil) y en el pie de página (`footer`) de todas las páginas cuando existe un club activo (`tenant`).
+- **Comportamiento (`data-call="shareClub"`)**:
+  - Invoca la API nativa `navigator.share({ title, text, url })` con la URL canónica del club (`tenant_url`).
+  - Si el navegador no soporta `navigator.share` o la llamada falla (salvo cancelación explícita del usuario), realiza fallback copiando la dirección al portapapeles (`navigator.clipboard.writeText`) y mostrando un toast Notyf de confirmación («Enlace copiado al portapapeles»).
+
 ---
 
 ## 🌐 Convivencia Multi-Tenant y Scope Extensions
