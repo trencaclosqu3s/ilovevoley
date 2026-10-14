@@ -3,9 +3,11 @@ from django.contrib.auth import get_user_model
 from django.contrib.admin.sites import AdminSite
 from django.core import mail
 from django.contrib.messages.storage.fallback import FallbackStorage
+from django.utils import timezone
 from ilovevoley.core.email_utils import send_admin_email_to_users
-from ilovevoley.users.admin import UserAdmin, WebPushAuditAdmin
-from ilovevoley.users.models import WebPushAudit
+from ilovevoley.core.models import Organization
+from ilovevoley.users.admin import MembershipAdmin, UserAdmin, WebPushAuditAdmin, approve_users
+from ilovevoley.users.models import Membership, WebPushAudit
 
 User = get_user_model()
 
@@ -207,6 +209,90 @@ class UserAdminEmailActionTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ['carlos@example.com'])
         self.assertEqual(mail.outbox[0].subject, 'Aviso individual')
+
+
+class AdminApprovalProfileReviewTest(TestCase):
+    """Aprobar desde el admin deja la misma marca que `approve_user_membership` (#544).
+
+    Solo a quien aún no estaba aprobado: reejecutar una acción sobre cuentas ya
+    aprobadas no debe volver a mandarlas al perfil.
+    """
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.admin_user = User.objects.create_superuser(
+            username='root_admin', email='root_admin@example.com', password='password123',
+        )
+        self.org = Organization.objects.create(slug='cluba', name='Club A')
+        self.pending = User.objects.create_user(
+            username='pendiente', password='password123', is_approved=False,
+        )
+        self.already_approved = User.objects.create_user(
+            username='socio', password='password123', is_approved=True,
+        )
+        Membership.objects.create(user=self.pending, organization=self.org, is_approved=False)
+        Membership.objects.create(user=self.already_approved, organization=self.org, is_approved=False)
+
+    def _request(self):
+        request = self.factory.post('/admin/users/user/')
+        request.user = self.admin_user
+        setattr(request, 'session', {})
+        setattr(request, '_messages', FallbackStorage(request))
+        return request
+
+    def test_approve_users_marks_only_the_newly_approved(self):
+        selected = User.objects.filter(pk__in=[self.pending.pk, self.already_approved.pk])
+
+        approve_users(UserAdmin(User, AdminSite()), self._request(), selected)
+
+        self.pending.refresh_from_db()
+        self.already_approved.refresh_from_db()
+        self.assertTrue(self.pending.pending_profile_review)
+        self.assertFalse(self.already_approved.pending_profile_review)
+
+    def test_approving_memberships_marks_the_account(self):
+        MembershipAdmin(Membership, AdminSite()).approve_memberships(
+            self._request(), Membership.objects.filter(user=self.pending),
+        )
+
+        self.pending.refresh_from_db()
+        self.assertTrue(self.pending.is_approved)
+        self.assertTrue(self.pending.pending_profile_review)
+
+    def _change_form(self, user, **overrides):
+        """Formulario de la ficha tal como lo construye el admin a partir de los fieldsets."""
+        model_admin = UserAdmin(User, AdminSite())
+        request = self._request()
+        form_class = model_admin.get_form(request, user, change=True)
+        joined = timezone.localtime(user.date_joined)
+        data = {
+            'username': user.username,
+            'date_joined_0': joined.strftime('%Y-%m-%d'),
+            'date_joined_1': joined.strftime('%H:%M:%S'),
+            'inactivity_warning_level': 0,
+            'is_approved': 'on',
+        }
+        data.update(overrides)
+        form = form_class(data=data, instance=user)
+        self.assertTrue(form.is_valid(), form.errors)
+        return model_admin, request, form
+
+    def test_change_form_approval_marks_the_review(self):
+        model_admin, request, form = self._change_form(self.pending)
+
+        model_admin.save_model(request, form.instance, form, change=True)
+
+        self.pending.refresh_from_db()
+        self.assertTrue(self.pending.is_approved)
+        self.assertTrue(self.pending.pending_profile_review)
+
+    def test_change_form_keeps_pending_free_when_approval_is_not_touched(self):
+        model_admin, request, form = self._change_form(self.already_approved)
+
+        model_admin.save_model(request, form.instance, form, change=True)
+
+        self.already_approved.refresh_from_db()
+        self.assertFalse(self.already_approved.pending_profile_review)
 
 
 class WebPushAuditAdminTest(TestCase):

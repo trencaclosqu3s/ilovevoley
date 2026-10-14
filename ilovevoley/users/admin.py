@@ -48,12 +48,18 @@ class NotificationPreferenceInline(TabularInline):
 def approve_users(modeladmin, request, queryset):
     """Acción para aprobar usuarios seleccionados"""
     from ilovevoley.users.models import Membership
+    # La revisión de perfil solo se marca a quien pasa de no aprobado a aprobado
+    # (#544): reejecutar la acción sobre cuentas ya aprobadas no debe volver a
+    # llevarles al perfil.
+    newly_approved_ids = list(queryset.filter(is_approved=False).values_list('id', flat=True))
     count = queryset.update(
         is_approved=True,
         is_active=True,
         inactivity_warning_level=0,
         inactivity_warning_sent_at=None,
     )
+    if newly_approved_ids:
+        queryset.model.objects.filter(id__in=newly_approved_ids).update(pending_profile_review=True)
     Membership.objects.filter(user__in=queryset, is_approved=False).update(is_approved=True)
     modeladmin.message_user(request, f'{count} usuario(s) aprobado(s) correctamente.')
 
@@ -88,6 +94,12 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
         return super().get_queryset(request).annotate(
             children_count_annotated=models.Count('children', distinct=True)
         )
+
+    def save_model(self, request, obj, form, change):
+        """Aprobar a mano desde la ficha del usuario deja pendiente la revisión de perfil (#544)."""
+        if change and obj.is_approved and 'is_approved' in form.changed_data:
+            obj.pending_profile_review = True
+        super().save_model(request, obj, form, change)
 
     # Añadir is_approved, inactividad y parent_info a los fieldsets
     fieldsets = BaseUserAdmin.fieldsets + (
@@ -340,7 +352,11 @@ class MembershipAdmin(ModelAdmin):
     def approve_memberships(self, request, queryset):
         user_ids = queryset.values_list('user_id', flat=True)
         count = queryset.update(is_approved=True)
-        User.objects.filter(id__in=user_ids, is_approved=False).update(is_approved=True, is_active=True)
+        # Solo se marca la revisión de perfil a las cuentas que aún no estaban
+        # aprobadas (#544).
+        User.objects.filter(
+            id__in=user_ids, is_approved=False
+        ).update(is_approved=True, is_active=True, pending_profile_review=True)
         self.message_user(request, f'{count} membresía(s) aprobada(s).')
 
 
