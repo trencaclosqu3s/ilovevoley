@@ -214,8 +214,9 @@ class UserAdminEmailActionTests(TestCase):
 class AdminApprovalProfileReviewTest(TestCase):
     """Aprobar desde el admin deja la misma marca que `approve_user_membership` (#544).
 
-    Solo a quien aún no estaba aprobado: reejecutar una acción sobre cuentas ya
-    aprobadas no debe volver a mandarlas al perfil.
+    Vale tanto para la cuenta como para una membresía nueva de una cuenta ya
+    aprobada (un socio que entra en otro club), y la ficha del usuario solo
+    marca cuando el admin activa `is_approved`.
     """
 
     def setUp(self):
@@ -240,7 +241,7 @@ class AdminApprovalProfileReviewTest(TestCase):
         setattr(request, '_messages', FallbackStorage(request))
         return request
 
-    def test_approve_users_marks_only_the_newly_approved(self):
+    def test_approve_users_marks_the_review(self):
         selected = User.objects.filter(pk__in=[self.pending.pk, self.already_approved.pk])
 
         approve_users(UserAdmin(User, AdminSite()), self._request(), selected)
@@ -248,9 +249,17 @@ class AdminApprovalProfileReviewTest(TestCase):
         self.pending.refresh_from_db()
         self.already_approved.refresh_from_db()
         self.assertTrue(self.pending.pending_profile_review)
-        self.assertFalse(self.already_approved.pending_profile_review)
+        self.assertTrue(self.already_approved.pending_profile_review)
 
-    def test_approving_memberships_marks_the_account(self):
+    def test_approving_a_membership_marks_the_already_approved_account(self):
+        MembershipAdmin(Membership, AdminSite()).approve_memberships(
+            self._request(), Membership.objects.filter(user=self.already_approved),
+        )
+
+        self.already_approved.refresh_from_db()
+        self.assertTrue(self.already_approved.pending_profile_review)
+
+    def test_approving_a_membership_also_approves_the_account(self):
         MembershipAdmin(Membership, AdminSite()).approve_memberships(
             self._request(), Membership.objects.filter(user=self.pending),
         )

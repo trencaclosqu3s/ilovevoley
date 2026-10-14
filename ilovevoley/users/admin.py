@@ -48,18 +48,15 @@ class NotificationPreferenceInline(TabularInline):
 def approve_users(modeladmin, request, queryset):
     """Acción para aprobar usuarios seleccionados"""
     from ilovevoley.users.models import Membership
-    # La revisión de perfil solo se marca a quien pasa de no aprobado a aprobado
-    # (#544): reejecutar la acción sobre cuentas ya aprobadas no debe volver a
-    # llevarles al perfil.
-    newly_approved_ids = list(queryset.filter(is_approved=False).values_list('id', flat=True))
+    # Toda aprobación deja pendiente la revisión de perfil (#544), igual que
+    # `approve_user_membership`.
     count = queryset.update(
         is_approved=True,
         is_active=True,
+        pending_profile_review=True,
         inactivity_warning_level=0,
         inactivity_warning_sent_at=None,
     )
-    if newly_approved_ids:
-        queryset.model.objects.filter(id__in=newly_approved_ids).update(pending_profile_review=True)
     Membership.objects.filter(user__in=queryset, is_approved=False).update(is_approved=True)
     modeladmin.message_user(request, f'{count} usuario(s) aprobado(s) correctamente.')
 
@@ -352,11 +349,11 @@ class MembershipAdmin(ModelAdmin):
     def approve_memberships(self, request, queryset):
         user_ids = queryset.values_list('user_id', flat=True)
         count = queryset.update(is_approved=True)
-        # Solo se marca la revisión de perfil a las cuentas que aún no estaban
-        # aprobadas (#544).
-        User.objects.filter(
-            id__in=user_ids, is_approved=False
-        ).update(is_approved=True, is_active=True, pending_profile_review=True)
+        # Aprobar una membresía (p. ej. la de un socio que entra en otro club)
+        # deja pendiente la revisión de perfil, como `approve_user_membership` (#544).
+        User.objects.filter(id__in=user_ids).update(
+            is_approved=True, is_active=True, pending_profile_review=True,
+        )
         self.message_user(request, f'{count} membresía(s) aprobada(s).')
 
 
