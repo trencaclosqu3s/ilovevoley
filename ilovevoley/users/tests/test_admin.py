@@ -259,6 +259,20 @@ class AdminApprovalProfileReviewTest(TestCase):
         self.already_approved.refresh_from_db()
         self.assertTrue(self.already_approved.pending_profile_review)
 
+    def test_approving_a_membership_does_not_reactivate_an_inactive_account(self):
+        inactive = User.objects.create_user(
+            username='inactivo', password='password123', is_approved=True, is_active=False,
+        )
+        Membership.objects.create(user=inactive, organization=self.org, is_approved=False)
+
+        MembershipAdmin(Membership, AdminSite()).approve_memberships(
+            self._request(), Membership.objects.filter(user=inactive),
+        )
+
+        inactive.refresh_from_db()
+        self.assertFalse(inactive.is_active)
+        self.assertTrue(inactive.pending_profile_review)
+
     def test_approving_a_membership_also_approves_the_account(self):
         MembershipAdmin(Membership, AdminSite()).approve_memberships(
             self._request(), Membership.objects.filter(user=self.pending),

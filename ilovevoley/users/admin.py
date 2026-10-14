@@ -351,8 +351,11 @@ class MembershipAdmin(ModelAdmin):
         count = queryset.update(is_approved=True)
         # Aprobar una membresía (p. ej. la de un socio que entra en otro club)
         # deja pendiente la revisión de perfil, como `approve_user_membership` (#544).
-        User.objects.filter(id__in=user_ids).update(
-            is_approved=True, is_active=True, pending_profile_review=True,
+        User.objects.filter(id__in=user_ids).update(pending_profile_review=True)
+        # La cuenta solo se aprueba y activa si aún no lo estaba: activar a quien
+        # no lo está resucitaría cuentas desactivadas a propósito (inactividad, #327).
+        User.objects.filter(id__in=user_ids, is_approved=False).update(
+            is_approved=True, is_active=True,
         )
         self.message_user(request, f'{count} membresía(s) aprobada(s).')
 
