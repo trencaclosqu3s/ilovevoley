@@ -496,3 +496,82 @@ class SeasonWrapped(models.Model):
 
     def __str__(self):
         return f'{self.person} · {self.season} · {self.modality}'
+
+
+class PersonLinkRequest(models.Model):
+    """Solicitud de vínculo entre una cuenta y una ficha (#531), self-service.
+
+    La crea el propio usuario (su ficha o la de un hijo/a) identificando la ficha
+    por nombre, apellidos y año exactos —la misma verificación estricta que
+    ``person_adopt``—. La resuelve un moderador del club; aprobarla es lo único
+    que escribe el vínculo (``Person.user`` o ``User.children``). Solo puede
+    haber una solicitud pendiente por (usuario, ficha): pedir de nuevo es
+    idempotente.
+    """
+
+    class Kind(models.TextChoices):
+        SELF = 'self', _('Mi ficha')
+        CHILD = 'child', _('Ficha de mi hijo/a')
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', _('Pendiente')
+        APPROVED = 'approved', _('Aprobada')
+        REJECTED = 'rejected', _('Rechazada')
+
+    person = models.ForeignKey(
+        Person,
+        on_delete=models.CASCADE,
+        related_name='link_requests',
+        verbose_name=_('Ficha'),
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='person_link_requests',
+        verbose_name=_('Usuario'),
+    )
+    kind = models.CharField(
+        max_length=10,
+        choices=Kind.choices,
+        verbose_name=_('Tipo'),
+    )
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.CASCADE,
+        related_name='person_link_requests',
+        verbose_name=_('Organización'),
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name=_('Estado'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Creada'))
+    resolved_at = models.DateTimeField(null=True, blank=True, verbose_name=_('Resuelta'))
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='resolved_person_link_requests',
+        verbose_name=_('Resuelta por'),
+    )
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = _('Solicitud de vínculo')
+        verbose_name_plural = _('Solicitudes de vínculo')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'person'],
+                condition=models.Q(status='pending'),
+                name='unique_pending_person_link_request',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['organization', 'status']),
+        ]
+
+    def __str__(self):
+        return f'{self.user} → {self.person} ({self.get_kind_display()})'

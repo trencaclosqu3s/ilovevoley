@@ -489,6 +489,23 @@ def _reactivation_requests_qs(request):
     return qs.order_by('reactivation_requested_at')
 
 
+def _link_requests_qs(request):
+    """Solicitudes de vínculo pendientes visibles para quien modera (#531).
+
+    En un club se limita a las de ese tenant; sin tenant solo el superusuario ve
+    el conjunto global. Un gestor de club nunca ve solicitudes de otros clubes.
+    """
+    from ilovevoley.rosters.models import PersonLinkRequest
+
+    tenant = getattr(request, 'tenant', None)
+    qs = PersonLinkRequest.objects.filter(status=PersonLinkRequest.Status.PENDING)
+    if tenant:
+        qs = qs.filter(organization=tenant)
+    elif not request.user.is_superuser:
+        return PersonLinkRequest.objects.none()
+    return qs.select_related('person', 'user', 'organization').order_by('created_at')
+
+
 def moderation_counts_api(request):
     """API para obtener contadores de elementos pendientes de moderación"""
     if not request.user.is_authenticated:
@@ -557,9 +574,10 @@ def moderation_counts_api(request):
 
     # Total de elementos pendientes
     pending_reactivations_count = _reactivation_requests_qs(request).count()
+    pending_links_count = _link_requests_qs(request).count()
     total_pending = (
         pending_users_count + pending_images_count + pending_callups_count
-        + pending_reactivations_count + pending_removals_count
+        + pending_reactivations_count + pending_removals_count + pending_links_count
     )
 
     return JsonResponse({
@@ -569,6 +587,7 @@ def moderation_counts_api(request):
         'pending_callups': pending_callups_count,
         'pending_reactivations': pending_reactivations_count,
         'pending_removals': pending_removals_count,
+        'pending_links': pending_links_count,
         'total_pending': total_pending
     })
 
@@ -644,17 +663,20 @@ def moderation_panel(request):
         pending_removals = ImageRemovalRequest.objects.none()
 
     reactivation_users = _reactivation_requests_qs(request)
+    pending_link_requests = _link_requests_qs(request)
     context = {
         'pending_users': pending_users,
         'pending_images': pending_images,
         'pending_callups': pending_callups,
         'pending_removals': pending_removals,
         'reactivation_users': reactivation_users,
+        'pending_link_requests': pending_link_requests,
         'pending_users_count': pending_users.count(),
         'pending_images_count': pending_images.count(),
         'pending_callups_count': pending_callups.count(),
         'pending_removals_count': pending_removals.count(),
         'pending_reactivations_count': reactivation_users.count(),
+        'pending_links_count': pending_link_requests.count(),
         'can_moderate_images': can_mod_images,
     }
 
@@ -758,6 +780,63 @@ def reject_user_api(request, user_id):
             'success': False,
             'error': _('Error interno del servidor')
         }, status=500)
+
+
+@login_required
+@require_POST
+def approve_person_link_api(request, request_id):
+    """Aprueba una solicitud de vínculo cuenta ↔ ficha (#531)."""
+    if not _can_moderate_memberships(request):
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
+    return _resolve_person_link_api(request, request_id, approved=True)
+
+
+@login_required
+@require_POST
+def reject_person_link_api(request, request_id):
+    """Rechaza una solicitud de vínculo cuenta ↔ ficha (#531)."""
+    if not _can_moderate_memberships(request):
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
+    return _resolve_person_link_api(request, request_id, approved=False)
+
+
+def _resolve_person_link_api(request, request_id, approved):
+    """Aprueba o rechaza una solicitud, acotada al tenant de quien modera."""
+    from ilovevoley.rosters.link_requests import approve_link_request, reject_link_request
+    from ilovevoley.rosters.models import PersonLinkRequest
+
+    tenant = getattr(request, 'tenant', None)
+    qs = PersonLinkRequest.objects.filter(status=PersonLinkRequest.Status.PENDING)
+    if tenant:
+        qs = qs.filter(organization=tenant)
+    elif not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': _('Permiso denegado')}, status=403)
+
+    link_request = qs.filter(pk=request_id).first()
+    if link_request is None:
+        return JsonResponse(
+            {'success': False, 'error': _('Solicitud no encontrada o ya resuelta')}, status=404,
+        )
+
+    error = (
+        approve_link_request(link_request, request.user) if approved
+        else reject_link_request(link_request, request.user)
+    )
+    if error:
+        return JsonResponse({'success': False, 'error': error}, status=409)
+
+    try:
+        from ilovevoley.core.email_utils import enqueue_on_commit
+        from ilovevoley.rosters.tasks import notify_person_link_result_task
+        enqueue_on_commit(notify_person_link_result_task, link_request.id, approved)
+    except Exception as e:
+        logger.warning(f'Error encolando aviso de vínculo: {e}')
+
+    return JsonResponse({
+        'success': True,
+        'message': _('Vínculo aprobado correctamente') if approved else _('Solicitud rechazada'),
+        'person_name': link_request.person.full_name,
+    })
 
 
 @login_required

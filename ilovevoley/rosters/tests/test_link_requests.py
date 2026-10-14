@@ -1,0 +1,173 @@
+"""Solicitudes de vínculo cuenta ↔ ficha (#531).
+
+Solo se cubre lo que protege una decisión propia: una ficha ↔ un usuario,
+el efecto persistente de aprobar, el aislamiento entre clubes y la
+idempotencia/anti-abuso de las solicitudes. La búsqueda decorativa no se prueba.
+"""
+from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from django.test import TestCase, override_settings
+from django.urls import reverse
+
+from ilovevoley.core.models import Organization
+from ilovevoley.rosters.link_requests import MAX_PENDING_REQUESTS, create_link_request
+from ilovevoley.rosters.models import Person, PersonLinkRequest
+from ilovevoley.users.models import Membership
+
+
+HOST_A = 'club-a.ilovevoley.es'
+HOST_B = 'club-b.ilovevoley.es'
+
+
+@override_settings(ALLOWED_HOSTS=[HOST_A, HOST_B, 'localhost'])
+class PersonLinkRequestTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.org_a = Organization.objects.create(
+            slug='club-a', name='Club A', club_team_names={'1': 'Club A'}, is_active=True,
+        )
+        self.org_b = Organization.objects.create(
+            slug='club-b', name='Club B', club_team_names={'1': 'Club B'}, is_active=True,
+        )
+        User = get_user_model()
+        self.user = User.objects.create_user(username='member', password='pass', email='member@example.com')
+        Membership.objects.create(user=self.user, organization=self.org_a, is_approved=True)
+        self.manager = User.objects.create_user(username='manager', password='pass')
+        Membership.objects.create(
+            user=self.manager, organization=self.org_a, is_approved=True, role='manager',
+        )
+        self.person = Person.objects.create(first_name='Ana', last_name='Propia', birth_year=2012)
+        self.person.organizations.add(self.org_a)
+
+    def _request_link(self, host=HOST_A, kind='self', person=None, **overrides):
+        person = person or self.person
+        data = {
+            'first_name': person.first_name, 'last_name': person.last_name,
+            'birth_year': person.birth_year, 'kind': kind,
+        }
+        data.update(overrides)
+        return self.client.post(reverse('rosters:person_link_request'), data, HTTP_HOST=host)
+
+    def test_solicitar_mi_ficha_crea_solicitud_pendiente_sin_vincular(self):
+        self.client.force_login(self.user)
+        response = self._request_link()
+        self.assertEqual(response.status_code, 302)
+        link = PersonLinkRequest.objects.get()
+        self.assertEqual(link.status, PersonLinkRequest.Status.PENDING)
+        self.assertEqual(link.kind, PersonLinkRequest.Kind.SELF)
+        self.assertEqual(link.organization, self.org_a)
+        # Solicitar no escribe el vínculo: eso es lo que hace el moderador.
+        self.person.refresh_from_db()
+        self.assertIsNone(self.person.user_id)
+
+    def test_aprobar_mi_ficha_fija_el_usuario(self):
+        self.client.force_login(self.user)
+        self._request_link()
+        link = PersonLinkRequest.objects.get()
+
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('core:approve_person_link_api', args=[link.id]), HTTP_HOST=HOST_A,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+        link.refresh_from_db()
+        self.person.refresh_from_db()
+        self.assertEqual(link.status, PersonLinkRequest.Status.APPROVED)
+        self.assertEqual(link.resolved_by, self.manager)
+        self.assertEqual(self.person.user_id, self.user.id)
+
+    def test_una_ficha_solo_pertenece_a_un_usuario(self):
+        # La solicitud se crea a mano para saltarse la validación de alta y
+        # comprobar el guardarraíl de aprobación: otra cuenta ya tiene la ficha.
+        otro = get_user_model().objects.create_user(username='otro', password='pass')
+        self.person.user = otro
+        self.person.save(update_fields=['user'])
+        link = PersonLinkRequest.objects.create(
+            user=self.user, person=self.person, organization=self.org_a,
+            kind=PersonLinkRequest.Kind.SELF,
+        )
+
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('core:approve_person_link_api', args=[link.id]), HTTP_HOST=HOST_A,
+        )
+        self.assertEqual(response.status_code, 409)
+        link.refresh_from_db()
+        self.person.refresh_from_db()
+        self.assertEqual(link.status, PersonLinkRequest.Status.PENDING)
+        self.assertEqual(self.person.user_id, otro.id)
+
+    def test_aprobar_ficha_de_hijo_la_anade_a_children_y_a_tu(self):
+        child = Person.objects.create(first_name='Hijo', last_name='Propia', birth_year=2015)
+        child.organizations.add(self.org_a)
+
+        self.client.force_login(self.user)
+        self._request_link(kind='child', person=child)
+        link = PersonLinkRequest.objects.get()
+
+        self.client.force_login(self.manager)
+        self.client.post(
+            reverse('core:approve_person_link_api', args=[link.id]), HTTP_HOST=HOST_A,
+        )
+        self.assertIn(child, self.user.children.all())
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('rosters:my_profile'), HTTP_HOST=HOST_A)
+        self.assertContains(response, 'Hijo Propia')
+
+    def test_no_se_puede_solicitar_una_ficha_de_otro_club(self):
+        ajena = Person.objects.create(first_name='Bea', last_name='Ajena', birth_year=2010)
+        ajena.organizations.add(self.org_b)
+
+        self.client.force_login(self.user)
+        response = self._request_link(person=ajena)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(PersonLinkRequest.objects.filter(person=ajena).exists())
+
+    def test_solicitudes_duplicadas_no_se_duplican(self):
+        first, error = create_link_request(
+            self.user, self.org_a, self.person.first_name, self.person.last_name,
+            self.person.birth_year, PersonLinkRequest.Kind.SELF,
+        )
+        second, error2 = create_link_request(
+            self.user, self.org_a, self.person.first_name, self.person.last_name,
+            self.person.birth_year, PersonLinkRequest.Kind.SELF,
+        )
+        self.assertIsNone(error)
+        self.assertIsNone(error2)
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(PersonLinkRequest.objects.count(), 1)
+
+    def test_limite_de_solicitudes_pendientes(self):
+        for i in range(MAX_PENDING_REQUESTS):
+            person = Person.objects.create(first_name=f'P{i}', last_name='Pendiente', birth_year=2010)
+            person.organizations.add(self.org_a)
+            PersonLinkRequest.objects.create(
+                user=self.user, person=person, organization=self.org_a,
+                kind=PersonLinkRequest.Kind.CHILD,
+            )
+        extra = Person.objects.create(first_name='Extra', last_name='Pendiente', birth_year=2011)
+        extra.organizations.add(self.org_a)
+        link, error = create_link_request(
+            self.user, self.org_a, extra.first_name, extra.last_name,
+            extra.birth_year, PersonLinkRequest.Kind.CHILD,
+        )
+        self.assertIsNone(link)
+        self.assertIsNotNone(error)
+
+    def test_el_panel_muestra_la_solicitud_solo_a_su_club(self):
+        self.client.force_login(self.user)
+        self._request_link()
+
+        self.client.force_login(self.manager)
+        response = self.client.get(reverse('core:moderation_panel'), HTTP_HOST=HOST_A)
+        self.assertContains(response, self.person.full_name)
+
+        manager_b = get_user_model().objects.create_user(username='manager-b', password='pass')
+        Membership.objects.create(
+            user=manager_b, organization=self.org_b, is_approved=True, role='manager',
+        )
+        self.client.force_login(manager_b)
+        response = self.client.get(reverse('core:moderation_panel'), HTTP_HOST=HOST_B)
+        self.assertNotContains(response, self.person.full_name)

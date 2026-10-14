@@ -7,8 +7,10 @@ from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.mixins import get_club_team_names
 from ilovevoley.core.models import Season
+from ilovevoley.core.tenant_utils import person_belongs_to_tenant
 from ilovevoley.teams.models import Team, TeamIdentity
-from .models import Person, PlayerRole, StaffRole
+from .link_requests import find_person, validate_link_request
+from .models import Person, PersonLinkRequest, PlayerRole, StaffRole
 
 
 def _club_teams_for_seasons(organization, seasons):
@@ -437,8 +439,54 @@ class BulkPlayerRosterForm:
         return len(roles)
 
 
+class PersonLinkRequestForm(forms.Form):
+    """Solicitud self-service de vínculo cuenta ↔ ficha (#531).
+
+    Identifica la ficha con la misma verificación estricta que ``person_adopt``
+    (nombre, apellidos y año exactos) y exige que sea visible en el club del
+    usuario. La creación efectiva la hace el servicio, que además aplica el
+    límite de solicitudes pendientes.
+    """
+
+    _INPUT = (
+        'w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg '
+        'focus:ring-2 focus:ring-csj-purple focus:border-transparent dark:bg-gray-700 dark:text-white'
+    )
+
+    first_name = forms.CharField(max_length=100, label=_('Nombre'))
+    last_name = forms.CharField(max_length=100, label=_('Apellidos'))
+    birth_year = forms.IntegerField(label=_('Año de nacimiento'), min_value=1900, max_value=date.today().year)
+    kind = forms.ChoiceField(
+        choices=PersonLinkRequest.Kind.choices,
+        label=_('¿De quién es la ficha?'),
+        initial=PersonLinkRequest.Kind.SELF,
+    )
+
+    def __init__(self, *args, user=None, organization=None, **kwargs):
+        self.user = user
+        self.organization = organization
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', self._INPUT)
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.errors:
+            return cleaned
+        person = find_person(
+            cleaned.get('first_name'), cleaned.get('last_name'), cleaned.get('birth_year'),
+        )
+        if person is None or not person_belongs_to_tenant(person, self.organization):
+            raise forms.ValidationError(_('No encontramos ninguna ficha con esos datos en tu club.'))
+        error = validate_link_request(self.user, person, cleaned.get('kind'))
+        if error:
+            raise forms.ValidationError(error)
+        return cleaned
+
+
 __all__ = [
     'PersonForm',
+    'PersonLinkRequestForm',
     'PlayerRoleForm',
     'BulkPlayerRosterForm',
     'StaffRoleForm',
