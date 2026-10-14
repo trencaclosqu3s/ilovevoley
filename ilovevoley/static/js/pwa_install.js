@@ -147,21 +147,15 @@
 
         openIosInstructions: function () {
             var modal = document.getElementById("pwa-ios-modal");
-            if (!modal) return;
-            if (typeof modal.showModal === "function") {
+            if (modal && typeof modal.showModal === "function" && !modal.open) {
                 modal.showModal();
-            } else {
-                modal.classList.remove("hidden");
             }
         },
 
         closeIosInstructions: function () {
             var modal = document.getElementById("pwa-ios-modal");
-            if (!modal) return;
-            if (typeof modal.close === "function") {
+            if (modal && typeof modal.close === "function" && modal.open) {
                 modal.close();
-            } else {
-                modal.classList.add("hidden");
             }
         },
 
