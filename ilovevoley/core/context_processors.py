@@ -94,6 +94,7 @@ def tenant_context(request):
         'user_switch_clubs': user_switch_clubs,
         'switch_club_url': build_absolute_url('', request=request),
         'tenant': org,
+        'tenant_url': build_tenant_url(org.slug, request) if org else '',
         'tenant_color': brand,
         'tenant_color_dark': brand_dark,
         'tenant_color_rgb': hex_to_rgb_channels(brand, '1 105 111'),
