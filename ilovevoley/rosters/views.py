@@ -13,6 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from ilovevoley.core.image_utils import InvalidImageError, decode_cropped_image
 from ilovevoley.core.models import Category, Season
@@ -27,8 +28,9 @@ from ilovevoley.core.security import fetch_logo_bytes
 from ilovevoley.teams.identity import one_team_per_identity
 from ilovevoley.teams.models import Team
 from ilovevoley.competitions.result_card import _file_field_bytes, _team_logo_bytes
-from .forms import BulkPlayerRosterForm, PersonForm, PlayerRoleForm, StaffRoleForm
-from .models import Person, PlayerRole, SeasonWrapped, StaffRole
+from .forms import BulkPlayerRosterForm, PersonForm, PersonLinkRequestForm, PlayerRoleForm, StaffRoleForm
+from .link_requests import create_link_request
+from .models import Person, PersonLinkRequest, PlayerRole, SeasonWrapped, StaffRole
 from .player_card import card_highlight, card_photo_allowed, render_player_card, season_summary
 from .season_wrapped import build_screens, season_organization
 from .wrapped_render import render_wrapped_screen
@@ -175,7 +177,8 @@ def my_profile(request):
 
     No filtra por tenant: la ficha vinculada puede pertenecer a otro club y
     el usuario solo ve sus propios datos (nunca recibe un id por URL). Los
-    padres ven además la lista de sus hijos (#457).
+    padres ven además la lista de sus hijos (#457). Sin ficha propia se ofrece
+    la tarjeta de vínculo self-service (#531).
     """
     person = Person.objects.filter(user=request.user).first()
     children = [
@@ -186,10 +189,59 @@ def my_profile(request):
         }
         for child in request.user.children.order_by('first_name')
     ]
-    if person is None and not children:
-        raise Http404
     context = _trajectory_context(request, person) if person else {'person': None}
-    return render(request, 'rosters/my_profile.html', {**context, 'children': children})
+    return render(request, 'rosters/my_profile.html', {
+        **context,
+        'children': children,
+        'link_form': None if person else PersonLinkRequestForm(user=request.user, organization=request.tenant),
+    })
+
+
+@tenant_access_required()
+@ratelimit(key='user_or_ip', rate='10/h', block=True)
+def person_link_request(request):
+    """Solicitud self-service de vínculo con la ficha propia o de un hijo/a (#531).
+
+    La identificación de la ficha es la misma verificación estricta que
+    ``person_adopt``. La solicitud queda pendiente hasta que un moderador del
+    club la resuelve desde el panel de moderación.
+    """
+    form = PersonLinkRequestForm(
+        request.POST or None, user=request.user, organization=request.tenant,
+    )
+    if request.method == 'POST' and form.is_valid():
+        _link, error = create_link_request(
+            request.user, request.tenant,
+            form.cleaned_data['first_name'], form.cleaned_data['last_name'],
+            form.cleaned_data['birth_year'], form.cleaned_data['kind'],
+        )
+        if error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, _('Solicitud enviada. Un moderador del club la revisará.'))
+            return redirect(_link_request_next(request))
+    pending = PersonLinkRequest.objects.filter(
+        user=request.user, organization=request.tenant,
+        status=PersonLinkRequest.Status.PENDING,
+    ).select_related('person')
+    resolved = PersonLinkRequest.objects.filter(
+        user=request.user, organization=request.tenant,
+    ).exclude(status=PersonLinkRequest.Status.PENDING).select_related('person')[:5]
+    return render(request, 'rosters/person_link_request.html', {
+        'form': form,
+        'pending_requests': pending,
+        'resolved_requests': resolved,
+    })
+
+
+def _link_request_next(request):
+    """Destino tras enviar la solicitud, restringido a las vistas previstas."""
+    target = request.POST.get('next', '')
+    if target == 'my_profile':
+        return reverse('rosters:my_profile')
+    if target == 'profile':
+        return reverse('profile')
+    return reverse('rosters:person_link_request')
 
 
 @tenant_access_required()

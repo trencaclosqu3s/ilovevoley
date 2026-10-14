@@ -173,12 +173,17 @@ def can_tag_image(user, tenant, image=None):
 
 
 def approve_user_membership(user, tenant=None):
-    """Aprueba al usuario globalmente y su membresía en el tenant indicado (o todas las pendientes)."""
+    """Aprueba al usuario globalmente y su membresía en el tenant indicado (o todas las pendientes).
+
+    Marca la revisión de perfil pendiente: el primer login que iba a la home del
+    club aterrizará en el perfil (#544).
+    """
     from ilovevoley.users.models import Membership
 
     user.is_approved = True
     user.is_active = True
-    user.save(update_fields=['is_approved', 'is_active'])
+    user.pending_profile_review = True
+    user.save(update_fields=['is_approved', 'is_active', 'pending_profile_review'])
 
     qs = Membership.objects.filter(user=user, is_approved=False)
     if tenant is not None:

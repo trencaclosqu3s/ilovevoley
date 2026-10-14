@@ -1,0 +1,60 @@
+{% load i18n %}
+<!-- Banner de instalación guiada PWA: snooze («Ahora no», 7 días) o rechazo definitivo («No, gracias»); ver pwa_install.js -->
+<div id="pwa-install-prompt"
+     data-install-ios-label="{% trans 'Cómo instalar' %}"
+     class="hidden fixed inset-x-4 bottom-24 md:bottom-6 md:left-auto md:max-w-sm z-50 p-4 rounded-2xl border border-line bg-surface text-ink shadow-lg">
+    <div class="flex items-start gap-3 mb-2">
+        <span class="p-2 rounded-xl bg-tint text-brand shrink-0">
+            {% icon 'phone' 'w-5 h-5' %}
+        </span>
+        <div>
+            <p class="text-sm font-semibold mb-0.5">{% trans "Instala la app" %}</p>
+            <p class="text-xs text-muted leading-relaxed">
+                {% if tenant %}
+                    {% blocktrans with club=tenant.name %}Ten a mano los partidos, fotos y resultados de {{ club }} desde tu pantalla de inicio.{% endblocktrans %}
+                {% else %}
+                    {% trans "Ten a mano partidos, fotos y resultados desde tu pantalla de inicio." %}
+                {% endif %}
+            </p>
+        </div>
+    </div>
+    <div class="flex flex-wrap justify-end gap-2 mt-3">
+        <button type="button" data-call="declinePwaInstallPrompt" class="px-3 py-2 text-xs font-medium text-muted hover:bg-tint rounded-lg transition">{% trans "No, gracias" %}</button>
+        <button type="button" data-call="dismissPwaInstallPrompt" class="px-3 py-2 text-xs font-medium text-muted hover:bg-tint rounded-lg transition">{% trans "Ahora no" %}</button>
+        <button type="button" data-call="acceptPwaInstallPrompt" data-pwa-install-btn class="px-3 py-2 text-xs font-semibold bg-csj-purple-dark text-white rounded-lg transition hover:opacity-90">{% trans "Instalar" %}</button>
+    </div>
+</div>
+
+<!-- Modal con instrucciones de instalación para Safari en iOS -->
+<dialog id="pwa-ios-modal" class="backdrop:bg-black/60 rounded-2xl p-0 border border-line bg-surface text-ink shadow-2xl max-w-sm w-full m-auto" aria-labelledby="pwa-ios-modal-title">
+    <div class="p-5 relative">
+        <div class="flex items-center justify-between mb-3">
+            <h3 id="pwa-ios-modal-title" class="font-display font-bold text-base flex items-center gap-2">
+                {% icon 'phone' 'w-4 h-4 text-brand' %}
+                <span>{% trans "Instalar en iPhone / iPad" %}</span>
+            </h3>
+            <button type="button" data-call="closePwaIosModal" class="text-muted hover:text-ink p-1 rounded-lg transition" aria-label="{% trans 'Cerrar' %}">
+                {% icon 'x' 'w-4 h-4' %}
+            </button>
+        </div>
+        <p class="text-xs text-muted mb-3">
+            {% trans "Sigue estos pasos para añadir I Love Voley a tu pantalla de inicio:" %}
+        </p>
+        <ol class="list-decimal list-inside space-y-2.5 text-xs text-ink leading-relaxed font-medium bg-tint p-3 rounded-xl mb-4">
+            {% include 'includes/ios_add_to_home_steps.html' %}
+            <li>{% blocktrans %}Pulsa <strong>Añadir</strong> en la esquina superior derecha.{% endblocktrans %}</li>
+        </ol>
+        <div class="flex justify-end">
+            <button type="button" data-call="closePwaIosModal" class="w-full sm:w-auto px-4 py-2 text-xs font-semibold bg-csj-purple-dark text-white rounded-xl hover:opacity-90 transition">
+                {% trans "Entendido" %}
+            </button>
+        </div>
+    </div>
+</dialog>
+
+<script nonce="{{ csp_nonce }}">
+    {% trans "Enlace copiado al portapapeles" as pwa_link_copied_t %}
+    window.PWA_INSTALL_I18N = {
+        linkCopied: "{{ pwa_link_copied_t|escapejs }}"
+    };
+</script>

@@ -60,6 +60,15 @@ class User(AbstractUser):
         verbose_name=_('Fecha del último aviso de inactividad'),
     )
 
+    # Primer login tras la aprobación (#544): la home del club cede ante el
+    # perfil, para repasar avisos, categorías y ficha. Se marca al aprobar la
+    # cuenta y se consume cuando la redirección al perfil ocurre de verdad.
+    pending_profile_review = models.BooleanField(
+        default=False,
+        verbose_name=_('Revisión de perfil pendiente'),
+        help_text=_('Se activa al aprobar la cuenta y se consume en el primer login que aterriza en el perfil.'),
+    )
+
     # Reentrada a moderación de una cuenta desactivada por inactividad (#327).
     # Solo se rellena cuando la propia persona pide la reactivación; mientras
     # esté a NULL no aparece en el panel y no se avisa a nadie.
@@ -68,6 +77,16 @@ class User(AbstractUser):
         blank=True,
         verbose_name=_('Solicitud de reactivación'),
         help_text=_('Fecha en que una cuenta desactivada pidió volver a ser revisada.'),
+    )
+
+    # Checklist de bienvenida familiar (#533). Se fija cuando el usuario la
+    # descarta; a diferencia del banner de avisos, la ocultación persiste por
+    # cuenta y no por dispositivo.
+    onboarding_dismissed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Checklist de bienvenida descartada'),
+        help_text=_('Fecha en que el usuario descartó la guía de primeros pasos.'),
     )
 
     def __str__(self):

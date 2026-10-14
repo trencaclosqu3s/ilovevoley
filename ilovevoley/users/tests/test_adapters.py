@@ -1,13 +1,22 @@
+from datetime import timedelta
+
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount, SocialApp, SocialLogin
 from allauth.socialaccount.providers.google.provider import GoogleProvider
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.messages.storage.cookie import CookieStorage
-from django.test import RequestFactory, TestCase
-from django.utils import translation
+from django.core.cache import cache
+from django.test import RequestFactory, TestCase, override_settings
+from django.urls import reverse
+from django.utils import timezone, translation
 
+from ilovevoley.core.models import Organization
+from ilovevoley.core.tenant_utils import approve_user_membership
 from ilovevoley.users.adapters import CustomAccountAdapter, CustomSocialAccountAdapter
+from ilovevoley.users.models import Membership
+
+User = get_user_model()
 
 
 class AddMessageSuppressionTest(TestCase):
@@ -98,3 +107,91 @@ class AuthenticateByEmailTest(TestCase):
 
         self.assertEqual(user.pk, self.user.pk)
         self.assertEqual(email, 'victima@example.com')
+
+
+@override_settings(
+    ALLOWED_HOSTS=['cluba.ilovevoley.es'],
+    LOGIN_PROFILE_REVIEW_INACTIVITY_DAYS=90,
+)
+class LoginProfileReviewTest(TestCase):
+    """Primer login tras la aprobación, o tras 90 días sin entrar, aterriza en el perfil (#544).
+
+    Regla de negocio con efecto persistente: la marca de revisión se consume al
+    llegar al perfil, de modo que el login siguiente vuelve a la home del club.
+    Un ``next`` explícito (enlace protegido) manda sobre el perfil.
+    """
+
+    HOST = 'cluba.ilovevoley.es'
+
+    def setUp(self):
+        cache.clear()
+        self.org = Organization.objects.create(slug='cluba', name='Club A')
+        self.user = User.objects.create_user(
+            username='socio', email='socio@test.com', password='ComplexPass123!',
+            is_approved=False,
+        )
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=False)
+        # El landing del club manda al login con la home como `next`.
+        self.home = reverse(self.org.home_url_name)
+
+    def _login(self, next_url=None):
+        data = {'login': 'socio', 'password': 'ComplexPass123!'}
+        if next_url is not None:
+            data['next'] = next_url
+        return self.client.post(reverse('account_login'), data, HTTP_HOST=self.HOST)
+
+    def test_first_login_after_approval_lands_on_profile_and_consumes_mark(self):
+        approve_user_membership(self.user, self.org)
+
+        response = self._login(next_url=self.home)
+
+        self.assertEqual(response['Location'], reverse('profile'))
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.pending_profile_review)
+
+    def test_login_without_next_reviews_the_profile(self):
+        """El login directo, sin `next`, también revisa el perfil: el destino por
+        defecto de allauth es otra «home» que cede ante la revisión."""
+        approve_user_membership(self.user, self.org)
+
+        response = self._login()
+
+        self.assertEqual(response['Location'], reverse('profile'))
+
+    def test_next_login_goes_back_to_the_tenant_home(self):
+        approve_user_membership(self.user, self.org)
+        self._login(next_url=self.home)
+
+        response = self._login(next_url=self.home)
+
+        self.assertEqual(response['Location'], self.home)
+
+    def test_login_after_the_inactivity_threshold_lands_on_profile(self):
+        self.user.is_approved = True
+        self.user.last_login = timezone.now() - timedelta(days=90)
+        self.user.save(update_fields=['is_approved', 'last_login'])
+
+        response = self._login(next_url=self.home)
+
+        self.assertEqual(response['Location'], reverse('profile'))
+
+    def test_login_before_the_inactivity_threshold_keeps_the_tenant_home(self):
+        self.user.is_approved = True
+        self.user.last_login = timezone.now() - timedelta(days=89)
+        self.user.save(update_fields=['is_approved', 'last_login'])
+
+        response = self._login(next_url=self.home)
+
+        self.assertEqual(response['Location'], self.home)
+
+    def test_explicit_next_wins_over_the_profile(self):
+        approve_user_membership(self.user, self.org)
+        target = reverse('rosters:roster_overview')
+
+        response = self._login(next_url=target)
+
+        self.assertEqual(response['Location'], target)
+        # La revisión no se da por hecha: se ofrecerá en un login que sí vaya a la home.
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.pending_profile_review)
+
