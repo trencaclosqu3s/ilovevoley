@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-13 12:50+0200\n"
+"POT-Creation-Date: 2026-10-14 20:06+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -45,7 +45,7 @@ msgstr "Tauler principal"
 
 #: config/settings.py:651 ilovevoley/content/admin/content.py:64
 #: ilovevoley/templates/includes/navbar.html:140
-#: ilovevoley/templates/includes/navbar.html:400
+#: ilovevoley/templates/includes/navbar.html:428
 msgid "Moderación"
 msgstr "Moderació"
 
@@ -75,9 +75,9 @@ msgstr "Totes les fotos"
 #: ilovevoley/competitions/templates/competitions/league_list.html:271
 #: ilovevoley/competitions/templates/competitions/match_detail.html:871
 #: ilovevoley/competitions/templates/competitions/standings.html:190
-#: ilovevoley/templates/base.html:314
+#: ilovevoley/templates/base.html:328
 #: ilovevoley/templates/includes/navbar.html:78
-#: ilovevoley/templates/includes/navbar.html:256
+#: ilovevoley/templates/includes/navbar.html:284
 msgid "Videos"
 msgstr "Vídeos"
 
@@ -96,7 +96,7 @@ msgid "Club y plantilla"
 msgstr "Club i plantilla"
 
 #: config/settings.py:704 ilovevoley/templates/includes/navbar.html:115
-#: ilovevoley/templates/includes/navbar.html:281
+#: ilovevoley/templates/includes/navbar.html:309
 msgid "Personas"
 msgstr "Persones"
 
@@ -1272,7 +1272,7 @@ msgstr "Classificació"
 #: ilovevoley/competitions/templates/competitions/portal/results.html:9
 #: ilovevoley/competitions/templates/competitions/results.html:4
 #: ilovevoley/competitions/templates/competitions/results.html:14
-#: ilovevoley/templates/base.html:326
+#: ilovevoley/templates/base.html:340
 #: ilovevoley/templates/includes/navbar_competition_dropdown.html:46
 #: ilovevoley/templates/includes/navbar_competition_mobile.html:36
 msgid "Resultados"
@@ -1288,7 +1288,7 @@ msgstr "Resultats"
 #: ilovevoley/competitions/templates/competitions/portal/base_portal.html:32
 #: ilovevoley/competitions/templates/competitions/portal/calendar.html:9
 #: ilovevoley/competitions/templates/competitions/portal/match_detail.html:30
-#: ilovevoley/templates/base.html:322
+#: ilovevoley/templates/base.html:336
 #: ilovevoley/templates/includes/navbar_competition_dropdown.html:40
 #: ilovevoley/templates/includes/navbar_competition_mobile.html:30
 #: ilovevoley/templates/users/profile.html:48
@@ -1829,7 +1829,7 @@ msgstr "Pos"
 #: ilovevoley/rosters/models/rosters.py:360
 #: ilovevoley/teams/models/teams.py:174
 #: ilovevoley/templates/includes/navbar.html:98
-#: ilovevoley/templates/includes/navbar.html:270
+#: ilovevoley/templates/includes/navbar.html:298
 msgid "Equipo"
 msgstr "Equip"
 
@@ -1899,10 +1899,13 @@ msgstr "Toca per compartir"
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:16
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:75
 #: ilovevoley/rosters/templates/rosters/person_card.html:36
+#: ilovevoley/templates/includes/navbar.html:222
+#: ilovevoley/templates/includes/navbar.html:247
 msgid "Compartir"
 msgstr "Comparteix"
 
 #: ilovevoley/competitions/templates/competitions/_story_editor.html:20
+#: ilovevoley/templates/includes/pwa_install_prompt.html:36
 msgid "Cerrar"
 msgstr "Tanca"
 
@@ -2225,7 +2228,7 @@ msgstr "Si omplís els parcials, el marcador es calcula automàticament."
 #: ilovevoley/templates/admin/users/send_email_action.html:182
 #: ilovevoley/templates/admin/videos/assign_album_action.html:67
 #: ilovevoley/templates/admin/videos/assign_match_action.html:44
-#: ilovevoley/templates/users/profile.html:524
+#: ilovevoley/templates/users/profile.html:523
 #: ilovevoley/templates/users/profile_edit.html:97
 #: ilovevoley/templates/users/profile_edit.html:292
 msgid "Cancelar"
@@ -2976,9 +2979,9 @@ msgstr "No hi ha enllaços actius per a aquest partit."
 
 #: ilovevoley/competitions/templates/competitions/match_detail.html:887
 #: ilovevoley/content/templates/content/match_images.html:98
-#: ilovevoley/templates/base.html:318
+#: ilovevoley/templates/base.html:332
 #: ilovevoley/templates/includes/navbar.html:84
-#: ilovevoley/templates/includes/navbar.html:262
+#: ilovevoley/templates/includes/navbar.html:290
 msgid "Galería"
 msgstr "Galeria"
 
@@ -3132,7 +3135,7 @@ msgstr "Selecciona una lliga"
 
 #: ilovevoley/competitions/templates/competitions/portal/standings.html:59
 msgid "Selecciona una liga para ver la clasificación."
-msgstr ""
+msgstr "Selecciona una lliga per veure la classificació."
 
 #: ilovevoley/competitions/templates/competitions/public_match_timeline.html:4
 #, python-format
@@ -3230,7 +3233,7 @@ msgstr "Veure calendari"
 
 #: ilovevoley/competitions/templates/competitions/where_plays.html:4
 #: ilovevoley/competitions/templates/competitions/where_plays.html:11
-#: ilovevoley/templates/base.html:308
+#: ilovevoley/templates/base.html:312
 #: ilovevoley/templates/includes/navbar_competition_dropdown.html:66
 #: ilovevoley/templates/includes/navbar_competition_mobile.html:56
 msgid "Sedes y pabellones"
@@ -4365,7 +4368,7 @@ msgstr "Ex: Entrenament Sènior, Celebració..."
 
 #: ilovevoley/content/templates/content/image_bulk_upload.html:205
 msgid "Aplica a fotos sueltas con secuencial (001, 002...)"
-msgstr ""
+msgstr "Aplica a fotos soltes amb seqüencial (001, 002...)"
 
 #: ilovevoley/content/templates/content/image_bulk_upload.html:211
 msgid "Etiquetas (opcional)"
@@ -4597,7 +4600,7 @@ msgstr "Individual"
 #: ilovevoley/content/templates/content/image_gallery.html:82
 #: ilovevoley/content/templates/content/image_upload.html:4
 #: ilovevoley/content/templates/content/image_upload.html:207
-#: ilovevoley/templates/includes/navbar.html:368
+#: ilovevoley/templates/includes/navbar.html:396
 msgid "Subir Imagen"
 msgstr "Pujar imatge"
 
@@ -4745,8 +4748,6 @@ msgid "Sube imágenes del club: partidos, celebraciones, entrenamientos y más"
 msgstr "Puja imatges del club: partits, celebracions, entrenaments i més"
 
 #: ilovevoley/content/templates/content/image_upload.html:25
-#, fuzzy
-#| msgid "Foto del partido"
 msgid "Foto compartida"
 msgstr "Foto compartida"
 
@@ -5311,7 +5312,7 @@ msgstr "%(count)s imatges %(action)s."
 #: ilovevoley/core/views.py:813 ilovevoley/core/views.py:898
 #: ilovevoley/core/views.py:930 ilovevoley/core/views.py:954
 #: ilovevoley/core/views.py:970 ilovevoley/core/views.py:989
-#: ilovevoley/core/views.py:1000 ilovevoley/templates/users/profile.html:600
+#: ilovevoley/core/views.py:1000 ilovevoley/templates/users/profile.html:599
 msgid "Permiso denegado"
 msgstr "Permís denegat"
 
@@ -5405,7 +5406,7 @@ msgstr ""
 
 #: ilovevoley/core/email_utils.py:271 ilovevoley/core/email_utils.py:318
 #: ilovevoley/templates/includes/navbar.html:125
-#: ilovevoley/templates/includes/navbar.html:381
+#: ilovevoley/templates/includes/navbar.html:409
 msgid "Administración"
 msgstr "Administració"
 
@@ -5765,7 +5766,7 @@ msgstr "La teva imatge \"%(title)s\" ha estat %(status)s"
 
 #: ilovevoley/core/templates/core/about.html:4
 #: ilovevoley/core/templates/core/about.html:11
-#: ilovevoley/templates/base.html:303 ilovevoley/templates/base_auth.html:120
+#: ilovevoley/templates/base.html:307 ilovevoley/templates/base_auth.html:120
 msgid "Quiénes Somos"
 msgstr "Qui Som"
 
@@ -5929,7 +5930,7 @@ msgstr "Uneix-te a la comunitat"
 
 #: ilovevoley/core/templates/core/image_transparency.html:4
 #: ilovevoley/core/templates/core/image_transparency.html:10
-#: ilovevoley/templates/base.html:334
+#: ilovevoley/templates/base.html:348
 msgid "Quién ve las fotos"
 msgstr "Qui veu les fotos"
 
@@ -6448,7 +6449,7 @@ msgstr "Vols rebutjar aquesta sol·licitud de vincle?"
 
 #: ilovevoley/core/templates/core/privacy_policy.html:4
 #: ilovevoley/core/templates/core/privacy_policy.html:11
-#: ilovevoley/templates/base.html:330
+#: ilovevoley/templates/base.html:344
 msgid "Política de Privacidad"
 msgstr "Política de Privacitat"
 
@@ -6744,7 +6745,7 @@ msgstr "Darrera actualització: %(year)s · Plataforma comunitària I Love Voley
 #: ilovevoley/core/templates/core/season_wizard.html:4
 #: ilovevoley/core/templates/core/season_wizard.html:11
 #: ilovevoley/templates/includes/navbar.html:133
-#: ilovevoley/templates/includes/navbar.html:389
+#: ilovevoley/templates/includes/navbar.html:417
 msgid "Nueva temporada"
 msgstr "Nova temporada"
 
@@ -7718,7 +7719,9 @@ msgstr "Vincula el teu compte amb la teva fitxa"
 msgid ""
 "Busca tu ficha (o la de tu hijo/a) por nombre, apellidos y año de "
 "nacimiento. Un moderador del club confirmará el vínculo."
-msgstr "Busca la teva fitxa (o la del teu fill/a) per nom, cognoms i any de naixement. Un moderador del club confirmarà el vincle."
+msgstr ""
+"Busca la teva fitxa (o la del teu fill/a) per nom, cognoms i any de "
+"naixement. Un moderador del club confirmarà el vincle."
 
 #: ilovevoley/rosters/templates/rosters/_link_request_card.html:35
 #, fuzzy
@@ -7755,7 +7758,7 @@ msgstr "Wrapped"
 #: ilovevoley/templates/includes/bottom_nav.html:33
 #: ilovevoley/templates/includes/navbar.html:153
 #: ilovevoley/templates/includes/navbar.html:154
-#: ilovevoley/templates/includes/navbar.html:304
+#: ilovevoley/templates/includes/navbar.html:332
 msgid "Tú"
 msgstr "Tu"
 
@@ -7998,19 +8001,19 @@ msgid "Ajusta la imagen para que se vea perfecta"
 msgstr "Ajusta la imatge perquè es vegi perfecta"
 
 #: ilovevoley/rosters/templates/rosters/person_form.html:239
-#: ilovevoley/templates/users/profile.html:519
+#: ilovevoley/templates/users/profile.html:518
 #: ilovevoley/templates/users/profile_edit.html:91
 msgid "Imagen a recortar"
 msgstr "Imatge a retallar"
 
 #: ilovevoley/rosters/templates/rosters/person_form.html:249
-#: ilovevoley/templates/users/profile.html:528
+#: ilovevoley/templates/users/profile.html:527
 #: ilovevoley/templates/users/profile_edit.html:101
 msgid "Reiniciar"
 msgstr "Reiniciar"
 
 #: ilovevoley/rosters/templates/rosters/person_form.html:252
-#: ilovevoley/templates/users/profile.html:531
+#: ilovevoley/templates/users/profile.html:530
 #: ilovevoley/templates/users/profile_edit.html:104
 msgid "Aplicar Recorte"
 msgstr "Aplicar retall"
@@ -9130,8 +9133,8 @@ msgid "¿Olvidaste tu contraseña?"
 msgstr "Has oblidat la contrasenya?"
 
 #: ilovevoley/templates/account/login.html:64
-#: ilovevoley/templates/includes/navbar.html:222
-#: ilovevoley/templates/includes/navbar.html:416
+#: ilovevoley/templates/includes/navbar.html:250
+#: ilovevoley/templates/includes/navbar.html:444
 #: ilovevoley/templates/landing.html:62 ilovevoley/templates/landing.html:94
 msgid "Entrar"
 msgstr "Entrar"
@@ -9401,11 +9404,11 @@ msgstr "equip del club"
 
 #: ilovevoley/templates/admin/competitions/matchactaphoto/_roster_side.html:16
 msgid "Leído / editable"
-msgstr ""
+msgstr "Llegit / editable"
 
 #: ilovevoley/templates/admin/competitions/matchactaphoto/_roster_side.html:18
 msgid "¿Coincide?"
-msgstr ""
+msgstr "Coincideix?"
 
 #: ilovevoley/templates/admin/competitions/matchactaphoto/_roster_side.html:46
 #: ilovevoley/templates/emails/new_user_pending.html:85
@@ -9423,7 +9426,7 @@ msgstr "Usar plantilla"
 
 #: ilovevoley/templates/admin/competitions/matchactaphoto/_roster_side.html:68
 msgid "Sin convocados leídos; rellena las filas vacías."
-msgstr ""
+msgstr "Sense convocats llegits; omple les files buides."
 
 #: ilovevoley/templates/admin/competitions/matchactaphoto/_roster_side.html:91
 msgid "Añadir convocado…"
@@ -9431,7 +9434,7 @@ msgstr "Afegir convocat…"
 
 #: ilovevoley/templates/admin/competitions/matchactaphoto/_roster_side.html:101
 msgid "En plantilla y no en el acta:"
-msgstr ""
+msgstr "A la plantilla i no a l'acta:"
 
 #: ilovevoley/templates/admin/competitions/matchactaphoto/review_panel.html:14
 msgid "Sin imagen descargada."
@@ -9443,7 +9446,7 @@ msgstr "Motiu de rebuig (opcional)"
 
 #: ilovevoley/templates/admin/competitions/matchactaphoto/review_panel.html:30
 msgid "Ej. foto ilegible, dorsal incorrecto…"
-msgstr ""
+msgstr "Ex. foto il·legible, dorsal incorrecte…"
 
 #: ilovevoley/templates/admin/competitions/matchactaphoto/review_panel.html:36
 msgid "Aprobar y guardar alineación"
@@ -9455,6 +9458,8 @@ msgid ""
 "Esta acta está en estado «%(status)s»; solo se pueden aprobar/rechazar las "
 "pendientes de revisión."
 msgstr ""
+"Aquesta acta està en estat «%(status)s»; només es poden aprovar/rebutjar les "
+"pendents de revisió."
 
 #: ilovevoley/templates/admin/users/send_email_action.html:7
 msgid "Home"
@@ -9627,33 +9632,50 @@ msgstr "Vídeos i resultats de %(club)s a I Love Voley."
 msgid "Vídeos y resultados de tu club en I Love Voley."
 msgstr "Vídeos i resultats del teu club a I Love Voley."
 
-#: ilovevoley/templates/base.html:237
+#: ilovevoley/templates/base.html:238
 msgid "Galería del Club"
 msgstr "Galeria del Club"
 
-#: ilovevoley/templates/base.html:254
+#: ilovevoley/templates/base.html:255
 msgid "No hay fotos recientes"
 msgstr "No hi ha fotos recents"
 
-#: ilovevoley/templates/base.html:263
+#: ilovevoley/templates/base.html:264
 msgid "Ver galería completa"
 msgstr "Veure galeria completa"
 
-#: ilovevoley/templates/base.html:293
+#: ilovevoley/templates/base.html:297
 msgid ""
 "Plataforma comunitaria para compartir partidos, fotos y momentos especiales."
 msgstr ""
 "Plataforma comunitària per compartir partits, fotos i moments especials."
 
-#: ilovevoley/templates/base.html:299
+#: ilovevoley/templates/base.html:303
 msgid "Enlaces"
 msgstr "Enllaços"
 
-#: ilovevoley/templates/base.html:343
+#: ilovevoley/templates/base.html:319
+#: ilovevoley/templates/includes/navbar.html:217
+#: ilovevoley/templates/includes/navbar.html:242
+#: ilovevoley/templates/includes/navbar.html:454
+#, python-format
+msgid "Sigue los partidos y fotos de %(club)s en I Love Voley"
+msgstr "Segueix els partits i fotos de %(club)s a I Love Voley"
+
+#: ilovevoley/templates/base.html:322
+#: ilovevoley/templates/includes/navbar.html:219
+#: ilovevoley/templates/includes/navbar.html:220
+#: ilovevoley/templates/includes/navbar.html:244
+#: ilovevoley/templates/includes/navbar.html:245
+#: ilovevoley/templates/includes/navbar.html:457
+msgid "Comparte con otra familia"
+msgstr "Comparteix amb una altra família"
+
+#: ilovevoley/templates/base.html:357
 msgid "Sigue al club"
 msgstr "Segueix el club"
 
-#: ilovevoley/templates/base.html:367
+#: ilovevoley/templates/base.html:381
 #, python-format
 msgid ""
 "© %(year)s Desarrollado con 💜 por <a href=\"https://www.instagram.com/"
@@ -9668,7 +9690,7 @@ msgstr ""
 "                            class=\"font-semibold text-white underline "
 "underline-offset-2 hover:opacity-80 transition-colors\">trencaclosques</a>"
 
-#: ilovevoley/templates/base.html:374 ilovevoley/templates/base_auth.html:127
+#: ilovevoley/templates/base.html:388 ilovevoley/templates/base_auth.html:127
 msgid "Proyecto sin ánimo de lucro · Para la comunidad del voley balear"
 msgstr "Projecte sense ànim de lucre · Per a la comunitat del vòlei balear"
 
@@ -9712,7 +9734,8 @@ msgstr "Configurar ara"
 
 #: ilovevoley/templates/category_preferences_banner.html:23
 #: ilovevoley/templates/category_preferences_banner.html:50
-#: ilovevoley/templates/includes/navbar.html:443
+#: ilovevoley/templates/includes/navbar.html:485
+#: ilovevoley/templates/includes/pwa_install_prompt.html:23
 msgid "Ahora no"
 msgstr "Ara no"
 
@@ -11040,14 +11063,19 @@ msgstr "El teu compte ha estat aprovat!"
 msgid ""
 "Tu cuenta en <strong>%(site_name)s</strong> ya está vinculada con la ficha "
 "de <strong>%(person_name)s</strong>."
-msgstr "El teu compte a <strong>%(site_name)s</strong> ja està vinculat amb la fitxa de <strong>%(person_name)s</strong>."
+msgstr ""
+"El teu compte a <strong>%(site_name)s</strong> ja està vinculat amb la fitxa "
+"de <strong>%(person_name)s</strong>."
 
 #: ilovevoley/templates/emails/person_link_approved.html:15
 msgid ""
 "Un moderador del club ha aprobado tu solicitud de vínculo. Desde ahora "
 "puedes ver «Tú», la trayectoria por temporada, el cromo y las fotos en las "
 "que os etiquetan."
-msgstr "Un moderador del club ha aprovat la teva sol·licitud de vincle. A partir d'ara pots veure «Tu», la trajectòria per temporada, el cromo i les fotos en què us etiqueten."
+msgstr ""
+"Un moderador del club ha aprovat la teva sol·licitud de vincle. A partir "
+"d'ara pots veure «Tu», la trajectòria per temporada, el cromo i les fotos en "
+"què us etiqueten."
 
 #: ilovevoley/templates/emails/person_link_approved.html:19
 #, fuzzy
@@ -11072,14 +11100,19 @@ msgstr "Actualització sobre la teva sol·licitud"
 msgid ""
 "No hemos podido vincular tu cuenta con la ficha de <strong>%(person_name)s</"
 "strong> en <strong>%(site_name)s</strong>."
-msgstr "No hem pogut vincular el teu compte amb la fitxa de <strong>%(person_name)s</strong> a <strong>%(site_name)s</strong>."
+msgstr ""
+"No hem pogut vincular el teu compte amb la fitxa de <strong>%(person_name)s</"
+"strong> a <strong>%(site_name)s</strong>."
 
 #: ilovevoley/templates/emails/person_link_rejected.html:15
 msgid ""
 "Un moderador del club ha revisado tu solicitud y no ha confirmado el "
 "vínculo. Si crees que es un error, habla con el club para revisar los datos "
 "de la ficha."
-msgstr "Un moderador del club ha revisat la teva sol·licitud i no ha confirmat el vincle. Si creus que és un error, parla amb el club per revisar les dades de la fitxa."
+msgstr ""
+"Un moderador del club ha revisat la teva sol·licitud i no ha confirmat el "
+"vincle. Si creus que és un error, parla amb el club per revisar les dades de "
+"la fitxa."
 
 #: ilovevoley/templates/emails/reactivation_pending.html:4
 #, python-format
@@ -11748,8 +11781,20 @@ msgstr "Anar al Panell d'Administració"
 msgid "Navegación principal"
 msgstr "Navegació principal"
 
+#: ilovevoley/templates/includes/ios_add_to_home_steps.html:2
+msgid ""
+"Pulsa el botón <strong>Compartir</strong> <span class=\"inline-block px-1 bg-"
+"line rounded\">⎋</span> del navegador (barra inferior o superior)."
+msgstr ""
+"Prem el botó <strong>Compartir</strong> <span class=\"inline-block px-1 bg-"
+"line rounded\">⎋</span> del navegador (barra inferior o superior)."
+
+#: ilovevoley/templates/includes/ios_add_to_home_steps.html:3
+msgid "Elige la opción <strong>«Añadir a pantalla de inicio»</strong>."
+msgstr "Tria l'opció <strong>«Afegir a la pantalla d'inici»</strong>."
+
 #: ilovevoley/templates/includes/language_selector.html:6
-#: ilovevoley/templates/includes/navbar.html:420
+#: ilovevoley/templates/includes/navbar.html:462
 msgid "Idioma"
 msgstr "Idioma"
 
@@ -11766,19 +11811,19 @@ msgid "Cambiar tema"
 msgstr "Canviar tema"
 
 #: ilovevoley/templates/includes/navbar.html:67
-#: ilovevoley/templates/includes/navbar.html:251
+#: ilovevoley/templates/includes/navbar.html:279
 msgid "Multimedia"
 msgstr "Multimèdia"
 
 #: ilovevoley/templates/includes/navbar.html:109
-#: ilovevoley/templates/includes/navbar.html:275
+#: ilovevoley/templates/includes/navbar.html:303
 msgid "Plantillas"
 msgstr "Plantilles"
 
 #: ilovevoley/templates/includes/navbar.html:164
 #: ilovevoley/templates/includes/navbar.html:166
 #: ilovevoley/templates/includes/navbar.html:170
-#: ilovevoley/templates/includes/navbar.html:322
+#: ilovevoley/templates/includes/navbar.html:350
 msgid "Cambiar de club"
 msgstr "Canviar de club"
 
@@ -11788,53 +11833,53 @@ msgid "Tus clubes"
 msgstr "Els teus clubs"
 
 #: ilovevoley/templates/includes/navbar.html:187
-#: ilovevoley/templates/includes/navbar.html:332
+#: ilovevoley/templates/includes/navbar.html:360
 msgid "Actual"
 msgstr "Actual"
 
 #: ilovevoley/templates/includes/navbar.html:205
-#: ilovevoley/templates/includes/navbar.html:349
+#: ilovevoley/templates/includes/navbar.html:377
 msgid "Ver todos los clubes..."
 msgstr "Veure tots els clubs..."
 
-#: ilovevoley/templates/includes/navbar.html:217
+#: ilovevoley/templates/includes/navbar.html:231
 #: ilovevoley/templates/users/profile.html:30
 msgid "Perfil"
 msgstr "Perfil"
 
-#: ilovevoley/templates/includes/navbar.html:219
-#: ilovevoley/templates/includes/navbar.html:411
+#: ilovevoley/templates/includes/navbar.html:233
+#: ilovevoley/templates/includes/navbar.html:439
 msgid "Salir"
 msgstr "Sortir"
 
-#: ilovevoley/templates/includes/navbar.html:244
+#: ilovevoley/templates/includes/navbar.html:272
 #, python-format
 msgid "Hola, %(name)s"
 msgstr "Hola, %(name)s"
 
-#: ilovevoley/templates/includes/navbar.html:295
+#: ilovevoley/templates/includes/navbar.html:323
 msgid "Modo"
 msgstr "Mode"
 
-#: ilovevoley/templates/includes/navbar.html:295
+#: ilovevoley/templates/includes/navbar.html:323
 msgid "Oscuro"
 msgstr "Fosc"
 
-#: ilovevoley/templates/includes/navbar.html:312
+#: ilovevoley/templates/includes/navbar.html:340
 #: ilovevoley/templates/users/profile.html:4
 #: ilovevoley/templates/users/profile.html:16
 msgid "Mi Perfil"
 msgstr "El meu perfil"
 
-#: ilovevoley/templates/includes/navbar.html:362
+#: ilovevoley/templates/includes/navbar.html:390
 msgid "Añadir Video"
 msgstr "Afegir vídeo"
 
-#: ilovevoley/templates/includes/navbar.html:428
+#: ilovevoley/templates/includes/navbar.html:470
 msgid "¿Quieres recibir avisos?"
 msgstr "Vols rebre avisos?"
 
-#: ilovevoley/templates/includes/navbar.html:429
+#: ilovevoley/templates/includes/navbar.html:471
 msgid ""
 "Activa las notificaciones para enterarte de partidos y novedades de tus "
 "categorías."
@@ -11842,11 +11887,11 @@ msgstr ""
 "Activa les notificacions per assabentar-te de partits i novetats de les "
 "teves categories."
 
-#: ilovevoley/templates/includes/navbar.html:430
+#: ilovevoley/templates/includes/navbar.html:472
 msgid "Tus preferencias están guardadas"
 msgstr "Les teves preferències estan desades"
 
-#: ilovevoley/templates/includes/navbar.html:431
+#: ilovevoley/templates/includes/navbar.html:473
 msgid ""
 "Este móvil aún no recibe avisos. Actívalos para enterarte de partidos y "
 "fotos."
@@ -11854,13 +11899,62 @@ msgstr ""
 "Aquest mòbil encara no rep avisos. Activa'ls per assabentar-te de partits i "
 "fotos."
 
-#: ilovevoley/templates/includes/navbar.html:442
+#: ilovevoley/templates/includes/navbar.html:484
+#: ilovevoley/templates/includes/pwa_install_prompt.html:22
 msgid "No, gracias"
 msgstr "No, gràcies"
 
-#: ilovevoley/templates/includes/navbar.html:444
+#: ilovevoley/templates/includes/navbar.html:486
 msgid "Activar"
 msgstr "Activar"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:4
+msgid "Cómo instalar"
+msgstr "Com instal·lar"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:11
+msgid "Instala la app"
+msgstr "Instal·la l'app"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:14
+#, python-format
+msgid ""
+"Ten a mano los partidos, fotos y resultados de %(club)s desde tu pantalla de "
+"inicio."
+msgstr ""
+"Tingues a mà els partits, fotos i resultats de %(club)s des de la teva "
+"pantalla d'inici."
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:16
+msgid "Ten a mano partidos, fotos y resultados desde tu pantalla de inicio."
+msgstr ""
+"Tingues a mà partits, fotos i resultats des de la teva pantalla d'inici."
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:24
+msgid "Instalar"
+msgstr "Instal·lar"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:34
+msgid "Instalar en iPhone / iPad"
+msgstr "Instal·lar a l'iPhone / iPad"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:41
+msgid "Sigue estos pasos para añadir I Love Voley a tu pantalla de inicio:"
+msgstr ""
+"Segueix aquests passos per afegir I Love Voley a la teva pantalla d'inici:"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:45
+msgid "Pulsa <strong>Añadir</strong> en la esquina superior derecha."
+msgstr "Prem <strong>Afegir</strong> a la cantonada superior dreta."
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:49
+#: ilovevoley/templates/users/profile.html:585
+msgid "Entendido"
+msgstr "Entesos"
+
+#: ilovevoley/templates/includes/pwa_install_prompt.html:56
+msgid "Enlace copiado al portapapeles"
+msgstr "Enllaç copiat al porta-retalls"
 
 #: ilovevoley/templates/landing.html:4
 msgid "Tu plataforma de voleibol"
@@ -12433,28 +12527,15 @@ msgstr ""
 "Apple exigeix que l'aplicació estigui afegida a la pantalla d'inici per "
 "permetre notificacions push."
 
-#: ilovevoley/templates/users/profile.html:272
-msgid ""
-"En Safari, pulsa el botón <strong>Compartir</strong> <span class=\"inline-"
-"block px-1 bg-amber-200 dark:bg-amber-800 rounded\">⎋</span> (barra "
-"inferior)."
-msgstr ""
-"A Safari, prem el botó <strong>Compartir</strong> <span class=\"inline-block "
-"px-1 bg-amber-200 dark:bg-amber-800 rounded\">⎋</span> (barra inferior)."
-
 #: ilovevoley/templates/users/profile.html:273
-msgid "Elige la opción <strong>«Añadir a pantalla de inicio»</strong>."
-msgstr "Tria l'opció <strong>«Afegir a la pantalla d'inici»</strong>."
-
-#: ilovevoley/templates/users/profile.html:274
 msgid "Abre <strong>I Love Voley</strong> desde el icono nuevo en tu inicio."
 msgstr "Obre <strong>I Love Voley</strong> des de la icona nova al teu inici."
 
-#: ilovevoley/templates/users/profile.html:275
+#: ilovevoley/templates/users/profile.html:274
 msgid "Entra en <strong>Perfil → Avisos</strong> y activa los avisos."
 msgstr "Entra a <strong>Perfil → Avisos</strong> i activa els avisos."
 
-#: ilovevoley/templates/users/profile.html:282
+#: ilovevoley/templates/users/profile.html:281
 msgid ""
 "Has bloqueado las notificaciones para esta web en tu navegador. Para "
 "recibirlas, desbloquea los permisos en los ajustes de tu navegador."
@@ -12462,16 +12543,16 @@ msgstr ""
 "Has bloquejat les notificacions per a aquest lloc al navegador. Per rebre-"
 "les, desbloqueja els permisos als ajustos del navegador."
 
-#: ilovevoley/templates/users/profile.html:289
-#: ilovevoley/templates/users/profile.html:604
+#: ilovevoley/templates/users/profile.html:288
+#: ilovevoley/templates/users/profile.html:603
 msgid "Activar avisos en este móvil"
 msgstr "Activar avisos en aquest mòbil"
 
-#: ilovevoley/templates/users/profile.html:299
+#: ilovevoley/templates/users/profile.html:298
 msgid "Tus preferencias de avisos"
 msgstr "Les teves preferències d'avisos"
 
-#: ilovevoley/templates/users/profile.html:300
+#: ilovevoley/templates/users/profile.html:299
 msgid ""
 "Configura qué clubes, categorías y tipos de aviso quieres recibir cuando "
 "estén activados."
@@ -12479,44 +12560,44 @@ msgstr ""
 "Configura quins clubs, categories i tipus d'avís vols rebre quan estiguin "
 "activats."
 
-#: ilovevoley/templates/users/profile.html:312
+#: ilovevoley/templates/users/profile.html:311
 #: ilovevoley/templates/users/profile_edit.html:173
 #: ilovevoley/users/models.py:221
 msgid "Categorías de Interés"
 msgstr "Categories d'interès"
 
-#: ilovevoley/templates/users/profile.html:335
+#: ilovevoley/templates/users/profile.html:334
 #: ilovevoley/templates/users/profile_edit.html:201
 msgid "No tienes ningún club asociado para configurar categorías."
 msgstr "No tens cap club associat per configurar categories."
 
-#: ilovevoley/templates/users/profile.html:344
+#: ilovevoley/templates/users/profile.html:343
 msgid "Mis equipos específicos (opcional)"
 msgstr "Els meus equips específics (opcional)"
 
-#: ilovevoley/templates/users/profile.html:372
+#: ilovevoley/templates/users/profile.html:371
 msgid "Tipos de aviso"
 msgstr "Tipus d'avís"
 
-#: ilovevoley/templates/users/profile.html:374
+#: ilovevoley/templates/users/profile.html:373
 msgid ""
 "Se enviarán únicamente cuando los avisos estén activados en este dispositivo:"
 msgstr ""
 "S'enviaran només quan els avisos estiguin activats en aquest dispositiu:"
 
-#: ilovevoley/templates/users/profile.html:385
+#: ilovevoley/templates/users/profile.html:384
 msgid "cuando estén activados"
 msgstr "quan estiguin activats"
 
-#: ilovevoley/templates/users/profile.html:401
+#: ilovevoley/templates/users/profile.html:400
 msgid "Guardar preferencias"
 msgstr "Desar preferències"
 
-#: ilovevoley/templates/users/profile.html:416
+#: ilovevoley/templates/users/profile.html:415
 msgid "Suscripción al Calendario de Partidos"
 msgstr "Subscripció al calendari de partits"
 
-#: ilovevoley/templates/users/profile.html:419
+#: ilovevoley/templates/users/profile.html:418
 msgid ""
 "Sincroniza automáticamente los partidos con Google Calendar, Apple Calendar "
 "o Microsoft Outlook."
@@ -12524,7 +12605,7 @@ msgstr ""
 "Sincronitza automàticament els partits amb Google Calendar, Apple Calendar o "
 "Microsoft Outlook."
 
-#: ilovevoley/templates/users/profile.html:427
+#: ilovevoley/templates/users/profile.html:426
 msgid ""
 "El calendario utiliza automáticamente las categorías y equipos que hayas "
 "seleccionado en la pestaña <button type=\"button\" data-tab-"
@@ -12535,33 +12616,33 @@ msgstr ""
 "seleccionat a la pestanya <button type=\"button\" data-tab-target=\"avisos\" "
 "class=\"font-bold text-brand-text underline\">Avisos</button>."
 
-#: ilovevoley/templates/users/profile.html:436
+#: ilovevoley/templates/users/profile.html:435
 msgid "URL de suscripción privada:"
 msgstr "URL de subscripció privada:"
 
-#: ilovevoley/templates/users/profile.html:453
+#: ilovevoley/templates/users/profile.html:452
 msgid "Copiar"
 msgstr "Copiar"
 
-#: ilovevoley/templates/users/profile.html:456
+#: ilovevoley/templates/users/profile.html:455
 msgid "Esta URL es única y privada para tu usuario. No la compartas con nadie."
 msgstr ""
 "Aquesta URL és única i privada per al teu usuari. No la comparteixis amb "
 "ningú."
 
-#: ilovevoley/templates/users/profile.html:466
+#: ilovevoley/templates/users/profile.html:465
 msgid "¿Cómo suscribirme?"
 msgstr "Com subscriure'm?"
 
-#: ilovevoley/templates/users/profile.html:474
+#: ilovevoley/templates/users/profile.html:473
 msgid "Regenerar URL"
 msgstr "Regenerar l'URL"
 
-#: ilovevoley/templates/users/profile.html:480
+#: ilovevoley/templates/users/profile.html:479
 msgid "¿Cuándo regenerar la URL?"
 msgstr "Quan regenerar l'URL?"
 
-#: ilovevoley/templates/users/profile.html:481
+#: ilovevoley/templates/users/profile.html:480
 msgid ""
 "Si cambias de categorías y tu app tarda en refrescar, o si quieres cancelar "
 "la sincronización anterior."
@@ -12569,11 +12650,11 @@ msgstr ""
 "Si canvies de categories i la teva app triga a refrescar, o si vols "
 "cancel·lar la sincronització anterior."
 
-#: ilovevoley/templates/users/profile.html:493
+#: ilovevoley/templates/users/profile.html:492
 msgid "Aún no has seleccionado tus categorías o equipos."
 msgstr "Encara no has seleccionat les teves categories o equips."
 
-#: ilovevoley/templates/users/profile.html:496
+#: ilovevoley/templates/users/profile.html:495
 msgid ""
 "Para poder sincronizar partidos con tu calendario personal, primero debes "
 "elegir qué equipos o categorías te interesan."
@@ -12581,41 +12662,41 @@ msgstr ""
 "Per poder sincronitzar partits amb el teu calendari personal, primer has de "
 "triar quins equips o categories t'interessen."
 
-#: ilovevoley/templates/users/profile.html:500
+#: ilovevoley/templates/users/profile.html:499
 msgid "Configurar en pestaña Avisos"
 msgstr "Configurar a la pestanya Avisos"
 
-#: ilovevoley/templates/users/profile.html:514
+#: ilovevoley/templates/users/profile.html:513
 #: ilovevoley/templates/users/profile_edit.html:85
 msgid "Recortar Imagen de Perfil"
 msgstr "Retallar imatge de perfil"
 
-#: ilovevoley/templates/users/profile.html:515
+#: ilovevoley/templates/users/profile.html:514
 msgid "Ajusta la imagen para tu foto de perfil cuadrada."
 msgstr "Ajusta la imatge per a la teva foto de perfil quadrada."
 
-#: ilovevoley/templates/users/profile.html:544
+#: ilovevoley/templates/users/profile.html:543
 msgid "Cómo suscribirte al calendario"
 msgstr "Com subscriure't al calendari"
 
-#: ilovevoley/templates/users/profile.html:558
+#: ilovevoley/templates/users/profile.html:557
 msgid "Copia la URL privada de suscripción arriba."
 msgstr "Copia l'URL privada de subscripció de dalt."
 
-#: ilovevoley/templates/users/profile.html:559
+#: ilovevoley/templates/users/profile.html:558
 msgid ""
 "Abre Google Calendar en el navegador y en \"Otros calendarios\" pulsa el +"
 msgstr "Obre Google Calendar al navegador i a «Altres calendaris» prem el +"
 
-#: ilovevoley/templates/users/profile.html:560
+#: ilovevoley/templates/users/profile.html:559
 msgid "Elige \"Desde URL\", pega tu enlace y confirma."
 msgstr "Tria «Des d'URL», enganxa l'enllaç i confirma."
 
-#: ilovevoley/templates/users/profile.html:568
+#: ilovevoley/templates/users/profile.html:567
 msgid "Copia tu URL privada de suscripción."
 msgstr "Copia la teva URL privada de subscripció."
 
-#: ilovevoley/templates/users/profile.html:569
+#: ilovevoley/templates/users/profile.html:568
 msgid ""
 "En iPhone: Ajustes → Calendario → Cuentas → Añadir cuenta → Otra → Añadir "
 "calendario por suscripción."
@@ -12623,92 +12704,88 @@ msgstr ""
 "A l'iPhone: Ajustos → Calendari → Comptes → Afegir compte → Una altra → "
 "Afegir calendari per subscripció."
 
-#: ilovevoley/templates/users/profile.html:570
+#: ilovevoley/templates/users/profile.html:569
 msgid "Pega la URL y guarda."
 msgstr "Enganxa l'URL i desa."
 
-#: ilovevoley/templates/users/profile.html:578
+#: ilovevoley/templates/users/profile.html:577
 msgid "Abre Outlook Calendar y pulsa 'Agregar calendario'."
 msgstr "Obre Outlook Calendar i prem «Afegeix calendari»."
 
-#: ilovevoley/templates/users/profile.html:579
+#: ilovevoley/templates/users/profile.html:578
 msgid "Selecciona 'Suscribirse desde la web' y pega la URL."
 msgstr "Selecciona «Subscriure's des del web» i enganxa l'URL."
 
-#: ilovevoley/templates/users/profile.html:586
-msgid "Entendido"
-msgstr "Entesos"
-
-#: ilovevoley/templates/users/profile.html:595
+#: ilovevoley/templates/users/profile.html:594
 msgid "No soportado en este navegador"
 msgstr "No compatible amb aquest navegador"
 
-#: ilovevoley/templates/users/profile.html:596
+#: ilovevoley/templates/users/profile.html:595
 msgid "No soportado"
 msgstr "No compatible"
 
-#: ilovevoley/templates/users/profile.html:597
+#: ilovevoley/templates/users/profile.html:596
 msgid "Instalación requerida"
 msgstr "Instal·lació requerida"
 
-#: ilovevoley/templates/users/profile.html:598
+#: ilovevoley/templates/users/profile.html:597
 msgid "Instala la app para activar"
 msgstr "Instal·la l'app per activar"
 
-#: ilovevoley/templates/users/profile.html:599
+#: ilovevoley/templates/users/profile.html:598
 msgid "Permiso bloqueado"
 msgstr "Permís bloquejat"
 
-#: ilovevoley/templates/users/profile.html:601
+#: ilovevoley/templates/users/profile.html:600
 msgid "Avisos activos en este móvil"
 msgstr "Avisos actius en aquest mòbil"
 
-#: ilovevoley/templates/users/profile.html:602
+#: ilovevoley/templates/users/profile.html:601
 msgid "Desactivar avisos en este móvil"
 msgstr "Desactivar avisos en aquest mòbil"
 
-#: ilovevoley/templates/users/profile.html:603
+#: ilovevoley/templates/users/profile.html:602
 msgid "Avisos desactivados"
 msgstr "Avisos desactivats"
 
-#: ilovevoley/templates/users/profile.html:605
+#: ilovevoley/templates/users/profile.html:604
 msgid "Error al modificar avisos"
 msgstr "Error en modificar els avisos"
 
-#: ilovevoley/templates/users/profile.html:606
+#: ilovevoley/templates/users/profile.html:605
 msgid "No se pudo registrar la suscripción"
 msgstr "No s'ha pogut registrar la subscripció"
 
-#: ilovevoley/templates/users/profile.html:607
+#: ilovevoley/templates/users/profile.html:606
 msgid "¡Avisos activados con éxito en este móvil!"
 msgstr "Avisos activats amb èxit en aquest mòbil!"
 
-#: ilovevoley/templates/users/profile.html:608
+#: ilovevoley/templates/users/profile.html:607
 msgid "Avisos desactivados en este móvil"
 msgstr "Avisos desactivats en aquest mòbil"
 
-#: ilovevoley/templates/users/profile.html:698
+#: ilovevoley/templates/users/profile.html:697
 msgid "¡URL copiada al portapapeles!"
 msgstr "URL copiada al porta-retalls!"
 
-#: ilovevoley/templates/users/profile.html:714
+#: ilovevoley/templates/users/profile.html:713
 msgid "⚠️ ¿Estás seguro de que deseas regenerar la URL de tu calendario?"
 msgstr "⚠️ Segur que vols regenerar l'URL del teu calendari?"
 
-#: ilovevoley/templates/users/profile.html:714
+#: ilovevoley/templates/users/profile.html:713
 msgid "La URL anterior dejará de funcionar y deberás volver a suscribirte."
 msgstr ""
 "L'URL anterior deixarà de funcionar i hauràs de tornar a subscriure-t'hi."
 
-#: ilovevoley/templates/users/profile.html:728
+#: ilovevoley/templates/users/profile.html:727
 msgid "URL regenerada con éxito."
 msgstr "URL regenerada correctament."
 
-#: ilovevoley/templates/users/profile.html:732
+#: ilovevoley/templates/users/profile.html:731
 msgid "Error al regenerar URL"
 msgstr "Error en regenerar l'URL"
 
-#: ilovevoley/templates/users/profile.html:769
+#: ilovevoley/templates/users/profile.html:768
 msgid "El archivo supera el tamaño máximo permitido de 5MB."
 msgstr "El fitxer supera la mida màxima permesa de 5MB."
 
@@ -13169,3 +13246,34 @@ msgid ""
 msgstr ""
 "Arguments amb nom en JSON vàlid, per exemple {\"delay\": 2.0}. Han de "
 "coincidir amb la signatura de la tasca."
+
+#~ msgid ""
+#~ "En Safari, pulsa el botón <strong>Compartir</strong> <span class=\"inline-"
+#~ "block px-1 bg-amber-200 dark:bg-amber-800 rounded\">⎋</span> (barra "
+#~ "inferior)."
+#~ msgstr ""
+#~ "A Safari, prem el botó <strong>Compartir</strong> <span class=\"inline-"
+#~ "block px-1 bg-amber-200 dark:bg-amber-800 rounded\">⎋</span> (barra "
+#~ "inferior)."
+
+#, python-format
+#~ msgid ""
+#~ "Añade %(club)s a tu pantalla de inicio para acceder rápidamente a "
+#~ "partidos, fotos y resultados."
+#~ msgstr ""
+#~ "Afegeix %(club)s a la teva pantalla d'inici per accedir ràpidament a "
+#~ "partits, fotos i resultats."
+
+#~ msgid ""
+#~ "Añade I Love Voley a tu pantalla de inicio para acceder rápidamente a "
+#~ "partidos, fotos y resultados."
+#~ msgstr ""
+#~ "Afegeix I Love Voley a la teva pantalla d'inici per accedir ràpidament a "
+#~ "partits, fotos i resultats."
+
+#~ msgid ""
+#~ "Desplázate hacia abajo y selecciona <strong>«Añadir a pantalla de "
+#~ "inicio»</strong>."
+#~ msgstr ""
+#~ "Desplaça't cap avall i selecciona <strong>«Afegir a la pantalla d'inici»</"
+#~ "strong>."

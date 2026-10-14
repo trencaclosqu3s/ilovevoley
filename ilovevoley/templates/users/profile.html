@@ -269,8 +269,7 @@
                             {% trans "Apple exige que la aplicación esté añadida a la pantalla de inicio para permitir notificaciones push." %}
                         </p>
                         <ol class="list-decimal list-inside space-y-2 text-xs text-amber-900 dark:text-amber-200 leading-relaxed font-medium">
-                            <li>{% blocktrans %}En Safari, pulsa el botón <strong>Compartir</strong> <span class="inline-block px-1 bg-amber-200 dark:bg-amber-800 rounded">⎋</span> (barra inferior).{% endblocktrans %}</li>
-                            <li>{% blocktrans %}Elige la opción <strong>«Añadir a pantalla de inicio»</strong>.{% endblocktrans %}</li>
+                            {% include 'includes/ios_add_to_home_steps.html' %}
                             <li>{% blocktrans %}Abre <strong>I Love Voley</strong> desde el icono nuevo en tu inicio.{% endblocktrans %}</li>
                             <li>{% blocktrans %}Entra en <strong>Perfil → Avisos</strong> y activa los avisos.{% endblocktrans %}</li>
                         </ol>
