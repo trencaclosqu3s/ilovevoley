@@ -1,0 +1,16 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans %}Solicitud de vínculo - {{ site_name }}{% endblocktrans %}{% endblock %}
+
+{% block header_subtitle %}{% trans "Actualización de tu solicitud" %}{% endblock %}
+
+{% block content %}
+    <div class="alert">
+        <p>{% blocktrans %}No hemos podido vincular tu cuenta con la ficha de <strong>{{ person_name }}</strong> en <strong>{{ site_name }}</strong>.{% endblocktrans %}</p>
+    </div>
+
+    <h3>{% blocktrans with name=user.get_full_name|default:user.username %}Hola {{ name }},{% endblocktrans %}</h3>
+
+    <p>{% blocktrans %}Un moderador del club ha revisado tu solicitud y no ha confirmado el vínculo. Si crees que es un error, habla con el club para revisar los datos de la ficha.{% endblocktrans %}</p>
+{% endblock %}

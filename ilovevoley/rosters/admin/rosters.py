@@ -3,7 +3,7 @@ from django.db.models import Prefetch
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 
-from ..models import Person, PersonOrganization, PlayerRole, StaffRole
+from ..models import Person, PersonLinkRequest, PersonOrganization, PlayerRole, StaffRole
 
 
 class PersonOrganizationInline(TabularInline):
@@ -244,3 +244,17 @@ class StaffRoleAdmin(ModelAdmin):
         updated = queryset.filter(is_active=True).update(is_active=False)
         self.message_user(request, f'{updated} rol(es) de staff desactivado(s).')
     deactivate_roles.short_description = "Desactivar roles seleccionados"
+
+
+@admin.register(PersonLinkRequest)
+class PersonLinkRequestAdmin(ModelAdmin):
+    """Admin de las solicitudes de vínculo cuenta ↔ ficha (#531).
+
+    La resolución normal vive en el panel de moderación del club; aquí queda
+    solo la consulta para superusuarios.
+    """
+    list_display = ('person', 'user', 'kind', 'organization', 'status', 'created_at', 'resolved_by')
+    list_filter = ('status', 'kind', 'organization', 'created_at')
+    search_fields = ('person__first_name', 'person__last_name', 'user__username', 'user__email')
+    readonly_fields = ('created_at', 'resolved_at', 'resolved_by')
+    autocomplete_fields = ('person',)

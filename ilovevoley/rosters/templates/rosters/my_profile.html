@@ -28,6 +28,10 @@
     </div>
     {% endif %}
 
+    {% if link_form %}
+        {% include "rosters/_link_request_card.html" with link_form=link_form link_next="my_profile" %}
+    {% endif %}
+
     {% if children %}
         <section class="bg-surface rounded-[20px] border border-line p-5 mb-6">
             <h2 class="text-lg font-bold text-ink mb-3">{% trans "Tus hijos" %}</h2>

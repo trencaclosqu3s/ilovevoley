@@ -8,7 +8,7 @@ from ilovevoley.core.email_utils import send_notification_email
 from ilovevoley.core.i18n import push_message
 from ilovevoley.core.models import Season
 from ilovevoley.core.tenant_utils import build_absolute_url
-from ilovevoley.rosters.models import Person, SeasonWrapped
+from ilovevoley.rosters.models import Person, PersonLinkRequest, SeasonWrapped
 from ilovevoley.rosters.season_wrapped import build_wrapped_stats, season_organization
 from ilovevoley.users.tasks import notify_web_push_organization_task
 
@@ -72,3 +72,62 @@ def generate_season_wrappeds_task(season_id, notify=True, no_notify=False):
             if organization:
                 _notify(person, season, organization)
     return created
+
+
+@shared_task(name='notify_person_link_result')
+def notify_person_link_result_task(link_request_id, approved, site_url=None, site_name=None):
+    """Avisa al usuario de la resolución de su solicitud de vínculo (#531).
+
+    Push a sus dispositivos del club y email, ambos en su idioma. La solicitud
+    se lee de base de datos porque la tarea corre fuera del ciclo de petición.
+    """
+    try:
+        link_request = PersonLinkRequest.objects.select_related(
+            'person', 'user', 'organization',
+        ).get(pk=link_request_id)
+    except PersonLinkRequest.DoesNotExist:
+        return False
+
+    user = link_request.user
+    organization = link_request.organization
+    person_name = link_request.person.full_name
+    resolved_site_name = site_name or organization.name
+    profile_path = reverse('rosters:my_profile')
+
+    def build():
+        if approved:
+            return (
+                _('Vínculo aprobado'),
+                _('Tu cuenta ya está vinculada con la ficha de %(name)s.') % {'name': person_name},
+            )
+        return (
+            _('Solicitud de vínculo revisada'),
+            _('No hemos podido vincular tu cuenta con la ficha de %(name)s.') % {'name': person_name},
+        )
+
+    notify_web_push_organization_task.delay(
+        organization_id=organization.id,
+        user_ids=[user.id],
+        url=profile_path,
+        **push_message(build),
+    )
+
+    if user.email:
+        send_notification_email(
+            subject=(
+                (lambda: _('Tu vínculo con %(name)s ha sido aprobado') % {'name': person_name})
+                if approved
+                else (lambda: _('Actualización de tu solicitud de vínculo'))
+            ),
+            template_name=(
+                'emails/person_link_approved.html' if approved else 'emails/person_link_rejected.html'
+            ),
+            context={
+                'user': user,
+                'person_name': person_name,
+                'site_name': resolved_site_name,
+                'site_url': site_url or build_absolute_url(profile_path, tenant=organization),
+            },
+            recipient_list=[user.email],
+        )
+    return True

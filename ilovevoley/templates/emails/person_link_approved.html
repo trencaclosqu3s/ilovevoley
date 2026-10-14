@@ -1,0 +1,22 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans %}Vínculo aprobado - {{ site_name }}{% endblocktrans %}{% endblock %}
+
+{% block header_subtitle %}{% trans "¡Tu cuenta ya está vinculada!" %}{% endblock %}
+
+{% block content %}
+    <div class="alert success">
+        <p>{% blocktrans %}Tu cuenta en <strong>{{ site_name }}</strong> ya está vinculada con la ficha de <strong>{{ person_name }}</strong>.{% endblocktrans %}</p>
+    </div>
+
+    <h3>{% blocktrans with name=user.get_full_name|default:user.username %}Hola {{ name }},{% endblocktrans %}</h3>
+
+    <p>{% blocktrans %}Un moderador del club ha aprobado tu solicitud de vínculo. Desde ahora puedes ver «Tú», la trayectoria por temporada, el cromo y las fotos en las que os etiquetan.{% endblocktrans %}</p>
+
+    <div style="text-align: center; margin: 25px 0;">
+        <a href="{{ site_url }}" class="button">
+            {% trans "Ver mi perfil" %}
+        </a>
+    </div>
+{% endblock %}

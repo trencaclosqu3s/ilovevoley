@@ -138,6 +138,7 @@ def profile_view(request):
 
     from .forms import AVAILABLE_NOTIFICATION_TYPES
     from collections import defaultdict
+
     disabled_notifications = defaultdict(set)
     for notif_pref in user.notification_preferences.filter(organization__in=orgs, is_enabled=False):
         disabled_notifications[notif_pref.organization_id].add(notif_pref.notification_type)
@@ -167,6 +168,14 @@ def profile_view(request):
             12,
         ).get_page(request.GET.get('creaciones'))
 
+    # Tarjeta «Vincúlate» (#531): solo si aún no tiene ficha propia y hay club.
+    from ilovevoley.rosters.forms import PersonLinkRequestForm
+    from ilovevoley.rosters.models import Person
+
+    link_form = None
+    if tenant is not None and not Person.objects.filter(user=user).exists():
+        link_form = PersonLinkRequestForm(user=user, organization=tenant)
+
     return render(request, 'users/profile.html', {
         'story_page': story_page,
         'user': user,
@@ -176,6 +185,7 @@ def profile_view(request):
         'active_tab': active_tab,
         'identity_form': identity_form,
         'avisos_form': avisos_form,
+        'link_form': link_form,
     })
 
 
@@ -219,6 +229,19 @@ def profile_edit(request):
     if tab == 'avisos' or tab == 'push' or 'push-notifications' in request.META.get('HTTP_REFERER', ''):
         return redirect(f"{reverse('profile')}?tab=avisos")
     return redirect(f"{reverse('profile')}?tab=perfil")
+
+
+@login_required
+@require_POST
+def dismiss_onboarding(request):
+    """Descarta la checklist de bienvenida familiar (#533).
+
+    Se guarda en la cuenta, no en el dispositivo: no vuelve a aparecer en
+    ningún navegador del usuario.
+    """
+    request.user.onboarding_dismissed_at = timezone.now()
+    request.user.save(update_fields=['onboarding_dismissed_at'])
+    return redirect('profile')
 
 
 @require_POST

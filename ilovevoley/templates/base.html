@@ -27,6 +27,7 @@
     <script src="{% static 'js/lightbox.js' %}"></script>
     <script src="{% static 'js/csp_actions.js' %}"></script>
     <script src="{% static 'js/pwa_nav.js' %}" defer></script>
+    <script src="{% static 'js/pwa_install.js' %}" defer></script>
     <script src="{% static 'js/webpush.js' %}" defer></script>
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
     <style nonce="{{ csp_nonce }}">
@@ -281,6 +282,9 @@
     <!-- Banner de Cookies -->
     {% include 'cookies_banner.html' %}
 
+    <!-- Aviso PWA de Instalación Guiada y modal iOS -->
+    {% include 'includes/pwa_install_prompt.html' %}
+
     <!-- Footer -->
     <footer
         class="bg-csj-purple-dark text-white mt-12 rounded-t-[32px]">
@@ -307,6 +311,16 @@
                             class="block text-white/80 hover:text-white transition-colors text-sm">
                             {% trans "Sedes y pabellones" %}
                         </a>
+                        <button type="button"
+                                data-call="shareClub"
+                                data-call-this
+                                data-share-url="{{ tenant_url|default:request.build_absolute_uri }}"
+                                data-share-title="{{ tenant.name }}"
+                                data-share-text="{% blocktrans with club=tenant.name %}Sigue los partidos y fotos de {{ club }} en I Love Voley{% endblocktrans %}"
+                                class="inline-flex items-center gap-1.5 text-white/80 hover:text-white transition-colors text-sm">
+                            {% icon 'share' 'w-4 h-4' %}
+                            <span>{% trans "Comparte con otra familia" %}</span>
+                        </button>
                         {% endif %}
                         {% if user.is_authenticated %}
                         <a href="{% url 'content:video_list' %}"
