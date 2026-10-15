@@ -175,6 +175,10 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertIn('"match_date" <', sql)
 
     def _count_queries(self, url, params=None):
+        # El resumen «Este finde» de la navegación se cachea por usuario: se limpia
+        # antes de medir para comparar arranques en frío y medir N+1 (no el efecto
+        # de la caché, que haría que la segunda petición contase menos queries).
+        cache.clear()
         with CaptureQueriesContext(connection) as ctx:
             response = self.client.get(url, params or {}, HTTP_HOST='testclub.ilovevoley.es')
         self.assertEqual(response.status_code, 200)
@@ -291,10 +295,9 @@ class CompetitionsViewUrlTests(TestCase):
                     is_friendly=(m_idx % 2 == 1),
                 )
 
-        with CaptureQueriesContext(connection) as ctx2:
-            response2 = self.client.get(url, params, HTTP_HOST='testclub.ilovevoley.es')
+        with_more, response2 = self._count_queries(url, params)
         self.assertEqual(len(response2.context['leagues']), 4)
-        self.assertEqual(len(ctx2), baseline)
+        self.assertEqual(with_more, baseline)
 
         # Verificar que el partido retirado no se cuenta en matches_count (4 + 1 ajeno = 5)
         extra_league = next(l for l in response2.context['leagues'] if l.name == 'Liga Extra 0')

@@ -34,6 +34,7 @@ from ilovevoley.core.tenant_utils import (
     can_moderate_images,
     get_tenant_base_domain,
     reject_user_membership,
+    tenant_access_required,
     user_is_tenant_manager,
 )
 from ilovevoley.users.models import Membership
@@ -353,7 +354,7 @@ def manifest_json(request):
                 'name': _('Hoy / este finde'),
                 'short_name': _('Partidos'),
                 'description': _('Partidos y calendario de competición'),
-                'url': reverse('competitions:calendar_view'),
+                'url': reverse('weekend'),
                 'icons': [
                     {
                         'src': static('images/icons/shortcut-matches.png'),
@@ -1059,6 +1060,30 @@ def season_wizard_confirm(request):
     return render(request, 'core/season_wizard_confirm.html', {'summary': summary})
 
 
+@tenant_access_required()
+def weekend_home(request):
+    """Portada «Este finde» (#522).
+
+    Reúne de un vistazo los próximos partidos del fin de semana del usuario
+    (según sus equipos/categorías de interés), el resumen del último finde y
+    fotos recientes del club. El `default_home` del tenant no se altera: se
+    llega aquí por enlace (card del sidebar, pestaña inferior, shortcut PWA).
+
+    Sin equipos ni categorías seguidas no hay nada personalizado que mostrar, así
+    que se conserva el destino anterior del shortcut PWA: el calendario.
+    """
+    from ilovevoley.competitions.services.weekend import (
+        has_follow_preferences,
+        weekend_overview,
+    )
+
+    if not has_follow_preferences(request.user, request.tenant):
+        return redirect('competitions:calendar_view')
+
+    overview = weekend_overview(request.user, request.tenant)
+    return render(request, 'core/weekend.html', overview)
+
+
 __all__ = [
     'custom_400',
     'custom_403',
@@ -1084,4 +1109,5 @@ __all__ = [
     'reject_user_api',
     'season_wizard',
     'season_wizard_confirm',
+    'weekend_home',
 ]

@@ -89,6 +89,22 @@ def tenant_context(request):
 
         checklist = welcome_checklist(user, org, categories=has_pref_cats, push=has_push_sub)
 
+    # Entrada a la pantalla «Este finde» (#522). El card del sidebar solo se
+    # ofrece en las pantallas que pueden ser portada del tenant; la pestaña
+    # inferior depende de que haya contenido relevante (weekend_entry es barato:
+    # EXISTS + count, y devuelve None si el usuario no sigue nada).
+    resolver = getattr(request, 'resolver_match', None)
+    is_home_screen = bool(
+        resolver and resolver.view_name in (
+            'content:video_list', 'content:image_gallery', 'competitions:league_list',
+        )
+    )
+    weekend = None
+    if user and user.is_authenticated and org:
+        from ilovevoley.competitions.services.weekend import weekend_entry
+
+        weekend = weekend_entry(user, org)
+
     return {
         'can_switch_club': can_switch_club,
         'user_switch_clubs': user_switch_clubs,
@@ -113,4 +129,6 @@ def tenant_context(request):
         'has_preferred_categories': has_pref_cats,
         'preferred_categories': preferred_categories,
         'welcome_checklist': checklist,
+        'is_home_screen': is_home_screen,
+        'weekend_entry': weekend,
     }
