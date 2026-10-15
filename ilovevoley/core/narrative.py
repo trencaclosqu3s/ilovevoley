@@ -9,6 +9,7 @@ hechos y fija su límite de longitud. Solo se llama desde tareas Celery.
 import json
 import logging
 import re
+import time
 
 import requests
 from django.conf import settings
@@ -19,6 +20,7 @@ NAME_MARKER = '{nombre}'
 TRANSIENT_HTTP_CODES = (429, 500, 502, 503, 504)
 # Claves de los hechos cuyos números no son cifras que el modelo pueda citar.
 _NON_FIGURE_KEYS = ('temporada', 'max_caracteres')
+_last_call = 0.0
 _LANGUAGE_NAMES = {'es': 'castellano', 'ca': 'catalán'}
 _STYLE_HEADERS = {
     'wrapped': (
@@ -81,8 +83,11 @@ def _build_prompt(payload: dict, style: str) -> str:
         f'1. Escribe en {language}, sin mezclar idiomas.',
         '2. Usa solo los números del bloque HECHOS, cada uno con su propia etiqueta '
         '(no intercambies cifras). Escribe las cifras en dígitos, nunca en letra. '
-        'No inventes cifras, porcentajes, resultados ni rivales.',
-        f'3. Menciona a la persona exactamente como {NAME_MARKER}, una vez como mínimo.',
+        'No inventes cifras, porcentajes, resultados ni rivales. Si mencionas la temporada, '
+        'escríbela tal como aparece en HECHOS. Concuerda singular y plural con las cifras.',
+        f'3. Menciona a la persona exactamente como {NAME_MARKER}, una vez como mínimo, sin '
+        'artículo delante (ni «en» ni «la» en catalán). No añadas contexto que no esté en '
+        'HECHOS (familia, emociones concretas, fotos con rivales).',
         '4. No menciones a compañeros ni compares con nadie.',
         '5. Tono positivo, natural, sin exagerar; nunca digas «nuestro equipo».',
         '6. Concordancia de género según "genero" (male, female; mixed o vacío = neutro).',
@@ -91,11 +96,25 @@ def _build_prompt(payload: dict, style: str) -> str:
     ])
 
 
+def _throttle():
+    """Espacia las llamadas ``LLM_NARRATIVE_MIN_INTERVAL`` s (la capa gratuita de Gemini admite 15/min).
+
+    Las tandas nocturnas son secuenciales; el contador es por proceso, así que dos workers
+    concurrentes no se coordinan (0 desactiva la pausa en una cuenta de pago).
+    """
+    global _last_call
+    wait = _last_call + settings.LLM_NARRATIVE_MIN_INTERVAL - time.monotonic()
+    if wait > 0:
+        time.sleep(wait)
+    _last_call = time.monotonic()
+
+
 def _post_to_provider(prompt: str) -> str:
     """Única pieza específica del proveedor (Gemini): devuelve el texto crudo del modelo.
 
     Cambiar de proveedor es reescribir esta función y los valores del ``.env``.
     """
+    _throttle()
     url = (
         'https://generativelanguage.googleapis.com/v1beta/models/'
         f'{settings.LLM_NARRATIVE_MODEL}:generateContent'
@@ -132,7 +151,10 @@ def _validate(text, payload: dict, max_chars: int) -> str:
         raise NarrativeDiscarded(f'Supera {max_chars} caracteres')
     if re.search(r'[{}]', text.replace(NAME_MARKER, '')):
         raise NarrativeDiscarded('Quedan restos de plantilla')
-    invented = {int(n) for n in re.findall(r'\d+', text)} - _allowed_numbers(payload)
+    # La temporada (2025-26) la menciona el modelo con naturalidad: se quita entera antes de
+    # contar cifras, en vez de permitir 2025 y 26 sueltos.
+    figures = text.replace(str(payload.get('temporada', '')), '') if payload.get('temporada') else text
+    invented = {int(n) for n in re.findall(r'\d+', figures)} - _allowed_numbers(payload)
     if invented:
         raise NarrativeDiscarded(f'Cifras fuera de los hechos: {sorted(invented)}')
     return text

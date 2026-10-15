@@ -419,6 +419,8 @@ LLM_NARRATIVE_ENABLED = env_config('LLM_NARRATIVE_ENABLED', default=False, cast=
 LLM_NARRATIVE_API_KEY = env_config('LLM_NARRATIVE_API_KEY', default='')
 LLM_NARRATIVE_MODEL = env_config('LLM_NARRATIVE_MODEL', default='gemini-3.5-flash-lite')
 LLM_NARRATIVE_TIMEOUT = env_config('LLM_NARRATIVE_TIMEOUT', default=30, cast=int)
+# Pausa mínima entre llamadas: 4,5 s deja 13/min, bajo el límite de 15/min de la capa gratuita.
+LLM_NARRATIVE_MIN_INTERVAL = env_config('LLM_NARRATIVE_MIN_INTERVAL', default=4.5, cast=float)
 
 # Configuración de moderación automática
 AUTO_MODERATION_ENABLED = env_config('AUTO_MODERATION_ENABLED', default=DEBUG, cast=bool)

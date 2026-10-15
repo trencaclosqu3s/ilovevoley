@@ -16,7 +16,7 @@ from ilovevoley.core import narrative
 
 FACTS = {'partidos_jugados': 14, 'victorias': 9, 'equipo': 'Cadete 2', 'temporada': '2025-26', 'genero': 'f'}
 CALL = {'locale': 'es', 'max_chars': 200, 'style': 'wrapped'}
-ENABLED = {'LLM_NARRATIVE_ENABLED': True, 'LLM_NARRATIVE_API_KEY': 'k'}
+ENABLED = {'LLM_NARRATIVE_ENABLED': True, 'LLM_NARRATIVE_API_KEY': 'k', 'LLM_NARRATIVE_MIN_INTERVAL': 0}
 
 
 def model_says(text):
@@ -50,6 +50,13 @@ class ValidationTests(SimpleTestCase):
             with self.subTest(name), model_says(text):
                 with self.assertRaises(narrative.NarrativeDiscarded):
                     narrative.redact(FACTS, **CALL)
+
+    def test_season_can_be_mentioned_but_its_numbers_are_not_free_figures(self):
+        with model_says('{nombre} ha jugado 14 partidos en la temporada 2025-26.'):
+            self.assertIn('2025-26', narrative.redact(FACTS, **CALL))
+        with model_says('{nombre} ha jugado 14 partidos desde 2025.'):
+            with self.assertRaises(narrative.NarrativeDiscarded):
+                narrative.redact(FACTS, **CALL)
 
     def test_numbers_compare_by_value_not_text(self):
         with model_says('{nombre} ha jugado 014 partidos.'):
@@ -99,3 +106,17 @@ class ProviderErrorTests(SimpleTestCase):
         body = {'candidates': [{'content': {'parts': [{'text': 'no es json'}]}}]}
         with self.assertRaises(narrative.NarrativeDiscarded):
             self.redact_with(return_value=http_response(200, body))
+
+
+@override_settings(**{**ENABLED, 'LLM_NARRATIVE_MIN_INTERVAL': 4.5})
+class ThrottleTests(SimpleTestCase):
+    def test_second_call_waits_out_the_interval(self):
+        # Sin la pausa, una tanda de 20 textos supera los 15/min y el resto de la noche da 429.
+        ok = http_response(200, {'candidates': [{'content': {'parts': [{'text': '{"text": "x"}'}]}}]})
+        with patch.object(narrative.requests, 'post', return_value=ok), \
+                patch.object(narrative.time, 'sleep') as sleep, \
+                patch.object(narrative.time, 'monotonic', side_effect=[100.0, 100.0, 101.0, 101.0]):
+            narrative._last_call = 0.0
+            narrative._post_to_provider('a')
+            narrative._post_to_provider('b')
+        sleep.assert_called_once_with(3.5)
