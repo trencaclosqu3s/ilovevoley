@@ -9,7 +9,7 @@ from ilovevoley.core.mixins import get_club_team_names
 from ilovevoley.core.models import Season
 from ilovevoley.core.tenant_utils import person_belongs_to_tenant
 from ilovevoley.teams.models import Team, TeamIdentity
-from .link_requests import find_person, validate_link_request
+from .link_requests import find_person, has_own_person, validate_link_request
 from .models import Person, PersonLinkRequest, PlayerRole, StaffRole
 
 
@@ -468,6 +468,14 @@ class PersonLinkRequestForm(forms.Form):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', self._INPUT)
+        if user is not None and has_own_person(user):
+            # Con ficha propia ya vinculada, pedirla otra vez lo rechaza
+            # ``validate_link_request``: no se ofrece la opción «Mi ficha» (#553).
+            self.fields['kind'].choices = [
+                choice for choice in PersonLinkRequest.Kind.choices
+                if choice[0] != PersonLinkRequest.Kind.SELF
+            ]
+            self.fields['kind'].initial = PersonLinkRequest.Kind.CHILD
 
     def clean(self):
         cleaned = super().clean()

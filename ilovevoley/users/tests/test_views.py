@@ -12,6 +12,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from ilovevoley.core.models import Organization
+from ilovevoley.rosters.models import Person
 from ilovevoley.users.models import Membership
 
 HOST = 'tenant-a.ilovevoley.es'
@@ -216,4 +217,36 @@ class UserProfileViewsTests(TestCase):
             self.assertEqual(response.context['active_tab'], 'avisos')
             messages_list = list(response.context['messages'])
             self.assertTrue(any('correctamente' in str(m.message) for m in messages_list))
+
+
+@override_settings(ALLOWED_HOSTS=[HOST])
+class ProfileLinkCardTests(TestCase):
+    """La tarjeta «Vincúlate» se ofrece también con vínculos, plegada (#553)."""
+
+    def setUp(self):
+        cache.clear()
+        self.org = Organization.objects.create(slug='tenant-a', name='Tenant A', is_active=True)
+        self.user = get_user_model().objects.create_user(
+            username='familia', password='pass', is_approved=True,
+        )
+        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
+
+    def _get(self):
+        self.client.force_login(self.user)
+        return self.client.get(reverse('profile'), HTTP_HOST=HOST)
+
+    def test_sin_vinculos_muestra_la_tarjeta_desplegada(self):
+        response = self._get()
+        self.assertIsNotNone(response.context['link_form'])
+        self.assertFalse(response.context['has_links'])
+
+    def test_con_hijos_sin_ficha_propia_mantiene_la_tarjeta_plegada(self):
+        child = Person.objects.create(first_name='Hijo', last_name='Familia', birth_year=2015)
+        child.organizations.add(self.org)
+        self.user.children.add(child)
+
+        response = self._get()
+        self.assertIsNotNone(response.context['link_form'])
+        self.assertTrue(response.context['has_links'])
+        self.assertEqual(response.context['children_count'], 1)
 

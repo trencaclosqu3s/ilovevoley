@@ -57,7 +57,7 @@
         {% include "users/_welcome_checklist.html" %}
 
         {% if link_form %}
-            {% include "rosters/_link_request_card.html" with link_form=link_form link_next="profile" %}
+            {% include "rosters/_link_request_card.html" with link_form=link_form link_next="profile" has_links=has_links has_own_person=has_own_person children_count=children_count %}
         {% endif %}
         <div class="bg-surface rounded-[20px] border border-line p-6">
             <!-- Estado de la cuenta -->

@@ -1,12 +1,15 @@
 from datetime import date
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from ilovevoley.teams.tests.helpers import identity_of
 from ilovevoley.competitions.models import League, Standing
 from ilovevoley.core.models import Organization, Season
-from ilovevoley.rosters.forms import PersonForm, PlayerRoleForm, StaffRoleForm, _club_teams_for_seasons
-from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
+from ilovevoley.rosters.forms import (
+    PersonForm, PersonLinkRequestForm, PlayerRoleForm, StaffRoleForm, _club_teams_for_seasons,
+)
+from ilovevoley.rosters.models import Person, PersonLinkRequest, PlayerRole, StaffRole
 from ilovevoley.teams.models import Team
 
 
@@ -101,3 +104,33 @@ class RoleFormTeamChoicesTests(TestCase):
         empty = Season.objects.resolve('2027-28')
         teams = _club_teams_for_seasons(self.org, [empty])
         self.assertEqual(set(teams), {self.current, self.old})
+
+
+class PersonLinkRequestKindChoicesTests(TestCase):
+    """Con ficha propia vinculada no se ofrece «Mi ficha» (#553).
+
+    Pedirla otra vez la rechaza ``validate_link_request``; el selector no debe
+    ofrecer una opción que el propio formulario va a rechazar.
+    """
+
+    def setUp(self):
+        self.org = Organization.objects.create(
+            slug='club', name='Club', club_team_names={'1': 'Club'},
+        )
+        self.user = get_user_model().objects.create_user(username='socio', password='pass')
+
+    def test_sin_ficha_propia_ofrece_mi_ficha_y_hijo(self):
+        form = PersonLinkRequestForm(user=self.user, organization=self.org)
+        self.assertEqual(
+            [value for value, _label in form.fields['kind'].choices],
+            [PersonLinkRequest.Kind.SELF, PersonLinkRequest.Kind.CHILD],
+        )
+
+    def test_con_ficha_propia_solo_ofrece_hijo(self):
+        Person.objects.create(first_name='Ana', last_name='Gomez', user=self.user)
+        form = PersonLinkRequestForm(user=self.user, organization=self.org)
+        self.assertEqual(
+            [value for value, _label in form.fields['kind'].choices],
+            [PersonLinkRequest.Kind.CHILD],
+        )
+        self.assertEqual(form.fields['kind'].initial, PersonLinkRequest.Kind.CHILD)

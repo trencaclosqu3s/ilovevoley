@@ -1,0 +1,37 @@
+{% load i18n %}
+<form method="post" action="{% url 'rosters:person_link_request' %}" class="space-y-3">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ link_next }}">
+    {% if link_form.non_field_errors %}
+        <ul class="text-sm text-red-600 dark:text-red-400 list-disc list-inside">
+            {% for error in link_form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+    {% endif %}
+    <div>
+        <label for="{{ link_form.first_name.id_for_label }}" class="block text-sm font-semibold text-ink mb-1">{{ link_form.first_name.label }}</label>
+        {{ link_form.first_name }}
+        {% for error in link_form.first_name.errors %}<p class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
+    </div>
+    <div>
+        <label for="{{ link_form.last_name.id_for_label }}" class="block text-sm font-semibold text-ink mb-1">{{ link_form.last_name.label }}</label>
+        {{ link_form.last_name }}
+        {% for error in link_form.last_name.errors %}<p class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
+    </div>
+    <div>
+        <label for="{{ link_form.birth_year.id_for_label }}" class="block text-sm font-semibold text-ink mb-1">{{ link_form.birth_year.label }}</label>
+        {{ link_form.birth_year }}
+        {% for error in link_form.birth_year.errors %}<p class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
+    </div>
+    <div>
+        <label for="{{ link_form.kind.id_for_label }}" class="block text-sm font-semibold text-ink mb-1">{{ link_form.kind.label }}</label>
+        {{ link_form.kind }}
+        {% for error in link_form.kind.errors %}<p class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
+    </div>
+    <button type="submit" class="w-full bg-csj-purple-dark hover:opacity-90 text-white font-semibold py-3 px-4 rounded-lg transition-colors touch-manipulation">
+        {% trans "Enviar solicitud" %}
+    </button>
+</form>
+<p class="text-xs text-muted mt-3">
+    {% url 'rosters:person_link_request' as link_url %}
+    <a href="{{ link_url }}" class="text-brand-text hover:underline">{% trans "Ver mis solicitudes" %}</a>
+</p>

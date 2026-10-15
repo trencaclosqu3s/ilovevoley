@@ -38,10 +38,18 @@ def find_person(first_name, last_name, birth_year):
     ).first()
 
 
+def has_own_person(user):
+    """¿La cuenta ya tiene una ficha propia vinculada?
+
+    El vínculo es global (no por club), así que se consulta con el manager base.
+    """
+    return Person._base_manager.filter(user=user).exists()
+
+
 def validate_link_request(user, person, kind):
     """Motivo por el que no se puede crear la solicitud, o ``None``."""
     if kind == PersonLinkRequest.Kind.SELF:
-        if Person._base_manager.filter(user=user).exists():
+        if has_own_person(user):
             return _('Ya tienes una ficha vinculada a tu cuenta.')
         if person.user_id == user.id:
             return _('Esa ficha ya está vinculada a tu cuenta.')
