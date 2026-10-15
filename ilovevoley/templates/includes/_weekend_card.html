@@ -1,0 +1,13 @@
+{% load i18n %}{% if weekend_entry %}
+<div class="bg-surface rounded-3xl border border-line p-6">
+    <h3 class="font-display text-xl font-bold tracking-tight text-ink">
+        {% if weekend_entry.variant == 'live' %}{% trans "Este finde hay partidos" %}
+        {% elif weekend_entry.variant == 'summary' %}{% trans "Resumen del finde" %}
+        {% else %}{% trans "Mira qué viene este finde" %}{% endif %}
+    </h3>
+    {% if weekend_entry.upcoming_count > 0 %}
+    <p class="mt-1 text-sm text-muted">{% blocktrans count counter=weekend_entry.upcoming_count %}{{ counter }} partido de los tuyos{% plural %}{{ counter }} partidos de los tuyos{% endblocktrans %}</p>
+    {% endif %}
+    <a href="{% url 'weekend' %}" class="mt-4 inline-flex items-center rounded-full bg-csj-purple-dark px-4 py-2 text-sm font-semibold text-white">{% trans "Ver este finde" %}</a>
+</div>
+{% endif %}

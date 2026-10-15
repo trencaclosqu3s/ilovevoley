@@ -226,6 +226,7 @@
             {% block sidebar %}
             <aside class="hidden lg:block lg:w-80 lg:flex-shrink-0">
                 <div class="sticky top-24">
+                    {% if is_home_screen and weekend_entry and weekend_entry.has_content %}<div class="mb-6">{% include 'includes/_weekend_card.html' %}</div>{% endif %}
                     <div
                         class="bg-surface rounded-3xl border border-line p-6">
                         <div class="flex items-center mb-4">

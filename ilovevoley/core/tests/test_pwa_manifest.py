@@ -165,7 +165,8 @@ class PWAManifestTest(TestCase):
         self.assertGreaterEqual(len(shortcuts), 3)
 
         urls = [s.get('url') for s in shortcuts]
-        self.assertIn('/competitions/calendario/', urls)
+        # #522: el shortcut «Hoy / este finde» apunta a la pantalla propia /finde/.
+        self.assertIn('/finde/', urls)
         self.assertIn('/content/imagenes/', urls)
         self.assertIn('/profile/?tab=avisos#activar', urls)
 
@@ -192,7 +193,8 @@ class PWAManifestTest(TestCase):
         self.assertGreaterEqual(len(shortcuts), 3)
 
         urls = [s.get('url') for s in shortcuts]
-        self.assertIn('/competitions/calendario/', urls)
+        # #522: el shortcut «Hoy / este finde» apunta a la pantalla propia /finde/.
+        self.assertIn('/finde/', urls)
         self.assertIn('/content/imagenes/', urls)
         self.assertIn('/profile/?tab=avisos#activar', urls)
 
