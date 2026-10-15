@@ -57,6 +57,12 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute=0, hour=3),
         'options': {'expire_seconds': 1800},
     },
+    # Redacción con LLM del cromo (#551), 20 min después del Wrapped para no solapar.
+    'redact-pending-card-narratives': {
+        'task': 'redact_pending_card_narratives',
+        'schedule': crontab(minute=20, hour=3),
+        'options': {'expire_seconds': 1800},
+    },
     # --- Scrapers federativos legacy (antes creados a mano en la BD) -----------
     # Nombres normalizados (slug) para que DatabaseScheduler los reconozca; las
     # filas viejas las borra la migración de datos.

@@ -12,7 +12,8 @@ from ilovevoley.core.email_utils import send_notification_email
 from ilovevoley.core.i18n import push_message
 from ilovevoley.core.models import Season
 from ilovevoley.core.tenant_utils import build_absolute_url
-from ilovevoley.rosters.models import Person, PersonLinkRequest, SeasonWrapped
+from ilovevoley.rosters.models import CardNarrative, Person, PersonLinkRequest, PlayerRole, SeasonWrapped
+from ilovevoley.rosters.player_card import CARD_NARRATIVE_MAX_CHARS, card_narrative_facts, pick_profile, season_facts
 from ilovevoley.rosters.season_wrapped import (
     NARRATIVE_LANGUAGES,
     NARRATIVE_MAX_CHARS,
@@ -20,6 +21,7 @@ from ilovevoley.rosters.season_wrapped import (
     build_wrapped_stats,
     season_organization,
 )
+from ilovevoley.teams.models import Team
 from ilovevoley.users.tasks import notify_web_push_organization_task
 
 logger = logging.getLogger(__name__)
@@ -130,6 +132,64 @@ def redact_pending_wrapped_narratives_task(limit=20, season_id=None):
                 logger.error('Redacción del Wrapped: error de la API: %s', e)
                 return saved
             _store_narrative(row, language, text)
+            saved += 1
+    return saved
+
+
+@shared_task(name='redact_pending_card_narratives')
+def redact_pending_card_narratives_task(limit=20, season_id=None):
+    """Redacta con LLM (#551) el texto del cromo de temporadas cerradas, en es y ca.
+
+    Solo perfiles (``pick_profile``): el momento de la temporada sigue por reglas (D4) y el
+    cromo de una temporada abierta también, porque sus cifras aún cambian. Una fila vacía es
+    un descarte definitivo (D2); un fallo transitorio no escribe nada y corta la tanda.
+    Devuelve cuántas filas ha creado.
+    """
+    if not narrative.is_enabled():
+        return 0
+    roles = (
+        PlayerRole.objects.filter(season__is_current=False)
+        .select_related('person', 'season', 'identity__category')
+        .order_by('-season__start_year', '-id')
+    )
+    if season_id:
+        roles = roles.filter(season_id=season_id)
+    done = set(CardNarrative.objects.values_list('person_id', 'season_id', 'language'))
+    seen = set()
+    saved = 0
+    # Recalcula season_facts de cada rol sin texto cada noche (sin perfil no hay fila que
+    # lo marque como visto); si pesa, guardar también las filas «sin perfil».
+    for role in roles.iterator():
+        if (role.person_id, role.season_id) in seen:
+            continue
+        seen.add((role.person_id, role.season_id))
+        missing = [lang for lang in NARRATIVE_LANGUAGES if (role.person_id, role.season_id, lang) not in done]
+        if not missing:
+            continue
+        teams = list(Team.objects.filter(identity=role.identity))
+        facts = season_facts(role.person, teams, role.season)
+        profile = pick_profile(facts)
+        if profile is None:
+            continue
+        key, title, _text = profile
+        sent = card_narrative_facts(role.identity, role.season, title, facts)
+        for language in missing:
+            if saved >= limit:
+                return saved
+            try:
+                text = narrative.redact(sent, locale=language, max_chars=CARD_NARRATIVE_MAX_CHARS, style='card')
+            except narrative.NarrativeDiscarded:
+                text = ''
+            except narrative.NarrativeTransientError as e:
+                logger.warning('Redacción del cromo interrumpida, se retoma la noche siguiente: %s', e)
+                return saved
+            except narrative.NarrativeError as e:
+                logger.error('Redacción del cromo: error de la API: %s', e)
+                return saved
+            CardNarrative.objects.get_or_create(
+                person=role.person, season=role.season, highlight_key=key, language=language,
+                defaults={'text': text, 'facts': sent},
+            )
             saved += 1
     return saved
 

@@ -31,7 +31,13 @@ from ilovevoley.competitions.result_card import _file_field_bytes, _team_logo_by
 from .forms import BulkPlayerRosterForm, PersonForm, PersonLinkRequestForm, PlayerRoleForm, StaffRoleForm
 from .link_requests import create_link_request
 from .models import Person, PersonLinkRequest, PlayerRole, SeasonWrapped, StaffRole
-from .player_card import card_highlight, card_photo_allowed, render_player_card, season_summary
+from .player_card import (
+    card_highlight,
+    card_photo_allowed,
+    narrated_highlight,
+    render_player_card,
+    season_summary,
+)
 from .season_wrapped import build_screens, season_organization
 from .wrapped_render import render_wrapped_screen
 
@@ -363,11 +369,14 @@ def person_card(request, person_id):
         tagged = photos.first()
         photo = (tagged and _file_field_bytes(tagged.thumbnail_large or tagged.image)) or _file_field_bytes(person.photo)
 
+    highlight = card_highlight(person, teams, role.season) if has_actas else None
+    if highlight:
+        highlight = narrated_highlight(highlight, person, role.season)
     png = render_player_card(
         organization=request.tenant,
         person=person,
         role=role,
-        highlight=card_highlight(person, teams, role.season) if has_actas else None,
+        highlight=highlight,
         stats=get_player_season_stats(person, role.season, teams) if has_actas else None,
         photo=photo,
     )
