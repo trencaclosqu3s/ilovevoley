@@ -273,11 +273,15 @@ def league_detail(request, league_id):
         matches = Match.objects.filter(league=league)
         display_league = league
 
-    # Aplicar select_related
-    matches = matches.select_related('home_team', 'away_team', 'league').order_by('-match_date')
+    # Aplicar select_related (club para display_logo en clasificación; ILOVEVOLEY-98)
+    matches = matches.select_related(
+        'home_team', 'home_team__club',
+        'away_team', 'away_team__club',
+        'league',
+    ).order_by('-match_date')
 
     # Obtener clasificación (solo de la liga específica o root)
-    standings = display_league.standings.select_related('team').order_by('position')
+    standings = display_league.standings.select_related('team', 'team__club').order_by('position')
 
     # Filtros opcionales existentes
     round_filter = request.GET.get('round')

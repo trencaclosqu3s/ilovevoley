@@ -116,6 +116,37 @@ class PersonLinkRequestTests(TestCase):
         response = self.client.get(reverse('rosters:my_profile'), HTTP_HOST=HOST_A)
         self.assertContains(response, 'Hijo Propia')
 
+    def test_my_profile_sin_vinculos_muestra_la_tarjeta_desplegada(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('rosters:my_profile'), HTTP_HOST=HOST_A)
+        self.assertIsNotNone(response.context['link_form'])
+        self.assertFalse(response.context['has_links'])
+
+    def test_my_profile_con_ficha_propia_mantiene_la_tarjeta_plegada(self):
+        # Antes desaparecía: con ficha propia no se podía añadir la de un hijo/a (#553).
+        self.person.user = self.user
+        self.person.save(update_fields=['user'])
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('rosters:my_profile'), HTTP_HOST=HOST_A)
+        self.assertIsNotNone(response.context['link_form'])
+        self.assertTrue(response.context['has_links'])
+        self.assertTrue(response.context['has_own_person'])
+        self.assertEqual(response.context['children_count'], 0)
+
+    def test_my_profile_con_hijos_sin_ficha_propia_mantiene_la_tarjeta_plegada(self):
+        # Caso familia roto antes: hijos vinculados y sin ficha propia (#553).
+        child = Person.objects.create(first_name='Hijo', last_name='Propia', birth_year=2015)
+        child.organizations.add(self.org_a)
+        self.user.children.add(child)
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('rosters:my_profile'), HTTP_HOST=HOST_A)
+        self.assertIsNotNone(response.context['link_form'])
+        self.assertTrue(response.context['has_links'])
+        self.assertFalse(response.context['has_own_person'])
+        self.assertEqual(response.context['children_count'], 1)
+
     def test_no_se_puede_solicitar_una_ficha_de_otro_club(self):
         ajena = Person.objects.create(first_name='Bea', last_name='Ajena', birth_year=2010)
         ajena.organizations.add(self.org_b)
