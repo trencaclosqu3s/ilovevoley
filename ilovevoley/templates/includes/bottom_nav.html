@@ -20,6 +20,11 @@
         <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4v1a3 3 0 0 0 4 3M16 6h4v1a3 3 0 0 1-4 3M12 13v4M8 20h8"/></svg>
         {% trans "Liga" %}
     </a>
+    {% comment %}
+    #522: con contenido relevante «Este finde» ocupa el sitio de «Plantilla» para no
+    añadir una sexta pestaña en móvil. Decisión de producto: Plantilla sigue accesible
+    desde el navbar y el menú hamburguesa.
+    {% endcomment %}
     {% if weekend_entry and weekend_entry.has_content %}
     <a href="{% url 'weekend' %}"
        class="flex-1 min-h-[52px] rounded-[20px] flex flex-col items-center justify-center gap-0.5 text-[11px] touch-manipulation {% if name == 'weekend' %}bg-tint text-brand-text font-bold{% else %}text-muted font-medium{% endif %}"

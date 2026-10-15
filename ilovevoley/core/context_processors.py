@@ -95,7 +95,9 @@ def tenant_context(request):
     # EXISTS + count, y devuelve None si el usuario no sigue nada).
     resolver = getattr(request, 'resolver_match', None)
     is_home_screen = bool(
-        resolver and resolver.url_name in ('video_list', 'image_gallery', 'league_list')
+        resolver and resolver.view_name in (
+            'content:video_list', 'content:image_gallery', 'competitions:league_list',
+        )
     )
     weekend = None
     if user and user.is_authenticated and org:

@@ -62,9 +62,18 @@ def _match_filter_from_targets(teams, categories, organization) -> Q:
     return Q(pk__in=[])
 
 
+def _valid_follow_context(user, organization) -> bool:
+    """¿Hay usuario autenticado y organización con la que resolver preferencias?"""
+    return (
+        user is not None
+        and getattr(user, 'is_authenticated', True)
+        and organization is not None
+    )
+
+
 def has_follow_preferences(user, organization) -> bool:
     """Indica si el usuario tiene equipos seguidos o categorías de interés en la organización."""
-    if user is None or not getattr(user, 'is_authenticated', True) or organization is None:
+    if not _valid_follow_context(user, organization):
         return False
 
     teams, categories = _follow_targets(user, organization)
@@ -78,7 +87,7 @@ def following_match_filter(user, organization) -> Q:
     - Sin equipos, categorías de interés -> ligas de esas categorías más amistosos del club.
     - Sin preferencias -> ``Q(pk__in=[])`` (no casa nada).
     """
-    if user is None or not getattr(user, 'is_authenticated', True) or organization is None:
+    if not _valid_follow_context(user, organization):
         return Q(pk__in=[])
 
     teams, categories = _follow_targets(user, organization)
@@ -198,7 +207,7 @@ def _relevant_photos_q(user, organization) -> Q | None:
     Devuelve None si el usuario no tiene preferencias en la organización (evita que un Q vacío
     case con todas las imágenes del club).
     """
-    if user is None or not getattr(user, 'is_authenticated', True) or organization is None:
+    if not _valid_follow_context(user, organization):
         return None
 
     followed_teams, preferred_categories = _follow_targets(user, organization)

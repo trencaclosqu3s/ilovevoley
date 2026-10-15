@@ -410,3 +410,13 @@ class WeekendServicesDataTests(TestCase):
 
         pref.teams.clear()
         self.assertIsNone(weekend_entry(self.user, self.org, now=self.now_friday))
+
+    def test_reverse_m2m_preference_change_invalidates_without_crashing(self):
+        # Justificación: m2m_changed también llega en dirección inversa (desde Category
+        # o Team), no debe romper y ha de invalidar la caché igualmente.
+        pref = CategoryPreference.objects.create(user=self.user, organization=self.org)
+        pref.categories.set([self.senior])
+        self.assertIsNotNone(weekend_entry(self.user, self.org, now=self.now_friday))
+
+        self.senior.category_preferences.remove(pref)
+        self.assertIsNone(weekend_entry(self.user, self.org, now=self.now_friday))
