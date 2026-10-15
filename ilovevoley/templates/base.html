@@ -196,6 +196,7 @@
 </head>
 
 <body
+    {% if tenant %}data-share-url="{{ tenant_url|default:request.build_absolute_uri }}" data-share-title="{{ tenant.name }}" data-share-text="{% blocktrans with club=tenant.name %}Sigue los partidos y fotos de {{ club }} en I Love Voley{% endblocktrans %}"{% endif %}
     class="bg-page text-ink font-sans min-h-screen flex flex-col {% if user.is_authenticated %}pb-24 md:pb-0{% endif %}">
     {% include 'includes/navbar.html' %}
 
@@ -313,10 +314,6 @@
                         </a>
                         <button type="button"
                                 data-call="shareClub"
-                                data-call-this
-                                data-share-url="{{ tenant_url|default:request.build_absolute_uri }}"
-                                data-share-title="{{ tenant.name }}"
-                                data-share-text="{% blocktrans with club=tenant.name %}Sigue los partidos y fotos de {{ club }} en I Love Voley{% endblocktrans %}"
                                 class="inline-flex items-center gap-1.5 text-white/80 hover:text-white transition-colors text-sm">
                             {% icon 'share' 'w-4 h-4' %}
                             <span>{% trans "Comparte con otra familia" %}</span>
