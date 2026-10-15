@@ -177,8 +177,9 @@ def my_profile(request):
 
     No filtra por tenant: la ficha vinculada puede pertenecer a otro club y
     el usuario solo ve sus propios datos (nunca recibe un id por URL). Los
-    padres ven además la lista de sus hijos (#457). Sin ficha propia se ofrece
-    la tarjeta de vínculo self-service (#531).
+    padres ven además la lista de sus hijos (#457). La tarjeta de vínculo
+    self-service (#531) se ofrece siempre; si ya hay vínculos aparece plegada
+    (#553), para poder añadir otro hijo/a o vincular la ficha propia.
     """
     person = Person.objects.filter(user=request.user).first()
     children = [
@@ -193,7 +194,10 @@ def my_profile(request):
     return render(request, 'rosters/my_profile.html', {
         **context,
         'children': children,
-        'link_form': None if person else PersonLinkRequestForm(user=request.user, organization=request.tenant),
+        'link_form': PersonLinkRequestForm(user=request.user, organization=request.tenant),
+        'has_own_person': person is not None,
+        'children_count': len(children),
+        'has_links': person is not None or bool(children),
     })
 
 

@@ -103,6 +103,7 @@ Servido por la vista `ilovevoley.core.views.service_worker` desde la raíz con l
 #### Compartir Club con otra Familia (#534)
 - **Ubicación**: En navbar (escritorio y menú móvil) y en el pie de página (`footer`) de todas las páginas cuando existe un club activo (`tenant`).
 - **Comportamiento (`data-call="shareClub"`)**:
+  - La URL, el título y el texto del club se declaran **una sola vez** como `data-share-url` / `data-share-title` / `data-share-text` en el `<body>` (solo cuando hay club activo). Los botones del navbar (escritorio y menú móvil) y del pie llevan únicamente `data-call="shareClub"`; `shareClub` lee esos atributos del `<body>` (con la URL y el título de la página como respaldo).
   - Invoca la API nativa `navigator.share({ title, text, url })` con la URL canónica del club (`tenant_url`).
   - Si el navegador no soporta `navigator.share` o la llamada falla (salvo cancelación explícita del usuario), realiza fallback copiando la dirección al portapapeles (`navigator.clipboard.writeText`) y mostrando un toast Notyf de confirmación («Enlace copiado al portapapeles»).
 

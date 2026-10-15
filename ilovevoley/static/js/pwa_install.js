@@ -78,6 +78,20 @@
         }
     }
 
+    // Datos de compartición del club activo. Se definen una sola vez en el <body> y los botones
+    // (navbar escritorio/móvil y pie) solo llevan data-call="shareClub".
+    function sharePayload() {
+        var body = document.body;
+        var attr = function (name) {
+            return body ? body.getAttribute(name) : null;
+        };
+        return {
+            url: attr("data-share-url") || window.location.href,
+            title: attr("data-share-title") || document.title,
+            text: attr("data-share-text") || ""
+        };
+    }
+
     window.PwaInstallManager = {
         isStandalone: isStandalone,
         isIosNonStandalone: isIosNonStandalone,
@@ -147,8 +161,12 @@
                 }).catch(function () {
                     self.hidePrompt();
                 });
-            } else {
+            } else if (isIosNonStandalone()) {
                 this.openIosInstructions();
+            } else {
+                // Guarda defensiva: sin evento de instalación y sin ser iOS, las instrucciones de
+                // Safari no aplican; se oculta el banner en vez de mostrar la rama equivocada.
+                this.hidePrompt();
             }
         },
 
@@ -166,25 +184,22 @@
             }
         },
 
-        shareClub: function (el) {
-            var btn = el || this;
-            var url = (btn && (btn.getAttribute("data-share-url") || btn.dataset.shareUrl)) || window.location.href;
-            var title = (btn && (btn.getAttribute("data-share-title") || btn.dataset.shareTitle)) || document.title;
-            var text = (btn && (btn.getAttribute("data-share-text") || btn.dataset.shareText)) || "";
+        shareClub: function () {
+            var data = sharePayload();
 
             if (navigator.share) {
                 navigator.share({
-                    title: title,
-                    text: text,
-                    url: url
+                    title: data.title,
+                    text: data.text,
+                    url: data.url
                 }).catch(function (err) {
                     // Si el usuario cancela la hoja de compartir (AbortError), no hacemos fallback
                     if (err && err.name !== "AbortError") {
-                        copyToClipboard(url);
+                        copyToClipboard(data.url);
                     }
                 });
             } else {
-                copyToClipboard(url);
+                copyToClipboard(data.url);
             }
         }
     };
@@ -193,7 +208,7 @@
     window.dismissPwaInstallPrompt = function () { window.PwaInstallManager.snoozePrompt(); };
     window.declinePwaInstallPrompt = function () { window.PwaInstallManager.declinePromptForever(); };
     window.closePwaIosModal = function () { window.PwaInstallManager.closeIosInstructions(); };
-    window.shareClub = function (el) { window.PwaInstallManager.shareClub(el); };
+    window.shareClub = function () { window.PwaInstallManager.shareClub(); };
 
     // Captura del evento de instalación en Android / Chromium. En escritorio (puntero fino) no
     // se intercepta: Chrome ya ofrece el icono de instalar en la barra de direcciones.
