@@ -5,6 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 import re
+from unittest import mock
 
 
 def _count_script(content, needle):
@@ -307,11 +308,19 @@ class ImageModerationTenantIsolationTests(TestCase):
         cache.clear()
         self.client.force_login(self.manager_a)
         url = reverse('content:moderate_image_api', args=[self.image_a.id])
-        for _ in range(30):
-            response = self.client.post(url, {'action': 'invalid'}, HTTP_HOST='cluba.ilovevoley.es')
-            self.assertNotEqual(response.status_code, 429)
+        # django-ratelimit cuenta en ventanas fijas de 60 s derivadas de
+        # time.time(): si las peticiones cruzan el fin de ventana, el contador se
+        # reinicia y el 31.º POST deja de bloquearse (400 en vez de 429), haciendo
+        # el test intermitente. Congelamos solo el reloj que usa la librería para
+        # garantizar que las 31 peticiones caen en la misma ventana.
+        with mock.patch('django_ratelimit.core.time') as ratelimit_time:
+            ratelimit_time.time.return_value = 1_700_000_000.0
+            for _ in range(30):
+                response = self.client.post(url, {'action': 'invalid'}, HTTP_HOST='cluba.ilovevoley.es')
+                self.assertNotEqual(response.status_code, 429)
 
-        blocked_response = self.client.post(url, {'action': 'invalid'}, HTTP_HOST='cluba.ilovevoley.es')
+            blocked_response = self.client.post(url, {'action': 'invalid'}, HTTP_HOST='cluba.ilovevoley.es')
+
         self.assertEqual(blocked_response.status_code, 429)
         self.assertEqual(blocked_response['Content-Type'], 'application/json')
 

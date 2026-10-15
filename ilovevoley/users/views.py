@@ -168,12 +168,17 @@ def profile_view(request):
             12,
         ).get_page(request.GET.get('creaciones'))
 
-    # Tarjeta «Vincúlate» (#531): solo si aún no tiene ficha propia y hay club.
+    # Tarjeta «Vincúlate» (#531): con club se ofrece siempre; si ya hay vínculos
+    # aparece plegada (#553), para poder añadir otro hijo/a o vincular la ficha.
     from ilovevoley.rosters.forms import PersonLinkRequestForm
-    from ilovevoley.rosters.models import Person
+    from ilovevoley.rosters.link_requests import has_own_person
 
     link_form = None
-    if tenant is not None and not Person.objects.filter(user=user).exists():
+    has_own = False
+    children_count = 0
+    if tenant is not None:
+        has_own = has_own_person(user)
+        children_count = user.children.count()
         link_form = PersonLinkRequestForm(user=user, organization=tenant)
 
     return render(request, 'users/profile.html', {
@@ -186,6 +191,9 @@ def profile_view(request):
         'identity_form': identity_form,
         'avisos_form': avisos_form,
         'link_form': link_form,
+        'has_own_person': has_own,
+        'children_count': children_count,
+        'has_links': has_own or children_count > 0,
     })
 
 

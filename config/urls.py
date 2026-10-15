@@ -31,6 +31,7 @@ from ilovevoley.core.views import (
     service_worker,
     sitemap_xml,
     web_app_origin_association,
+    weekend_home,
 )
 from ilovevoley.users.views import (
     RatelimitedLoginView,
@@ -83,6 +84,8 @@ urlpatterns = [
     path('moderate/image/<str:token>/', moderate_image, name='moderate_image'),
     # Medios privados servidos vía X-Accel-Redirect (nginx) o FileResponse en dev
     path('media/<path:path>', protected_media, name='protected_media'),
+    # Pantalla «Este finde» (#522): partidos próximos, resumen y fotos recientes
+    path('finde/', weekend_home, name='weekend'),
     # Landing page and tenant redirect
     path('', landing, name='landing'),
 ]

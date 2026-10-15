@@ -29,7 +29,7 @@
     {% endif %}
 
     {% if link_form %}
-        {% include "rosters/_link_request_card.html" with link_form=link_form link_next="my_profile" %}
+        {% include "rosters/_link_request_card.html" with link_form=link_form link_next="my_profile" has_links=has_links has_own_person=has_own_person children_count=children_count %}
     {% endif %}
 
     {% if children %}

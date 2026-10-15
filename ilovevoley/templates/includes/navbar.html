@@ -211,10 +211,6 @@
                         {% if tenant %}
                             <button type="button"
                                     data-call="shareClub"
-                                    data-call-this
-                                    data-share-url="{{ tenant_url|default:request.build_absolute_uri }}"
-                                    data-share-title="{{ tenant.name }}"
-                                    data-share-text="{% blocktrans with club=tenant.name %}Sigue los partidos y fotos de {{ club }} en I Love Voley{% endblocktrans %}"
                                     class="text-sm lg:text-base text-muted hover:text-brand-text transition font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-tint"
                                     aria-label="{% trans "Comparte con otra familia" %}"
                                     title="{% trans "Comparte con otra familia" %}">
@@ -236,10 +232,6 @@
                     {% if tenant %}
                         <button type="button"
                                 data-call="shareClub"
-                                data-call-this
-                                data-share-url="{{ tenant_url|default:request.build_absolute_uri }}"
-                                data-share-title="{{ tenant.name }}"
-                                data-share-text="{% blocktrans with club=tenant.name %}Sigue los partidos y fotos de {{ club }} en I Love Voley{% endblocktrans %}"
                                 class="text-sm lg:text-base text-muted hover:text-brand-text transition font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-tint mr-1"
                                 aria-label="{% trans "Comparte con otra familia" %}"
                                 title="{% trans "Comparte con otra familia" %}">
@@ -448,10 +440,6 @@
                 <div class="border-t border-line mt-2 pt-2">
                     <button type="button"
                             data-call="shareClub"
-                            data-call-this
-                            data-share-url="{{ tenant_url|default:request.build_absolute_uri }}"
-                            data-share-title="{{ tenant.name }}"
-                            data-share-text="{% blocktrans with club=tenant.name %}Sigue los partidos y fotos de {{ club }} en I Love Voley{% endblocktrans %}"
                             class="flex items-center px-4 py-4 text-brand-text hover:bg-tint font-semibold transition touch-manipulation w-full text-left">
                         {% icon 'share' 'w-5 h-5 mr-3 flex-shrink-0' %}
                         <span>{% trans "Comparte con otra familia" %}</span>

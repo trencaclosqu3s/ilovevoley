@@ -30,7 +30,7 @@ Implementado en `ilovevoley.core.views.manifest_json`:
   - `icon-maskable-512.png`: 512×512 px (`purpose: maskable` para recorte redondeado o squircle en Android)
 - **Accesos directos (`shortcuts`)**:
   Expone accesos rápidos al mantener pulsado el icono de la PWA (long-press en Android u opciones de la app en escritorio):
-  - **Hoy / este finde** (`/competitions/calendario/`): Acceso directo al calendario y partidos.
+  - **Hoy / este finde** (`/finde/`): Resumen del fin de semana del usuario (partidos de sus equipos y fotos recientes).
   - **Fotos** (`/content/imagenes/`): Acceso directo a las galerías y álbumes fotográficos.
   - **Avisos** (`/profile/?tab=avisos#activar`): Deep link para activación y configuración de notificaciones push (#517).
   Cada shortcut dispone de icono dedicado de 192×192 px (`shortcut-matches.png`, `shortcut-photos.png`, `shortcut-notifications.png`) precacheado en el Service Worker. Las URLs son relativas al scope y respetan el multi-tenant y las `scope_extensions`, manteniéndose dentro de la experiencia in-app.
@@ -103,6 +103,7 @@ Servido por la vista `ilovevoley.core.views.service_worker` desde la raíz con l
 #### Compartir Club con otra Familia (#534)
 - **Ubicación**: En navbar (escritorio y menú móvil) y en el pie de página (`footer`) de todas las páginas cuando existe un club activo (`tenant`).
 - **Comportamiento (`data-call="shareClub"`)**:
+  - La URL, el título y el texto del club se declaran **una sola vez** como `data-share-url` / `data-share-title` / `data-share-text` en el `<body>` (solo cuando hay club activo). Los botones del navbar (escritorio y menú móvil) y del pie llevan únicamente `data-call="shareClub"`; `shareClub` lee esos atributos del `<body>` (con la URL y el título de la página como respaldo).
   - Invoca la API nativa `navigator.share({ title, text, url })` con la URL canónica del club (`tenant_url`).
   - Si el navegador no soporta `navigator.share` o la llamada falla (salvo cancelación explícita del usuario), realiza fallback copiando la dirección al portapapeles (`navigator.clipboard.writeText`) y mostrando un toast Notyf de confirmación («Enlace copiado al portapapeles»).
 

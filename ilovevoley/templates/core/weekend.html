@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load static i18n icons %}
+
+{% block title %}{% trans "Este finde" %} - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <header class="flex items-start justify-between gap-4">
+        <div>
+            <h1 class="font-display text-3xl font-bold tracking-tight text-ink">{% trans "Este finde" %}</h1>
+            <p class="mt-1 text-sm text-muted">
+                {% if variant == 'live' %}{% trans "Este fin de semana en juego" %}
+                {% elif variant == 'summary' %}{% trans "Resumen del fin de semana" %}
+                {% else %}{% trans "Lo que viene este fin de semana" %}{% endif %}
+            </p>
+        </div>
+        <a href="{% url 'competitions:calendar_view' %}"
+           class="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-text hover:underline">
+            {% icon 'calendar' 'w-4 h-4' %}{% trans "Calendario" %}
+        </a>
+    </header>
+
+    {% if not has_content %}
+    <section class="bg-surface rounded-3xl border border-line p-6 text-center">
+        <p class="text-ink font-semibold">{% trans "Este finde no hay partidos ni fotos de los tuyos." %}</p>
+        <p class="mt-1 text-sm text-muted">{% trans "Mira el calendario o la galería del club." %}</p>
+        <div class="mt-4 flex flex-wrap justify-center gap-3">
+            <a href="{% url 'competitions:calendar_view' %}" class="inline-flex items-center rounded-full bg-csj-purple-dark px-4 py-2 text-sm font-semibold text-white">{% trans "Ver calendario" %}</a>
+            <a href="{% url 'content:image_gallery' %}" class="inline-flex items-center rounded-full bg-tint px-4 py-2 text-sm font-semibold text-brand-text">{% trans "Ver galería" %}</a>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if upcoming %}
+    <section aria-labelledby="weekend-upcoming">
+        <h2 id="weekend-upcoming" class="font-display text-xl font-bold tracking-tight text-ink mb-3">{% trans "Próximos partidos" %}</h2>
+        <div class="space-y-3">
+            {% for match in upcoming %}
+            <a href="{% url 'competitions:match_detail' match.id %}"
+               class="block bg-surface rounded-2xl border border-line p-4 shadow-sm hover:border-brand-text transition-colors">
+                <div class="flex items-center justify-between gap-2 text-xs text-muted">
+                    <span class="font-medium">
+                        {{ match.match_date|date:"D d/m" }}
+                        {% if match.match_date|date:"H:i" == "00:00" %}
+                        <span class="text-orange-600 dark:text-orange-400">{% trans "Sin horario confirmado" %}</span>
+                        {% else %}{{ match.match_date|date:"H:i" }}{% endif %}
+                    </span>
+                    {% if match.round_number %}<span>J{{ match.round_number }}</span>{% endif %}
+                </div>
+                <p class="mt-2 font-semibold text-ink break-words">{{ match.home_team_display }} <span class="text-muted font-normal">vs</span> {{ match.away_team_display }}</p>
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+                    {% for category in match.league.categories.all %}
+                    <span class="bg-tint px-2 py-1 rounded">{{ category.name }}</span>
+                    {% endfor %}
+                    {% if match.venue or match.city %}
+                    <span class="inline-flex items-center gap-1">{% icon 'map-pin' 'w-3.5 h-3.5' %}{{ match.venue|default:"" }}{% if match.venue and match.city %} - {% endif %}{{ match.city|default:"" }}</span>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if results %}
+    <section aria-labelledby="weekend-results">
+        <h2 id="weekend-results" class="font-display text-xl font-bold tracking-tight text-ink mb-3">{% trans "Resultados del finde" %}</h2>
+        <div class="space-y-3">
+            {% for match in results %}
+            <a href="{% url 'competitions:match_detail' match.id %}"
+               class="block bg-surface rounded-2xl border border-line p-4 shadow-sm hover:border-brand-text transition-colors">
+                <div class="flex items-center justify-between gap-2 text-xs text-muted">
+                    <span class="font-medium">{{ match.match_date|date:"D d/m" }}</span>
+                    {% if match.round_number %}<span>J{{ match.round_number }}</span>{% endif %}
+                </div>
+                <p class="mt-2 font-semibold text-ink break-words">{{ match.home_team_display }} <span class="text-muted font-normal">vs</span> {{ match.away_team_display }}</p>
+                <p class="mt-1 text-sm font-bold text-brand-text">{{ match.result_display }}</p>
+            </a>
+            {% endfor %}
+        </div>
+        <div class="mt-3 text-center">
+            <a href="{% url 'competitions:results_view' %}" class="text-sm font-semibold text-brand-text hover:underline">{% trans "Ver todos los resultados" %}</a>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if photos %}
+    <section aria-labelledby="weekend-photos">
+        <h2 id="weekend-photos" class="font-display text-xl font-bold tracking-tight text-ink mb-3">{% trans "Fotos" %}</h2>
+        <div class="grid grid-cols-3 gap-2">
+            {% for photo in photos %}
+            <a href="{% url 'content:image_detail' photo.id %}" class="block aspect-square overflow-hidden rounded-xl">
+                {% include 'content/_thumbnail.html' with image=photo css_class="w-full h-full object-cover" sizes="(min-width: 768px) 25vw, 33vw" %}
+            </a>
+            {% endfor %}
+        </div>
+        <div class="mt-3 text-center">
+            <a href="{% url 'content:image_gallery' %}" class="text-sm font-semibold text-brand-text hover:underline">{% trans "Ver galería completa" %}</a>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
