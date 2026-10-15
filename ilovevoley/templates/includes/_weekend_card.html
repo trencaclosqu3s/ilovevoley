@@ -1,4 +1,4 @@
-{% load i18n %}{% if weekend_entry %}
+{% load i18n %}
 <div class="bg-surface rounded-3xl border border-line p-6">
     <h3 class="font-display text-xl font-bold tracking-tight text-ink">
         {% if weekend_entry.variant == 'live' %}{% trans "Este finde hay partidos" %}
@@ -10,4 +10,3 @@
     {% endif %}
     <a href="{% url 'weekend' %}" class="mt-4 inline-flex items-center rounded-full bg-csj-purple-dark px-4 py-2 text-sm font-semibold text-white">{% trans "Ver este finde" %}</a>
 </div>
-{% endif %}

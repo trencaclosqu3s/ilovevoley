@@ -48,9 +48,6 @@
                     {% if match.round_number %}<span>J{{ match.round_number }}</span>{% endif %}
                 </div>
                 <p class="mt-2 font-semibold text-ink break-words">{{ match.home_team_display }} <span class="text-muted font-normal">vs</span> {{ match.away_team_display }}</p>
-                {% if match.result_display and match.is_finished %}
-                <p class="mt-1 text-sm font-bold text-brand-text">{{ match.result_display }}</p>
-                {% endif %}
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                     {% for category in match.league.categories.all %}
                     <span class="bg-tint px-2 py-1 rounded">{{ category.name }}</span>

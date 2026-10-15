@@ -276,8 +276,9 @@ def _entry_payload(payload: dict[str, Any]) -> dict[str, Any]:
 def _prime_entry_cache(user, organization, payload: dict[str, Any], now: datetime) -> None:
     """Deja cacheado el resumen ligero para que la navegación no lo recalcule.
 
-    La vista de /finde/ ya calcula el overview, así que sembrar aquí la caché evita
-    pagar dos veces el mismo trabajo en esa página.
+    Solo debería llamarse para usuarios con preferencias de seguimiento (la vista de
+    /finde/ ya lo garantiza antes de calcular el overview): sembrar aquí la caché
+    evita pagar dos veces el mismo trabajo en esa página.
     """
     if organization is None or user is None or not getattr(user, 'is_authenticated', False):
         return
@@ -340,7 +341,8 @@ def weekend_entry(user, organization, now: datetime | None = None) -> dict[str, 
         return cached
 
     if not has_follow_preferences(user, organization):
-        cache.set(cache_key, None, ENTRY_CACHE_TTL)
+        # El negativo NO se cachea: empezar a seguir un equipo (p. ej. al salir del
+        # checklist de bienvenida) debe reflejarse de inmediato. Son dos EXISTS baratos.
         return None
 
     upcoming_count = min(

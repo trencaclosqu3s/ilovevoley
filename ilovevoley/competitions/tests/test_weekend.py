@@ -355,6 +355,24 @@ class WeekendServicesDataTests(TestCase):
         self.assertEqual(len(overview['photos']), 1)
         self.assertFalse(overview['has_content'])
 
+    def test_has_content_ignores_old_relevant_photos(self):
+        # Justificación: protege la ventana RELEVANT_PHOTOS_DAYS: una foto relevante
+        # pero antigua no debe mantener activa la entrada «Este finde» para siempre.
+        pref = CategoryPreference.objects.create(user=self.user, organization=self.org)
+        pref.teams.set([self.team_senior_a])
+
+        old_date = self.now_friday - timedelta(days=30)
+        old_match = self._match(
+            self.team_senior_a, self.team_external, self.league_senior, old_date,
+        )
+        self._photo(self.org, match=old_match, status='approved', upload_dt=old_date)
+
+        overview = weekend_overview(self.user, self.org, now=self.now_friday)
+
+        # La foto antigua sigue mostrándose, pero no activa la entrada.
+        self.assertEqual(len(overview['photos']), 1)
+        self.assertFalse(overview['has_content'])
+
     def test_weekend_entry_returns_none_without_follow_preferences(self):
         # Justificación: Protege el contrato ligero para la UI de navegación:
         # si el usuario no tiene preferencias en el club, weekend_entry debe ser None.
