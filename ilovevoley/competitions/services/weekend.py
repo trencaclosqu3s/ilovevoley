@@ -32,47 +32,57 @@ def _resolve_local_datetime(dt: datetime | None = None) -> datetime:
     return timezone.localtime(dt)
 
 
+def _follow_targets(user, organization):
+    """Equipos seguidos y categorías de interés del usuario en el club.
+
+    Punto único de la regla de seguimiento (#522): lo comparten el filtro de partidos,
+    el filtro de fotos y la comprobación de si hay algo que seguir.
+    """
+    teams = Team.objects.filter(
+        followers__user=user,
+        followers__organization=organization,
+    ).distinct()
+    categories = user.preferred_categories_for(organization)
+    return teams, categories
+
+
+def _match_filter_from_targets(teams, categories, organization) -> Q:
+    """Q de partidos para objetivos de seguimiento ya resueltos.
+
+    Regla (idéntica a ``UserMatchesFeed``): los equipos mandan; si no hay equipos, se
+    usan las categorías de interés del club más los amistosos del club.
+    """
+    if teams.exists():
+        return Q(home_team__in=teams) | Q(away_team__in=teams)
+
+    if categories.exists():
+        team_filter = get_club_team_filter(organization)
+        return (Q(league__categories__in=categories) | Q(is_friendly=True)) & team_filter
+
+    return Q(pk__in=[])
+
+
 def has_follow_preferences(user, organization) -> bool:
     """Indica si el usuario tiene equipos seguidos o categorías de interés en la organización."""
     if user is None or not getattr(user, 'is_authenticated', True) or organization is None:
         return False
 
-    has_teams = Team.objects.filter(
-        followers__user=user,
-        followers__organization=organization,
-    ).exists()
-    if has_teams:
-        return True
-
-    return user.preferred_categories_for(organization).exists()
+    teams, categories = _follow_targets(user, organization)
+    return teams.exists() or categories.exists()
 
 
 def following_match_filter(user, organization) -> Q:
-    """Construye el filtro Q de partidos según las preferencias de seguimiento del usuario.
+    """Filtro Q de partidos según las preferencias de seguimiento del usuario.
 
-    Regla de seguimiento (idéntica a UserMatchesFeed):
-    - Si el usuario sigue equipos concretos en el club (CategoryPreference.teams no vacío),
-      se devuelven los partidos donde juega alguno de esos equipos como local o visitante.
-    - Si no sigue equipos pero tiene categorías de interés en el club, se devuelven los partidos
-      del club cuya liga esté en esas categorías, más los amistosos del club.
-    - Si no hay ni equipos ni categorías, devuelve un Q vacío que no casa nada: Q(pk__in=[]).
+    - Equipos seguidos -> partidos donde juega alguno de ellos (local o visitante).
+    - Sin equipos, categorías de interés -> ligas de esas categorías más amistosos del club.
+    - Sin preferencias -> ``Q(pk__in=[])`` (no casa nada).
     """
     if user is None or not getattr(user, 'is_authenticated', True) or organization is None:
         return Q(pk__in=[])
 
-    followed_teams = Team.objects.filter(
-        followers__user=user,
-        followers__organization=organization,
-    ).distinct()
-    if followed_teams.exists():
-        return Q(home_team__in=followed_teams) | Q(away_team__in=followed_teams)
-
-    preferred_categories = user.preferred_categories_for(organization)
-    if preferred_categories.exists():
-        team_filter = get_club_team_filter(organization)
-        return (Q(league__categories__in=preferred_categories) | Q(is_friendly=True)) & team_filter
-
-    return Q(pk__in=[])
+    teams, categories = _follow_targets(user, organization)
+    return _match_filter_from_targets(teams, categories, organization)
 
 
 def weekend_bounds(now: datetime | None = None) -> tuple[datetime, datetime]:
@@ -191,13 +201,8 @@ def _relevant_photos_q(user, organization) -> Q | None:
     if user is None or not getattr(user, 'is_authenticated', True) or organization is None:
         return None
 
-    followed_teams = Team.objects.filter(
-        followers__user=user,
-        followers__organization=organization,
-    ).distinct()
+    followed_teams, preferred_categories = _follow_targets(user, organization)
     has_teams = followed_teams.exists()
-
-    preferred_categories = user.preferred_categories_for(organization)
     has_categories = preferred_categories.exists()
 
     if not has_teams and not has_categories:
@@ -235,7 +240,7 @@ def recent_photos(user, organization, limit: int = PHOTOS_LIMIT) -> list[Image] 
             already_ids = [p.id for p in photos]
             fill_qs = base_images.exclude(id__in=already_ids).select_related(
                 'match', 'uploaded_by'
-            ).distinct().order_by('-upload_date')[:needed]
+            ).order_by('-upload_date')[:needed]
             photos.extend(list(fill_qs))
         return photos
 
@@ -261,16 +266,28 @@ def _has_relevant_photos(user, organization, now: datetime) -> bool:
     ).filter(rel_q).exists()
 
 
+def _entry_version_key(organization_id, user_id) -> str:
+    """Contador de versión de las preferencias de seguimiento de un usuario en un club.
+
+    Forma parte de la clave de caché: al incrementarlo, las entradas antiguas dejan de
+    usarse sin necesidad de enumerar claves.
+    """
+    return f'weekend_entry_version:{organization_id}:{user_id}'
+
+
+def invalidate_weekend_entry_cache(user_id, organization_id) -> None:
+    """Invalida el resumen «Este finde» cacheado de un usuario en un club.
+
+    Se llama al cambiar sus equipos/categorías seguidos para que la pestaña y el card
+    reflejen el cambio de inmediato, sin esperar al TTL.
+    """
+    key = _entry_version_key(organization_id, user_id)
+    cache.set(key, (cache.get(key) or 0) + 1, None)
+
+
 def _entry_cache_key(user, organization, now: datetime) -> str:
-    return f'weekend_entry:{organization.pk}:{user.pk}:{now.date().isoformat()}'
-
-
-def _entry_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    return {
-        'has_content': payload['has_content'],
-        'variant': payload['variant'],
-        'upcoming_count': payload['upcoming_count'],
-    }
+    version = cache.get(_entry_version_key(organization.pk, user.pk), 0)
+    return f'weekend_entry:{organization.pk}:{user.pk}:{version}:{now.date().isoformat()}'
 
 
 def _prime_entry_cache(user, organization, payload: dict[str, Any], now: datetime) -> None:
@@ -282,7 +299,15 @@ def _prime_entry_cache(user, organization, payload: dict[str, Any], now: datetim
     """
     if organization is None or user is None or not getattr(user, 'is_authenticated', False):
         return
-    cache.set(_entry_cache_key(user, organization, now), _entry_payload(payload), ENTRY_CACHE_TTL)
+    cache.set(
+        _entry_cache_key(user, organization, now),
+        {
+            'has_content': payload['has_content'],
+            'variant': payload['variant'],
+            'upcoming_count': payload['upcoming_count'],
+        },
+        ENTRY_CACHE_TTL,
+    )
 
 
 def weekend_overview(user, organization, now: datetime | None = None) -> dict[str, Any]:
@@ -341,8 +366,10 @@ def weekend_entry(user, organization, now: datetime | None = None) -> dict[str, 
         return cached
 
     if not has_follow_preferences(user, organization):
-        # El negativo NO se cachea: empezar a seguir un equipo (p. ej. al salir del
-        # checklist de bienvenida) debe reflejarse de inmediato. Son dos EXISTS baratos.
+        # El negativo también se cachea: cualquier cambio de preferencias incrementa la
+        # versión de la clave (ver ``invalidate_weekend_entry_cache``), así que no queda
+        # obsoleto.
+        cache.set(cache_key, None, ENTRY_CACHE_TTL)
         return None
 
     upcoming_count = min(

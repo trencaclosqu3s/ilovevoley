@@ -395,3 +395,18 @@ class WeekendServicesDataTests(TestCase):
         self.assertTrue(entry['has_content'])
         self.assertEqual(entry['upcoming_count'], 1)
         self.assertEqual(entry['variant'], 'live')
+
+    def test_weekend_entry_invalidated_when_preferences_change(self):
+        # Justificación: la caché del resumen se invalida al cambiar los equipos
+        # seguidos, así seguir o dejar de seguir se refleja al instante y no se
+        # queda un resultado obsoleto durante el TTL.
+        pref = CategoryPreference.objects.create(user=self.user, organization=self.org)
+        pref.teams.set([self.team_senior_a])
+        self._match(
+            self.team_senior_a, self.team_external, self.league_senior,
+            self.now_friday + timedelta(days=1),
+        )
+        self.assertIsNotNone(weekend_entry(self.user, self.org, now=self.now_friday))
+
+        pref.teams.clear()
+        self.assertIsNone(weekend_entry(self.user, self.org, now=self.now_friday))

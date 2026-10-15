@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import m2m_changed, post_delete, post_save
 from django.dispatch import receiver
 from django.urls import reverse
 from allauth.account.signals import user_signed_up
@@ -7,7 +7,7 @@ from django.contrib.auth.signals import user_logged_in
 from django.conf import settings
 from ilovevoley.core.email_utils import enqueue_on_commit
 from ilovevoley.core.tasks import notify_membership_pending_task, notify_new_user_pending_task
-from ilovevoley.users.models import Membership
+from ilovevoley.users.models import CategoryPreference, Membership
 
 User = get_user_model()
 
@@ -79,4 +79,29 @@ def reset_inactivity_warning_on_login(sender, request, user, **kwargs):
             inactivity_warning_level=0,
             inactivity_warning_sent_at=None,
         )
+
+
+def _invalidate_weekend_entry(user_id, organization_id):
+    """Import perezoso para no cargar la app de competiciones durante el arranque."""
+    from ilovevoley.competitions.services.weekend import invalidate_weekend_entry_cache
+
+    invalidate_weekend_entry_cache(user_id, organization_id)
+
+
+@receiver(m2m_changed, sender=CategoryPreference.categories.through)
+@receiver(m2m_changed, sender=CategoryPreference.teams.through)
+def category_preference_changed(sender, instance, action, **kwargs):
+    """Invalida el resumen «Este finde» al cambiar equipos o categorías seguidos (#522).
+
+    Se invalida en ``set()``/``add()``/``remove()``/``clear()`` para que la pestaña
+    inferior y el card reflejen el cambio de inmediato, sin esperar al TTL de la caché.
+    """
+    if action in ('post_add', 'post_remove', 'post_clear'):
+        _invalidate_weekend_entry(instance.user_id, instance.organization_id)
+
+
+@receiver(post_delete, sender=CategoryPreference)
+def category_preference_deleted(sender, instance, **kwargs):
+    """Invalida el resumen «Este finde» al borrar las preferencias de un usuario (#522)."""
+    _invalidate_weekend_entry(instance.user_id, instance.organization_id)
 
