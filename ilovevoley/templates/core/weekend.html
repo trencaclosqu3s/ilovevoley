@@ -20,7 +20,7 @@
         </a>
     </header>
 
-    {% if not upcoming and not results and not photos %}
+    {% if not has_content %}
     <section class="bg-surface rounded-3xl border border-line p-6 text-center">
         <p class="text-ink font-semibold">{% trans "Este finde no hay partidos ni fotos de los tuyos." %}</p>
         <p class="mt-1 text-sm text-muted">{% trans "Mira el calendario o la galería del club." %}</p>

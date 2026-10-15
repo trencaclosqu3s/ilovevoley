@@ -1,6 +1,7 @@
 from datetime import datetime, time, timedelta
 from typing import Any
 
+from django.core.cache import cache
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
@@ -8,6 +9,18 @@ from ilovevoley.competitions.models import Match
 from ilovevoley.content.models import Image
 from ilovevoley.core.mixins import get_club_team_filter
 from ilovevoley.teams.models import Team
+
+UPCOMING_LIMIT = 12
+RESULTS_LIMIT = 6
+PHOTOS_LIMIT = 6
+# Una foto cuenta como «relevante» para activar la entrada solo si es reciente: si no,
+# una única foto histórica de un equipo seguido mantendría la pestaña «Este finde» activa
+# para siempre.
+RELEVANT_PHOTOS_DAYS = 7
+# La navegación consulta el resumen en cada render: se cachea por (usuario, club, día)
+# unos minutos para no repetir el cálculo en cada página.
+ENTRY_CACHE_TTL = 300
+_CACHE_MISSING = object()
 
 
 def _resolve_local_datetime(dt: datetime | None = None) -> datetime:
@@ -104,10 +117,11 @@ def weekend_variant(now: datetime | None = None) -> str:
 
 
 def _upcoming_matches_queryset(user, organization, now: datetime | None = None) -> QuerySet[Match]:
-    """QuerySet base no acotado para próximos partidos programados o en progreso."""
-    if not has_follow_preferences(user, organization):
-        return Match.objects.none()
+    """QuerySet base no acotado para próximos partidos programados o en progreso.
 
+    Sin preferencias de seguimiento ``following_match_filter`` no casa nada, así que
+    no hace falta un guardia previo con su propia consulta.
+    """
     current_now = _resolve_local_datetime(now)
     start_dt, end_dt = weekend_bounds(current_now)
 
@@ -135,21 +149,15 @@ def upcoming_matches(user, organization, now: datetime | None = None) -> QuerySe
     y limitado a 12 partidos.
     """
     qs = _upcoming_matches_queryset(user, organization, now=now)
-    if not qs.exists():
-        return Match.objects.none()
-
     return qs.select_related(
         'home_team', 'away_team', 'league'
     ).prefetch_related(
         'league__categories'
-    ).distinct().order_by('match_date')[:12]
+    ).distinct().order_by('match_date')[:UPCOMING_LIMIT]
 
 
 def _recent_results_queryset(user, organization, now: datetime | None = None) -> QuerySet[Match]:
     """QuerySet base no acotado para partidos finalizados en los últimos 7 días."""
-    if not has_follow_preferences(user, organization):
-        return Match.objects.none()
-
     current_now = _resolve_local_datetime(now)
     start_date = current_now - timedelta(days=7)
 
@@ -167,14 +175,11 @@ def recent_results(user, organization, now: datetime | None = None) -> QuerySet[
     Orden descendente por match_date y limitado a 6 partidos.
     """
     qs = _recent_results_queryset(user, organization, now=now)
-    if not qs.exists():
-        return Match.objects.none()
-
     return qs.select_related(
         'home_team', 'away_team', 'league'
     ).prefetch_related(
         'league__categories'
-    ).distinct().order_by('-match_date')[:6]
+    ).distinct().order_by('-match_date')[:RESULTS_LIMIT]
 
 
 def _relevant_photos_q(user, organization) -> Q | None:
@@ -207,15 +212,12 @@ def _relevant_photos_q(user, organization) -> Q | None:
     return rel_q
 
 
-def recent_photos(user, organization, limit: int = 6) -> list[Image] | QuerySet[Image]:
+def recent_photos(user, organization, limit: int = PHOTOS_LIMIT) -> list[Image] | QuerySet[Image]:
     """Fotos recientes aprobadas del club, priorizando las relevantes según seguimiento.
 
     Primero fotos con partidos de los equipos seguidos o de categorías preferidas,
     y completa con las últimas del club hasta alcanzar el límite.
     """
-    if organization is None or limit <= 0:
-        return []
-
     base_images = Image.objects.filter(
         organization=organization,
         status='approved',
@@ -242,6 +244,46 @@ def recent_photos(user, organization, limit: int = 6) -> list[Image] | QuerySet[
     )
 
 
+def _has_relevant_photos(user, organization, now: datetime) -> bool:
+    """¿Hay fotos aprobadas **recientes** que casen con el seguimiento del usuario?
+
+    Acotar por fecha evita que una única foto histórica mantenga activa la entrada
+    «Este finde» de forma permanente. No cuenta el relleno (fotos del club sin
+    relación con el seguimiento).
+    """
+    rel_q = _relevant_photos_q(user, organization)
+    if rel_q is None:
+        return False
+    return Image.objects.filter(
+        organization=organization,
+        status='approved',
+        upload_date__gte=now - timedelta(days=RELEVANT_PHOTOS_DAYS),
+    ).filter(rel_q).exists()
+
+
+def _entry_cache_key(user, organization, now: datetime) -> str:
+    return f'weekend_entry:{organization.pk}:{user.pk}:{now.date().isoformat()}'
+
+
+def _entry_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        'has_content': payload['has_content'],
+        'variant': payload['variant'],
+        'upcoming_count': payload['upcoming_count'],
+    }
+
+
+def _prime_entry_cache(user, organization, payload: dict[str, Any], now: datetime) -> None:
+    """Deja cacheado el resumen ligero para que la navegación no lo recalcule.
+
+    La vista de /finde/ ya calcula el overview, así que sembrar aquí la caché evita
+    pagar dos veces el mismo trabajo en esa página.
+    """
+    if organization is None or user is None or not getattr(user, 'is_authenticated', False):
+        return
+    cache.set(_entry_cache_key(user, organization, now), _entry_payload(payload), ENTRY_CACHE_TTL)
+
+
 def weekend_overview(user, organization, now: datetime | None = None) -> dict[str, Any]:
     """Vista agregada completa de la pantalla «Este finde».
 
@@ -253,18 +295,12 @@ def weekend_overview(user, organization, now: datetime | None = None) -> dict[st
 
     upcoming = list(upcoming_matches(user, organization, now=current_now))
     results = list(recent_results(user, organization, now=current_now))
-    photos = recent_photos(user, organization, limit=6)
+    photos = recent_photos(user, organization, limit=PHOTOS_LIMIT)
 
-    # Las fotos de relleno no cuentan para has_content: solo si hay fotos que casen
-    # explícitamente con las preferencias de seguimiento del usuario.
-    rel_q = _relevant_photos_q(user, organization)
-    has_relevant_photos = (
-        Image.objects.filter(organization=organization, status='approved').filter(rel_q).exists()
-        if rel_q is not None
-        else False
+    # El relleno de fotos no cuenta para has_content; solo las relevantes y recientes.
+    has_content = bool(
+        upcoming or results or _has_relevant_photos(user, organization, current_now)
     )
-
-    has_content = bool(upcoming or results or has_relevant_photos)
     upcoming_count = len(upcoming)
 
     variant = weekend_variant(current_now)
@@ -273,7 +309,7 @@ def weekend_overview(user, organization, now: datetime | None = None) -> dict[st
         # para mostrar la previa del fin de semana entrante (o su estado vacío).
         variant = 'upcoming'
 
-    return {
+    payload = {
         'variant': variant,
         'has_content': has_content,
         'upcoming_count': upcoming_count,
@@ -283,41 +319,47 @@ def weekend_overview(user, organization, now: datetime | None = None) -> dict[st
         'window_start': window_start,
         'window_end': window_end,
     }
+    _prime_entry_cache(user, organization, payload, current_now)
+    return payload
 
 
 def weekend_entry(user, organization, now: datetime | None = None) -> dict[str, Any] | None:
-    """Versión optimizada y ligera para la barra de navegación y el card del sidebar.
+    """Versión ligera para la barra de navegación y el card del sidebar.
 
     - None si el usuario no tiene preferencias de seguimiento en el club.
-    - Dict {'has_content': bool, 'variant': str, 'upcoming_count': int} calculado con .exists() y .count().
+    - Dict {'has_content': bool, 'variant': str, 'upcoming_count': int}, cacheado
+      por (usuario, club, día) para no repetir consultas en cada render.
     """
-    if not has_follow_preferences(user, organization):
+    if user is None or not getattr(user, 'is_authenticated', False) or organization is None:
         return None
 
     current_now = _resolve_local_datetime(now)
-    upcoming_qs = _upcoming_matches_queryset(user, organization, now=current_now)
-    has_upcoming = upcoming_qs.exists()
-    upcoming_count = upcoming_qs.distinct().count()
+    cache_key = _entry_cache_key(user, organization, current_now)
+    cached = cache.get(cache_key, _CACHE_MISSING)
+    if cached is not _CACHE_MISSING:
+        return cached
 
-    results_qs = _recent_results_queryset(user, organization, now=current_now)
-    has_results = results_qs.exists()
+    if not has_follow_preferences(user, organization):
+        cache.set(cache_key, None, ENTRY_CACHE_TTL)
+        return None
 
-    rel_q = _relevant_photos_q(user, organization)
-    has_relevant_photos = (
-        Image.objects.filter(organization=organization, status='approved').filter(rel_q).exists()
-        if rel_q is not None
-        else False
+    upcoming_count = min(
+        _upcoming_matches_queryset(user, organization, now=current_now).distinct().count(),
+        UPCOMING_LIMIT,
     )
-
-    has_content = bool(has_upcoming or has_results or has_relevant_photos)
+    has_results = _recent_results_queryset(user, organization, now=current_now).exists()
 
     variant = weekend_variant(current_now)
     if variant == 'summary' and not has_results:
         # En lunes sin resultados, degradamos a previa
         variant = 'upcoming'
 
-    return {
-        'has_content': has_content,
+    payload = {
+        'has_content': bool(
+            upcoming_count or has_results or _has_relevant_photos(user, organization, current_now)
+        ),
         'variant': variant,
         'upcoming_count': upcoming_count,
     }
+    cache.set(cache_key, payload, ENTRY_CACHE_TTL)
+    return payload

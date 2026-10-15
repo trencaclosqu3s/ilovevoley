@@ -1068,8 +1068,17 @@ def weekend_home(request):
     (según sus equipos/categorías de interés), el resumen del último finde y
     fotos recientes del club. El `default_home` del tenant no se altera: se
     llega aquí por enlace (card del sidebar, pestaña inferior, shortcut PWA).
+
+    Sin equipos ni categorías seguidas no hay nada personalizado que mostrar, así
+    que se conserva el destino anterior del shortcut PWA: el calendario.
     """
-    from ilovevoley.competitions.services.weekend import weekend_overview
+    from ilovevoley.competitions.services.weekend import (
+        has_follow_preferences,
+        weekend_overview,
+    )
+
+    if not has_follow_preferences(request.user, request.tenant):
+        return redirect('competitions:calendar_view')
 
     overview = weekend_overview(request.user, request.tenant)
     return render(request, 'core/weekend.html', overview)

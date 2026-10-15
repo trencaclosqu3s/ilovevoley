@@ -109,6 +109,14 @@ class WeekendHomeViewTests(TestCase):
         self.assertNotIn(other_match, upcoming)
         self.assertNotIn(other_photo, photos)
 
+    def test_weekend_without_follow_preferences_redirects_to_calendar(self):
+        # Justificación: sin equipos ni categorías seguidas no hay nada personalizado
+        # que mostrar; el shortcut PWA conserva su destino anterior (calendario) en
+        # lugar de aterrizar en una pantalla vacía.
+        response = self.client.get(reverse('weekend'), HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('competitions:calendar_view'))
+
     def test_weekend_entry_none_without_follow_preferences(self):
         # Justificación: producto «solo con preferencias y contenido»; sin seguimiento
         # no hay entrada en navegación (weekend_entry = None).
