@@ -1,7 +1,9 @@
 """Wrapped de temporada (#458): cifras congeladas al cierre y pantallas que las muestran."""
 from dataclasses import dataclass
 
+from django.conf import settings
 from django.db.models import Q
+from django.utils.translation import get_language
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 
@@ -9,11 +11,15 @@ from ilovevoley.competitions.models import League
 from ilovevoley.competitions.services.lineups import _played_official_lineups
 from ilovevoley.content.favorites import annotate_favorites
 from ilovevoley.content.models import Image
+from ilovevoley.core import narrative
 from ilovevoley.core.models import Organization
 from ilovevoley.rosters.models import PlayerRole
 from ilovevoley.rosters.player_card import card_photo_allowed
+from ilovevoley.teams.identity import effective_gender
 
 TOP_PHOTOS = 5
+NARRATIVE_LANGUAGES = ('es', 'ca')
+NARRATIVE_MAX_CHARS = 320  # el pintor del PNG reduce el cuerpo hasta que esto quepa
 
 
 def OFFICIAL_CAPTION():  # noqa: N802 — se evalúa en cada idioma activo
@@ -49,6 +55,9 @@ def build_screens(wrapped, user, tenant):
     stats = wrapped.stats
     caption = OFFICIAL_CAPTION()
     screens = [Screen('cover', wrapped.person.full_name, wrapped.season.name, _('Tu temporada'))]
+    text = wrapped_narrative(wrapped)
+    if text:
+        screens.append(Screen('narrative', _('Tu temporada en palabras'), subtitle=text))
     if stats['matches']:
         screens.append(Screen('matches', _('Has jugado'), str(stats['matches']),
                               ngettext('partido oficial', 'partidos oficiales', stats['matches']), caption))
@@ -71,6 +80,45 @@ def build_screens(wrapped, user, tenant):
             screens.append(Screen('top_photo', _('Tu foto más votada'), photo_id=photo_id))
     screens.append(Screen('closing', _('¡Gracias por la temporada!'), '', _('Nos vemos en la próxima')))
     return screens
+
+
+def wrapped_narrative(wrapped) -> str:
+    """Texto redactado (#551) con el nombre ya sustituido, o ``''`` si no hay para el idioma.
+
+    Idioma activo; si no hay, el de ``LANGUAGE_CODE``; si tampoco, sin pantalla.
+    """
+    texts = wrapped.stats.get('narrative') or {}
+    for language in (get_language(), settings.LANGUAGE_CODE):
+        text = texts.get((language or '').split('-')[0])
+        if text:
+            return narrative.fill_name(text, wrapped.person.first_name)
+    return ''
+
+
+def build_wrapped_facts(wrapped) -> dict:
+    """Hechos que se envían al modelo: solo cifras, equipo/rival, modalidad y temporada.
+
+    Nunca nombre, apellidos, año de nacimiento, foto ni ids (RGPD, datos de menores).
+    """
+    stats = wrapped.stats
+    role = (
+        PlayerRole.objects.filter(person=wrapped.person, season=wrapped.season)
+        .select_related('identity__category').order_by('-is_active', '-id').first()
+    )
+    identity = role.identity if role else None
+    rival = stats.get('rival')
+    return {
+        'temporada': wrapped.season.name,
+        'modalidad': wrapped.modality,
+        'genero': effective_gender(identity) if identity else '',
+        'partidos_jugados': stats['matches'],
+        'sets_disputados': stats['sets'],
+        'victorias': stats['wins'],
+        'equipo': identity.core_name if identity else '',
+        'rival_mas_repetido': rival['name'] if rival else '',
+        'partidos_con_el_rival': rival['matches'] if rival else 0,
+        'fotos': stats['photos_count'],
+    }
 
 
 def _season_images(person, season, modality):

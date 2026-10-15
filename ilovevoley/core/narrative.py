@@ -85,7 +85,7 @@ def _build_prompt(payload: dict, style: str) -> str:
         f'3. Menciona a la persona exactamente como {NAME_MARKER}, una vez como mínimo.',
         '4. No menciones a compañeros ni compares con nadie.',
         '5. Tono positivo, natural, sin exagerar; nunca digas «nuestro equipo».',
-        '6. Concordancia de género según "genero" (m, f; vacío = neutro).',
+        '6. Concordancia de género según "genero" (male, female; mixed o vacío = neutro).',
         f'7. Máximo {payload["max_caracteres"]} caracteres, sin saltos de línea.',
         '8. Devuelve solo JSON con esta forma: {"text": "..."}',
     ])

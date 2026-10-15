@@ -7602,6 +7602,10 @@ msgstr "núm. %(n)s"
 msgid "Tu temporada"
 msgstr "La teva temporada"
 
+#: ilovevoley/rosters/season_wrapped.py:66
+msgid "Tu temporada en palabras"
+msgstr "La teva temporada en paraules"
+
 #: ilovevoley/rosters/season_wrapped.py:53
 msgid "Has jugado"
 msgstr "Has jugat"

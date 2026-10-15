@@ -50,6 +50,13 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'send_match_photo_reminders',
         'schedule': timedelta(minutes=15),
     },
+    # Redacción con LLM del Wrapped (#551): rellena los idiomas pendientes en una tanda
+    # de 20 textos; sin LLM_NARRATIVE_ENABLED no hace nada.
+    'redact-pending-wrapped-narratives': {
+        'task': 'redact_pending_wrapped_narratives',
+        'schedule': crontab(minute=0, hour=3),
+        'options': {'expire_seconds': 1800},
+    },
     # --- Scrapers federativos legacy (antes creados a mano en la BD) -----------
     # Nombres normalizados (slug) para que DatabaseScheduler los reconozca; las
     # filas viejas las borra la migración de datos.
