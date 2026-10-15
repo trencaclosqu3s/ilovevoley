@@ -413,6 +413,13 @@ ACTA_VISION_ENABLED = env_config('ACTA_VISION_ENABLED', default=False, cast=bool
 GEMINI_API_KEY = env_config('GEMINI_API_KEY', default='')
 GEMINI_ACTA_MODEL = env_config('GEMINI_ACTA_MODEL', default='gemini-3.5-flash-lite')
 
+# Redacción con LLM (#551). Clave propia: la de GEMINI_API_KEY es del OCR de actas y su
+# cuenta está sin facturación a propósito.
+LLM_NARRATIVE_ENABLED = env_config('LLM_NARRATIVE_ENABLED', default=False, cast=bool)
+LLM_NARRATIVE_API_KEY = env_config('LLM_NARRATIVE_API_KEY', default='')
+LLM_NARRATIVE_MODEL = env_config('LLM_NARRATIVE_MODEL', default='gemini-3.5-flash-lite')
+LLM_NARRATIVE_TIMEOUT = env_config('LLM_NARRATIVE_TIMEOUT', default=30, cast=int)
+
 # Configuración de moderación automática
 AUTO_MODERATION_ENABLED = env_config('AUTO_MODERATION_ENABLED', default=DEBUG, cast=bool)
 
