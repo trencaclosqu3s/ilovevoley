@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models.signals import m2m_changed, post_delete, post_save
 from django.dispatch import receiver
 from django.urls import reverse
@@ -82,10 +83,17 @@ def reset_inactivity_warning_on_login(sender, request, user, **kwargs):
 
 
 def _invalidate_weekend_entry(user_id, organization_id):
-    """Import perezoso para no cargar la app de competiciones durante el arranque."""
+    """Invalida el resumen «Este finde» tras confirmar la transacción.
+
+    Se difiere a ``on_commit`` para que otra petición no cachee el estado antiguo bajo
+    la versión nueva mientras la transacción sigue abierta. El import es perezoso para
+    no cargar la app de competiciones durante el arranque.
+    """
     from ilovevoley.competitions.services.weekend import invalidate_weekend_entry_cache
 
-    invalidate_weekend_entry_cache(user_id, organization_id)
+    transaction.on_commit(
+        lambda: invalidate_weekend_entry_cache(user_id, organization_id)
+    )
 
 
 @receiver(m2m_changed, sender=CategoryPreference.categories.through)
@@ -93,19 +101,25 @@ def _invalidate_weekend_entry(user_id, organization_id):
 def category_preference_changed(sender, instance, action, reverse=False, pk_set=None, **kwargs):
     """Invalida el resumen «Este finde» al cambiar equipos o categorías seguidos (#522).
 
-    Se invalida en ``set()``/``add()``/``remove()``/``clear()`` para que la pestaña
-    inferior y el card reflejen el cambio de inmediato, sin esperar al TTL de la caché.
+    Cubre ``set()``/``add()``/``remove()``/``clear()`` en ambas direcciones para que la
+    pestaña inferior y el card reflejen el cambio de inmediato, sin esperar al TTL.
     """
-    if action not in ('post_add', 'post_remove', 'post_clear'):
-        return
     if reverse:
-        # Cambio desde el lado Team/Category: ``instance`` no es una preferencia. Se
-        # invalidan las preferencias afectadas que vienen en ``pk_set``.
-        prefs = CategoryPreference.objects.filter(pk__in=pk_set or [])
+        if action == 'pre_clear':
+            # En ``clear()`` inverso ``pk_set`` es None: las filas aún existen, así que
+            # se resuelven las preferencias afectadas antes de que se borren.
+            field = 'teams' if sender is CategoryPreference.teams.through else 'categories'
+            prefs = CategoryPreference.objects.filter(**{field: instance})
+        elif action in ('post_add', 'post_remove'):
+            prefs = CategoryPreference.objects.filter(pk__in=pk_set or [])
+        else:
+            return
         for user_id, organization_id in prefs.values_list('user_id', 'organization_id'):
             _invalidate_weekend_entry(user_id, organization_id)
         return
-    _invalidate_weekend_entry(instance.user_id, instance.organization_id)
+
+    if action in ('post_add', 'post_remove', 'post_clear'):
+        _invalidate_weekend_entry(instance.user_id, instance.organization_id)
 
 
 @receiver(post_delete, sender=CategoryPreference)

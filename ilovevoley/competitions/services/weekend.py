@@ -232,6 +232,11 @@ def recent_photos(user, organization, limit: int = PHOTOS_LIMIT) -> list[Image] 
     Primero fotos con partidos de los equipos seguidos o de categorías preferidas,
     y completa con las últimas del club hasta alcanzar el límite.
     """
+    # Función pública: un club nulo o un límite no positivo no deben generar una
+    # consulta semánticamente errónea (`IS NULL`) ni un slice negativo.
+    if organization is None or limit <= 0:
+        return []
+
     base_images = Image.objects.filter(
         organization=organization,
         status='approved',
