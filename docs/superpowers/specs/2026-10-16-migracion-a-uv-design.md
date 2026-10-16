@@ -97,6 +97,14 @@ dev = [
 package = false
 # Margen frente a releases recién publicadas (acompañado del cooldown de Dependabot).
 exclude-newer = "7 days"
+# Excepciones al margen de 7 días. Son versiones publicadas dentro de la ventana
+# que el árbol de hoy ya usa: los pines del proyecto (pillow-heif, pypdf) y los
+# transitivos que pip instala hoy (aiohttp, multidict, py-vapid, pycparser,
+# soupsieve — este último por debajo de su 3.x, que es de esta semana). Sin la
+# excepción, el primer lock rebajaría esos transitivos en producción.
+# Quedan inertes en cuanto cada versión cumple los 7 días: se pueden borrar en la
+# siguiente revisión del lock sin efecto alguno.
+exclude-newer-package = { pillow-heif = false, pypdf = false, aiohttp = false, multidict = false, py-vapid = false, pycparser = false, soupsieve = false }
 ```
 
 Los pines se copian literales de `requirements.txt` (incluido `pypdf>=6.20.0`, que
@@ -334,7 +342,9 @@ Se añade un repo remoto para que el lock no se quede atrás al tocar `pyproject
 
 | Riesgo | Mitigación |
 |---|---|
-| uv resuelve transitivos distintos que pip y cambia comportamiento | Antes de tocar nada de CI/Docker: `pip freeze` desde la imagen runtime actual y `uv export` del lock nuevo, y revisar el diff. Cualquier salto de versión se aprueba explícitamente. |
+| uv resuelve transitivos distintos que pip y cambia comportamiento | **Comprobado durante la implementación (2026-10-16): sin `exclude-newer`, uv reproduce el árbol de pip exactamente** (0 diferencias de versión; solo normaliza nombres `pillow_heif` → `pillow-heif`). Con `exclude-newer`, uv rebajaba 5 transitivos, así que se eximen en `exclude-newer-package` y el diff vuelve a ser cero. |
+| El margen de 7 días rebaja transitivos que producción ya usa | `exclude-newer-package` con las 7 excepciones documentadas arriba. Son inertes cuando cada versión cumple los 7 días. |
+| Cambiar `exclude-newer` no invalida `uv.lock` | `uv lock` reutiliza el lock si solo cambian las opciones de resolución: hay que borrar `uv.lock` y regenerarlo (o `uv lock --upgrade`) para que el margen nuevo se aplique. Anotado en `AGENTS.md`. |
 | `gunicorn` no encuentra `config.wsgi` con el venv en `/opt/venv` | Hoy el paquete se resuelve por `cwd` (`/app`). Verificar en la imagen final con `gunicorn config.wsgi:application --check-config` antes de dar por bueno el `CMD`. |
 | Dependabot no siempre actualiza `uv.lock` al bumpear `pyproject.toml` | `--locked` en CI lo detecta y obliga a relockear en el mismo PR. |
 | La versión de uv de `COPY --from=ghcr.io/...` no la rastrea Dependabot | Pinneada a `0.13.1`, documentada, y se actualiza a mano junto con la de CI. |
@@ -344,7 +354,9 @@ Se añade un repo remoto para que el lock no se quede atrás al tocar `pyproject
 
 ## Pendiente de confirmar durante la implementación
 
-Son comprobaciones, no decisiones abiertas; si alguna falla, la alternativa está al lado:
+Son comprobaciones, no decisiones abiertas; si alguna falla, la alternativa está al lado.
+**Resueltos durante la ejecución (2026-10-16): 1 y 2, ambos funcionan como están
+escritos** (el lock se regeneró y se exportó con esos flags).
 
 1. Que `uv sync --locked --no-dev` acepte `--no-dev` (documentado para excluir el
    grupo `dev`; alternativa `--no-group dev`).
