@@ -74,6 +74,8 @@ target/
 
 # pyenv
 .python-version
+# uv usa este fichero para elegir el intérprete: sí se versiona.
+!.python-version
 
 # celery beat schedule file
 celerybeat-schedule

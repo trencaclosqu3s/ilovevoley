@@ -37,11 +37,13 @@ updates:
     schedule:
       interval: 'weekly'
 
-  # Update Python dependencies (requirements.txt)
-  - package-ecosystem: 'pip'
+  # Update Python dependencies (pyproject.toml / uv.lock)
+  - package-ecosystem: 'uv'
     directory: '/'
     schedule:
       interval: 'weekly'
+    cooldown:
+      default-days: 7
     groups:
       python:
         update-types:

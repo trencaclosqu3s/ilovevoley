@@ -68,6 +68,18 @@ docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-
 él la BD de test puede quedar desactualizada y fallan columnas inexistentes. En
 iteración local, una vez creada, `--reuse-db` evita recrearla en cada ejecución.
 
+**Dependencias:** viven en `pyproject.toml` y su versión exacta (transitivos y
+hashes) en `uv.lock`, que **se commitea**. No hay `requirements.txt`. Para añadir
+o actualizar: editar `pyproject.toml` y `uv lock` (o `uv add <paquete>`); para
+subir todo, `uv lock --upgrade`. Si `pyproject.toml` cambia sin relockear, el
+build de la imagen y el CI fallan (`uv sync --locked`), que es lo que se quiere.
+Ojo: cambiar `exclude-newer` (el margen de 7 días frente a releases recién
+publicadas) **no** invalida el lock; hay que borrar `uv.lock` o lanzar
+`uv lock --upgrade` para que el margen nuevo se aplique.
+En la imagen de producción el entorno está en `/opt/venv`, es de `root` y solo
+lectura para `appuser`: `docker compose exec web pip install X` **no** funciona.
+Para probar un paquete, añádelo a `pyproject.toml` y reconstruye.
+
 **No ejecutar `docker-compose.dev.yml` en el servidor de producción.** Allí la
 aplicación corre como proyecto compose `videosvoley` y el compose de desarrollo
 resuelve al mismo nombre, así que reutilizaría los contenedores `db` y `redis`

@@ -111,7 +111,8 @@ videosvoley/
 ├── tests/              # Batería de pruebas automatizadas (pytest)
 ├── docker-compose.yml  # Configuración para producción (Nginx + Gunicorn)
 ├── docker-compose.dev.yml # Configuración para desarrollo local
-└── requirements.txt    # Dependencias de Python
+├── pyproject.toml      # Dependencias de Python (fuente de verdad)
+└── uv.lock             # Versiones exactas (transitivos + hashes)
 ```
 
 ## Configuración de Ligas y Scraping

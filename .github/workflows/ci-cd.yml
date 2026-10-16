@@ -50,11 +50,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configurar Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - name: Instalar uv y el intérprete
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
+          version: '0.13.1'
           python-version: '3.13'
-          cache: pip
+          enable-cache: true
 
       - name: Instalar dependencias del sistema
         run: |
@@ -62,32 +63,36 @@ jobs:
           sudo apt-get install -y libheif-dev libde265-dev pkg-config gettext
 
       - name: Instalar dependencias Python
-        run: pip install -r requirements-dev.txt
+        run: uv sync --locked
 
       - name: Auditoría de vulnerabilidades en dependencias
-        run: pip-audit -r requirements.txt
+        run: |
+          uv export --locked --no-dev --no-annotate --no-hashes \
+            --format requirements-txt -o /tmp/audit-requirements.txt
+          test "$(wc -l < /tmp/audit-requirements.txt)" -gt 40
+          uv run --locked pip-audit -r /tmp/audit-requirements.txt
 
       - name: Análisis estático de seguridad con Bandit
-        run: bandit -r config ilovevoley -x '*/tests/*' -ll
+        run: uv run --locked bandit -r config ilovevoley -x '*/tests/*' -ll
 
       - name: Comprobaciones de Django
-        run: python manage.py check
+        run: uv run --locked python manage.py check
 
       - name: Verificación de configuración de despliegue
         env:
           DEBUG: 'False'
           SECRET_KEY: django-ci-deploy-check-secret-key-with-50-characters-and-high-entropy
           ALLOWED_HOSTS: localhost,127.0.0.1
-        run: python manage.py check --deploy
+        run: uv run --locked python manage.py check --deploy
 
       - name: No debe haber migraciones pendientes de generar
-        run: python manage.py makemigrations --check --dry-run
+        run: uv run --locked python manage.py makemigrations --check --dry-run
 
       - name: Compilar catálogos de traducción
-        run: python manage.py compilemessages
+        run: uv run --locked python manage.py compilemessages
 
       - name: Tests
-        run: python -m pytest --create-db -n auto -v
+        run: uv run --locked pytest --create-db -n auto -v
 
   deploy:
     name: Despliegue en Producción

@@ -1,0 +1,56 @@
+[project]
+name = "ilovevoley"
+version = "0.0.0"
+description = "Plataforma de gestión de vídeos, imágenes, competiciones y plantillas de voleibol"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "Django==6.0.8",
+    "django-unfold==0.108.0",
+    "psycopg2-binary==2.9.13",
+    "python-decouple==3.8",
+    "Pillow==12.3.0",
+    "pillow-heif==1.8.1",
+    "django-allauth==65.19.7",
+    "requests==2.34.2",
+    # Requerido por allauth para verificar ID tokens de Google OAuth2
+    # (evita el extra [socialaccount] que arrastra oauthlib/CVE-2026-49265)
+    "PyJWT==2.15.1",
+    "cryptography==50.0.2",
+    "unidecode==1.4.0",
+    "beautifulsoup4==4.15.0",
+    "celery==5.6.3",
+    "django-celery-beat==2.9.0",
+    "google-cloud-vision==3.16.0",
+    "google-auth==2.61.0",
+    "django-storages==1.14.6",
+    "redis==8.1.0",
+    "gunicorn==26.2.0",
+    "django-ical==1.9.2",
+    "pypdf>=6.20.0",
+    "sentry-sdk[django]==2.71.0",
+    "django-ratelimit==4.1.0",
+    "pywebpush==2.5.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-django==4.14.0",
+    "pytest-xdist==3.8.0",
+    "bandit==1.9.4",
+    "pip-audit==2.10.1",
+]
+
+[tool.uv]
+# El proyecto no es un paquete instalable: no se buildea ni se instala a sí mismo.
+package = false
+# Margen frente a releases recién publicadas (acompañado del cooldown de Dependabot).
+exclude-newer = "7 days"
+# Excepciones al margen de 7 días. Son versiones publicadas dentro de la ventana
+# que el árbol de hoy ya usa: los pines del proyecto (pillow-heif, pypdf) y los
+# transitivos que pip instala hoy (aiohttp, multidict, py-vapid, pycparser,
+# soupsieve — este último por debajo de su 3.x, que es de esta semana). Sin la
+# excepción, el primer lock rebajaría esos transitivos en producción.
+# Quedan inertes en cuanto cada versión cumple los 7 días: se pueden borrar en la
+# siguiente revisión del lock sin efecto alguno.
+exclude-newer-package = { pillow-heif = false, pypdf = false, aiohttp = false, multidict = false, py-vapid = false, pycparser = false, soupsieve = false }
