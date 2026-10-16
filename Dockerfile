@@ -1,7 +1,18 @@
 # syntax=docker/dockerfile:1
 
-# --- builder: compila los wheels; el toolchain no llega a la imagen final ---
+# Versión de uv pinneada: Dependabot no rastrea los `COPY --from=` de imágenes,
+# así que esta referencia se actualiza a mano junto con la de ci-cd.yml.
+
+# --- builder: resuelve el lock e instala el entorno virtual de producción ---
 FROM python:3.13-slim AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /usr/local/bin/uv
+
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_PYTHON=python3.13 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -12,15 +23,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt requirements-dev.txt ./
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip wheel --wheel-dir /wheels -r requirements-dev.txt
+WORKDIR /app
 
-# --- runtime: producción, solo requirements.txt desde los wheels ---
+# Solo manifiesto y lock: si cambia el código, esta capa se reutiliza. --locked
+# aborta el build si el lock no concuerda con pyproject.toml.
+COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev
+
+# --- runtime: producción, solo el venv desde el builder ---
 FROM python:3.13-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH=/opt/venv/bin:$PATH
 
 WORKDIR /app
 
@@ -34,9 +50,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN adduser --disabled-password --gecos '' --uid 1000 appuser
 
-COPY requirements.txt ./
-RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
-    pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt
+# El venv lo construye uv en el builder; el runtime no lleva toolchain ni uv.
+# Queda como root y de solo lectura para appuser (basta con o+rX).
+COPY --from=builder /opt/venv /opt/venv
 
 # El código pertenece a root: appuser lo lee pero no puede modificarlo.
 # Solo media, staticfiles y locale (compilemessages) son escribibles.
@@ -63,7 +79,15 @@ CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers
 FROM runtime AS dev
 
 USER root
-COPY requirements-dev.txt ./
-RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
-    pip install --no-cache-dir --no-index --find-links=/wheels -r requirements-dev.txt
+
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_PYTHON=python3.13 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_LINK_MODE=copy
+
+COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
+# Añade el grupo dev (uv sincroniza el grupo `dev` por defecto) sobre el venv de prod.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked
+
 USER appuser
