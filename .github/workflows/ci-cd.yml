@@ -1,10 +1,18 @@
 name: CI / CD
 
 on:
+  # main despliega y develop es la rama de integración: los dos se validan
+  # también en push, para cazar el caso de dos PRs verdes por separado que
+  # juntas rompen.
+  # Las ramas de trabajo no se listan a propósito: enumerar prefijos se queda
+  # obsoleto (el repo usa feature/, feature-, task/, task-, fix/, bugfix/,
+  # bug-, perf/ y deps/; 'feature/**' nunca casó con 'feature-...'). Su CI
+  # entra por la PR, así que tampoco hay dos ejecuciones por el mismo push.
   push:
-    branches: [main, 'refactor/**', 'feature/**']
+    branches: [main, develop]
+  # Las PRs de feature van a develop y 'Develop' va a main: las dos son gate.
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 permissions:
   contents: read
