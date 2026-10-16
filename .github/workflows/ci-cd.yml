@@ -1,13 +1,15 @@
 name: CI / CD
 
 on:
-  # main despliega; el resto de ramas dan señal aunque no haya PR abierta. Se
-  # excluye develop porque sus cambios llegan por el merge de una PR que ya pasó
-  # CI. No se enumeran prefijos: las ramas del repo usan feature/, feature-,
-  # task/, task-, fix/, bugfix/, bug-, perf/ y deps/, y cualquier lista se queda
-  # vieja — era el caso de 'feature/**', que nunca casó con 'feature-...'.
+  # main despliega y develop es la rama de integración: los dos se validan
+  # también en push, para cazar el caso de dos PRs verdes por separado que
+  # juntas rompen.
+  # Las ramas de trabajo no se listan a propósito: enumerar prefijos se queda
+  # obsoleto (el repo usa feature/, feature-, task/, task-, fix/, bugfix/,
+  # bug-, perf/ y deps/; 'feature/**' nunca casó con 'feature-...'). Su CI
+  # entra por la PR, así que tampoco hay dos ejecuciones por el mismo push.
   push:
-    branches-ignore: [develop]
+    branches: [main, develop]
   # Las PRs de feature van a develop y 'Develop' va a main: las dos son gate.
   pull_request:
     branches: [main, develop]
