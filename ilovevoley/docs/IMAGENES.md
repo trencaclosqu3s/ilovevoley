@@ -45,7 +45,7 @@ El sistema de gestión de imágenes permite a los usuarios subir, moderar y visu
 
 ### Dependencias
 
-Las siguientes dependencias están incluidas en `requirements.txt`:
+Las siguientes dependencias están incluidas en `pyproject.toml`:
 
 ```
 google-cloud-vision==3.8.0  # Para moderación automática (opcional)

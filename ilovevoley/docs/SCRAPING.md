@@ -388,9 +388,12 @@ Para cambiar el equipo que aparece en el formulario:
 ### Errores Comunes
 
 **"No module named 'bs4'"**
+BeautifulSoup se instala con el resto de dependencias; comprueba la versión del
+entorno en lugar de instalarlo a mano:
 ```bash
-docker-compose exec web pip install beautifulsoup4
+docker compose -f docker-compose.dev.yml run --rm web python -c "import bs4; print(bs4.__version__)"
 ```
+Si falta, añádelo a `pyproject.toml` y reconstruye la imagen (ver `AGENTS.md`).
 
 **"value too long for type character varying(50)"**
 - Aumentar tamaño de campo `federation_id` en migración
