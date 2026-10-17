@@ -1,6 +1,7 @@
 import tempfile
 from datetime import timedelta
 from io import BytesIO
+from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -8,15 +9,24 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 from PIL import Image as PILImage
 
 from ilovevoley.competitions.models import League, Match
 from ilovevoley.content.models import Image
 from ilovevoley.competitions.services.lineups import store_match_lineups
+from ilovevoley.core import narrative
 from ilovevoley.core.models import Category, Organization, Season
-from ilovevoley.rosters.models import Person, PlayerRole
-from ilovevoley.rosters.player_card import card_highlight, card_photo_allowed, pick_profile, season_facts
+from ilovevoley.rosters.models import CardNarrative, Person, PlayerRole
+from ilovevoley.rosters.player_card import (
+    card_highlight,
+    card_narrative_facts,
+    card_photo_allowed,
+    narrated_highlight,
+    pick_profile,
+    season_facts,
+)
+from ilovevoley.rosters.tasks import redact_pending_card_narratives_task
 from ilovevoley.teams.models import Club, Team
 from ilovevoley.teams.tests.helpers import identity_of
 from ilovevoley.users.models import Membership
@@ -317,3 +327,115 @@ class SeasonSummaryTests(PlayerCardTestBase):
         response = self.visit('rosters:my_profile')
 
         self.assertContains(response, 'Has jugado 1 partido y 3 sets; titular en 1.')
+
+
+class CardNarrativeTestBase(PlayerCardTestBase):
+    """Redacción con LLM del cromo (#551): talismán de manual y un cromo con su perfil de reglas."""
+
+    def make_talisman(self):
+        for _ in range(5):
+            self.play([(25, 23, _lineup())] * 3)
+        for _ in range(3):
+            self.play([(15, 25, _lineup(False))] * 3)
+
+    def narrative_row(self, key='talisman', language='es', text='{nombre} es el talismán.'):
+        return CardNarrative.objects.create(
+            person=self.person, season=self.season, highlight_key=key, language=language, text=text,
+        )
+
+
+@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'], MEDIA_ROOT=tempfile.mkdtemp())
+class CardNarrativeViewTests(CardNarrativeTestBase):
+    def test_usa_el_texto_redactado_solo_si_es_del_perfil_y_idioma_actuales(self):
+        self.make_talisman()
+        rules_text = self.highlight()['text']
+        self.narrative_row()
+        self.narrative_row(language='ca', text='{nombre} és el talismà.')
+        self.narrative_row(key='fijo', text='{nombre} fijo.')
+
+        with translation.override('es'):
+            narrated = narrated_highlight(self.highlight(), self.person, self.season)
+        with translation.override('ca'):
+            narrated_ca = narrated_highlight(self.highlight(), self.person, self.season)
+        self.assertEqual(narrated['text'], 'Marc es el talismán.')
+        self.assertEqual(narrated_ca['text'], 'Marc és el talismà.')
+        self.assertEqual(narrated['title'], self.highlight()['title'])  # título e icono siguen siendo de reglas
+
+        CardNarrative.objects.filter(highlight_key='talisman').update(text='')
+        with translation.override('es'):
+            self.assertEqual(narrated_highlight(self.highlight(), self.person, self.season)['text'], rules_text)
+        CardNarrative.objects.all().delete()
+        self.narrative_row(key='fijo')
+        with translation.override('es'):
+            self.assertEqual(narrated_highlight(self.highlight(), self.person, self.season)['text'], rules_text)
+
+    def test_la_vista_del_cromo_pinta_el_texto_redactado(self):
+        self.make_talisman()
+        self.narrative_row()
+        user = get_user_model().objects.create_user(username='padre', password='pass')
+        Membership.objects.create(user=user, organization=self.org, is_approved=True)
+        user.children.add(self.person)
+        self.client.force_login(user)
+
+        with mock.patch('ilovevoley.rosters.views.render_player_card', return_value=_png()) as render:
+            self.client.get(reverse('rosters:person_card', args=[self.person.id]), HTTP_HOST='testclub.ilovevoley.es')
+
+        self.assertEqual(render.call_args.kwargs['highlight']['text'], 'Marc es el talismán.')
+
+
+@override_settings(LLM_NARRATIVE_ENABLED=True, LLM_NARRATIVE_API_KEY='k')
+class RedactPendingCardNarrativesTests(CardNarrativeTestBase):
+    def close_season(self):
+        Season.objects.filter(pk=self.season.pk).update(is_current=False)
+
+    def run_task(self, side_effect='{nombre} lo da todo.'):
+        kwargs = {'side_effect': side_effect} if callable(side_effect) or isinstance(side_effect, Exception) \
+            else {'return_value': side_effect}
+        with mock.patch.object(narrative, 'redact', **kwargs) as redact:
+            saved = redact_pending_card_narratives_task()
+        return saved, redact
+
+    def test_solo_redacta_perfiles_de_temporadas_cerradas(self):
+        self.make_talisman()
+        Season.objects.filter(pk=self.season.pk).update(is_current=True)
+        saved, redact = self.run_task()
+        self.assertEqual((saved, redact.call_count), (0, 0))  # temporada abierta: sus cifras aún cambian
+
+        self.close_season()
+        saved, redact = self.run_task()
+        self.assertEqual(saved, 2)
+        self.assertEqual(
+            set(CardNarrative.objects.values_list('highlight_key', 'language', 'text')),
+            {('talisman', 'es', '{nombre} lo da todo.'), ('talisman', 'ca', '{nombre} lo da todo.')},
+        )
+
+    def test_el_momento_de_temporada_sigue_por_reglas(self):
+        # Titular en todo lo que jugó, pero solo 1 de 4 partidos: sin perfil, solo momento (D4).
+        self.play([(25, 15, _lineup())] * 3)
+        for _ in range(3):
+            self.play([(25, 15, _lineup(False))] * 3)
+        self.close_season()
+        saved, redact = self.run_task()
+        self.assertEqual((saved, redact.call_count, CardNarrative.objects.count()), (0, 0, 0))
+
+    def test_descarte_deja_fila_vacia_y_no_se_reintenta_pero_la_api_caida_no_escribe(self):
+        self.make_talisman()
+        self.close_season()
+        saved, _redact = self.run_task(narrative.NarrativeTransientError('429'))
+        self.assertEqual((saved, CardNarrative.objects.count()), (0, 0))
+
+        saved, _redact = self.run_task(narrative.NarrativeDiscarded('cifras'))
+        self.assertEqual(saved, 2)
+        self.assertEqual(set(CardNarrative.objects.values_list('text', flat=True)), {''})
+        saved, redact = self.run_task()
+        self.assertEqual((saved, redact.call_count), (0, 0))
+
+    def test_los_hechos_enviados_no_llevan_datos_personales(self):
+        self.make_talisman()
+        facts = season_facts(self.person, [self.team], self.season)
+        sent = card_narrative_facts(identity_of(self.team), self.season, 'Talismán', facts)
+        text = ' '.join(f'{key} {value}' for key, value in sent.items())
+        for forbidden in (self.person.first_name, self.person.last_name, str(self.person.birth_year)):
+            self.assertNotIn(forbidden, text)
+        self.assertNotIn(self.person.id, sent.values())
+        self.assertEqual((sent['perfil'], sent['sets']), ('Talismán', facts['sets']))

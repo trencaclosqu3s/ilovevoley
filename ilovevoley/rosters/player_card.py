@@ -11,6 +11,7 @@ from io import BytesIO
 
 from django.db.models import Q
 from django.template.defaultfilters import date as date_filter
+from django.utils.translation import get_language
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 from PIL import Image, ImageDraw
@@ -34,6 +35,9 @@ from ilovevoley.competitions.result_card import (
     _vertical_alpha_gradient,
 )
 from ilovevoley.competitions.services.lineups import _SET_POSITIONS, get_player_season_stats, resolve_acta_team
+from ilovevoley.core import narrative
+from ilovevoley.rosters.models import CardNarrative
+from ilovevoley.teams.identity import effective_gender
 from ilovevoley.teams.models import Team
 
 TALISMAN_MIN_SETS = 15
@@ -219,6 +223,43 @@ def card_highlight(person, teams, season, second_person=False):
         title, text = moment
         return {'key': 'momento', 'caption': _('Momento de la temporada'), 'title': title, 'text': text}
     return None
+
+
+# Una línea en el recuadro: a cuerpo mínimo (22 px) caben ~80 caracteres; el resto deja
+# margen para que «{nombre}» se sustituya por un nombre más largo.
+CARD_NARRATIVE_MAX_CHARS = 72
+
+
+def card_narrative_facts(identity, season, profile_title, facts):
+    """Hechos del cromo que se envían al modelo: el perfil, sus contadores y el equipo.
+
+    Nunca nombre, apellidos, año de nacimiento ni ids de persona (RGPD, datos de menores).
+    """
+    return {
+        'temporada': season.name,
+        'genero': effective_gender(identity),
+        'perfil': profile_title,
+        'equipo': identity.core_name,
+        **{key: facts[key] for key in (
+            'sets', 'sets_won', 'team_sets', 'team_sets_won', 'starts', 'tight_wins', 'sub_sets',
+            'sub_sets_won', 'comebacks', 'five_setters', 'away', 'team_away',
+        )},
+    }
+
+
+def narrated_highlight(highlight, person, season):
+    """Cambia el texto de reglas por el redactado por LLM (#551) si hay uno del mismo perfil.
+
+    Icono, título y caption siguen saliendo de reglas: nunca se inventa un perfil. Sin fila,
+    con perfil distinto o con el texto descartado, el texto es el de reglas.
+    """
+    row = CardNarrative.objects.filter(
+        person=person, season=season, highlight_key=highlight['key'],
+        language=(get_language() or '').split('-')[0],
+    ).exclude(text='').first()
+    if row is None:
+        return highlight
+    return {**highlight, 'text': narrative.fill_name(row.text, person.first_name)}
 
 
 def season_summary(person, identity, season, second_person):

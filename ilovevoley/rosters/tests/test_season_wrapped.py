@@ -6,19 +6,22 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import translation
 from PIL import Image as PILImage
 
 from ilovevoley.competitions.models import League, Match
 from ilovevoley.content.models import Image, ImageFavorite
+from ilovevoley.core import narrative
 from ilovevoley.rosters.models import Person, SeasonWrapped
 from ilovevoley.rosters.season_wrapped import (
     OFFICIAL_CAPTION,
     Screen,
     build_screens,
+    build_wrapped_facts,
     build_wrapped_stats,
     season_organization,
 )
-from ilovevoley.rosters.tasks import generate_season_wrappeds_task
+from ilovevoley.rosters.tasks import generate_season_wrappeds_task, redact_pending_wrapped_narratives_task
 from ilovevoley.rosters.tests.test_player_card import PlayerCardTestBase, _lineup
 from ilovevoley.rosters.wrapped_render import render_wrapped_screen
 from ilovevoley.users.models import Membership
@@ -113,6 +116,7 @@ class WrappedRenderTests(PlayerCardTestBase):
             Screen('rival', 'Tu rival más repetido', 'Club Voleibol ' * 12, '9 partidos', 'Partidos oficiales'),
             Screen('top_photo', 'Tu foto más votada', photo_id=1),
             Screen('cover', 'Marc Ferrer', '2025-26', 'Tu temporada'),
+            Screen('narrative', 'Tu temporada en palabras', subtitle='Marc ha jugado muchos partidos. ' * 10),
         ):
             with self.subTest(kind=screen.kind):
                 png = render_wrapped_screen(organization=self.org, screen=screen)
@@ -246,3 +250,95 @@ class WrappedOrganizationTests(WrappedTestBase):
         self.assertEqual(season_organization(self.person, self.season), self.org)
         self.assertEqual(season_organization(self.person, next_season), other_org)
         self.assertIsNone(season_organization(self.person, Season.objects.resolve('2019-20')))
+
+
+class NarrativeTestBase(WrappedTestBase):
+    """Redacción con LLM (#551): un Wrapped con cifras y, si se pide, narrativa ya guardada."""
+
+    def wrapped_with(self, narrative_stats=None):
+        self.play_official([(25, 20, _lineup())] * 3)
+        stats = build_wrapped_stats(self.person, self.season)
+        if narrative_stats is not None:
+            stats['narrative'] = narrative_stats
+        return SeasonWrapped.objects.create(person=self.person, season=self.season, stats=stats)
+
+    def screens(self, wrapped):
+        return build_screens(wrapped, get_user_model()(), self.org)
+
+
+class WrappedNarrativeTests(NarrativeTestBase):
+    """Pantalla con respaldo y hechos seudonimizados."""
+
+    def test_pantalla_va_tras_la_portada_con_el_nombre_y_respeta_el_idioma(self):
+        wrapped = self.wrapped_with({'es': '{nombre} ha jugado 1 partido.', 'ca': '{nombre} ha jugat 1 partit.'})
+        for language, expected in (('es', 'Marc ha jugado 1 partido.'), ('ca', 'Marc ha jugat 1 partit.')):
+            with self.subTest(language), translation.override(language):
+                screens = self.screens(wrapped)
+                self.assertEqual([s.kind for s in screens][:2], ['cover', 'narrative'])
+                self.assertEqual(screens[1].subtitle, expected)
+
+    def test_sin_texto_en_el_idioma_cae_al_idioma_por_defecto_y_sin_ninguno_no_hay_pantalla(self):
+        solo_es = self.wrapped_with({'es': '{nombre} ha jugado.', 'ca': None})
+        with translation.override('ca'):
+            self.assertEqual(self.screens(solo_es)[1].subtitle, 'Marc ha jugado.')
+        solo_es.stats['narrative'] = {'es': None, 'ca': None}
+        self.assertNotIn('narrative', [s.kind for s in self.screens(solo_es)])
+        del solo_es.stats['narrative']
+        self.assertNotIn('narrative', [s.kind for s in self.screens(solo_es)])
+
+    def test_hechos_de_un_snapshot_antiguo_sin_todas_las_claves_no_revientan_la_tarea(self):
+        wrapped = self.wrapped_with()
+        wrapped.stats = {'matches': 3}
+        facts = build_wrapped_facts(wrapped)
+        self.assertEqual((facts['partidos_jugados'], facts['sets_disputados'], facts['fotos']), (3, 0, 0))
+
+    def test_hechos_enviados_no_llevan_datos_personales(self):
+        wrapped = self.wrapped_with()
+        facts = build_wrapped_facts(wrapped)
+        sent = ' '.join(f'{key} {value}' for key, value in facts.items())
+        for forbidden in (self.person.first_name, self.person.last_name, str(self.person.birth_year)):
+            self.assertNotIn(forbidden, sent)
+        self.assertNotIn(self.person.id, facts.values())
+        self.assertEqual((facts['partidos_jugados'], facts['sets_disputados'], facts['victorias']), (1, 3, 1))
+        self.assertEqual(facts['rival_mas_repetido'], self.rival.name)
+
+
+@override_settings(LLM_NARRATIVE_ENABLED=True, LLM_NARRATIVE_API_KEY='k')
+class RedactPendingNarrativesTests(NarrativeTestBase):
+    def run_task(self, side_effect):
+        with mock.patch.object(narrative, 'redact', side_effect=side_effect) as redact:
+            saved = redact_pending_wrapped_narratives_task()
+        return saved, redact
+
+    def test_guarda_los_dos_idiomas(self):
+        wrapped = self.wrapped_with()
+        saved, _redact = self.run_task(lambda facts, locale, **kw: f'{{nombre}} {locale}')
+        wrapped.refresh_from_db()
+        self.assertEqual(saved, 2)
+        self.assertEqual(wrapped.stats['narrative'], {'es': '{nombre} es', 'ca': '{nombre} ca'})
+        self.assertEqual(wrapped.stats['matches'], 1)  # el resto del snapshot no se toca
+
+    def test_api_caida_no_escribe_nada_y_se_reintenta_la_noche_siguiente(self):
+        wrapped = self.wrapped_with()
+        saved, redact = self.run_task(narrative.NarrativeTransientError('429'))
+        wrapped.refresh_from_db()
+        self.assertEqual(saved, 0)
+        self.assertNotIn('narrative', wrapped.stats)
+        self.assertEqual(redact.call_count, 1)  # corta la tanda al primer fallo
+        saved, _redact = self.run_task(lambda facts, locale, **kw: '{nombre}')
+        self.assertEqual(saved, 2)
+
+    def test_solo_redacta_el_idioma_que_falta_y_no_reintenta_lo_descartado(self):
+        wrapped = self.wrapped_with({'es': '{nombre} ha jugado.'})
+        saved, redact = self.run_task(narrative.NarrativeDiscarded('cifras'))
+        wrapped.refresh_from_db()
+        self.assertEqual([call.kwargs['locale'] for call in redact.call_args_list], ['ca'])
+        self.assertEqual(wrapped.stats['narrative'], {'es': '{nombre} ha jugado.', 'ca': None})
+        saved, redact = self.run_task(lambda facts, locale, **kw: 'x')
+        self.assertEqual((saved, redact.call_count), (0, 0))  # idempotente
+
+    def test_respeta_el_limite_de_textos_por_tanda(self):
+        self.wrapped_with()
+        with mock.patch.object(narrative, 'redact', return_value='{nombre}') as redact:
+            saved = redact_pending_wrapped_narratives_task(limit=1)
+        self.assertEqual((saved, redact.call_count), (1, 1))

@@ -1,4 +1,5 @@
 from .rosters import (  # noqa: F401
+    CardNarrative,
     Person,
     PersonLinkRequest,
     PersonOrganization,
@@ -13,6 +14,7 @@ from .legacy import (  # noqa: F401
 )
 
 __all__ = [
+    'CardNarrative',
     'Person',
     'PersonLinkRequest',
     'PersonOrganization',
