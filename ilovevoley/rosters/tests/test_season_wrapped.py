@@ -286,6 +286,12 @@ class WrappedNarrativeTests(NarrativeTestBase):
         del solo_es.stats['narrative']
         self.assertNotIn('narrative', [s.kind for s in self.screens(solo_es)])
 
+    def test_hechos_de_un_snapshot_antiguo_sin_todas_las_claves_no_revientan_la_tarea(self):
+        wrapped = self.wrapped_with()
+        wrapped.stats = {'matches': 3}
+        facts = build_wrapped_facts(wrapped)
+        self.assertEqual((facts['partidos_jugados'], facts['sets_disputados'], facts['fotos']), (3, 0, 0))
+
     def test_hechos_enviados_no_llevan_datos_personales(self):
         wrapped = self.wrapped_with()
         facts = build_wrapped_facts(wrapped)

@@ -102,6 +102,13 @@ class ProviderErrorTests(SimpleTestCase):
             self.redact_with(return_value=http_response(404))
         self.assertNotIsInstance(ctx.exception, (narrative.NarrativeTransientError, narrative.NarrativeDiscarded))
 
+    def test_200_without_text_is_discarded_so_it_does_not_cut_the_batch_every_night(self):
+        # Bloqueo por seguridad: sin `candidates`. Como NarrativeError, la misma fila pararía la tanda siempre.
+        with self.assertRaises(narrative.NarrativeDiscarded):
+            self.redact_with(return_value=http_response(200, {'promptFeedback': {'blockReason': 'SAFETY'}}))
+        with self.assertRaises(narrative.NarrativeDiscarded):
+            self.redact_with(return_value=http_response(200, {'candidates': [{'finishReason': 'SAFETY'}]}))
+
     def test_model_reply_that_is_not_json_text_is_discarded(self):
         body = {'candidates': [{'content': {'parts': [{'text': 'no es json'}]}}]}
         with self.assertRaises(narrative.NarrativeDiscarded):

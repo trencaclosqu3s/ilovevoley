@@ -98,26 +98,29 @@ def wrapped_narrative(wrapped) -> str:
 def build_wrapped_facts(wrapped) -> dict:
     """Hechos que se envían al modelo: solo cifras, equipo/rival, modalidad y temporada.
 
-    Nunca nombre, apellidos, año de nacimiento, foto ni ids (RGPD, datos de menores).
+    Nunca nombre, apellidos, año de nacimiento, foto ni ids (RGPD, datos de menores). El
+    equipo sale del último partido oficial de esa modalidad, no de cualquier rol de la
+    temporada: en un Wrapped de playa no debe salir el equipo de pista.
     """
     stats = wrapped.stats
-    role = (
-        PlayerRole.objects.filter(person=wrapped.person, season=wrapped.season)
-        .select_related('identity__category').order_by('-is_active', '-id').first()
+    lineup = (
+        _played_official_lineups(wrapped.person, wrapped.modality)
+        .filter(match__league__season=wrapped.season)
+        .select_related('team__identity__category').order_by('-match__match_date', '-id').first()
     )
-    identity = role.identity if role else None
+    identity = lineup.team.identity if lineup else None
     rival = stats.get('rival')
     return {
         'temporada': wrapped.season.name,
         'modalidad': wrapped.modality,
         'genero': effective_gender(identity) if identity else '',
-        'partidos_jugados': stats['matches'],
-        'sets_disputados': stats['sets'],
-        'victorias': stats['wins'],
+        'partidos_jugados': stats.get('matches', 0),
+        'sets_disputados': stats.get('sets', 0),
+        'victorias': stats.get('wins', 0),
         'equipo': identity.core_name if identity else '',
         'rival_mas_repetido': rival['name'] if rival else '',
         'partidos_con_el_rival': rival['matches'] if rival else 0,
-        'fotos': stats['photos_count'],
+        'fotos': stats.get('photos_count', 0),
     }
 
 

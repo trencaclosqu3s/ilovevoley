@@ -134,9 +134,15 @@ def _post_to_provider(prompt: str) -> str:
     if response.status_code != 200:
         raise NarrativeError(f'API de redacción HTTP {response.status_code}: {response.text[:300]}')
     try:
-        return response.json()['candidates'][0]['content']['parts'][0]['text']
-    except (ValueError, KeyError, IndexError, TypeError) as e:
-        raise NarrativeError(f'Estructura inesperada en la respuesta de la API: {e}')
+        data = response.json()
+    except ValueError as e:
+        raise NarrativeError(f'La respuesta de la API no es JSON: {e}')
+    try:
+        return data['candidates'][0]['content']['parts'][0]['text']
+    except (KeyError, IndexError, TypeError):
+        # 200 sin texto (bloqueo por seguridad, MAX_TOKENS): es el texto lo que no sirve, no la
+        # API; descartar evita que la misma fila corte la tanda cada noche.
+        raise NarrativeDiscarded(f'Respuesta sin texto utilizable: {str(data)[:200]}')
 
 
 def _validate(text, payload: dict, max_chars: int) -> str:
