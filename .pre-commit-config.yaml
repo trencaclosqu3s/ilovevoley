@@ -16,3 +16,9 @@ repos:
         files: ^(ilovevoley/.*\.(html|py|js)|tailwind\.config\.js|ilovevoley/static/css/input\.css)$
         pass_filenames: false
         stages: [pre-commit]
+
+  # Mantiene uv.lock en sincronía cuando se toca pyproject.toml.
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.13.1
+    hooks:
+      - id: uv-lock

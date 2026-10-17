@@ -27,6 +27,35 @@ def _centered(draw, width, y, text, font_path, size, max_width, fill='white', mi
     _text(draw, ((width - draw.textlength(text, font=font)) / 2, y), text, font, fill)
 
 
+def _wrap_lines(draw, text, font, max_width):
+    lines, line = [], ''
+    for word in text.split():
+        candidate = f'{line} {word}'.strip()
+        if line and draw.textlength(candidate, font=font) > max_width:
+            lines.append(line)
+            line = word
+        else:
+            line = candidate
+    return lines + ([line] if line else [])
+
+
+def _draw_paragraph(draw, width, top, bottom, text, max_width, size=56, min_size=32):
+    """Párrafo centrado que reduce el cuerpo hasta caber entre ``top`` y ``bottom``.
+
+    ``_fit_text`` recortaría con «…» una sola línea; aquí se envuelve por palabras. Con el
+    límite de 320 caracteres del texto, ``min_size`` siempre cabe.
+    """
+    while True:
+        font = _font(_FONT_REGULAR, size)
+        lines = _wrap_lines(draw, text, font, max_width)
+        step = int(size * 1.3)
+        if size <= min_size or len(lines) * step <= bottom - top:
+            break
+        size -= 2
+    for index, line in enumerate(lines):
+        _text(draw, ((width - draw.textlength(line, font=font)) / 2, top + index * step), line, font, 'white')
+
+
 def _draw_rival(image, width, top, inner_w, screen, organization, rival_logo):
     """Escudo del club del jugador frente al del rival más repetido, con su nombre debajo."""
     size, gap = 300, 140
@@ -62,6 +91,9 @@ def render_wrapped_screen(*, organization, screen, photo=None, rival_logo=None) 
         if photo:
             box = _cover_crop(Image.open(BytesIO(photo)).convert('RGB'), inner_w, bottom - top)
             image.paste(box, (_PAD_X, top))
+    elif screen.kind == 'narrative':
+        _centered(draw, width, _TOP + 160, screen.title, _FONT_BOLD, 64, inner_w)
+        _draw_paragraph(draw, width, _TOP + 300, footer_y - 60, screen.subtitle, inner_w)
     else:
         y = height // 2 - 260
         if screen.caption:

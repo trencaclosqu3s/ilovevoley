@@ -498,6 +498,33 @@ class SeasonWrapped(models.Model):
         return f'{self.person} · {self.season} · {self.modality}'
 
 
+class CardNarrative(models.Model):
+    """Texto del cromo redactado por LLM (#551), por persona, temporada, perfil e idioma.
+
+    Existir la fila = intentado; ``text=''`` es un descarte definitivo que no se reintenta.
+    El texto lleva el marcador ``{nombre}``, que se sustituye al mostrarlo. ``facts`` guarda
+    lo que se envió al modelo (seudonimizado) para auditar qué cifras se usaron.
+    """
+
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='card_narratives')
+    season = models.ForeignKey('core.Season', on_delete=models.CASCADE, related_name='card_narratives')
+    highlight_key = models.CharField(max_length=32)
+    language = models.CharField(max_length=5)
+    text = models.TextField(blank=True)
+    facts = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['person', 'season', 'highlight_key', 'language'], name='unique_card_narrative',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.person} · {self.season} · {self.highlight_key} · {self.language}'
+
+
 class PersonLinkRequest(models.Model):
     """Solicitud de vínculo entre una cuenta y una ficha (#531), self-service.
 
