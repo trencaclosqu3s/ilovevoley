@@ -503,7 +503,8 @@ class CardNarrative(models.Model):
 
     Existir la fila = intentado; ``text=''`` es un descarte definitivo que no se reintenta.
     ``highlight_key=NO_PROFILE`` marca un rol de temporada cerrada sin perfil para no
-    recalcular season_facts cada noche (#561). El texto lleva el marcador ``{nombre}``,
+    recalcular season_facts cada noche (#561). Una corrección de acta posterior exige
+    borrar las filas (marcador o texto) y relanzar. El texto lleva el marcador ``{nombre}``,
     que se sustituye al mostrarlo. ``facts`` guarda lo que se envió al modelo
     (seudonimizado) para auditar qué cifras se usaron.
     """

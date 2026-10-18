@@ -143,6 +143,7 @@ def redact_pending_card_narratives_task(limit=20, season_id=None):
     Solo perfiles (``pick_profile``): el momento de la temporada sigue por reglas (D4) y el
     cromo de una temporada abierta también, porque sus cifras aún cambian. Una fila vacía es
     un descarte definitivo (D2); un fallo transitorio no escribe nada y corta la tanda.
+    Una corrección de acta posterior exige borrar las filas (marcador o texto) y relanzar.
     Devuelve cuántas filas ha creado.
     """
     if not narrative.is_enabled():

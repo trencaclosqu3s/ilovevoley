@@ -454,6 +454,9 @@ class RedactPendingCardNarrativesTests(CardNarrativeTestBase):
         text = ' '.join(f'{key} {value}' for key, value in sent.items())
         for forbidden in (self.person.first_name, self.person.last_name, str(self.person.birth_year)):
             self.assertNotIn(forbidden, text)
-        for key in ('person_id', 'person', 'id'):
-            self.assertNotIn(key, sent)
+        self.assertEqual(set(sent), {
+            'temporada', 'genero', 'perfil', 'equipo',
+            'sets', 'sets_won', 'team_sets', 'team_sets_won', 'starts', 'tight_wins',
+            'sub_sets', 'sub_sets_won', 'comebacks', 'five_setters', 'away', 'team_away',
+        })
         self.assertEqual((sent['perfil'], sent['sets']), ('Talismán', facts['sets']))
