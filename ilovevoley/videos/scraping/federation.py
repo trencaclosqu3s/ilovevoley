@@ -349,7 +349,9 @@ class FederationScraper:
                 fed_id = str(match_data.get('federation_id') or '').strip()
                 match = None
                 if fed_id:
-                    match = Match.all_objects.filter(federation_id=fed_id, league=league).first()
+                    match = self._visible_twin(
+                        Match.all_objects.filter(federation_id=fed_id, league=league).first()
+                    )
 
                 # 2. Fallback: Buscar por equipos y fecha en el mismo día dentro de la liga,
                 # también con local/visitante invertidos (#485).
@@ -1005,6 +1007,42 @@ class FederationScraper:
 
         logger.info(f"Marked {len(withdrawn_matches)} matches as withdrawn in {self.league.name}")
 
+    def _visible_twin(self, match):
+        """Devuelve la fila visible que corresponde a un partido ``withdrawn`` con id federativo.
+
+        Un equipo que cambia de patrocinador o se duplica entre ligas deja dos filas del
+        mismo cruce: la que el JSON empareja por id (oculta, con equipos inactivos) y la
+        del calendario (visible, sin id). Sin esto el acta y el id se quedan en la oculta.
+        Solo actúa si hay un único candidato mismo día y liga que comparta un equipo; el
+        id se mueve (no se copia) para que el siguiente scrape ya empareje la visible.
+        """
+        if match is None or match.status != 'withdrawn' or not match.federation_id:
+            return match
+        day = match.match_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        teams = {match.home_team_id, match.away_team_id}
+        twins = [
+            t for t in Match.objects.filter(
+                league_id=match.league_id,
+                match_date__gte=day,
+                match_date__lt=day + timedelta(days=1),
+                is_friendly=False,
+                federation_id__isnull=True,
+            ).exclude(pk=match.pk)
+            if teams & {t.home_team_id, t.away_team_id}
+        ]
+        if len(twins) != 1:
+            return match
+        twin = twins[0]
+        fed_id, acta = match.federation_id, match.acta_html
+        with transaction.atomic():
+            Match.all_objects.filter(pk=match.pk).update(federation_id=None, acta_html='')
+            twin.federation_id = fed_id
+            if acta and not twin.acta_html:
+                twin.acta_html = acta
+            twin.save(update_fields=['federation_id', 'acta_html'])
+        logger.warning(f'Partido withdrawn #{match.pk} sustituido por su gemelo visible #{twin.pk} (federation_id {fed_id})')
+        return twin
+
     def _find_calendar_match(self, league, home_team, away_team, match_date):
         """Localiza el partido del calendario que corresponde a uno del scrape.
 
@@ -1157,16 +1195,17 @@ class FederationScraper:
 
         # Primero buscar por nombre/patrocinador normalizado en la categoría de la liga
         league_categories = self.league.categories.all()
-        for team in Team.objects.filter(category__in=league_categories):
-            if _name_or_sponsor_matches(team):
-                return team
+        team = self._prefer_league_team(
+            (t for t in Team.objects.filter(category__in=league_categories) if _name_or_sponsor_matches(t)),
+            self.league,
+        )
+        if team:
+            return team
 
         # Fallback: buscar por nombre/patrocinador normalizado en todas las categorías
-        for team in Team.objects.all():
-            if _name_or_sponsor_matches(team):
-                return team
-
-        return None
+        return self._prefer_league_team(
+            (t for t in Team.objects.all() if _name_or_sponsor_matches(t)), self.league
+        )
 
     def _find_league_team_by_club(self, team_name: str, club_fed_id: str) -> Optional[Team]:
         """Equipo de la liga que difiere solo en el patrocinador, si es el único (#464).
@@ -1434,7 +1473,7 @@ class FederationScraper:
         
         # Primero intentar buscar por federation_id del JSON (incluye withdrawn)
         try:
-            match = Match.all_objects.get(federation_id=json_match_id)
+            match = self._visible_twin(Match.all_objects.get(federation_id=json_match_id))
         except Match.DoesNotExist:
             # Si no existe, buscar por otros criterios
             # Extraer datos del partido del JSON
@@ -1754,17 +1793,41 @@ class FederationScraper:
         league_categories = league.categories.all()
 
         # Buscar por nombre exacto en cualquiera de las categorías de la liga
-        team = Team.objects.filter(name=team_name, category__in=league_categories).first()
+        team = self._prefer_league_team(
+            Team.objects.filter(name=team_name, category__in=league_categories), league
+        )
         if team:
             return team
 
         # Buscar por similitud
         normalized_name = self._normalize_team_name(team_name)
-        for team in Team.objects.filter(category__in=league_categories):
-            if self._normalize_team_name(team.name) == normalized_name:
-                return team
+        return self._prefer_league_team(
+            (t for t in Team.objects.filter(category__in=league_categories)
+             if self._normalize_team_name(t.name) == normalized_name),
+            league,
+        )
 
-        return None
+    @staticmethod
+    def _prefer_league_team(candidates, league: League) -> Optional[Team]:
+        """Elige entre homónimos el ``Team`` de esta liga, no el de una temporada pasada (#566).
+
+        Hay una fila ``Team`` por equipo y liga, así que el mismo nombre existe una vez por
+        temporada. ``.first()`` devolvía el de menor pk (el más antiguo, inactivo) y los
+        partidos nuevos acababan colgados de él y retirados. Orden: del campeonato (id
+        sintético ``{liga}_…`` o clasificación), activo, el más reciente.
+        """
+        candidates = list(candidates)
+        if not candidates:
+            return None
+        in_standings = set(
+            Standing.objects.filter(league=league, team__in=candidates).values_list('team_id', flat=True)
+        )
+        prefix = f'{league.federation_id}_'
+        return min(candidates, key=lambda t: (
+            not ((t.federation_id or '').startswith(prefix) or t.pk in in_standings),
+            not t.is_active,
+            -t.pk,
+        ))
 
     def _find_or_create_team_by_name(self, team_name: str, league: League, league_category,
                                      club_fed_id: str = '', sponsor_name: str = '') -> Team:
