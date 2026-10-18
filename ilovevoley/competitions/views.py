@@ -47,7 +47,7 @@ from ilovevoley.core.tenant_utils import (
     tenant_access_required,
     user_is_tenant_manager,
 )
-from ilovevoley.rosters.models import PlayerRole
+from ilovevoley.rosters.models import Person, PlayerRole
 from ilovevoley.teams.models import Team
 from ilovevoley.videos.scraping import (
     league_max_sets,
@@ -58,7 +58,15 @@ from .forms import FriendlyMatchForm, MatchResultForm
 from .models import (
     League, Match, MatchChangeLog, MatchChangeLogReview, MatchShareLink, Standing, StoryComposition,
 )
-from .services.lineups import resolve_acta_team, store_match_lineups
+from .services.lineups import (
+    _person_links_lookup,
+    resolve_acta_team,
+    set_acta_person_link,
+    store_match_lineups,
+    suggest_acta_person,
+    team_roster,
+    team_roster_choices,
+)
 from .services.notifications import notify_match_live_stream, notify_match_result
 from .services.preview import build_match_preview, preview_card_pills
 
@@ -388,6 +396,7 @@ def match_detail(request, match_id):
         'can_manage_videos': can_manage,
         'can_edit_result': can_manage,
         'can_edit_stream': can_manage,
+        'can_edit_acta': can_manage,
         'stream_url': stream_url,
         'is_live': match.is_live if is_own_match else False,
         'is_live_window': match.is_live_window if is_own_match else False,
@@ -1130,35 +1139,64 @@ def ajax_acta_lineup(request, match_id):
                 if team.identity_id == role.identity_id:
                     roles_lookup[(team.id, role.jersey_number)] = role
 
-    def _person_data(role):
-        if not role or not role.person:
+    # Enlaces manuales del acta: mandan sobre el dorsal (camisetas sin entregar).
+    links_lookup = _person_links_lookup(match)
+    can_edit = user_is_tenant_manager(request.user, request.tenant)
+    season = match.league.season if match.league_id else None
+    roster_by_team = {
+        team.id: team_roster(team, season)
+        for team in teams_to_query
+    } if can_edit else {}
+
+    def _resolve(team, jersey):
+        """(persona, rol) de un dorsal del acta: enlace manual primero, luego dorsal."""
+        if team is None or jersey is None:
+            return None, None
+        key = (team.id, jersey)
+        role = roles_lookup.get(key)
+        person = links_lookup.get(key) or (role.person if role else None)
+        return person, role
+
+    def _person_data(person, role=None):
+        if not person:
             return None
-        p = role.person
         return {
-            'id': p.id,
-            'full_name': p.full_name,
-            'photo_url': p.photo.url if p.photo else None,
-            'position': role.display_position if role.position else None,
+            'id': person.id,
+            'full_name': person.full_name,
+            'photo_url': person.photo.url if person.photo else None,
+            'position': role.display_position if role and role.position else None,
         }
 
     def _match_team(name_acta):
         """Determina si name_acta corresponde al equipo local o visitante por solapamiento de palabras."""
         return resolve_acta_team(name_acta, match.home_team, match.away_team)
 
+    def _suggested(team, name_acta):
+        if not can_edit or not team:
+            return None
+        person = suggest_acta_person(team, season, name_acta, roles=roster_by_team.get(team.id))
+        if not person:
+            return None
+        return {'id': person.id, 'full_name': person.full_name}
+
     def _enrich_convocados(raw_list, team):
-        """["1 Raya", ...] → [{number, name_acta, person}]"""
+        """["1 Raya", ...] → [{number, name_acta, person, suggested_person}]"""
         result = []
         for entry in raw_list:
             m = _re.match(r'^(\d+)\s+(.+)$', entry)
             if not m:
-                result.append({'number': None, 'name_acta': entry, 'person': None})
+                result.append({
+                    'number': None, 'name_acta': entry, 'person': None, 'suggested_person': None,
+                })
                 continue
             jersey = int(m.group(1))
-            role = roles_lookup.get((team.id if team else None, jersey))
+            name_acta = m.group(2)
+            person, role = _resolve(team, jersey)
             result.append({
                 'number': jersey,
-                'name_acta': m.group(2),
-                'person': _person_data(role),
+                'name_acta': name_acta,
+                'person': _person_data(person, role),
+                'suggested_person': None if person else _suggested(team, name_acta),
             })
         return result
 
@@ -1167,12 +1205,12 @@ def ajax_acta_lineup(request, match_id):
         result = []
         for entry in lineup:
             jersey = entry.get('number')
-            role = roles_lookup.get((team.id if team else None, jersey)) if jersey is not None else None
+            person, role = _resolve(team, jersey)
             result.append({
                 'position': entry.get('position'),
                 'number': jersey,
                 'sub': entry.get('sub'),
-                'person': _person_data(role),
+                'person': _person_data(person, role),
             })
         return result
 
@@ -1208,6 +1246,88 @@ def ajax_acta_lineup(request, match_id):
         'referees': lineup_data.get('referees', []),
         'officials': lineup_data.get('officials', []),
         'observations': lineup_data.get('observations', ''),
+        'home_team_id': match.home_team_id,
+        'away_team_id': match.away_team_id,
+        'home_roster': (
+            team_roster_choices(match.home_team, season, roles=roster_by_team.get(match.home_team_id))
+            if can_edit else []
+        ),
+        'away_roster': (
+            team_roster_choices(match.away_team, season, roles=roster_by_team.get(match.away_team_id))
+            if can_edit else []
+        ),
+    })
+
+
+def _lineup_person_payload(person, team, season):
+    """Datos de la persona enlazada para refrescar la fila del modal."""
+    if not person:
+        return None
+    role = (
+        PlayerRole.objects
+        .filter(identity=team.identity, season=season, person=person)
+        .first()
+    ) if team.identity_id else None
+    return {
+        'id': person.id,
+        'full_name': person.full_name,
+        'photo_url': person.photo.url if person.photo else None,
+        'position': role.display_position if role and role.position else None,
+    }
+
+
+@require_POST
+@tenant_access_required()
+def ajax_link_acta_person(request, match_id):
+    """Vincula (o desvincula) una entrada del acta con un deportista de la plantilla.
+
+    Corrige los partidos de inicio de temporada en que el dorsal del acta no es
+    el de la ficha. Solo para managers del club propietario del equipo.
+    """
+    if not user_is_tenant_manager(request.user, request.tenant):
+        return JsonResponse(
+            {'success': False, 'error': _('No tienes permiso para editar el acta.')}, status=403,
+        )
+
+    match = get_object_or_404(
+        Match.objects.select_related('home_team', 'away_team', 'league'), id=match_id,
+    )
+
+    try:
+        team_id = int(request.POST.get('team_id') or '')
+        jersey_number = int(request.POST.get('jersey_number') or '')
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'error': _('Datos incompletos.')}, status=400)
+
+    team = next(
+        (t for t in (match.home_team, match.away_team) if t and t.id == team_id), None,
+    )
+    if team is None:
+        return JsonResponse({'success': False, 'error': _('Ese equipo no juega este partido.')}, status=404)
+    if not Team.objects.for_tenant(request.tenant).filter(pk=team.pk).exists():
+        return JsonResponse(
+            {'success': False, 'error': _('Solo puedes editar equipos de tu club.')}, status=403,
+        )
+    if not 0 <= jersey_number <= 99:
+        return JsonResponse({'success': False, 'error': _('Dorsal fuera de rango.')}, status=400)
+
+    raw_person = (request.POST.get('person_id') or '').strip()
+    person = None
+    if raw_person:
+        try:
+            person = Person.objects.for_tenant(request.tenant).get(pk=int(raw_person))
+        except (ValueError, Person.DoesNotExist):
+            return JsonResponse({'success': False, 'error': _('Deportista no válido.')}, status=400)
+
+    season = match.league.season if match.league_id else None
+    effective = set_acta_person_link(
+        match, team, jersey_number, person, user=request.user if person else None,
+    )
+    return JsonResponse({
+        'success': True,
+        'team_id': team.id,
+        'jersey_number': jersey_number,
+        'person': _lineup_person_payload(effective, team, season),
     })
 
 
@@ -1693,6 +1813,7 @@ __all__ = [
     'ajax_add_match_result',
     'ajax_edit_match_result',
     'ajax_acta_lineup',
+    'ajax_link_acta_person',
     'ajax_update_stream_url',
     'standings_view',
     'ajax_matches_by_category',

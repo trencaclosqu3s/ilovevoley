@@ -3,6 +3,11 @@
 El JSON que devuelve ``parse_acta_lineup`` se guarda en ``Match.acta_data`` y
 se desglosa en filas de ``MatchLineup`` (una por equipo + dorsal) para poder
 calcular históricos por deportista sin volver a descargar el acta.
+
+Dorsal y persona no siempre coinciden al inicio de temporada (camisetas aún
+sin entregar), así que un ``MatchLineupPersonLink`` puede fijar a mano qué
+persona es cada entrada del acta; ese enlace manda sobre la resolución por
+dorsal.
 """
 
 import re
@@ -16,13 +21,25 @@ from ilovevoley.core.models import Season
 from ilovevoley.core.security import safe_get
 from ilovevoley.rosters.models import PlayerRole
 
-from ..models import Match, MatchLineup
+from ..models import Match, MatchLineup, MatchLineupPersonLink
 
 _SET_POSITIONS = ('I', 'II', 'III', 'IV', 'V', 'VI')
 
 
 def _words(value):
     return set(unidecode(value or '').upper().split())
+
+
+def _names_match(name_acta, last_name, first_name=''):
+    """¿El nombre leído en el acta coincide parcialmente con el de la plantilla?
+
+    El acta casi siempre trae solo el apellido (y a veces abreviado), así que se
+    compara por solapamiento de palabras y no por igualdad.
+    """
+    if not name_acta:
+        return True
+    w_acta = _words(name_acta)
+    return bool(w_acta & (_words(last_name) | _words(first_name)))
 
 
 def resolve_acta_team(name_acta, home_team, away_team):
@@ -61,6 +78,30 @@ def _roles_lookup(match):
         for role in roles.select_related('person')
         for team in teams if team.identity_id == role.identity_id
     }
+
+
+def _person_links_lookup(match):
+    """{(team_id, jersey): Person} de los enlaces manuales del partido.
+
+    Manda sobre ``_roles_lookup``: cuando el dorsal del acta no es el de la
+    ficha, lo que diga el enlace es la verdad.
+    """
+    links = MatchLineupPersonLink.objects.filter(match=match).select_related('person')
+    return {
+        (link.team_id, link.jersey_number): link.person
+        for link in links if link.person_id
+    }
+
+
+def _resolve_person(team_id, jersey_number, links, roles):
+    """Persona de una entrada del acta: enlace manual primero, luego el dorsal."""
+    if jersey_number is None:
+        return None
+    key = (team_id, jersey_number)
+    if key in links:
+        return links[key]
+    role = roles.get(key)
+    return role.person if role else None
 
 
 def _bucket(stats, team, jersey, name=None):
@@ -115,16 +156,16 @@ def build_match_lineups(match, lineup_data):
                     _bucket(stats, team, sub_number)['sets_played'] += 1
 
     roles = _roles_lookup(match)
+    links = _person_links_lookup(match)
     rows = []
     for item in stats.values():
         team = item['team']
         if team is None:
             continue
-        role = roles.get((team.id, item['jersey_number'])) if item['jersey_number'] is not None else None
         rows.append(MatchLineup(
             match=match,
             team=team,
-            person=role.person if role else None,
+            person=_resolve_person(team.id, item['jersey_number'], links, roles),
             jersey_number=item['jersey_number'],
             name_acta=item['name_acta'],
             is_convocado=item['is_convocado'],
@@ -198,13 +239,107 @@ def relink_orphan_lineups():
     linked = []
     for match, rows in by_match.items():
         roles = _roles_lookup(match)
+        links = _person_links_lookup(match)
         for row in rows:
-            role = roles.get((row.team_id, row.jersey_number))
-            if role:
-                row.person = role.person
+            person = _resolve_person(row.team_id, row.jersey_number, links, roles)
+            if person is not None:
+                row.person = person
                 linked.append(row)
     MatchLineup.objects.bulk_update(linked, ['person'])
     return len(linked)
+
+
+def _refresh_lineup_person(match, team, jersey_number):
+    """Sincroniza la persona de las filas guardadas de un dorsal con su enlace.
+
+    Se llama al crear o quitar un enlace para que la estadística ya calculada
+    quede al día sin esperar a re-parsear el acta.
+    """
+    person = _resolve_person(
+        team.id, jersey_number, _person_links_lookup(match), _roles_lookup(match),
+    )
+    MatchLineup.objects.filter(
+        match=match, team=team, jersey_number=jersey_number,
+    ).update(person=person)
+    return person
+
+
+@transaction.atomic
+def set_acta_person_link(match, team, jersey_number, person, user=None):
+    """Crea, cambia o elimina el enlace manual de una entrada del acta.
+
+    ``person=None`` desvincula y deja que el dorsal vuelva a mandar. Devuelve la
+    persona efectiva tras el cambio (puede ser la del dorsal si se desvinculó).
+    """
+    if person is None:
+        MatchLineupPersonLink.objects.filter(
+            match=match, team=team, jersey_number=jersey_number,
+        ).delete()
+    else:
+        MatchLineupPersonLink.objects.update_or_create(
+            match=match, team=team, jersey_number=jersey_number,
+            defaults={'person': person, 'created_by': user},
+        )
+    return _refresh_lineup_person(match, team, jersey_number)
+
+
+def team_roster(team, season):
+    """Roles (con persona) de la plantilla del equipo en esa temporada.
+
+    Se calcula una vez por equipo y se reutiliza para el selector de vínculo y
+    las sugerencias, evitando una consulta por convocado.
+    """
+    if not team or not team.identity_id:
+        return []
+    roles = PlayerRole.objects.filter(identity_id=team.identity_id).select_related('person')
+    if season is not None:
+        roles = roles.filter(season=season)
+    return list(roles)
+
+
+def suggest_acta_person(team, season, name_acta, roles=None):
+    """Persona de la plantilla que probablemente corresponde a un nombre del acta.
+
+    Solo devuelve algo cuando la coincidencia por nombre es única: ante dos
+    homónimos es mejor que elija una persona que arriesgar el histórico.
+    ``roles`` permite reutilizar la plantilla ya consultada.
+    """
+    if not team or not team.identity_id or not (name_acta or '').strip():
+        return None
+    if roles is None:
+        roles = team_roster(team, season)
+    candidates = {}
+    for role in roles:
+        if role.person_id and _names_match(name_acta, role.person.last_name, role.person.first_name):
+            candidates[role.person_id] = role.person
+    if len(candidates) == 1:
+        return next(iter(candidates.values()))
+    return None
+
+
+def team_roster_choices(team, season=None, roles=None):
+    """Plantilla del equipo+temporada para el selector de vínculo del acta.
+
+    Devuelve dicts ligeros (id, nombre y dorsal) ordenados por nombre.
+    """
+    if roles is None:
+        roles = team_roster(team, season)
+    ordered = sorted(
+        roles,
+        key=lambda r: ((r.person.last_name or ''), (r.person.first_name or '')) if r.person_id else ('', ''),
+    )
+    choices = []
+    seen = set()
+    for role in ordered:
+        if not role.person_id or role.person_id in seen:
+            continue
+        seen.add(role.person_id)
+        choices.append({
+            'id': role.person_id,
+            'full_name': role.person.full_name,
+            'jersey_number': role.jersey_number,
+        })
+    return choices
 
 
 def get_player_season_stats(person, season=None, teams=None):

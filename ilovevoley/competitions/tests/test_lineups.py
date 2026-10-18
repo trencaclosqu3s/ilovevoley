@@ -5,13 +5,16 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from ilovevoley.competitions.models import League, Match, MatchActaPhoto, MatchLineup
+from ilovevoley.competitions.models import League, Match, MatchActaPhoto, MatchLineup, MatchLineupPersonLink
 from ilovevoley.competitions.services.lineups import (
     build_match_lineups,
     fetch_and_store_acta,
     get_player_season_stats,
     get_season_rivals,
+    relink_orphan_lineups,
+    set_acta_person_link,
     store_match_lineups,
+    suggest_acta_person,
 )
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.rosters.models import Person, PlayerRole
@@ -236,6 +239,123 @@ class MatchLineupBuildingTests(TestCase):
         self.assertEqual(MatchLineup.objects.filter(match=self.match).count(), primer_conteo)
         self.match.refresh_from_db()
         self.assertEqual(self.match.acta_data['home_convocados'], ['1 Uno'])
+
+
+class MatchLineupPersonLinkTests(TestCase):
+    """Al inicio de temporada el dorsal del acta no es el de la ficha: el enlace
+    manual decide a quién se le apunta el partido, y eso manda sobre el dorsal."""
+
+    def setUp(self):
+        self.club = Club.objects.create(official_name='Club Test', federation_id='CLUB-T')
+        self.org = Organization.objects.create(
+            slug='testclub', name='Test Club', club=self.club, is_active=True,
+        )
+        self.category = Category.objects.create(name='Senior', is_active=True)
+        self.team = Team.objects.create(
+            name='Test Club Senior', category=self.category, club=self.club,
+            federation_id='TEAM-1', is_active=True,
+        )
+        self.rival = Team.objects.create(
+            name='Rival Team Senior', category=self.category,
+            club=Club.objects.create(official_name='Rival', federation_id='CLUB-R'),
+            federation_id='TEAM-2', is_active=True,
+        )
+        self.season = Season.objects.resolve('2025-26')
+        self.league = League.objects.create(
+            name='Superliga 2', federation_id='LEAGUE-T', season=self.season,
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+        self.match = Match.objects.create(
+            league=self.league, home_team=self.team, away_team=self.rival,
+            match_date=timezone.now(), round_number=1, status='finished',
+        )
+
+    def _person(self, first, last):
+        person = Person.objects.create(first_name=first, last_name=last)
+        person.organizations.add(self.org)
+        return person
+
+    def test_build_aplica_el_enlace_manual_sobre_el_dorsal(self):
+        # La ficha dice 4 pero en el acta figura con el 14 (camiseta sin entregar).
+        # El enlace manual debe asignar el partido a quien de verdad jugó.
+        ficha = self._person('Ficha', 'Cuatro')
+        PlayerRole.objects.create(
+            person=ficha, identity=identity_of(self.team), season=self.season,
+            jersey_number=4, is_active=True,
+        )
+        enlazada = self._person('Real', 'Catorce')
+        MatchLineupPersonLink.objects.create(
+            match=self.match, team=self.team, jersey_number=14, person=enlazada,
+        )
+        data = _lineup_data(
+            home_convocados=['14 Real'],
+            sets=[_set('Set 1', [_entry('I', 14), _entry('II', 2), _entry('III', 3),
+                                 _entry('IV', 4), _entry('V', 5), _entry('VI', 6)], _six(21))],
+        )
+
+        rows = {r.jersey_number: r for r in build_match_lineups(self.match, data)}
+        self.assertEqual(rows[14].person_id, enlazada.id)
+        # El dorsal 4 sin enlace sigue resolviéndose por la plantilla.
+        self.assertEqual(rows[4].person_id, ficha.id)
+
+    def test_relink_no_pisa_el_enlace_manual(self):
+        por_dorsal = self._person('Dorsal', 'Catorce')
+        PlayerRole.objects.create(
+            person=por_dorsal, identity=identity_of(self.team), season=self.season,
+            jersey_number=14, is_active=True,
+        )
+        enlazada = self._person('Manual', 'Catorce')
+        MatchLineupPersonLink.objects.create(
+            match=self.match, team=self.team, jersey_number=14, person=enlazada,
+        )
+        row = MatchLineup.objects.create(
+            match=self.match, team=self.team, jersey_number=14, sets_played=3,
+        )
+
+        relink_orphan_lineups()
+
+        row.refresh_from_db()
+        self.assertEqual(row.person_id, enlazada.id)
+
+    def test_set_y_quitar_enlace_sincroniza_las_filas(self):
+        ficha = self._person('Ficha', 'Cuatro')
+        PlayerRole.objects.create(
+            person=ficha, identity=identity_of(self.team), season=self.season,
+            jersey_number=4, is_active=True,
+        )
+        vinculada = self._person('Vinculada', 'Otra')
+        data = _lineup_data(
+            home_convocados=['4 Cuatro'],
+            sets=[_set('Set 1', [_entry('I', 4), _entry('II', 2), _entry('III', 3),
+                                 _entry('IV', 5), _entry('V', 6), _entry('VI', 7)], _six(11))],
+        )
+        store_match_lineups(self.match, data)
+        row = MatchLineup.objects.get(match=self.match, team=self.team, jersey_number=4)
+        self.assertEqual(row.person_id, ficha.id)
+
+        set_acta_person_link(self.match, self.team, 4, vinculada)
+        row.refresh_from_db()
+        self.assertEqual(row.person_id, vinculada.id)
+
+        # Al quitar el enlace, el dorsal vuelve a mandar.
+        set_acta_person_link(self.match, self.team, 4, None)
+        row.refresh_from_db()
+        self.assertEqual(row.person_id, ficha.id)
+
+    def test_sugerencia_por_nombre_solo_cuando_es_unica(self):
+        unica = self._person('Ana', 'Ruiz')
+        PlayerRole.objects.create(
+            person=unica, identity=identity_of(self.team), season=self.season, jersey_number=4,
+        )
+        self.assertEqual(suggest_acta_person(self.team, self.season, 'RUIZ').id, unica.id)
+        self.assertIsNone(suggest_acta_person(self.team, self.season, 'INEXISTENTE'))
+
+        # Con dos homónimos no se sugiere nada: mejor que elija una persona.
+        homonima = self._person('Otra', 'Ruiz')
+        PlayerRole.objects.create(
+            person=homonima, identity=identity_of(self.team), season=self.season, jersey_number=5,
+        )
+        self.assertIsNone(suggest_acta_person(self.team, self.season, 'RUIZ'))
 
 
 class PlayerSeasonStatsTests(TestCase):
