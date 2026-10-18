@@ -89,6 +89,74 @@
         </form>
     </div>
 
+    <!-- Dorsales del acta sin ficha (#569) -->
+    {% if acta_gaps %}
+    <div class="bg-surface rounded-[20px] border border-line border-l-4 border-amber-400 p-4 sm:p-6 mb-6">
+        <div class="border-l-4 border-amber-400 pl-4 mb-4">
+            <h2 class="text-xl sm:text-2xl font-bold text-ink">{% icon 'users' %} {% trans "Dorsales del acta sin ficha" %}</h2>
+            <p class="text-sm text-muted">
+                {% trans "Aparecen en las actas de la temporada y todavía no tienen jugador en la plantilla. Créalos como ficha provisional: la familia podrá completar el nombre y el año al vincularse." %}
+            </p>
+        </div>
+
+        <form method="post" action="{% url 'teams:roster_from_acta' team.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="season" value="{{ acta_gap_season.pk }}">
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-tint">
+                        <tr>
+                            <th class="px-2 py-2 text-left w-10"></th>
+                            <th class="px-2 py-2 text-left w-20">{% trans "Dorsal" %}</th>
+                            <th class="px-2 py-2 text-left">{% trans "Apellido leído" %}</th>
+                            <th class="px-2 py-2 text-left w-24">{% trans "Partidos" %}</th>
+                            <th class="px-2 py-2 text-left">{% trans "Ficha existente" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-line">
+                        {% for gap in acta_gaps %}
+                        <tr>
+                            <td class="px-2 py-2 align-top">
+                                <input type="checkbox" name="create_{{ gap.jersey_number }}" value="1" checked
+                                       aria-label="{% blocktrans with jersey=gap.jersey_number %}Crear la ficha del dorsal {{ jersey }}{% endblocktrans %}">
+                            </td>
+                            <td class="px-2 py-2 align-top font-semibold text-ink">#{{ gap.jersey_number }}</td>
+                            <td class="px-2 py-2 align-top">
+                                <input type="text" name="last_name_{{ gap.jersey_number }}" value="{{ gap.name_acta }}"
+                                       maxlength="{{ person_last_name_max_length }}"
+                                       class="w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl">
+                            </td>
+                            <td class="px-2 py-2 align-top text-muted">{{ gap.appearances }}</td>
+                            <td class="px-2 py-2 align-top">
+                                {% if gap.candidates %}
+                                    <select name="person_{{ gap.jersey_number }}" class="w-full px-3 py-2 border border-line bg-surface text-ink rounded-xl">
+                                        <option value="">{% trans "Crear ficha provisional" %}</option>
+                                        {% for candidate in gap.candidates %}
+                                            <option value="{{ candidate.person.pk }}">
+                                                {{ candidate.person.full_name }}{% if candidate.person.birth_year %} ({{ candidate.person.birth_year }}){% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                {% else %}
+                                    <span class="text-muted">{% trans "Se creará una ficha provisional" %}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-end mt-4">
+                <button type="submit" class="bg-csj-purple-dark hover:opacity-90 text-white px-5 py-2 rounded-full font-medium transition text-sm">
+                    {% icon 'plus' %} {% trans "Crear fichas seleccionadas" %}
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
     <!-- Toggle de vista global -->
     <div class="flex justify-center sm:justify-end mb-6">
         <div class="flex bg-tint rounded-lg p-1">

@@ -4,7 +4,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
@@ -21,6 +21,7 @@ from ..services.acta_review import (
     get_acta_roster_comparison,
     reject_acta_photo,
 )
+from ..services.acta_roster import is_club_team
 from ..services.delta_detector import notify_match_result_after_save
 
 
@@ -700,12 +701,13 @@ class MatchActaPhotoAdmin(ModelAdmin):
         'created_at',
         'updated_at',
         'photo_preview',
+        'roster_from_acta_links',
     )
     autocomplete_fields = ('reviewed_by',)
     change_form_after_template = 'admin/competitions/matchactaphoto/review_panel.html'
     fieldsets = (
         (None, {
-            'fields': ('match', 'status', 'photo_preview', 'source_url'),
+            'fields': ('match', 'status', 'photo_preview', 'source_url', 'roster_from_acta_links'),
         }),
         (_('Revisión'), {
             'fields': ('validation_errors', 'reviewed_by', 'reviewed_at'),
@@ -754,6 +756,33 @@ class MatchActaPhotoAdmin(ModelAdmin):
             '</a>',
             obj.image.url,
             _('Foto del acta'),
+        )
+
+    @admin.display(description=_('Plantilla desde el acta'))
+    def roster_from_acta_links(self, obj):
+        """Atajo a la plantilla del club para materializar los dorsales del acta (#569).
+
+        La acción vive en la plantilla (una sola UI, con vista previa y edición);
+        aquí solo se enlaza desde el acta que se está revisando. Los equipos
+        rivales no aparecen.
+        """
+        if not obj.match_id:
+            return '—'
+        season = obj.match.league.season if obj.match.league_id else None
+        pairs = []
+        for team in (obj.match.home_team, obj.match.away_team):
+            if not is_club_team(team):
+                continue
+            url = reverse('teams:team_roster', args=[team.id])
+            if season is not None:
+                url = f'{url}?season={season.pk}'
+            pairs.append((url, team.name))
+        if not pairs:
+            return '—'
+        return format_html_join(
+            ' · ',
+            '<a href="{}" target="_blank" rel="noopener">{}</a>',
+            pairs,
         )
 
     def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):

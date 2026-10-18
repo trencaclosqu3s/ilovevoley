@@ -43,6 +43,20 @@ class PersonIdentityConstraintTests(TestCase):
         with self.assertRaises(IntegrityError):
             Person.objects.create(first_name='Ana', last_name='Gomez', birth_year=2010)
 
+    def test_la_ficha_provisional_se_limpia_al_completar_la_identidad(self):
+        """El flag no puede quedarse encendido en una ficha ya completa (#569)."""
+        person = Person.objects.create(first_name='', last_name='García', is_provisional=True)
+
+        person.first_name = 'María'
+        person.save(update_fields=['first_name'])
+        person.refresh_from_db()
+        self.assertTrue(person.is_provisional)
+
+        person.birth_year = 2012
+        person.save(update_fields=['birth_year'])
+        person.refresh_from_db()
+        self.assertFalse(person.is_provisional)
+
 
 class PersonImageConsentTests(TestCase):
     """La fecha del consentimiento solo registra decisiones reales (#122)."""
