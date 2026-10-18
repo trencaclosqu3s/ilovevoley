@@ -1034,11 +1034,12 @@ class FederationScraper:
             return match
         twin = twins[0]
         fed_id, acta = match.federation_id, match.acta_html
-        Match.all_objects.filter(pk=match.pk).update(federation_id=None)
-        twin.federation_id = fed_id
-        if acta and not twin.acta_html:
-            twin.acta_html = acta
-        twin.save(update_fields=['federation_id', 'acta_html'])
+        with transaction.atomic():
+            Match.all_objects.filter(pk=match.pk).update(federation_id=None)
+            twin.federation_id = fed_id
+            if acta and not twin.acta_html:
+                twin.acta_html = acta
+            twin.save(update_fields=['federation_id', 'acta_html'])
         logger.warning(f'Partido withdrawn #{match.pk} sustituido por su gemelo visible #{twin.pk} (federation_id {fed_id})')
         return twin
 
