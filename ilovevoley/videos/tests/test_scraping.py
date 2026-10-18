@@ -625,6 +625,19 @@ class ProcessJsonMatchesUnifiedTests(TestCase):
         self.assertTrue(visible.acta_html.endswith('/85843/acta_11166.html'))
         self.assertIsNone(hidden.federation_id)
 
+    def test_find_team_by_name_prefers_this_leagues_team_over_older_season(self):
+        """Mismo nombre en varias temporadas: la fila de la liga gana al pk más bajo (#566)."""
+        old = Team.objects.create(
+            name='RAFAL VELL', federation_id='2325_rafal_vell', category=self.category, is_active=False,
+        )
+        current = Team.objects.create(
+            name='RAFAL VELL', federation_id='8246_rafal_vell', category=self.category, is_active=True,
+        )
+        self.assertLess(old.pk, current.pk)
+
+        self.assertEqual(self.scraper._find_team_by_name('RAFAL VELL', self.league), current)
+        self.assertEqual(self.scraper._find_similar_team('RAFAL VELL'), current)
+
     def test_links_federation_id_to_existing_match_without_id_on_same_day(self):
         from zoneinfo import ZoneInfo
         from datetime import datetime

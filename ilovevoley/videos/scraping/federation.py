@@ -1194,16 +1194,17 @@ class FederationScraper:
 
         # Primero buscar por nombre/patrocinador normalizado en la categoría de la liga
         league_categories = self.league.categories.all()
-        for team in Team.objects.filter(category__in=league_categories):
-            if _name_or_sponsor_matches(team):
-                return team
+        team = self._prefer_league_team(
+            (t for t in Team.objects.filter(category__in=league_categories) if _name_or_sponsor_matches(t)),
+            self.league,
+        )
+        if team:
+            return team
 
         # Fallback: buscar por nombre/patrocinador normalizado en todas las categorías
-        for team in Team.objects.all():
-            if _name_or_sponsor_matches(team):
-                return team
-
-        return None
+        return self._prefer_league_team(
+            (t for t in Team.objects.all() if _name_or_sponsor_matches(t)), self.league
+        )
 
     def _find_league_team_by_club(self, team_name: str, club_fed_id: str) -> Optional[Team]:
         """Equipo de la liga que difiere solo en el patrocinador, si es el único (#464).
@@ -1791,17 +1792,41 @@ class FederationScraper:
         league_categories = league.categories.all()
 
         # Buscar por nombre exacto en cualquiera de las categorías de la liga
-        team = Team.objects.filter(name=team_name, category__in=league_categories).first()
+        team = self._prefer_league_team(
+            Team.objects.filter(name=team_name, category__in=league_categories), league
+        )
         if team:
             return team
 
         # Buscar por similitud
         normalized_name = self._normalize_team_name(team_name)
-        for team in Team.objects.filter(category__in=league_categories):
-            if self._normalize_team_name(team.name) == normalized_name:
-                return team
+        return self._prefer_league_team(
+            (t for t in Team.objects.filter(category__in=league_categories)
+             if self._normalize_team_name(t.name) == normalized_name),
+            league,
+        )
 
-        return None
+    @staticmethod
+    def _prefer_league_team(candidates, league: League) -> Optional[Team]:
+        """Elige entre homónimos el ``Team`` de esta liga, no el de una temporada pasada (#566).
+
+        Hay una fila ``Team`` por equipo y liga, así que el mismo nombre existe una vez por
+        temporada. ``.first()`` devolvía el de menor pk (el más antiguo, inactivo) y los
+        partidos nuevos acababan colgados de él y retirados. Orden: del campeonato (id
+        sintético ``{liga}_…`` o clasificación), activo, el más reciente.
+        """
+        candidates = list(candidates)
+        if not candidates:
+            return None
+        in_standings = set(
+            Standing.objects.filter(league=league, team__in=candidates).values_list('team_id', flat=True)
+        )
+        prefix = f'{league.federation_id}_'
+        return min(candidates, key=lambda t: (
+            not ((t.federation_id or '').startswith(prefix) or t.pk in in_standings),
+            not t.is_active,
+            -t.pk,
+        ))
 
     def _find_or_create_team_by_name(self, team_name: str, league: League, league_category,
                                      club_fed_id: str = '', sponsor_name: str = '') -> Team:
