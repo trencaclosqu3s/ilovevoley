@@ -75,7 +75,7 @@ class PlayerCardTestBase(TestCase):
             name='Liga Cadete', federation_id='LEAGUE-T', season=self.season,
             is_active=True, visibility_type='main', is_our_team_related=True,
         )
-        self.person = Person.objects.create(id=99_999, first_name='Marc', last_name='Ferrer', birth_year=2011)
+        self.person = Person.objects.create(first_name='Marc', last_name='Ferrer', birth_year=2011)
         self.person.organizations.add(self.org)
         PlayerRole.objects.create(
             person=self.person, identity=identity_of(self.team), season=self.season,
@@ -454,5 +454,6 @@ class RedactPendingCardNarrativesTests(CardNarrativeTestBase):
         text = ' '.join(f'{key} {value}' for key, value in sent.items())
         for forbidden in (self.person.first_name, self.person.last_name, str(self.person.birth_year)):
             self.assertNotIn(forbidden, text)
-        self.assertNotIn(self.person.id, sent.values())
+        for key in ('person_id', 'person', 'id'):
+            self.assertNotIn(key, sent)
         self.assertEqual((sent['perfil'], sent['sets']), ('Talismán', facts['sets']))
