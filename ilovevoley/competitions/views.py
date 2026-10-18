@@ -60,6 +60,8 @@ from .models import (
 )
 from .services.lineups import (
     _person_links_lookup,
+    ActaLinkConflict,
+    _resolve_person,
     resolve_acta_team,
     set_acta_person_link,
     store_match_lineups,
@@ -1143,18 +1145,24 @@ def ajax_acta_lineup(request, match_id):
     links_lookup = _person_links_lookup(match)
     can_edit = user_is_tenant_manager(request.user, request.tenant)
     season = match.league.season if match.league_id else None
+    # Solo los equipos del club son vinculables: la plantilla rival no se expone.
+    own_team_ids = set(
+        Team.objects.for_tenant(request.tenant)
+        .filter(pk__in=[t.id for t in teams_to_query]).values_list('pk', flat=True)
+    ) if can_edit else set()
     roster_by_team = {
         team.id: team_roster(team, season)
-        for team in teams_to_query
-    } if can_edit else {}
+        for team in teams_to_query if team.id in own_team_ids
+    }
 
     def _resolve(team, jersey):
         """(persona, rol) de un dorsal del acta: enlace manual primero, luego dorsal."""
         if team is None or jersey is None:
             return None, None
-        key = (team.id, jersey)
-        role = roles_lookup.get(key)
-        person = links_lookup.get(key) or (role.person if role else None)
+        person = _resolve_person(team.id, jersey, links_lookup, roles_lookup)
+        role = roles_lookup.get((team.id, jersey))
+        if role and (person is None or role.person_id != person.id):
+            role = None
         return person, role
 
     def _person_data(person, role=None):
@@ -1172,7 +1180,7 @@ def ajax_acta_lineup(request, match_id):
         return resolve_acta_team(name_acta, match.home_team, match.away_team)
 
     def _suggested(team, name_acta):
-        if not can_edit or not team:
+        if not team or team.id not in roster_by_team:
             return None
         person = suggest_acta_person(team, season, name_acta, roles=roster_by_team.get(team.id))
         if not person:
@@ -1197,6 +1205,7 @@ def ajax_acta_lineup(request, match_id):
                 'name_acta': name_acta,
                 'person': _person_data(person, role),
                 'suggested_person': None if person else _suggested(team, name_acta),
+                'manual_link': (team.id, jersey) in links_lookup if team else False,
             })
         return result
 
@@ -1248,13 +1257,15 @@ def ajax_acta_lineup(request, match_id):
         'observations': lineup_data.get('observations', ''),
         'home_team_id': match.home_team_id,
         'away_team_id': match.away_team_id,
+        'home_linkable': match.home_team_id in roster_by_team,
+        'away_linkable': match.away_team_id in roster_by_team,
         'home_roster': (
-            team_roster_choices(match.home_team, season, roles=roster_by_team.get(match.home_team_id))
-            if can_edit else []
+            team_roster_choices(match.home_team, season, roles=roster_by_team[match.home_team_id])
+            if match.home_team_id in roster_by_team else []
         ),
         'away_roster': (
-            team_roster_choices(match.away_team, season, roles=roster_by_team.get(match.away_team_id))
-            if can_edit else []
+            team_roster_choices(match.away_team, season, roles=roster_by_team[match.away_team_id])
+            if match.away_team_id in roster_by_team else []
         ),
     })
 
@@ -1320,9 +1331,15 @@ def ajax_link_acta_person(request, match_id):
             return JsonResponse({'success': False, 'error': _('Deportista no válido.')}, status=400)
 
     season = match.league.season if match.league_id else None
-    effective = set_acta_person_link(
-        match, team, jersey_number, person, user=request.user if person else None,
-    )
+    try:
+        effective = set_acta_person_link(
+            match, team, jersey_number, person, user=request.user if person else None,
+        )
+    except ActaLinkConflict:
+        return JsonResponse({
+            'success': False,
+            'error': _('Ese deportista ya está vinculado a otro dorsal de este partido.'),
+        }, status=400)
     return JsonResponse({
         'success': True,
         'team_id': team.id,

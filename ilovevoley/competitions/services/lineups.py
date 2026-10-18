@@ -94,14 +94,22 @@ def _person_links_lookup(match):
 
 
 def _resolve_person(team_id, jersey_number, links, roles):
-    """Persona de una entrada del acta: enlace manual primero, luego el dorsal."""
+    """Persona de una entrada del acta: enlace manual primero, luego el dorsal.
+
+    Una persona enlazada a mano en un dorsal queda reservada: su dorsal natural
+    deja de resolverla en ese partido (dorsales cruzados), así no cuenta dos veces.
+    """
     if jersey_number is None:
         return None
     key = (team_id, jersey_number)
     if key in links:
         return links[key]
     role = roles.get(key)
-    return role.person if role else None
+    if not role:
+        return None
+    if any(k[0] == team_id and p.id == role.person_id for k, p in links.items()):
+        return None
+    return role.person
 
 
 def _bucket(stats, team, jersey, name=None):
@@ -250,18 +258,27 @@ def relink_orphan_lineups():
 
 
 def _refresh_lineup_person(match, team, jersey_number):
-    """Sincroniza la persona de las filas guardadas de un dorsal con su enlace.
+    """Sincroniza la persona de las filas guardadas del equipo con sus enlaces.
 
     Se llama al crear o quitar un enlace para que la estadística ya calculada
-    quede al día sin esperar a re-parsear el acta.
+    quede al día sin esperar a re-parsear el acta. Recalcula todo el equipo y no
+    solo el dorsal, porque un enlace libera o reserva el dorsal natural de la persona.
     """
-    person = _resolve_person(
-        team.id, jersey_number, _person_links_lookup(match), _roles_lookup(match),
-    )
-    MatchLineup.objects.filter(
-        match=match, team=team, jersey_number=jersey_number,
-    ).update(person=person)
-    return person
+    links = _person_links_lookup(match)
+    roles = _roles_lookup(match)
+    rows = list(MatchLineup.objects.filter(match=match, team=team))
+    changed = []
+    for row in rows:
+        person = _resolve_person(team.id, row.jersey_number, links, roles)
+        if person != row.person:
+            row.person = person
+            changed.append(row)
+    MatchLineup.objects.bulk_update(changed, ['person'])
+    return _resolve_person(team.id, jersey_number, links, roles)
+
+
+class ActaLinkConflict(ValueError):
+    """La persona ya está enlazada a otro dorsal del mismo equipo y partido."""
 
 
 @transaction.atomic
@@ -270,7 +287,12 @@ def set_acta_person_link(match, team, jersey_number, person, user=None):
 
     ``person=None`` desvincula y deja que el dorsal vuelva a mandar. Devuelve la
     persona efectiva tras el cambio (puede ser la del dorsal si se desvinculó).
+    Lanza ``ActaLinkConflict`` si la persona ya está enlazada a otro dorsal.
     """
+    if person is not None and MatchLineupPersonLink.objects.filter(
+        match=match, team=team, person=person,
+    ).exclude(jersey_number=jersey_number).exists():
+        raise ActaLinkConflict(person.pk)
     if person is None:
         MatchLineupPersonLink.objects.filter(
             match=match, team=team, jersey_number=jersey_number,

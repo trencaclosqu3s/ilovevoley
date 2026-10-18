@@ -164,3 +164,57 @@ class ActaPersonLinkEndpointTests(TestCase):
         self.client.force_login(self.member)
         member_page = self.client.get(detail_url, HTTP_HOST='testclub.ilovevoley.es').content.decode()
         self.assertIn('var canEditActa = false', member_page)
+
+    def test_enlace_reserva_a_la_persona_y_libera_su_dorsal_natural(self):
+        # La ficha tiene el 4; el acta la anota con el 14. Mientras el 4 la siguiera
+        # resolviendo por ficha, el partido contaría dos veces para la misma persona.
+        self.client.force_login(self.manager)
+        self.client.post(
+            self.url,
+            {'team_id': self.team.id, 'jersey_number': 14, 'person_id': self.ficha.id},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(self._row(14).person_id, self.ficha.id)
+        self.assertIsNone(self._row(4).person_id)
+
+        self.client.post(
+            self.url,
+            {'team_id': self.team.id, 'jersey_number': 14, 'person_id': ''},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(self._row(4).person_id, self.ficha.id)
+
+    def test_no_se_vincula_la_misma_persona_a_dos_dorsales(self):
+        self.client.force_login(self.manager)
+        first = self.client.post(
+            self.url,
+            {'team_id': self.team.id, 'jersey_number': 14, 'person_id': self.vinculada.id},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(first.status_code, 200)
+
+        second = self.client.post(
+            self.url,
+            {'team_id': self.team.id, 'jersey_number': 3, 'person_id': self.vinculada.id},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+
+        self.assertEqual(second.status_code, 400)
+        self.assertEqual(MatchLineupPersonLink.objects.filter(match=self.match).count(), 1)
+
+    def test_la_plantilla_del_acta_solo_se_expone_para_equipos_propios(self):
+        rival_person = Person.objects.create(first_name='Rival', last_name='Jugadora')
+        PlayerRole.objects.create(
+            person=rival_person, identity=identity_of(self.rival), season=self.season,
+            jersey_number=7, is_active=True,
+        )
+        self.client.force_login(self.manager)
+        data = self.client.get(
+            reverse('competitions:ajax_acta_lineup', args=[self.match.id]),
+            HTTP_HOST='testclub.ilovevoley.es',
+        ).json()
+
+        self.assertTrue(data['home_linkable'])
+        self.assertFalse(data['away_linkable'])
+        self.assertEqual(data['away_roster'], [])
+        self.assertTrue(data['home_roster'])

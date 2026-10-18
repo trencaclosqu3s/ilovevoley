@@ -3093,6 +3093,14 @@ msgstr "Vincular…"
 msgid "No se pudo guardar el vínculo. Inténtalo de nuevo."
 msgstr "No s'ha pogut guardar el vincle. Torna-ho a provar."
 
+#: ilovevoley/competitions/templates/competitions/match_detail.html
+msgid "Quitar vínculo"
+msgstr "Treure vincle"
+
+#: ilovevoley/competitions/views.py
+msgid "Ese deportista ya está vinculado a otro dorsal de este partido."
+msgstr "Aquest esportista ja està vinculat a un altre dorsal d'aquest partit."
+
 #: ilovevoley/competitions/templates/competitions/match_detail.html:1759
 msgid "Sin datos de sets."
 msgstr "Sense dades de sets."
