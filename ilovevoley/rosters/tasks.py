@@ -157,8 +157,8 @@ def redact_pending_card_narratives_task(limit=20, season_id=None):
     done = set(CardNarrative.objects.values_list('person_id', 'season_id', 'language'))
     seen = set()
     saved = 0
-    # Recalcula season_facts de cada rol sin texto cada noche (sin perfil no hay fila que
-    # lo marque como visto); si pesa, guardar también las filas «sin perfil».
+    # Roles sin perfil se guardan con highlight_key=NO_PROFILE y text='' para no
+    # recalcular season_facts en noches sucesivas (#561).
     for role in roles.iterator():
         if (role.person_id, role.season_id) in seen:
             continue
@@ -170,6 +170,14 @@ def redact_pending_card_narratives_task(limit=20, season_id=None):
         facts = season_facts(role.person, teams, role.season)
         profile = pick_profile(facts)
         if profile is None:
+            for language in missing:
+                CardNarrative.objects.get_or_create(
+                    person=role.person,
+                    season=role.season,
+                    highlight_key=CardNarrative.NO_PROFILE,
+                    language=language,
+                    defaults={'text': '', 'facts': {}},
+                )
             continue
         key, title, _text = profile
         sent = card_narrative_facts(role.identity, role.season, title, facts)
