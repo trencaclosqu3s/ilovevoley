@@ -415,8 +415,25 @@ class RedactPendingCardNarrativesTests(CardNarrativeTestBase):
         for _ in range(3):
             self.play([(25, 15, _lineup(False))] * 3)
         self.close_season()
+
         saved, redact = self.run_task()
-        self.assertEqual((saved, redact.call_count, CardNarrative.objects.count()), (0, 0, 0))
+        self.assertEqual((saved, redact.call_count), (0, 0))
+        self.assertEqual(
+            set(CardNarrative.objects.values_list('highlight_key', 'language', 'text')),
+            {(CardNarrative.NO_PROFILE, 'es', ''), (CardNarrative.NO_PROFILE, 'ca', '')},
+        )
+
+        # En la siguiente tanda nocturna, no se recalcula season_facts para este rol (#561)
+        with mock.patch('ilovevoley.rosters.tasks.season_facts') as mock_facts:
+            saved2, redact2 = self.run_task()
+        mock_facts.assert_not_called()
+        self.assertEqual((saved2, redact2.call_count), (0, 0))
+
+        # El cromo sigue mostrando el momento por reglas, sin afectarse por las filas marcador
+        with translation.override('es'):
+            highlight = narrated_highlight(self.highlight(), self.person, self.season)
+        self.assertEqual(highlight['key'], 'momento')
+        self.assertIn('Victoria', highlight['title'])
 
     def test_descarte_deja_fila_vacia_y_no_se_reintenta_pero_la_api_caida_no_escribe(self):
         self.make_talisman()
@@ -437,5 +454,6 @@ class RedactPendingCardNarrativesTests(CardNarrativeTestBase):
         text = ' '.join(f'{key} {value}' for key, value in sent.items())
         for forbidden in (self.person.first_name, self.person.last_name, str(self.person.birth_year)):
             self.assertNotIn(forbidden, text)
-        self.assertNotIn(self.person.id, sent.values())
+        for key in ('person_id', 'person', 'id'):
+            self.assertNotIn(key, sent)
         self.assertEqual((sent['perfil'], sent['sets']), ('Talismán', facts['sets']))

@@ -502,9 +502,13 @@ class CardNarrative(models.Model):
     """Texto del cromo redactado por LLM (#551), por persona, temporada, perfil e idioma.
 
     Existir la fila = intentado; ``text=''`` es un descarte definitivo que no se reintenta.
-    El texto lleva el marcador ``{nombre}``, que se sustituye al mostrarlo. ``facts`` guarda
-    lo que se envió al modelo (seudonimizado) para auditar qué cifras se usaron.
+    ``highlight_key=NO_PROFILE`` marca un rol de temporada cerrada sin perfil para no
+    recalcular season_facts cada noche (#561). El texto lleva el marcador ``{nombre}``,
+    que se sustituye al mostrarlo. ``facts`` guarda lo que se envió al modelo
+    (seudonimizado) para auditar qué cifras se usaron.
     """
+
+    NO_PROFILE = 'no_profile'
 
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='card_narratives')
     season = models.ForeignKey('core.Season', on_delete=models.CASCADE, related_name='card_narratives')
