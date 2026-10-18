@@ -593,6 +593,38 @@ class ProcessJsonMatchesUnifiedTests(TestCase):
             MatchChangeLog.objects.filter(match=existing_match, change_type='status').count(), 0
         )
 
+    def test_withdrawn_match_by_id_hands_id_and_acta_to_visible_twin(self):
+        """Caso real (#6690): el id apunta a una fila oculta con la variante inactiva del equipo
+        y el calendario visible, sin id, nunca recibía el acta."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        stale_home = Team.objects.create(
+            name='CLUB VOLEIBOL EIVISSA', federation_id='2325_club_voleibol_eivissa',
+            category=self.category, is_active=False,
+        )
+        match_date = datetime(2026, 10, 3, 12, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        hidden = Match.all_objects.create(
+            league=self.league, home_team=stale_home, away_team=self.away_team,
+            match_date=match_date, federation_id='85843', status='withdrawn',
+        )
+        visible = Match.objects.create(
+            league=self.league, home_team=self.home_team, away_team=self.away_team,
+            match_date=match_date, status='finished', home_score=3, away_score=0,
+        )
+
+        self.scraper._process_json_matches_unified(self.league, [{
+            'ID': 85843, 'ELOCAL': 'CLUB VOLEIBOL EIVISSA', 'EVISITANTE': 'CD MESTRAL IBIZA VOLEY',
+            'FECHA': '03/10/2026', 'HORA': '12:00', 'TORNEO': 8246,
+            'RESULTADO_LOCAL': 3, 'RESULTADO_VISITANTE': 0, 'acta_html': 'acta_11166.html',
+        }], 'Juvenil', '8246', '1')
+
+        visible.refresh_from_db()
+        hidden.refresh_from_db()
+        self.assertEqual(visible.federation_id, '85843')
+        self.assertTrue(visible.acta_html.endswith('/85843/acta_11166.html'))
+        self.assertIsNone(hidden.federation_id)
+
     def test_links_federation_id_to_existing_match_without_id_on_same_day(self):
         from zoneinfo import ZoneInfo
         from datetime import datetime

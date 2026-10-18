@@ -349,7 +349,9 @@ class FederationScraper:
                 fed_id = str(match_data.get('federation_id') or '').strip()
                 match = None
                 if fed_id:
-                    match = Match.all_objects.filter(federation_id=fed_id, league=league).first()
+                    match = self._visible_twin(
+                        Match.all_objects.filter(federation_id=fed_id, league=league).first()
+                    )
 
                 # 2. Fallback: Buscar por equipos y fecha en el mismo día dentro de la liga,
                 # también con local/visitante invertidos (#485).
@@ -1005,6 +1007,41 @@ class FederationScraper:
 
         logger.info(f"Marked {len(withdrawn_matches)} matches as withdrawn in {self.league.name}")
 
+    def _visible_twin(self, match):
+        """Devuelve la fila visible que corresponde a un partido ``withdrawn`` con id federativo.
+
+        Un equipo que cambia de patrocinador o se duplica entre ligas deja dos filas del
+        mismo cruce: la que el JSON empareja por id (oculta, con equipos inactivos) y la
+        del calendario (visible, sin id). Sin esto el acta y el id se quedan en la oculta.
+        Solo actúa si hay un único candidato mismo día y liga que comparta un equipo; el
+        id se mueve (no se copia) para que el siguiente scrape ya empareje la visible.
+        """
+        if match is None or match.status != 'withdrawn' or not match.federation_id:
+            return match
+        day = match.match_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        teams = {match.home_team_id, match.away_team_id}
+        twins = [
+            t for t in Match.objects.filter(
+                league_id=match.league_id,
+                match_date__gte=day,
+                match_date__lt=day + timedelta(days=1),
+                is_friendly=False,
+                federation_id__isnull=True,
+            ).exclude(pk=match.pk)
+            if teams & {t.home_team_id, t.away_team_id}
+        ]
+        if len(twins) != 1:
+            return match
+        twin = twins[0]
+        fed_id, acta = match.federation_id, match.acta_html
+        Match.all_objects.filter(pk=match.pk).update(federation_id=None)
+        twin.federation_id = fed_id
+        if acta and not twin.acta_html:
+            twin.acta_html = acta
+        twin.save(update_fields=['federation_id', 'acta_html'])
+        logger.warning(f'Partido withdrawn #{match.pk} sustituido por su gemelo visible #{twin.pk} (federation_id {fed_id})')
+        return twin
+
     def _find_calendar_match(self, league, home_team, away_team, match_date):
         """Localiza el partido del calendario que corresponde a uno del scrape.
 
@@ -1434,7 +1471,7 @@ class FederationScraper:
         
         # Primero intentar buscar por federation_id del JSON (incluye withdrawn)
         try:
-            match = Match.all_objects.get(federation_id=json_match_id)
+            match = self._visible_twin(Match.all_objects.get(federation_id=json_match_id))
         except Match.DoesNotExist:
             # Si no existe, buscar por otros criterios
             # Extraer datos del partido del JSON
