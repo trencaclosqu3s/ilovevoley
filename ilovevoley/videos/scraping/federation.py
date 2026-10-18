@@ -1035,7 +1035,7 @@ class FederationScraper:
         twin = twins[0]
         fed_id, acta = match.federation_id, match.acta_html
         with transaction.atomic():
-            Match.all_objects.filter(pk=match.pk).update(federation_id=None)
+            Match.all_objects.filter(pk=match.pk).update(federation_id=None, acta_html='')
             twin.federation_id = fed_id
             if acta and not twin.acta_html:
                 twin.acta_html = acta

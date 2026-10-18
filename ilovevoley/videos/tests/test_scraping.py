@@ -624,6 +624,32 @@ class ProcessJsonMatchesUnifiedTests(TestCase):
         self.assertEqual(visible.federation_id, '85843')
         self.assertTrue(visible.acta_html.endswith('/85843/acta_11166.html'))
         self.assertIsNone(hidden.federation_id)
+        self.assertEqual(hidden.acta_html, '')
+
+    def test_withdrawn_match_keeps_its_id_when_visible_twin_is_ambiguous(self):
+        """Con dos candidatos el id no se mueve a ciegas: mejor un acta perdida que en el cruce equivocado."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        other_away = Team.objects.create(
+            name='OTRO CLUB', federation_id='8246_otro_club', category=self.category, is_active=True,
+        )
+        match_date = datetime(2026, 10, 3, 12, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        hidden = Match.all_objects.create(
+            league=self.league, home_team=self.home_team, away_team=self.away_team,
+            match_date=match_date, federation_id='85843', status='withdrawn',
+            acta_html='https://voleibolib.federatio.com/actas/85843/acta_1.html',
+        )
+        for away in (self.away_team, other_away):
+            Match.objects.create(
+                league=self.league, home_team=self.home_team, away_team=away,
+                match_date=match_date, status='scheduled',
+            )
+
+        self.assertEqual(self.scraper._visible_twin(hidden), hidden)
+        hidden.refresh_from_db()
+        self.assertEqual(hidden.federation_id, '85843')
+        self.assertFalse(Match.objects.filter(federation_id='85843').exists())
 
     def test_find_team_by_name_prefers_this_leagues_team_over_older_season(self):
         """Mismo nombre en varias temporadas: la fila de la liga gana al pk más bajo (#566)."""
