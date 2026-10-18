@@ -929,6 +929,57 @@ class MatchLineup(models.Model):
         return f'{quien}{dorsal} - {self.match_id}'
 
 
+class MatchLineupPersonLink(models.Model):
+    """Enlace manual entre una entrada del acta (equipo + dorsal) y una persona.
+
+    Al inicio de temporada muchos jugadores aún no tienen la camiseta con su
+    dorsal y la federación les anota en el acta un número que no es el de su
+    ficha (o incluso el de otro compañero). Como ``MatchLineup.person`` se
+    resuelve por dorsal, esos partidos se perderían para la estadística del
+    jugador. Este enlace lo corrige: la persona asignada aquí manda sobre la
+    resolución automática por dorsal.
+
+    Es la fuente de verdad y por eso vive en su propia tabla: ``MatchLineup``
+    se borra y reconstruye en cada parseo del acta (``store_match_lineups``),
+    así que un dato guardado en la fila se perdería.
+    """
+
+    match = models.ForeignKey(
+        Match, on_delete=models.CASCADE, related_name='lineup_person_links',
+        verbose_name=_('Partido'),
+    )
+    team = models.ForeignKey(
+        'teams.Team', on_delete=models.CASCADE, related_name='lineup_person_links',
+        verbose_name=_('Equipo'),
+    )
+    jersey_number = models.PositiveSmallIntegerField(verbose_name=_('Dorsal en el acta'))
+    person = models.ForeignKey(
+        'rosters.Person', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='lineup_links', verbose_name=_('Deportista'),
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_lineup_links', verbose_name=_('Creado por'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Creado'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Actualizado'))
+
+    class Meta:
+        ordering = ['match', 'team', 'jersey_number']
+        verbose_name = _('Enlace de acta a deportista')
+        verbose_name_plural = _('Enlaces de acta a deportista')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['match', 'team', 'jersey_number'],
+                name='unique_lineup_person_link',
+            ),
+        ]
+
+    def __str__(self):
+        quien = self.person.full_name if self.person else _('Sin identificar')
+        return f'{quien} (#{self.jersey_number}) - {self.match_id}'
+
+
 class MatchChangeLogQuerySet(TenantQuerySet):
     """QuerySet de MatchChangeLog con ámbito de tenant a través de sus partidos."""
 

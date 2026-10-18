@@ -1597,9 +1597,11 @@ document.addEventListener('DOMContentLoaded', function() {
 {% if match.acta_html %}
 (function() {
 
+    var canEditActa = {{ can_edit_acta|yesno:"true,false" }};
+
     // ── Convocados ──────────────────────────────────────────────────────────
     // Renderiza lista de convocados [{number, name_acta, person}] en un <ul>
-    function renderConvocados(ul, players) {
+    function renderConvocados(ul, players, teamId, roster) {
         while (ul.firstChild) ul.removeChild(ul.firstChild);
         if (!players || !players.length) {
             var li = document.createElement('li');
@@ -1637,7 +1639,78 @@ document.addEventListener('DOMContentLoaded', function() {
 
             li.appendChild(badge);
             li.appendChild(nameSpan);
+
+            // Equipo propio: el manager puede vincular, cambiar o quitar el vínculo del dorsal
+            if (canEditActa && roster && player.number !== null) {
+                li.appendChild(makeLinkControl(player, teamId, roster));
+            }
             ul.appendChild(li);
+        });
+    }
+
+    // Selector para enlazar una entrada del acta con un deportista de la plantilla
+    function makeLinkControl(player, teamId, roster) {
+        var wrap = document.createElement('div');
+        wrap.className = 'flex-shrink-0';
+        var select = document.createElement('select');
+        select.className = 'text-xs border border-line rounded px-1 py-0.5 bg-surface text-ink';
+        select.style.maxWidth = '9rem';
+        select.title = '{% trans "Vincular este dorsal del acta con un deportista" as js_msg %}{{ js_msg|escapejs }}';
+
+        var placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = player.manual_link
+            ? '{% trans "Quitar vínculo" as js_msg %}{{ js_msg|escapejs }}'
+            : '{% trans "Vincular…" as js_msg %}{{ js_msg|escapejs }}';
+        select.appendChild(placeholder);
+
+        (roster || []).forEach(function(entry) {
+            var opt = document.createElement('option');
+            opt.value = String(entry.id);
+            var label = (entry.jersey_number !== null && entry.jersey_number !== undefined)
+                ? '#' + entry.jersey_number + ' ' + entry.full_name
+                : entry.full_name;
+            opt.textContent = label;
+            select.appendChild(opt);
+        });
+
+        var current = player.person || player.suggested_person;
+        if (current) {
+            select.value = String(current.id);
+        }
+        select.addEventListener('click', function(e) { e.stopPropagation(); });
+        select.addEventListener('change', function() {
+            if (select.value && player.person && select.value === String(player.person.id)) { return; }
+            linkActaPerson(teamId, player.number, select.value, select);
+        });
+        wrap.appendChild(select);
+        return wrap;
+    }
+
+    // Guarda (o quita) el vínculo y recarga el acta para reflejarlo
+    function linkActaPerson(teamId, jersey, personId, select) {
+        var body = new URLSearchParams();
+        body.append('team_id', teamId);
+        body.append('jersey_number', jersey);
+        body.append('person_id', personId || '');
+        select.disabled = true;
+        fetch('/competitions/ajax/partidos/{{ match.id }}/alineacion/vincular/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body.toString(),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success) { throw new Error(data.error || 'error'); }
+            loadActaLineup();
+        })
+        .catch(function(err) {
+            select.disabled = false;
+            alert(err.message && err.message !== 'error' ? err.message : '{% trans "No se pudo guardar el vínculo. Inténtalo de nuevo." as js_msg %}{{ js_msg|escapejs }}');
         });
     }
 
@@ -1853,33 +1926,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ── Fetch ────────────────────────────────────────────────────────────────
-    fetch('/competitions/ajax/partidos/{{ match.id }}/alineacion/', {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-        document.getElementById('lineup-loading').classList.add('hidden');
-        if (!data.success) {
-            document.getElementById('lineup-error-message').textContent = data.error || '{% trans "No se pudo cargar el acta." as js_msg %}{{ js_msg|escapejs }}';
+    function loadActaLineup() {
+        fetch('/competitions/ajax/partidos/{{ match.id }}/alineacion/', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('lineup-loading').classList.add('hidden');
+            if (!data.success) {
+                document.getElementById('lineup-error-message').textContent = data.error || '{% trans "No se pudo cargar el acta." as js_msg %}{{ js_msg|escapejs }}';
+                document.getElementById('lineup-error').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('lineup-home-captain').textContent = data.home_captain || '-';
+            document.getElementById('lineup-away-captain').textContent = data.away_captain || '-';
+            document.getElementById('lineup-home-coach').textContent = data.home_coach || '-';
+            document.getElementById('lineup-away-coach').textContent = data.away_coach || '-';
+            renderConvocados(document.getElementById('lineup-home-list'), data.home_convocados, data.home_team_id, data.home_linkable ? data.home_roster : null);
+            renderConvocados(document.getElementById('lineup-away-list'), data.away_convocados, data.away_team_id, data.away_linkable ? data.away_roster : null);
+            renderSets(document.getElementById('lineup-sets'), data.sets);
+            renderOfficials(data.referees, data.officials);
+            renderObservations(data.observations);
+            document.getElementById('lineup-content').classList.remove('hidden');
+        })
+        .catch(function() {
+            document.getElementById('lineup-loading').classList.add('hidden');
+            document.getElementById('lineup-error-message').textContent = '{% trans "Error de conexión al cargar el acta." as js_msg %}{{ js_msg|escapejs }}';
             document.getElementById('lineup-error').classList.remove('hidden');
-            return;
-        }
-        document.getElementById('lineup-home-captain').textContent = data.home_captain || '-';
-        document.getElementById('lineup-away-captain').textContent = data.away_captain || '-';
-        document.getElementById('lineup-home-coach').textContent = data.home_coach || '-';
-        document.getElementById('lineup-away-coach').textContent = data.away_coach || '-';
-        renderConvocados(document.getElementById('lineup-home-list'), data.home_convocados);
-        renderConvocados(document.getElementById('lineup-away-list'), data.away_convocados);
-        renderSets(document.getElementById('lineup-sets'), data.sets);
-        renderOfficials(data.referees, data.officials);
-        renderObservations(data.observations);
-        document.getElementById('lineup-content').classList.remove('hidden');
-    })
-    .catch(function() {
-        document.getElementById('lineup-loading').classList.add('hidden');
-        document.getElementById('lineup-error-message').textContent = '{% trans "Error de conexión al cargar el acta." as js_msg %}{{ js_msg|escapejs }}';
-        document.getElementById('lineup-error').classList.remove('hidden');
-    });
+        });
+    }
+
+    loadActaLineup();
 })();
 {% endif %}
 
