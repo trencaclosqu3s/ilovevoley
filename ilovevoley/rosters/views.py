@@ -676,10 +676,18 @@ def person_provisional_discard(request, person_id):
         messages.error(request, _('Hay una solicitud de vínculo pendiente para esa ficha; resuélvela antes de descartarla.'))
         return redirect('rosters:person_detail', person_id=person.id)
 
-    club_identities = Team.objects.for_tenant(request.tenant).values('identity')
+    # Sin los nulos: un equipo del club sin identidad deja `club_identities`
+    # con NULL y el `exclude` de SQL no descartaría nada (NOT IN (NULL) es
+    # *unknown*), que es exactamente lo que la guarda debe evitar.
+    club_identities = (
+        Team.objects.for_tenant(request.tenant)
+        .exclude(identity__isnull=True)
+        .values('identity')
+    )
     if (
         person.club_memberships.exclude(organization=request.tenant).exists()
         or person.player_roles.exclude(identity__in=club_identities).exists()
+        or person.staff_roles.exclude(identity__in=club_identities).exists()
     ):
         messages.error(request, _('Esa ficha tiene datos en otro club; no se puede descartar desde aquí.'))
         return redirect('rosters:person_detail', person_id=person.id)

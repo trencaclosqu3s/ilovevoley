@@ -927,3 +927,24 @@ class ProvisionalPersonDiscardTests(TestCase):
         self._discard(person=fuera)
 
         self.assertTrue(Person.objects.filter(pk=fuera.pk).exists())
+
+    def test_no_descarta_una_ficha_con_roles_en_otro_club(self):
+        """El borrado arrastra también los roles, de jugador y de staff."""
+        equipo_b = Team.objects.create(name='Club B Junior', federation_id='TEAM-B1', is_active=True)
+        season = Season.objects.resolve('2025-26')
+        con_rol = Person.objects.create(first_name='', last_name='Rolfora', is_provisional=True)
+        con_rol.organizations.add(self.org)
+        PlayerRole.objects.create(
+            person=con_rol, identity=identity_of(equipo_b), season=season, jersey_number=5,
+        )
+        con_staff = Person.objects.create(first_name='', last_name='Stafffora', is_provisional=True)
+        con_staff.organizations.add(self.org)
+        StaffRole.objects.create(
+            person=con_staff, identity=identity_of(equipo_b), season=season, role='delegate',
+        )
+
+        self._discard(person=con_rol)
+        self._discard(person=con_staff)
+
+        self.assertTrue(Person.objects.filter(pk=con_rol.pk).exists())
+        self.assertTrue(Person.objects.filter(pk=con_staff.pk).exists())
