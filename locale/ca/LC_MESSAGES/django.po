@@ -8525,7 +8525,6 @@ msgstr "Sol·licitud enviada. Un moderador del club la revisarà."
 msgid "%(name)s dada de baja en el club. Su ficha e histórico permanecen."
 msgstr ""
 "%(name)s donat/da de baixa al club. La fitxa i l'historial es conserven."
-"%(name)s donat/da de baixa al club. La fitxa i l'historial es conserven."
 
 #: ilovevoley/rosters/views.py:644
 #, python-format
