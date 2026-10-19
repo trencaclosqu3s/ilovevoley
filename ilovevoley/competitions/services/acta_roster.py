@@ -22,20 +22,21 @@ from ..models import MatchLineup
 from .lineups import _names_match, relink_orphan_lineups
 
 
-def is_club_team(team):
-    """¿El equipo pertenece a algún club activo de la plataforma?
+def club_organization(team):
+    """Organización (club) activa a la que pertenece el equipo, o ``None``.
 
     Los equipos rivales no entran: sus fichas son menores de otros clubes y este
-    flujo solo debe crear plantilla propia.
+    flujo solo debe crear plantilla propia. Devolver la organización permite
+    enlazar a vistas de tenant, que necesitan el subdominio correcto.
     """
     from ilovevoley.core.models import Organization
 
     if team is None or not team.identity_id:
-        return False
-    return any(
-        Team.objects.for_tenant(org).filter(pk=team.pk).exists()
-        for org in Organization.objects.filter(is_active=True)
-    )
+        return None
+    for organization in Organization.objects.filter(is_active=True):
+        if Team.objects.for_tenant(organization).filter(pk=team.pk).exists():
+            return organization
+    return None
 
 
 def _acta_name(identity, season, jersey):
@@ -117,13 +118,11 @@ def person_candidates(name_acta, tenant, in_club=None, limit=8):
 
     if in_club is None:
         in_club = list(Person.objects.for_tenant(tenant))
-    found = {}
-    for person in in_club:
-        if _names_match(name_acta, person.last_name, person.first_name):
-            found[person.pk] = {'person': person}
-        if len(found) >= limit:
-            break
-    return list(found.values())
+    return [
+        {'person': person}
+        for person in in_club
+        if _names_match(name_acta, person.last_name, person.first_name)
+    ][:limit]
 
 
 def create_roster_players(identity, season, tenant, selections):

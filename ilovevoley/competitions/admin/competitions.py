@@ -10,6 +10,7 @@ from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
 from ilovevoley.content.admin.content import ImageInline
+from ilovevoley.core.tenant_utils import build_absolute_url
 from ..forms import MatchAdminForm
 from ..models import (
     League, LeagueCandidate, Match, MatchActaPhoto, MatchChangeLog, MatchChangeLogReview,
@@ -21,7 +22,7 @@ from ..services.acta_review import (
     get_acta_roster_comparison,
     reject_acta_photo,
 )
-from ..services.acta_roster import is_club_team
+from ..services.acta_roster import club_organization
 from ..services.delta_detector import notify_match_result_after_save
 
 
@@ -764,19 +765,23 @@ class MatchActaPhotoAdmin(ModelAdmin):
 
         La acción vive en la plantilla (una sola UI, con vista previa y edición);
         aquí solo se enlaza desde el acta que se está revisando. Los equipos
-        rivales no aparecen.
+        rivales no aparecen, y la URL se construye con el subdominio del club
+        porque la vista de plantilla lo necesita.
         """
         if not obj.match_id:
             return '—'
         season = obj.match.league.season if obj.match.league_id else None
         pairs = []
         for team in (obj.match.home_team, obj.match.away_team):
-            if not is_club_team(team):
+            organization = club_organization(team)
+            if organization is None:
                 continue
-            url = reverse('teams:team_roster', args=[team.id])
+            url = build_absolute_url(
+                reverse('teams:team_roster', args=[team.id]), tenant=organization,
+            )
             if season is not None:
                 url = f'{url}?season={season.pk}'
-            pairs.append((url, team.name))
+            pairs.append((url, f'{organization.slug} · {team.name}'))
         if not pairs:
             return '—'
         return format_html_join(
