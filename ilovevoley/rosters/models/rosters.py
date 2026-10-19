@@ -112,6 +112,14 @@ class Person(models.Model):
     )
 
     # Estado y metadata
+    # Ficha creada desde un acta (#569): solo se conoce el apellido (y el dorsal,
+    # que vive en su PlayerRole) y falta nombre y año. Se limpia sola al
+    # completar la identidad (``save``), no al vincularse a una cuenta.
+    is_provisional = models.BooleanField(
+        default=False,
+        verbose_name=_('Provisional'),
+        help_text=_('Ficha creada desde un acta, pendiente de completar nombre y año'),
+    )
     is_active = models.BooleanField(
         default=True,
         verbose_name=_('Activo'),
@@ -152,6 +160,12 @@ class Person(models.Model):
         sanitize_model_image_field(self, 'photo', max_size=2048)
         if self.birth_date:
             self.birth_year = self.birth_date.year
+        # El flag es la lista de fichas a completar, no un estado que haya que
+        # apagar a mano: en cuanto hay identidad completa, deja de ser provisional.
+        if self.is_provisional and self.first_name and self.birth_year:
+            self.is_provisional = False
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = {*kwargs['update_fields'], 'is_provisional'}
         # La fecha solo refleja decisiones reales: el valor por defecto de una
         # ficha nueva no cuenta como consentimiento recogido.
         previous = (
