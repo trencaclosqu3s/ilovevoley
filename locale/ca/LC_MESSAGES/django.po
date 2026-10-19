@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VideosVoley 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 09:31+0200\n"
+"POT-Creation-Date: 2026-10-19 09:36+0200\n"
 "PO-Revision-Date: 2025-10-17 23:58+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -8125,7 +8125,7 @@ msgstr "Equips on juga"
 
 #: ilovevoley/rosters/templates/rosters/person_detail.html:262
 #: ilovevoley/rosters/templates/rosters/person_detail.html:333
-#: ilovevoley/rosters/views.py:879 ilovevoley/rosters/views.py:965
+#: ilovevoley/rosters/views.py:892 ilovevoley/rosters/views.py:978
 msgid "Agregar Rol"
 msgstr "Afegir rol"
 
@@ -8543,15 +8543,15 @@ msgstr ""
 msgid "%(name)s está de alta en el club."
 msgstr "%(name)s té l'alta al club."
 
-#: ilovevoley/rosters/views.py:663
+#: ilovevoley/rosters/views.py:668
 msgid "Solo se pueden descartar fichas provisionales."
 msgstr "Només es poden descartar fitxes provisionals."
 
-#: ilovevoley/rosters/views.py:667
+#: ilovevoley/rosters/views.py:672
 msgid "Esa ficha ya tiene cuenta o familia vinculada; no se puede descartar."
 msgstr "Aquesta fitxa ja té compte o família vinculada; no es pot descartar."
 
-#: ilovevoley/rosters/views.py:671
+#: ilovevoley/rosters/views.py:676
 msgid ""
 "Hay una solicitud de vínculo pendiente para esa ficha; resuélvela antes de "
 "descartarla."
@@ -8559,68 +8559,72 @@ msgstr ""
 "Hi ha una sol·licitud de vincle pendent per a aquesta fitxa; resol-la abans "
 "de descartar-la."
 
-#: ilovevoley/rosters/views.py:676
+#: ilovevoley/rosters/views.py:684
+msgid "Esa ficha tiene datos en otro club; no se puede descartar desde aquí."
+msgstr "Aquesta fitxa té dades en un altre club; no es pot descartar des d'aquí."
+
+#: ilovevoley/rosters/views.py:689
 #, python-format
 msgid "Ficha provisional descartada: %(name)s."
 msgstr "Fitxa provisional descartada: %(name)s."
 
-#: ilovevoley/rosters/views.py:719 ilovevoley/rosters/views.py:737
+#: ilovevoley/rosters/views.py:732 ilovevoley/rosters/views.py:750
 msgid "Agregar Nueva Persona"
 msgstr "Afegir Nova Persona"
 
-#: ilovevoley/rosters/views.py:720 ilovevoley/rosters/views.py:738
+#: ilovevoley/rosters/views.py:733 ilovevoley/rosters/views.py:751
 msgid "Crear Persona"
 msgstr "Crear Persona"
 
-#: ilovevoley/rosters/views.py:729
+#: ilovevoley/rosters/views.py:742
 msgid ""
 "¡Persona creada exitosamente! Ahora puedes agregar roles de jugador o staff."
 msgstr "Persona creada correctament! Ara pots afegir rols de jugador o staff."
 
-#: ilovevoley/rosters/views.py:794
+#: ilovevoley/rosters/views.py:807
 msgid ""
 "Persona añadida a tu club. Ahora puedes agregar roles de jugador o staff."
 msgstr "Persona afegida al teu club. Ara pots afegir rols de jugador o staff."
 
-#: ilovevoley/rosters/views.py:809
+#: ilovevoley/rosters/views.py:822
 msgid "No tienes permisos para editar esta persona."
 msgstr "No tens permisos per editar aquesta persona."
 
-#: ilovevoley/rosters/views.py:829 ilovevoley/rosters/views.py:844
+#: ilovevoley/rosters/views.py:842 ilovevoley/rosters/views.py:857
 #, python-format
 msgid "Editar %(name)s"
 msgstr "Editar %(name)s"
 
-#: ilovevoley/rosters/views.py:830 ilovevoley/rosters/views.py:845
-#: ilovevoley/rosters/views.py:1000 ilovevoley/rosters/views.py:1035
+#: ilovevoley/rosters/views.py:843 ilovevoley/rosters/views.py:858
+#: ilovevoley/rosters/views.py:1013 ilovevoley/rosters/views.py:1048
 #: ilovevoley/templates/users/profile_edit.html:295
 msgid "Guardar Cambios"
 msgstr "Desar canvis"
 
-#: ilovevoley/rosters/views.py:834
+#: ilovevoley/rosters/views.py:847
 msgid "¡Información actualizada correctamente!"
 msgstr "Informació actualitzada correctament!"
 
-#: ilovevoley/rosters/views.py:837 ilovevoley/users/views.py:107
+#: ilovevoley/rosters/views.py:850 ilovevoley/users/views.py:107
 #: ilovevoley/users/views.py:123 ilovevoley/users/views.py:233
 msgid "Por favor corrige los errores en el formulario."
 msgstr "Si us plau, corregeix els errors del formulari."
 
-#: ilovevoley/rosters/views.py:861 ilovevoley/rosters/views.py:947
+#: ilovevoley/rosters/views.py:874 ilovevoley/rosters/views.py:960
 msgid "No tienes permisos para agregar roles a esta persona."
 msgstr "No tens permisos per afegir rols a aquesta persona."
 
-#: ilovevoley/rosters/views.py:870
+#: ilovevoley/rosters/views.py:883
 #, python-format
 msgid "¡Rol de jugador agregado en %(team)s!"
 msgstr "Rol de jugador afegit a %(team)s!"
 
-#: ilovevoley/rosters/views.py:878
+#: ilovevoley/rosters/views.py:891
 #, python-format
 msgid "Agregar Rol de Jugador - %(name)s"
 msgstr "Afegir Rol de Jugador - %(name)s"
 
-#: ilovevoley/rosters/views.py:901 ilovevoley/teams/views.py:312
+#: ilovevoley/rosters/views.py:914 ilovevoley/teams/views.py:312
 msgid ""
 "Este equipo no tiene identidad asignada; asígnala en el admin antes de dar "
 "de alta la plantilla."
@@ -8628,64 +8632,64 @@ msgstr ""
 "Aquest equip no té identitat assignada; assigna-la a l'admin abans de donar "
 "d'alta la plantilla."
 
-#: ilovevoley/rosters/views.py:920
+#: ilovevoley/rosters/views.py:933
 msgid "Algún dorsal o jugador acaba de ser asignado. Revisa los datos."
 msgstr "Algun dorsal o jugador acaba de ser assignat. Revisa les dades."
 
-#: ilovevoley/rosters/views.py:922
+#: ilovevoley/rosters/views.py:935
 #, python-format
 msgid "%(n)s jugadores añadidos a %(team)s."
 msgstr "%(n)s jugadors afegits a %(team)s."
 
-#: ilovevoley/rosters/views.py:929
+#: ilovevoley/rosters/views.py:942
 msgid "No hay plantilla en la temporada anterior para copiar."
 msgstr "No hi ha plantilla a la temporada anterior per copiar."
 
-#: ilovevoley/rosters/views.py:956
+#: ilovevoley/rosters/views.py:969
 #, python-format
 msgid "¡Rol de staff agregado en %(team)s!"
 msgstr "Rol de staff afegit a %(team)s!"
 
-#: ilovevoley/rosters/views.py:964
+#: ilovevoley/rosters/views.py:977
 #, python-format
 msgid "Agregar Rol de Staff - %(name)s"
 msgstr "Afegir Rol de Staff - %(name)s"
 
-#: ilovevoley/rosters/views.py:983 ilovevoley/rosters/views.py:1018
+#: ilovevoley/rosters/views.py:996 ilovevoley/rosters/views.py:1031
 msgid "No tienes permisos para editar este rol."
 msgstr "No tens permisos per editar aquest rol."
 
-#: ilovevoley/rosters/views.py:990 ilovevoley/rosters/views.py:1025
+#: ilovevoley/rosters/views.py:1003 ilovevoley/rosters/views.py:1038
 msgid "¡Rol actualizado correctamente!"
 msgstr "Rol actualitzat correctament!"
 
-#: ilovevoley/rosters/views.py:999
+#: ilovevoley/rosters/views.py:1012
 #, python-format
 msgid "Editar Rol de Jugador - %(name)s"
 msgstr "Editar Rol de Jugador - %(name)s"
 
-#: ilovevoley/rosters/views.py:1034
+#: ilovevoley/rosters/views.py:1047
 #, python-format
 msgid "Editar Rol de Staff - %(name)s"
 msgstr "Editar Rol de Staff - %(name)s"
 
-#: ilovevoley/rosters/views.py:1053 ilovevoley/rosters/views.py:1077
+#: ilovevoley/rosters/views.py:1066 ilovevoley/rosters/views.py:1090
 msgid "Sin permisos"
 msgstr "Sense permisos"
 
-#: ilovevoley/rosters/views.py:1059
+#: ilovevoley/rosters/views.py:1072
 msgid "Rol de jugador activado correctamente."
 msgstr "Rol de jugador activat correctament."
 
-#: ilovevoley/rosters/views.py:1061
+#: ilovevoley/rosters/views.py:1074
 msgid "Rol de jugador desactivado correctamente."
 msgstr "Rol de jugador desactivat correctament."
 
-#: ilovevoley/rosters/views.py:1083
+#: ilovevoley/rosters/views.py:1096
 msgid "Rol de staff activado correctamente."
 msgstr "Rol de staff activat correctament."
 
-#: ilovevoley/rosters/views.py:1085
+#: ilovevoley/rosters/views.py:1098
 msgid "Rol de staff desactivado correctamente."
 msgstr "Rol de staff desactivat correctament."
 

@@ -647,17 +647,22 @@ def person_membership_toggle(request, person_id):
 
 @require_POST
 @tenant_access_required(manager=True)
+@transaction.atomic
 def person_provisional_discard(request, person_id):
     """Descarta una ficha provisional creada por error desde el acta (#569).
 
     Solo provisionales y sin nadie detrás: si ya tiene cuenta, familia o una
     solicitud de vínculo pendiente, esa ficha es de alguien y no se borra desde
-    aquí. Al descartarla desaparecen su rol y su pertenencia al club
-    (``CASCADE``); las alineaciones que apuntaban a ella se quedan sin persona,
-    como estaban antes del alta.
+    aquí. Tampoco si tiene roles o pertenencias en otro club: ``Person`` es
+    global y el borrado arrastraría datos ajenos. Al descartarla desaparecen su
+    rol y su pertenencia al club (``CASCADE``); las alineaciones que apuntaban a
+    ella se quedan sin persona, como estaban antes del alta.
+
+    La fila se bloquea hasta el borrado: si otro moderador aprueba una solicitud
+    a la vez, las dos operaciones se serializan en vez de pisarse.
     """
     person = get_tenant_object_or_404(
-        Person.objects, request.tenant, user=request.user, id=person_id,
+        Person.objects.select_for_update(), request.tenant, user=request.user, id=person_id,
     )
     if not person.is_provisional:
         messages.error(request, _('Solo se pueden descartar fichas provisionales.'))
@@ -669,6 +674,14 @@ def person_provisional_discard(request, person_id):
 
     if person.link_requests.filter(status=PersonLinkRequest.Status.PENDING).exists():
         messages.error(request, _('Hay una solicitud de vínculo pendiente para esa ficha; resuélvela antes de descartarla.'))
+        return redirect('rosters:person_detail', person_id=person.id)
+
+    club_identities = Team.objects.for_tenant(request.tenant).values('identity')
+    if (
+        person.club_memberships.exclude(organization=request.tenant).exists()
+        or person.player_roles.exclude(identity__in=club_identities).exists()
+    ):
+        messages.error(request, _('Esa ficha tiene datos en otro club; no se puede descartar desde aquí.'))
         return redirect('rosters:person_detail', person_id=person.id)
 
     name = person.last_name

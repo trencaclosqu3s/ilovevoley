@@ -916,3 +916,14 @@ class ProvisionalPersonDiscardTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertTrue(Person.objects.filter(pk=self.provisional.pk).exists())
+
+    def test_no_descarta_una_ficha_con_datos_en_otro_club(self):
+        fuera = Person.objects.create(first_name='', last_name='Ambfora', is_provisional=True)
+        fuera.organizations.add(self.org)
+        fuera.organizations.add(
+            Organization.objects.create(slug='club-b', name='Club B', is_active=True),
+        )
+
+        self._discard(person=fuera)
+
+        self.assertTrue(Person.objects.filter(pk=fuera.pk).exists())
