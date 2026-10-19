@@ -80,6 +80,16 @@
                         </a>
                     {% endif %}
                     {% if can_manage %}
+                        {% if person.is_provisional %}
+                            <form method="post" action="{% url 'rosters:person_provisional_discard' person.id %}"
+                                  data-confirm-message="{% trans "¿Descartar esta ficha provisional? Se borra la ficha y su rol en la plantilla." %}"
+                                  class="inline-flex">
+                                {% csrf_token %}
+                                <button type="submit" class="bg-surface hover:bg-tint text-red-600 dark:text-red-400 px-4 py-2 rounded-full font-medium transition text-sm whitespace-nowrap inline-flex items-center border border-line">
+                                    {% trans "Descartar provisional" %}
+                                </button>
+                            </form>
+                        {% endif %}
                         {% if membership and not membership.is_active %}
                             <form method="post" action="{% url 'rosters:person_membership_toggle' person.id %}" id="membership-toggle-form"
                                   data-confirm-message="{% trans "¿Reactivar a esta persona en el club?" %}"
@@ -375,8 +385,7 @@
 {% block extra_js %}
 <script nonce="{{ csp_nonce }}">
 (function () {
-    const form = document.getElementById('membership-toggle-form');
-    if (form) {
+    document.querySelectorAll('form[data-confirm-message]').forEach(function (form) {
         form.addEventListener('submit', function (event) {
             const message = form.dataset.confirmMessage;
             if (message && !confirm(message)) {
@@ -392,7 +401,7 @@
                 }, 0);
             }
         });
-    }
+    });
 })();
 </script>
 {% endblock %}

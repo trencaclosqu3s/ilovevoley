@@ -645,6 +645,38 @@ def person_membership_toggle(request, person_id):
     return redirect('rosters:person_detail', person_id=person.id)
 
 
+@require_POST
+@tenant_access_required(manager=True)
+def person_provisional_discard(request, person_id):
+    """Descarta una ficha provisional creada por error desde el acta (#569).
+
+    Solo provisionales y sin nadie detrás: si ya tiene cuenta, familia o una
+    solicitud de vínculo pendiente, esa ficha es de alguien y no se borra desde
+    aquí. Al descartarla desaparecen su rol y su pertenencia al club
+    (``CASCADE``); las alineaciones que apuntaban a ella se quedan sin persona,
+    como estaban antes del alta.
+    """
+    person = get_tenant_object_or_404(
+        Person.objects, request.tenant, user=request.user, id=person_id,
+    )
+    if not person.is_provisional:
+        messages.error(request, _('Solo se pueden descartar fichas provisionales.'))
+        return redirect('rosters:person_detail', person_id=person.id)
+
+    if person.user_id is not None or person.parents.exists():
+        messages.error(request, _('Esa ficha ya tiene cuenta o familia vinculada; no se puede descartar.'))
+        return redirect('rosters:person_detail', person_id=person.id)
+
+    if person.link_requests.filter(status=PersonLinkRequest.Status.PENDING).exists():
+        messages.error(request, _('Hay una solicitud de vínculo pendiente para esa ficha; resuélvela antes de descartarla.'))
+        return redirect('rosters:person_detail', person_id=person.id)
+
+    name = person.last_name
+    person.delete()
+    messages.success(request, _('Ficha provisional descartada: %(name)s.') % {'name': name})
+    return redirect('rosters:person_list')
+
+
 def _resolve_person_stat_season(request, seasons):
     """Temporada a mostrar en las estadísticas del deportista.
 

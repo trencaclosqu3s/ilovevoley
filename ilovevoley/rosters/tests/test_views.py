@@ -14,7 +14,7 @@ from PIL import Image
 
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.competitions.models import League, Match, MatchLineup
-from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
+from ilovevoley.rosters.models import Person, PersonLinkRequest, PlayerRole, StaffRole
 from ilovevoley.teams.models import Club, Team, TeamIdentity
 from ilovevoley.videos.forms import rosters as vid_forms_rosters
 from ilovevoley.videos.views import rosters as vid_views_rosters
@@ -833,3 +833,86 @@ class PlayerRosterBulkAddTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn(self.org_a, self.outsider.organizations.all())
+
+
+@override_settings(ALLOWED_HOSTS=['club-a.ilovevoley.es', 'localhost'])
+class ProvisionalPersonDiscardTests(TestCase):
+    """Descartar una ficha provisional creada por error (#569).
+
+    Justificación: borra datos con efectos persistentes (la ficha arrastra su
+    rol y su pertenencia al club) y protege que solo se aplique a fichas
+    provisionales que no son de nadie: con cuenta, familia o solicitud
+    pendiente, la ficha es de alguien y no se borra desde aquí.
+    """
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='club-a', name='Club A', club_team_names={'1': 'Club A'}, is_active=True,
+        )
+        User = get_user_model()
+        self.manager = User.objects.create_user(username='manager', password='pass')
+        Membership.objects.create(
+            user=self.manager, organization=self.org, is_approved=True, role='manager',
+        )
+        self.member = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(user=self.member, organization=self.org, is_approved=True)
+        self.provisional = Person.objects.create(
+            first_name='', last_name='García', is_provisional=True,
+        )
+        self.provisional.organizations.add(self.org)
+        self.team = Team.objects.create(
+            name='Club A Infantil', federation_id='TEAM-A1', is_active=True,
+        )
+
+    def _discard(self, person=None, user=None):
+        self.client.force_login(user or self.manager)
+        return self.client.post(
+            reverse('rosters:person_provisional_discard', args=[(person or self.provisional).pk]),
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+
+    def test_el_manager_descarta_la_ficha_y_su_rol(self):
+        PlayerRole.objects.create(
+            person=self.provisional, identity=identity_of(self.team),
+            season=Season.objects.resolve('2025-26'), jersey_number=7,
+        )
+
+        response = self._discard()
+
+        self.assertRedirects(response, reverse('rosters:person_list'), fetch_redirect_response=False)
+        self.assertFalse(Person.objects.filter(pk=self.provisional.pk).exists())
+        self.assertFalse(PlayerRole.objects.filter(person_id=self.provisional.pk).exists())
+
+    def test_no_descarta_una_ficha_completa(self):
+        completa = Person.objects.create(first_name='Ana', last_name='Ruiz', birth_year=2012)
+        completa.organizations.add(self.org)
+
+        self._discard(person=completa)
+
+        self.assertTrue(Person.objects.filter(pk=completa.pk).exists())
+
+    def test_no_descarta_una_ficha_que_ya_es_de_alguien(self):
+        con_cuenta = Person.objects.create(first_name='', last_name='Ambcuenta', is_provisional=True)
+        con_cuenta.organizations.add(self.org)
+        con_cuenta.user = self.member
+        con_cuenta.save(update_fields=['user'])
+        con_solicitud = Person.objects.create(first_name='', last_name='Ambsolicitud', is_provisional=True)
+        con_solicitud.organizations.add(self.org)
+        PersonLinkRequest.objects.create(
+            person=con_solicitud, user=self.member, organization=self.org,
+            kind=PersonLinkRequest.Kind.CHILD,
+        )
+
+        self._discard(person=con_cuenta)
+        self._discard(person=con_solicitud)
+
+        self.assertTrue(Person.objects.filter(pk=con_cuenta.pk).exists())
+        self.assertTrue(Person.objects.filter(pk=con_solicitud.pk).exists())
+
+    def test_un_miembro_no_puede_descartarla(self):
+        response = self._discard(user=self.member)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Person.objects.filter(pk=self.provisional.pk).exists())
