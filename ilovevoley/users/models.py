@@ -169,6 +169,17 @@ class User(AbstractUser):
         from ilovevoley.rosters.models import Person
         return Person.objects.filter(Q(user=self) | Q(parents=self)).exists()
 
+    @cached_property
+    def has_provisional_person(self):
+        """Si alguna ficha suya (propia o de hijos) sigue sin completar (#569).
+
+        Son las que se crearon desde un acta y aún no tienen nombre ni año.
+        """
+        from ilovevoley.rosters.models import Person
+        return Person.objects.filter(
+            Q(user=self) | Q(parents=self), is_provisional=True,
+        ).exists()
+
     def can_edit_person(self, person, tenant=None):
         """Verifica si el usuario puede editar una ficha específica."""
         if self.is_superuser:

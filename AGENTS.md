@@ -30,7 +30,10 @@ El paquete raíz es `ilovevoley`. La lógica se divide en apps de dominio:
   no del dominio. Vínculo cuenta ↔ ficha self-service (`PersonLinkRequest`, #531):
   el usuario solicita enlazar su ficha o la de un hijo/a identificándola por nombre,
   apellidos y año exactos; un moderador del club la resuelve en el panel (`/core/moderacion/`)
-  y aprobar es lo único que escribe `Person.user` o `User.children`.
+  y aprobar es lo único que escribe `Person.user` o `User.children`. Las fichas
+  creadas desde el acta (#569, marcadas con `Person.is_provisional`) se reclaman
+  por id desde «Tú» mientras sigan provisionales: son las únicas que no se pueden
+  verificar por nombre y año, y al completarlas el flag se limpia solo.
 - **`content`**: Vídeos (`Video`), imágenes (`Image`), comentarios (`Comment`),
   álbumes grupales (`album_group_id`), etiquetado automático y moderación con
   Google Vision API, vinculados a `Season` y filtrados por temporada activa.
@@ -40,10 +43,11 @@ El paquete raíz es `ilovevoley`. La lógica se divide en apps de dominio:
   (solo para identificar al usuario, sin tokens: `SOCIALACCOUNT_STORE_TOKENS = False`)
   y suscripción de partidos por feed iCal (`calendar_token`), no por la API de
   Google Calendar. Checklist de bienvenida familiar (`ilovevoley/users/onboarding.py`,
-  #533): cuatro pasos con enlace al destino exacto cuyo estado sale de datos que ya
+  #533): pasos con enlace al destino exacto cuyo estado sale de datos que ya
   existen (`has_preferred_categories`, `has_push_subscription`, `has_my_profile`,
-  `calendar_token`); se muestra solo en la pestaña Perfil y se oculta al completarse
-  o al descartarla (`User.onboarding_dismissed_at`, por cuenta y no por dispositivo).
+  `calendar_token` y, si ya hay ficha vinculada, `has_provisional_person` —#569—);
+  se muestra solo en la pestaña Perfil y se oculta al completarse o al descartarla
+  (`User.onboarding_dismissed_at`, por cuenta y no por dispositivo).
 - **`videos`**: Paquete legado que se mantiene **exclusivamente** como capa de
   compatibilidad para URLs antiguas y las tareas periódicas Celery. Nuevos modelos
   o vistas deben ir a su app de dominio correspondiente.

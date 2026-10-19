@@ -78,6 +78,26 @@ class WelcomeChecklistStateTest(TestCase):
         self.user.children.add(child)
         self.assertIn('profile', self._done_keys())
 
+    def test_completar_la_ficha_solo_se_pide_cuando_hay_una_provisional(self):
+        """El paso aparece con la ficha vinculada y se cierra al completarla (#569)."""
+        self.assertNotIn(
+            'complete_profile', [step['key'] for step in welcome_checklist(self.user, self.org)],
+        )
+
+        own = Person.objects.create(
+            first_name='', last_name='García', is_provisional=True, user=self.user,
+        )
+        user = User.objects.get(pk=self.user.pk)
+        steps = {step['key']: step['done'] for step in welcome_checklist(user, self.org)}
+        self.assertFalse(steps['complete_profile'])
+
+        own.first_name = 'Familiar'
+        own.birth_year = 1980
+        own.save(update_fields=['first_name', 'birth_year'])
+        user = User.objects.get(pk=self.user.pk)
+        steps = {step['key']: step['done'] for step in welcome_checklist(user, self.org)}
+        self.assertTrue(steps['complete_profile'])
+
     def test_el_paso_de_calendario_cuenta_con_el_token_de_suscripcion(self):
         self.assertNotIn('calendar', self._done_keys())
 

@@ -12,10 +12,10 @@ from typing import Optional, Tuple
 
 from django.db import transaction
 from django.utils import timezone
-from unidecode import unidecode
 
 from ilovevoley.competitions.models import Match, MatchActaPhoto
 from ilovevoley.competitions.services.lineups import (
+    _names_match,
     _roles_lookup,
     resolve_acta_team,
     store_match_lineups,
@@ -23,16 +23,6 @@ from ilovevoley.competitions.services.lineups import (
 from ilovevoley.videos.scraping.base import is_penalty_result
 
 logger = logging.getLogger(__name__)
-
-
-def _names_match(name_acta: str, last_name: str, first_name: str = '') -> bool:
-    """Comprueba si el nombre leído en el acta coincide parcialmente con el de la plantilla."""
-    if not name_acta:
-        return True
-    w_acta = set(unidecode(name_acta).upper().split())
-    w_last = set(unidecode(last_name or '').upper().split())
-    w_first = set(unidecode(first_name or '').upper().split())
-    return bool(w_acta & (w_last | w_first))
 
 
 def _read_set_points(data_sets) -> list[tuple[int, int]]:

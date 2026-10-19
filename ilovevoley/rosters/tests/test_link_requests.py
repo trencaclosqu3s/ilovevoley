@@ -10,7 +10,11 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from ilovevoley.core.models import Organization
-from ilovevoley.rosters.link_requests import MAX_PENDING_REQUESTS, create_link_request
+from ilovevoley.rosters.link_requests import (
+    MAX_PENDING_REQUESTS,
+    create_link_request,
+    create_link_request_for_person,
+)
 from ilovevoley.rosters.models import Person, PersonLinkRequest
 from ilovevoley.users.models import Membership
 
@@ -202,3 +206,92 @@ class PersonLinkRequestTests(TestCase):
         self.client.force_login(manager_b)
         response = self.client.get(reverse('core:moderation_panel'), HTTP_HOST=HOST_B)
         self.assertNotContains(response, self.person.full_name)
+
+
+@override_settings(ALLOWED_HOSTS=[HOST_A, HOST_B, 'localhost'])
+class ProvisionalPersonClaimTests(TestCase):
+    """Reclamar por id una ficha provisional del acta (#569).
+
+    Justificación: protege que el id solo valga mientras la ficha sea provisional
+    (una completa sigue exigiendo la verificación por nombre y año) y que no
+    cruce clubes. Es la regla que impide pedir el vínculo enumerando ids.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.org_a = Organization.objects.create(
+            slug='club-a', name='Club A', club_team_names={'1': 'Club A'}, is_active=True,
+        )
+        self.org_b = Organization.objects.create(
+            slug='club-b', name='Club B', club_team_names={'1': 'Club B'}, is_active=True,
+        )
+        self.user = get_user_model().objects.create_user(username='member', password='pass')
+        Membership.objects.create(user=self.user, organization=self.org_a, is_approved=True)
+        self.provisional = Person.objects.create(
+            first_name='', last_name='García', is_provisional=True,
+        )
+        self.provisional.organizations.add(self.org_a)
+
+    def test_reclama_una_provisional_del_club_sin_escribir_el_vinculo(self):
+        link, error = create_link_request_for_person(
+            self.user, self.org_a, self.provisional, PersonLinkRequest.Kind.CHILD,
+        )
+
+        self.assertIsNone(error)
+        self.assertEqual(link.person, self.provisional)
+        self.assertEqual(link.status, PersonLinkRequest.Status.PENDING)
+        self.provisional.refresh_from_db()
+        self.assertIsNone(self.provisional.user_id)
+
+    def test_una_ficha_completa_no_se_reclama_por_id(self):
+        completa = Person.objects.create(first_name='Ana', last_name='Ruiz', birth_year=2012)
+        completa.organizations.add(self.org_a)
+
+        link, error = create_link_request_for_person(
+            self.user, self.org_a, completa, PersonLinkRequest.Kind.SELF,
+        )
+
+        self.assertIsNone(link)
+        self.assertIsNotNone(error)
+        self.assertFalse(PersonLinkRequest.objects.exists())
+
+    def test_no_se_reclama_una_provisional_de_otro_club(self):
+        ajena = Person.objects.create(first_name='', last_name='García', is_provisional=True)
+        ajena.organizations.add(self.org_b)
+
+        link, error = create_link_request_for_person(
+            self.user, self.org_a, ajena, PersonLinkRequest.Kind.SELF,
+        )
+
+        self.assertIsNone(link)
+        self.assertIsNotNone(error)
+        self.assertFalse(PersonLinkRequest.objects.exists())
+
+    def test_no_reclama_como_propia_si_la_cuenta_ya_tiene_ficha(self):
+        """El botón se oculta en la UI, pero la regla se aplica en servidor."""
+        Person.objects.create(
+            first_name='Ana', last_name='Ruiz', birth_year=2012, user=self.user,
+        )
+
+        link, error = create_link_request_for_person(
+            self.user, self.org_a, self.provisional, PersonLinkRequest.Kind.SELF,
+        )
+
+        self.assertIsNone(link)
+        self.assertIsNotNone(error)
+        self.assertFalse(PersonLinkRequest.objects.exists())
+
+    def test_el_endpoint_de_reclamo_crea_la_solicitud(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('rosters:person_link_claim'),
+            {'person_id': self.provisional.id, 'kind': 'self'},
+            HTTP_HOST=HOST_A,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        link = PersonLinkRequest.objects.get()
+        self.assertEqual(link.person, self.provisional)
+        self.provisional.refresh_from_db()
+        self.assertIsNone(self.provisional.user_id)

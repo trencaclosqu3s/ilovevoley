@@ -1,17 +1,25 @@
 import logging
 import re
 
+from django.contrib import messages
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
+from ilovevoley.competitions.services.acta_roster import (
+    acta_roster_gaps,
+    create_roster_players,
+    person_candidates,
+)
 from ilovevoley.competitions.services.team_season_stats import get_team_season_summary
 from ilovevoley.core.mixins import get_club_team_name_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
 from ilovevoley.core.tenancy import get_tenant_object_or_404
 from ilovevoley.core.tenant_utils import tenant_access_required, user_is_tenant_manager
-from ilovevoley.rosters.models import PlayerRole, StaffRole
+from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
 from ilovevoley.teams.identity import (
     one_team_per_identity,
     seasonal_appearance_name,
@@ -245,6 +253,24 @@ def team_roster(request, team_id):
         team.identity, summary_season, request.tenant,
     )
 
+    can_manage = user_is_tenant_manager(request.user, request.tenant)
+
+    # Dorsales que aparecen en las actas de la temporada y aún no tienen ficha
+    # (#569). Solo se calculan para quien puede dar de alta jugadores.
+    acta_gaps, acta_gap_season = [], None
+    if can_manage and team.identity_id:
+        acta_gap_season = season_filter or Season.objects.current()
+        if acta_gap_season is not None:
+            acta_gaps = acta_roster_gaps(team.identity, acta_gap_season)
+            # La lista del club se carga una sola vez, y solo si hay huecos que
+            # resolver: es el caso raro, no la visita habitual a la plantilla.
+            if acta_gaps:
+                in_club = list(Person.objects.for_tenant(request.tenant))
+                for gap in acta_gaps:
+                    gap["candidates"] = person_candidates(
+                        gap["name_acta"], request.tenant, in_club=in_club,
+                    )
+
     context = {
         "team": team,
         "roster_title": roster_title,
@@ -255,19 +281,76 @@ def team_roster(request, team_id):
         "position_choices": position_choices,
         "role_choices": role_choices,
         "seasons": Season.objects.all(),
-        "can_manage": user_is_tenant_manager(request.user, request.tenant),
+        "can_manage": can_manage,
         "selected_season": selected_season,
         "season_filtered": "season" in request.GET,
         "selected_position": position_filter,
         "selected_role": role_filter,
         "team_season_summary": team_season_summary,
+        "acta_gaps": acta_gaps,
+        "acta_gap_season": acta_gap_season,
+        "person_last_name_max_length": Person._meta.get_field("last_name").max_length,
     }
     
     return render(request, "teams/team_roster.html", context)
 
 
+@tenant_access_required(manager=True)
+@require_POST
+def roster_from_acta(request, team_id):
+    """Convierte dorsales del acta en fichas provisionales de la plantilla (#569).
+
+    La confirmación llega del formulario de la plantilla: cada fila trae su
+    dorsal, el apellido leído (editable) y, si el manager lo elige, una ficha
+    existente que se reutiliza en vez de crear una nueva.
+    """
+    team = get_tenant_object_or_404(
+        Team.objects, request.tenant, user=request.user, id=team_id,
+    )
+    if not team.identity_id:
+        messages.error(request, _(
+            "Este equipo no tiene identidad asignada; asígnala en el admin antes de dar de alta la plantilla."
+        ))
+        return redirect("teams:team_roster", team.id)
+
+    raw_season = request.POST.get("season", "")
+    season = Season.objects.filter(pk=raw_season).first() if raw_season.isdecimal() else None
+    season = season or Season.objects.current()
+    if season is None:
+        messages.error(request, _("No hay temporada activa; elige una antes de crear las fichas."))
+        return redirect("teams:team_roster", team.id)
+
+    selections = []
+    for key, value in request.POST.items():
+        if not key.startswith("create_") or value != "1":
+            continue
+        jersey = key[len("create_"):]
+        if not jersey.isdecimal():
+            continue
+        person_id = request.POST.get(f"person_{jersey}", "")
+        selections.append({
+            "jersey": int(jersey),
+            "last_name": request.POST.get(f"last_name_{jersey}", ""),
+            "person_id": int(person_id) if person_id.isdecimal() else None,
+        })
+
+    result = create_roster_players(team.identity, season, request.tenant, selections)
+    if not selections:
+        messages.info(request, _("No has seleccionado ningún dorsal."))
+    if result["created"] or result["reused"]:
+        messages.success(request, _(
+            "%(created)s fichas creadas y %(reused)s reutilizadas."
+        ) % result)
+    for error in result["errors"]:
+        messages.error(request, error)
+
+    roster_url = reverse("teams:team_roster", args=[team.id])
+    return redirect(f"{roster_url}?season={season.pk}")
+
+
 __all__ = [
     'ajax_register_team',
+    'roster_from_acta',
     'team_list',
     'team_roster',
 ]

@@ -28,6 +28,51 @@
     </div>
     {% endif %}
 
+    {% if person and person.is_provisional %}
+    <div class="bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-3xl p-6 mb-6">
+        <h2 class="text-lg font-bold text-ink mb-1">{% trans "Falta completar esta ficha" %}</h2>
+        <p class="text-sm text-muted mb-4">
+            {% trans "Se creó desde el acta y solo tiene el apellido. Añade el nombre y la fecha de nacimiento para que la ficha quede completa." %}
+        </p>
+        <a href="{% url 'rosters:person_edit' person.id %}" class="inline-block bg-csj-purple-dark hover:opacity-90 text-white font-semibold py-3 px-5 rounded-full transition text-sm touch-manipulation">
+            {% trans "Completar ficha" %}
+        </a>
+    </div>
+    {% endif %}
+
+    {% if provisional_people %}
+    <div class="bg-surface rounded-3xl border border-line p-6 mb-6">
+        <h2 class="text-lg font-bold text-ink mb-1">{% trans "¿Eres tú o tu hijo/a?" %}</h2>
+        <p class="text-sm text-muted mb-4">
+            {% trans "Estas fichas del club se crearon desde el acta y todavía no tienen nombre ni año. Si alguna es tuya o de tu hijo/a, pide el vínculo y complétala." %}
+        </p>
+        <ul class="space-y-2">
+            {% for entry in provisional_people %}
+                <li class="bg-tint rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
+                    <span class="min-w-0">
+                        <span class="font-semibold text-ink">
+                            {% if entry.jersey_number %}#{{ entry.jersey_number }} · {% endif %}{{ entry.person.last_name }}
+                        </span>
+                        {% if entry.team_name %}<span class="ml-2 text-xs text-muted">{{ entry.team_name }}</span>{% endif %}
+                    </span>
+                    <form method="post" action="{% url 'rosters:person_link_claim' %}" class="flex flex-wrap items-center gap-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="person_id" value="{{ entry.person.id }}">
+                        {% if not person %}
+                            <button type="submit" name="kind" value="self" class="px-4 py-2 rounded-full bg-csj-purple-dark text-white text-sm font-semibold hover:opacity-90 transition touch-manipulation">
+                                {% trans "Es mi ficha" %}
+                            </button>
+                        {% endif %}
+                        <button type="submit" name="kind" value="child" class="px-4 py-2 rounded-full border border-line text-brand-text text-sm font-semibold hover:bg-surface transition touch-manipulation">
+                            {% trans "Es de mi hijo/a" %}
+                        </button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
     {% if link_form %}
         {% include "rosters/_link_request_card.html" with link_form=link_form link_next="my_profile" has_links=has_links has_own_person=has_own_person children_count=children_count %}
     {% endif %}

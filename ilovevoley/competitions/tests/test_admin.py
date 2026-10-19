@@ -1,13 +1,18 @@
 from unittest.mock import patch
 
 from django.contrib import admin as django_admin
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from ilovevoley.competitions.admin.competitions import LeagueAdmin, MatchAdmin
-from ilovevoley.competitions.models import League, Match
-from ilovevoley.core.models import Organization
+from ilovevoley.competitions.admin.competitions import (
+    LeagueAdmin,
+    MatchActaPhotoAdmin,
+    MatchAdmin,
+)
+from ilovevoley.competitions.models import League, Match, MatchActaPhoto
+from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.teams.models import Club, Team
+from ilovevoley.teams.tests.helpers import identity_of
 
 
 class LeagueRelatedOrganizationsTest(TestCase):
@@ -167,3 +172,55 @@ class LeagueHistoricalScrapeActionTest(TestCase):
         with patch('ilovevoley.competitions.tasks.scrape_historical_leagues_task.delay') as delay:
             func(self.admin, request, League.objects.filter(pk=historical.pk))
         delay.assert_called_once_with([historical.pk])
+
+
+class MatchActaPhotoRosterLinksTest(TestCase):
+    """El atajo del acta a la plantilla debe resolverse en el subdominio del club (#569).
+
+    El admin se sirve en el dominio raíz, donde no hay tenant: una ruta relativa
+    dejaría la vista de plantilla sin club.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.club = Club.objects.create(federation_id='c-1', official_name='CV SANT JOSEP')
+        cls.org = Organization.objects.create(
+            slug='club-test-569', name='Club Test 569', club=cls.club,
+            club_team_names={'569': 'CLUB TEST 569'}, is_active=True,
+        )
+        cls.category = Category.objects.create(name='Infantil', is_active=True)
+        cls.team = Team.objects.create(
+            name='CLUB TEST 569 INFANTIL', category=cls.category, club=cls.club,
+            federation_id='t-1', is_active=True,
+        )
+        identity_of(cls.team)
+        cls.rival = Team.objects.create(
+            name='RIVAL INFANTIL', category=cls.category,
+            club=Club.objects.create(federation_id='c-rival', official_name='Rival'),
+            federation_id='t-2', is_active=True,
+        )
+        cls.season = Season.objects.resolve('2025-26')
+        cls.league = League.objects.create(
+            name='Lliga Infantil', federation_id='l-1', season=cls.season,
+            is_active=True, visibility_type='main', is_our_team_related=True,
+        )
+        cls.match = Match.objects.create(
+            league=cls.league, home_team=cls.team, away_team=cls.rival,
+            match_date=timezone.now(), round_number=1, status='finished',
+        )
+        cls.photo = MatchActaPhoto.objects.create(
+            match=cls.match, source_url='https://example.com/acta.jpg',
+        )
+
+    def setUp(self):
+        self.admin = MatchActaPhotoAdmin(MatchActaPhoto, django_admin.site)
+
+    @override_settings(DEBUG=False, TENANT_BASE_DOMAIN='ilovevoley.es')
+    def test_enlaza_con_el_subdominio_del_club_y_omite_al_rival(self):
+        html = str(self.admin.roster_from_acta_links(self.photo))
+
+        self.assertIn(
+            f'https://club-test-569.ilovevoley.es/teams/equipos/{self.team.id}/plantilla/?season={self.season.pk}',
+            html,
+        )
+        self.assertNotIn('RIVAL', html)
