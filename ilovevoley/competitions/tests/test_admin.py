@@ -6,8 +6,8 @@ from django.utils import timezone
 
 from ilovevoley.competitions.admin.competitions import (
     LeagueAdmin,
-    MatchAdmin,
     MatchActaPhotoAdmin,
+    MatchAdmin,
 )
 from ilovevoley.competitions.models import League, Match, MatchActaPhoto
 from ilovevoley.core.models import Category, Organization, Season
