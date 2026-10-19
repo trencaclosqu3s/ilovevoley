@@ -423,6 +423,11 @@ class RostersTenantIsolationTests(TestCase):
         mi_hija = Person.objects.create(first_name='', last_name='Mifilla', is_provisional=True)
         mi_hija.organizations.add(self.org_a)
         self.member.children.add(mi_hija)
+        # La que ya es hija de otra cuenta sí se ofrece: el otro progenitor
+        # también puede vincularse.
+        hija_de_otra = Person.objects.create(first_name='', last_name='Altra', is_provisional=True)
+        hija_de_otra.organizations.add(self.org_a)
+        self.manager.children.add(hija_de_otra)
 
         self.client.force_login(self.member)
         response = self.client.get(
@@ -430,7 +435,7 @@ class RostersTenantIsolationTests(TestCase):
         )
 
         ofrecidas = [entry['person'].last_name for entry in response.context['provisional_people']]
-        self.assertEqual(ofrecidas, ['Lliure'])
+        self.assertEqual(ofrecidas, ['Altra', 'Lliure'])
 
     def test_ficha_de_otro_club_es_visible_donde_tiene_rol_y_oculta_contacto(self):
         # Marc: ficha vinculada al club B, con rol en un equipo del club A.

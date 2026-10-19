@@ -267,6 +267,20 @@ class ProvisionalPersonClaimTests(TestCase):
         self.assertIsNotNone(error)
         self.assertFalse(PersonLinkRequest.objects.exists())
 
+    def test_no_reclama_como_propia_si_la_cuenta_ya_tiene_ficha(self):
+        """El botón se oculta en la UI, pero la regla se aplica en servidor."""
+        Person.objects.create(
+            first_name='Ana', last_name='Ruiz', birth_year=2012, user=self.user,
+        )
+
+        link, error = create_link_request_for_person(
+            self.user, self.org_a, self.provisional, PersonLinkRequest.Kind.SELF,
+        )
+
+        self.assertIsNone(link)
+        self.assertIsNotNone(error)
+        self.assertFalse(PersonLinkRequest.objects.exists())
+
     def test_el_endpoint_de_reclamo_crea_la_solicitud(self):
         self.client.force_login(self.user)
 
