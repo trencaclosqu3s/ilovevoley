@@ -35,6 +35,13 @@
                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
                     <div>
                         <h1 class="text-2xl sm:text-3xl font-bold text-ink mb-2">{{ person.full_name }}</h1>
+                        {% if person.is_provisional %}
+                            <p class="mb-2">
+                                <span class="inline-block bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                    {% trans "Provisional · sin completar" %}
+                                </span>
+                            </p>
+                        {% endif %}
                         
                         <div class="flex flex-wrap items-center gap-3 text-sm text-muted">
                             {% if person.age %}
@@ -73,6 +80,16 @@
                         </a>
                     {% endif %}
                     {% if can_manage %}
+                        {% if person.is_provisional %}
+                            <form method="post" action="{% url 'rosters:person_provisional_discard' person.id %}"
+                                  data-confirm-message="{% trans "¿Descartar esta ficha provisional? Se borra la ficha y su rol en la plantilla." %}"
+                                  class="inline-flex">
+                                {% csrf_token %}
+                                <button type="submit" class="bg-surface hover:bg-tint text-red-600 dark:text-red-400 px-4 py-2 rounded-full font-medium transition text-sm whitespace-nowrap inline-flex items-center border border-line">
+                                    {% trans "Descartar provisional" %}
+                                </button>
+                            </form>
+                        {% endif %}
                         {% if membership and not membership.is_active %}
                             <form method="post" action="{% url 'rosters:person_membership_toggle' person.id %}" id="membership-toggle-form"
                                   data-confirm-message="{% trans "¿Reactivar a esta persona en el club?" %}"
@@ -368,8 +385,7 @@
 {% block extra_js %}
 <script nonce="{{ csp_nonce }}">
 (function () {
-    const form = document.getElementById('membership-toggle-form');
-    if (form) {
+    document.querySelectorAll('form[data-confirm-message]').forEach(function (form) {
         form.addEventListener('submit', function (event) {
             const message = form.dataset.confirmMessage;
             if (message && !confirm(message)) {
@@ -385,7 +401,7 @@
                 }, 0);
             }
         });
-    }
+    });
 })();
 </script>
 {% endblock %}

@@ -18,7 +18,7 @@ def onboarding_steps(user, tenant, *, categories=None, push=None):
     la navbar en cada petición.
     """
     profile_url = reverse('profile')
-    return [
+    steps = [
         {
             'key': 'categories',
             'icon': 'target',
@@ -48,13 +48,24 @@ def onboarding_steps(user, tenant, *, categories=None, push=None):
             'done': bool(user.calendar_token),
         },
     ]
+    # Solo tiene sentido pedir que se complete una ficha si ya hay alguna
+    # vinculada; las creadas desde el acta (#569) nacen sin nombre ni año.
+    if user.has_my_profile:
+        steps.append({
+            'key': 'complete_profile',
+            'icon': 'user',
+            'label': _('Completa los datos de tu ficha'),
+            'url': reverse('rosters:my_profile'),
+            'done': not user.has_provisional_person,
+        })
+    return steps
 
 
 def welcome_checklist(user, tenant, *, categories=None, push=None):
     """Pasos a mostrar en la guía de bienvenida, o ``None`` si no toca.
 
     No hay guía sin club activo, si el usuario ya la descartó, o si ha
-    completado los cuatro pasos. Al completarla o descartarla no vuelve a
+    completado todos los pasos. Al completarla o descartarla no vuelve a
     aparecer: la persistencia es por cuenta, no por dispositivo.
     """
     if tenant is None or user.onboarding_dismissed_at is not None:

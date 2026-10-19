@@ -29,7 +29,7 @@ from ilovevoley.teams.identity import one_team_per_identity
 from ilovevoley.teams.models import Team
 from ilovevoley.competitions.result_card import _file_field_bytes, _team_logo_bytes
 from .forms import BulkPlayerRosterForm, PersonForm, PersonLinkRequestForm, PlayerRoleForm, StaffRoleForm
-from .link_requests import create_link_request
+from .link_requests import create_link_request, create_link_request_for_person
 from .models import Person, PersonLinkRequest, PlayerRole, SeasonWrapped, StaffRole
 from .player_card import (
     card_highlight,
@@ -185,7 +185,9 @@ def my_profile(request):
     el usuario solo ve sus propios datos (nunca recibe un id por URL). Los
     padres ven además la lista de sus hijos (#457). La tarjeta de vínculo
     self-service (#531) se ofrece siempre; si ya hay vínculos aparece plegada
-    (#553), para poder añadir otro hijo/a o vincular la ficha propia.
+    (#553), para poder añadir otro hijo/a o vincular la ficha propia. Las
+    fichas provisionales del club (#569) se listan para reclamarlas, y una
+    ficha sin completar lleva su propio aviso.
     """
     person = Person.objects.filter(user=request.user).first()
     children = [
@@ -200,11 +202,70 @@ def my_profile(request):
     return render(request, 'rosters/my_profile.html', {
         **context,
         'children': children,
+        'provisional_people': _claimable_people(request),
         'link_form': PersonLinkRequestForm(user=request.user, organization=request.tenant),
         'has_own_person': person is not None,
         'children_count': len(children),
         'has_links': person is not None or bool(children),
     })
+
+
+def _claimable_people(request):
+    """Fichas provisionales del club que este usuario puede reclamar (#569).
+
+    Solo del club del tenant, sin dueño propio y que no sean ya su hijo/a: una
+    ficha con ``user`` no se ofrece a nadie más. En cambio, la que ya es hija de
+    otra cuenta sí se ofrece, porque el otro progenitor también puede
+    vincularse. El club ya lista sus fichas en ``person_list``, así que mostrar
+    apellido, equipo y dorsal no abre nada nuevo.
+    """
+    people = (
+        Person.objects.for_tenant(request.tenant)
+        .filter(is_provisional=True, is_active=True, user__isnull=True)
+        .exclude(parents=request.user)
+        .prefetch_related(
+            Prefetch(
+                'player_roles',
+                queryset=PlayerRole.objects.for_tenant(request.tenant).select_related('identity'),
+            )
+        )
+        .order_by('last_name', 'first_name')[:20]
+    )
+    entries = []
+    for person in people:
+        role = next(iter(person.player_roles.all()), None)
+        entries.append({
+            'person': person,
+            'jersey_number': role.jersey_number if role else None,
+            'team_name': role.identity.core_name if role else '',
+        })
+    return entries
+
+
+@require_POST
+@tenant_access_required()
+@ratelimit(key='user_or_ip', rate='10/h', block=True)
+def person_link_claim(request):
+    """Reclama una ficha provisional del club (#569).
+
+    El id llega del listado de «Tú»: solo hay fichas provisionales sin dueño,
+    así que no es un buscador de personas. El vínculo no se escribe aquí; se
+    crea la misma solicitud pendiente que resuelve un moderador.
+    """
+    raw_id = request.POST.get('person_id', '')
+    if not raw_id.isdecimal():
+        raise Http404
+    person = get_tenant_object_or_404(
+        Person.objects, request.tenant, user=request.user, id=int(raw_id),
+    )
+    _link, error = create_link_request_for_person(
+        request.user, request.tenant, person, request.POST.get('kind', ''),
+    )
+    if error:
+        messages.error(request, error)
+    else:
+        messages.success(request, _('Solicitud enviada. Un moderador del club la revisará.'))
+    return redirect('rosters:my_profile')
 
 
 @tenant_access_required()
@@ -582,6 +643,59 @@ def person_membership_toggle(request, person_id):
         person.enroll(request.tenant)
         messages.success(request, _('%(name)s está de alta en el club.') % {'name': person.full_name})
     return redirect('rosters:person_detail', person_id=person.id)
+
+
+@require_POST
+@tenant_access_required(manager=True)
+@transaction.atomic
+def person_provisional_discard(request, person_id):
+    """Descarta una ficha provisional creada por error desde el acta (#569).
+
+    Solo provisionales y sin nadie detrás: si ya tiene cuenta, familia o una
+    solicitud de vínculo pendiente, esa ficha es de alguien y no se borra desde
+    aquí. Tampoco si tiene roles o pertenencias en otro club: ``Person`` es
+    global y el borrado arrastraría datos ajenos. Al descartarla desaparecen su
+    rol y su pertenencia al club (``CASCADE``); las alineaciones que apuntaban a
+    ella se quedan sin persona, como estaban antes del alta.
+
+    La fila se bloquea hasta el borrado: si otro moderador aprueba una solicitud
+    a la vez, las dos operaciones se serializan en vez de pisarse.
+    """
+    person = get_tenant_object_or_404(
+        Person.objects.select_for_update(), request.tenant, user=request.user, id=person_id,
+    )
+    if not person.is_provisional:
+        messages.error(request, _('Solo se pueden descartar fichas provisionales.'))
+        return redirect('rosters:person_detail', person_id=person.id)
+
+    if person.user_id is not None or person.parents.exists():
+        messages.error(request, _('Esa ficha ya tiene cuenta o familia vinculada; no se puede descartar.'))
+        return redirect('rosters:person_detail', person_id=person.id)
+
+    if person.link_requests.filter(status=PersonLinkRequest.Status.PENDING).exists():
+        messages.error(request, _('Hay una solicitud de vínculo pendiente para esa ficha; resuélvela antes de descartarla.'))
+        return redirect('rosters:person_detail', person_id=person.id)
+
+    # Sin los nulos: un equipo del club sin identidad deja `club_identities`
+    # con NULL y el `exclude` de SQL no descartaría nada (NOT IN (NULL) es
+    # *unknown*), que es exactamente lo que la guarda debe evitar.
+    club_identities = (
+        Team.objects.for_tenant(request.tenant)
+        .exclude(identity__isnull=True)
+        .values('identity')
+    )
+    if (
+        person.club_memberships.exclude(organization=request.tenant).exists()
+        or person.player_roles.exclude(identity__in=club_identities).exists()
+        or person.staff_roles.exclude(identity__in=club_identities).exists()
+    ):
+        messages.error(request, _('Esa ficha tiene datos en otro club; no se puede descartar desde aquí.'))
+        return redirect('rosters:person_detail', person_id=person.id)
+
+    name = person.last_name
+    person.delete()
+    messages.success(request, _('Ficha provisional descartada: %(name)s.') % {'name': name})
+    return redirect('rosters:person_list')
 
 
 def _resolve_person_stat_season(request, seasons):

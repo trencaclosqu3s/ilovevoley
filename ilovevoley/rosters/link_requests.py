@@ -9,6 +9,10 @@ convertir el formulario en un buscador de personas de otros clubes.
 Las reglas de negocio viven aquí, no en la vista: una ficha solo puede
 pertenecer a un usuario (``kind=self``) y aprobar es lo único que escribe el
 vínculo.
+
+Hay dos entradas: ``create_link_request`` (nombre, apellidos y año exactos) y
+``create_link_request_for_person`` para las fichas provisionales del acta
+(#569), que todavía no tienen esos datos y por eso se identifican por id.
 """
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -65,23 +69,12 @@ def validate_link_request(user, person, kind):
     return None
 
 
-def create_link_request(user, organization, first_name, last_name, birth_year, kind):
-    """Crea (o reutiliza) la solicitud pendiente.
+def _create_pending(user, organization, person, kind):
+    """Crea (o reutiliza) la solicitud pendiente de (usuario, ficha).
 
-    Devuelve ``(solicitud, error)``. En éxito ``error`` es ``None``. Es
-    idempotente: si ya existe una solicitud pendiente para esa (usuario, ficha)
-    la devuelve sin duplicar ni revalidar.
+    Devuelve ``(solicitud, error)``. Es idempotente: si ya existe una solicitud
+    pendiente para esa pareja la devuelve sin duplicar ni revalidar.
     """
-    person = find_person(first_name, last_name, birth_year)
-    if person is None or not person_belongs_to_tenant(person, organization):
-        # Mismo mensaje en ambos casos: no se confirma la existencia de fichas
-        # de otros clubes.
-        return None, _('No encontramos ninguna ficha con esos datos en tu club.')
-
-    error = validate_link_request(user, person, kind)
-    if error:
-        return None, error
-
     pending_count = PersonLinkRequest.objects.filter(
         user=user, organization=organization, status=PersonLinkRequest.Status.PENDING,
     ).count()
@@ -103,6 +96,45 @@ def create_link_request(user, organization, first_name, last_name, birth_year, k
         return PersonLinkRequest.objects.filter(
             user=user, person=person, status=PersonLinkRequest.Status.PENDING,
         ).first(), None
+
+
+def create_link_request(user, organization, first_name, last_name, birth_year, kind):
+    """Solicitud identificando la ficha por nombre, apellidos y año exactos.
+
+    Devuelve ``(solicitud, error)``. En éxito ``error`` es ``None``.
+    """
+    person = find_person(first_name, last_name, birth_year)
+    if person is None or not person_belongs_to_tenant(person, organization):
+        # Mismo mensaje en ambos casos: no se confirma la existencia de fichas
+        # de otros clubes.
+        return None, _('No encontramos ninguna ficha con esos datos en tu club.')
+
+    error = validate_link_request(user, person, kind)
+    if error:
+        return None, error
+
+    return _create_pending(user, organization, person, kind)
+
+
+def create_link_request_for_person(user, organization, person, kind):
+    """Solicitud para una ficha ya identificada, hoy solo las provisionales (#569).
+
+    Identificar la ficha por id solo vale mientras sea provisional: es la que no
+    se puede verificar por nombre y año porque el acta solo traía un apellido.
+    Una ficha completa sigue exigiendo la verificación estricta de
+    ``create_link_request``, para que el vínculo no se pueda pedir enumerando
+    ids de fichas de otras familias del club.
+    """
+    if person is None or not person.is_provisional:
+        return None, _('Esa ficha ya está completa; identifícala por nombre y año.')
+    if not person_belongs_to_tenant(person, organization):
+        return None, _('No encontramos ninguna ficha con esos datos en tu club.')
+
+    error = validate_link_request(user, person, kind)
+    if error:
+        return None, error
+
+    return _create_pending(user, organization, person, kind)
 
 
 def approve_link_request(link_request, moderator):

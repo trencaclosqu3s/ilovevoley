@@ -14,7 +14,7 @@ from PIL import Image
 
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.competitions.models import League, Match, MatchLineup
-from ilovevoley.rosters.models import Person, PlayerRole, StaffRole
+from ilovevoley.rosters.models import Person, PersonLinkRequest, PlayerRole, StaffRole
 from ilovevoley.teams.models import Club, Team, TeamIdentity
 from ilovevoley.videos.forms import rosters as vid_forms_rosters
 from ilovevoley.videos.views import rosters as vid_views_rosters
@@ -409,6 +409,33 @@ class RostersTenantIsolationTests(TestCase):
             reverse('rosters:my_profile'), {'season': older.pk}, HTTP_HOST='club-a.ilovevoley.es',
         )
         self.assertContains(response, 'Club B Junior')
+
+    def test_my_profile_solo_ofrece_provisionales_libres_del_club(self):
+        """El listado de reclamo no cruza clubes ni ofrece fichas con dueño (#569)."""
+        libre = Person.objects.create(first_name='', last_name='Lliure', is_provisional=True)
+        libre.organizations.add(self.org_a)
+        de_otro_club = Person.objects.create(first_name='', last_name='Aliena', is_provisional=True)
+        de_otro_club.organizations.add(self.org_b)
+        con_dueno = Person.objects.create(first_name='', last_name='Ambduen', is_provisional=True)
+        con_dueno.organizations.add(self.org_a)
+        con_dueno.user = self.manager
+        con_dueno.save(update_fields=['user'])
+        mi_hija = Person.objects.create(first_name='', last_name='Mifilla', is_provisional=True)
+        mi_hija.organizations.add(self.org_a)
+        self.member.children.add(mi_hija)
+        # La que ya es hija de otra cuenta sí se ofrece: el otro progenitor
+        # también puede vincularse.
+        hija_de_otra = Person.objects.create(first_name='', last_name='Altra', is_provisional=True)
+        hija_de_otra.organizations.add(self.org_a)
+        self.manager.children.add(hija_de_otra)
+
+        self.client.force_login(self.member)
+        response = self.client.get(
+            reverse('rosters:my_profile'), HTTP_HOST='club-a.ilovevoley.es',
+        )
+
+        ofrecidas = [entry['person'].last_name for entry in response.context['provisional_people']]
+        self.assertEqual(ofrecidas, ['Altra', 'Lliure'])
 
     def test_ficha_de_otro_club_es_visible_donde_tiene_rol_y_oculta_contacto(self):
         # Marc: ficha vinculada al club B, con rol en un equipo del club A.
@@ -806,3 +833,118 @@ class PlayerRosterBulkAddTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn(self.org_a, self.outsider.organizations.all())
+
+
+@override_settings(ALLOWED_HOSTS=['club-a.ilovevoley.es', 'localhost'])
+class ProvisionalPersonDiscardTests(TestCase):
+    """Descartar una ficha provisional creada por error (#569).
+
+    Justificación: borra datos con efectos persistentes (la ficha arrastra su
+    rol y su pertenencia al club) y protege que solo se aplique a fichas
+    provisionales que no son de nadie: con cuenta, familia o solicitud
+    pendiente, la ficha es de alguien y no se borra desde aquí.
+    """
+
+    def setUp(self):
+        from ilovevoley.users.models import Membership
+        cache.clear()
+        self.org = Organization.objects.create(
+            slug='club-a', name='Club A', club_team_names={'1': 'Club A'}, is_active=True,
+        )
+        User = get_user_model()
+        self.manager = User.objects.create_user(username='manager', password='pass')
+        Membership.objects.create(
+            user=self.manager, organization=self.org, is_approved=True, role='manager',
+        )
+        self.member = User.objects.create_user(username='member', password='pass')
+        Membership.objects.create(user=self.member, organization=self.org, is_approved=True)
+        self.provisional = Person.objects.create(
+            first_name='', last_name='García', is_provisional=True,
+        )
+        self.provisional.organizations.add(self.org)
+        self.team = Team.objects.create(
+            name='Club A Infantil', federation_id='TEAM-A1', is_active=True,
+        )
+
+    def _discard(self, person=None, user=None):
+        self.client.force_login(user or self.manager)
+        return self.client.post(
+            reverse('rosters:person_provisional_discard', args=[(person or self.provisional).pk]),
+            HTTP_HOST='club-a.ilovevoley.es',
+        )
+
+    def test_el_manager_descarta_la_ficha_y_su_rol(self):
+        PlayerRole.objects.create(
+            person=self.provisional, identity=identity_of(self.team),
+            season=Season.objects.resolve('2025-26'), jersey_number=7,
+        )
+
+        response = self._discard()
+
+        self.assertRedirects(response, reverse('rosters:person_list'), fetch_redirect_response=False)
+        self.assertFalse(Person.objects.filter(pk=self.provisional.pk).exists())
+        self.assertFalse(PlayerRole.objects.filter(person_id=self.provisional.pk).exists())
+
+    def test_no_descarta_una_ficha_completa(self):
+        completa = Person.objects.create(first_name='Ana', last_name='Ruiz', birth_year=2012)
+        completa.organizations.add(self.org)
+
+        self._discard(person=completa)
+
+        self.assertTrue(Person.objects.filter(pk=completa.pk).exists())
+
+    def test_no_descarta_una_ficha_que_ya_es_de_alguien(self):
+        con_cuenta = Person.objects.create(first_name='', last_name='Ambcuenta', is_provisional=True)
+        con_cuenta.organizations.add(self.org)
+        con_cuenta.user = self.member
+        con_cuenta.save(update_fields=['user'])
+        con_solicitud = Person.objects.create(first_name='', last_name='Ambsolicitud', is_provisional=True)
+        con_solicitud.organizations.add(self.org)
+        PersonLinkRequest.objects.create(
+            person=con_solicitud, user=self.member, organization=self.org,
+            kind=PersonLinkRequest.Kind.CHILD,
+        )
+
+        self._discard(person=con_cuenta)
+        self._discard(person=con_solicitud)
+
+        self.assertTrue(Person.objects.filter(pk=con_cuenta.pk).exists())
+        self.assertTrue(Person.objects.filter(pk=con_solicitud.pk).exists())
+
+    def test_un_miembro_no_puede_descartarla(self):
+        response = self._discard(user=self.member)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Person.objects.filter(pk=self.provisional.pk).exists())
+
+    def test_no_descarta_una_ficha_con_datos_en_otro_club(self):
+        fuera = Person.objects.create(first_name='', last_name='Ambfora', is_provisional=True)
+        fuera.organizations.add(self.org)
+        fuera.organizations.add(
+            Organization.objects.create(slug='club-b', name='Club B', is_active=True),
+        )
+
+        self._discard(person=fuera)
+
+        self.assertTrue(Person.objects.filter(pk=fuera.pk).exists())
+
+    def test_no_descarta_una_ficha_con_roles_en_otro_club(self):
+        """El borrado arrastra también los roles, de jugador y de staff."""
+        equipo_b = Team.objects.create(name='Club B Junior', federation_id='TEAM-B1', is_active=True)
+        season = Season.objects.resolve('2025-26')
+        con_rol = Person.objects.create(first_name='', last_name='Rolfora', is_provisional=True)
+        con_rol.organizations.add(self.org)
+        PlayerRole.objects.create(
+            person=con_rol, identity=identity_of(equipo_b), season=season, jersey_number=5,
+        )
+        con_staff = Person.objects.create(first_name='', last_name='Stafffora', is_provisional=True)
+        con_staff.organizations.add(self.org)
+        StaffRole.objects.create(
+            person=con_staff, identity=identity_of(equipo_b), season=season, role='delegate',
+        )
+
+        self._discard(person=con_rol)
+        self._discard(person=con_staff)
+
+        self.assertTrue(Person.objects.filter(pk=con_rol.pk).exists())
+        self.assertTrue(Person.objects.filter(pk=con_staff.pk).exists())
