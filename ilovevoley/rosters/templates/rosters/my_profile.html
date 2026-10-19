@@ -44,7 +44,7 @@
     <div class="bg-surface rounded-3xl border border-line p-6 mb-6">
         <h2 class="text-lg font-bold text-ink mb-1">{% trans "¿Eres tú o tu hijo/a?" %}</h2>
         <p class="text-sm text-muted mb-4">
-            {% trans "Estas fichas del club se crearon desde el acta y todavía no tienen familia. Si alguna es vuestra, pide el vínculo y complétala." %}
+            {% trans "Estas fichas del club se crearon desde el acta y todavía no tienen nombre ni año. Si alguna es tuya o de tu hijo/a, pide el vínculo y complétala." %}
         </p>
         <ul class="space-y-2">
             {% for entry in provisional_people %}
@@ -58,9 +58,11 @@
                     <form method="post" action="{% url 'rosters:person_link_claim' %}" class="flex flex-wrap items-center gap-2">
                         {% csrf_token %}
                         <input type="hidden" name="person_id" value="{{ entry.person.id }}">
-                        <button type="submit" name="kind" value="self" class="px-4 py-2 rounded-full bg-csj-purple-dark text-white text-sm font-semibold hover:opacity-90 transition touch-manipulation">
-                            {% trans "Es mi ficha" %}
-                        </button>
+                        {% if not person %}
+                            <button type="submit" name="kind" value="self" class="px-4 py-2 rounded-full bg-csj-purple-dark text-white text-sm font-semibold hover:opacity-90 transition touch-manipulation">
+                                {% trans "Es mi ficha" %}
+                            </button>
+                        {% endif %}
                         <button type="submit" name="kind" value="child" class="px-4 py-2 rounded-full border border-line text-brand-text text-sm font-semibold hover:bg-surface transition touch-manipulation">
                             {% trans "Es de mi hijo/a" %}
                         </button>

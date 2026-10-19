@@ -410,6 +410,28 @@ class RostersTenantIsolationTests(TestCase):
         )
         self.assertContains(response, 'Club B Junior')
 
+    def test_my_profile_solo_ofrece_provisionales_libres_del_club(self):
+        """El listado de reclamo no cruza clubes ni ofrece fichas con dueño (#569)."""
+        libre = Person.objects.create(first_name='', last_name='Lliure', is_provisional=True)
+        libre.organizations.add(self.org_a)
+        de_otro_club = Person.objects.create(first_name='', last_name='Aliena', is_provisional=True)
+        de_otro_club.organizations.add(self.org_b)
+        con_dueno = Person.objects.create(first_name='', last_name='Ambduen', is_provisional=True)
+        con_dueno.organizations.add(self.org_a)
+        con_dueno.user = self.manager
+        con_dueno.save(update_fields=['user'])
+        mi_hija = Person.objects.create(first_name='', last_name='Mifilla', is_provisional=True)
+        mi_hija.organizations.add(self.org_a)
+        self.member.children.add(mi_hija)
+
+        self.client.force_login(self.member)
+        response = self.client.get(
+            reverse('rosters:my_profile'), HTTP_HOST='club-a.ilovevoley.es',
+        )
+
+        ofrecidas = [entry['person'].last_name for entry in response.context['provisional_people']]
+        self.assertEqual(ofrecidas, ['Lliure'])
+
     def test_ficha_de_otro_club_es_visible_donde_tiene_rol_y_oculta_contacto(self):
         # Marc: ficha vinculada al club B, con rol en un equipo del club A.
         self.person_b.email = 'bea@example.com'

@@ -213,9 +213,11 @@ def my_profile(request):
 def _claimable_people(request):
     """Fichas provisionales del club que este usuario puede reclamar (#569).
 
-    Solo del club del tenant, sin dueño y sin rol de hijo/a: una ficha que ya
-    tiene familia no se ofrece. El club ya lista sus fichas en ``person_list``,
-    así que mostrar apellido, equipo y dorsal no abre nada nuevo.
+    Solo del club del tenant, sin dueño propio y que no sean ya su hijo/a: una
+    ficha con ``user`` no se ofrece a nadie más. En cambio, la que ya es hija de
+    otra cuenta sí se ofrece, porque el otro progenitor también puede
+    vincularse. El club ya lista sus fichas en ``person_list``, así que mostrar
+    apellido, equipo y dorsal no abre nada nuevo.
     """
     people = (
         Person.objects.for_tenant(request.tenant)
@@ -240,6 +242,7 @@ def _claimable_people(request):
     return entries
 
 
+@require_POST
 @tenant_access_required()
 @ratelimit(key='user_or_ip', rate='10/h', block=True)
 def person_link_claim(request):
