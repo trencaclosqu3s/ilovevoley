@@ -29,7 +29,7 @@ from ilovevoley.teams.identity import one_team_per_identity
 from ilovevoley.teams.models import Team
 from ilovevoley.competitions.result_card import _file_field_bytes, _team_logo_bytes
 from .forms import BulkPlayerRosterForm, PersonForm, PersonLinkRequestForm, PlayerRoleForm, StaffRoleForm
-from .link_requests import create_link_request
+from .link_requests import create_link_request, create_link_request_for_person
 from .models import Person, PersonLinkRequest, PlayerRole, SeasonWrapped, StaffRole
 from .player_card import (
     card_highlight,
@@ -185,7 +185,9 @@ def my_profile(request):
     el usuario solo ve sus propios datos (nunca recibe un id por URL). Los
     padres ven además la lista de sus hijos (#457). La tarjeta de vínculo
     self-service (#531) se ofrece siempre; si ya hay vínculos aparece plegada
-    (#553), para poder añadir otro hijo/a o vincular la ficha propia.
+    (#553), para poder añadir otro hijo/a o vincular la ficha propia. Las
+    fichas provisionales del club (#569) se listan para reclamarlas, y una
+    ficha sin completar lleva su propio aviso.
     """
     person = Person.objects.filter(user=request.user).first()
     children = [
@@ -200,11 +202,67 @@ def my_profile(request):
     return render(request, 'rosters/my_profile.html', {
         **context,
         'children': children,
+        'provisional_people': _claimable_people(request),
         'link_form': PersonLinkRequestForm(user=request.user, organization=request.tenant),
         'has_own_person': person is not None,
         'children_count': len(children),
         'has_links': person is not None or bool(children),
     })
+
+
+def _claimable_people(request):
+    """Fichas provisionales del club que este usuario puede reclamar (#569).
+
+    Solo del club del tenant, sin dueño y sin rol de hijo/a: una ficha que ya
+    tiene familia no se ofrece. El club ya lista sus fichas en ``person_list``,
+    así que mostrar apellido, equipo y dorsal no abre nada nuevo.
+    """
+    people = (
+        Person.objects.for_tenant(request.tenant)
+        .filter(is_provisional=True, is_active=True, user__isnull=True)
+        .exclude(parents=request.user)
+        .prefetch_related(
+            Prefetch(
+                'player_roles',
+                queryset=PlayerRole.objects.for_tenant(request.tenant).select_related('identity'),
+            )
+        )
+        .order_by('last_name', 'first_name')[:20]
+    )
+    entries = []
+    for person in people:
+        role = next(iter(person.player_roles.all()), None)
+        entries.append({
+            'person': person,
+            'jersey_number': role.jersey_number if role else None,
+            'team_name': role.identity.core_name if role else '',
+        })
+    return entries
+
+
+@tenant_access_required()
+@ratelimit(key='user_or_ip', rate='10/h', block=True)
+def person_link_claim(request):
+    """Reclama una ficha provisional del club (#569).
+
+    El id llega del listado de «Tú»: solo hay fichas provisionales sin dueño,
+    así que no es un buscador de personas. El vínculo no se escribe aquí; se
+    crea la misma solicitud pendiente que resuelve un moderador.
+    """
+    raw_id = request.POST.get('person_id', '')
+    if not raw_id.isdecimal():
+        raise Http404
+    person = get_tenant_object_or_404(
+        Person.objects, request.tenant, user=request.user, id=int(raw_id),
+    )
+    _link, error = create_link_request_for_person(
+        request.user, request.tenant, person, request.POST.get('kind', ''),
+    )
+    if error:
+        messages.error(request, error)
+    else:
+        messages.success(request, _('Solicitud enviada. Un moderador del club la revisará.'))
+    return redirect('rosters:my_profile')
 
 
 @tenant_access_required()

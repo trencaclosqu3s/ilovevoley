@@ -11,6 +11,7 @@ urlpatterns = [
     path('personas/adoptar/', views.person_adopt, name='person_adopt'),
     path('personas/yo/', views.my_profile, name='my_profile'),
     path('personas/vincular/', views.person_link_request, name='person_link_request'),
+    path('personas/vincular/reclamar/', views.person_link_claim, name='person_link_claim'),
     path('personas/yo/hijos/<int:person_id>/', views.child_profile, name='child_profile'),
     path('personas/<int:person_id>/', views.person_detail, name='person_detail'),
     path('personas/<int:person_id>/baja-alta/', views.person_membership_toggle, name='person_membership_toggle'),
