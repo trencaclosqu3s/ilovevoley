@@ -118,3 +118,80 @@ def api_scoreboard_stream_live(request, tenant):
     match_id = parse_match_id(data)
     match = resolve_match(tenant, match_id)
     return _save_stream_url(match, stream_url, tenant)
+
+
+def _active_organization(team):
+    """Primera organización activa del club, ya precargada. Sin club, None."""
+    club = team.club
+    if club is None:
+        return None
+    for organization in club.organizations.all():
+        if organization.is_active:
+            return organization
+    return None
+
+
+def _absolute_logo(request, team):
+    """URL absoluta del escudo: el del equipo, si no el del club, si no None."""
+    image = team.logo
+    if not image and team.club_id and team.club.logo:
+        image = team.club.logo
+    if not image:
+        return None
+    return request.build_absolute_uri(image.url)
+
+
+def _team_payload(request, team, fallback_name):
+    """Nombre, escudo y colores del equipo. Sin ficha, solo el nombre de texto."""
+    if team is None:
+        return {
+            'name': fallback_name,
+            'logo': None,
+            'primary_color': None,
+            'secondary_color': None,
+        }
+    organization = _active_organization(team)
+    primary = organization.primary_color if organization else None
+    secondary = organization.secondary_color if organization else None
+    return {
+        'name': team.name,
+        'logo': _absolute_logo(request, team),
+        'primary_color': primary or None,
+        'secondary_color': secondary or None,
+    }
+
+
+@scoreboard_api(methods=('GET',))
+def api_scoreboard_matches_today(request, tenant):
+    """Partidos de hoy del club, en el día natural de Europe/Madrid."""
+    start = timezone.localtime(timezone.now()).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    end = start + timedelta(days=1)
+    matches = (
+        Match.objects.for_tenant(tenant)
+        .exclude(status__in=['finished', 'cancelled', 'postponed'])
+        .filter(match_date__gte=start, match_date__lt=end)
+        .select_related('home_team__club', 'away_team__club')
+        .prefetch_related(
+            'home_team__club__organizations',
+            'away_team__club__organizations',
+        )
+        .order_by('match_date')
+    )
+    payload = []
+    for match in matches:
+        local_date = timezone.localtime(match.match_date)
+        payload.append({
+            'id': match.pk,
+            'match_date': local_date.isoformat(),
+            'time': local_date.strftime('%H:%M'),
+            'status': match.status,
+            'home_team': _team_payload(request, match.home_team, match.home_team_display),
+            'away_team': _team_payload(request, match.away_team, match.away_team_display),
+        })
+    return JsonResponse({
+        'success': True,
+        'date': start.date().isoformat(),
+        'matches': payload,
+    })

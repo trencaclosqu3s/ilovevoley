@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from .calendar_feed import UserMatchesFeed
-from .scoreboard_api import api_scoreboard_stream_live
+from .scoreboard_api import api_scoreboard_matches_today, api_scoreboard_stream_live
 
 app_name = 'competitions'
 
@@ -35,6 +35,7 @@ urlpatterns = [
     path('ajax/partidos/<int:match_id>/alineacion/vincular/', views.ajax_link_acta_person, name='ajax_link_acta_person'),
     path('ajax/partidos/<int:match_id>/stream/', views.ajax_update_stream_url, name='ajax_update_stream_url'),
     path('api/stream/live/', api_scoreboard_stream_live, name='api_scoreboard_stream_live'),
+    path('api/matches/today/', api_scoreboard_matches_today, name='api_scoreboard_matches_today'),
     path('ajax/cambios/<int:log_id>/marcar-revisado/', views.ajax_mark_change_reviewed, name='ajax_mark_change_reviewed'),
 
 ]
