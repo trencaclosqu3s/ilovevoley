@@ -194,6 +194,30 @@ class MatchChangeNotificationsTest(TestCase):
         recipients = mail.outbox[0].to + mail.outbox[0].bcc
         self.assertIn('delegat@seleccion.com', recipients)
 
+    def test_match_without_tenant_club_is_not_notified(self):
+        """Solo avisan los partidos con algún club con tenant activo, también en modo pruebas."""
+        club_x = Club.objects.create(federation_id='c-x', official_name='CV AJENO')
+        Organization.objects.create(slug='inactiva', name='Inactiva', club=club_x, is_active=False)
+        match = Match.objects.create(
+            league=self.league,
+            home_team=Team.objects.create(name='AJENO', federation_id='t-x', club=club_x),
+            away_team=Team.objects.create(name='SIN CLUB', federation_id='t-y'),
+            match_date=timezone.now() + timedelta(days=2), venue='Pabellón X',
+        )
+        log = MatchChangeLog.objects.create(
+            match=match, change_type='venue', field_name='venue',
+            old_value='A', new_value='B', is_last_minute=True,
+        )
+
+        with override_settings(
+            MATCH_CHANGE_NOTIFY_STAFF_ENABLED=False,
+            MATCH_CHANGE_TEST_RECIPIENT='test_admin@isitech.es',
+        ):
+            sent_count = notify_match_changes([log])
+
+        self.assertEqual(sent_count, 0)
+        self.assertEqual(len(mail.outbox), 0)
+
     def test_superuser_flag_off_in_test_mode_sends_only_test_recipient(self):
         """MATCH_CHANGE_NOTIFY_SUPERUSERS=False también aplica en modo pruebas (#236)."""
         User.objects.create_superuser(username='root2', email='root2@isitech.es', password='x')
