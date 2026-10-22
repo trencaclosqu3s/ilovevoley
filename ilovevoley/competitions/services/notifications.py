@@ -232,6 +232,12 @@ def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
     organizations_by_club = _organizations_by_club(list(logs_by_match.keys()))
 
     for match, logs in logs_by_match.items():
+        organization = _match_organization(match, organizations_by_club)
+        # Solo partidos de algún club con tenant activo: el resto de cambios federativos
+        # queda registrado en MatchChangeLog sin avisar (ni a superusuarios ni al buzón de prueba).
+        if organization is None:
+            continue
+
         recipients = get_recipients_for_match(match)
         if not recipients:
             logger.warning(f"No hay destinatarios para notificar cambios en el partido {match.id}")
@@ -239,8 +245,7 @@ def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
 
         match_path = reverse('competitions:match_detail', kwargs={'match_id': match.id})
         # Enlace al subdominio del club (evita caer en la landing del dominio raíz).
-        # Sin club vinculado, build_absolute_url usa el dominio base con la ruta correcta.
-        match_url = build_absolute_url(match_path, tenant=_match_organization(match, organizations_by_club))
+        match_url = build_absolute_url(match_path, tenant=organization)
         context = {
             'match': match,
             'changes': logs,

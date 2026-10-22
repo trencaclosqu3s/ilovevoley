@@ -8,7 +8,7 @@ dependencies = [
     "django-unfold==0.108.0",
     "psycopg2-binary==2.9.13",
     "python-decouple==3.8",
-    "Pillow==12.3.0",
+    "Pillow==13.0.0",
     "pillow-heif==1.8.1",
     "django-allauth==65.19.7",
     "requests==2.34.2",
@@ -26,7 +26,7 @@ dependencies = [
     "redis==8.1.0",
     "gunicorn==26.2.0",
     "django-ical==1.9.2",
-    "pypdf>=6.20.0",
+    "pypdf>=6.21.1",
     "sentry-sdk[django]==2.71.0",
     "django-ratelimit==4.1.0",
     "pywebpush==2.5.0",
@@ -47,10 +47,11 @@ package = false
 # Margen frente a releases recién publicadas (acompañado del cooldown de Dependabot).
 exclude-newer = "7 days"
 # Excepciones al margen de 7 días. Son versiones publicadas dentro de la ventana
-# que el árbol de hoy ya usa: los pines del proyecto (pillow-heif, pypdf) y los
-# transitivos que pip instala hoy (aiohttp, multidict, py-vapid, pycparser,
+# que el árbol de hoy ya usa: los pines del proyecto (pillow-heif, pypdf), los
+# parches de seguridad que exige pip-audit (pillow 13, pypdf 6.21, certifi
+# 2026.10.19) y los transitivos que pip instala hoy (aiohttp, multidict, py-vapid, pycparser,
 # soupsieve — este último por debajo de su 3.x, que es de esta semana). Sin la
 # excepción, el primer lock rebajaría esos transitivos en producción.
 # Quedan inertes en cuanto cada versión cumple los 7 días: se pueden borrar en la
 # siguiente revisión del lock sin efecto alguno.
-exclude-newer-package = { pillow-heif = false, pypdf = false, aiohttp = false, multidict = false, py-vapid = false, pycparser = false, soupsieve = false }
+exclude-newer-package = { pillow = false, pillow-heif = false, pypdf = false, certifi = false, aiohttp = false, multidict = false, py-vapid = false, pycparser = false, soupsieve = false }
