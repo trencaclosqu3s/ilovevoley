@@ -8,6 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from ilovevoley.core.mixins import get_club_team_names
 from ilovevoley.core.models import Season
 from ilovevoley.core.tenant_utils import person_belongs_to_tenant
+from ilovevoley.teams.identity import in_seasons_q
 from ilovevoley.teams.models import Team, TeamIdentity
 from .link_requests import find_person, has_own_person, validate_link_request
 from .models import Person, PersonLinkRequest, PlayerRole, StaffRole
@@ -23,15 +24,8 @@ def _club_teams_for_seasons(organization, seasons):
     name_query = Q()
     for club_name in get_club_team_names(organization):
         name_query |= Q(name__icontains=club_name)
-    in_season = (
-        Q(standings__league__season__in=seasons)
-        | Q(home_matches__league__season__in=seasons)
-        | Q(away_matches__league__season__in=seasons)
-        | Q(identity__player_roles__season__in=seasons)
-        | Q(identity__staff_roles__season__in=seasons)
-    )
     teams = Team.objects.filter(name_query, is_active=True).select_related('category').order_by('category__name', 'name')
-    in_season_teams = teams.filter(in_season).distinct()
+    in_season_teams = teams.filter(in_seasons_q(seasons))
     # Temporada recién creada y sin scrapear (#344): ninguna fila tiene presencia
     # todavía, así que se ofrecen todos los equipos del club.
     return in_season_teams if in_season_teams.exists() else teams

@@ -2,12 +2,17 @@ from html import unescape
 
 from django import forms
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import Count, IntegerField, OuterRef, Subquery
 from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.mixins import get_tenant_club
 from ilovevoley.core.models import Category, Organization, Season
-from ilovevoley.teams.identity import one_team_per_identity, stable_roster_label
+from ilovevoley.teams.identity import (
+    identity_siblings,
+    in_seasons_q,
+    one_team_per_identity,
+    stable_roster_label,
+)
 from ilovevoley.teams.models import Team
 from .models import CategoryPreference, NotificationPreference, NotificationType
 
@@ -28,20 +33,19 @@ def _preference_teams_for_club(club):
     )
     season = Season.objects.current()
     if season:
-        in_season = (
-            Q(standings__league__season=season)
-            | Q(home_matches__league__season=season)
-            | Q(away_matches__league__season=season)
-            | Q(identity__player_roles__season=season)
-            | Q(identity__staff_roles__season=season)
-        )
-        seasonal_teams = list(qs.filter(in_season).distinct().order_by('category__name', 'name'))
+        seasonal_teams = list(qs.filter(in_seasons_q([season])).order_by('category__name', 'name'))
         qs = seasonal_teams if seasonal_teams else qs.order_by('category__name', 'name')
     else:
         qs = qs.order_by('category__name', 'name')
     teams = one_team_per_identity(qs)
+    siblings = identity_siblings(
+        OuterRef('identity__club_id'), OuterRef('identity__category_id'), OuterRef('identity__gender'),
+    ).order_by().values('club_id').annotate(n=Count('pk')).values('n')
     return Team.objects.filter(pk__in=[t.pk for t in teams]).select_related(
         'category', 'club', 'identity', 'identity__category', 'identity__club',
+    ).annotate(
+        # Recuento para la etiqueta de cada opción en la misma consulta, sin un COUNT por equipo (#586).
+        identity_siblings=Subquery(siblings, output_field=IntegerField()),
     ).order_by('category__name', 'name')
 
 
@@ -50,7 +54,7 @@ class PreferenceTeamChoiceField(forms.ModelMultipleChoiceField):
 
     def label_from_instance(self, obj):
         if obj.identity_id:
-            label = stable_roster_label(obj.identity)
+            label = stable_roster_label(obj.identity, getattr(obj, 'identity_siblings', None))
             if label:
                 return label
         name = unescape(obj.name or '')
