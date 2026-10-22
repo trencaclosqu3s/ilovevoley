@@ -3,12 +3,16 @@ import tempfile
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
 from ilovevoley.competitions.models import Match
+from ilovevoley.competitions.services.youtube_live import resolve_live_watch_url
+from ilovevoley.content.models import Video
 from ilovevoley.core.models import Organization
+from ilovevoley.core.security import UnsafeURL
 from ilovevoley.teams.models import Club, Team
 
 
@@ -27,6 +31,12 @@ class ScoreboardApiMatchIdTest(TestCase):
         LiveStreamPushTest.setUp(self)
         self.match.stream_url = ''
         self.match.save(update_fields=['stream_url'])
+        patcher = patch(
+            'ilovevoley.competitions.scoreboard_api.resolve_live_watch_url',
+            return_value=None,
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def _post(self, payload, token='s3cret'):
         headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'} if token else {}
@@ -378,3 +388,214 @@ class ScoreboardMatchResultTest(TestCase):
         self.assertEqual((self.match.home_score, self.match.away_score), (3, 2))
         self.assertEqual(self.match.set_scores, second_partials)
         mock_push.assert_called_once()
+
+
+@override_settings(SCOREBOARD_STREAM_TOKEN='s3cret', ALLOWED_HOSTS=['santjust.ilovevoley.es'])
+class ScoreboardStreamEndedTest(TestCase):
+    """Resolución de watch?v= al inicio y creación de Video al fin (#577).
+
+    Justificación (docs/ai-guidelines/testing-guidelines.md):
+    - D-13: resolver @canal/live a watch?v= al inicio; si falla conserva @canal/live
+      sin bloquear la notificación push.
+    - D-14/D-18: al fin sin URL resoluble o con URL ajena no crea Video; sin match_id devuelve 400.
+    - D-15/D-16: dedupe por (match, youtube_url) y sufijo «parte N» para grabaciones partidas.
+    - D-17: sin SCOREBOARD_VIDEO_USER_ID válido devuelve 503 y no crea nada.
+    """
+
+    LIVE_URL = '/competitions/api/stream/live/'
+    ENDED_URL = '/competitions/api/stream/ended/'
+    CHANNEL_LIVE = 'https://www.youtube.com/@canal/live'
+    WATCH_1 = 'https://www.youtube.com/watch?v=abcdefghijk'
+    WATCH_2 = 'https://www.youtube.com/watch?v=12345678901'
+
+    def setUp(self):
+        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
+
+        LiveStreamPushTest.setUp(self)
+        self.user = get_user_model().objects.create_user(
+            username='scoreboard_video_bot',
+            email='scoreboard@example.com',
+            password='secret',
+        )
+
+    def _post(self, url, payload, token='s3cret'):
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'} if token else {}
+        return self.client.post(
+            url,
+            json.dumps(payload),
+            content_type='application/json',
+            HTTP_HOST='santjust.ilovevoley.es',
+            **headers,
+        )
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    @patch('ilovevoley.competitions.scoreboard_api.resolve_live_watch_url')
+    def test_stream_live_resolves_watch_url_or_falls_back_to_channel_live(
+        self, mock_resolve, mock_push
+    ):
+        """D-13: guarda watch?v= cuando resuelve; si devuelve None conserva @canal/live y envía push."""
+        self.match.stream_url = ''
+        self.match.save(update_fields=['stream_url'])
+        mock_resolve.return_value = self.WATCH_1
+
+        with self.captureOnCommitCallbacks(execute=True):
+            res = self._post(self.LIVE_URL, {'url': self.CHANNEL_LIVE, 'match_id': self.match.pk})
+
+        self.assertEqual(res.status_code, 200)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.stream_url, self.WATCH_1)
+        mock_push.assert_called_once()
+
+        # Si el resolver devuelve None, guarda @canal/live y sigue notificando.
+        self.match.stream_url = ''
+        self.match.stream_notified_at = None
+        self.match.save(update_fields=['stream_url', 'stream_notified_at'])
+        mock_resolve.return_value = None
+
+        with self.captureOnCommitCallbacks(execute=True):
+            fallback = self._post(
+                self.LIVE_URL, {'url': self.CHANNEL_LIVE, 'match_id': self.match.pk}
+            )
+
+        self.assertEqual(fallback.status_code, 200)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.stream_url, self.CHANNEL_LIVE)
+        self.assertEqual(mock_push.call_count, 2)
+
+    def test_stream_ended_creates_video_dedupes_same_url_and_numbers_second_part(self):
+        """D-15/D-16: crea Video con metadatos del partido, no duplica misma URL y numera parte 2."""
+        self.match.stream_url = self.WATCH_1
+        self.match.save(update_fields=['stream_url'])
+
+        with self.settings(SCOREBOARD_VIDEO_USER_ID=self.user.pk):
+            first = self._post(self.ENDED_URL, {'match_id': self.match.pk})
+            repeat = self._post(self.ENDED_URL, {'match_id': self.match.pk})
+
+            self.match.stream_url = self.WATCH_2
+            self.match.save(update_fields=['stream_url'])
+            second_part = self._post(self.ENDED_URL, {'match_id': self.match.pk})
+
+        self.assertEqual(first.status_code, 200)
+        self.assertTrue(first.json()['created'])
+        self.assertEqual(repeat.status_code, 200)
+        self.assertFalse(repeat.json()['created'])
+        self.assertEqual(first.json()['video_id'], repeat.json()['video_id'])
+
+        self.assertEqual(second_part.status_code, 200)
+        self.assertTrue(second_part.json()['created'])
+
+        videos = list(Video.objects.filter(match=self.match).order_by('pk'))
+        self.assertEqual(len(videos), 2)
+        self.assertEqual(videos[0].title, 'Senior A - Rival B')
+        self.assertEqual(videos[0].youtube_url, self.WATCH_1)
+        self.assertEqual(videos[0].organization, self.org)
+        self.assertEqual(videos[0].season, self.season)
+        self.assertEqual(videos[0].category, self.category)
+        self.assertEqual(videos[0].created_by, self.user)
+        self.assertEqual(videos[1].title, 'Senior A - Rival B parte 2')
+        self.assertEqual(videos[1].youtube_url, self.WATCH_2)
+
+    @patch('ilovevoley.competitions.scoreboard_api.resolve_live_watch_url', return_value=None)
+    def test_stream_ended_skips_unresolved_or_unsupported_url_and_requires_match_id(
+        self, _mock_resolve
+    ):
+        """D-14/D-18: @canal/live sin resolver y URL no watch?v= no crean Video; sin match_id da 400."""
+        with self.settings(SCOREBOARD_VIDEO_USER_ID=self.user.pk):
+            self.match.stream_url = self.CHANNEL_LIVE
+            self.match.save(update_fields=['stream_url'])
+            unresolved = self._post(self.ENDED_URL, {'match_id': self.match.pk})
+
+            self.match.stream_url = 'https://youtu.be/abcdefghijk'
+            self.match.save(update_fields=['stream_url'])
+            unsupported = self._post(self.ENDED_URL, {'match_id': self.match.pk})
+
+            missing_id = self._post(self.ENDED_URL, {})
+
+        self.assertEqual(unresolved.status_code, 200)
+        self.assertEqual(
+            unresolved.json(),
+            {
+                'success': True,
+                'match_id': self.match.pk,
+                'created': False,
+                'reason': 'unresolved',
+            },
+        )
+        self.assertEqual(unsupported.status_code, 200)
+        self.assertEqual(
+            unsupported.json(),
+            {
+                'success': True,
+                'match_id': self.match.pk,
+                'created': False,
+                'reason': 'unsupported url',
+            },
+        )
+        self.assertEqual(missing_id.status_code, 400)
+        self.assertEqual(Video.objects.filter(match=self.match).count(), 0)
+
+    def test_stream_ended_without_configured_user_returns_503(self):
+        """D-17: sin SCOREBOARD_VIDEO_USER_ID válido responde 503 y no crea Video."""
+        self.match.stream_url = self.WATCH_1
+        self.match.save(update_fields=['stream_url'])
+
+        with self.settings(SCOREBOARD_VIDEO_USER_ID=0):
+            response = self._post(self.ENDED_URL, {'match_id': self.match.pk})
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(
+            response.json(), {'success': False, 'error': 'video user not configured'}
+        )
+        self.assertEqual(Video.objects.filter(match=self.match).count(), 0)
+
+
+class YoutubeLiveResolveTest(SimpleTestCase):
+    """Parseo de canonical y barrera SSRF en resolve_live_watch_url (#577, D-13).
+
+    Justificación (docs/ai-guidelines/testing-guidelines.md):
+    Verifica una transformación de datos no trivial (extracción del id de 11
+    caracteres desde <link rel="canonical">) y que hosts/esquemas ajenos o
+    errores de safe_get se rechacen sin propagar excepciones.
+    """
+
+    @patch('ilovevoley.competitions.services.youtube_live.safe_get')
+    def test_extracts_watch_url_from_canonical_and_normalizes_host(self, mock_get):
+        mock_get.return_value = (
+            b'<html><head>'
+            b'<link rel="canonical" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">'
+            b'</head></html>'
+        )
+        result = resolve_live_watch_url('https://youtube.com/@clubvoley/live')
+        self.assertEqual(result, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+        mock_get.assert_called_once()
+        self.assertEqual(
+            mock_get.call_args.args[0], 'https://www.youtube.com/@clubvoley/live'
+        )
+
+    @patch('ilovevoley.competitions.services.youtube_live.safe_get')
+    def test_returns_none_when_canonical_is_not_watch_or_safe_get_fails(self, mock_get):
+        mock_get.return_value = (
+            b'<html><head>'
+            b'<link rel="canonical" href="https://www.youtube.com/channel/UC123456">'
+            b'</head></html>'
+        )
+        self.assertIsNone(
+            resolve_live_watch_url('https://www.youtube.com/@clubvoley/live')
+        )
+
+        mock_get.side_effect = UnsafeURL('redirect blocked')
+        self.assertIsNone(
+            resolve_live_watch_url('https://www.youtube.com/@clubvoley/live')
+        )
+
+    @patch('ilovevoley.competitions.services.youtube_live.safe_get')
+    def test_rejects_foreign_host_or_http_without_network(self, mock_get):
+        for bad in [
+            'https://evil.com/@clubvoley/live',
+            'http://www.youtube.com/@clubvoley/live',
+            'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            '',
+            None,
+        ]:
+            self.assertIsNone(resolve_live_watch_url(bad))
+        mock_get.assert_not_called()

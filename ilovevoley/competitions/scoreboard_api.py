@@ -12,16 +12,23 @@ from functools import wraps
 from types import SimpleNamespace
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
+from ilovevoley.content.models.content import Video, infer_category, infer_season
 from ilovevoley.videos.scraping.base import validate_volleyball_score
 
 from .models import Match
 from .services.notifications import notify_match_result
+from .services.youtube_live import (
+    is_live_channel_url,
+    is_watch_url,
+    resolve_live_watch_url,
+)
 from .views import _save_stream_url
 
 logger = logging.getLogger(__name__)
@@ -126,6 +133,9 @@ def api_scoreboard_stream_live(request, tenant):
 
     match_id = parse_match_id(data)
     match = resolve_match(tenant, match_id)
+    resolved = resolve_live_watch_url(stream_url)
+    if resolved is not None:
+        stream_url = resolved
     return _save_stream_url(match, stream_url, tenant)
 
 
@@ -300,4 +310,81 @@ def api_scoreboard_match_result(request, tenant):
         'success': True,
         'match_id': match.pk,
         'notified': bool(notified),
+    })
+
+
+@scoreboard_api()
+def api_scoreboard_stream_ended(request, tenant):
+    """Crea el Video del partido al recibir el aviso de fin del marcador (#577).
+
+    Techo de v1 (D-18): exige ``match_id`` (sin fallback a la ventana, porque
+    el partido sale de ``is_live_window`` al pasar a ``finished``). Solo crea
+    ``Video`` cuando la URL final es ``watch?v=<id>``; otras URLs responden 200
+    con ``created=false`` y ``reason='unsupported url'``.
+    """
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
+    if not isinstance(data, dict):
+        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
+
+    match_id = parse_match_id(data)
+    if match_id is None:
+        return JsonResponse({'success': False, 'error': 'match_id required'}, status=400)
+    match = resolve_match(tenant, match_id)
+
+    user_id = getattr(settings, 'SCOREBOARD_VIDEO_USER_ID', 0) or 0
+    user = get_user_model().objects.filter(pk=user_id).first() if user_id > 0 else None
+    if user is None:
+        return JsonResponse(
+            {'success': False, 'error': 'video user not configured'}, status=503
+        )
+
+    url = (match.stream_url or '').strip()
+    if not url:
+        return JsonResponse({
+            'success': True,
+            'match_id': match.pk,
+            'created': False,
+            'reason': 'no stream url',
+        })
+
+    if is_live_channel_url(url):
+        resolved = resolve_live_watch_url(url)
+        if resolved is None:
+            return JsonResponse({
+                'success': True,
+                'match_id': match.pk,
+                'created': False,
+                'reason': 'unresolved',
+            })
+        match.stream_url = resolved
+        match.save(update_fields=['stream_url'])
+        url = resolved
+    elif not is_watch_url(url):
+        return JsonResponse({
+            'success': True,
+            'match_id': match.pk,
+            'created': False,
+            'reason': 'unsupported url',
+        })
+
+    base = f'{match.home_team_display} - {match.away_team_display}'
+    existing = match.videos.count()
+    title = (base if existing == 0 else f'{base} parte {existing + 1}')[:200]
+    video, created = Video.objects.get_or_create(match=match, youtube_url=url, defaults={
+        'title': title,
+        'season': infer_season(match, timezone.now()),
+        'category': infer_category(match),
+        'organization': tenant,
+        'created_by': user,
+    })
+
+    return JsonResponse({
+        'success': True,
+        'match_id': match.pk,
+        'created': bool(created),
+        'video_id': video.pk,
+        'stream_url': url,
     })

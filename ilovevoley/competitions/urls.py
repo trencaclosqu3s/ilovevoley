@@ -4,6 +4,7 @@ from .calendar_feed import UserMatchesFeed
 from .scoreboard_api import (
     api_scoreboard_match_result,
     api_scoreboard_matches_today,
+    api_scoreboard_stream_ended,
     api_scoreboard_stream_live,
 )
 
@@ -39,6 +40,7 @@ urlpatterns = [
     path('ajax/partidos/<int:match_id>/alineacion/vincular/', views.ajax_link_acta_person, name='ajax_link_acta_person'),
     path('ajax/partidos/<int:match_id>/stream/', views.ajax_update_stream_url, name='ajax_update_stream_url'),
     path('api/stream/live/', api_scoreboard_stream_live, name='api_scoreboard_stream_live'),
+    path('api/stream/ended/', api_scoreboard_stream_ended, name='api_scoreboard_stream_ended'),
     path('api/matches/today/', api_scoreboard_matches_today, name='api_scoreboard_matches_today'),
     path('api/match/result/', api_scoreboard_match_result, name='api_scoreboard_match_result'),
     path('ajax/cambios/<int:log_id>/marcar-revisado/', views.ajax_mark_change_reviewed, name='ajax_mark_change_reviewed'),
