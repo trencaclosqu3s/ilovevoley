@@ -12,6 +12,30 @@ from ilovevoley.videos.utils import normalize_team_name
 CANDIDATE_SIMILARITY_MIN = 0.85
 
 
+def in_seasons_q(seasons):
+    """``Q`` de ``Team`` con presencia en alguna de ``seasons``.
+
+    Presencia = clasificación, partido o rol de plantilla. Cada relación va como
+    subconsulta ``pk__in``: el OR sobre los JOIN de las cinco multiplica las filas
+    (partidos × jugadores × staff por equipo) y en producción tardaba >3 s (#586).
+    """
+    from django.db.models import Q
+
+    from ilovevoley.teams.models import Team
+
+    lookups = (
+        'standings__league__season__in',
+        'home_matches__league__season__in',
+        'away_matches__league__season__in',
+        'identity__player_roles__season__in',
+        'identity__staff_roles__season__in',
+    )
+    query = Q()
+    for lookup in lookups:
+        query |= Q(pk__in=Team.objects.filter(**{lookup: seasons}).values('pk'))
+    return query
+
+
 def one_team_per_identity(teams):
     """Una fila por identidad (la más reciente), conservando el orden.
 
@@ -37,8 +61,19 @@ def _identity_disambiguator(identity, club_name: str) -> str:
     return ' '.join(remaining) if remaining else core
 
 
-def stable_roster_label(identity) -> str:
-    """Etiqueta estable de plantilla: club + categoría (+ desambiguador) (#512)."""
+def identity_siblings(club_id, category_id, gender):
+    """Identidades que comparten club, categoría y género (las que piden desambiguador)."""
+    from ilovevoley.teams.models import TeamIdentity
+
+    return TeamIdentity.objects.filter(club_id=club_id, category_id=category_id, gender=gender)
+
+
+def stable_roster_label(identity, siblings: int | None = None) -> str:
+    """Etiqueta estable de plantilla: club + categoría (+ desambiguador) (#512).
+
+    ``siblings`` es el número de identidades con el mismo club, categoría y género
+    si ya viene calculado (anotación en un listado); si no, se consulta (#586).
+    """
     if identity is None:
         return ''
     club_name = ''
@@ -51,16 +86,9 @@ def stable_roster_label(identity) -> str:
 
     needs_disambiguator = False
     if identity.club_id and identity.category_id:
-        from ilovevoley.teams.models import TeamIdentity
-
-        needs_disambiguator = (
-            TeamIdentity.objects.filter(
-                club_id=identity.club_id,
-                category_id=identity.category_id,
-                gender=identity.gender,
-            ).count()
-            > 1
-        )
+        if siblings is None:
+            siblings = identity_siblings(identity.club_id, identity.category_id, identity.gender).count()
+        needs_disambiguator = siblings > 1
     if needs_disambiguator:
         disambiguator = _identity_disambiguator(identity, club_name)
         if disambiguator:
