@@ -23,7 +23,8 @@ def public_matches(season=None, *, include_friendly=False) -> QuerySet:
     qs = Match.objects.filter(
         league__in=public_leagues(season, include_friendly=include_friendly),
     ).select_related(
-        'home_team', 'away_team', 'league', 'venue_ref',
+        # El club entra porque Team.display_logo cae a su escudo (N+1 en _match_table).
+        'home_team__club', 'away_team__club', 'league', 'venue_ref',
     )
     return qs.order_by('match_date')
 
