@@ -101,6 +101,14 @@ class ScoreboardApiMatchIdTest(TestCase):
         self.assertIsNone(self.match.stream_notified_at)
         mock_push.assert_not_called()
 
+    def test_invalid_or_non_string_url_returns_400(self):
+        """IN-01: un tipo de url no textual o vacío devuelve 400 'url required' en vez de 500."""
+        for bad_url in [123, ['https://example.com'], {'url': 'x'}, True, '', '   ']:
+            with self.subTest(bad_url=bad_url):
+                response = self._post({'url': bad_url, 'match_id': self.match.pk})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json(), {'success': False, 'error': 'url required'})
+
 
 @override_settings(SCOREBOARD_STREAM_TOKEN='s3cret', ALLOWED_HOSTS=['santjust.ilovevoley.es'])
 class ScoreboardMatchesTodayTest(TestCase):

@@ -111,9 +111,10 @@ def api_scoreboard_stream_live(request, tenant):
     if not isinstance(data, dict):
         return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
 
-    stream_url = (data.get('url') or '').strip()
-    if not stream_url:
+    raw_url = data.get('url')
+    if not isinstance(raw_url, str) or not raw_url.strip():
         return JsonResponse({'success': False, 'error': 'url required'}, status=400)
+    stream_url = raw_url.strip()
 
     match_id = parse_match_id(data)
     match = resolve_match(tenant, match_id)
