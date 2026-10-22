@@ -222,3 +222,159 @@ class ScoreboardMatchesTodayTest(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json(), {'success': False, 'error': 'forbidden'})
         self.assertNotIn('Senior A', response.content.decode())
+
+
+@override_settings(SCOREBOARD_STREAM_TOKEN='s3cret', ALLOWED_HOSTS=['santjust.ilovevoley.es'])
+class ScoreboardMatchResultTest(TestCase):
+    """Reglas de negocio del endpoint de resultado del marcador (#576).
+
+    Justificación (docs/ai-guidelines/testing-guidelines.md):
+    - D-05: validación del marcador de sets y coherencia/ganador de cada parcial
+      (con ``set_scores`` opcional para cuando se usan los botones ``set +/-``).
+    - D-07: un resultado federativo previo (acta o penalización) bloquea con 409.
+    - D-06: reenviar corrige el marcador pero envía la push una sola vez.
+    No se duplican 403/405 del decorador ``scoreboard_api``.
+    """
+
+    URL = '/competitions/api/match/result/'
+
+    def setUp(self):
+        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
+
+        LiveStreamPushTest.setUp(self)
+
+    def _post(self, payload, token='s3cret'):
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'} if token else {}
+        return self.client.post(
+            self.URL,
+            json.dumps(payload),
+            content_type='application/json',
+            HTTP_HOST='santjust.ilovevoley.es',
+            **headers,
+        )
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_valid_result_saves_scores_set_scores_and_pushes_once(self, mock_push):
+        """D-05/D-06: guarda sets, parciales (o [] si faltan) y finaliza con push única."""
+        partials = [[25, 20], [22, 25], [25, 18], [25, 23]]
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self._post({
+                'match_id': self.match.pk,
+                'home_score': 3,
+                'away_score': 1,
+                'set_scores': partials,
+            })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {'success': True, 'match_id': self.match.pk, 'notified': True},
+        )
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, 'finished')
+        self.assertEqual((self.match.home_score, self.match.away_score), (3, 1))
+        self.assertEqual(self.match.set_scores, partials)
+        mock_push.assert_called_once()
+
+        # Sin set_scores (o []) también es válido y persiste [].
+        no_partials = self._post({
+            'match_id': self.match.pk,
+            'home_score': 3,
+            'away_score': 0,
+        })
+        self.assertEqual(no_partials.status_code, 200)
+        self.match.refresh_from_db()
+        self.assertEqual((self.match.home_score, self.match.away_score), (3, 0))
+        self.assertEqual(self.match.set_scores, [])
+
+    def test_inconsistent_or_tied_partials_return_400_without_changes(self):
+        """D-05: parciales con más victorias de las declaradas, empatados o marcador inválido -> 400."""
+        bad_payloads = [
+            {
+                'match_id': self.match.pk,
+                'home_score': 3,
+                'away_score': 1,
+                'set_scores': [[20, 25], [22, 25], [25, 18], [25, 23]],
+            },
+            {
+                'match_id': self.match.pk,
+                'home_score': 3,
+                'away_score': 0,
+                'set_scores': [[20, 20], [25, 18], [25, 20]],
+            },
+            {
+                'match_id': self.match.pk,
+                'home_score': 2,
+                'away_score': 1,
+                'set_scores': [[25, 20], [20, 25], [25, 18]],
+            },
+        ]
+        for payload in bad_payloads:
+            with self.subTest(payload=payload):
+                response = self._post(payload)
+                self.assertEqual(response.status_code, 400)
+
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, 'scheduled')
+        self.assertIsNone(self.match.home_score)
+        self.assertIsNone(self.match.away_score)
+        self.assertIsNone(self.match.set_scores)
+
+    def test_federation_result_returns_409_without_changes(self):
+        """D-07: si ya hay acta o penalización federativa, devuelve 409 y no modifica el partido."""
+        self.match.home_score = 0
+        self.match.away_score = 3
+        self.match.status = 'finished'
+        self.match.acta_data = {'sets': []}
+        self.match.save(update_fields=['home_score', 'away_score', 'status', 'acta_data'])
+
+        response = self._post({
+            'match_id': self.match.pk,
+            'home_score': 3,
+            'away_score': 1,
+            'set_scores': [[25, 20], [22, 25], [25, 18], [25, 23]],
+        })
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json(), {'success': False, 'error': 'federation result'})
+        self.match.refresh_from_db()
+        self.assertEqual((self.match.home_score, self.match.away_score), (0, 3))
+
+        self.match.acta_data = None
+        self.match.result_penalized = True
+        self.match.save(update_fields=['acta_data', 'result_penalized'])
+
+        penalized = self._post({
+            'match_id': self.match.pk,
+            'home_score': 3,
+            'away_score': 0,
+        })
+        self.assertEqual(penalized.status_code, 409)
+        self.match.refresh_from_db()
+        self.assertEqual((self.match.home_score, self.match.away_score), (0, 3))
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_resending_valid_result_corrects_score_without_second_push(self, mock_push):
+        """D-03/D-06: reenviar corrige el marcador y devuelve notified=false sin repetir push."""
+        with self.captureOnCommitCallbacks(execute=True):
+            first = self._post({
+                'match_id': self.match.pk,
+                'home_score': 3,
+                'away_score': 1,
+                'set_scores': [[25, 20], [22, 25], [25, 18], [25, 23]],
+            })
+            second_partials = [[25, 20], [22, 25], [25, 18], [21, 25], [15, 12]]
+            second = self._post({
+                'match_id': self.match.pk,
+                'home_score': 3,
+                'away_score': 2,
+                'set_scores': second_partials,
+            })
+
+        self.assertEqual(first.status_code, 200)
+        self.assertTrue(first.json()['notified'])
+        self.assertEqual(second.status_code, 200)
+        self.assertFalse(second.json()['notified'])
+        self.match.refresh_from_db()
+        self.assertEqual((self.match.home_score, self.match.away_score), (3, 2))
+        self.assertEqual(self.match.set_scores, second_partials)
+        mock_push.assert_called_once()

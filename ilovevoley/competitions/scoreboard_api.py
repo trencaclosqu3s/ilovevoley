@@ -6,17 +6,25 @@ La vista recibe el tenant ya resuelto y no vuelve a mirar el token.
 
 import hmac
 import json
+import logging
 from datetime import timedelta
 from functools import wraps
+from types import SimpleNamespace
 
 from django.conf import settings
+from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
+from ilovevoley.videos.scraping.base import validate_volleyball_score
+
 from .models import Match
+from .services.notifications import notify_match_result
 from .views import _save_stream_url
+
+logger = logging.getLogger(__name__)
 
 
 class ScoreboardApiError(Exception):
@@ -195,4 +203,101 @@ def api_scoreboard_matches_today(request, tenant):
         'success': True,
         'date': start.date().isoformat(),
         'matches': payload,
+    })
+
+
+def _is_non_neg_int(value):
+    return not isinstance(value, bool) and isinstance(value, int) and value >= 0
+
+
+def _parse_result_payload(data):
+    """Valida y normaliza (home_score, away_score, set_scores) del marcador (D-05)."""
+    home = data.get('home_score')
+    away = data.get('away_score')
+    if not _is_non_neg_int(home) or not _is_non_neg_int(away):
+        raise ScoreboardApiError({'success': False, 'error': 'invalid result'}, 400)
+
+    raw_partials = data.get('set_scores')
+    if raw_partials is None or raw_partials == []:
+        return home, away, []
+
+    if not isinstance(raw_partials, list):
+        raise ScoreboardApiError({'success': False, 'error': 'invalid result'}, 400)
+
+    partials = []
+    home_wins = 0
+    away_wins = 0
+    for pair in raw_partials:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise ScoreboardApiError({'success': False, 'error': 'invalid result'}, 400)
+        local_pts, visitor_pts = pair
+        if (
+            not _is_non_neg_int(local_pts)
+            or not _is_non_neg_int(visitor_pts)
+            or local_pts == visitor_pts
+        ):
+            raise ScoreboardApiError({'success': False, 'error': 'invalid result'}, 400)
+        if local_pts > visitor_pts:
+            home_wins += 1
+        else:
+            away_wins += 1
+        partials.append([local_pts, visitor_pts])
+
+    if home_wins > home or away_wins > away:
+        raise ScoreboardApiError({'success': False, 'error': 'invalid result'}, 400)
+
+    return home, away, partials
+
+
+@scoreboard_api()
+def api_scoreboard_match_result(request, tenant):
+    """Guarda el resultado provisional enviado desde el marcador (#576).
+
+    La federación manda (D-07): si el partido ya tiene ``acta_data``, ``acta_html``
+    o ``result_penalized``, responde 409 sin tocar nada. Cuando el scraping
+    federativo llega después y difiere del resultado del marcador (D-08 / RES-04),
+    ``detect_and_record_match_changes`` registra un ``MatchChangeLog`` con
+    ``change_type='score'``, pero los hooks de push solo filtran ``datetime``,
+    ``venue`` y ``status``, así que el cambio queda registrado y no se reenvía
+    ninguna notificación de corrección.
+    """
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
+    if not isinstance(data, dict):
+        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
+
+    match_id = parse_match_id(data)
+    if match_id is None:
+        return JsonResponse({'success': False, 'error': 'match_id required'}, status=400)
+    match = resolve_match(tenant, match_id)
+
+    if match.acta_data or match.acta_html or match.result_penalized:
+        raise ScoreboardApiError(
+            {'success': False, 'error': 'federation result'}, 409
+        )
+
+    home, away, partials = _parse_result_payload(data)
+    league = match.league or SimpleNamespace(match_format='standard')
+    if not validate_volleyball_score(home, away, league):
+        return JsonResponse({'success': False, 'error': 'invalid score'}, status=400)
+
+    with transaction.atomic():
+        match.home_score = home
+        match.away_score = away
+        match.set_scores = partials
+        match.status = 'finished'
+        match.save(update_fields=['home_score', 'away_score', 'set_scores', 'status'])
+
+    notified = False
+    try:
+        notified = notify_match_result(match, tenant=tenant)
+    except Exception:
+        logger.exception("Error al notificar el resultado del partido %s", match.pk)
+
+    return JsonResponse({
+        'success': True,
+        'match_id': match.pk,
+        'notified': bool(notified),
     })
