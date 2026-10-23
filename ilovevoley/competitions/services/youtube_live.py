@@ -72,6 +72,9 @@ def resolve_live_watch_url(stream_url) -> str | None:
         raw = safe_get(url, allowed_hosts=['www.youtube.com'], timeout=5, max_bytes=3_000_000, headers={
             'User-Agent': _USER_AGENT,
             'Accept-Language': 'es-ES,es;q=0.9',
+            # Desde una IP europea YouTube redirige a consent.youtube.com y safe_get no
+            # sigue redirects; esta cookie de consentimiento evita ese 302.
+            'Cookie': 'SOCS=CAI',
         })
         html = raw.decode('utf-8', errors='replace')
         video_id = _extract_canonical_watch_id(html)

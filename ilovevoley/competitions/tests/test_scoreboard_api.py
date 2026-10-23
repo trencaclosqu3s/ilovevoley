@@ -571,6 +571,8 @@ class YoutubeLiveResolveTest(SimpleTestCase):
         self.assertEqual(
             mock_get.call_args.args[0], 'https://www.youtube.com/@clubvoley/live'
         )
+        # Sin la cookie de consentimiento, YouTube redirige a consent.youtube.com desde la UE.
+        self.assertEqual(mock_get.call_args.kwargs['headers']['Cookie'], 'SOCS=CAI')
 
     @patch('ilovevoley.competitions.services.youtube_live.safe_get')
     def test_returns_none_when_canonical_is_not_watch_or_safe_get_fails(self, mock_get):
