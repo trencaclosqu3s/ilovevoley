@@ -10,7 +10,11 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
 from ilovevoley.competitions.models import Match
-from ilovevoley.competitions.scoreboard_api import LIVE_STATE_TTL, live_state_key
+from ilovevoley.competitions.scoreboard_api import (
+    LIVE_STATE_TTL,
+    live_resolve_cooldown_key,
+    live_state_key,
+)
 from ilovevoley.competitions.services.youtube_live import resolve_live_watch_url
 from ilovevoley.content.models import Video
 from ilovevoley.core.models import Organization
@@ -768,3 +772,62 @@ class ScoreboardLiveStateTest(TestCase):
             },
             LIVE_STATE_TTL,
         )
+
+    @patch('ilovevoley.competitions.scoreboard_api.resolve_live_watch_url')
+    def test_heartbeat_resolves_channel_live_once(self, mock_resolve):
+        """D-02: un @canal/live se resuelve en el latido y el siguiente no vuelve a llamar.
+
+        Protege la regla de guardar watch?v= durante el directo. El segundo latido
+        ya no es @canal/live, así que no se vuelve a pedir a YouTube.
+        """
+        channel = 'https://www.youtube.com/@clubvoley/live'
+        watch = 'https://www.youtube.com/watch?v=abc123DEF45'
+        self.match.stream_url = channel
+        self.match.save(update_fields=['stream_url'])
+        mock_resolve.return_value = watch
+
+        first = self._post(self._valid_payload())
+        second = self._post(self._valid_payload())
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.stream_url, watch)
+        self.assertEqual(mock_resolve.call_count, 1)
+
+    @patch('ilovevoley.competitions.scoreboard_api.resolve_live_watch_url', return_value=None)
+    def test_heartbeat_resolve_cooldown_until_key_deleted(self, mock_resolve):
+        """D-02: si la resolución falla, no se reintenta hasta que caduque el cooldown.
+
+        El latido llega cada 30 s. Sin el cooldown se martillearía YouTube en cada uno.
+        """
+        self.match.stream_url = 'https://www.youtube.com/@clubvoley/live'
+        self.match.save(update_fields=['stream_url'])
+
+        first = self._post(self._valid_payload())
+        second = self._post(self._valid_payload())
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(mock_resolve.call_count, 1)
+
+        cache.delete(live_resolve_cooldown_key(self.match.pk))
+        third = self._post(self._valid_payload())
+        self.assertEqual(third.status_code, 200)
+        self.assertEqual(mock_resolve.call_count, 2)
+
+    @patch(
+        'ilovevoley.competitions.scoreboard_api.resolve_live_watch_url',
+        side_effect=RuntimeError('youtube down'),
+    )
+    def test_heartbeat_resolve_exception_keeps_cached_state(self, _mock_resolve):
+        """Una excepción al resolver no rompe el latido: 200 y el estado sigue en caché.
+
+        Camino crítico del aviso en vivo: el marcador no puede recibir un 500
+        porque YouTube o la caché fallen después de guardar el estado.
+        """
+        self.match.stream_url = 'https://www.youtube.com/@clubvoley/live'
+        self.match.save(update_fields=['stream_url'])
+
+        res = self._post(self._valid_payload())
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNotNone(cache.get(live_state_key(self.match.pk)))
