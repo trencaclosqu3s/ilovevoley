@@ -330,6 +330,15 @@ def league_detail(request, league_id):
     })
 
 
+def _live_card_eligible(match, now):
+    """True si el partido está abierto y dentro de [-6 h, +24 h] para montar la tarjeta en vivo."""
+    if match.status in ('finished', 'cancelled', 'postponed', 'withdrawn'):
+        return False
+    if not match.match_date:
+        return False
+    return (now - timedelta(hours=6)) <= match.match_date <= (now + timedelta(hours=24))
+
+
 @tenant_access_required()
 def match_detail(request, match_id):
     """Vista detallada de un partido con sus videos e imágenes"""
@@ -402,6 +411,7 @@ def match_detail(request, match_id):
         'stream_url': stream_url,
         'is_live': match.is_live if is_own_match else False,
         'is_live_window': match.is_live_window if is_own_match else False,
+        'live_card_eligible': _live_card_eligible(match, timezone.now()),
         'share_links': share_links,
         'share_hours_choices': ALLOWED_HOURS,
         'share_default_hours': default_hours(),

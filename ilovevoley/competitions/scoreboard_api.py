@@ -13,8 +13,10 @@ from types import SimpleNamespace
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db import transaction
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -32,6 +34,16 @@ from .services.youtube_live import (
 from .views import _save_stream_url
 
 logger = logging.getLogger(__name__)
+
+# Latido del marcador ~30 s = 3 latidos (D-05); si cambia uno, revisar el otro.
+LIVE_STATE_TTL = 90
+LIVE_MAX_POINTS = 99
+LIVE_MAX_SETS = 9
+LIVE_MAX_HISTORY = 9
+
+
+def live_state_key(match_id):
+    return f'scoreboard:live:{match_id}'
 
 
 class ScoreboardApiError(Exception):
@@ -388,3 +400,97 @@ def api_scoreboard_stream_ended(request, tenant):
         'video_id': video.pk,
         'stream_url': url,
     })
+
+
+def _parse_live_state(data):
+    """Valida y acota el subconjunto del marcador en vivo (D-06)."""
+    home_points = data.get('home_points')
+    away_points = data.get('away_points')
+    home_sets = data.get('home_sets')
+    away_sets = data.get('away_sets')
+    if (
+        not _is_non_neg_int(home_points)
+        or home_points > LIVE_MAX_POINTS
+        or not _is_non_neg_int(away_points)
+        or away_points > LIVE_MAX_POINTS
+        or not _is_non_neg_int(home_sets)
+        or home_sets > LIVE_MAX_SETS
+        or not _is_non_neg_int(away_sets)
+        or away_sets > LIVE_MAX_SETS
+    ):
+        raise ScoreboardApiError({'success': False, 'error': 'invalid state'}, 400)
+
+    raw_history = data.get('sets_history')
+    if not isinstance(raw_history, list) or len(raw_history) > LIVE_MAX_HISTORY:
+        raise ScoreboardApiError({'success': False, 'error': 'invalid state'}, 400)
+
+    partials = []
+    for pair in raw_history:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise ScoreboardApiError({'success': False, 'error': 'invalid state'}, 400)
+        local_pts, visitor_pts = pair
+        if (
+            not _is_non_neg_int(local_pts)
+            or local_pts > LIVE_MAX_POINTS
+            or not _is_non_neg_int(visitor_pts)
+            or visitor_pts > LIVE_MAX_POINTS
+            or local_pts == visitor_pts
+        ):
+            raise ScoreboardApiError({'success': False, 'error': 'invalid state'}, 400)
+        partials.append([local_pts, visitor_pts])
+
+    serve = data.get('serve')
+    if serve not in (None, 'home', 'away'):
+        raise ScoreboardApiError({'success': False, 'error': 'invalid state'}, 400)
+
+    visible = data.get('visible')
+    if not isinstance(visible, bool):
+        raise ScoreboardApiError({'success': False, 'error': 'invalid state'}, 400)
+
+    return {
+        'home_points': home_points,
+        'away_points': away_points,
+        'home_sets': home_sets,
+        'away_sets': away_sets,
+        'sets_history': partials,
+        'serve': serve,
+        'visible': visible,
+    }
+
+
+@scoreboard_api()
+def api_scoreboard_live_state(request, tenant):
+    """Guarda en caché el estado en vivo del marcador con TTL de 90 s (#578, D-05..D-08)."""
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
+    if not isinstance(data, dict):
+        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
+
+    match_id = parse_match_id(data)
+    if match_id is None:
+        return JsonResponse({'success': False, 'error': 'match_id required'}, status=400)
+    match = resolve_match(tenant, match_id)
+
+    if not match.is_live_window:
+        raise ScoreboardApiError({'success': False, 'error': 'not live'}, 409)
+
+    subset = _parse_live_state(data)
+    cache.set(live_state_key(match.pk), subset, LIVE_STATE_TTL)
+    return JsonResponse({'success': True, 'match_id': match.pk})
+
+
+@require_http_methods(['GET'])
+def api_live_scoreboard(request, match_id):
+    """Lectura pública del marcador en vivo desde la ficha (#578, D-09, D-11, D-14)."""
+    match = get_object_or_404(
+        Match.objects.only('id', 'status', 'match_date'), pk=match_id
+    )
+    state = cache.get(live_state_key(match.pk)) if match.is_live_window else None
+    if not state or not state.get('visible'):
+        response = JsonResponse({'success': True, 'live': False})
+    else:
+        response = JsonResponse({'success': True, 'live': True, **state})
+    response['Cache-Control'] = 'no-store'
+    return response

@@ -4,11 +4,13 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
 from ilovevoley.competitions.models import Match
+from ilovevoley.competitions.scoreboard_api import LIVE_STATE_TTL, live_state_key
 from ilovevoley.competitions.services.youtube_live import resolve_live_watch_url
 from ilovevoley.content.models import Video
 from ilovevoley.core.models import Organization
@@ -601,3 +603,168 @@ class YoutubeLiveResolveTest(SimpleTestCase):
         ]:
             self.assertIsNone(resolve_live_watch_url(bad))
         mock_get.assert_not_called()
+
+
+@override_settings(
+    SCOREBOARD_STREAM_TOKEN='s3cret',
+    ALLOWED_HOSTS=['santjust.ilovevoley.es', 'otroclub.ilovevoley.es'],
+)
+class ScoreboardLiveStateTest(TestCase):
+    """Recepción y lectura del estado en vivo del marcador (#578).
+
+    Justificación (docs/ai-guidelines/testing-guidelines.md):
+    - D-06: validación de cotas y tipos (rechaza bool como int, >99, parciales
+      empatados, serve fuera de catálogo, visible no booleano) y filtrado estricto
+      de claves antes de guardar en caché.
+    - D-07: bloqueo con 409 fuera de ``is_live_window`` (partido cerrado o fuera de hora).
+    - D-09/D-11/D-14/LIVE-03: lectura pública sin login desde otro subdominio que
+      expone el subconjunto solo cuando hay clave, está en ventana y ``visible=True``.
+    - D-05: escritura en caché con TTL explícito de 90 s (``LIVE_STATE_TTL``).
+    """
+
+    POST_URL = '/competitions/api/match/live-state/'
+
+    def setUp(self):
+        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
+
+        LiveStreamPushTest.setUp(self)
+        cache.clear()
+        other_club = Club.objects.create(official_name='Otro Club Live', federation_id='OT99')
+        Organization.objects.create(name='Otro CV Live', slug='otroclub', club=other_club)
+
+    def _valid_payload(self, **overrides):
+        base = {
+            'match_id': self.match.pk,
+            'home_points': 18,
+            'away_points': 15,
+            'home_sets': 1,
+            'away_sets': 0,
+            'sets_history': [[25, 20]],
+            'serve': 'home',
+            'visible': True,
+        }
+        base.update(overrides)
+        return base
+
+    def _post(self, payload, token='s3cret'):
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'} if token else {}
+        return self.client.post(
+            self.POST_URL,
+            json.dumps(payload),
+            content_type='application/json',
+            HTTP_HOST='santjust.ilovevoley.es',
+            **headers,
+        )
+
+    def _get_public(self, match_id=None, host='otroclub.ilovevoley.es'):
+        pk = self.match.pk if match_id is None else match_id
+        return self.client.get(
+            f'/competitions/match/{pk}/live-state/',
+            HTTP_HOST=host,
+        )
+
+    def test_invalid_payloads_return_400_and_valid_stores_only_subset(self):
+        """D-06: rechaza fuera de cota/tipos con 400 sin escribir; válido guarda solo las 7 claves."""
+        invalid_cases = [
+            {'home_points': 100},
+            {'away_points': True},
+            {'sets_history': [[25, 25]]},
+            {'serve': 'x'},
+            {'visible': 'yes'},
+        ]
+        for overrides in invalid_cases:
+            with self.subTest(overrides=overrides):
+                res = self._post(self._valid_payload(**overrides))
+                self.assertEqual(res.status_code, 400)
+                self.assertIsNone(cache.get(live_state_key(self.match.pk)))
+
+        res = self._post(
+            self._valid_payload(
+                home_name='Inyección',
+                undo=[{'x': 1}],
+                color='#ff0000',
+            )
+        )
+        self.assertEqual(res.status_code, 200)
+        cached = cache.get(live_state_key(self.match.pk))
+        self.assertEqual(
+            cached,
+            {
+                'home_points': 18,
+                'away_points': 15,
+                'home_sets': 1,
+                'away_sets': 0,
+                'sets_history': [[25, 20]],
+                'serve': 'home',
+                'visible': True,
+            },
+        )
+
+    def test_finished_or_outside_window_match_returns_409_without_caching(self):
+        """D-07: partido cerrado o fuera de is_live_window responde 409 y no escribe en caché."""
+        self.match.status = 'finished'
+        self.match.save(update_fields=['status'])
+
+        res = self._post(self._valid_payload())
+        self.assertEqual(res.status_code, 409)
+        self.assertEqual(res.json(), {'success': False, 'error': 'not live'})
+        self.assertIsNone(cache.get(live_state_key(self.match.pk)))
+
+    def test_public_get_across_tenants_respects_cache_visibility_and_window(self):
+        """D-09/D-11/D-14/LIVE-03: GET sin login desde otro club según clave, visible y ventana."""
+        empty_res = self._get_public()
+        self.assertEqual(empty_res.status_code, 200)
+        self.assertEqual(empty_res.json(), {'success': True, 'live': False})
+        self.assertEqual(empty_res['Cache-Control'], 'no-store')
+
+        self._post(self._valid_payload())
+        live_res = self._get_public()
+        self.assertEqual(live_res.status_code, 200)
+        self.assertEqual(
+            live_res.json(),
+            {
+                'success': True,
+                'live': True,
+                'home_points': 18,
+                'away_points': 15,
+                'home_sets': 1,
+                'away_sets': 0,
+                'sets_history': [[25, 20]],
+                'serve': 'home',
+                'visible': True,
+            },
+        )
+        self.assertEqual(live_res['Cache-Control'], 'no-store')
+
+        self._post(self._valid_payload(visible=False))
+        hidden_res = self._get_public()
+        self.assertEqual(hidden_res.status_code, 200)
+        self.assertEqual(hidden_res.json(), {'success': True, 'live': False})
+
+        self._post(self._valid_payload(visible=True))
+        self.match.status = 'finished'
+        self.match.save(update_fields=['status'])
+        closed_res = self._get_public()
+        self.assertEqual(closed_res.status_code, 200)
+        self.assertEqual(closed_res.json(), {'success': True, 'live': False})
+
+    def test_post_writes_cache_with_live_state_ttl(self):
+        """D-05: cache.set recibe LIVE_STATE_TTL (90 s) como timeout."""
+        with patch('ilovevoley.competitions.scoreboard_api.cache.set') as mock_set:
+            res = self._post(self._valid_payload())
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(LIVE_STATE_TTL, 90)
+        mock_set.assert_any_call(
+            live_state_key(self.match.pk),
+            {
+                'home_points': 18,
+                'away_points': 15,
+                'home_sets': 1,
+                'away_sets': 0,
+                'sets_history': [[25, 20]],
+                'serve': 'home',
+                'visible': True,
+            },
+            LIVE_STATE_TTL,
+        )
