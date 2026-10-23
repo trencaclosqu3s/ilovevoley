@@ -1647,7 +1647,7 @@ class UpdateMatchesResultPersistenceTests(TestCase):
             'round_number': 1, 'set_scores': [[25, 20], [20, 25], [25, 18], [25, 22]],
         }
 
-    @patch('ilovevoley.videos.scraping.federation.notify_match_result_after_save')
+    @patch('ilovevoley.competitions.scraping.federation.notify_match_result_after_save')
     def test_scraped_result_is_persisted(self, mock_notify_after_save):
         self.scraper.update_matches([self._match_data()], {})
 
@@ -1696,9 +1696,9 @@ class JSONRoundNumberTests(RoundFixtureMixin, TestCase):
             'RESULTADO_LOCAL': None, 'RESULTADO_VISITANTE': None,
         }
 
-    @patch('ilovevoley.videos.scraping.federation.FederationScraper._fetch_json_with_retry')
+    @patch('ilovevoley.competitions.scraping.federation.FederationScraper._fetch_json_with_retry')
     def test_ida_y_vuelta_get_their_own_round_and_existing_match_is_corrected(self, fetch):
-        from ilovevoley.videos.scraping.federation import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
 
         # Sin jor = jornada actual (1); con jor, esa jornada. Fuera de rango el servidor devuelve la 1.
         pages = {'jor=2': _results_html(2, 20, 10)}
@@ -1726,10 +1726,10 @@ class JSONRoundNumberTests(RoundFixtureMixin, TestCase):
         self.assertEqual(Match.objects.get(federation_id='1').round_number, 1)
         self.assertEqual(Match.objects.get(federation_id='2').round_number, 2)
 
-    @patch('ilovevoley.videos.scraping.federation.FederationScraper._fetch_json_with_retry',
+    @patch('ilovevoley.competitions.scraping.federation.FederationScraper._fetch_json_with_retry',
            side_effect=Exception('boom'))
     def test_round_map_failure_does_not_block_import(self, fetch):
-        from ilovevoley.videos.scraping.federation import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
 
         self.assertEqual(FederationScraper(self.league)._fetch_round_map(self.league, {('10', '20')}), {})
 
@@ -1737,7 +1737,7 @@ class JSONRoundNumberTests(RoundFixtureMixin, TestCase):
 class BackfillMatchRoundsCommandTests(RoundFixtureMixin, TestCase):
     """El histórico con jornada falsa 1 se corrige recorriendo la liga entera, y dry-run no guarda."""
 
-    @patch('ilovevoley.videos.scraping.federation.FederationScraper._fetch_json_with_retry')
+    @patch('ilovevoley.competitions.scraping.federation.FederationScraper._fetch_json_with_retry')
     def test_backfill_fixes_vuelta_and_dry_run_changes_nothing(self, fetch):
         from ilovevoley.teams.models import Club
 
