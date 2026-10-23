@@ -15,7 +15,7 @@ from unidecode import unidecode
 
 from ilovevoley.competitions.models import League, Match, ScrapingEndpoint, Standing
 from ilovevoley.teams.models import Team
-from ilovevoley.videos.scraping import RFEVBPhaseParser, RFEVBTeamsParser
+from ilovevoley.competitions.scraping.rfevb import RFEVBPhaseParser, RFEVBTeamsParser
 
 logger = logging.getLogger(__name__)
 

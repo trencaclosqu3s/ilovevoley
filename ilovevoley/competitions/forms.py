@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 
 from ilovevoley.core.models import Category, Season
 from ilovevoley.teams.models import Club, Team
-from ilovevoley.videos.scraping import validate_set_scores
+from ilovevoley.competitions.scraping.base import validate_set_scores
 from .models import League, Match
 
 

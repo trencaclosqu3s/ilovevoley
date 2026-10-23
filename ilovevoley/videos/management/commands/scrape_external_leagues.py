@@ -3,7 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from ilovevoley.core.models import Season
 from ilovevoley.videos.models import League, Category, ScrapingEndpoint
-from ilovevoley.videos.scraping import FederationScraper
+from ilovevoley.competitions.scraping.federation import FederationScraper
 import logging
 import requests
 from bs4 import BeautifulSoup

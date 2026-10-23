@@ -10,8 +10,8 @@ from django.db import models as django_models
 
 from ilovevoley.competitions.models import League, Match, ScrapingEndpoint
 from ilovevoley.teams.models import Club, Team
-from ilovevoley.videos.scraping import FederationScraper
-from ilovevoley.videos.tasks.scraping import scrape_all_leagues_task
+from ilovevoley.competitions.scraping.federation import FederationScraper
+from ilovevoley.competitions.tasks_scraping import scrape_all_leagues_task
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +219,7 @@ def enrich_upcoming_matches_task(self, delay=1.0):
     try:
         logger.info("Iniciando enriquecimiento de partidos próximos con datos JSON")
         
-        from ilovevoley.videos.scraping import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
         
         # Usar endpoint específico para próximos partidos
         json_url = "https://www.voleibolib.net/JSON/get_partidos_desglose_competiciones.asp?op=1&fini=&ffin="

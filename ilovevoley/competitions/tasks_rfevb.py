@@ -1,7 +1,6 @@
 """Tareas de scraping RFEVB (Campeonatos Nacionales)."""
 
 import logging
-import sys
 
 from celery import shared_task
 
@@ -25,11 +24,7 @@ def scrape_rfevb_competition(competition_id, fase_ids, parent_league_id):
     Uso:
         scrape_rfevb_competition.delay(9041, [2193, 2194, 2195, 2196], 'ceim_2526')
     """
-    _tasks = sys.modules.get('ilovevoley.videos.tasks')
-    _scrape_fases_func = getattr(_tasks, 'scrape_rfevb_fases', scrape_rfevb_fases)
-    _final_class_func = getattr(_tasks, 'scrape_rfevb_final_classification', scrape_rfevb_final_classification)
-
-    result = _scrape_fases_func(competition_id, fase_ids, parent_league_id)
+    result = scrape_rfevb_fases(competition_id, fase_ids, parent_league_id)
     logger.info(f'RFEVB scraping completado: {result}')
 
     if 'error' in result:
@@ -43,7 +38,7 @@ def scrape_rfevb_competition(competition_id, fase_ids, parent_league_id):
         ).exists()
         if not pending:
             logger.info('Todos los partidos finalizados, lanzando clasificación final')
-            _final_class_func.delay(competition_id, parent_league_id)
+            scrape_rfevb_final_classification.delay(competition_id, parent_league_id)
     except League.DoesNotExist:
         logger.error(f'Liga padre no encontrada para trigger final: {parent_league_id}')
 

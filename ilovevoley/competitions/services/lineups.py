@@ -196,7 +196,7 @@ def store_match_lineups(match, lineup_data):
     update_fields = ['acta_data', 'updated_at']
     if not match.set_scores:
         from ilovevoley.competitions.services.sets import extract_set_scores
-        from ilovevoley.videos.scraping.base import is_penalty_result
+        from ilovevoley.competitions.scraping.base import is_penalty_result
 
         scores = extract_set_scores(
             lineup_data,
@@ -222,7 +222,7 @@ def fetch_and_store_acta(match):
     cada llamador decida si reintenta o lo da por perdido.
     """
     # Import local: el paquete de scraping legado importa modelos de competitions.
-    from ilovevoley.videos.scraping import parse_acta_lineup
+    from ilovevoley.competitions.scraping.acta import parse_acta_lineup
 
     content = safe_get(match.official_acta_url or match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS)
     store_match_lineups(match, parse_acta_lineup(content))

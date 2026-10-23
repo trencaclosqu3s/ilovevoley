@@ -2,7 +2,8 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 from django.utils import timezone
 
-from ilovevoley.videos.scraping import RFEVBPhaseParser, RFEVBTeamsParser, StandingsParser
+from ilovevoley.competitions.scraping.parsers import StandingsParser
+from ilovevoley.competitions.scraping.rfevb import RFEVBPhaseParser, RFEVBTeamsParser
 
 
 # ---------------------------------------------------------------------------
@@ -303,10 +304,10 @@ class ScrapeRFEVBFaseCommandTests(TestCase):
         """Ejecuta el comando mockeando las llamadas HTTP."""
         out = StringIO()
         with patch(
-            'ilovevoley.videos.scraping.RFEVBPhaseParser.fetch_content',
+            'ilovevoley.competitions.services.rfevb_service.RFEVBPhaseParser.fetch_content',
             return_value=PHASE_HTML,
         ), patch(
-            'ilovevoley.videos.scraping.RFEVBTeamsParser.fetch_content',
+            'ilovevoley.competitions.services.rfevb_service.RFEVBTeamsParser.fetch_content',
             return_value=TEAMS_HTML,
         ):
             call_command(
@@ -406,20 +407,20 @@ class ScrapeRFEVBCompetitionTaskTests(TestCase):
             is_our_team_related=True,
         )
 
-    @patch('ilovevoley.videos.tasks.scrape_rfevb_fases')
-    @patch('ilovevoley.videos.tasks.scrape_rfevb_final_classification')
+    @patch('ilovevoley.competitions.tasks_rfevb.scrape_rfevb_fases')
+    @patch('ilovevoley.competitions.tasks_rfevb.scrape_rfevb_final_classification')
     def test_task_triggers_final_classification_when_all_done(self, mock_final, mock_scrape):
-        from ilovevoley.videos.tasks import scrape_rfevb_competition
+        from ilovevoley.competitions.tasks_rfevb import scrape_rfevb_competition
         mock_scrape.return_value = {'matches_found': 0, 'created': 0, 'updated': 0,
                                     'skipped': 0, 'errors': []}
         # No hay partidos pendientes (BD vacía para esta liga)
         scrape_rfevb_competition(9041, [2193], 'ceim_2526_task_test')
         mock_final.delay.assert_called_once_with(9041, 'ceim_2526_task_test')
 
-    @patch('ilovevoley.videos.tasks.scrape_rfevb_fases')
-    @patch('ilovevoley.videos.tasks.scrape_rfevb_final_classification')
+    @patch('ilovevoley.competitions.tasks_rfevb.scrape_rfevb_fases')
+    @patch('ilovevoley.competitions.tasks_rfevb.scrape_rfevb_final_classification')
     def test_task_does_not_trigger_final_when_pending_matches(self, mock_final, mock_scrape):
-        from ilovevoley.videos.tasks import scrape_rfevb_competition
+        from ilovevoley.competitions.tasks_rfevb import scrape_rfevb_competition
         from datetime import datetime
         from zoneinfo import ZoneInfo
         # Crear un partido pendiente
@@ -441,11 +442,11 @@ class ScrapeRFEVBCompetitionTaskTests(TestCase):
         scrape_rfevb_competition(9041, [2193], 'ceim_2526_task_test')
         mock_final.delay.assert_not_called()
 
-    @patch('ilovevoley.videos.tasks.scrape_rfevb_fases')
-    @patch('ilovevoley.videos.tasks.scrape_rfevb_final_classification')
+    @patch('ilovevoley.competitions.tasks_rfevb.scrape_rfevb_fases')
+    @patch('ilovevoley.competitions.tasks_rfevb.scrape_rfevb_final_classification')
     def test_task_does_not_trigger_final_when_parent_league_missing(self, mock_final, mock_scrape):
         """Sin liga padre no hay dónde mirar partidos pendientes: no se lanza la final."""
-        from ilovevoley.videos.tasks import scrape_rfevb_competition
+        from ilovevoley.competitions.tasks_rfevb import scrape_rfevb_competition
         mock_scrape.return_value = {'matches_found': 0, 'created': 0, 'updated': 0,
                                     'skipped': 0, 'errors': []}
         result = scrape_rfevb_competition(9041, [2193], 'nonexistent')
@@ -460,7 +461,7 @@ class ScrapeRFEVBCompetitionTaskTests(TestCase):
 class ProcessJsonMatchesUnifiedTests(TestCase):
 
     def setUp(self):
-        from ilovevoley.videos.scraping import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
         self.category = Category.objects.create(name='Juvenil')
         self.league = League.objects.create(
             name='Juvenil Masculino',
@@ -826,7 +827,7 @@ class SwappedHomeAwayMatchingTests(TestCase):
     sin federation_id) o retirar el duplicado en espejo de ejecuciones anteriores."""
 
     def setUp(self):
-        from ilovevoley.videos.scraping import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
         self.category = Category.objects.create(name='Juvenil')
         self.league = League.objects.create(
             name='Superliga 2026-27',
@@ -1126,7 +1127,7 @@ class WithdrawnTeamDetectionTests(TestCase):
 
     def setUp(self):
         from datetime import timedelta
-        from ilovevoley.videos.scraping import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
 
         self.category = Category.objects.create(name='Juvenil')
         self.league = League.objects.create(
@@ -1187,7 +1188,7 @@ class UpdateTeamsFederationClubTests(TestCase):
 
     def setUp(self):
         from ilovevoley.teams.models import Club
-        from ilovevoley.videos.scraping import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
 
         self.category = Category.objects.create(name='Senior')
         self.league = League.objects.create(
@@ -1240,8 +1241,8 @@ class UpdateMatchesClubFallbackTests(TestCase):
 
     def setUp(self):
         from ilovevoley.teams.models import Club
-        from ilovevoley.videos.scraping import FederationScraper
-        from ilovevoley.videos.scraping.parsers import MatchesParser
+        from ilovevoley.competitions.scraping.federation import FederationScraper
+        from ilovevoley.competitions.scraping.parsers import MatchesParser
 
         category = Category.objects.create(name='Cadete')
         self.league = League.objects.create(
@@ -1321,7 +1322,7 @@ class UpdateMatchesHistoricalMissingTeamTests(TestCase):
     """Liga histórica: un equipo ausente de la clasificación se crea para no perder el partido (#483)."""
 
     def _scrape(self, *, is_historical):
-        from ilovevoley.videos.scraping import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
         category = Category.objects.create(name='Alevín')
         league = League.objects.create(
             name='Alevín 4x4', federation_id='6754', match_format='standard',
@@ -1359,7 +1360,7 @@ class UpdateTeamsIdentityTests(TestCase):
 
     def setUp(self):
         from ilovevoley.teams.models import Club
-        from ilovevoley.videos.scraping import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
 
         self.category = Category.objects.create(name='Infantil', gender='male')
         self.league = League.objects.create(
@@ -1453,12 +1454,12 @@ class UpdateTeamsIdentityTests(TestCase):
 # Parciales: validación manual, parseo del .asp y penalización
 # ---------------------------------------------------------------------------
 
-from ilovevoley.videos.scraping import (  # noqa: E402
-    MatchesParser,
+from ilovevoley.competitions.scraping.base import (  # noqa: E402
     is_penalty_result,
     parse_set_scores_string,
     validate_set_scores,
 )
+from ilovevoley.competitions.scraping.parsers import MatchesParser  # noqa: E402
 
 
 class ValidateSetScoresTests(TestCase):
@@ -1567,7 +1568,7 @@ class UpdateMatchesSetScoresTests(TestCase):
     """Los parciales del scraping se persisten sin pisar correcciones previas."""
 
     def setUp(self):
-        from ilovevoley.videos.scraping import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
         self.category = Category.objects.create(name='Senior')
         self.league = League.objects.create(
             name='Senior', federation_id='8247', match_format='standard',
@@ -1621,7 +1622,7 @@ class UpdateMatchesResultPersistenceTests(TestCase):
     """
 
     def setUp(self):
-        from ilovevoley.videos.scraping import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
         self.category = Category.objects.create(name='Senior')
         self.league = League.objects.create(
             name='Senior', federation_id='8247', match_format='standard',

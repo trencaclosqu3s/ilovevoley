@@ -231,7 +231,7 @@ def notify_match_result_after_save(match: Match, already_finished: bool) -> bool
         return False
 
     if match.league:
-        from ilovevoley.videos.scraping.base import validate_volleyball_score
+        from ilovevoley.competitions.scraping.base import validate_volleyball_score
         if not validate_volleyball_score(match.home_score, match.away_score, match.league):
             return False
 
