@@ -545,9 +545,12 @@ class ScoreboardStreamEndedTest(TestCase):
         self.match.stream_url = self.WATCH_1
         self.match.save(update_fields=['stream_url'])
 
-        with self.settings(SCOREBOARD_VIDEO_USER_ID=0):
+        with self.settings(SCOREBOARD_VIDEO_USER_ID=0), self.assertLogs(
+            'ilovevoley.competitions.scoreboard_api', level='ERROR'
+        ) as logs:
             response = self._post(self.ENDED_URL, {'match_id': self.match.pk})
 
+        self.assertIn('SCOREBOARD_VIDEO_USER_ID', logs.output[0])
         self.assertEqual(response.status_code, 503)
         self.assertEqual(
             response.json(), {'success': False, 'error': 'video user not configured'}
