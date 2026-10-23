@@ -37,6 +37,8 @@ logger = logging.getLogger(__name__)
 
 # Latido del marcador ~30 s = 3 latidos (D-05); si cambia uno, revisar el otro.
 LIVE_STATE_TTL = 90
+# Un intento de resolver @canal/live cada ~2 min por partido (D-02).
+LIVE_RESOLVE_COOLDOWN = 120
 LIVE_MAX_POINTS = 99
 LIVE_MAX_SETS = 9
 LIVE_MAX_HISTORY = 9
@@ -44,6 +46,34 @@ LIVE_MAX_HISTORY = 9
 
 def live_state_key(match_id):
     return f'scoreboard:live:{match_id}'
+
+
+def live_resolve_cooldown_key(match_id):
+    return f'scoreboard:live-resolve:{match_id}'
+
+
+def _retry_live_resolution(match, tenant):
+    """Reintenta ``@canal/live`` durante el directo, como mucho una vez cada 2 min.
+
+    El cooldown se toma antes de resolver: cuenta tanto el fallo como el éxito
+    y evita que dos latidos concurrentes resuelvan a la vez. Un fallo aquí no
+    puede romper el latido: el estado en vivo ya está guardado.
+    """
+    try:
+        url = (match.stream_url or '').strip()
+        if not is_live_channel_url(url):
+            return
+        if not cache.add(live_resolve_cooldown_key(match.pk), 1, LIVE_RESOLVE_COOLDOWN):
+            return
+        resolved = resolve_live_watch_url(url)
+        if resolved:
+            _save_stream_url(match, resolved, tenant)
+    except Exception as exc:
+        logger.warning(
+            "Fallo al reintentar la resolucion del directo del partido %s: %s",
+            getattr(match, "pk", None),
+            exc.__class__.__name__,
+        )
 
 
 class ScoreboardApiError(Exception):
@@ -349,6 +379,10 @@ def api_scoreboard_stream_ended(request, tenant):
     user_id = getattr(settings, 'SCOREBOARD_VIDEO_USER_ID', 0) or 0
     user = get_user_model().objects.filter(pk=user_id).first() if user_id > 0 else None
     if user is None:
+        logger.error(
+            "SCOREBOARD_VIDEO_USER_ID ausente o sin usuario; no se crea el Video del partido %s",
+            match.pk,
+        )
         return JsonResponse(
             {'success': False, 'error': 'video user not configured'}, status=503
         )
@@ -478,6 +512,7 @@ def api_scoreboard_live_state(request, tenant):
 
     subset = _parse_live_state(data)
     cache.set(live_state_key(match.pk), subset, LIVE_STATE_TTL)
+    _retry_live_resolution(match, tenant)
     return JsonResponse({'success': True, 'match_id': match.pk})
 
 
