@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% blocktrans with home=match.home_team_display away=match.away_team_display %}{{ home }} vs {{ away }} - Multimedia{% endblocktrans %}{% endblock %}
 
@@ -69,6 +69,28 @@
         {% endif %}
     {% endfor %}
 
+    {% if clip_marks %}
+        <section class="mb-8">
+            <h2 class="text-sm font-semibold text-muted uppercase tracking-wide mb-3">{% trans "Jugadas" %}</h2>
+            <ul class="divide-y divide-line bg-surface rounded-2xl border border-line">
+                {% for mark in clip_marks %}
+                    <li class="px-4 py-3 flex items-center gap-3 flex-wrap">
+                        <span class="font-medium text-ink">{{ mark.label }}</span>
+                        {% for person in mark.persons.all %}
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-tint text-ink">{{ person.full_name }}</span>
+                        {% endfor %}
+                        <span class="ml-auto flex items-center gap-4">
+                            <a href="{% url 'public:match_mark_clip' link.token mark.id %}" download class="text-sm font-medium text-brand-text hover:text-csj-purple-dark">{% trans "Descargar" %}</a>
+                            <button type="button" hidden class="mark-clip-share text-sm font-medium text-brand-text hover:text-csj-purple-dark"
+                                    data-url="{% url 'public:match_mark_clip' link.token mark.id %}" data-filename="jugada-{{ mark.seconds }}.mp4"
+                                    data-tap-label="{% trans "Toca para compartir" %}">{% trans "Compartir" %}</button>
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+
     {% if not has_media %}
         <p class="text-center text-muted py-12">{% trans "Todavía no hay contenido multimedia para este partido." %}</p>
     {% endif %}
@@ -78,6 +100,7 @@
     </p>
 </div>
 
+{% if clip_marks %}<script src="{% static 'js/mark_clips.js' %}"></script>{% endif %}
 <script nonce="{{ csp_nonce }}">
     document.querySelectorAll('.video-launch').forEach(function (btn) {
         btn.addEventListener('click', function () {

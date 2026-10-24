@@ -9,7 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
-from ilovevoley.competitions.models import Match
+from ilovevoley.competitions.models import League, Match, Standing
 from ilovevoley.competitions.scoreboard_api import (
     LIVE_STATE_TTL,
     live_resolve_cooldown_key,
@@ -190,6 +190,41 @@ class ScoreboardMatchesTodayTest(TestCase):
         self.assertEqual(body['date'], '2026-06-15')
         self.assertEqual([match['id'] for match in body['matches']], [early.pk, late.pk])
         self.assertEqual([match['time'] for match in body['matches']], ['10:00', '18:00'])
+
+    @patch('django.utils.timezone.now')
+    def test_today_list_rules_follow_league_format(self, mock_now):
+        """#626: sets_to_win sale del formato de la liga (mejor de 3, de 5, custom y sin liga)."""
+        tz = timezone.get_current_timezone()
+        mock_now.return_value = timezone.make_aware(datetime(2026, 6, 15, 15, 0), tz)
+        cases = [
+            ('standard', None, 3),
+            ('tournament_3sets', None, 2),
+            ('alevin_balear', None, 2),
+            ('custom', 4, 4),
+            ('custom', None, 3),
+        ]
+        for hour, (fmt, custom, _expected) in enumerate(cases, start=8):
+            league = League.objects.create(
+                name=f'Liga {hour}', season=self.season, federation_id=f'F{hour}',
+                match_format=fmt, custom_sets_to_win=custom,
+            )
+            Match.objects.create(
+                league=league, home_team=self.team1, away_team=self.team2,
+                match_date=self._today_at(hour), status='scheduled',
+            )
+        Match.objects.create(
+            league=None, home_team=self.team1, away_team=self.team2,
+            match_date=self._today_at(14), status='scheduled',
+        )
+
+        matches = self._get().json()['matches']
+
+        self.assertEqual(
+            [match['rules']['sets_to_win'] for match in matches],
+            [c[2] for c in cases] + [3],
+        )
+        self.assertEqual(matches[0]['rules'], {'set_points': 25, 'decider_points': 15, 'sets_to_win': 3})
+        self.assertEqual(matches[2]['rules'], {'set_points': 25, 'decider_points': 25, 'sets_to_win': 2})
 
     @patch('django.utils.timezone.now')
     def test_today_list_colors_and_logo_fallbacks(self, mock_now):
@@ -849,3 +884,48 @@ class ScoreboardLiveStateTest(TestCase):
         res = self._post(self._valid_payload())
         self.assertEqual(res.status_code, 200)
         self.assertIsNotNone(cache.get(live_state_key(self.match.pk)))
+
+
+@override_settings(SCOREBOARD_STREAM_TOKEN='s3cret', ALLOWED_HOSTS=['santjust.ilovevoley.es'])
+class ScoreboardMatchPreviewTest(TestCase):
+    """GET de la previa para el overlay (#609): ganador relativo a hoy y jornada fiable."""
+
+    URL = '/competitions/api/matches/preview/'
+
+    def setUp(self):
+        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
+
+        LiveStreamPushTest.setUp(self)
+        cache.clear()
+
+    def _get(self):
+        return self.client.get(
+            self.URL, HTTP_HOST='santjust.ilovevoley.es', HTTP_AUTHORIZATION='Bearer s3cret',
+        )
+
+    def test_h2h_winner_is_relative_to_today_and_round_null_without_rounds(self):
+        # Hoy: Senior A (local) vs Rival B. En el pasado B jugó de local y ganó 3-1.
+        Match.objects.create(
+            league=self.league, home_team=self.team2, away_team=self.team1,
+            status='finished', home_score=3, away_score=1,
+            match_date=timezone.now() - timedelta(days=30),
+        )
+        Standing.objects.create(
+            league=self.league, team=self.team1, position=2, played=5, total_points=12,
+        )
+
+        data = self._get().json()
+
+        meeting = data['head_to_head']['matches'][0]
+        self.assertEqual(
+            (meeting['home'], meeting['sets'], meeting['winner']), ('Rival B', '3-1', 'away'),
+        )
+        self.assertEqual(
+            data['head_to_head']['summary'], {'home_wins': 0, 'away_wins': 1, 'total': 1},
+        )
+        self.assertEqual(data['form']['home'][0]['result'], 'L')
+        self.assertEqual(data['form']['home'][0]['score'], '1-3')
+        self.assertEqual(
+            data['standings'], {'home': {'position': 2, 'points': 12, 'played': 5}, 'away': None},
+        )
+        self.assertIsNone(data['match']['round'])
