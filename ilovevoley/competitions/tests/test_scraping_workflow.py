@@ -6,7 +6,9 @@ from django.test import TestCase, override_settings
 from ilovevoley.competitions.models import League
 from ilovevoley.competitions.tasks_scraping import (
     build_scrape_all_leagues_workflow,
+    scrape_endpoint_summary_task,
     scrape_leagues_summary_task,
+    scrape_results_task,
 )
 from ilovevoley.competitions.tasks_enrichment import enrich_leagues_summary_task, enrich_matches_json_task
 from ilovevoley.core.models import Season
@@ -66,3 +68,30 @@ class EnrichLeaguesWorkflowTest(TestCase):
         ]
         total = enrich_leagues_summary_task.run(stats, notify=False)
         self.assertEqual((total['total_enriched'], total['total_new'], total['leagues_errors']), (3, 1, 1))
+
+
+class ScrapeResultsWorkflowTest(TestCase):
+    def setUp(self):
+        season = Season.objects.current()
+        for n in range(2):
+            League.objects.create(name=f'Liga {n}', federation_id=str(n), season=season, is_active=True)
+
+    def test_results_fan_out_passes_round_and_delay_per_league(self):
+        with mock.patch('ilovevoley.competitions.tasks_scraping.chord') as chord_mock:
+            result = scrape_results_task.run(round_number=4, delay=3.0)
+        header = chord_mock.call_args.args[0]
+        self.assertEqual(result, {'status': 'queued', 'leagues_queued': 2})
+        self.assertEqual([sig.options['countdown'] for sig in header], [0.0, 3.0])
+        self.assertTrue(all(sig.args[1:] == (4, 3.0) for sig in header))
+
+    def test_unknown_league_id_is_an_error_not_a_fan_out(self):
+        result = scrape_results_task.run(league_id='nope')
+        self.assertEqual(result['status'], 'error')
+
+    @override_settings(NOTIFICATION_EMAIL_ENABLED=True)
+    def test_summary_subject_names_the_kind(self):
+        stats = [{'league': 'B', 'success': False, 'matches': 0, 'rounds': 0,
+                  'errors': [{'league': 'B', 'error': 'x'}]}]
+        with mock.patch('ilovevoley.competitions.tasks_scraping.mail_admins') as mail:
+            scrape_endpoint_summary_task.run(stats, 'calendario')
+        self.assertIn('calendario', mail.call_args.args[0])

@@ -226,337 +226,194 @@ def scrape_league_task(self, league_id, round_number=None):
         }
 
 
+def _persist_endpoint_result(scraper, result):
+    """Guarda equipos y partidos de un resultado de endpoint y devuelve cuántos partidos trae."""
+    all_teams = scraper.update_teams(result['teams']) if 'teams' in result else {}
+    if 'matches' in result:
+        scraper.update_matches(result['matches'], all_teams)
+    return len(result.get('matches', []))
+
+
+def _calendar_league_stats(league):
+    stats = {'league': league.name, 'success': True, 'matches': 0, 'rounds': 0, 'errors': []}
+    try:
+        scraper = FederationScraper(league)
+        endpoint = league.endpoints.filter(endpoint_type='calendar', is_active=True).first()
+        if not endpoint:
+            logger.warning(f'No se encontró endpoint de calendario activo para {league.name}')
+            error = 'No se encontró endpoint de calendario activo'
+        else:
+            result = scraper.scrape_endpoint(endpoint)
+            error = result.get('error')
+            if not error:
+                stats['matches'] = _persist_endpoint_result(scraper, result)
+                logger.info(f'{league.name}: {stats["matches"]} partidos guardados en el calendario')
+    except Exception as e:
+        logger.error(f'Error crítico en {league.name}: {e}', exc_info=True)
+        error = str(e)
+    if error:
+        logger.error(f'{league.name} - Error: {error}')
+        stats['success'] = False
+        stats['errors'].append({'league': league.name, 'error': error})
+    return stats
+
+
+def _results_league_stats(league, round_number, delay):
+    stats = {'league': league.name, 'success': True, 'matches': 0, 'rounds': 0, 'errors': []}
+    try:
+        scraper = FederationScraper(league)
+        endpoint = league.endpoints.filter(endpoint_type='results', is_active=True).first()
+        if not endpoint:
+            logger.warning(f'No se encontró endpoint de resultados activo para {league.name}')
+            error = 'No se encontró endpoint de resultados activo'
+        elif round_number is None:
+            result = scraper.scrape_all_results_rounds(delay=delay)
+            error = result.get('error')
+            if not error:
+                stats['matches'] = result.get('total_matches', 0)
+                stats['rounds'] = result.get('rounds_with_data', 0)
+        else:
+            result = scraper.scrape_endpoint(endpoint, round=round_number)
+            error = result.get('error')
+            if not error:
+                stats['matches'] = _persist_endpoint_result(scraper, result)
+                stats['rounds'] = 1
+        if not error:
+            logger.info(f'{league.name}: {stats["matches"]} matches from {stats["rounds"]} rounds')
+    except Exception as e:
+        logger.error(f'Error crítico en {league.name}: {e}', exc_info=True)
+        error = str(e)
+    if error:
+        logger.error(f'{league.name} - Error: {error}')
+        stats['success'] = False
+        stats['errors'].append({'league': league.name, 'error': error})
+    return stats
+
+
+def _summarize_league_stats(league_stats):
+    return {
+        'status': 'success',
+        'leagues_processed': len(league_stats),
+        'leagues_success': sum(1 for s in league_stats if s['success']),
+        'leagues_errors': sum(1 for s in league_stats if not s['success']),
+        'total_matches': sum(s['matches'] for s in league_stats),
+        'total_rounds': sum(s['rounds'] for s in league_stats),
+        'errors': [e for s in league_stats for e in s['errors']],
+    }
+
+
+def _target_leagues(league_id):
+    """(pks, error): la liga pedida por federation_id o todas las activas."""
+    if league_id:
+        league = League.objects.filter(federation_id=league_id, is_active=True).first()
+        if not league:
+            return [], f'Liga con ID {league_id} no encontrada o inactiva'
+        return [league.pk], None
+    pks = list(League.objects.filter(is_active=True).values_list('pk', flat=True))
+    return pks, (None if pks else 'No se encontraron ligas activas')
+
+
+@shared_task(name='scrape_calendar_league', bind=True)
+def scrape_calendar_league_task(self, league_pk):
+    """Scrapea el calendario de una liga (parte del chord de scrape_calendar)."""
+    return _calendar_league_stats(League.objects.get(pk=league_pk))
+
+
+@shared_task(name='scrape_results_league', bind=True)
+def scrape_results_league_task(self, league_pk, round_number=None, delay=2.0):
+    """Scrapea los resultados de una liga (parte del chord de scrape_results)."""
+    return _results_league_stats(League.objects.get(pk=league_pk), round_number, delay)
+
+
+@shared_task(name='scrape_endpoint_summary', bind=True)
+def scrape_endpoint_summary_task(self, league_stats, kind):
+    """Callback del chord: agrega las estadísticas por liga y avisa a admins si hubo errores.
+
+    `kind`: 'calendario' o 'resultados', para el log y el asunto del email.
+    """
+    total_results = _summarize_league_stats(league_stats)
+    logger.info(
+        f"Scraping de {kind} completado - Procesadas: {total_results['leagues_processed']}, "
+        f"Exitosas: {total_results['leagues_success']}, "
+        f"Con errores: {total_results['leagues_errors']}, "
+        f"Jornadas: {total_results['total_rounds']}, "
+        f"Partidos: {total_results['total_matches']}"
+    )
+    if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
+        subject = f"[I Love Voley] Errores en scraping automático de {kind}"
+        message = f"""
+        Se han detectado errores durante el scraping automático de {kind}:
+
+        - Ligas procesadas: {total_results['leagues_processed']}
+        - Ligas exitosas: {total_results['leagues_success']}
+        - Ligas con errores: {total_results['leagues_errors']}
+        - Jornadas procesadas: {total_results['total_rounds']}
+
+        Partidos encontrados: {total_results['total_matches']}
+
+        Errores detectados:
+        {chr(10).join([f"- {e['league']}: {e['error']}" for e in total_results['errors'][:10]])}
+        """
+        try:
+            mail_admins(subject, message, fail_silently=True)
+        except Exception as e:
+            logger.error(f"Error enviando email de notificación: {e}")
+    return total_results
+
+
+def _fan_out_leagues(task, league_pks, delay, kind, *args):
+    """Una tarea por liga con arranque escalonado por `countdown` (sin sleep en el worker, #601)."""
+    header = [task.s(pk, *args).set(countdown=i * delay) for i, pk in enumerate(league_pks)]
+    return chord(header)(scrape_endpoint_summary_task.s(kind))
+
+
 @shared_task(name='scrape_calendar', bind=True)
 def scrape_calendar_task(self, league_id=None, delay=2.0):
     """
-    Ejecuta scraping del calendario de partidos.
-    
-    Si se proporciona league_id, scrapea solo esa liga.
-    Si no se proporciona, scrapea el calendario de todas las ligas activas.
-    
+    Lanza el scraping del calendario de partidos, una tarea por liga.
+
+    Con league_id scrapea solo esa liga, en línea. Sin él, encola todas las
+    ligas activas y el resumen (y el email de errores) lo produce
+    `scrape_endpoint_summary`.
+
     Args:
         league_id: ID de la federación de la liga (opcional)
-        delay: Tiempo de espera entre ligas en segundos (default: 2.0)
-    
-    Returns:
-        dict: Estadísticas del scraping realizado
+        delay: Segundos entre el arranque de una liga y la siguiente (default: 2.0)
     """
     logger.info("Iniciando scraping de calendario de partidos")
-    
-    try:
-        if league_id:
-            # Scraping de una liga específica
-            try:
-                league = League.objects.get(federation_id=league_id, is_active=True)
-            except League.DoesNotExist:
-                error_msg = f'Liga con ID {league_id} no encontrada o inactiva'
-                logger.error(error_msg)
-                return {'status': 'error', 'message': error_msg}
-            
-            leagues = [league]
-        else:
-            # Scraping de todas las ligas activas
-            leagues = League.objects.filter(is_active=True).prefetch_related('categories')
-            
-            if not leagues.exists():
-                error_msg = 'No se encontraron ligas activas'
-                logger.warning(error_msg)
-                return {'status': 'error', 'message': error_msg}
-        
-        total_results = {
-            'status': 'success',
-            'leagues_processed': 0,
-            'leagues_success': 0,
-            'leagues_errors': 0,
-            'total_matches': 0,
-            'errors': []
-        }
-        
-        for i, league in enumerate(leagues):
-            # Obtener nombres de todas las categorías
-            categories = league.categories.all()
-            category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
-            logger.info(f'[{i+1}/{len(leagues)}] Procesando calendario de {league.name} ({category_name})')
-            
-            try:
-                scraper = FederationScraper(league)
-                
-                # Buscar endpoint de calendario
-                calendar_endpoint = league.endpoints.filter(
-                    endpoint_type='calendar',
-                    is_active=True
-                ).first()
-                
-                if not calendar_endpoint:
-                    logger.warning(f'No se encontró endpoint de calendario activo para {league.name}')
-                    total_results['leagues_processed'] += 1
-                    total_results['leagues_errors'] += 1
-                    total_results['errors'].append({
-                        'league': league.name,
-                        'error': 'No se encontró endpoint de calendario activo'
-                    })
-                    continue
-                
-                # Ejecutar scraping del calendario
-                result = scraper.scrape_endpoint(calendar_endpoint)
-                
-                if 'error' in result:
-                    logger.error(f'{league.name} - Error: {result["error"]}')
-                    total_results['leagues_errors'] += 1
-                    total_results['errors'].append({
-                        'league': league.name,
-                        'error': result['error']
-                    })
-                else:
-                    # Actualizar equipos si los hay
-                    all_teams = {}
-                    if 'teams' in result:
-                        all_teams = scraper.update_teams(result['teams'])
-                    
-                    # Actualizar partidos en la base de datos
-                    if 'matches' in result:
-                        scraper.update_matches(result['matches'], all_teams)
-                    
-                    matches_count = len(result.get('matches', []))
-                    total_results['total_matches'] += matches_count
-                    total_results['leagues_success'] += 1
-                    logger.info(f'{league.name}: {matches_count} partidos guardados en el calendario')
-                
-                total_results['leagues_processed'] += 1
-                
-                # Rate limiting entre ligas
-                if i < len(leagues) - 1:
-                    time.sleep(delay)
-            
-            except Exception as e:
-                total_results['leagues_errors'] += 1
-                total_results['leagues_processed'] += 1
-                error_msg = f'Error crítico en {league.name}: {str(e)}'
-                logger.error(error_msg, exc_info=True)
-                total_results['errors'].append({
-                    'league': league.name,
-                    'error': str(e)
-                })
-        
-        # Log resumen final
-        logger.info(
-            f"Scraping de calendario completado - Procesadas: {total_results['leagues_processed']}, "
-            f"Exitosas: {total_results['leagues_success']}, "
-            f"Con errores: {total_results['leagues_errors']}"
-        )
-        
-        # Enviar email a admins si hay errores y las notificaciones están habilitadas
-        if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
-            subject = f"[I Love Voley] Errores en scraping automático de calendario"
-            message = f"""
-            Se han detectado errores durante el scraping automático del calendario:
-            
-            - Ligas procesadas: {total_results['leagues_processed']}
-            - Ligas exitosas: {total_results['leagues_success']}
-            - Ligas con errores: {total_results['leagues_errors']}
-            
-            Partidos encontrados: {total_results['total_matches']}
-            
-            Errores detectados:
-            {chr(10).join([f"- {e['league']}: {e['error']}" for e in total_results['errors'][:10]])}
-            """
-            
-            try:
-                mail_admins(subject, message, fail_silently=True)
-            except Exception as e:
-                logger.error(f"Error enviando email de notificación: {e}")
-        
-        return total_results
-    
-    except Exception as e:
-        error_msg = f'Error general durante scraping de calendario: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {
-            'status': 'error',
-            'message': error_msg
-        }
+    league_pks, error_msg = _target_leagues(league_id)
+    if error_msg:
+        logger.error(error_msg)
+        return {'status': 'error', 'message': error_msg}
+    if league_id:
+        return _summarize_league_stats([_calendar_league_stats(League.objects.get(pk=league_pks[0]))])
+    _fan_out_leagues(scrape_calendar_league_task, league_pks, delay, 'calendario')
+    return {'status': 'queued', 'leagues_queued': len(league_pks)}
 
 
 @shared_task(name='scrape_results', bind=True)
 def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
     """
-    Ejecuta scraping de resultados de partidos.
-    
-    Si se proporciona league_id, scrapea solo esa liga.
-    Si no se proporciona, scrapea los resultados de todas las ligas activas.
-    Si se proporciona round_number, scrapea solo esa jornada (legacy).
-    Si no se proporciona round_number, scrapea TODAS las jornadas automáticamente.
-    
+    Lanza el scraping de resultados de partidos, una tarea por liga.
+
+    Con league_id scrapea solo esa liga, en línea. Sin él, encola todas las
+    ligas activas. Sin round_number scrapea todas las jornadas de cada liga.
+
     Args:
         league_id: ID de la federación de la liga (opcional)
-        round_number: Jornada específica a scrapear (opcional, si no se provee scrapea todas)
-        delay: Tiempo de espera entre jornadas/ligas en segundos (default: 2.0)
-    
-    Returns:
-        dict: Estadísticas del scraping realizado
+        round_number: Jornada específica a scrapear (opcional)
+        delay: Segundos entre ligas (arranque) y entre jornadas de una liga (default: 2.0)
     """
     logger.info("Iniciando scraping de resultados de partidos")
-    
-    try:
-        if league_id:
-            # Scraping de una liga específica
-            try:
-                league = League.objects.get(federation_id=league_id, is_active=True)
-            except League.DoesNotExist:
-                error_msg = f'Liga con ID {league_id} no encontrada o inactiva'
-                logger.error(error_msg)
-                return {'status': 'error', 'message': error_msg}
-            
-            leagues = [league]
-        else:
-            # Scraping de todas las ligas activas
-            leagues = League.objects.filter(is_active=True).prefetch_related('categories')
-            
-            if not leagues.exists():
-                error_msg = 'No se encontraron ligas activas'
-                logger.warning(error_msg)
-                return {'status': 'error', 'message': error_msg}
-        
-        total_results = {
-            'status': 'success',
-            'leagues_processed': 0,
-            'leagues_success': 0,
-            'leagues_errors': 0,
-            'total_matches': 0,
-            'total_rounds': 0,
-            'errors': []
-        }
-        
-        for i, league in enumerate(leagues):
-            # Obtener nombres de todas las categorías
-            categories = league.categories.all()
-            category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
-            logger.info(f'[{i+1}/{len(leagues)}] Procesando resultados de {league.name} ({category_name})')
-            
-            try:
-                scraper = FederationScraper(league)
-                
-                # Buscar endpoint de resultados
-                results_endpoint = league.endpoints.filter(
-                    endpoint_type='results',
-                    is_active=True
-                ).first()
-                
-                if not results_endpoint:
-                    logger.warning(f'No se encontró endpoint de resultados activo para {league.name}')
-                    total_results['leagues_processed'] += 1
-                    total_results['leagues_errors'] += 1
-                    total_results['errors'].append({
-                        'league': league.name,
-                        'error': 'No se encontró endpoint de resultados activo'
-                    })
-                    continue
-                
-                # NUEVO: Si no se especifica round_number, scrapear TODAS las jornadas
-                if round_number is None:
-                    logger.info(f'{league.name}: Scraping ALL rounds automatically')
-                    result = scraper.scrape_all_results_rounds(delay=delay)
-                    
-                    if 'error' in result:
-                        logger.error(f'{league.name} - Error: {result["error"]}')
-                        total_results['leagues_errors'] += 1
-                        total_results['errors'].append({
-                            'league': league.name,
-                            'error': result['error']
-                        })
-                    else:
-                        matches_count = result.get('total_matches', 0)
-                        rounds_count = result.get('rounds_with_data', 0)
-                        total_results['total_matches'] += matches_count
-                        total_results['total_rounds'] += rounds_count
-                        total_results['leagues_success'] += 1
-                        logger.info(f'{league.name}: {matches_count} matches from {rounds_count} rounds')
-                
-                else:
-                    # LEGACY: Scrapear una jornada específica
-                    logger.info(f'{league.name}: Scraping specific round {round_number}')
-                    kwargs = {'round': round_number}
-                    result = scraper.scrape_endpoint(results_endpoint, **kwargs)
-                    
-                    if 'error' in result:
-                        logger.error(f'{league.name} - Error: {result["error"]}')
-                        total_results['leagues_errors'] += 1
-                        total_results['errors'].append({
-                            'league': league.name,
-                            'error': result['error']
-                        })
-                    else:
-                        # Actualizar equipos si los hay
-                        all_teams = {}
-                        if 'teams' in result:
-                            all_teams = scraper.update_teams(result['teams'])
-                        
-                        # Actualizar partidos en la base de datos
-                        if 'matches' in result:
-                            scraper.update_matches(result['matches'], all_teams)
-                        
-                        matches_count = len(result.get('matches', []))
-                        total_results['total_matches'] += matches_count
-                        total_results['total_rounds'] += 1
-                        total_results['leagues_success'] += 1
-                        logger.info(f'{league.name}: {matches_count} matches from round {round_number}')
-                
-                total_results['leagues_processed'] += 1
-                
-                # Rate limiting entre ligas
-                if i < len(leagues) - 1:
-                    time.sleep(delay)
-            
-            except Exception as e:
-                total_results['leagues_errors'] += 1
-                total_results['leagues_processed'] += 1
-                error_msg = f'Error crítico en {league.name}: {str(e)}'
-                logger.error(error_msg, exc_info=True)
-                total_results['errors'].append({
-                    'league': league.name,
-                    'error': str(e)
-                })
-        
-        # Log resumen final
-        logger.info(
-            f"Scraping de resultados completado - Procesadas: {total_results['leagues_processed']}, "
-            f"Exitosas: {total_results['leagues_success']}, "
-            f"Con errores: {total_results['leagues_errors']}, "
-            f"Jornadas: {total_results['total_rounds']}, "
-            f"Partidos: {total_results['total_matches']}"
-        )
-        
-        # Enviar email a admins si hay errores y las notificaciones están habilitadas
-        if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
-            subject = f"[I Love Voley] Errores en scraping automático de resultados"
-            message = f"""
-            Se han detectado errores durante el scraping automático de resultados:
-            
-            - Ligas procesadas: {total_results['leagues_processed']}
-            - Ligas exitosas: {total_results['leagues_success']}
-            - Ligas con errores: {total_results['leagues_errors']}
-            - Jornadas procesadas: {total_results['total_rounds']}
-            
-            Partidos encontrados: {total_results['total_matches']}
-            
-            Errores detectados:
-            {chr(10).join([f"- {e['league']}: {e['error']}" for e in total_results['errors'][:10]])}
-            """
-            
-            try:
-                mail_admins(subject, message, fail_silently=True)
-            except Exception as e:
-                logger.error(f"Error enviando email de notificación: {e}")
-        
-        return total_results
-    
-    except Exception as e:
-        error_msg = f'Error general durante scraping de resultados: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {
-            'status': 'error',
-            'message': error_msg
-        }
+    league_pks, error_msg = _target_leagues(league_id)
+    if error_msg:
+        logger.error(error_msg)
+        return {'status': 'error', 'message': error_msg}
+    if league_id:
+        league = League.objects.get(pk=league_pks[0])
+        return _summarize_league_stats([_results_league_stats(league, round_number, delay)])
+    _fan_out_leagues(scrape_results_league_task, league_pks, delay, 'resultados', round_number, delay)
+    return {'status': 'queued', 'leagues_queued': len(league_pks)}
 
 
 @shared_task(name='scrape_clubs', bind=True)
@@ -1164,6 +1021,9 @@ __all__ = [
     'build_scrape_all_leagues_workflow',
     'scrape_league_task',
     'scrape_calendar_task',
+    'scrape_calendar_league_task',
+    'scrape_results_league_task',
+    'scrape_endpoint_summary_task',
     'scrape_results_task',
     'scrape_clubs_task',
     'handle_withdrawn_teams_task',
