@@ -1,6 +1,5 @@
 import calendar
 import hashlib
-import hmac
 import json
 import logging
 import re as _re
@@ -26,7 +25,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext as _
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from ilovevoley.competitions.result_card import (
@@ -332,6 +330,15 @@ def league_detail(request, league_id):
     })
 
 
+def _live_card_eligible(match, now):
+    """True si el partido está abierto y dentro de [-6 h, +24 h] para montar la tarjeta en vivo."""
+    if match.status in ('finished', 'cancelled', 'postponed', 'withdrawn'):
+        return False
+    if not match.match_date:
+        return False
+    return (now - timedelta(hours=6)) <= match.match_date <= (now + timedelta(hours=24))
+
+
 @tenant_access_required()
 def match_detail(request, match_id):
     """Vista detallada de un partido con sus videos e imágenes"""
@@ -404,6 +411,7 @@ def match_detail(request, match_id):
         'stream_url': stream_url,
         'is_live': match.is_live if is_own_match else False,
         'is_live_window': match.is_live_window if is_own_match else False,
+        'live_card_eligible': _live_card_eligible(match, timezone.now()),
         'share_links': share_links,
         'share_hours_choices': ALLOWED_HOURS,
         'share_default_hours': default_hours(),
@@ -1819,43 +1827,6 @@ def _save_stream_url(match, stream_url, tenant):
     })
 
 
-@csrf_exempt
-@require_POST
-def api_scoreboard_stream_live(request):
-    """Webhook del marcador: pone el directo en el único partido del club en ventana (#575).
-
-    El club sale del subdominio (TenantMiddleware). Cero o varios partidos en
-    ventana → 409 y se pega a mano; el marcador reintenta en cada corte de 4G y
-    `stream_notified_at` evita repetir la push.
-    """
-    token = settings.SCOREBOARD_STREAM_TOKEN
-    auth = request.headers.get('Authorization', '')
-    if not token or not hmac.compare_digest(auth.encode(), f'Bearer {token}'.encode()):
-        return JsonResponse({'success': False, 'error': 'forbidden'}, status=403)
-
-    tenant = getattr(request, 'tenant', None)
-    if tenant is None:
-        return JsonResponse({'success': False, 'error': 'tenant required'}, status=400)
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
-    stream_url = (data.get('url') or '').strip()
-    if not stream_url:
-        return JsonResponse({'success': False, 'error': 'url required'}, status=400)
-
-    now = timezone.now()
-    candidates = Match.objects.for_tenant(tenant).filter(
-        match_date__range=(now - timedelta(hours=3), now + timedelta(minutes=30)),
-    )
-    live = [m for m in candidates if m.is_live_window]
-    if len(live) != 1:
-        return JsonResponse({'success': False, 'matches_in_window': len(live)}, status=409)
-
-    return _save_stream_url(live[0], stream_url, tenant)
-
-
 __all__ = [
     'league_list',
     'league_detail',
@@ -1875,7 +1846,6 @@ __all__ = [
     'ajax_acta_lineup',
     'ajax_link_acta_person',
     'ajax_update_stream_url',
-    'api_scoreboard_stream_live',
     'standings_view',
     'ajax_matches_by_category',
     'ajax_teams_by_league_category',
