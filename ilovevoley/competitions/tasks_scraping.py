@@ -3,7 +3,7 @@
 import logging
 import time
 
-from celery import shared_task
+from celery import chord, shared_task
 from django.conf import settings
 from django.core.mail import mail_admins
 from django.db import models as django_models
@@ -14,109 +14,107 @@ from ilovevoley.teams.models import Club, Team
 
 logger = logging.getLogger(__name__)
 
+def _active_leagues(category_filter=None):
+    leagues = League.objects.filter(is_active=True)
+    if category_filter:
+        leagues = leagues.filter(categories__name__icontains=category_filter).distinct()
+    return leagues
+
+
+def build_scrape_all_leagues_workflow(round_number=None, category_filter=None, delay=2.0, then=None):
+    """
+    Un `scrape_league_stats` por liga más el callback que agrega y avisa a admins.
+
+    La separación entre ligas es un `countdown` escalonado, no un `sleep`: el
+    worker queda libre entre ligas. Techo: el rate limit solo espacia el arranque
+    de cada liga; con varios workers pueden solaparse las ligas más lentas.
+    `then`: firma que se encadena tras el resumen (p. ej. el enriquecimiento).
+
+    Devuelve (workflow, n_ligas) o (None, 0) si no hay ligas.
+    """
+    league_ids = list(_active_leagues(category_filter).values_list('pk', flat=True))
+    if not league_ids:
+        return None, 0
+    header = [
+        scrape_league_stats_task.s(league_pk, round_number).set(countdown=i * delay)
+        for i, league_pk in enumerate(league_ids)
+    ]
+    callback = scrape_leagues_summary_task.s()
+    if then is not None:
+        callback = callback | then
+    return chord(header)(callback), len(league_ids)
+
+
 @shared_task(name='scrape_all_leagues', bind=True)
 def scrape_all_leagues_task(self, round_number=None, category_filter=None, delay=2.0):
     """
-    Ejecuta scraping de todas las ligas activas.
-    
+    Lanza el scraping de todas las ligas activas, una tarea por liga.
+
     Args:
         round_number: Jornada específica (opcional)
         category_filter: Filtrar solo ligas de una categoría específica (opcional)
-        delay: Tiempo de espera entre ligas en segundos (default: 2.0)
-    
+        delay: Segundos entre el arranque de una liga y la siguiente (default: 2.0)
+
     Returns:
-        dict: Estadísticas del scraping realizado
+        dict: Ligas encoladas. Las estadísticas agregadas las devuelve
+        `scrape_leagues_summary`, que también envía el email de errores.
     """
-    logger.info(f"Iniciando tarea de scraping de todas las ligas activas")
-    
-    # Obtener ligas activas
-    leagues = League.objects.filter(is_active=True).prefetch_related('categories')
-    
-    # Filtrar por categoría si se especifica
-    if category_filter:
-        leagues = leagues.filter(categories__name__icontains=category_filter).distinct()
-    
-    if not leagues.exists():
-        error_msg = f'No se encontraron ligas activas'
+    logger.info("Iniciando tarea de scraping de todas las ligas activas")
+    workflow, queued = build_scrape_all_leagues_workflow(round_number, category_filter, delay)
+    if not workflow:
+        error_msg = 'No se encontraron ligas activas'
         if category_filter:
             error_msg += f" de categoría '{category_filter}'"
         logger.warning(error_msg)
         return {'status': 'error', 'message': error_msg}
-    
+    return {'status': 'queued', 'leagues_queued': queued}
+
+
+@shared_task(name='scrape_league_stats', bind=True)
+def scrape_league_stats_task(self, league_pk, round_number=None):
+    """Scrapea todos los endpoints de una liga y devuelve sus estadísticas."""
+    league = League.objects.prefetch_related('categories').get(pk=league_pk)
+    category_name = ', '.join(c.name for c in league.categories.all()) or 'Sin categoría'
+    logger.info(f'Procesando {league.name} ({category_name})')
+
+    stats = {'league': league.name, 'success': True, 'teams': 0, 'matches': 0, 'standings': 0, 'errors': []}
+    try:
+        results = FederationScraper(league).scrape_all_endpoints(round=round_number)
+        for endpoint_type, data in results.items():
+            if 'error' in data:
+                logger.error(f'{league.name} - {endpoint_type}: {data["error"]}')
+                stats['success'] = False
+                stats['errors'].append({'league': league.name, 'endpoint': endpoint_type, 'error': data['error']})
+            else:
+                stats['teams'] += len(data.get('teams', []))
+                stats['matches'] += len(data.get('matches', []))
+                stats['standings'] += len(data.get('standings', []))
+        if stats['success']:
+            logger.info(
+                f'{league.name}: {stats["teams"]} equipos, '
+                f'{stats["matches"]} partidos, {stats["standings"]} clasificaciones'
+            )
+    except Exception as e:
+        stats['success'] = False
+        logger.error(f'Error crítico en {league.name}: {e}', exc_info=True)
+        stats['errors'].append({'league': league.name, 'endpoint': 'general', 'error': str(e)})
+    return stats
+
+
+@shared_task(name='scrape_leagues_summary', bind=True)
+def scrape_leagues_summary_task(self, league_stats):
+    """Callback del chord: agrega las estadísticas por liga y avisa a admins si hubo errores."""
     total_results = {
         'status': 'success',
-        'leagues_processed': 0,
-        'leagues_success': 0,
-        'leagues_errors': 0,
-        'total_teams': 0,
-        'total_matches': 0,
-        'total_standings': 0,
-        'errors': []
+        'leagues_processed': len(league_stats),
+        'leagues_success': sum(1 for s in league_stats if s['success']),
+        'leagues_errors': sum(1 for s in league_stats if not s['success']),
+        'total_teams': sum(s['teams'] for s in league_stats),
+        'total_matches': sum(s['matches'] for s in league_stats),
+        'total_standings': sum(s['standings'] for s in league_stats),
+        'errors': [e for s in league_stats for e in s['errors']],
     }
-    
-    for i, league in enumerate(leagues):
-        # Obtener nombres de todas las categorías
-        categories = league.categories.all()
-        category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
-        logger.info(f'[{i+1}/{leagues.count()}] Procesando {league.name} ({category_name})')
-        
-        try:
-            scraper = FederationScraper(league)
-            results = scraper.scrape_all_endpoints(round=round_number)
-            
-            # Procesar resultados
-            league_success = True
-            league_stats = {'teams': 0, 'matches': 0, 'standings': 0}
-            
-            for endpoint_type, data in results.items():
-                if 'error' in data:
-                    logger.error(f'{league.name} - {endpoint_type}: {data["error"]}')
-                    league_success = False
-                    total_results['errors'].append({
-                        'league': league.name,
-                        'endpoint': endpoint_type,
-                        'error': data['error']
-                    })
-                else:
-                    teams_count = len(data.get('teams', []))
-                    standings_count = len(data.get('standings', []))
-                    matches_count = len(data.get('matches', []))
-                    
-                    league_stats['teams'] += teams_count
-                    league_stats['matches'] += matches_count
-                    league_stats['standings'] += standings_count
-            
-            # Actualizar estadísticas totales
-            total_results['leagues_processed'] += 1
-            if league_success:
-                total_results['leagues_success'] += 1
-                logger.info(
-                    f'{league.name}: {league_stats["teams"]} equipos, '
-                    f'{league_stats["matches"]} partidos, '
-                    f'{league_stats["standings"]} clasificaciones'
-                )
-            else:
-                total_results['leagues_errors'] += 1
-            
-            total_results['total_teams'] += league_stats['teams']
-            total_results['total_matches'] += league_stats['matches']
-            total_results['total_standings'] += league_stats['standings']
-            
-            # Rate limiting entre ligas
-            if i < leagues.count() - 1:
-                time.sleep(delay)
-        
-        except Exception as e:
-            total_results['leagues_errors'] += 1
-            total_results['leagues_processed'] += 1
-            error_msg = f'Error crítico en {league.name}: {str(e)}'
-            logger.error(error_msg, exc_info=True)
-            total_results['errors'].append({
-                'league': league.name,
-                'endpoint': 'general',
-                'error': str(e)
-            })
-    
+
     # Log resumen final
     logger.info(
         f"Scraping completado - Procesadas: {total_results['leagues_processed']}, "
@@ -1161,6 +1159,9 @@ def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
 
 __all__ = [
     'scrape_all_leagues_task',
+    'scrape_league_stats_task',
+    'scrape_leagues_summary_task',
+    'build_scrape_all_leagues_workflow',
     'scrape_league_task',
     'scrape_calendar_task',
     'scrape_results_task',

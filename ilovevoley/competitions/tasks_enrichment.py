@@ -11,7 +11,7 @@ from django.db import models as django_models
 from ilovevoley.competitions.models import League, Match, ScrapingEndpoint
 from ilovevoley.teams.models import Club, Team
 from ilovevoley.competitions.scraping.federation import FederationScraper
-from ilovevoley.competitions.tasks_scraping import scrape_all_leagues_task
+from ilovevoley.competitions.tasks_scraping import build_scrape_all_leagues_workflow
 
 logger = logging.getLogger(__name__)
 
@@ -319,63 +319,26 @@ def enrich_upcoming_matches_task(self, delay=1.0):
 @shared_task(name='scrape_and_enrich_all', bind=True)
 def scrape_and_enrich_all_task(self, round_number=None, category_filter=None, delay=2.0):
     """
-    Ejecuta scraping completo seguido de enriquecimiento JSON.
-    
+    Lanza el scraping de todas las ligas y, al terminar el último, el enriquecimiento JSON.
+
     Args:
         round_number: Jornada específica (opcional)
         category_filter: Filtrar solo ligas de una categoría específica (opcional)
-        delay: Tiempo de espera entre operaciones en segundos (default: 2.0)
-    
+        delay: Segundos entre el arranque de cada liga y entre operaciones (default: 2.0)
+
     Returns:
-        dict: Estadísticas combinadas del scraping y enriquecimiento
+        dict: Ligas encoladas; el resumen del scraping y el del enriquecimiento
+        los registran sus propias tareas.
     """
     logger.info("Iniciando scraping completo + enriquecimiento JSON")
-    
-    # 1. Ejecutar scraping normal
-    logger.info("=== FASE 1: Scraping normal ===")
-    scrape_results = scrape_all_leagues_task(
-        round_number=round_number,
-        category_filter=category_filter,
-        delay=delay
+    workflow, queued = build_scrape_all_leagues_workflow(
+        round_number, category_filter, delay, then=enrich_matches_json_task.si(delay=delay)
     )
-
-    # 2. Ejecutar enriquecimiento JSON
-    logger.info("=== FASE 2: Enriquecimiento JSON ===")
-    enrich_results = enrich_matches_json_task(delay=delay)
-    
-    # 3. Combinar resultados
-    combined_results = {
-        'status': 'success',
-        'scraping': scrape_results,
-        'enrichment': enrich_results,
-        'summary': {
-            'leagues_processed': scrape_results.get('leagues_processed', 0),
-            'leagues_success': scrape_results.get('leagues_success', 0),
-            'leagues_errors': scrape_results.get('leagues_errors', 0),
-            'total_teams': scrape_results.get('total_teams', 0),
-            'total_matches': scrape_results.get('total_matches', 0),
-            'total_standings': scrape_results.get('total_standings', 0),
-            'enriched_matches': enrich_results.get('total_enriched', 0),
-            'new_matches_from_json': enrich_results.get('total_new', 0)
-        }
-    }
-    
-    # Determinar estado general
-    if scrape_results.get('status') == 'error' and enrich_results.get('status') == 'error':
-        combined_results['status'] = 'error'
-    elif scrape_results.get('status') == 'error' or enrich_results.get('status') == 'error':
-        combined_results['status'] = 'partial_success'
-    
-    logger.info(
-        f"Scraping + Enriquecimiento completado - "
-        f"Ligas: {combined_results['summary']['leagues_processed']}, "
-        f"Equipos: {combined_results['summary']['total_teams']}, "
-        f"Partidos: {combined_results['summary']['total_matches']}, "
-        f"Enriquecidos: {combined_results['summary']['enriched_matches']}, "
-        f"Nuevos desde JSON: {combined_results['summary']['new_matches_from_json']}"
-    )
-    
-    return combined_results
+    if not workflow:
+        # Sin ligas no hay scraping, pero el enriquecimiento sigue su curso como antes.
+        enrich_matches_json_task.delay(delay=delay)
+        return {'status': 'partial_success', 'leagues_queued': 0}
+    return {'status': 'queued', 'leagues_queued': queued}
 
 
 @shared_task(name='scrape_json_results', bind=True)
