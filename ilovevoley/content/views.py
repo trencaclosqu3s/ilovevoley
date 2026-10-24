@@ -662,6 +662,23 @@ SHARE_TARGET_MAX_BYTES = 10 * 1024 * 1024
 SHARE_TARGET_TTL = timedelta(hours=24)
 
 
+def _is_real_image(f):
+    """El content-type lo declara el cliente: abrir el fichero es lo único que
+    prueba que lo es. verify() no decodifica los píxeles, suficiente para
+    descartar cuerpos que no son imagen sin pagar el decode completo."""
+    from PIL import Image as PILImage
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+    try:
+        with PILImage.open(f) as img:
+            img.verify()
+        return True
+    except Exception:
+        return False
+    finally:
+        f.seek(0)
+
+
 def _purge_expired_shared_uploads():
     """Borra filas caducadas una a una: queryset.delete() no invoca el modelo y
     dejaría los ficheros huérfanos en MEDIA_ROOT. Se llama al recibir y al
@@ -697,7 +714,11 @@ def image_share_target(request):
     files = request.FILES.getlist('image')
     valid, rejected = [], []
     for f in files:
-        if f.content_type not in SHARE_TARGET_ACCEPTED_TYPES or f.size > SHARE_TARGET_MAX_BYTES:
+        if (
+            f.content_type not in SHARE_TARGET_ACCEPTED_TYPES
+            or f.size > SHARE_TARGET_MAX_BYTES
+            or not _is_real_image(f)
+        ):
             rejected.append(f)
         else:
             valid.append(f)
