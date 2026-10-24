@@ -139,7 +139,7 @@ El sistema incluye validación inteligente de resultados según el formato de la
 ```python
 # Ejecutar en Django shell para limpiar resultados inválidos existentes
 from ilovevoley.competitions.models import Match
-from ilovevoley.videos.scraping.parsers import validate_volleyball_score
+from ilovevoley.competitions.scraping.base import validate_volleyball_score
 from django.db import transaction
 
 # Buscar partidos con resultados inválidos
@@ -332,7 +332,7 @@ Configurar nivel de logging en settings:
 ```python
 LOGGING = {
     'loggers': {
-        'ilovevoley.videos.scraping': {
+        'ilovevoley.competitions.scraping': {
             'level': 'INFO',
             'handlers': ['console'],
         },

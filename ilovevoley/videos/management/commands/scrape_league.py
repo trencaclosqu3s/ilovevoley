@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from ilovevoley.videos.models import League
-from ilovevoley.videos.scraping import FederationScraper
+from ilovevoley.competitions.scraping.federation import FederationScraper
 import logging
 
 logger = logging.getLogger(__name__)

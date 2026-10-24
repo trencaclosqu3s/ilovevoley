@@ -49,11 +49,8 @@ from ilovevoley.core.tenant_utils import (
 )
 from ilovevoley.rosters.models import Person, PlayerRole
 from ilovevoley.teams.models import Team
-from ilovevoley.videos.scraping import (
-    league_max_sets,
-    parse_acta_lineup,
-    validate_volleyball_score,
-)
+from ilovevoley.competitions.scraping.acta import parse_acta_lineup
+from ilovevoley.competitions.scraping.base import league_max_sets, validate_volleyball_score
 from .forms import FriendlyMatchForm, MatchResultForm
 from .models import (
     League, Match, MatchChangeLog, MatchChangeLogReview, MatchShareLink, Standing, StoryComposition,

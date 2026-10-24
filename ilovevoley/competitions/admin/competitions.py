@@ -262,7 +262,7 @@ class LeagueAdmin(ModelAdmin):
 
     def scrape_selected_leagues(self, request, queryset):
         """Acción personalizada para hacer scraping de ligas seleccionadas"""
-        from ilovevoley.videos.scraping import FederationScraper
+        from ilovevoley.competitions.scraping.federation import FederationScraper
 
         scraped_count = 0
         error_count = 0

@@ -94,7 +94,7 @@ def discover_acta_photos_for_matches(matches: QuerySet, *, delay: float = 1.0) -
     periódico). Idempotente: no pisa approved/rejected. Devuelve cuántas ligas
     se han recorrido.
     """
-    from ilovevoley.videos.scraping import FederationScraper
+    from ilovevoley.competitions.scraping.federation import FederationScraper
 
     league_ids = list(
         matches.exclude(league_id__isnull=True).values_list('league_id', flat=True).distinct()

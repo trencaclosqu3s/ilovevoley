@@ -240,7 +240,7 @@ def scrape_historical_leagues_task(league_ids, delay=2.0):
     Varias ligas se encolan en jobs separados: un único job con N ligas superaba
     el hard limit de 900s y mataba el worker (ILOVEVOLEY-92..95).
     """
-    from ilovevoley.videos.scraping import FederationScraper
+    from ilovevoley.competitions.scraping.federation import FederationScraper
 
     leagues = list(
         League.objects.filter(pk__in=league_ids, is_historical=True).order_by('pk')

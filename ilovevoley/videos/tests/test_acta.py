@@ -8,7 +8,7 @@ para cada firma y la tabla OFICIALES con cabecera LOCAL / ROL / VISITANTE.
 
 from django.test import SimpleTestCase
 
-from ilovevoley.videos.scraping import parse_acta_lineup
+from ilovevoley.competitions.scraping.acta import parse_acta_lineup
 
 
 ACTA_HTML = """
