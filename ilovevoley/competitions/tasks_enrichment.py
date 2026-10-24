@@ -1,5 +1,6 @@
 """Tareas de enriquecimiento y scraping mediante endpoints JSON."""
 
+import json
 import logging
 
 from celery import chord, shared_task

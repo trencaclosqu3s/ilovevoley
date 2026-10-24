@@ -1,4 +1,5 @@
 """Reparto del scraping por liga (#601): sin sleep en el worker y con resumen agregado."""
+import json
 from unittest import mock
 
 from django.test import TestCase, override_settings
@@ -12,7 +13,11 @@ from ilovevoley.competitions.tasks_scraping import (
     scrape_leagues_summary_task,
     scrape_results_task,
 )
-from ilovevoley.competitions.tasks_enrichment import enrich_leagues_summary_task, enrich_matches_json_task
+from ilovevoley.competitions.tasks_enrichment import (
+    enrich_leagues_summary_task,
+    enrich_matches_json_task,
+    enrich_upcoming_matches_task,
+)
 from ilovevoley.core.models import Season
 
 
@@ -62,6 +67,16 @@ class EnrichLeaguesWorkflowTest(TestCase):
         header = chord_mock.call_args.args[0]
         self.assertEqual(result, {'status': 'queued', 'leagues_queued': 2})
         self.assertEqual([sig.options['countdown'] for sig in header], [0.0, 1.5])
+
+    def test_upcoming_only_queues_leagues_present_in_the_json(self):
+        """Regresión: sin `import json` el filtro fallaba en silencio y se encolaban todas las ligas."""
+        payload = {'categorias': [{'competiciones': [{'fases': [{'grupos': [{'id': '1'}]}]}]}]}
+        response = mock.Mock(text=json.dumps(payload))
+        with mock.patch('requests.get', return_value=response), \
+                mock.patch('ilovevoley.competitions.tasks_enrichment.chord') as chord_mock:
+            result = enrich_upcoming_matches_task.run(delay=1.0)
+        self.assertEqual(result, {'status': 'queued', 'leagues_queued': 1})
+        self.assertEqual(len(chord_mock.call_args.args[0]), 1)
 
     def test_summary_counts_failed_leagues(self):
         stats = [
