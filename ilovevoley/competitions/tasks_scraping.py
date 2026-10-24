@@ -20,6 +20,33 @@ def _active_leagues(category_filter=None):
     return leagues
 
 
+def _mail_admins_on_errors(subject, message):
+    """Avisa a admins si las notificaciones están habilitadas; un fallo del envío solo se loguea."""
+    if not settings.NOTIFICATION_EMAIL_ENABLED:
+        return
+    try:
+        mail_admins(subject, message, fail_silently=True)
+    except Exception as e:
+        logger.error(f"Error enviando email de notificación: {e}")
+
+
+def _get_league(league_pk, empty_stats):
+    """
+    (league, None), o (None, stats_fallidas) si la liga no se puede cargar.
+
+    Las tareas por liga forman el header de un chord: una excepción aquí lo dejaría
+    sin callback (sin resumen, sin email y sin el enriquecimiento encadenado).
+    """
+    try:
+        return League.objects.prefetch_related('categories').get(pk=league_pk), None
+    except Exception as e:
+        name = f'#{league_pk}'
+        logger.error(f'No se pudo cargar la liga {name}: {e}', exc_info=True)
+        failed = {**empty_stats, 'league': name, 'success': False,
+                  'errors': [{'league': name, 'endpoint': 'general', 'error': str(e)}]}
+        return None, failed
+
+
 def build_scrape_all_leagues_workflow(round_number=None, category_filter=None, delay=2.0, then=None):
     """
     Un `scrape_league_stats` por liga más el callback que agrega y avisa a admins.
@@ -72,7 +99,9 @@ def scrape_all_leagues_task(self, round_number=None, category_filter=None, delay
 @shared_task(name='scrape_league_stats', bind=True)
 def scrape_league_stats_task(self, league_pk, round_number=None):
     """Scrapea todos los endpoints de una liga y devuelve sus estadísticas."""
-    league = League.objects.prefetch_related('categories').get(pk=league_pk)
+    league, failed = _get_league(league_pk, {'teams': 0, 'matches': 0, 'standings': 0})
+    if failed:
+        return failed
     category_name = ', '.join(c.name for c in league.categories.all()) or 'Sin categoría'
     logger.info(f'Procesando {league.name} ({category_name})')
 
@@ -121,9 +150,8 @@ def scrape_leagues_summary_task(self, league_stats):
         f"Con errores: {total_results['leagues_errors']}"
     )
     
-    # Enviar email a admins si hay errores y las notificaciones están habilitadas
-    if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
-        subject = f"[I Love Voley] Errores en scraping automático de ligas"
+    if total_results['leagues_errors'] > 0:
+        subject = "[I Love Voley] Errores en scraping automático de ligas"
         message = f"""
         Se han detectado errores durante el scraping automático de ligas:
         
@@ -139,11 +167,7 @@ def scrape_leagues_summary_task(self, league_stats):
         Errores detectados:
         {chr(10).join([f"- {e['league']} ({e['endpoint']}): {e['error']}" for e in total_results['errors'][:10]])}
         """
-        
-        try:
-            mail_admins(subject, message, fail_silently=True)
-        except Exception as e:
-            logger.error(f"Error enviando email de notificación: {e}")
+        _mail_admins_on_errors(subject, message)
     
     return total_results
 
@@ -315,13 +339,15 @@ def _target_leagues(league_id):
 @shared_task(name='scrape_calendar_league', bind=True)
 def scrape_calendar_league_task(self, league_pk):
     """Scrapea el calendario de una liga (parte del chord de scrape_calendar)."""
-    return _calendar_league_stats(League.objects.get(pk=league_pk))
+    league, failed = _get_league(league_pk, {'matches': 0, 'rounds': 0})
+    return failed or _calendar_league_stats(league)
 
 
 @shared_task(name='scrape_results_league', bind=True)
 def scrape_results_league_task(self, league_pk, round_number=None, delay=2.0):
     """Scrapea los resultados de una liga (parte del chord de scrape_results)."""
-    return _results_league_stats(League.objects.get(pk=league_pk), round_number, delay)
+    league, failed = _get_league(league_pk, {'matches': 0, 'rounds': 0})
+    return failed or _results_league_stats(league, round_number, delay)
 
 
 @shared_task(name='scrape_endpoint_summary', bind=True)
@@ -338,7 +364,7 @@ def scrape_endpoint_summary_task(self, league_stats, kind):
         f"Jornadas: {total_results['total_rounds']}, "
         f"Partidos: {total_results['total_matches']}"
     )
-    if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
+    if total_results['leagues_errors'] > 0:
         subject = f"[I Love Voley] Errores en scraping automático de {kind}"
         message = f"""
         Se han detectado errores durante el scraping automático de {kind}:
@@ -353,10 +379,7 @@ def scrape_endpoint_summary_task(self, league_stats, kind):
         Errores detectados:
         {chr(10).join([f"- {e['league']}: {e['error']}" for e in total_results['errors'][:10]])}
         """
-        try:
-            mail_admins(subject, message, fail_silently=True)
-        except Exception as e:
-            logger.error(f"Error enviando email de notificación: {e}")
+        _mail_admins_on_errors(subject, message)
     return total_results
 
 

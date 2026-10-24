@@ -8,6 +8,7 @@ from ilovevoley.competitions.models import League
 from ilovevoley.competitions.tasks_scraping import (
     build_scrape_all_leagues_workflow,
     scrape_clubs_summary_task,
+    scrape_league_stats_task,
     scrape_clubs_task,
     scrape_endpoint_summary_task,
     scrape_leagues_summary_task,
@@ -132,3 +133,14 @@ class ScrapeClubsWorkflowTest(TestCase):
         ]
         total = scrape_clubs_summary_task.run(results, match_teams=False)
         self.assertEqual((total['clubs_created'], total['clubs_updated'], total['errors']), (1, 1, ['fallo']))
+
+
+class LeagueTaskFailureTest(TestCase):
+    def test_missing_league_returns_failed_stats_instead_of_raising(self):
+        """Un header de chord que lanza deja sin callback al resumen, al email y al enriquecimiento encadenado."""
+        stats = scrape_league_stats_task.run(league_pk=999999)
+        self.assertFalse(stats['success'])
+        self.assertEqual(stats['errors'][0]['league'], '#999999')
+        # El callback debe poder agregarla sin romperse.
+        total = scrape_leagues_summary_task.run([stats])
+        self.assertEqual(total['leagues_errors'], 1)

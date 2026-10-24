@@ -11,7 +11,11 @@ from django.db import models as django_models
 from ilovevoley.competitions.models import League, Match, ScrapingEndpoint
 from ilovevoley.teams.models import Club, Team
 from ilovevoley.competitions.scraping.federation import FederationScraper
-from ilovevoley.competitions.tasks_scraping import build_scrape_all_leagues_workflow
+from ilovevoley.competitions.tasks_scraping import (
+    _get_league,
+    _mail_admins_on_errors,
+    build_scrape_all_leagues_workflow,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +67,8 @@ def _enrich_leagues_workflow(league_pks, delay, json_url=None, notify=True):
 @shared_task(name='enrich_league_stats', bind=True)
 def enrich_league_stats_task(self, league_pk, json_url=None):
     """Enriquece una liga y devuelve sus estadísticas (parte del chord de enrich_matches_json)."""
-    return _enrich_league(League.objects.prefetch_related('categories').get(pk=league_pk), json_url)
+    league, failed = _get_league(league_pk, {'enriched': 0, 'new': 0})
+    return failed or _enrich_league(league, json_url)
 
 
 @shared_task(name='enrich_leagues_summary', bind=True)
@@ -77,7 +82,7 @@ def enrich_leagues_summary_task(self, league_stats, notify=True):
         f"Partidos enriquecidos: {total_results['total_enriched']}, "
         f"Partidos nuevos: {total_results['total_new']}"
     )
-    if notify and total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
+    if notify and total_results['leagues_errors'] > 0:
         subject = "[VideosVoley] Errores en enriquecimiento JSON de partidos"
         message = f"""
         Se han detectado errores durante el enriquecimiento JSON de partidos:
@@ -93,10 +98,7 @@ def enrich_leagues_summary_task(self, league_stats, notify=True):
         Errores detectados:
         {chr(10).join([f"- {e['league']}: {e['error']}" for e in total_results['errors'][:10]])}
         """
-        try:
-            mail_admins(subject, message, fail_silently=True)
-        except Exception as e:
-            logger.error(f"Error enviando email de notificación: {e}")
+        _mail_admins_on_errors(subject, message)
     return total_results
 
 
