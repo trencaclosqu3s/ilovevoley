@@ -27,15 +27,20 @@ def _won(match, team_id):
     return match.away_score > match.home_score
 
 
-def _form(team_id, before):
+def _recent_matches(team_id, before):
+    """Últimos partidos jugados del equipo, del más antiguo al más reciente."""
     matches = (
         _finished()
         .filter(Q(home_team_id=team_id) | Q(away_team_id=team_id), match_date__lt=before)
-        .only('home_team_id', 'away_team_id', 'home_score', 'away_score', 'match_date')
+        .select_related('home_team', 'away_team')
         .order_by('-match_date')[:FORM_SIZE]
     )
-    # Del más antiguo al más reciente, como se lee una racha.
-    return [_won(m, team_id) for m in reversed(matches)]
+    # Como se lee una racha.
+    return list(reversed(matches))
+
+
+def _form(team_id, before):
+    return [_won(m, team_id) for m in _recent_matches(team_id, before)]
 
 
 def _head_to_head_filter(match):
@@ -80,12 +85,7 @@ def _head_to_head_filter(match):
     return by_team | by_club
 
 
-def build_match_preview(match):
-    """Datos de la previa, o ``None`` si no aplica o no hay nada que mostrar."""
-    if match.is_finished or not match.home_team_id or not match.away_team_id:
-        return None
-    home_id, away_id = match.home_team_id, match.away_team_id
-
+def _head_to_head(match):
     head_to_head = list(
         _finished()
         .filter(_head_to_head_filter(match))
@@ -100,6 +100,16 @@ def build_match_preview(match):
     )
     for past in head_to_head:
         past.preview_set_scores = match_set_scores(past)
+    return head_to_head
+
+
+def build_match_preview(match):
+    """Datos de la previa, o ``None`` si no aplica o no hay nada que mostrar."""
+    if match.is_finished or not match.home_team_id or not match.away_team_id:
+        return None
+    home_id, away_id = match.home_team_id, match.away_team_id
+
+    head_to_head = _head_to_head(match)
 
     positions = {}
     if match.league_id:
@@ -141,3 +151,126 @@ def preview_card_pills(match):
         if home is not None and away is not None:
             pills.append(_('%(home)sº vs %(away)sº') % {'home': home, 'away': away})
     return pills
+
+
+def _past_home_is_today_home(past, match):
+    """Si el local del enfrentamiento pasado es el local de hoy; ``None`` si no se sabe.
+
+    Misma identidad que ``_head_to_head_filter``: primero equipo, luego identidad entre
+    temporadas y, de respaldo, los ids de club de la federación; identidad y club
+    solo si los dos equipos de hoy no los comparten (derbi entre variantes).
+    """
+    past_sides = (
+        (past.home_team, past.federation_club_local_id, True),
+        (past.away_team, past.federation_club_away_id, False),
+    )
+    today_sides = (
+        (match.home_team, match.federation_club_local_id, True),
+        (match.away_team, match.federation_club_away_id, False),
+    )
+    # Primero por pk en todos los lados: la identidad es común a las variantes de un
+    # club, así que mezclarla en la misma pasada invierte el ganador en derbis.
+    for past_team, _, is_past_home in past_sides:
+        if past_team is None:
+            continue
+        for today_team, _, today_is_home in today_sides:
+            if past_team.pk == today_team.pk:
+                return today_is_home == is_past_home
+
+    if match.home_team.identity_id != match.away_team.identity_id:
+        for past_team, _, is_past_home in past_sides:
+            if past_team is None or not past_team.identity_id:
+                continue
+            for today_team, _, today_is_home in today_sides:
+                if past_team.identity_id == today_team.identity_id:
+                    return today_is_home == is_past_home
+
+    if match.federation_club_local_id != match.federation_club_away_id:
+        for _, past_fed, is_past_home in past_sides:
+            if not past_fed or past_fed in ('None', '0'):
+                continue
+            for _, today_fed, today_is_home in today_sides:
+                if past_fed == today_fed:
+                    return today_is_home == is_past_home
+    return None
+
+
+def _standing_payload(standing):
+    if standing is None:
+        return None
+    return {
+        'position': standing.position,
+        'points': standing.total_points,
+        'played': standing.played,
+    }
+
+
+def _form_payload(team_id, before):
+    return [
+        {
+            'result': 'W' if _won(m, team_id) else 'L',
+            # Marcador de sets desde el punto de vista del equipo.
+            'score': (
+                f'{m.home_score}-{m.away_score}' if m.home_team_id == team_id
+                else f'{m.away_score}-{m.home_score}'
+            ),
+            'opponent': (
+                m.away_team_display if m.home_team_id == team_id else m.home_team_display
+            ),
+            'date': timezone.localtime(m.match_date).date().isoformat(),
+        }
+        for m in _recent_matches(team_id, before)
+    ]
+
+
+def build_overlay_preview(match):
+    """Previa para el overlay del directo (#609): clasificación, forma y H2H.
+
+    El ``winner`` del H2H es relativo al partido de hoy (``home``/``away`` de hoy),
+    o ``None`` si el equipo pasado no se puede cruzar con ninguno de hoy.
+    """
+    standings = None
+    if match.league_id:
+        by_team = {
+            s.team_id: s
+            for s in Standing.objects.filter(
+                league_id=match.league_id, team_id__in=[match.home_team_id, match.away_team_id]
+            )
+        }
+        standings = {
+            'home': _standing_payload(by_team.get(match.home_team_id)),
+            'away': _standing_payload(by_team.get(match.away_team_id)),
+        }
+        if not (standings['home'] or standings['away']):
+            standings = None
+
+    meetings = []
+    wins = {'home': 0, 'away': 0}
+    for past in _head_to_head(match):
+        past_home_won = past.home_score > past.away_score
+        past_home_is_home = _past_home_is_today_home(past, match)
+        winner = None
+        if past_home_is_home is not None:
+            winner = 'home' if past_home_won == past_home_is_home else 'away'
+            wins[winner] += 1
+        meetings.append({
+            'date': timezone.localtime(past.match_date).date().isoformat(),
+            'home': past.home_team_display,
+            'away': past.away_team_display,
+            'sets': f'{past.home_score}-{past.away_score}',
+            'winner': winner,
+        })
+
+    return {
+        'standings': standings,
+        'form': {
+            'home': _form_payload(match.home_team_id, match.match_date),
+            'away': _form_payload(match.away_team_id, match.match_date),
+        },
+        'head_to_head': {
+            'summary': {
+                'home_wins': wins['home'], 'away_wins': wins['away'], 'total': len(meetings),
+            },
+            'matches': meetings,
+        },
+    }
