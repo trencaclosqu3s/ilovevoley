@@ -1,9 +1,9 @@
 """Tareas de enriquecimiento y scraping mediante endpoints JSON."""
 
+import json
 import logging
-import time
 
-from celery import shared_task
+from celery import chord, shared_task
 from django.conf import settings
 from django.core.mail import mail_admins
 from django.db import models as django_models
@@ -11,137 +11,128 @@ from django.db import models as django_models
 from ilovevoley.competitions.models import League, Match, ScrapingEndpoint
 from ilovevoley.teams.models import Club, Team
 from ilovevoley.competitions.scraping.federation import FederationScraper
-from ilovevoley.competitions.tasks_scraping import scrape_all_leagues_task
+from ilovevoley.competitions.tasks_scraping import (
+    _get_league,
+    _mail_admins_on_errors,
+    build_scrape_all_leagues_workflow,
+)
 
 logger = logging.getLogger(__name__)
+
+def _enrich_league(league, json_url=None):
+    """Enriquece una liga con el JSON de la federación y devuelve sus estadísticas."""
+    stats = {'league': league.name, 'success': True, 'enriched': 0, 'new': 0, 'errors': []}
+    try:
+        scraper = FederationScraper(league)
+        result = scraper.enrich_matches_with_json(json_url=json_url) if json_url else scraper.enrich_matches_with_json()
+        if 'error' in result:
+            logger.error(f'{league.name} - Error: {result["error"]}')
+            stats['success'] = False
+            stats['errors'].append({'league': league.name, 'error': result['error']})
+        else:
+            stats['enriched'] = result.get('enriched_matches', 0)
+            stats['new'] = result.get('new_matches', 0)
+            logger.info(f'{league.name}: {stats["enriched"]} partidos enriquecidos, {stats["new"]} partidos nuevos')
+    except Exception as e:
+        stats['success'] = False
+        logger.error(f'Error crítico en {league.name}: {e}', exc_info=True)
+        stats['errors'].append({'league': league.name, 'error': str(e)})
+    return stats
+
+
+def _summarize_enrichment(league_stats):
+    return {
+        'status': 'success',
+        'leagues_processed': len(league_stats),
+        'leagues_success': sum(1 for s in league_stats if s['success']),
+        'leagues_errors': sum(1 for s in league_stats if not s['success']),
+        'total_enriched': sum(s['enriched'] for s in league_stats),
+        'total_new': sum(s['new'] for s in league_stats),
+        'errors': [e for s in league_stats for e in s['errors']],
+    }
+
+
+def _enrich_leagues_workflow(league_pks, delay, json_url=None, notify=True):
+    """
+    Una tarea por liga y un callback de resumen. La separación entre ligas es un
+    `countdown` escalonado, no un `sleep` que retenga al worker (#601).
+    """
+    header = [
+        enrich_league_stats_task.s(pk, json_url).set(countdown=i * delay)
+        for i, pk in enumerate(league_pks)
+    ]
+    return chord(header)(enrich_leagues_summary_task.s(notify=notify))
+
+
+@shared_task(name='enrich_league_stats', bind=True)
+def enrich_league_stats_task(self, league_pk, json_url=None):
+    """Enriquece una liga y devuelve sus estadísticas (parte del chord de enrich_matches_json)."""
+    league, failed = _get_league(league_pk, {'enriched': 0, 'new': 0})
+    return failed or _enrich_league(league, json_url)
+
+
+@shared_task(name='enrich_leagues_summary', bind=True)
+def enrich_leagues_summary_task(self, league_stats, notify=True):
+    """Callback del chord: agrega las estadísticas por liga y avisa a admins si hubo errores."""
+    total_results = _summarize_enrichment(league_stats)
+    logger.info(
+        f"Enriquecimiento JSON completado - Procesadas: {total_results['leagues_processed']}, "
+        f"Exitosas: {total_results['leagues_success']}, "
+        f"Con errores: {total_results['leagues_errors']}, "
+        f"Partidos enriquecidos: {total_results['total_enriched']}, "
+        f"Partidos nuevos: {total_results['total_new']}"
+    )
+    if notify and total_results['leagues_errors'] > 0:
+        subject = "[VideosVoley] Errores en enriquecimiento JSON de partidos"
+        message = f"""
+        Se han detectado errores durante el enriquecimiento JSON de partidos:
+
+        - Ligas procesadas: {total_results['leagues_processed']}
+        - Ligas exitosas: {total_results['leagues_success']}
+        - Ligas con errores: {total_results['leagues_errors']}
+
+        Datos obtenidos:
+        - Partidos enriquecidos: {total_results['total_enriched']}
+        - Partidos nuevos: {total_results['total_new']}
+
+        Errores detectados:
+        {chr(10).join([f"- {e['league']}: {e['error']}" for e in total_results['errors'][:10]])}
+        """
+        _mail_admins_on_errors(subject, message)
+    return total_results
+
 
 @shared_task(name='enrich_matches_json', bind=True)
 def enrich_matches_json_task(self, league_id=None, delay=1.0):
     """
     Ejecuta enriquecimiento de partidos con datos JSON de la federación.
-    
-    Si se proporciona league_id, enriquece solo esa liga.
-    Si no se proporciona, enriquece todas las ligas activas.
-    
+
+    Si se proporciona league_id, enriquece solo esa liga (en línea, sin espera).
+    Si no, lanza una tarea por liga activa; el resumen y el email de errores
+    los produce `enrich_leagues_summary`.
+
     Args:
         league_id: ID de la federación de la liga (opcional)
-        delay: Tiempo de espera entre ligas en segundos (default: 1.0)
-    
-    Returns:
-        dict: Estadísticas del enriquecimiento realizado
+        delay: Segundos entre el arranque de una liga y la siguiente (default: 1.0)
     """
     logger.info("Iniciando enriquecimiento de partidos con datos JSON")
-    
-    try:
-        if league_id:
-            # Enriquecimiento de una liga específica
-            try:
-                league = League.objects.get(federation_id=league_id, is_active=True)
-            except League.DoesNotExist:
-                error_msg = f'Liga con ID {league_id} no encontrada o inactiva'
-                logger.error(error_msg)
-                return {'status': 'error', 'message': error_msg}
-            
-            leagues = [league]
-        else:
-            # Enriquecimiento de todas las ligas activas
-            leagues = League.objects.filter(is_active=True).prefetch_related('categories')
-            
-            if not leagues.exists():
-                error_msg = 'No se encontraron ligas activas'
-                logger.warning(error_msg)
-                return {'status': 'error', 'message': error_msg}
-        
-        total_results = {
-            'status': 'success',
-            'leagues_processed': 0,
-            'leagues_success': 0,
-            'leagues_errors': 0,
-            'total_enriched': 0,
-            'total_new': 0,
-            'errors': []
-        }
-        
-        for i, league in enumerate(leagues):
-            # Obtener nombres de todas las categorías
-            categories = league.categories.all()
-            category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
-            logger.info(f'[{i+1}/{len(leagues)}] Enriqueciendo partidos de {league.name} ({category_name})')
-            
-            try:
-                scraper = FederationScraper(league)
-                result = scraper.enrich_matches_with_json()
-                
-                if 'error' in result:
-                    logger.error(f'{league.name} - Error: {result["error"]}')
-                    total_results['leagues_errors'] += 1
-                    total_results['errors'].append({
-                        'league': league.name,
-                        'error': result['error']
-                    })
-                else:
-                    enriched = result.get('enriched_matches', 0)
-                    new_matches = result.get('new_matches', 0)
-                    
-                    total_results['total_enriched'] += enriched
-                    total_results['total_new'] += new_matches
-                    total_results['leagues_success'] += 1
-                    
-                    logger.info(f'{league.name}: {enriched} partidos enriquecidos, {new_matches} partidos nuevos')
-                
-                total_results['leagues_processed'] += 1
-                
-                # Rate limiting entre ligas
-                if i < len(leagues) - 1:
-                    time.sleep(delay)
-            
-            except Exception as e:
-                total_results['leagues_errors'] += 1
-                total_results['leagues_processed'] += 1
-                error_msg = f'Error crítico en {league.name}: {str(e)}'
-                logger.error(error_msg, exc_info=True)
-                total_results['errors'].append({
-                    'league': league.name,
-                    'error': str(e)
-                })
-        
-        # Log resumen final
-        logger.info(
-            f"Enriquecimiento JSON completado - Procesadas: {total_results['leagues_processed']}, "
-            f"Exitosas: {total_results['leagues_success']}, "
-            f"Con errores: {total_results['leagues_errors']}, "
-            f"Partidos enriquecidos: {total_results['total_enriched']}, "
-            f"Partidos nuevos: {total_results['total_new']}"
-        )
-        
-        # Enviar email a admins si hay errores y las notificaciones están habilitadas
-        if total_results['leagues_errors'] > 0 and settings.NOTIFICATION_EMAIL_ENABLED:
-            subject = f"[VideosVoley] Errores en enriquecimiento JSON de partidos"
-            message = f"""
-            Se han detectado errores durante el enriquecimiento JSON de partidos:
-            
-            - Ligas procesadas: {total_results['leagues_processed']}
-            - Ligas exitosas: {total_results['leagues_success']}
-            - Ligas con errores: {total_results['leagues_errors']}
-            
-            Datos obtenidos:
-            - Partidos enriquecidos: {total_results['total_enriched']}
-            - Partidos nuevos: {total_results['total_new']}
-            
-            Errores detectados:
-            {chr(10).join([f"- {e['league']}: {e['error']}" for e in total_results['errors'][:10]])}
-            """
-            
-            try:
-                mail_admins(subject, message, fail_silently=True)
-            except Exception as e:
-                logger.error(f"Error enviando email de notificación: {e}")
-        
-        return total_results
-    
-    except Exception:
-        # Relanzar: Celery marca FAILURE y Sentry captura el traceback
-        raise
+
+    if league_id:
+        try:
+            league = League.objects.get(federation_id=league_id, is_active=True)
+        except League.DoesNotExist:
+            error_msg = f'Liga con ID {league_id} no encontrada o inactiva'
+            logger.error(error_msg)
+            return {'status': 'error', 'message': error_msg}
+        return _summarize_enrichment([_enrich_league(league)])
+
+    league_pks = list(League.objects.filter(is_active=True).values_list('pk', flat=True))
+    if not league_pks:
+        error_msg = 'No se encontraron ligas activas'
+        logger.warning(error_msg)
+        return {'status': 'error', 'message': error_msg}
+    _enrich_leagues_workflow(league_pks, delay)
+    return {'status': 'queued', 'leagues_queued': len(league_pks)}
 
 
 @shared_task(name='enrich_single_league_json', bind=True)
@@ -246,61 +237,12 @@ def enrich_upcoming_matches_task(self, delay=1.0):
         except Exception:
             logger.exception("No se pudo filtrar ligas por datos JSON; se procesan todas las ligas activas")
         
-        total_enriched = 0
-        total_new = 0
-        leagues_processed = 0
-        leagues_success = 0
-        leagues_errors = 0
-        errors = []
-        
-        for league in leagues:
-            try:
-                leagues_processed += 1
-                # Obtener nombres de todas las categorías
-                categories = league.categories.all()
-                category_name = ', '.join([c.name for c in categories]) if categories else 'Sin categoría'
-                logger.info(f"[{leagues_processed}/{leagues.count()}] Enriqueciendo partidos próximos de {league.name} ({category_name})")
-                
-                # Crear scraper y enriquecer con endpoint de próximos partidos
-                scraper = FederationScraper(league)
-                result = scraper.enrich_matches_with_json(json_url=json_url)
-                
-                if result.get('status') == 'success':
-                    enriched = result.get('enriched_matches', 0)
-                    new = result.get('new_matches', 0)
-                    total_enriched += enriched
-                    total_new += new
-                    leagues_success += 1
-                    logger.info(f"{league.name}: {enriched} partidos enriquecidos, {new} partidos nuevos")
-                else:
-                    leagues_errors += 1
-                    error_msg = f"{league.name}: {result.get('error', 'Error desconocido')}"
-                    errors.append(error_msg)
-                    logger.error(error_msg)
-                
-                # Delay entre ligas
-                if delay > 0:
-                    time.sleep(delay)
-                    
-            except Exception as e:
-                leagues_errors += 1
-                error_msg = f"Error procesando {league.name}: {str(e)}"
-                errors.append(error_msg)
-                logger.error(error_msg, exc_info=True)
-        
-        result = {
-            'status': 'success',
-            'leagues_processed': leagues_processed,
-            'leagues_success': leagues_success,
-            'leagues_errors': leagues_errors,
-            'total_enriched': total_enriched,
-            'total_new': total_new,
-            'errors': errors
-        }
-        
-        logger.info(f"Enriquecimiento de próximos partidos completado - Procesadas: {leagues_processed}, Exitosas: {leagues_success}, Con errores: {leagues_errors}, Partidos enriquecidos: {total_enriched}, Partidos nuevos: {total_new}")
-        return result
-        
+        league_pks = [league.pk for league in leagues]
+        if not league_pks:
+            return {'status': 'error', 'error': 'No hay ligas activas para enriquecer'}
+        _enrich_leagues_workflow(league_pks, delay, json_url=json_url, notify=False)
+        return {'status': 'queued', 'leagues_queued': len(league_pks)}
+
     except Exception:
         # Relanzar: Celery marca FAILURE y Sentry captura el traceback
         raise
@@ -308,63 +250,26 @@ def enrich_upcoming_matches_task(self, delay=1.0):
 @shared_task(name='scrape_and_enrich_all', bind=True)
 def scrape_and_enrich_all_task(self, round_number=None, category_filter=None, delay=2.0):
     """
-    Ejecuta scraping completo seguido de enriquecimiento JSON.
-    
+    Lanza el scraping de todas las ligas y, al terminar el último, el enriquecimiento JSON.
+
     Args:
         round_number: Jornada específica (opcional)
         category_filter: Filtrar solo ligas de una categoría específica (opcional)
-        delay: Tiempo de espera entre operaciones en segundos (default: 2.0)
-    
+        delay: Segundos entre el arranque de cada liga y entre operaciones (default: 2.0)
+
     Returns:
-        dict: Estadísticas combinadas del scraping y enriquecimiento
+        dict: Ligas encoladas; el resumen del scraping y el del enriquecimiento
+        los registran sus propias tareas.
     """
     logger.info("Iniciando scraping completo + enriquecimiento JSON")
-    
-    # 1. Ejecutar scraping normal
-    logger.info("=== FASE 1: Scraping normal ===")
-    scrape_results = scrape_all_leagues_task(
-        round_number=round_number,
-        category_filter=category_filter,
-        delay=delay
+    workflow, queued = build_scrape_all_leagues_workflow(
+        round_number, category_filter, delay, then=enrich_matches_json_task.si(delay=delay)
     )
-
-    # 2. Ejecutar enriquecimiento JSON
-    logger.info("=== FASE 2: Enriquecimiento JSON ===")
-    enrich_results = enrich_matches_json_task(delay=delay)
-    
-    # 3. Combinar resultados
-    combined_results = {
-        'status': 'success',
-        'scraping': scrape_results,
-        'enrichment': enrich_results,
-        'summary': {
-            'leagues_processed': scrape_results.get('leagues_processed', 0),
-            'leagues_success': scrape_results.get('leagues_success', 0),
-            'leagues_errors': scrape_results.get('leagues_errors', 0),
-            'total_teams': scrape_results.get('total_teams', 0),
-            'total_matches': scrape_results.get('total_matches', 0),
-            'total_standings': scrape_results.get('total_standings', 0),
-            'enriched_matches': enrich_results.get('total_enriched', 0),
-            'new_matches_from_json': enrich_results.get('total_new', 0)
-        }
-    }
-    
-    # Determinar estado general
-    if scrape_results.get('status') == 'error' and enrich_results.get('status') == 'error':
-        combined_results['status'] = 'error'
-    elif scrape_results.get('status') == 'error' or enrich_results.get('status') == 'error':
-        combined_results['status'] = 'partial_success'
-    
-    logger.info(
-        f"Scraping + Enriquecimiento completado - "
-        f"Ligas: {combined_results['summary']['leagues_processed']}, "
-        f"Equipos: {combined_results['summary']['total_teams']}, "
-        f"Partidos: {combined_results['summary']['total_matches']}, "
-        f"Enriquecidos: {combined_results['summary']['enriched_matches']}, "
-        f"Nuevos desde JSON: {combined_results['summary']['new_matches_from_json']}"
-    )
-    
-    return combined_results
+    if not workflow:
+        # Sin ligas no hay scraping, pero el enriquecimiento sigue su curso como antes.
+        enrich_matches_json_task.delay(delay=delay)
+        return {'status': 'partial_success', 'leagues_queued': 0}
+    return {'status': 'queued', 'leagues_queued': queued}
 
 
 @shared_task(name='scrape_json_results', bind=True)
