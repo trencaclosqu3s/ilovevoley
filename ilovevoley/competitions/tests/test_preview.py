@@ -6,7 +6,7 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match, Standing
-from ilovevoley.competitions.services.preview import build_match_preview
+from ilovevoley.competitions.services.preview import build_match_preview, build_overlay_preview
 from ilovevoley.core.models import Category, Season
 from ilovevoley.teams.models import Team
 from ilovevoley.teams.tests.helpers import identity_of
@@ -199,3 +199,26 @@ class MatchPreviewTests(TestCase):
         self.assertEqual(h2h_match.images_count, 1)
         self.assertEqual(h2h_match.preview_set_scores, [(25, 20), (23, 25), (25, 18), (25, 22)])
 
+    def test_h2h_winner_in_same_club_derby_resolves_by_team_not_by_club(self):
+        # Groc y Lila comparten club federativo: el club no distingue los lados.
+        self.match.federation_club_local_id = self.match.federation_club_away_id = 'C1'
+        self.match.save()
+        past = self._match(self.away, self.home, days=-30, score=(3, 1))
+        past.federation_club_local_id = past.federation_club_away_id = 'C1'
+        past.save()
+
+        meeting = build_overlay_preview(self.match)['head_to_head']['matches'][0]
+
+        # El visitante de hoy ganó jugando de local: gana "away", no "home".
+        self.assertEqual(meeting['winner'], 'away')
+
+    def test_form_keeps_opponent_known_only_by_text(self):
+        Match.objects.create(
+            league=self.league, home_team=self.home, away_team=None,
+            away_team_text='Rival Sin Ficha', status='finished', home_score=3, away_score=0,
+            match_date=self.now - timedelta(days=7),
+        )
+
+        form = build_overlay_preview(self.match)['form']['home']
+
+        self.assertEqual(form[0]['opponent'], 'Rival Sin Ficha')
