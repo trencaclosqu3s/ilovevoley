@@ -26,9 +26,11 @@
     {% block extra_head %}{% endblock %}
     <script src="{% static 'js/lightbox.js' %}"></script>
     <script src="{% static 'js/csp_actions.js' %}"></script>
+    <script src="{% static 'js/nav_progress.js' %}" defer></script>
     <script src="{% static 'js/pwa_nav.js' %}" defer></script>
     <script src="{% static 'js/pwa_install.js' %}" defer></script>
     <script src="{% static 'js/webpush.js' %}" defer></script>
+    <script src="{% static 'js/upload_queue.js' %}" defer></script>
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
     <style nonce="{{ csp_nonce }}">
       :root {
@@ -198,6 +200,7 @@
 <body
     {% if tenant %}data-share-url="{{ tenant_url|default:request.build_absolute_uri }}" data-share-title="{{ tenant.name }}" data-share-text="{% blocktrans with club=tenant.name %}Sigue los partidos y fotos de {{ club }} en I Love Voley{% endblocktrans %}"{% endif %}
     class="bg-page text-ink font-sans min-h-screen flex flex-col {% if user.is_authenticated %}pb-24 md:pb-0{% endif %}">
+    <div id="nav-progress" class="nav-progress" aria-hidden="true"></div>
     {% include 'includes/navbar.html' %}
 
     <div class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
@@ -278,6 +281,9 @@
             {% endblock sidebar %}
         </div>
     </div>
+
+    <!-- Cola de subida de fotos tolerante a mala cobertura -->
+    {% include 'includes/upload_queue_widget.html' %}
 
     {% include 'includes/bottom_nav.html' %}
 

@@ -366,3 +366,50 @@ def notify_image_tagged_push_task(organization_id, person_id, image_ids, actor_i
 
     return sent
 
+
+@shared_task(name='content.flush_upload_batch_notifications')
+def flush_upload_batch_notifications_task(organization_id, batch_id):
+    """Consolida y envía el email de moderación en lote y el push de nuevo álbum (#611)."""
+    from django.core.cache import cache
+    from django.urls import reverse
+
+    from ilovevoley.content.services import upload_batch_cache_keys
+    from ilovevoley.core.tasks import notify_images_pending_batch_task
+    from ilovevoley.users.tasks import notify_web_push_organization_task
+
+    keys = upload_batch_cache_keys(organization_id, batch_id)
+    state = cache.get(keys['state'])
+    cache.delete(keys['state'])
+    cache.delete(keys['scheduled'])
+
+    if not state:
+        return {'pending_notified': 0, 'album_push_sent': False}
+
+    pending_ids = [int(pk) for pk in (state.get('pending_ids') or [])]
+    pending_notified = 0
+    if pending_ids and settings.EMAIL_NOTIFICATIONS.get('image_pending', True):
+        notify_images_pending_batch_task.delay(pending_ids)
+        pending_notified = len(pending_ids)
+
+    album_push_sent = False
+    album_group_id = state.get('album_group_id')
+    if state.get('is_new_album') and album_group_id:
+        album_keys = upload_batch_cache_keys(organization_id, batch_id, album_group_id)
+        if cache.add(album_keys['album_sent'], True, timeout=86400):
+            album_name = state.get('album_name') or ''
+            album_url = reverse('content:album_group_images', args=[album_group_id])
+            notify_web_push_organization_task.delay(
+                organization_id=organization_id,
+                **push_message(lambda: (
+                    _('Nuevo Álbum'),
+                    _('Se han subido nuevas fotos: %(album)s') % {'album': album_name}
+                    if album_name else _('Se han subido nuevas fotos'),
+                )),
+                url=album_url,
+                category_ids=[int(c) for c in (state.get('category_ids') or [])],
+                notification_type='new_album',
+            )
+            album_push_sent = True
+
+    return {'pending_notified': pending_notified, 'album_push_sent': album_push_sent}
+

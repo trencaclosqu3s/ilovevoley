@@ -96,6 +96,11 @@ def scrape_rfevb_fases(competition_id, fase_ids, parent_league_id, dry_run=False
             if standings and not dry_run:
                 _update_standings(standings, sub_league, team_map)
 
+        # Mejora pendiente (#601): este sleep bloquea al worker `delay` s por fase (también
+        # tras la última). Se deja porque los nacionales RFEVB son puntuales (~4 fases). Si
+        # vuelven a usarse: una tarea por fase con `countdown=i*delay` en un chord, y mover
+        # al callback el disparo de `scrape_rfevb_final_classification` (ver
+        # `scrape_rfevb_competition`), como se hizo con `scrape_all_leagues`.
         if delay:
             time.sleep(delay)
 

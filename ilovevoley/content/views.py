@@ -23,6 +23,7 @@ from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
 from ilovevoley.competitions.models import League, Match
+from ilovevoley.competitions.services.marks import match_marks
 from ilovevoley.core.mixins import get_club_team_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
@@ -54,7 +55,7 @@ from .forms import (
 )
 from .favorites import annotate_favorites
 from .models import Comment, Image, ImageFavorite, ImageRemovalRequest, SharedUpload, Video
-from .services import queue_match_media_push
+from .services import queue_match_media_push, queue_upload_batch_notifications
 from .thumbnails import schedule_thumbnail_generation
 
 logger = logging.getLogger(__name__)
@@ -424,7 +425,13 @@ def video_detail(request, video_id):
         Match.objects.filter(pk=video.match_id).first() if video.match_id else None
     )
 
+    marks = (
+        match_marks(linked_match, video.get_video_id() or '')
+        if linked_match else []
+    )
+
     return render(request, 'content/video_detail.html', {
+        'marks': marks,
         'video': video,
         'comments': comments,
         'comment_form': comment_form,
@@ -662,6 +669,23 @@ SHARE_TARGET_MAX_BYTES = 10 * 1024 * 1024
 SHARE_TARGET_TTL = timedelta(hours=24)
 
 
+def _is_real_image(f):
+    """El content-type lo declara el cliente: abrir el fichero es lo único que
+    prueba que lo es. verify() no decodifica los píxeles, suficiente para
+    descartar cuerpos que no son imagen sin pagar el decode completo."""
+    from PIL import Image as PILImage
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+    try:
+        with PILImage.open(f) as img:
+            img.verify()
+        return True
+    except Exception:
+        return False
+    finally:
+        f.seek(0)
+
+
 def _purge_expired_shared_uploads():
     """Borra filas caducadas una a una: queryset.delete() no invoca el modelo y
     dejaría los ficheros huérfanos en MEDIA_ROOT. Se llama al recibir y al
@@ -697,7 +721,11 @@ def image_share_target(request):
     files = request.FILES.getlist('image')
     valid, rejected = [], []
     for f in files:
-        if f.content_type not in SHARE_TARGET_ACCEPTED_TYPES or f.size > SHARE_TARGET_MAX_BYTES:
+        if (
+            f.content_type not in SHARE_TARGET_ACCEPTED_TYPES
+            or f.size > SHARE_TARGET_MAX_BYTES
+            or not _is_real_image(f)
+        ):
             rejected.append(f)
         else:
             valid.append(f)
@@ -1321,6 +1349,259 @@ def image_bulk_upload(request):
     return render(request, 'content/image_bulk_upload.html', context)
 
 
+UPLOAD_IDEMPOTENCY_TTL = 24 * 3600
+ALLOWED_QUEUE_IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif')
+
+
+@tenant_access_required()
+@require_POST
+def image_queue_upload_api(request):
+    """Endpoint unitario idempotente para la cola de subida de fotos (#611)."""
+    tenant = request.tenant
+    raw_upload_id = (request.POST.get('client_upload_id') or '').strip()
+    client_upload_uuid = None
+    if raw_upload_id:
+        try:
+            client_upload_uuid = uuid.UUID(raw_upload_id)
+        except (ValueError, TypeError):
+            return JsonResponse(
+                {'ok': False, 'error': _('Identificador de subida no válido.')},
+                status=400,
+            )
+
+    idem_key = (
+        f'upload_idempotency:{tenant.id}:{request.user.id}:{client_upload_uuid}'
+        if client_upload_uuid
+        else None
+    )
+    if idem_key:
+        existing_id = cache.get(idem_key)
+        if existing_id:
+            existing_img = Image.objects.filter(
+                pk=existing_id, organization=tenant, uploaded_by=request.user
+            ).first()
+            if existing_img is not None:
+                return JsonResponse({
+                    'ok': True,
+                    'image_id': existing_img.id,
+                    'title': existing_img.title,
+                    'status': existing_img.status,
+                    'deduplicated': True,
+                })
+
+    uploaded_file = request.FILES.get('image')
+    if not uploaded_file:
+        return JsonResponse(
+            {'ok': False, 'error': _('No se recibió ninguna imagen.')},
+            status=400,
+        )
+
+    if uploaded_file.size > 10 * 1024 * 1024:
+        return JsonResponse(
+            {'ok': False, 'error': _('El archivo es demasiado grande. Tamaño máximo: 10MB')},
+            status=400,
+        )
+
+    lower_name = (uploaded_file.name or '').lower()
+    content_type = getattr(uploaded_file, 'content_type', '') or ''
+    if not lower_name.endswith(ALLOWED_QUEUE_IMAGE_EXTENSIONS) and not content_type.startswith('image/'):
+        return JsonResponse(
+            {'ok': False, 'error': _('Formato no válido. Use JPG, PNG, WebP o HEIC')},
+            status=400,
+        )
+
+    image_type = request.POST.get('image_type') or 'other'
+    valid_types = {choice[0] for choice in Image.IMAGE_TYPES}
+    if image_type not in valid_types:
+        image_type = 'other'
+
+    match = None
+    match_id_raw = (request.POST.get('match') or '').strip()
+    if match_id_raw:
+        club_query = get_club_team_filter(tenant)
+        try:
+            match = Match.objects.filter(club_query, pk=int(match_id_raw)).first()
+        except (ValueError, TypeError):
+            match = None
+        if match is None:
+            return JsonResponse(
+                {'ok': False, 'error': _('El partido seleccionado no es válido.')},
+                status=400,
+            )
+
+    season_id = None
+    season_raw = (request.POST.get('season') or '').strip()
+    if season_raw:
+        try:
+            if Season.objects.filter(pk=int(season_raw)).exists():
+                season_id = int(season_raw)
+        except (ValueError, TypeError):
+            season_id = None
+
+    album_group_id = None
+    album_name = (request.POST.get('album_name') or '').strip()[:200]
+    create_album = request.POST.get('create_album') in ('on', 'true', '1')
+    raw_album_id = (request.POST.get('album_group_id') or request.POST.get('existing_album_id') or '').strip()
+
+    if raw_album_id and not match:
+        try:
+            album_uuid = uuid.UUID(raw_album_id)
+        except (ValueError, TypeError):
+            return JsonResponse(
+                {'ok': False, 'error': _('ID de álbum inválido.')},
+                status=400,
+            )
+        if Image.objects.filter(album_group_id=album_uuid).exclude(organization=tenant).exists():
+            return JsonResponse(
+                {'ok': False, 'error': _('El álbum especificado no existe.')},
+                status=400,
+            )
+        existing_in_tenant = Image.objects.filter(
+            album_group_id=album_uuid, organization=tenant
+        ).first()
+        if existing_in_tenant is not None:
+            album_group_id = album_uuid
+            if not album_name:
+                album_name = existing_in_tenant.album_name or _('Álbum')
+        elif create_album:
+            if not album_name:
+                return JsonResponse(
+                    {'ok': False, 'error': _('El nombre del álbum es obligatorio cuando se agrupan imágenes.')},
+                    status=400,
+                )
+            album_group_id = album_uuid
+        else:
+            return JsonResponse(
+                {'ok': False, 'error': _('El álbum especificado no existe.')},
+                status=400,
+            )
+
+    raw_tags = (request.POST.get('tags') or '').strip()
+    cleaned_tags = ''
+    if raw_tags:
+        tag_list = [t.strip().lower() for t in raw_tags.split(',') if t.strip()][:10]
+        cleaned_tags = ', '.join(t[:30] for t in tag_list)
+
+    shared_title = (request.POST.get('shared_title') or '').strip()[:200]
+    raw_title = (request.POST.get('title') or '').strip()[:200]
+    original_base_name = (uploaded_file.name or '').rsplit('.', 1)[0]
+
+    seq = get_next_sequence_number(
+        match=match,
+        album_group_id=album_group_id,
+        base_title=shared_title,
+        organization=tenant,
+    )
+
+    if raw_title and raw_title != original_base_name and not is_generic_camera_filename(raw_title):
+        title = raw_title
+    elif match:
+        title = build_descriptive_title(match=match, seq=seq)
+    elif album_name:
+        title = build_descriptive_title(album_name=album_name, seq=seq)
+    elif shared_title:
+        title = build_descriptive_title(base_title=shared_title, seq=seq)
+    elif raw_title and not is_generic_camera_filename(raw_title):
+        title = raw_title
+    else:
+        title = build_descriptive_title(base_title=_('Foto'), seq=seq)
+
+    description = (request.POST.get('description') or '').strip()
+
+    image = Image(
+        image=uploaded_file,
+        title=title,
+        description=description,
+        tags=cleaned_tags,
+        image_type=image_type,
+        match=match,
+        season_id=season_id,
+        set_number=_coerce_set_number(request.POST.get('set_number')) if match else None,
+        album_group_id=album_group_id,
+        album_name=album_name if album_group_id else '',
+        uploaded_by=request.user,
+        organization=tenant,
+    )
+
+    enqueue_vision = False
+    if request.user.is_superuser:
+        image.status = 'approved'
+        image.moderated_by = request.user
+        image.moderation_date = timezone.now()
+        image.moderation_notes = _('Aprobada automáticamente por superusuario')
+        image.vision_api_checked = False
+        image.vision_api_safe = True
+        image.vision_api_details = {'skipped': 'Superuser approval - bypassed Vision API'}
+    else:
+        image._skip_pending_email = True
+        if getattr(settings, 'GOOGLE_VISION_ENABLED', False):
+            enqueue_vision = True
+
+    try:
+        image.save()
+    except Exception:
+        return JsonResponse(
+            {'ok': False, 'error': _('El archivo no es una imagen válida.')},
+            status=400,
+        )
+
+    try:
+        schedule_thumbnail_generation(image)
+    except Exception as exc:
+        logger.error("Error generando miniaturas para '%s': %s", image.title, exc)
+
+    categories_to_add = []
+    if match:
+        if match.home_team and match.home_team.category:
+            categories_to_add.append(match.home_team.category)
+        if match.away_team and match.away_team.category:
+            categories_to_add.append(match.away_team.category)
+        if match.league:
+            categories_to_add.extend(list(match.league.categories.all()))
+    if not categories_to_add:
+        raw_cats = request.POST.getlist('categories')
+        cat_ids = [int(c) for c in raw_cats if str(c).isdigit()]
+        if cat_ids:
+            categories_to_add = list(Category.objects.filter(id__in=cat_ids, is_active=True))
+    if categories_to_add:
+        image.categories.set(list(set(categories_to_add)))
+
+    if idem_key:
+        cache.set(idem_key, image.id, timeout=UPLOAD_IDEMPOTENCY_TTL)
+
+    if enqueue_vision:
+        from ilovevoley.content.tasks import analyze_image_with_vision_task
+        enqueue_on_commit(analyze_image_with_vision_task, image.id, False)
+
+    batch_id = (request.POST.get('batch_id') or '').strip() or str(client_upload_uuid or uuid.uuid4())
+    cat_ids_for_push = [c.id for c in categories_to_add]
+    queue_upload_batch_notifications(
+        organization_id=tenant.id,
+        batch_id=batch_id,
+        image_id=image.id,
+        is_pending=(image.status == 'pending'),
+        is_new_album=bool(create_album and album_group_id and not match),
+        album_group_id=str(album_group_id) if album_group_id else None,
+        album_name=album_name,
+        category_ids=cat_ids_for_push,
+    )
+
+    if image.status == 'approved' and image.match_id:
+        queue_match_media_push(
+            match_id=image.match_id,
+            media_type='photo',
+            organization_id=tenant.id,
+        )
+
+    return JsonResponse({
+        'ok': True,
+        'image_id': image.id,
+        'title': image.title,
+        'status': image.status,
+        'deduplicated': False,
+    })
+
+
 @tenant_access_required()
 def image_detail(request, image_id):
     """Vista de detalle de imagen"""
@@ -1810,6 +2091,7 @@ __all__ = [
     'image_upload',
     'image_share_target',
     'image_bulk_upload',
+    'image_queue_upload_api',
     'image_detail',
     'match_images',
     'album_group_images',

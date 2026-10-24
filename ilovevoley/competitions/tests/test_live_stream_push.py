@@ -1,8 +1,9 @@
+import json
 from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match
@@ -98,4 +99,60 @@ class LiveStreamPushTest(TestCase):
             sent = notify_match_live_stream(self.match)
 
         self.assertFalse(sent)
+        mock_push.assert_not_called()
+
+
+@override_settings(SCOREBOARD_STREAM_TOKEN='s3cret', ALLOWED_HOSTS=['santjust.ilovevoley.es'])
+class ScoreboardStreamWebhookTest(TestCase):
+    """Webhook del marcador que pone el directo en el partido en ventana (#575)."""
+
+    URL = '/competitions/api/stream/live/'
+    LIVE = 'https://www.youtube.com/@canal/live'
+
+    def setUp(self):
+        LiveStreamPushTest.setUp(self)
+        self.match.stream_url = ''
+        self.match.save(update_fields=['stream_url'])
+
+    def _post(self, token='s3cret'):
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'} if token else {}
+        return self.client.post(
+            self.URL, json.dumps({'url': self.LIVE}), content_type='application/json',
+            HTTP_HOST='santjust.ilovevoley.es', **headers,
+        )
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_rejects_missing_or_wrong_token(self, mock_push):
+        """Sin token válido nadie puede publicar un directo ni disparar la push."""
+        self.assertEqual(self._post(token=None).status_code, 403)
+        self.assertEqual(self._post(token='otro').status_code, 403)
+
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.stream_url, '')
+        mock_push.assert_not_called()
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_single_match_saves_url_and_pushes_once(self, mock_push):
+        """El marcador reintenta en cada corte de 4G: la push sale una sola vez."""
+        with self.captureOnCommitCallbacks(execute=True):
+            first = self._post()
+            second = self._post()
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.stream_url, self.LIVE)
+        mock_push.assert_called_once()
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_several_matches_in_window_conflict(self, mock_push):
+        """Con dos partidos en ventana no se adivina: 409 y ninguno cambia."""
+        other = Match.objects.create(
+            league=self.league, home_team=self.team1, away_team=self.team2,
+            match_date=timezone.now() - timedelta(hours=1), status='scheduled',
+        )
+
+        self.assertEqual(self._post().status_code, 409)
+
+        self.assertFalse(Match.objects.filter(pk__in=[self.match.pk, other.pk]).exclude(stream_url='').exists())
         mock_push.assert_not_called()

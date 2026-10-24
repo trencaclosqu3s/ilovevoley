@@ -106,15 +106,15 @@ class MatchesParser(BaseParser):
                 match_data = self._parse_single_match(match_div, current_round)
                 if match_data:
                     matches.append(match_data)
-            except Exception as e:
-                logger.warning(f"Error parsing match: {e}")
+            except Exception:
+                logger.exception("Error parsing match")
                 continue
 
         try:
             from ilovevoley.competitions.services.acta_photo import process_acta_photos_from_html
             process_acta_photos_from_html(content, league=self.league, round_number=current_round)
-        except Exception as e:
-            logger.warning(f"Error procesando fotos de acta en MatchesParser: {e}")
+        except Exception:
+            logger.exception("Error procesando fotos de acta en MatchesParser")
 
         return {'matches': matches}
     
@@ -261,8 +261,8 @@ class CalendarParser(BaseParser):
                     match_data = self._parse_calendar_row(row, current_round)
                     if match_data:
                         matches.append(match_data)
-                except Exception as e:
-                    logger.warning(f"Error parsing calendar row: {e}")
+                except Exception:
+                    logger.exception("Error parsing calendar row")
                     continue
         
         return {'matches': matches}

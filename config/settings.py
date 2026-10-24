@@ -103,6 +103,14 @@ LOGIN_PROFILE_REVIEW_INACTIVITY_DAYS = env_config(
     'LOGIN_PROFILE_REVIEW_INACTIVITY_DAYS', default=90, cast=int
 )
 
+# Token compartido con el marcador (voley-scoreboard) para avisar de que empieza
+# el directo (#575). Vacío desactiva el endpoint.
+SCOREBOARD_STREAM_TOKEN = env_config('SCOREBOARD_STREAM_TOKEN', default='')
+
+# Usuario autor de los Video creados automáticamente al cerrar la emisión del
+# marcador (#577). 0 significa sin configurar.
+SCOREBOARD_VIDEO_USER_ID = env_config('SCOREBOARD_VIDEO_USER_ID', default=0, cast=int)
+
 # Allauth settings (nueva sintaxis)
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
@@ -856,6 +864,10 @@ VAPID_CLAIMS_SUB = env_config('VAPID_CLAIMS_SUB', default='mailto:admin@ilovevol
 # Push agrupado de fotos/vídeos de un partido (#281): ventana de agrupación y
 # cooldown. Una ráfaga de subidas genera un único aviso.
 MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS = env_config('MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS', default=300, cast=int)
+
+# Ventana de agrupación de avisos (email de moderación en lote y push de nuevo álbum)
+# para la cola de subida foto a foto (#611).
+UPLOAD_BATCH_DEBOUNCE_SECONDS = env_config('UPLOAD_BATCH_DEBOUNCE_SECONDS', default=15, cast=int)
 
 # Sentry error tracking and performance monitoring
 from config.sentry import configure as _configure_sentry
