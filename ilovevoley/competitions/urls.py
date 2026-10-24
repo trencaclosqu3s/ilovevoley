@@ -4,6 +4,7 @@ from .calendar_feed import UserMatchesFeed
 from .scoreboard_api import (
     api_live_scoreboard,
     api_scoreboard_live_state,
+    api_scoreboard_match_mark,
     api_scoreboard_match_result,
     api_scoreboard_matches_today,
     api_scoreboard_stream_ended,
@@ -18,6 +19,7 @@ urlpatterns = [
     path('ligas/<int:league_id>/', views.league_detail, name='league_detail'),
     path('partidos/<int:match_id>/', views.match_detail, name='match_detail'),
     path('match/<int:match_id>/live-state/', api_live_scoreboard, name='match_live_state'),
+    path('partidos/<int:match_id>/jugadas/<int:mark_id>/jugadores/', views.match_mark_persons, name='match_mark_persons'),
     path('partidos/<int:match_id>/compartir/', views.match_share_create, name='match_share_create'),
     path('partidos/<int:match_id>/compartir/<int:link_id>/revocar/', views.match_share_revoke, name='match_share_revoke'),
     path('partidos/<int:match_id>/tarjeta/', views.match_result_card, name='match_result_card'),
@@ -46,6 +48,7 @@ urlpatterns = [
     path('api/stream/ended/', api_scoreboard_stream_ended, name='api_scoreboard_stream_ended'),
     path('api/matches/today/', api_scoreboard_matches_today, name='api_scoreboard_matches_today'),
     path('api/match/result/', api_scoreboard_match_result, name='api_scoreboard_match_result'),
+    path('api/match/mark/', api_scoreboard_match_mark, name='api_scoreboard_match_mark'),
     path('api/match/live-state/', api_scoreboard_live_state, name='api_scoreboard_live_state'),
     path('ajax/cambios/<int:log_id>/marcar-revisado/', views.ajax_mark_change_reviewed, name='ajax_mark_change_reviewed'),
 

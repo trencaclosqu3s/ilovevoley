@@ -24,7 +24,7 @@ from django.views.decorators.http import require_http_methods
 from ilovevoley.content.models.content import Video
 from ilovevoley.videos.scraping.base import validate_volleyball_score
 
-from .models import Match
+from .models import Match, MatchMark
 from .services.notifications import notify_match_result
 from .services.youtube_live import (
     is_live_channel_url,
@@ -42,6 +42,9 @@ LIVE_RESOLVE_COOLDOWN = 120
 LIVE_MAX_POINTS = 99
 LIVE_MAX_SETS = 9
 LIVE_MAX_HISTORY = 9
+# Una emisión no pasa de 12 h ni de unos cientos de jugadas marcadas.
+MARK_MAX_SECONDS = 12 * 3600
+MARK_MAX_PER_MATCH = 500
 
 
 def live_state_key(match_id):
@@ -507,6 +510,30 @@ def api_scoreboard_live_state(request, tenant):
     cache.set(live_state_key(match.pk), subset, LIVE_STATE_TTL)
     _retry_live_resolution(match, tenant)
     return JsonResponse({'success': True, 'match_id': match.pk})
+
+
+@scoreboard_api()
+def api_scoreboard_match_mark(request, tenant):
+    """Guarda una marca de jugada con el segundo de la emisión (#580).
+
+    El segundo lo calcula el marcador desde el inicio real de la emisión. El
+    marcador del instante es opcional y usa la forma de ``live-state``.
+    """
+    data = _parse_json_body(request)
+    seconds = data.get('seconds')
+    if not _is_non_neg_int(seconds) or seconds > MARK_MAX_SECONDS:
+        return JsonResponse({'success': False, 'error': 'invalid seconds'}, status=400)
+    state = data.get('state')
+    scoreboard = {} if state is None else _parse_live_state(state)
+
+    match = resolve_match(tenant, parse_match_id(data))
+    if match.marks.count() >= MARK_MAX_PER_MATCH:
+        return JsonResponse({'success': False, 'error': 'too many marks'}, status=409)
+    # Mismo (partido, segundo) = reintento del marcador: no duplica.
+    mark, created = MatchMark.objects.get_or_create(
+        match=match, seconds=seconds, defaults={'scoreboard': scoreboard},
+    )
+    return JsonResponse({'success': True, 'match_id': match.pk, 'mark_id': mark.pk, 'created': created})
 
 
 @require_http_methods(['GET'])

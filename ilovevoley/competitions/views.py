@@ -35,7 +35,7 @@ from ilovevoley.competitions.result_card import (
     render_result_card,
 )
 from ilovevoley.content.favorites import annotate_favorites, match_top_images
-from ilovevoley.content.models import Image
+from ilovevoley.content.models import Image, Video
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.protected_media import serve_protected_file
@@ -53,11 +53,12 @@ from ilovevoley.competitions.scraping.acta import parse_acta_lineup
 from ilovevoley.competitions.scraping.base import league_max_sets, validate_volleyball_score
 from .forms import FriendlyMatchForm, MatchResultForm
 from .models import (
-    League, Match, MatchChangeLog, MatchChangeLogReview, MatchShareLink, Standing, StoryComposition,
+    League, Match, MatchChangeLog, MatchChangeLogReview, MatchMark, MatchShareLink, Standing, StoryComposition,
 )
 from .services.lineups import (
     _person_links_lookup,
     ActaLinkConflict,
+    mark_person_choices,
     _resolve_person,
     resolve_acta_team,
     set_acta_person_link,
@@ -66,6 +67,7 @@ from .services.lineups import (
     team_roster,
     team_roster_choices,
 )
+from .services.marks import match_marks
 from .services.notifications import notify_match_live_stream, notify_match_result
 from .services.preview import build_match_preview, preview_card_pills
 
@@ -336,6 +338,14 @@ def _live_card_eligible(match, now):
     return (now - timedelta(hours=6)) <= match.match_date <= (now + timedelta(hours=24))
 
 
+def _match_marks(match, videos):
+    """Marcas de jugada con su enlace ``&t=`` al primer vídeo de YouTube del partido."""
+    video_id = next((v.get_video_id() for v in videos if v.get_video_id()), '')
+    if not video_id and match.stream_url:
+        video_id = Video(youtube_url=match.stream_url).get_video_id() or ''
+    return match_marks(match, video_id)
+
+
 @tenant_access_required()
 def match_detail(request, match_id):
     """Vista detallada de un partido con sus videos e imágenes"""
@@ -361,8 +371,10 @@ def match_detail(request, match_id):
         top_images = match_top_images(match, request.tenant, user=request.user, limit=3)
         can_manage = user_is_tenant_manager(request.user, request.tenant)
         stream_url = match.stream_url
+        marks = _match_marks(match, videos)
     else:
         videos = match.videos.none()
+        marks = []
         images = match.images.none()
         top_images = []
         can_manage = False
@@ -415,6 +427,8 @@ def match_detail(request, match_id):
         'set_scores': match_set_scores(match),
         'max_sets': league_max_sets(match.league) if match.league else 5,
         'preview': build_match_preview(match),
+        'marks': marks,
+        'mark_choices': mark_person_choices(match, request.tenant) if can_manage and marks else [],
     })
 
 
@@ -1556,6 +1570,21 @@ def ajax_teams_by_league_category(request):
     return JsonResponse({
         'teams': teams_data
     })
+
+
+@tenant_access_required(manager=True)
+@require_POST
+def match_mark_persons(request, match_id, mark_id):
+    """Etiqueta con deportistas una marca de jugada (#580)."""
+    match = get_tenant_object_or_404(
+        Match.objects, request.tenant, user=request.user, id=match_id
+    )
+    mark = get_object_or_404(MatchMark, id=mark_id, match=match)
+    allowed = {c['id'] for c in mark_person_choices(match, request.tenant)}
+    chosen = {int(v) for v in request.POST.getlist('persons') if v.isdecimal()}
+    mark.persons.set(chosen & allowed)
+    messages.success(request, _('Jugada etiquetada.'))
+    return redirect('competitions:match_detail', match_id=match.id)
 
 
 @require_POST

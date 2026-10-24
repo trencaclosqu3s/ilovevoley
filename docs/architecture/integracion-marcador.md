@@ -1,7 +1,7 @@
 # Integración marcador ↔ ilovevoley
 
 **Fecha:** 2026-10-23
-**Issues:** #575, #576, #577, #578, #579, #603
+**Issues:** #575, #576, #577, #578, #579, #580, #603
 **Repos:** `ilovevoley` (este) y `trencaclosqu3s/voley-scoreboard` (marcador de grada: Flask + MediaMTX + ffmpeg → YouTube Live)
 
 El marcador habla con ilovevoley por HTTP con un token Bearer compartido. Todo es best-effort: si ilovevoley no responde o no hay partido elegido, el panel y la emisión siguen funcionando a mano.
@@ -17,6 +17,7 @@ Todos cuelgan de `/competitions/` y exigen `Authorization: Bearer <SCOREBOARD_ST
 | `POST api/match/result/` | botón «Finalizar partido» | Valida con `validate_volleyball_score`, rellena `home_score`, `away_score` y `set_scores`, push de resultado idempotente (`result_notified_at`). 409 si ya hay resultado federativo. |
 | `POST api/match/live-state/` | hilo `live-pusher` | Guarda el marcador en vivo en Redis (TTL 90 s). |
 | `POST api/stream/ended/` | hilo vigilante | Crea un único `Video` vinculado al partido (`get_or_create`). Exige `match_id`. |
+| `POST api/match/mark/` | botón «¡Jugada!» | Guarda un `MatchMark` (`seconds` desde el inicio real de la emisión, `state` opcional con la forma de `live-state`). Tope 500 por partido. |
 | `GET match/<id>/live-state/` | ficha del partido | Público y sin filtro de club (cualquier subdominio lee el marcador por id; son datos de marcador, decisión consciente). Devuelve el estado solo dentro de la ventana de directo; fuera, `live: false`. |
 
 Resolución del partido: si el aviso trae `match_id` se usa ese; si no, el único partido en ventana de directo (`Match.is_live_window`, −30 min / +3 h); con 0 o varios devuelve 409. Token y resolución viven en un único helper compartido por todos los endpoints.
@@ -30,6 +31,10 @@ Topes del contrato: 99 puntos, 9 sets, 9 parciales. Códigos: 200, 400, 403, 404
 3. **Marcador en vivo.** Cada cambio se empuja con coalescencia y hay un latido de 30 s. La ficha hace polling (5 s en directo, 30 s si no) y oculta la tarjeta cuando responde `live: false` (200; solo hay 404 si el partido no existe).
 4. **Finalizar.** El botón envía sets y parciales. Tras el 200 el marcador fija `match_closed` en `state.json` y deja de empujar latidos; `api_match_pick` y `api_match_clear` lo resetean.
 5. **Fin de emisión.** Un hilo vigilante detecta N minutos sin `ffmpeg_progress.txt` (`SCOREBOARD_END_GRACE_MINUTES`, 10 por defecto, para no confundir cortes de 4G) y avisa una vez a `stream/ended`.
+
+## Marcas de jugada (#580)
+
+El marcador calcula el segundo de la emisión (es quien ve los cortes de 4G) y lo envía; ilovevoley solo lo guarda en `MatchMark`, colgado del partido y no del `Video`, porque la marca existe antes que el vídeo. La ficha del partido las lista como enlaces `&t=<s>s` al primer vídeo de YouTube. Un manager etiqueta cada marca con deportistas: los convocados del acta de nuestro equipo si hay alguno resuelto (`MatchLineup`) y, si no, la plantilla de la temporada (`mark_person_choices`).
 
 ## Decisiones
 

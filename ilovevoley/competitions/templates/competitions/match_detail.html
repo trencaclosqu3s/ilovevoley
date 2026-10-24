@@ -751,6 +751,54 @@
         </div>
     {% endif %}
 
+
+    {% if marks %}
+    <!-- Jugadas marcadas desde el marcador (#580) -->
+    <div class="bg-surface rounded-[20px] border border-line overflow-hidden mb-6">
+        <div class="bg-tint px-4 sm:px-6 py-3 sm:py-4 border-b border-line">
+            <h2 class="text-lg sm:text-xl font-bold text-ink">{% trans "Jugadas" %} ({{ marks|length }})</h2>
+        </div>
+        <ul class="divide-y divide-line">
+            {% for mark in marks %}
+                <li class="px-4 sm:px-6 py-3">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        {% if mark.link %}
+                            <a href="{{ mark.link }}" target="_blank" rel="noopener" class="font-medium text-brand-text hover:text-csj-purple-dark">
+                                {{ mark.label }}
+                            </a>
+                        {% else %}
+                            <span class="font-medium text-ink">{{ mark.label }}</span>
+                        {% endif %}
+                        {% if mark.scoreboard %}
+                            <span class="text-sm text-muted">{{ mark.scoreboard.home_sets }}-{{ mark.scoreboard.away_sets }} · {{ mark.scoreboard.home_points }}-{{ mark.scoreboard.away_points }}</span>
+                        {% endif %}
+                        {% for person in mark.persons.all %}
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-tint text-ink">{{ person.full_name }}</span>
+                        {% endfor %}
+                    </div>
+                    {% if can_manage_videos and mark_choices %}
+                        <details class="mt-2">
+                            <summary class="text-sm text-brand-text cursor-pointer">{% trans "Etiquetar jugadores" %}</summary>
+                            <form method="post" action="{% url 'competitions:match_mark_persons' match.id mark.id %}" class="mt-2 space-y-2">
+                                {% csrf_token %}
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-1">
+                                    {% for c in mark_choices %}
+                                        <label class="text-sm text-ink flex items-center gap-2">
+                                            <input type="checkbox" name="persons" value="{{ c.id }}" {% if c.id in mark.person_ids %}checked{% endif %}>
+                                            {% if c.jersey_number %}{{ c.jersey_number }} · {% endif %}{{ c.full_name }}
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                                <button type="submit" class="px-3 py-1.5 bg-csj-purple-dark text-white text-sm font-medium rounded-lg">{% trans "Guardar" %}</button>
+                            </form>
+                        </details>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
     <!-- Top del partido: fotos con más favoritos -->
     {% if top_images %}
     <div class="bg-surface rounded-3xl border border-line relative mb-6">
