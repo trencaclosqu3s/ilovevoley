@@ -66,7 +66,7 @@
                     <div id="drop-zone-content">
                         <i class="fas fa-cloud-upload-alt text-muted text-4xl mb-4"></i>
                         <p class="text-muted mb-2">{% trans "Arrastra tus imágenes aquí o haz clic para seleccionar" %}</p>
-                        <p class="text-sm text-muted">{% trans "Formatos: JPG, PNG, WebP, HEIC • Máximo 10MB por imagen" %}</p>
+                        <p class="text-sm text-muted">{% trans "Formatos: JPG, PNG, WebP, HEIC • Compresión automática (máx. 10MB por imagen)" %}</p>
                         <p class="text-sm text-muted mt-1">{% trans "Puedes seleccionar hasta 20 imágenes a la vez" %}</p>
                     </div>
                 </div>
@@ -353,8 +353,8 @@ function handleFiles(files) {
             return;
         }
         
-        if (file.size > 10 * 1024 * 1024) {
-            errors.push(`${file.name} {% trans "es demasiado grande (máx 10MB)" as js_msg %}{{ js_msg|escapejs }}`);
+        if (file.size > 25 * 1024 * 1024) {
+            errors.push(`${file.name} {% trans "es demasiado grande (máx 25MB)" as js_msg %}{{ js_msg|escapejs }}`);
             return;
         }
         
@@ -732,6 +732,15 @@ document.getElementById('bulk-upload-form').addEventListener('submit', (e) => {
             albumNameInput.focus();
             return false;
         }
+    }
+
+    if (!shareBatchInput && window.UploadQueue) {
+        e.preventDefault();
+        const bulkForm = document.getElementById('bulk-upload-form');
+        const filesToQueue = selectedFiles.slice();
+        window.UploadQueue.enqueueFromBulkForm(bulkForm, filesToQueue);
+        clearAllImages();
+        return false;
     }
     
     // Crear un DataTransfer para asignar los archivos al input

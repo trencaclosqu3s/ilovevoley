@@ -865,6 +865,10 @@ VAPID_CLAIMS_SUB = env_config('VAPID_CLAIMS_SUB', default='mailto:admin@ilovevol
 # cooldown. Una ráfaga de subidas genera un único aviso.
 MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS = env_config('MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS', default=300, cast=int)
 
+# Ventana de agrupación de avisos (email de moderación en lote y push de nuevo álbum)
+# para la cola de subida foto a foto (#611).
+UPLOAD_BATCH_DEBOUNCE_SECONDS = env_config('UPLOAD_BATCH_DEBOUNCE_SECONDS', default=15, cast=int)
+
 # Sentry error tracking and performance monitoring
 from config.sentry import configure as _configure_sentry
 _configure_sentry(

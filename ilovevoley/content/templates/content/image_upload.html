@@ -31,7 +31,7 @@
                     <div id="drop-zone-content">
                         <i class="fas fa-cloud-upload-alt text-muted text-4xl mb-4"></i>
                         <p class="text-muted mb-2">{% trans "Arrastra tu imagen aquí o haz clic para seleccionar" %}</p>
-                        <p class="text-sm text-muted">{% trans "Formatos: JPG, PNG, WebP, HEIC • Máximo 10MB" %}</p>
+                        <p class="text-sm text-muted">{% trans "Formatos: JPG, PNG, WebP, HEIC • Compresión automática (máx. 10MB)" %}</p>
                     </div>
                     
                     <div id="image-preview" class="hidden">
@@ -266,9 +266,9 @@ function handleFileSelect(file) {
         return;
     }
     
-    // Validar tamaño (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-        alert('{% trans "El archivo es demasiado grande. Máximo 10MB" as js_msg %}{{ js_msg|escapejs }}');
+    // Validar tamaño bruto (25MB; se comprime automáticamente a <=10MB antes de subir)
+    if (file.size > 25 * 1024 * 1024) {
+        alert('{% trans "El archivo original es demasiado grande (máximo 25MB)." as js_msg %}{{ js_msg|escapejs }}');
         return;
     }
     
@@ -368,5 +368,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Estado inicial de categorías
     updateCategoriesState();
 });
+
+const singleUploadForm = document.getElementById('image-upload-form');
+if (singleUploadForm) {
+    singleUploadForm.addEventListener('submit', function(e) {
+        if (singleUploadForm.elements.share_token || !window.UploadQueue || !imageInput) {
+            return;
+        }
+        const file = imageInput.files && imageInput.files[0];
+        if (!file) {
+            e.preventDefault();
+            alert('{% trans "Por favor, selecciona una imagen." as js_msg %}{{ js_msg|escapejs }}');
+            return;
+        }
+        e.preventDefault();
+        window.UploadQueue.enqueueFromSingleForm(singleUploadForm, file);
+        clearPreview();
+    });
+}
 </script>
 {% endblock %}
