@@ -26,6 +26,7 @@ from ilovevoley.videos.scraping.base import validate_volleyball_score
 
 from .models import Match, MatchMark
 from .services.notifications import notify_match_result
+from .services.preview import build_overlay_preview
 from .services.youtube_live import (
     is_live_channel_url,
     is_watch_url,
@@ -42,6 +43,8 @@ LIVE_RESOLVE_COOLDOWN = 120
 LIVE_MAX_POINTS = 99
 LIVE_MAX_SETS = 9
 LIVE_MAX_HISTORY = 9
+# La previa cambia poco durante el partido (#609): una consulta por emisión basta.
+PREVIEW_CACHE_TTL = 300
 # Una emisión no pasa de 12 h ni de unos cientos de jugadas marcadas.
 MARK_MAX_SECONDS = 12 * 3600
 MARK_MAX_PER_MATCH = 500
@@ -265,6 +268,50 @@ def api_scoreboard_matches_today(request, tenant):
         'date': start.date().isoformat(),
         'matches': payload,
     })
+
+
+def _preview_round(match):
+    """Jornada del partido, o None si la liga no usa jornadas.
+
+    ``round_number`` vale 1 por defecto: solo es fiable si algún partido de la
+    liga tiene una jornada posterior.
+    """
+    if not match.league_id:
+        return None
+    if not Match.objects.filter(league_id=match.league_id, round_number__gt=1).exists():
+        return None
+    return match.round_number
+
+
+@scoreboard_api(methods=('GET',))
+def api_scoreboard_match_preview(request, tenant):
+    """Previa del partido en ventana (o ``?match_id=``): clasificación, forma y H2H."""
+    raw_id = request.GET.get('match_id')
+    if raw_id is not None and not raw_id.isdigit():
+        raise ScoreboardApiError({'success': False, 'error': 'invalid match_id'}, 400)
+    match = resolve_match(tenant, int(raw_id) if raw_id is not None else None)
+    if not match.home_team_id or not match.away_team_id:
+        raise ScoreboardApiError({'success': False, 'error': 'teams not set'}, 404)
+
+    # Tras resolve_match: el partido ya es del club, la caché no cruza tenants.
+    key = f'scoreboard:preview:{match.pk}:{request.get_host()}'
+    payload = cache.get(key)
+    if payload is None:
+        local_date = timezone.localtime(match.match_date)
+        payload = {
+            'success': True,
+            'match': {
+                'id': match.pk,
+                'match_date': local_date.isoformat(),
+                'competition': match.league.display_name if match.league_id else None,
+                'round': _preview_round(match),
+                'home_team': _team_payload(request, match.home_team, match.home_team_display),
+                'away_team': _team_payload(request, match.away_team, match.away_team_display),
+            },
+            **build_overlay_preview(match),
+        }
+        cache.set(key, payload, PREVIEW_CACHE_TTL)
+    return JsonResponse(payload)
 
 
 def _is_non_neg_int(value):
