@@ -1,0 +1,68 @@
+{% load i18n %}
+{% if user.is_authenticated and tenant %}
+<div id="upload-queue-widget"
+     data-upload-endpoint="{% url 'content:image_queue_upload_api' %}"
+     data-gallery-url="{% url 'content:image_gallery' %}"
+     data-i18n-uploading="{% trans 'Subiendo fotos…' %}"
+     data-i18n-offline="{% trans 'Sin cobertura — en cola para reanudar automáticamente' %}"
+     data-i18n-completed="{% trans 'Subida completada' %}"
+     data-i18n-errors="{% trans 'Algunas fotos no se pudieron subir' %}"
+     data-i18n-status-pending="{% trans 'Pendiente' %}"
+     data-i18n-status-uploading="{% trans 'Subiendo…' %}"
+     data-i18n-status-uploaded="{% trans 'Subida' %}"
+     data-i18n-status-error="{% trans 'Error' %}"
+     data-i18n-retry="{% trans 'Reintentar' %}"
+     data-i18n-remove="{% trans 'Quitar' %}"
+     data-i18n-network-error="{% trans 'Corte de conexión. Se reintentará al recuperar señal.' %}"
+     data-i18n-size-error="{% trans 'El archivo comprimido supera el límite de 10MB.' %}"
+     data-i18n-queued-toast="{% trans 'Fotos añadidas a la cola de subida.' %}"
+     class="hidden fixed bottom-24 md:bottom-6 right-4 left-4 sm:left-auto sm:w-96 z-50 bg-surface border border-line rounded-2xl shadow-xl overflow-hidden">
+    <!-- Cabecera siempre visible -->
+    <div class="flex items-center justify-between px-4 py-3 bg-tint border-b border-line">
+        <button type="button"
+                data-call="toggleUploadQueuePanel"
+                class="flex-1 flex items-center gap-2.5 text-left min-w-0">
+            <span id="upload-queue-spinner" class="inline-block w-2.5 h-2.5 rounded-full bg-accent animate-pulse flex-shrink-0"></span>
+            <div class="min-w-0 flex-1">
+                <p id="upload-queue-title" class="text-sm font-semibold text-ink truncate">
+                    {% trans "Subiendo fotos…" %}
+                </p>
+                <p id="upload-queue-subtitle" class="text-xs text-muted truncate"></p>
+            </div>
+        </button>
+        <div class="flex items-center gap-1.5 ml-2">
+            <button type="button"
+                    id="upload-queue-retry-all-btn"
+                    data-call="retryFailedUploads"
+                    class="hidden text-xs font-semibold px-2.5 py-1 rounded-full bg-csj-purple-dark text-white hover:opacity-90">
+                {% trans "Reintentar" %}
+            </button>
+            <button type="button"
+                    data-call="toggleUploadQueuePanel"
+                    aria-label="{% trans 'Mostrar u ocultar detalles de la cola' %}"
+                    class="p-1.5 text-muted hover:text-ink rounded-lg">
+                <i id="upload-queue-chevron" class="fas fa-chevron-down text-xs"></i>
+            </button>
+            <button type="button"
+                    id="upload-queue-close-btn"
+                    data-call="closeUploadQueueWidget"
+                    aria-label="{% trans 'Cerrar cola de subida' %}"
+                    class="hidden p-1.5 text-muted hover:text-ink rounded-lg">
+                <i class="fas fa-times text-xs"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Barra de progreso global (sin atributo style inline para cumplir CSP) -->
+    <div class="px-4 pt-2 pb-1 bg-surface">
+        <progress id="upload-queue-progress"
+                  value="0"
+                  max="100"
+                  class="w-full h-1.5 rounded-full overflow-hidden"></progress>
+    </div>
+
+    <!-- Lista desplegable de fotos en cola -->
+    <div id="upload-queue-body" class="max-h-64 overflow-y-auto divide-y divide-line px-4 py-2 space-y-2">
+    </div>
+</div>
+{% endif %}

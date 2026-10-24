@@ -13673,6 +13673,86 @@ msgstr ""
 "Arguments amb nom en JSON vàlid, per exemple {\"delay\": 2.0}. Han de "
 "coincidir amb la signatura de la tasca."
 
+#: ilovevoley/content/templates/content/image_bulk_upload.html:69
+msgid "Formatos: JPG, PNG, WebP, HEIC • Compresión automática (máx. 10MB por imagen)"
+msgstr "Formats: JPG, PNG, WebP, HEIC • Compressió automàtica (màx. 10MB per imatge)"
+
+#: ilovevoley/content/templates/content/image_bulk_upload.html:357
+msgid "es demasiado grande (máx 25MB)"
+msgstr "és massa gran (màx. 25MB)"
+
+#: ilovevoley/content/templates/content/image_upload.html:34
+msgid "Formatos: JPG, PNG, WebP, HEIC • Compresión automática (máx. 10MB)"
+msgstr "Formats: JPG, PNG, WebP, HEIC • Compressió automàtica (màx. 10MB)"
+
+#: ilovevoley/content/templates/content/image_upload.html:271
+msgid "El archivo original es demasiado grande (máximo 25MB)."
+msgstr "El fitxer original és massa gran (màxim 25MB)."
+
+#: ilovevoley/content/templates/content/image_upload.html:382
+msgid "Por favor, selecciona una imagen."
+msgstr "Si us plau, selecciona una imatge."
+
+#: ilovevoley/content/views.py:1340
+msgid "Identificador de subida no válido."
+msgstr "Identificador de pujada no vàlid."
+
+#: ilovevoley/content/views.py:1367
+msgid "No se recibió ninguna imagen."
+msgstr "No s'ha rebut cap imatge."
+
+#: ilovevoley/content/views.py:1400
+msgid "El partido seleccionado no es válido."
+msgstr "El partit seleccionat no és vàlid."
+
+#: ilovevoley/content/views.py:1516
+msgid "El archivo no es una imagen válida."
+msgstr "El fitxer no és una imatge vàlida."
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:6
+msgid "Subiendo fotos…"
+msgstr "Pujant fotos…"
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:7
+msgid "Sin cobertura — en cola para reanudar automáticamente"
+msgstr "Sense cobertura — en cua per reprendre automàticament"
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:8
+msgid "Subida completada"
+msgstr "Pujada completada"
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:9
+msgid "Algunas fotos no se pudieron subir"
+msgstr "Algunes fotos no s'han pogut pujar"
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:11
+msgid "Subiendo…"
+msgstr "Pujant…"
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:12
+msgid "Subida"
+msgstr "Pujada"
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:16
+msgid "Corte de conexión. Se reintentará al recuperar señal."
+msgstr "Tall de connexió. Es tornarà a intentar en recuperar senyal."
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:17
+msgid "El archivo comprimido supera el límite de 10MB."
+msgstr "El fitxer comprimit supera el límit de 10MB."
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:18
+msgid "Fotos añadidas a la cola de subida."
+msgstr "Fotos afegides a la cua de pujada."
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:42
+msgid "Mostrar u ocultar detalles de la cola"
+msgstr "Mostrar o ocultar detalls de la cua"
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:49
+msgid "Cerrar cola de subida"
+msgstr "Tancar cua de pujada"
+
 #~ msgid "otro club"
 #~ msgstr "un altre club"
 

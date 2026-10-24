@@ -252,3 +252,64 @@ def queue_match_media_push(match_id: int, media_type: str, organization_id: int)
 
     return False
 
+
+def upload_batch_cache_keys(organization_id: int, batch_id: str, album_group_id: str | None = None) -> dict:
+    """Claves de caché para consolidar avisos de una tanda de fotos subida desde la cola (#611)."""
+    keys = {
+        'state': f"upload_batch_state:{organization_id}:{batch_id}",
+        'scheduled': f"upload_batch_scheduled:{organization_id}:{batch_id}",
+    }
+    if album_group_id:
+        keys['album_sent'] = f"upload_album_push_sent:{organization_id}:{album_group_id}"
+    return keys
+
+
+def queue_upload_batch_notifications(
+    *,
+    organization_id: int,
+    batch_id: str,
+    image_id: int,
+    is_pending: bool,
+    is_new_album: bool = False,
+    album_group_id: str | None = None,
+    album_name: str = '',
+    category_ids: list[int] | None = None,
+) -> None:
+    """Acumula una foto subida desde la cola en su lote y programa el aviso consolidado."""
+    from django.conf import settings
+    from django.core.cache import cache
+    from django.db import transaction
+
+    debounce_seconds = getattr(settings, 'UPLOAD_BATCH_DEBOUNCE_SECONDS', 15)
+    keys = upload_batch_cache_keys(organization_id, batch_id, album_group_id)
+    state = cache.get(keys['state']) or {
+        'pending_ids': [],
+        'is_new_album': False,
+        'album_group_id': None,
+        'album_name': '',
+        'category_ids': [],
+    }
+    if is_pending and image_id not in state['pending_ids']:
+        state['pending_ids'].append(image_id)
+    if is_new_album and album_group_id:
+        state['is_new_album'] = True
+        state['album_group_id'] = str(album_group_id)
+        if album_name:
+            state['album_name'] = album_name
+    if category_ids:
+        merged = list(dict.fromkeys(list(state.get('category_ids') or []) + [int(c) for c in category_ids]))
+        state['category_ids'] = merged
+
+    cache.set(keys['state'], state, timeout=3600)
+
+    if cache.add(keys['scheduled'], True, timeout=max(debounce_seconds * 4, 60)):
+        from ilovevoley.content.tasks import flush_upload_batch_notifications_task
+
+        def _schedule():
+            flush_upload_batch_notifications_task.apply_async(
+                args=[organization_id, str(batch_id)],
+                countdown=debounce_seconds,
+            )
+
+        transaction.on_commit(_schedule, robust=True)
+

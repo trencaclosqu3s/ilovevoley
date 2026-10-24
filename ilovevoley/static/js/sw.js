@@ -7,6 +7,7 @@ const PRECACHE_URLS = [
     '/static/js/csp_actions.js',
     '/static/js/pwa_nav.js',
     '/static/js/pwa_install.js',
+    '/static/js/upload_queue.js',
     '/static/images/logo_app.png',
     '/static/images/icons/icon-192.png',
     '/static/images/icons/icon-512.png',
@@ -163,4 +164,125 @@ self.addEventListener('notificationclick', (event) => {
         })
     );
 });
+
+// --- Background Sync para la cola de subida de fotos ---
+
+const UPLOAD_DB_NAME = 'ilovevoley_upload_queue';
+const UPLOAD_STORE_NAME = 'uploads';
+const UPLOAD_ENDPOINT = '/content/api/imagenes/subir/';
+
+function openUploadDb() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(UPLOAD_DB_NAME, 1);
+        req.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(UPLOAD_STORE_NAME)) {
+                const store = db.createObjectStore(UPLOAD_STORE_NAME, { keyPath: 'client_upload_id' });
+                store.createIndex('tenant_origin', 'tenant_origin', { unique: false });
+                store.createIndex('status', 'status', { unique: false });
+            }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function swGetPendingUploads() {
+    const db = await openUploadDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(UPLOAD_STORE_NAME, 'readonly');
+        const store = tx.objectStore(UPLOAD_STORE_NAME);
+        const req = store.getAll();
+        req.onsuccess = () => {
+            const all = req.result || [];
+            resolve(
+                all
+                    .filter((item) => item.status === 'pending' && (!item.tenant_origin || item.tenant_origin === self.location.origin))
+                    .sort((a, b) => (a.created_at || 0) - (b.created_at || 0))
+            );
+        };
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function swPutUpload(item) {
+    const db = await openUploadDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(UPLOAD_STORE_NAME, 'readwrite');
+        item.updated_at = Date.now();
+        tx.objectStore(UPLOAD_STORE_NAME).put(item);
+        tx.oncomplete = () => resolve(item);
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function processQueueInServiceWorker() {
+    const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const activeWindow = clientList.find((c) => new URL(c.url).origin === self.location.origin);
+    if (activeWindow) {
+        activeWindow.postMessage({ type: 'PROCESS_UPLOAD_QUEUE' });
+        return;
+    }
+
+    const pending = await swGetPendingUploads();
+    for (const item of pending) {
+        try {
+            const formData = new FormData();
+            formData.append('client_upload_id', item.client_upload_id);
+            formData.append('batch_id', item.batch_id || item.client_upload_id);
+            formData.append('image', item.file_blob, item.file_name || 'photo.jpg');
+            const meta = item.metadata || {};
+            if (meta.title) formData.append('title', meta.title);
+            if (meta.description) formData.append('description', meta.description);
+            if (meta.image_type) formData.append('image_type', meta.image_type);
+            if (meta.tags) formData.append('tags', meta.tags);
+            if (meta.shared_title) formData.append('shared_title', meta.shared_title);
+            if (meta.match) formData.append('match', meta.match);
+            if (meta.set_number) formData.append('set_number', meta.set_number);
+            if (meta.season) formData.append('season', meta.season);
+            if (meta.create_album) formData.append('create_album', 'true');
+            if (meta.album_group_id) formData.append('album_group_id', meta.album_group_id);
+            if (meta.album_name) formData.append('album_name', meta.album_name);
+            if (Array.isArray(meta.categories)) {
+                meta.categories.forEach((catId) => formData.append('categories', catId));
+            }
+
+            const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+            if (item.csrf_token) {
+                headers['X-CSRFToken'] = item.csrf_token;
+            }
+
+            const resp = await fetch(item.endpoint || UPLOAD_ENDPOINT, {
+                method: 'POST',
+                headers: headers,
+                credentials: 'same-origin',
+                body: formData,
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (resp.ok && data && data.ok) {
+                item.status = 'uploaded';
+                item.error_message = '';
+                await swPutUpload(item);
+            } else if (resp.status >= 400 && resp.status < 500 && resp.status !== 408 && resp.status !== 429) {
+                item.status = 'error';
+                item.error_message = (data && data.error) || ('Error (' + resp.status + ')');
+                await swPutUpload(item);
+            } else {
+                throw new Error('Transient error in SW upload');
+            }
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    const updatedClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    updatedClients.forEach((c) => c.postMessage({ type: 'UPLOAD_QUEUE_UPDATED' }));
+}
+
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'sync-photo-uploads') {
+        event.waitUntil(processQueueInServiceWorker());
+    }
+});
+
 
