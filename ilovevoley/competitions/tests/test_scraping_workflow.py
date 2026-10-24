@@ -8,6 +8,7 @@ from ilovevoley.competitions.tasks_scraping import (
     build_scrape_all_leagues_workflow,
     scrape_leagues_summary_task,
 )
+from ilovevoley.competitions.tasks_enrichment import enrich_leagues_summary_task, enrich_matches_json_task
 from ilovevoley.core.models import Season
 
 
@@ -43,3 +44,25 @@ class ScrapeAllLeaguesWorkflowTest(TestCase):
         )
         self.assertEqual((total['total_teams'], total['total_matches']), (2, 5))
         mail.assert_called_once()
+
+
+class EnrichLeaguesWorkflowTest(TestCase):
+    def setUp(self):
+        season = Season.objects.current()
+        for n in range(2):
+            League.objects.create(name=f'Liga {n}', federation_id=str(n), season=season, is_active=True)
+
+    def test_enrich_all_spaces_leagues_by_countdown(self):
+        with mock.patch('ilovevoley.competitions.tasks_enrichment.chord') as chord_mock:
+            result = enrich_matches_json_task.run(delay=1.5)
+        header = chord_mock.call_args.args[0]
+        self.assertEqual(result, {'status': 'queued', 'leagues_queued': 2})
+        self.assertEqual([sig.options['countdown'] for sig in header], [0.0, 1.5])
+
+    def test_summary_counts_failed_leagues(self):
+        stats = [
+            {'league': 'A', 'success': True, 'enriched': 3, 'new': 1, 'errors': []},
+            {'league': 'B', 'success': False, 'enriched': 0, 'new': 0, 'errors': [{'league': 'B', 'error': 'x'}]},
+        ]
+        total = enrich_leagues_summary_task.run(stats, notify=False)
+        self.assertEqual((total['total_enriched'], total['total_new'], total['leagues_errors']), (3, 1, 1))
