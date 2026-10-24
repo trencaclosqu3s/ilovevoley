@@ -2,7 +2,7 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from ilovevoley.videos.rfevb_service import scrape_rfevb_fases
+from ilovevoley.competitions.services.rfevb_service import scrape_rfevb_fases
 
 logger = logging.getLogger(__name__)
 

@@ -380,7 +380,7 @@ def test_scrape_historical_task_single_league_runs_inline():
         name='Histórica 1', federation_id='H1', season=season,
         visibility_type='historical', is_historical=True, is_active=False,
     )
-    with mock.patch('ilovevoley.videos.scraping.FederationScraper') as scraper_cls:
+    with mock.patch('ilovevoley.competitions.scraping.federation.FederationScraper') as scraper_cls:
         scraper_cls.return_value.scrape_all_endpoints.return_value = {}
         scraper_cls.return_value.scrape_all_results_rounds.return_value = {'total_matches': 4}
         summary = scrape_historical_leagues_task([league.pk], delay=0)

@@ -3,7 +3,7 @@ import logging
 from django.core.management.base import BaseCommand, CommandError
 
 from ilovevoley.videos.models import League, Match
-from ilovevoley.videos.scraping import FederationScraper
+from ilovevoley.competitions.scraping.federation import FederationScraper
 
 logger = logging.getLogger(__name__)
 

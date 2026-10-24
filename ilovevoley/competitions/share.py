@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from ilovevoley.core.security import safe_get
-from ilovevoley.videos.scraping import parse_acta_lineup
+from ilovevoley.competitions.scraping.acta import parse_acta_lineup
 
 from .models import MatchShareLink
 

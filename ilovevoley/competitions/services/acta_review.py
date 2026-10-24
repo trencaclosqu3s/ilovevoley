@@ -20,7 +20,7 @@ from ilovevoley.competitions.services.lineups import (
     resolve_acta_team,
     store_match_lineups,
 )
-from ilovevoley.videos.scraping.base import is_penalty_result
+from ilovevoley.competitions.scraping.base import is_penalty_result
 
 logger = logging.getLogger(__name__)
 

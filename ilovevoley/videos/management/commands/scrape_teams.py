@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from ilovevoley.videos.models import League, Team, Category
-from ilovevoley.videos.scraping import FederationScraper
+from ilovevoley.competitions.scraping.federation import FederationScraper
 import logging
 
 logger = logging.getLogger(__name__)
@@ -94,7 +94,7 @@ class Command(BaseCommand):
         # Hacer scraping directo usando requests
         import requests
         from bs4 import BeautifulSoup
-        from ilovevoley.videos.scraping import StandingsParser
+        from ilovevoley.competitions.scraping.parsers import StandingsParser
         
         # URL correcta para clasificación (JSON endpoint)
         base_url = "https://www.voleibolib.net"

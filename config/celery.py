@@ -17,7 +17,9 @@ app.autodiscover_tasks()
 django.setup()
 
 try:
-    from ilovevoley.videos.tasks import *  # noqa: F401,F403
+    import ilovevoley.competitions.tasks_scraping  # noqa: F401
+    import ilovevoley.competitions.tasks_enrichment  # noqa: F401
+    import ilovevoley.competitions.tasks_rfevb  # noqa: F401
     import ilovevoley.core.tasks  # noqa: F401
     import ilovevoley.content.tasks  # noqa: F401
     import ilovevoley.users.tasks  # noqa: F401
