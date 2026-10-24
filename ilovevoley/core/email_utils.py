@@ -1,6 +1,8 @@
 """
 Utilidades comunes para envío de emails y notificaciones
 """
+import logging
+
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.db import transaction
@@ -14,6 +16,7 @@ from .i18n import group_emails_by_language, language_for
 import os
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def enqueue_on_commit(task, *args, **kwargs):
@@ -149,7 +152,7 @@ def _send_notification_email(subject, template_name, context, recipient_list=Non
         recipient_list = get_admin_emails()
     
     if not recipient_list or not settings.EMAIL_HOST_USER:
-        print(f"Email no enviado: {subject} - No hay destinatarios o configuración de email")
+        logger.warning("Email no enviado: %s - No hay destinatarios o configuración de email", subject)
         return False
     
     try:
@@ -201,10 +204,9 @@ def _send_notification_email(subject, template_name, context, recipient_list=Non
                 fail_silently=False,
             )
         
-        print(f"Email enviado: {subject} a {', '.join(recipient_list)}")
         return True
-    except Exception as e:
-        print(f"Error enviando email: {subject} - {str(e)}")
+    except Exception:
+        logger.exception("Error enviando email: %s", subject)
         return False
 
 
@@ -228,9 +230,6 @@ def send_admin_email_to_users(subject, message_body, recipients, admin_user=None
             'successful_emails': list of str,
         }
     """
-    import logging
-    logger = logging.getLogger(__name__)
-
     # Normalizar recipients a lista
     if not hasattr(recipients, '__iter__') or isinstance(recipients, (str, bytes)):
         recipients = [recipients]

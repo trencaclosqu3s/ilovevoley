@@ -1,3 +1,4 @@
+import logging
 import os
 from celery import Celery
 import django
@@ -25,8 +26,4 @@ try:
     import ilovevoley.users.tasks  # noqa: F401
     import ilovevoley.competitions.tasks  # noqa: F401
 except ImportError as e:
-    print(f"Warning: Could not import tasks: {e}")
-
-@app.task(bind=True, ignore_result=True)
-def debug_task(self):
-    print(f'Request: {self.request!r}')
+    logging.getLogger(__name__).warning("Could not import tasks: %s", e)

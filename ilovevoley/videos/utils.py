@@ -3,8 +3,11 @@ Utilidades para el sistema de gestión de imágenes y videos
 """
 import html
 import unicodedata
+import logging
 import re
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 def check_image_with_vision_api(image_file, extract_labels=True, extract_text=True):
@@ -109,8 +112,8 @@ def check_image_with_vision_api(image_file, extract_labels=True, extract_text=Tr
                 # Limitar a las 10 etiquetas más relevantes
                 detected_labels = detected_labels[:10]
 
-            except Exception as e:
-                print(f"Error en detección de etiquetas: {e}")
+            except Exception:
+                logger.exception("Error en detección de etiquetas")
 
         # Detectar texto (opcional)
         if extract_text:
@@ -120,8 +123,8 @@ def check_image_with_vision_api(image_file, extract_labels=True, extract_text=Tr
                     detected_text = text_detection.text_annotations[0].description
                     # Limpiar y limitar texto detectado
                     detected_text = detected_text[:500] if detected_text else ""
-            except Exception as e:
-                print(f"Error en detección de texto: {e}")
+            except Exception:
+                logger.exception("Error en detección de texto")
 
         return {
             'safe': is_safe,
@@ -142,9 +145,9 @@ def check_image_with_vision_api(image_file, extract_labels=True, extract_text=Tr
             }
         }
 
-    except Exception as e:
+    except Exception:
         # Log del error pero continuar
-        print(f"Error en Google Vision API: {e}")
+        logger.exception("Error en Google Vision API")
 
         return {
             'safe': False,  # Default a NO seguro si hay error - requiere moderación manual
@@ -266,8 +269,8 @@ def get_image_metadata(image_file):
 
         return metadata
 
-    except Exception as e:
-        print(f"Error extrayendo metadatos: {e}")
+    except Exception:
+        logger.exception("Error extrayendo metadatos")
         return {}
 
 
@@ -295,8 +298,8 @@ def generate_thumbnail(image_file, size=(300, 300)):
 
         return img
 
-    except Exception as e:
-        print(f"Error generando miniatura: {e}")
+    except Exception:
+        logger.exception("Error generando miniatura")
         return None
 
 
@@ -338,8 +341,8 @@ def optimize_image_for_web(image_file, max_width=1920, quality=85):
 
         return output
 
-    except Exception as e:
-        print(f"Error optimizando imagen: {e}")
+    except Exception:
+        logger.exception("Error optimizando imagen")
         return None
 
 
@@ -395,8 +398,8 @@ def extract_frame_from_live_photo(video_file):
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
 
-    except Exception as e:
-        print(f"Error extrayendo frame de Live Photo: {str(e)}")
+    except Exception:
+        logger.exception("Error extrayendo frame de Live Photo")
         return None
 
 
