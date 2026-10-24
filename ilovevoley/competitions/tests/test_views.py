@@ -228,6 +228,29 @@ class CompetitionsViewUrlTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['total_videos'], 3)
 
+    def test_league_detail_queries_do_not_grow_with_teams_and_matches(self):
+        """Clasificación y partidos pintan display_logo (club del equipo): sin N+1 (#548)."""
+        self.client.force_login(self.user)
+        url = reverse('competitions:league_detail', args=[self.league.id])
+        baseline, _ = self._count_queries(url)
+
+        for i in range(3):
+            club = Club.objects.create(official_name=f'Club Extra {i}', federation_id=f'CLUB-EXTRA-{i}')
+            extra = Team.objects.create(
+                name=f'Extra {i}', category=self.category, club=club,
+                federation_id=f'TEAM-EXTRA-{i}', is_active=True,
+            )
+            Standing.objects.create(
+                league=self.league, team=extra, position=i + 2, played=1, won=0, total_points=0,
+            )
+            Match.objects.create(
+                league=self.league, home_team=extra, away_team=self.team,
+                match_date=self.match.match_date, round_number=i + 2, status='scheduled',
+            )
+
+        with_more, _ = self._count_queries(url)
+        self.assertEqual(with_more, baseline)
+
     def test_search_teams_queries_do_not_grow_with_results(self):
         self.client.force_login(self.user)
         url = reverse('competitions:ajax_search_teams')
