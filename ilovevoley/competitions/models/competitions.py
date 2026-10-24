@@ -980,6 +980,32 @@ class MatchLineupPersonLink(models.Model):
         return f'{quien} (#{self.jersey_number}) - {self.match_id}'
 
 
+class MatchMark(models.Model):
+    """Marca de jugada puesta desde el marcador de grada (#580).
+
+    Cuelga del partido y no del ``Video``: el vídeo se crea al acabar la
+    emisión y la marca existe desde que se pulsa. ``seconds`` cuenta desde el
+    inicio real de la emisión; el marcador lo calcula porque es quien ve los
+    cortes de 4G. Los jugadores se etiquetan después desde la ficha.
+    """
+
+    match = models.ForeignKey(Match, on_delete=models.CASCADE, related_name='marks')
+    seconds = models.PositiveIntegerField(verbose_name=_('Segundo de la emisión'))
+    scoreboard = models.JSONField(default=dict, blank=True, verbose_name=_('Marcador en ese instante'))
+    persons = models.ManyToManyField(
+        'rosters.Person', blank=True, related_name='match_marks', verbose_name=_('Deportistas'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['match', 'seconds']
+        verbose_name = _('Marca de jugada')
+        verbose_name_plural = _('Marcas de jugada')
+
+    def __str__(self):
+        return f'{self.match_id} @ {self.seconds}s'
+
+
 class MatchChangeLogQuerySet(TenantQuerySet):
     """QuerySet de MatchChangeLog con ámbito de tenant a través de sus partidos."""
 
