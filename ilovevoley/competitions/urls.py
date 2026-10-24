@@ -21,6 +21,7 @@ urlpatterns = [
     path('partidos/<int:match_id>/', views.match_detail, name='match_detail'),
     path('match/<int:match_id>/live-state/', api_live_scoreboard, name='match_live_state'),
     path('partidos/<int:match_id>/jugadas/<int:mark_id>/jugadores/', views.match_mark_persons, name='match_mark_persons'),
+    path('partidos/<int:match_id>/jugadas/<int:mark_id>/clip/', views.match_mark_clip, name='match_mark_clip'),
     path('partidos/<int:match_id>/compartir/', views.match_share_create, name='match_share_create'),
     path('partidos/<int:match_id>/compartir/<int:link_id>/revocar/', views.match_share_revoke, name='match_share_revoke'),
     path('partidos/<int:match_id>/tarjeta/', views.match_result_card, name='match_result_card'),

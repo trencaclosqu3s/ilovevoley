@@ -111,6 +111,12 @@ SCOREBOARD_STREAM_TOKEN = env_config('SCOREBOARD_STREAM_TOKEN', default='')
 # marcador (#577). 0 significa sin configurar.
 SCOREBOARD_VIDEO_USER_ID = env_config('SCOREBOARD_VIDEO_USER_ID', default=0, cast=int)
 
+# Clips 9:16 de las jugadas (#629): carpeta del marcador montada en solo lectura
+# en web y nginx, con el nombre m<match_id>_<segundo>.mp4 (voley-scoreboard#19).
+# nginx los entrega desde la zona interna /protected-clips/.
+SCOREBOARD_CLIPS_DIR = env_config('SCOREBOARD_CLIPS_DIR', default='/app/clips')
+SCOREBOARD_CLIPS_INTERNAL_URL = '/protected-clips/'
+
 # Allauth settings (nueva sintaxis)
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']

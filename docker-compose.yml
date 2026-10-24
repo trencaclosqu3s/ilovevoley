@@ -63,6 +63,7 @@ services:
       - ./voley-474111-a4a6b029e20b.json:/app/voley-474111-a4a6b029e20b.json:ro
       - /opt/videosvoley/media:/app/media
       - /opt/videosvoley/static:/app/staticfiles
+      - /opt/voley-stream/data/clips:/app/clips:ro
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY}
@@ -130,6 +131,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - /opt/videosvoley/static:/app/staticfiles:ro
       - /opt/videosvoley/media:/app/media:ro
+      - /opt/voley-stream/data/clips:/app/clips:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
       - /opt/videosvoley/nginx-extra:/etc/nginx/extra:ro

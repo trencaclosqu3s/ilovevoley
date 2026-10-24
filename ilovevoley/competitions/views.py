@@ -67,7 +67,7 @@ from .services.lineups import (
     team_roster,
     team_roster_choices,
 )
-from .services.marks import match_marks
+from .services.marks import match_marks, serve_mark_clip
 from .services.notifications import notify_match_live_stream, notify_match_result
 from .services.preview import build_match_preview, preview_card_pills
 
@@ -1587,6 +1587,15 @@ def match_mark_persons(request, match_id, mark_id):
     return redirect('competitions:match_detail', match_id=match.id)
 
 
+@tenant_access_required()
+def match_mark_clip(request, match_id, mark_id):
+    """Clip 9:16 de una jugada (#629) para quien ve el detalle del partido."""
+    match = get_tenant_object_or_404(
+        Match.objects, request.tenant, user=request.user, id=match_id
+    )
+    return serve_mark_clip(get_object_or_404(MatchMark, id=mark_id, match=match))
+
+
 @require_POST
 @tenant_access_required(manager=True)
 def match_share_create(request, match_id):
@@ -1634,12 +1643,14 @@ def public_match_timeline(request, token):
     )
     groups = group_match_media(videos, images, get_match_set_labels(match))
     has_media = any(group['videos'] or group['images'] for group in groups)
+    clip_marks = [mark for mark in match_marks(match) if mark.has_clip]
 
     response = render(request, 'competitions/public_match_timeline.html', {
         'link': link,
         'match': match,
         'groups': groups,
-        'has_media': has_media,
+        'has_media': has_media or bool(clip_marks),
+        'clip_marks': clip_marks,
     })
     response['Cache-Control'] = 'private, no-store'
     response['X-Robots-Tag'] = 'noindex, nofollow'
@@ -1677,6 +1688,16 @@ def public_match_media(request, token, image_id):
 
     response = serve_protected_file(file_field.name)
     response['Cache-Control'] = 'private, no-store'
+    response['X-Robots-Tag'] = 'noindex, nofollow'
+    return response
+
+
+def public_match_mark_clip(request, token, mark_id):
+    """Clip 9:16 de una jugada (#629) para un enlace temporal válido."""
+    link = resolve_match_share_link(token)
+    if link is None:
+        raise Http404
+    response = serve_mark_clip(get_object_or_404(MatchMark, id=mark_id, match=link.match))
     response['X-Robots-Tag'] = 'noindex, nofollow'
     return response
 
