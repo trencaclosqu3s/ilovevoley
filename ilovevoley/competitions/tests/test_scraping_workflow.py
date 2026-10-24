@@ -6,6 +6,8 @@ from django.test import TestCase, override_settings
 from ilovevoley.competitions.models import League
 from ilovevoley.competitions.tasks_scraping import (
     build_scrape_all_leagues_workflow,
+    scrape_clubs_summary_task,
+    scrape_clubs_task,
     scrape_endpoint_summary_task,
     scrape_leagues_summary_task,
     scrape_results_task,
@@ -95,3 +97,23 @@ class ScrapeResultsWorkflowTest(TestCase):
         with mock.patch('ilovevoley.competitions.tasks_scraping.mail_admins') as mail:
             scrape_endpoint_summary_task.run(stats, 'calendario')
         self.assertIn('calendario', mail.call_args.args[0])
+
+
+class ScrapeClubsWorkflowTest(TestCase):
+    def test_clubs_fan_out_spaces_each_club_by_countdown(self):
+        listing = mock.Mock(**{'json.return_value': {'items': [{'ID': 1, 'Nombre': 'A'}, {'ID': 2, 'Nombre': 'B'}]}})
+        with mock.patch('requests.get', return_value=listing), \
+                mock.patch('ilovevoley.competitions.tasks_scraping.chord') as chord_mock:
+            result = scrape_clubs_task.run(delay=2.0)
+        header = chord_mock.call_args.args[0]
+        self.assertEqual(result, {'status': 'queued', 'clubs_queued': 2})
+        self.assertEqual([(sig.args, sig.options['countdown']) for sig in header], [((1, 'A'), 0.0), ((2, 'B'), 2.0)])
+
+    def test_summary_counts_created_updated_and_errors(self):
+        results = [
+            {'created': True, 'error': None},
+            {'created': False, 'error': None},
+            {'created': None, 'error': 'fallo'},
+        ]
+        total = scrape_clubs_summary_task.run(results, match_teams=False)
+        self.assertEqual((total['clubs_created'], total['clubs_updated'], total['errors']), (1, 1, ['fallo']))

@@ -1,7 +1,6 @@
 """Tareas de scraping desde la web de la federación (HTML/ASP)."""
 
 import logging
-import time
 
 from celery import chord, shared_task
 from django.conf import settings
@@ -416,138 +415,135 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
     return {'status': 'queued', 'leagues_queued': len(league_pks)}
 
 
+def _clean_string(value):
+    """Limpia una cadena de texto"""
+    if not value or value == 'null':
+        return ''
+    return str(value).strip()
+
+
+def _clean_url(value):
+    """Limpia y valida una URL"""
+    if not value or value == 'null' or not str(value).strip():
+        return ''
+    url = str(value).strip()
+    if url and not url.startswith(('http://', 'https://')):
+        url = f'https://{url}'
+    return url
+
+
+@shared_task(name='scrape_club', bind=True)
+def scrape_club_task(self, club_id, club_name):
+    """Descarga el detalle de un club y lo crea o actualiza (parte del chord de scrape_clubs)."""
+    import requests
+
+    from ilovevoley.teams.services import cache_logo
+
+    try:
+        detail_url = f'https://www.voleibolib.net/JSON/get_datos_club.asp?id={club_id}'
+        detail_response = requests.get(detail_url, timeout=30)
+        detail_response.raise_for_status()
+        items = detail_response.json().get('items', [])
+        if not items:
+            return {'created': None, 'error': None}
+        club_data = items[0]
+
+        club, created = Club.objects.update_or_create(
+            federation_id=str(club_id),
+            defaults={
+                'official_name': _clean_string(club_data.get('Nombre', '')),
+                'president': _clean_string(club_data.get('Presidente', '')),
+                'address': _clean_string(club_data.get('Direccion', '')),
+                'phone': _clean_string(club_data.get('telefono', '')),
+                'email': _clean_string(club_data.get('mail', '')),
+                'venue_name': _clean_string(club_data.get('campo', '')),
+                'venue_address': _clean_string(club_data.get('direccion_campo', '')),
+                'municipality': _clean_string(club_data.get('municipio', '')),
+                'province': _clean_string(club_data.get('provincia', '')),
+                'instagram': _clean_url(club_data.get('instagram', '')),
+                'facebook': _clean_url(club_data.get('facebook', '')),
+                'twitter': _clean_url(club_data.get('twitter', '')),
+                'website': _clean_url(club_data.get('url', '')),
+                'logo_url': f'https://voleibolib.federatio.com/fichas/clubes/{club_id}.jpg'
+            }
+        )
+        if not club.logo:
+            cache_logo(club)
+        logger.info(f'{"Creado" if created else "Actualizado"}: {club.official_name}')
+        return {'created': created, 'error': None}
+    except Exception as e:
+        error_msg = f'Error procesando club {club_name} (ID: {club_id}): {str(e)}'
+        logger.error(error_msg)
+        return {'created': None, 'error': error_msg}
+
+
+@shared_task(name='scrape_clubs_summary', bind=True)
+def scrape_clubs_summary_task(self, club_results, match_teams=True):
+    """Callback del chord: agrega los clubes y, con todos ya guardados, asocia equipos a clubes."""
+    created_count = sum(1 for r in club_results if r['created'] is True)
+    updated_count = sum(1 for r in club_results if r['created'] is False)
+    errors = [r['error'] for r in club_results if r['error']]
+
+    matched_count = 0
+    if match_teams:
+        logger.info("Iniciando matching de equipos con clubes")
+        from ilovevoley.teams.services import resolve_team_clubs
+        team_clubs = resolve_team_clubs(Match, Club)
+
+        for team in Team.objects.filter(club__isnull=True, pk__in=team_clubs):
+            team.club = team_clubs[team.pk]
+            if not team.sponsor_name:
+                team.sponsor_name = team.name
+            team.save()
+            matched_count += 1
+
+    logger.info(
+        f"Scraping de clubes completado - "
+        f"Creados: {created_count}, Actualizados: {updated_count}, "
+        f"Equipos asociados: {matched_count}"
+    )
+    return {
+        'status': 'success',
+        'clubs_created': created_count,
+        'clubs_updated': updated_count,
+        'teams_matched': matched_count,
+        'errors': errors
+    }
+
+
 @shared_task(name='scrape_clubs', bind=True)
 def scrape_clubs_task(self, match_teams=True, delay=1.0):
     """
-    Ejecuta scraping de clubes desde voleibolib.net.
-    
+    Lanza el scraping de clubes desde voleibolib.net, una tarea por club.
+
+    El arranque de cada club se escalona por `countdown` en vez de dormir en el
+    worker (#601); `scrape_clubs_summary` agrega y asocia equipos a clubes.
+
     Args:
         match_teams: Si es True, ejecuta matching automático de equipos con clubes
-        delay: Delay entre requests en segundos (default: 1.0)
-    
+        delay: Segundos entre el arranque de un club y el siguiente (default: 1.0)
+
     Returns:
-        dict: Estadísticas del scraping realizado
+        dict: Clubes encolados
     """
     import requests
-    import unicodedata
-    import re
 
-    from ilovevoley.teams.services import cache_logo
-    
     logger.info("Iniciando scraping de clubes desde voleibolib.net")
-    
-    def clean_string(value):
-        """Limpia una cadena de texto"""
-        if not value or value == 'null':
-            return ''
-        return str(value).strip()
-    
-    def clean_url(value):
-        """Limpia y valida una URL"""
-        if not value or value == 'null' or not str(value).strip():
-            return ''
-        url = str(value).strip()
-        if url and not url.startswith(('http://', 'https://')):
-            url = f'https://{url}'
-        return url
-    
     try:
-        # 1. Obtener lista de clubes
-        url = 'https://www.voleibolib.net/JSON/get_clubes.asp'
-        response = requests.get(url, timeout=30)
+        response = requests.get('https://www.voleibolib.net/JSON/get_clubes.asp', timeout=30)
         response.raise_for_status()
         clubs_data = response.json().get('items', [])
-        
         logger.info(f'Encontrados {len(clubs_data)} clubes')
-        
-        created_count = 0
-        updated_count = 0
-        errors = []
-        
-        # 2. Procesar cada club
-        for club_basic in clubs_data:
-            club_id = club_basic['ID']
-            club_name = club_basic['Nombre']
-            
-            try:
-                # Obtener detalles del club
-                detail_url = f'https://www.voleibolib.net/JSON/get_datos_club.asp?id={club_id}'
-                detail_response = requests.get(detail_url, timeout=30)
-                detail_response.raise_for_status()
-                detail_data = detail_response.json()
-                
-                items = detail_data.get('items', [])
-                if items:
-                    club_data = items[0]
-                    
-                    # Crear o actualizar club
-                    club, created = Club.objects.update_or_create(
-                        federation_id=str(club_id),
-                        defaults={
-                            'official_name': clean_string(club_data.get('Nombre', '')),
-                            'president': clean_string(club_data.get('Presidente', '')),
-                            'address': clean_string(club_data.get('Direccion', '')),
-                            'phone': clean_string(club_data.get('telefono', '')),
-                            'email': clean_string(club_data.get('mail', '')),
-                            'venue_name': clean_string(club_data.get('campo', '')),
-                            'venue_address': clean_string(club_data.get('direccion_campo', '')),
-                            'municipality': clean_string(club_data.get('municipio', '')),
-                            'province': clean_string(club_data.get('provincia', '')),
-                            'instagram': clean_url(club_data.get('instagram', '')),
-                            'facebook': clean_url(club_data.get('facebook', '')),
-                            'twitter': clean_url(club_data.get('twitter', '')),
-                            'website': clean_url(club_data.get('url', '')),
-                            'logo_url': f'https://voleibolib.federatio.com/fichas/clubes/{club_id}.jpg'
-                        }
-                    )
-                    
-                    if not club.logo:
-                        cache_logo(club)
+        if not clubs_data:
+            return {'status': 'error', 'message': 'La federación no devolvió clubes'}
 
-                    if created:
-                        created_count += 1
-                        logger.info(f'Creado: {club.official_name}')
-                    else:
-                        updated_count += 1
-                        logger.info(f'Actualizado: {club.official_name}')
-                
-                time.sleep(delay)
-            
-            except Exception as e:
-                error_msg = f'Error procesando club {club_name} (ID: {club_id}): {str(e)}'
-                logger.error(error_msg)
-                errors.append(error_msg)
-        
-        # 3. Matching con equipos existentes
-        matched_count = 0
-        if match_teams:
-            logger.info("Iniciando matching de equipos con clubes")
-            from ilovevoley.teams.services import resolve_team_clubs
-            team_clubs = resolve_team_clubs(Match, Club)
+        header = [
+            scrape_club_task.s(club['ID'], club['Nombre']).set(countdown=i * delay)
+            for i, club in enumerate(clubs_data)
+        ]
+        chord(header)(scrape_clubs_summary_task.s(match_teams=match_teams))
+        return {'status': 'queued', 'clubs_queued': len(header)}
 
-            for team in Team.objects.filter(club__isnull=True, pk__in=team_clubs):
-                team.club = team_clubs[team.pk]
-                if not team.sponsor_name:
-                    team.sponsor_name = team.name
-                team.save()
-                matched_count += 1
-        
-        summary = {
-            'status': 'success',
-            'clubs_created': created_count,
-            'clubs_updated': updated_count,
-            'teams_matched': matched_count,
-            'errors': errors
-        }
-        
-        logger.info(
-            f"Scraping de clubes completado - "
-            f"Creados: {created_count}, Actualizados: {updated_count}, "
-            f"Equipos asociados: {matched_count}"
-        )
-        
-        return summary
-    
     except Exception as e:
         error_msg = f'Error durante scraping de clubes: {str(e)}'
         logger.error(error_msg, exc_info=True)
@@ -736,7 +732,8 @@ def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
         league_id: ID de la federación de la liga de donde extraer equipos
         category_name: Nombre de la categoría a asignar a los equipos
         dry_run: Si es True, simula la operación sin guardar cambios (default: False)
-        delay: Tiempo de espera entre requests en segundos (default: 1.0)
+        delay: Sin efecto: antes dormía el worker sin que hubiera requests que espaciar (#601);
+            se conserva para no romper llamadas existentes
     
     Returns:
         dict: Estadísticas del scraping realizado
@@ -843,9 +840,6 @@ def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
             logger.info('[MODO DRY RUN - No se guardarán cambios]')
         
         scraper = FederationScraper(scraper_league)
-        
-        # Rate limiting inicial
-        time.sleep(delay)
         
         results = scraper.scrape_all_endpoints()
         
@@ -956,9 +950,6 @@ def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
                         )
                         summary['teams_created'] += 1
                         logger.info(f'  ✓ Creado: {new_team.name}')
-                
-                # Rate limiting entre equipos
-                time.sleep(delay * 0.1)  # Delay más corto entre equipos
         
         # Si hay errores en todos los endpoints, marcar como error parcial
         if summary['endpoints_errors'] > 0 and summary['endpoints_success'] == 0:
@@ -1026,6 +1017,8 @@ __all__ = [
     'scrape_endpoint_summary_task',
     'scrape_results_task',
     'scrape_clubs_task',
+    'scrape_club_task',
+    'scrape_clubs_summary_task',
     'handle_withdrawn_teams_task',
     'scrape_teams_task',
 ]
