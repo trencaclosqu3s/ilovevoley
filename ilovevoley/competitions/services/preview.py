@@ -156,25 +156,34 @@ def preview_card_pills(match):
 def _past_home_is_today_home(past, match):
     """Si el local del enfrentamiento pasado es el local de hoy; ``None`` si no se sabe.
 
-    Misma identidad que ``_head_to_head_filter``: equipo, identidad entre
-    temporadas y, de respaldo, ids de club de la federación.
+    Misma identidad que ``_head_to_head_filter``: primero equipo e identidad entre
+    temporadas; los ids de club de la federación, solo de respaldo y si los dos
+    equipos de hoy no comparten club (derbi entre variantes del mismo club).
     """
-    for past_team, past_fed in (
-        (past.home_team, past.federation_club_local_id),
-        (past.away_team, past.federation_club_away_id),
-    ):
-        is_past_home = past_team is past.home_team
-        for today_team, today_fed, today_is_home in (
-            (match.home_team, match.federation_club_local_id, True),
-            (match.away_team, match.federation_club_away_id, False),
-        ):
-            same = past_team.pk == today_team.pk or (
+    past_sides = (
+        (past.home_team, past.federation_club_local_id, True),
+        (past.away_team, past.federation_club_away_id, False),
+    )
+    today_sides = (
+        (match.home_team, match.federation_club_local_id, True),
+        (match.away_team, match.federation_club_away_id, False),
+    )
+    for past_team, _, is_past_home in past_sides:
+        for today_team, _, today_is_home in today_sides:
+            if past_team is None:
+                continue
+            if past_team.pk == today_team.pk or (
                 past_team.identity_id and past_team.identity_id == today_team.identity_id
-            )
-            if not same and past_fed and past_fed == today_fed and past_fed not in ('None', '0'):
-                same = True
-            if same:
+            ):
                 return today_is_home == is_past_home
+
+    if match.federation_club_local_id != match.federation_club_away_id:
+        for _, past_fed, is_past_home in past_sides:
+            if not past_fed or past_fed in ('None', '0'):
+                continue
+            for _, today_fed, today_is_home in today_sides:
+                if past_fed == today_fed:
+                    return today_is_home == is_past_home
     return None
 
 
@@ -197,7 +206,9 @@ def _form_payload(team_id, before):
                 f'{m.home_score}-{m.away_score}' if m.home_team_id == team_id
                 else f'{m.away_score}-{m.home_score}'
             ),
-            'opponent': m.away_team.name if m.home_team_id == team_id else m.home_team.name,
+            'opponent': (
+                m.away_team_display if m.home_team_id == team_id else m.home_team_display
+            ),
             'date': timezone.localtime(m.match_date).date().isoformat(),
         }
         for m in _recent_matches(team_id, before)
@@ -236,8 +247,8 @@ def build_overlay_preview(match):
             wins[winner] += 1
         meetings.append({
             'date': timezone.localtime(past.match_date).date().isoformat(),
-            'home': past.home_team.name,
-            'away': past.away_team.name,
+            'home': past.home_team_display,
+            'away': past.away_team_display,
             'sets': f'{past.home_score}-{past.away_score}',
             'winner': winner,
         })
