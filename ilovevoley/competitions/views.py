@@ -35,7 +35,7 @@ from ilovevoley.competitions.result_card import (
     render_result_card,
 )
 from ilovevoley.content.favorites import annotate_favorites, match_top_images
-from ilovevoley.content.models import Image
+from ilovevoley.content.models import Image, Video
 from ilovevoley.core.mixins import get_club_team_filter, get_primary_club_team_name
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.protected_media import serve_protected_file
@@ -340,10 +340,10 @@ def _live_card_eligible(match, now):
 
 def _match_marks(match, videos):
     """Marcas de jugada con su enlace ``&t=`` al primer vídeo de YouTube del partido."""
-    base = next((v.youtube_url for v in videos if v.get_video_id()), '')
-    if not base and match.stream_url and 'watch?v=' in match.stream_url:
-        base = match.stream_url
-    return match_marks(match, base)
+    video_id = next((v.get_video_id() for v in videos if v.get_video_id()), '')
+    if not video_id and match.stream_url:
+        video_id = Video(youtube_url=match.stream_url).get_video_id() or ''
+    return match_marks(match, video_id)
 
 
 @tenant_access_required()

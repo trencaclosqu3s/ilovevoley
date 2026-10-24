@@ -79,7 +79,7 @@ class MatchMarkTest(TestCase):
 
     @override_settings(ALLOWED_HOSTS=['santjust.ilovevoley.es'])
     def test_video_detail_links_marks_to_its_own_video(self):
-        """La ficha del vídeo enlaza cada marca con &t= a ese vídeo, no al del partido."""
+        """El enlace &t= se arma siempre sobre watch?v=: en youtu.be el parámetro pegado al path no vale."""
         from django.contrib.auth import get_user_model
 
         from ilovevoley.content.models import Video
@@ -89,7 +89,7 @@ class MatchMarkTest(TestCase):
         Membership.objects.create(user=user, organization=self.org, role='member', is_approved=True)
         self.client.force_login(user)
         video = Video.objects.create(
-            title='Partido', youtube_url='https://www.youtube.com/watch?v=abc123',
+            title='Partido', youtube_url='https://youtu.be/abc123',
             match=self.match, organization=self.org, created_by=user,
         )
         MatchMark.objects.create(match=self.match, seconds=125)

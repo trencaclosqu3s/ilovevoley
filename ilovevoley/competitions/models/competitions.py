@@ -999,6 +999,9 @@ class MatchMark(models.Model):
 
     class Meta:
         ordering = ['match', 'seconds']
+        constraints = [
+            models.UniqueConstraint(fields=['match', 'seconds'], name='unique_match_mark_second'),
+        ]
         verbose_name = _('Marca de jugada')
         verbose_name_plural = _('Marcas de jugada')
 

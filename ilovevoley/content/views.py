@@ -426,7 +426,7 @@ def video_detail(request, video_id):
     )
 
     marks = (
-        match_marks(linked_match, video.youtube_url if video.get_video_id() else '')
+        match_marks(linked_match, video.get_video_id() or '')
         if linked_match else []
     )
 
