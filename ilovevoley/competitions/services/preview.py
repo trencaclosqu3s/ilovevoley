@@ -156,9 +156,9 @@ def preview_card_pills(match):
 def _past_home_is_today_home(past, match):
     """Si el local del enfrentamiento pasado es el local de hoy; ``None`` si no se sabe.
 
-    Misma identidad que ``_head_to_head_filter``: primero equipo e identidad entre
-    temporadas; los ids de club de la federación, solo de respaldo y si los dos
-    equipos de hoy no comparten club (derbi entre variantes del mismo club).
+    Misma identidad que ``_head_to_head_filter``: primero equipo, luego identidad entre
+    temporadas y, de respaldo, los ids de club de la federación; identidad y club
+    solo si los dos equipos de hoy no los comparten (derbi entre variantes).
     """
     past_sides = (
         (past.home_team, past.federation_club_local_id, True),
@@ -168,14 +168,22 @@ def _past_home_is_today_home(past, match):
         (match.home_team, match.federation_club_local_id, True),
         (match.away_team, match.federation_club_away_id, False),
     )
+    # Primero por pk en todos los lados: la identidad es común a las variantes de un
+    # club, así que mezclarla en la misma pasada invierte el ganador en derbis.
     for past_team, _, is_past_home in past_sides:
+        if past_team is None:
+            continue
         for today_team, _, today_is_home in today_sides:
-            if past_team is None:
-                continue
-            if past_team.pk == today_team.pk or (
-                past_team.identity_id and past_team.identity_id == today_team.identity_id
-            ):
+            if past_team.pk == today_team.pk:
                 return today_is_home == is_past_home
+
+    if match.home_team.identity_id != match.away_team.identity_id:
+        for past_team, _, is_past_home in past_sides:
+            if past_team is None or not past_team.identity_id:
+                continue
+            for today_team, _, today_is_home in today_sides:
+                if past_team.identity_id == today_team.identity_id:
+                    return today_is_home == is_past_home
 
     if match.federation_club_local_id != match.federation_club_away_id:
         for _, past_fed, is_past_home in past_sides:

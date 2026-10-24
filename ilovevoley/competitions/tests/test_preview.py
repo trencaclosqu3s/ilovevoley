@@ -212,6 +212,17 @@ class MatchPreviewTests(TestCase):
         # El visitante de hoy ganó jugando de local: gana "away", no "home".
         self.assertEqual(meeting['winner'], 'away')
 
+    def test_h2h_winner_in_derby_between_variants_sharing_identity_resolves_by_team(self):
+        # Las variantes del mismo club comparten TeamIdentity: la identidad no puede
+        # decidir antes que el pk, o el cruce Visitante↔Local invierte el ganador.
+        self.away.identity = identity_of(self.home)
+        self.away.save()
+        self._match(self.away, self.home, days=-30, score=(3, 1))
+
+        meeting = build_overlay_preview(self.match)['head_to_head']['matches'][0]
+
+        self.assertEqual(meeting['winner'], 'away')
+
     def test_form_keeps_opponent_known_only_by_text(self):
         Match.objects.create(
             league=self.league, home_team=self.home, away_team=None,

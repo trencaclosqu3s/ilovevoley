@@ -286,10 +286,7 @@ def _preview_round(match):
 @scoreboard_api(methods=('GET',))
 def api_scoreboard_match_preview(request, tenant):
     """Previa del partido en ventana (o ``?match_id=``): clasificación, forma y H2H."""
-    raw_id = request.GET.get('match_id')
-    if raw_id is not None and not raw_id.isdigit():
-        raise ScoreboardApiError({'success': False, 'error': 'invalid match_id'}, 400)
-    match = resolve_match(tenant, int(raw_id) if raw_id is not None else None)
+    match = resolve_match(tenant, parse_match_id(request.GET))
     if not match.home_team_id or not match.away_team_id:
         raise ScoreboardApiError({'success': False, 'error': 'teams not set'}, 404)
 
