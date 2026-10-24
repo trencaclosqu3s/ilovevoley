@@ -103,6 +103,14 @@ LOGIN_PROFILE_REVIEW_INACTIVITY_DAYS = env_config(
     'LOGIN_PROFILE_REVIEW_INACTIVITY_DAYS', default=90, cast=int
 )
 
+# Token compartido con el marcador (voley-scoreboard) para avisar de que empieza
+# el directo (#575). Vacío desactiva el endpoint.
+SCOREBOARD_STREAM_TOKEN = env_config('SCOREBOARD_STREAM_TOKEN', default='')
+
+# Usuario autor de los Video creados automáticamente al cerrar la emisión del
+# marcador (#577). 0 significa sin configurar.
+SCOREBOARD_VIDEO_USER_ID = env_config('SCOREBOARD_VIDEO_USER_ID', default=0, cast=int)
+
 # Allauth settings (nueva sintaxis)
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']

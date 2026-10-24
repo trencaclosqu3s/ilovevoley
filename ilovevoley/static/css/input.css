@@ -52,3 +52,17 @@
     mask: url('../images/logo.svg') no-repeat left center / contain;
   }
 }
+
+/* Barra de progreso de navegación (nav_progress.js): indeterminada, con avance simulado que nunca llega al final. */
+@layer components {
+  .nav-progress {
+    position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9999;
+    background-color: var(--brand-solid, #01696f);
+    transform: scaleX(0); transform-origin: left; opacity: 0; pointer-events: none;
+  }
+  .nav-progress.is-active { opacity: 1; animation: nav-progress 8s cubic-bezier(0.1, 0.6, 0.2, 1) forwards; }
+  @keyframes nav-progress { from { transform: scaleX(0.05); } to { transform: scaleX(0.92); } }
+  @media (prefers-reduced-motion: reduce) {
+    .nav-progress.is-active { animation: none; transform: scaleX(1); }
+  }
+}

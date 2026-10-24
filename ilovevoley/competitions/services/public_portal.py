@@ -32,7 +32,8 @@ def public_matches(season=None, *, include_friendly=False) -> QuerySet:
 def public_standings_for_league(league) -> QuerySet:
     return (
         Standing.objects.filter(league=league)
-        .select_related('team')
+        # El club entra porque Team.display_logo cae a su escudo (N+1 en la tabla).
+        .select_related('team__club')
         .order_by('position')
     )
 

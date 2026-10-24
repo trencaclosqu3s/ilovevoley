@@ -445,3 +445,44 @@ def get_season_rivals(person, season):
             rival['wins'] += home_won == (match.home_team_id == own_team_id)
 
     return sorted(rivals.values(), key=lambda r: (-r['matches'], -r['wins'], r['name']))
+
+
+def mark_person_choices(match, tenant):
+    """Deportistas etiquetables en una jugada: los del acta, o la plantilla.
+
+    Solo equipos del club del tenant. Si el acta ya trae personas resueltas se
+    ofrecen esas; sin acta (o sin ninguna resuelta) se cae a la plantilla de la
+    temporada de la liga.
+    """
+    club = getattr(tenant, 'club', None)
+    teams = [
+        t for t in (match.home_team, match.away_team)
+        if t and club is not None and t.club_id == club.pk
+    ]
+    if not teams:
+        return []
+    lineup = (
+        MatchLineup.objects.filter(
+            match=match, team__in=teams, person__isnull=False, is_convocado=True,
+        )
+        .select_related('person')
+        .order_by('person__last_name', 'person__first_name')
+    )
+    choices, seen = [], set()
+    for entry in lineup:
+        if entry.person_id not in seen:
+            seen.add(entry.person_id)
+            choices.append({
+                'id': entry.person_id,
+                'full_name': entry.person.full_name,
+                'jersey_number': entry.jersey_number,
+            })
+    if choices:
+        return choices
+    season = match.league.season if match.league_id else None
+    for team in teams:
+        for choice in team_roster_choices(team, season):
+            if choice['id'] not in seen:
+                seen.add(choice['id'])
+                choices.append(choice)
+    return choices

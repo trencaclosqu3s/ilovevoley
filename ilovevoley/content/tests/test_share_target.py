@@ -113,6 +113,14 @@ class ShareTargetReceiverTests(TestCase):
         self.assertContains(response, 'No se admitió')
         self.assertEqual(SharedUpload.objects.count(), 0)
 
+    def test_non_image_body_with_accepted_content_type_is_discarded(self):
+        """#599: el content-type lo manda el cliente; el contenido decide."""
+        self.client.force_login(self.user)
+        fake = SimpleUploadedFile('foto.jpg', b'esto no es una imagen', content_type='image/jpeg')
+        response = self._post_share([fake])
+        self.assertEqual(SharedUpload.objects.count(), 0)
+        self.assertContains(response, 'No se admitió')
+
     def test_oversized_is_discarded(self):
         self.client.force_login(self.user)
         big = SimpleUploadedFile('grande.jpg', b'x' * (10 * 1024 * 1024 + 1), content_type='image/jpeg')
