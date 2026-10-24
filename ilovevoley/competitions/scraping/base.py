@@ -6,6 +6,8 @@ import time
 from typing import Any, Dict
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from ilovevoley.competitions.models import League
 
@@ -176,7 +178,12 @@ class BaseParser:
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
         })
-    
+        # voleibolib.net da timeouts esporádicos: 2 reintentos con espera (2s, 4s)
+        # antes de reportar. Techo: ~30s de timeout x 3 intentos por petición.
+        retry = Retry(total=2, backoff_factor=2, status_forcelist=(502, 503, 504))
+        self.session.mount('https://', HTTPAdapter(max_retries=retry))
+        self.session.mount('http://', HTTPAdapter(max_retries=retry))
+
     def fetch_content(self, url: str) -> str:
         """Obtiene el contenido de una URL con manejo de errores"""
         try:
@@ -185,8 +192,8 @@ class BaseParser:
             response.raise_for_status()
             return response.text
         except requests.RequestException as e:
-            logger.error(f"Error fetching {url}: {e}")
-            raise ScrapingError(f"Failed to fetch {url}: {e}")
+            # Sin logger.error: ScrapingError ya llega a Sentry y duplicaría la issue.
+            raise ScrapingError(f"Failed to fetch {url}: {e}") from e
     
     def parse_content(self, content: str) -> Dict[str, Any]:
         """Método abstracto que debe implementar cada parser específico"""
