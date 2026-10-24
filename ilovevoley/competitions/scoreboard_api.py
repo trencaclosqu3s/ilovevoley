@@ -234,6 +234,23 @@ def _team_payload(request, team, fallback_name):
     }
 
 
+def _rules_payload(league):
+    """Reglas de set del formato de la liga, como enteros explícitos para el marcador."""
+    match_format = league.match_format if league else 'standard'
+    decider_points = 15
+    if match_format == 'tournament_3sets':
+        sets_to_win = 2
+    elif match_format == 'alevin_balear':
+        # Se juegan los 3 sets a 25; el tercero no es un decisivo a 15.
+        sets_to_win, decider_points = 2, 25
+    elif match_format == 'custom':
+        sets_to_win = league.custom_sets_to_win or 3
+    else:
+        sets_to_win = 3
+    # La liga no guarda los puntos por set (ej. Balears juega a 15 en primeras fases): siempre 25.
+    return {'set_points': 25, 'decider_points': decider_points, 'sets_to_win': sets_to_win}
+
+
 @scoreboard_api(methods=('GET',))
 def api_scoreboard_matches_today(request, tenant):
     """Partidos de hoy del club, en el día natural de Europe/Madrid."""
@@ -245,7 +262,7 @@ def api_scoreboard_matches_today(request, tenant):
         Match.objects.for_tenant(tenant)
         .exclude(status__in=['finished', 'cancelled', 'postponed'])
         .filter(match_date__gte=start, match_date__lt=end)
-        .select_related('home_team__club', 'away_team__club')
+        .select_related('league', 'home_team__club', 'away_team__club')
         .prefetch_related(
             'home_team__club__organizations',
             'away_team__club__organizations',
@@ -260,6 +277,7 @@ def api_scoreboard_matches_today(request, tenant):
             'match_date': local_date.isoformat(),
             'time': local_date.strftime('%H:%M'),
             'status': match.status,
+            'rules': _rules_payload(match.league),
             'home_team': _team_payload(request, match.home_team, match.home_team_display),
             'away_team': _team_payload(request, match.away_team, match.away_team_display),
         })
