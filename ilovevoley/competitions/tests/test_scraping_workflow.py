@@ -141,6 +141,7 @@ class LeagueTaskFailureTest(TestCase):
         stats = scrape_league_stats_task.run(league_pk=999999)
         self.assertFalse(stats['success'])
         self.assertEqual(stats['errors'][0]['league'], '#999999')
+        self.assertEqual(stats['errors'][0]['error'], 'La liga ya no existe')
         # El callback debe poder agregarla sin romperse.
         total = scrape_leagues_summary_task.run([stats])
         self.assertEqual(total['leagues_errors'], 1)

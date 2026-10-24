@@ -37,14 +37,18 @@ def _get_league(league_pk, empty_stats):
     Las tareas por liga forman el header de un chord: una excepción aquí lo dejaría
     sin callback (sin resumen, sin email y sin el enriquecimiento encadenado).
     """
+    name = f'#{league_pk}'
     try:
         return League.objects.prefetch_related('categories').get(pk=league_pk), None
+    except League.DoesNotExist:
+        error = 'La liga ya no existe'
+        logger.warning(f'{error}: {name}')
     except Exception as e:
-        name = f'#{league_pk}'
+        error = str(e)
         logger.error(f'No se pudo cargar la liga {name}: {e}', exc_info=True)
-        failed = {**empty_stats, 'league': name, 'success': False,
-                  'errors': [{'league': name, 'endpoint': 'general', 'error': str(e)}]}
-        return None, failed
+    failed = {**empty_stats, 'league': name, 'success': False,
+              'errors': [{'league': name, 'endpoint': 'general', 'error': error}]}
+    return None, failed
 
 
 def build_scrape_all_leagues_workflow(round_number=None, category_filter=None, delay=2.0, then=None):
@@ -326,14 +330,14 @@ def _summarize_league_stats(league_stats):
 
 
 def _target_leagues(league_id):
-    """(pks, error): la liga pedida por federation_id o todas las activas."""
+    """(ligas, error): la liga pedida por federation_id o todas las activas."""
     if league_id:
         league = League.objects.filter(federation_id=league_id, is_active=True).first()
         if not league:
             return [], f'Liga con ID {league_id} no encontrada o inactiva'
-        return [league.pk], None
-    pks = list(League.objects.filter(is_active=True).values_list('pk', flat=True))
-    return pks, (None if pks else 'No se encontraron ligas activas')
+        return [league], None
+    leagues = list(League.objects.filter(is_active=True))
+    return leagues, (None if leagues else 'No se encontraron ligas activas')
 
 
 @shared_task(name='scrape_calendar_league', bind=True)
@@ -403,14 +407,14 @@ def scrape_calendar_task(self, league_id=None, delay=2.0):
         delay: Segundos entre el arranque de una liga y la siguiente (default: 2.0)
     """
     logger.info("Iniciando scraping de calendario de partidos")
-    league_pks, error_msg = _target_leagues(league_id)
+    leagues, error_msg = _target_leagues(league_id)
     if error_msg:
         logger.error(error_msg)
         return {'status': 'error', 'message': error_msg}
     if league_id:
-        return _summarize_league_stats([_calendar_league_stats(League.objects.get(pk=league_pks[0]))])
-    _fan_out_leagues(scrape_calendar_league_task, league_pks, delay, 'calendario')
-    return {'status': 'queued', 'leagues_queued': len(league_pks)}
+        return _summarize_league_stats([_calendar_league_stats(leagues[0])])
+    _fan_out_leagues(scrape_calendar_league_task, [league.pk for league in leagues], delay, 'calendario')
+    return {'status': 'queued', 'leagues_queued': len(leagues)}
 
 
 @shared_task(name='scrape_results', bind=True)
@@ -427,15 +431,15 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
         delay: Segundos entre ligas (arranque) y entre jornadas de una liga (default: 2.0)
     """
     logger.info("Iniciando scraping de resultados de partidos")
-    league_pks, error_msg = _target_leagues(league_id)
+    leagues, error_msg = _target_leagues(league_id)
     if error_msg:
         logger.error(error_msg)
         return {'status': 'error', 'message': error_msg}
     if league_id:
-        league = League.objects.get(pk=league_pks[0])
-        return _summarize_league_stats([_results_league_stats(league, round_number, delay)])
+        return _summarize_league_stats([_results_league_stats(leagues[0], round_number, delay)])
+    league_pks = [league.pk for league in leagues]
     _fan_out_leagues(scrape_results_league_task, league_pks, delay, 'resultados', round_number, delay)
-    return {'status': 'queued', 'leagues_queued': len(league_pks)}
+    return {'status': 'queued', 'leagues_queued': len(leagues)}
 
 
 def _clean_string(value):
