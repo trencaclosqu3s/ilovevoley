@@ -76,3 +76,24 @@ class MatchMarkTest(TestCase):
         self.assertEqual(list(mark.persons.all()), [self.roster_person])
         page = self.client.get(f'/competitions/partidos/{self.match.pk}/', HTTP_HOST='santjust.ilovevoley.es')
         self.assertContains(page, '1:05')
+
+    @override_settings(ALLOWED_HOSTS=['santjust.ilovevoley.es'])
+    def test_video_detail_links_marks_to_its_own_video(self):
+        """La ficha del vídeo enlaza cada marca con &t= a ese vídeo, no al del partido."""
+        from django.contrib.auth import get_user_model
+
+        from ilovevoley.content.models import Video
+        from ilovevoley.users.models import Membership
+
+        user = get_user_model().objects.create_user(username='mem', email='mem@x.es', password='x')
+        Membership.objects.create(user=user, organization=self.org, role='member', is_approved=True)
+        self.client.force_login(user)
+        video = Video.objects.create(
+            title='Partido', youtube_url='https://www.youtube.com/watch?v=abc123',
+            match=self.match, organization=self.org, created_by=user,
+        )
+        MatchMark.objects.create(match=self.match, seconds=125)
+
+        page = self.client.get(f'/content/{video.pk}/', HTTP_HOST='santjust.ilovevoley.es')
+
+        self.assertContains(page, 'https://www.youtube.com/watch?v=abc123&amp;t=125s')

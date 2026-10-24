@@ -67,6 +67,7 @@ from .services.lineups import (
     team_roster,
     team_roster_choices,
 )
+from .services.marks import match_marks
 from .services.notifications import notify_match_live_stream, notify_match_result
 from .services.preview import build_match_preview, preview_card_pills
 
@@ -337,18 +338,12 @@ def _live_card_eligible(match, now):
     return (now - timedelta(hours=6)) <= match.match_date <= (now + timedelta(hours=24))
 
 
-def _match_marks(match, videos, can_manage):
+def _match_marks(match, videos):
     """Marcas de jugada con su enlace ``&t=`` al primer vídeo de YouTube del partido."""
     base = next((v.youtube_url for v in videos if v.get_video_id()), '')
     if not base and match.stream_url and 'watch?v=' in match.stream_url:
         base = match.stream_url
-    marks = list(match.marks.prefetch_related('persons'))
-    for mark in marks:
-        mark.link = f'{base}&t={mark.seconds}s' if base else ''
-        mark.person_ids = {p.pk for p in mark.persons.all()}
-        hours, rest = divmod(mark.seconds, 3600)
-        mark.label = f'{hours}:{rest // 60:02d}:{rest % 60:02d}' if hours else f'{rest // 60}:{rest % 60:02d}'
-    return marks
+    return match_marks(match, base)
 
 
 @tenant_access_required()
@@ -376,7 +371,7 @@ def match_detail(request, match_id):
         top_images = match_top_images(match, request.tenant, user=request.user, limit=3)
         can_manage = user_is_tenant_manager(request.user, request.tenant)
         stream_url = match.stream_url
-        marks = _match_marks(match, videos, can_manage)
+        marks = _match_marks(match, videos)
     else:
         videos = match.videos.none()
         marks = []

@@ -44,6 +44,33 @@
         </div>
     </div>
 
+
+    {% if marks %}
+    <!-- Jugadas marcadas desde el marcador (#580) -->
+    <div class="bg-surface rounded-[20px] border border-line overflow-hidden mb-6">
+        <div class="bg-tint px-4 sm:px-6 py-3 border-b border-line">
+            <h2 class="text-lg sm:text-xl font-bold text-ink">{% trans "Jugadas" %} ({{ marks|length }})</h2>
+        </div>
+        <ul class="divide-y divide-line">
+            {% for mark in marks %}
+                <li class="px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
+                    {% if mark.link %}
+                        <a href="{{ mark.link }}" target="_blank" rel="noopener" class="font-medium text-brand-text hover:text-csj-purple-dark">{{ mark.label }}</a>
+                    {% else %}
+                        <span class="font-medium text-ink">{{ mark.label }}</span>
+                    {% endif %}
+                    {% if mark.scoreboard %}
+                        <span class="text-sm text-muted">{{ mark.scoreboard.home_sets }}-{{ mark.scoreboard.away_sets }} · {{ mark.scoreboard.home_points }}-{{ mark.scoreboard.away_points }}</span>
+                    {% endif %}
+                    {% for person in mark.persons.all %}
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-tint text-ink">{{ person.full_name }}</span>
+                    {% endfor %}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
     <!-- Sección de comentarios -->
     <div class="bg-surface rounded-[20px] border border-line p-4 sm:p-6">
         <h2 class="text-lg sm:text-xl font-bold text-ink mb-4">

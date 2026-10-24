@@ -23,6 +23,7 @@ from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
 from ilovevoley.competitions.models import League, Match
+from ilovevoley.competitions.services.marks import match_marks
 from ilovevoley.core.mixins import get_club_team_filter
 from ilovevoley.core.models import Category, Season
 from ilovevoley.core.season_utils import resolve_season_filter
@@ -424,7 +425,13 @@ def video_detail(request, video_id):
         Match.objects.filter(pk=video.match_id).first() if video.match_id else None
     )
 
+    marks = (
+        match_marks(linked_match, video.youtube_url if video.get_video_id() else '')
+        if linked_match else []
+    )
+
     return render(request, 'content/video_detail.html', {
+        'marks': marks,
         'video': video,
         'comments': comments,
         'comment_form': comment_form,
