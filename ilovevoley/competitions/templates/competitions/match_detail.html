@@ -776,6 +776,14 @@
                             <span class="text-xs px-2 py-0.5 rounded-full bg-tint text-ink">{{ person.full_name }}</span>
                         {% endfor %}
                     </div>
+                    {% if mark.has_clip %}
+                        <div class="mt-2 flex items-center gap-4">
+                            <a href="{% url 'competitions:match_mark_clip' match.id mark.id %}" download class="text-sm font-medium text-brand-text hover:text-csj-purple-dark">{% trans "Descargar" %}</a>
+                            <button type="button" hidden class="mark-clip-share text-sm font-medium text-brand-text hover:text-csj-purple-dark"
+                                    data-url="{% url 'competitions:match_mark_clip' match.id mark.id %}" data-filename="jugada-{{ mark.seconds }}.mp4"
+                                    data-tap-label="{% trans "Toca para compartir" %}">{% trans "Compartir" %}</button>
+                        </div>
+                    {% endif %}
                     {% if can_manage_videos and mark_choices %}
                         <details class="mt-2">
                             <summary class="text-sm text-brand-text cursor-pointer">{% trans "Etiquetar jugadores" %}</summary>
@@ -1145,6 +1153,7 @@
 
 {{ match.set_scores|json_script:"match-set-scores" }}
 <script src="{% static 'js/match_result_sets.js' %}"></script>
+{% if marks %}<script src="{% static 'js/mark_clips.js' %}"></script>{% endif %}
 <script src="{% static 'js/vendor/interact.min.js' %}"></script>
 <script src="{% static 'js/story_editor.js' %}"></script>
 <script nonce="{{ csp_nonce }}">

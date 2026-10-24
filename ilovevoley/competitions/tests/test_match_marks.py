@@ -97,3 +97,82 @@ class MatchMarkTest(TestCase):
         page = self.client.get(f'/content/{video.pk}/', HTTP_HOST='santjust.ilovevoley.es')
 
         self.assertContains(page, 'https://www.youtube.com/watch?v=abc123&amp;t=125s')
+
+
+@override_settings(ALLOWED_HOSTS=['santjust.ilovevoley.es', 'otro.ilovevoley.es'], PROTECTED_MEDIA_USE_X_ACCEL=True)
+class MatchMarkClipTest(TestCase):
+    """Clips 9:16 de las jugadas (#629): emparejado por partido y segundo, y mismo acceso que el detalle."""
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+
+        from django.contrib.auth import get_user_model
+
+        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
+        from ilovevoley.users.models import Membership
+
+        LiveStreamPushTest.setUp(self)
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.clips = Path(tmp.name)
+        clips_settings = override_settings(SCOREBOARD_CLIPS_DIR=tmp.name)
+        clips_settings.enable()
+        self.addCleanup(clips_settings.disable)
+        self.mark = MatchMark.objects.create(match=self.match, seconds=125)
+        self.user = get_user_model().objects.create_user(username='mem', email='mem@x.es', password='x')
+        Membership.objects.create(user=self.user, organization=self.org, role='member', is_approved=True)
+
+    def _clip(self, name):
+        (self.clips / name).write_bytes(b'mp4')
+
+    def test_mark_only_pairs_with_the_clip_of_its_match_and_second(self):
+        """Un clip de otro partido o de otro segundo no se cuela en la marca."""
+        from ilovevoley.competitions.services.marks import match_marks
+
+        self._clip(f'm{self.match.pk + 1}_125.mp4')
+        self._clip(f'm{self.match.pk}_126.mp4')
+        self.assertFalse(match_marks(self.match)[0].has_clip)
+
+        self._clip(f'm{self.match.pk}_125.mp4')
+        self.assertTrue(match_marks(self.match)[0].has_clip)
+
+    def test_clip_is_served_to_who_sees_the_detail_and_nobody_else(self):
+        """Se entrega vía X-Accel a la zona interna; desde otro club, o si el fichero ya caducó, 404."""
+        from ilovevoley.core.models import Organization
+        from ilovevoley.users.models import Membership
+
+        self.client.force_login(self.user)
+        url = f'/competitions/partidos/{self.match.pk}/jugadas/{self.mark.pk}/clip/'
+        self.assertEqual(self.client.get(url, HTTP_HOST='santjust.ilovevoley.es').status_code, 404)
+
+        self._clip(f'm{self.match.pk}_125.mp4')
+        response = self.client.get(url, HTTP_HOST='santjust.ilovevoley.es')
+        self.assertEqual(response['X-Accel-Redirect'], f'/protected-clips/m{self.match.pk}_125.mp4')
+
+        other_org = Organization.objects.create(name='Otro', slug='otro')
+        Membership.objects.create(user=self.user, organization=other_org, role='member', is_approved=True)
+        self.assertEqual(self.client.get(url, HTTP_HOST='otro.ilovevoley.es').status_code, 404)
+
+    def test_share_link_serves_only_marks_of_its_match(self):
+        """El enlace temporal da los clips de su partido; con otra marca o token desconocido, 404."""
+        import uuid
+
+        from ilovevoley.competitions.models import Match
+        from ilovevoley.competitions.share import create_match_share_link
+
+        self._clip(f'm{self.match.pk}_125.mp4')
+        link = create_match_share_link(self.match, self.org, self.user, hours=48)
+        other = Match.objects.create(
+            league=self.league, home_team=self.team2, away_team=self.team1, match_date=self.match.match_date,
+        )
+        other_mark = MatchMark.objects.create(match=other, seconds=125)
+        self._clip(f'm{other.pk}_125.mp4')
+
+        ok = self.client.get(f'/p/partido/{link.token}/jugadas/{self.mark.pk}/clip/', HTTP_HOST='santjust.ilovevoley.es')
+        self.assertEqual(ok['X-Accel-Redirect'], f'/protected-clips/m{self.match.pk}_125.mp4')
+        page = self.client.get(f'/p/partido/{link.token}/', HTTP_HOST='santjust.ilovevoley.es')
+        self.assertContains(page, f'/p/partido/{link.token}/jugadas/{self.mark.pk}/clip/')
+        for path in (f'/p/partido/{link.token}/jugadas/{other_mark.pk}/clip/',
+                     f'/p/partido/{uuid.uuid4()}/jugadas/{self.mark.pk}/clip/'):
+            self.assertEqual(self.client.get(path, HTTP_HOST='santjust.ilovevoley.es').status_code, 404)
