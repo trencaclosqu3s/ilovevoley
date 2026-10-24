@@ -213,6 +213,26 @@ class BrandPortalLeagueViewsTest(TestCase):
         self.assertEqual(list(response.context['upcoming']), [self.future])
         self.assertEqual(list(response.context['recent']), [self.done])
 
+    def test_league_detail_queries_do_not_grow_with_standings(self):
+        """La tabla pinta display_logo (club del equipo): sin N+1, como #548 y #588."""
+        from django.core.cache import cache
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        def count():
+            cache.clear()
+            with CaptureQueriesContext(connection) as ctx:
+                self.assertEqual(self.get('portal:league_detail', self.league.pk).status_code, 200)
+            return len(ctx)
+
+        count()  # calienta cachés del proceso
+        baseline = count()
+        for i in range(3):
+            club = Club.objects.create(official_name=f'Club E{i}', federation_id=f'CLUB-E{i}')
+            team = Team.objects.create(name=f'Extra {i}', federation_id=f't-extra-{i}', club=club)
+            Standing.objects.create(league=self.league, team=team, position=i + 3, total_points=1)
+        self.assertEqual(count(), baseline)
+
     def test_league_detail_hides_non_public_league(self):
         response = self.get('portal:league_detail', self.reference.pk)
         self.assertEqual(response.status_code, 404)
