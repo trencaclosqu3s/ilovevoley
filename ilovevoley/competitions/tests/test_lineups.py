@@ -506,7 +506,7 @@ class BackfillActasCommandTests(TestCase):
         )
         with patch('ilovevoley.competitions.services.lineups.safe_get',
                    return_value=b'<html></html>') as get, \
-                patch('ilovevoley.competitions.scraping.acta.parse_acta_lineup',
+                patch('ilovevoley.competitions.services.lineups.parse_acta_lineup',
                       return_value=data):
             call_command('backfill_acta_lineups')
 
@@ -592,7 +592,7 @@ class ScrapeMatchActasTaskTests(TestCase):
 
         data = _lineup_data(home_convocados=['7 Ruiz'], sets=[_set('Set 1', _six(7), _six(21))])
         with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
-                patch('ilovevoley.competitions.scraping.acta.parse_acta_lineup', return_value=data):
+                patch('ilovevoley.competitions.services.lineups.parse_acta_lineup', return_value=data):
             result = scrape_match_actas_task()
 
         get.assert_called_once_with('https://federacion.example/acta/1', allowed_hosts=['federacion.example'])
@@ -630,7 +630,7 @@ class ScrapeMatchActasTaskTests(TestCase):
 
         data = _lineup_data(home_convocados=['7 Ruiz'], sets=[_set('Set 1', _six(7), _six(21))])
         with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
-                patch('ilovevoley.competitions.scraping.acta.parse_acta_lineup', return_value=data):
+                patch('ilovevoley.competitions.services.lineups.parse_acta_lineup', return_value=data):
             result = scrape_match_actas_task()
 
         # Solo se procesa self.own (que tiene acta_html válida), no photo_match
@@ -669,7 +669,7 @@ class ScrapeMatchActasTaskTests(TestCase):
                                  _entry('IV', 2), _entry('V', 3), _entry('VI', 4)], _six(21))],
         )
         with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
-                patch('ilovevoley.competitions.scraping.acta.parse_acta_lineup', return_value=html_data):
+                patch('ilovevoley.competitions.services.lineups.parse_acta_lineup', return_value=html_data):
             fetch_and_store_acta(photo_match)
 
         get.assert_called_once_with('https://federacion.example/acta/5', allowed_hosts=['federacion.example'])
@@ -703,7 +703,7 @@ class ScrapeMatchActasTaskTests(TestCase):
 
         data = _lineup_data(home_convocados=['7 Ruiz'], sets=[_set('Set 1', _six(7), _six(21))])
         with patch('ilovevoley.competitions.services.lineups.safe_get', return_value=b'<html></html>') as get, \
-                patch('ilovevoley.competitions.scraping.acta.parse_acta_lineup', return_value=data):
+                patch('ilovevoley.competitions.services.lineups.parse_acta_lineup', return_value=data):
             result = scrape_match_actas_task()
 
         self.assertEqual(result['processed'], 2)  # self.own + photo_with_html

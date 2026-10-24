@@ -1493,7 +1493,7 @@ class FederationScraper:
                     
                     # ESTRATEGIA 1: Buscar por IDs de clubes (más preciso)
                     if club_local_id and club_visitante_id:
-                        from ilovevoley.videos.models import Club
+                        from ilovevoley.teams.models import Club
                         
                         # Buscar clubes por federation_id
                         club_local = Club.objects.filter(federation_id=club_local_id).first()

@@ -17,6 +17,7 @@ from django.db import transaction
 from django.db.models import Count, Q, Sum
 from unidecode import unidecode
 
+from ilovevoley.competitions.scraping.acta import parse_acta_lineup
 from ilovevoley.core.models import Season
 from ilovevoley.core.security import safe_get
 from ilovevoley.rosters.models import PlayerRole
@@ -221,9 +222,6 @@ def fetch_and_store_acta(match):
     Propaga ``UnsafeURL``, ``requests.RequestException`` y ``ValueError`` para que
     cada llamador decida si reintenta o lo da por perdido.
     """
-    # Import local: el paquete de scraping legado importa modelos de competitions.
-    from ilovevoley.competitions.scraping.acta import parse_acta_lineup
-
     content = safe_get(match.official_acta_url or match.acta_html, allowed_hosts=settings.ACTA_ALLOWED_HOSTS)
     store_match_lineups(match, parse_acta_lineup(content))
 
