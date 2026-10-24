@@ -268,10 +268,8 @@
                              aria-label="{% trans 'Marcador en directo' %}"
                              class="w-full rounded-xl border border-line bg-tint p-4 sm:p-6 mb-6 text-left"
                              data-state-url="{% url 'competitions:match_live_state' match.id %}"
-                             data-match-id="{{ match.id }}"
                              data-home-name="{{ match.home_team_display }}"
-                             data-away-name="{{ match.away_team_display }}"
-                             data-initial-visible="0">
+                             data-away-name="{{ match.away_team_display }}">
                         <div class="flex items-center gap-2 text-sm font-bold text-ink mb-2">
                             <span class="w-2.5 h-2.5 rounded-full bg-red-600 dark:bg-red-500 motion-safe:animate-pulse"></span>
                             <span class="uppercase">{% trans "En vivo" %}</span>
@@ -2077,15 +2075,13 @@ document.getElementById('playerProfileModal').addEventListener('click', function
     const homeName = root.dataset.homeName || '';
     const awayName = root.dataset.awayName || '';
     const SERVE_SR_TPL = '{% trans "Saca {team}" as js_serve_sr %}{{ js_serve_sr|escapejs }}';
-    const SR_SUMMARY_TPL = '{% trans "{local} {sets_l}, {visitante} {sets_v} de sets. Set en curso {pl}-{pv}." as js_sr_summary %}{{ js_sr_summary|escapejs }}';
+    const SR_SUMMARY_TPL = '{% trans "{local} {sets_l}, {visitante} {sets_v} de sets." as js_sr_summary %}{{ js_sr_summary|escapejs }}';
 
     const FAST_MS = 5000;
     const SLOW_MS = 30000;
     const TIMEOUT_MS = 4000;
     const MAX_FAILS = 3;
 
-    const homeNameEl = document.getElementById('live-home-name');
-    const awayNameEl = document.getElementById('live-away-name');
     const homePtsEl = document.getElementById('live-home-points');
     const awayPtsEl = document.getElementById('live-away-points');
     const homeSetsEl = document.getElementById('live-home-sets');
@@ -2132,8 +2128,6 @@ document.getElementById('playerProfileModal').addEventListener('click', function
         if (key === lastKey && !root.hidden) return;
         lastKey = key;
 
-        homeNameEl.textContent = homeName;
-        awayNameEl.textContent = awayName;
         homePtsEl.textContent = String(data.home_points);
         awayPtsEl.textContent = String(data.away_points);
         homeSetsEl.textContent = String(data.home_sets);
@@ -2179,9 +2173,7 @@ document.getElementById('playerProfileModal').addEventListener('click', function
                 .replace('{local}', homeName)
                 .replace('{visitante}', awayName)
                 .replace('{sets_l}', String(data.home_sets))
-                .replace('{sets_v}', String(data.away_sets))
-                .replace('{pl}', String(data.home_points))
-                .replace('{pv}', String(data.away_points));
+                .replace('{sets_v}', String(data.away_sets));
         }
     }
 
@@ -2194,7 +2186,7 @@ document.getElementById('playerProfileModal').addEventListener('click', function
         inflight = true;
         const controller = new AbortController();
         const abortTimer = setTimeout(function() { controller.abort(); }, TIMEOUT_MS);
-        let nextDelay = FAST_MS;
+        let nextDelay = root.hidden ? SLOW_MS : FAST_MS;
         try {
             const resp = await fetch(stateUrl, {
                 credentials: 'same-origin',

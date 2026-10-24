@@ -336,6 +336,21 @@ class ScoreboardMatchResultTest(TestCase):
         self.assertIsNone(self.match.away_score)
         self.assertIsNone(self.match.set_scores)
 
+    def test_partials_over_contract_limits_are_rejected(self):
+        """Contrato: máx. 9 parciales y 99 puntos; con el token no se guarda una lista sin tope."""
+        too_many = [[25, 20]] * 10
+        too_high = [[100, 20]]
+        for partials in (too_many, too_high):
+            response = self._post({
+                'match_id': self.match.pk,
+                'home_score': len(partials),
+                'away_score': 0,
+                'set_scores': partials,
+            })
+            self.assertEqual(response.status_code, 400)
+        self.match.refresh_from_db()
+        self.assertIsNone(self.match.set_scores)
+
     def test_federation_result_returns_409_without_changes(self):
         """D-07: si ya hay acta o penalización federativa, devuelve 409 y no modifica el partido."""
         self.match.home_score = 0

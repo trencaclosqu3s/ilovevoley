@@ -21,7 +21,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from ilovevoley.content.models.content import Video, infer_category, infer_season
+from ilovevoley.content.models.content import Video
 from ilovevoley.videos.scraping.base import validate_volleyball_score
 
 from .models import Match
@@ -83,6 +83,17 @@ class ScoreboardApiError(Exception):
         self.response = JsonResponse(payload, status=status)
         self.status = status
         super().__init__(str(payload))
+
+
+def _parse_json_body(request):
+    """Cuerpo JSON objeto. El decorador convierte el error en 400."""
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        raise ScoreboardApiError({'success': False, 'error': 'invalid json'}, 400)
+    if not isinstance(data, dict):
+        raise ScoreboardApiError({'success': False, 'error': 'invalid json'}, 400)
+    return data
 
 
 def scoreboard_api(methods=('POST',)):
@@ -161,12 +172,7 @@ def resolve_match(tenant, match_id=None):
 @scoreboard_api()
 def api_scoreboard_stream_live(request, tenant):
     """Guarda el directo del partido indicado, o del único en ventana si no hay id."""
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
-    if not isinstance(data, dict):
-        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
+    data = _parse_json_body(request)
 
     raw_url = data.get('url')
     if not isinstance(raw_url, str) or not raw_url.strip():
@@ -273,7 +279,7 @@ def _parse_result_payload(data):
     if raw_partials is None or raw_partials == []:
         return home, away, []
 
-    if not isinstance(raw_partials, list):
+    if not isinstance(raw_partials, list) or len(raw_partials) > LIVE_MAX_HISTORY:
         raise ScoreboardApiError({'success': False, 'error': 'invalid result'}, 400)
 
     partials = []
@@ -285,7 +291,9 @@ def _parse_result_payload(data):
         local_pts, visitor_pts = pair
         if (
             not _is_non_neg_int(local_pts)
+            or local_pts > LIVE_MAX_POINTS
             or not _is_non_neg_int(visitor_pts)
+            or visitor_pts > LIVE_MAX_POINTS
             or local_pts == visitor_pts
         ):
             raise ScoreboardApiError({'success': False, 'error': 'invalid result'}, 400)
@@ -313,29 +321,26 @@ def api_scoreboard_match_result(request, tenant):
     ``venue`` y ``status``, así que el cambio queda registrado y no se reenvía
     ninguna notificación de corrección.
     """
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
-    if not isinstance(data, dict):
-        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
+    data = _parse_json_body(request)
 
     match_id = parse_match_id(data)
     if match_id is None:
         return JsonResponse({'success': False, 'error': 'match_id required'}, status=400)
     match = resolve_match(tenant, match_id)
 
-    if match.acta_data or match.acta_html or match.result_penalized:
-        raise ScoreboardApiError(
-            {'success': False, 'error': 'federation result'}, 409
-        )
-
     home, away, partials = _parse_result_payload(data)
     league = match.league or SimpleNamespace(match_format='standard')
     if not validate_volleyball_score(home, away, league):
         return JsonResponse({'success': False, 'error': 'invalid score'}, status=400)
 
+    # La comprobación de la federación y el guardado comparten el bloqueo de la
+    # fila: si el scraping escribe el acta entre medias, no se pisa.
     with transaction.atomic():
+        match = Match.objects.select_for_update().get(pk=match.pk)
+        if match.acta_data or match.acta_html or match.result_penalized:
+            raise ScoreboardApiError(
+                {'success': False, 'error': 'federation result'}, 409
+            )
         match.home_score = home
         match.away_score = away
         match.set_scores = partials
@@ -364,12 +369,7 @@ def api_scoreboard_stream_ended(request, tenant):
     ``Video`` cuando la URL final es ``watch?v=<id>``; otras URLs responden 200
     con ``created=false`` y ``reason='unsupported url'``.
     """
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
-    if not isinstance(data, dict):
-        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
+    data = _parse_json_body(request)
 
     match_id = parse_match_id(data)
     if match_id is None:
@@ -421,8 +421,6 @@ def api_scoreboard_stream_ended(request, tenant):
     title = (base if existing == 0 else f'{base} parte {existing + 1}')[:200]
     video, created = Video.objects.get_or_create(match=match, youtube_url=url, defaults={
         'title': title,
-        'season': infer_season(match, timezone.now()),
-        'category': infer_category(match),
         'organization': tenant,
         'created_by': user,
     })
@@ -495,12 +493,7 @@ def _parse_live_state(data):
 @scoreboard_api()
 def api_scoreboard_live_state(request, tenant):
     """Guarda en caché el estado en vivo del marcador con TTL de 90 s (#578, D-05..D-08)."""
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
-    if not isinstance(data, dict):
-        return JsonResponse({'success': False, 'error': 'invalid json'}, status=400)
+    data = _parse_json_body(request)
 
     match_id = parse_match_id(data)
     if match_id is None:

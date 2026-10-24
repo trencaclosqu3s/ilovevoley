@@ -16,7 +16,6 @@ WATCH_URL_RE = re.compile(
 _LINK_TAG_RE = re.compile(r'<link\b[^>]*>', re.IGNORECASE)
 _REL_CANONICAL_RE = re.compile(r'\brel=["\']canonical["\']', re.IGNORECASE)
 _HREF_RE = re.compile(r'\bhref=["\']([^"\']+)["\']', re.IGNORECASE)
-_VIDEO_ID_RE = re.compile(r'^[A-Za-z0-9_-]{11}$')
 
 _USER_AGENT = (
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
@@ -49,9 +48,7 @@ def _extract_canonical_watch_id(html: str) -> str | None:
         watch_match = WATCH_URL_RE.match(href_match.group(1))
         if not watch_match:
             return None
-        video_id = watch_match.group(2)
-        if _VIDEO_ID_RE.match(video_id):
-            return video_id
+        return watch_match.group(2)
     return None
 
 

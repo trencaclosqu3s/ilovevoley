@@ -3182,8 +3182,8 @@ msgstr "Serveix {team}"
 
 #: ilovevoley/competitions/templates/competitions/match_detail.html:2080
 #, python-brace-format
-msgid "{local} {sets_l}, {visitante} {sets_v} de sets. Set en curso {pl}-{pv}."
-msgstr "{local} {sets_l}, {visitante} {sets_v} en sets. Set en curs {pl}-{pv}."
+msgid "{local} {sets_l}, {visitante} {sets_v} de sets."
+msgstr "{local} {sets_l}, {visitante} {sets_v} en sets."
 
 #: ilovevoley/competitions/templates/competitions/portal/_league_cards.html:84
 msgid "No hay ligas para esta temporada."
