@@ -141,8 +141,8 @@ class FederationScraper:
             try:
                 from ilovevoley.competitions.services.acta_photo import process_acta_photos_from_html
                 process_acta_photos_from_html(html, league=league, round_number=current_round_num)
-            except Exception as e:
-                logger.warning(f'Error procesando fotos de acta en {league.name}: {e}')
+            except Exception:
+                logger.exception(f'Error procesando fotos de acta en {league.name}')
             for block in html.split("class='info_partido")[1:]:
                 clubs = re.findall(r'clubes/(\d+)mini', block)
                 if len(clubs) >= 2:
@@ -164,8 +164,8 @@ class FederationScraper:
                     for candidate in (current - distance, current + distance):
                         if candidate >= 1:
                             fetch(candidate)
-        except Exception as e:
-            logger.warning(f'No se pudo obtener el número de jornada de {league.name}: {e}')
+        except Exception:
+            logger.exception(f'No se pudo obtener el número de jornada de {league.name}')
         return round_map
 
     def process_json_unified(self, json_url: str, op_type: str = '1', filter_by_db_leagues: bool = True) -> Dict[str, Any]:
@@ -454,8 +454,8 @@ class FederationScraper:
                     
                     logger.debug(f'Creado: {home_team.name} {match.home_score}-{match.away_score} {away_team.name}')
                     
-            except Exception as e:
-                logger.error(f'Error procesando partido {partido_data.get("ELOCAL", "Unknown")} vs {partido_data.get("EVISITANTE", "Unknown")}: {str(e)}')
+            except Exception:
+                logger.error(f'Error procesando partido {partido_data.get("ELOCAL", "Unknown")} vs {partido_data.get("EVISITANTE", "Unknown")}', exc_info=True)
                 continue
 
         if self._new_identity_candidates:
@@ -1457,7 +1457,7 @@ class FederationScraper:
             return result
             
         except Exception as e:
-            logger.error(f"Error enriching matches with JSON: {e}")
+            logger.error(f"Error enriching matches with JSON: {e}", exc_info=True)
             return {'error': str(e)}
     
     def _enrich_single_match(self, partido_data: Dict, league: League) -> bool:
@@ -1576,7 +1576,7 @@ class FederationScraper:
                     logger.info(f"Created new match from JSON: ID={json_match_id}")
                     return True
             except Exception as e:
-                logger.error(f"Error creating new match from JSON: {e}")
+                logger.error(f"Error creating new match from JSON: {e}", exc_info=True)
             
             # Buscar partidos similares para debug
             if fecha_str and equipo_local and equipo_visitante:
@@ -1936,7 +1936,7 @@ class FederationScraper:
                     self.update_matches(data['matches'], all_teams)
                     
             except Exception as e:
-                logger.error(f"Error scraping endpoint {endpoint}: {e}")
+                logger.error(f"Error scraping endpoint {endpoint}: {e}", exc_info=True)
                 results[endpoint.endpoint_type] = {'error': str(e)}
 
         # Retiradas: evaluar una sola vez con la unión de equipos de todos los endpoints

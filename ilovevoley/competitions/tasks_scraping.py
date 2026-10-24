@@ -217,15 +217,9 @@ def scrape_league_task(self, league_id, round_number=None):
         logger.info(f'Scraping completado para {league.name}')
         return summary
     
-    except Exception as e:
-        error_msg = f'Error durante scraping: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {
-            'status': 'error',
-            'league': league.name,
-            'league_id': league_id,
-            'message': error_msg
-        }
+    except Exception:
+        # Relanzar: Celery marca FAILURE y Sentry captura el traceback
+        raise
 
 
 @shared_task(name='scrape_calendar', bind=True)
@@ -370,13 +364,9 @@ def scrape_calendar_task(self, league_id=None, delay=2.0):
         
         return total_results
     
-    except Exception as e:
-        error_msg = f'Error general durante scraping de calendario: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {
-            'status': 'error',
-            'message': error_msg
-        }
+    except Exception:
+        # Relanzar: Celery marca FAILURE y Sentry captura el traceback
+        raise
 
 
 @shared_task(name='scrape_results', bind=True)
@@ -552,13 +542,9 @@ def scrape_results_task(self, league_id=None, round_number=None, delay=2.0):
         
         return total_results
     
-    except Exception as e:
-        error_msg = f'Error general durante scraping de resultados: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {
-            'status': 'error',
-            'message': error_msg
-        }
+    except Exception:
+        # Relanzar: Celery marca FAILURE y Sentry captura el traceback
+        raise
 
 
 @shared_task(name='scrape_clubs', bind=True)
@@ -660,7 +646,7 @@ def scrape_clubs_task(self, match_teams=True, delay=1.0):
             
             except Exception as e:
                 error_msg = f'Error procesando club {club_name} (ID: {club_id}): {str(e)}'
-                logger.error(error_msg)
+                logger.error(error_msg, exc_info=True)
                 errors.append(error_msg)
         
         # 3. Matching con equipos existentes
@@ -693,13 +679,9 @@ def scrape_clubs_task(self, match_teams=True, delay=1.0):
         
         return summary
     
-    except Exception as e:
-        error_msg = f'Error durante scraping de clubes: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {
-            'status': 'error',
-            'message': error_msg
-        }
+    except Exception:
+        # Relanzar: Celery marca FAILURE y Sentry captura el traceback
+        raise
 
 
 @shared_task(name='handle_withdrawn_teams', bind=True)
@@ -863,13 +845,9 @@ def handle_withdrawn_teams_task(self, league_id=None, dry_run=False, reactivate_
         
         return total_results
     
-    except Exception as e:
-        error_msg = f'Error durante gestión de equipos retirados: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {
-            'status': 'error',
-            'message': error_msg
-        }
+    except Exception:
+        # Relanzar: Celery marca FAILURE y Sentry captura el traceback
+        raise
 
 
 @shared_task(name='scrape_teams', bind=False)
@@ -1149,15 +1127,9 @@ def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
         
         return summary
     
-    except Exception as e:
-        error_msg = f'Error durante scraping de equipos: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {
-            'status': 'error',
-            'league_id': league_id,
-            'category_name': category_name,
-            'message': error_msg
-        }
+    except Exception:
+        # Relanzar: Celery marca FAILURE y Sentry captura el traceback
+        raise
 
 __all__ = [
     'scrape_all_leagues_task',

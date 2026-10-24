@@ -139,13 +139,9 @@ def enrich_matches_json_task(self, league_id=None, delay=1.0):
         
         return total_results
     
-    except Exception as e:
-        error_msg = f'Error general durante enriquecimiento JSON: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {
-            'status': 'error',
-            'message': error_msg
-        }
+    except Exception:
+        # Relanzar: Celery marca FAILURE y Sentry captura el traceback
+        raise
 
 
 @shared_task(name='enrich_single_league_json', bind=True)
@@ -200,15 +196,9 @@ def enrich_single_league_json_task(self, league_id, delay=1.0):
         logger.info(f'Enriquecimiento completado para {league.name}: {enriched} enriquecidos, {new_matches} nuevos')
         return summary
     
-    except Exception as e:
-        error_msg = f'Error durante enriquecimiento: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {
-            'status': 'error',
-            'league': league.name,
-            'league_id': league_id,
-            'message': error_msg
-        }
+    except Exception:
+        # Relanzar: Celery marca FAILURE y Sentry captura el traceback
+        raise
 
 
 @shared_task(name='enrich_upcoming_matches', bind=True)
@@ -253,8 +243,8 @@ def enrich_upcoming_matches_task(self, delay=1.0):
             leagues = leagues_with_data
             logger.info(f"Ligas con datos en JSON: {len(leagues)} de {League.objects.filter(is_active=True).count()}")
             
-        except Exception as e:
-            logger.warning(f"No se pudo filtrar ligas por datos JSON: {e}. Procesando todas las ligas activas.")
+        except Exception:
+            logger.exception("No se pudo filtrar ligas por datos JSON; se procesan todas las ligas activas")
         
         total_enriched = 0
         total_new = 0
@@ -296,7 +286,7 @@ def enrich_upcoming_matches_task(self, delay=1.0):
                 leagues_errors += 1
                 error_msg = f"Error procesando {league.name}: {str(e)}"
                 errors.append(error_msg)
-                logger.error(error_msg)
+                logger.error(error_msg, exc_info=True)
         
         result = {
             'status': 'success',
@@ -311,10 +301,9 @@ def enrich_upcoming_matches_task(self, delay=1.0):
         logger.info(f"Enriquecimiento de próximos partidos completado - Procesadas: {leagues_processed}, Exitosas: {leagues_success}, Con errores: {leagues_errors}, Partidos enriquecidos: {total_enriched}, Partidos nuevos: {total_new}")
         return result
         
-    except Exception as e:
-        error_msg = f"Error en enriquecimiento de próximos partidos: {str(e)}"
-        logger.error(error_msg)
-        return {'status': 'error', 'error': error_msg}
+    except Exception:
+        # Relanzar: Celery marca FAILURE y Sentry captura el traceback
+        raise
 
 @shared_task(name='scrape_and_enrich_all', bind=True)
 def scrape_and_enrich_all_task(self, round_number=None, category_filter=None, delay=2.0):
@@ -538,10 +527,9 @@ def process_json_unified_task(self, json_url, op_type='1', league_id=None, categ
         
         return result
         
-    except Exception as e:
-        error_msg = f'Error general en procesamiento JSON unificado: {str(e)}'
-        logger.error(error_msg, exc_info=True)
-        return {'status': 'error', 'message': error_msg}
+    except Exception:
+        # Relanzar: Celery marca FAILURE y Sentry captura el traceback
+        raise
     
     # Normalizar nombre para búsqueda
     normalized_name = unidecode(team_name.upper())
