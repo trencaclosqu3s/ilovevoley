@@ -3,7 +3,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.admin.sites import AdminSite
 from django.core import mail
 from django.contrib.messages.storage.fallback import FallbackStorage
-from django.utils import timezone
 from ilovevoley.core.email_utils import send_admin_email_to_users
 from ilovevoley.core.models import Organization
 from ilovevoley.users.admin import MembershipAdmin, UserAdmin, WebPushAuditAdmin, approve_users
@@ -287,11 +286,12 @@ class AdminApprovalProfileReviewTest(TestCase):
         model_admin = UserAdmin(User, AdminSite())
         request = self._request()
         form_class = model_admin.get_form(request, user, change=True)
-        joined = timezone.localtime(user.date_joined)
+        # Fecha fija: el widget pierde el fold y la hora repetida del cambio
+        # horario (02:xx del último domingo de octubre) no se puede interpretar.
         data = {
             'username': user.username,
-            'date_joined_0': joined.strftime('%Y-%m-%d'),
-            'date_joined_1': joined.strftime('%H:%M:%S'),
+            'date_joined_0': '2026-01-15',
+            'date_joined_1': '12:00:00',
             'inactivity_warning_level': 0,
             'is_approved': 'on',
         }
