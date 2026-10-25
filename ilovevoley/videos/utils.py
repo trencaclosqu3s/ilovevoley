@@ -368,39 +368,83 @@ def extract_frame_from_live_photo(video_file):
     Extrae el frame principal de un video de Live Photo
 
     Args:
-        video_file: Archivo de video MOV/MP4
+        video_file: Archivo de video MOV/MP4 (path, UploadedFile o file-like)
 
     Returns:
-        BytesIO: Frame extraído como JPEG
+        BytesIO | None: Frame extraído como JPEG, o None si ffmpeg no está o falla
     """
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+    from io import BytesIO
+
+    if not shutil.which("ffmpeg"):
+        return None
+
+    tmp_path = None
     try:
-        from PIL import Image
-        from io import BytesIO
-        import tempfile
-        import os
+        if isinstance(video_file, (str, os.PathLike)):
+            input_path = os.fspath(video_file)
+        else:
+            suffix = ".mov"
+            name = getattr(video_file, "name", None)
+            if name:
+                _, ext = os.path.splitext(name)
+                if ext:
+                    suffix = ext.lower()
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                if hasattr(video_file, "read"):
+                    if hasattr(video_file, "seek"):
+                        video_file.seek(0)
+                    shutil.copyfileobj(video_file, tmp)
+                else:
+                    raise TypeError(
+                        "video_file must be a path or a readable file-like object"
+                    )
+                tmp_path = tmp.name
+            input_path = tmp_path
 
-        # Guardar temporalmente el video
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.mov') as tmp:
-            if hasattr(video_file, 'read'):
-                tmp.write(video_file.read())
-            else:
-                with open(video_file, 'rb') as f:
-                    tmp.write(f.read())
-            tmp_path = tmp.name
-
-        try:
-            # Usar ffmpeg o moviepy para extraer frame
-            # Por ahora, retornar None para indicar que no se pudo procesar
-            # TODO: Implementar con opencv-python o moviepy si se necesita
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-nostdin",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                input_path,
+                "-frames:v",
+                "1",
+                "-f",
+                "image2pipe",
+                "-vcodec",
+                "mjpeg",
+                "pipe:1",
+            ],
+            capture_output=True,
+            timeout=60,
+            check=False,
+        )
+        if result.returncode != 0 or not result.stdout:
+            if result.stderr:
+                logger.warning(
+                    "ffmpeg no extrajo fotograma de Live Photo: %s",
+                    result.stderr.decode("utf-8", errors="replace")[:500],
+                )
             return None
-        finally:
-            # Limpiar archivo temporal
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-
+        output = BytesIO(result.stdout)
+        output.seek(0)
+        return output
+    except subprocess.TimeoutExpired:
+        logger.warning("Timeout extrayendo fotograma de Live Photo con ffmpeg")
+        return None
     except Exception:
         logger.exception("Error extrayendo frame de Live Photo")
         return None
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
 
 def sanitize_image(image_file, max_size=2560, quality=85):
