@@ -386,6 +386,8 @@ def extract_frame_from_live_photo(video_file):
     try:
         if isinstance(video_file, (str, os.PathLike)):
             input_path = os.fspath(video_file)
+            if "://" in input_path or not os.path.isfile(input_path):
+                return None
         else:
             suffix = ".mov"
             name = getattr(video_file, "name", None)
@@ -412,6 +414,8 @@ def extract_frame_from_live_photo(video_file):
                 "-hide_banner",
                 "-loglevel",
                 "error",
+                "-protocol_whitelist",
+                "file,pipe",
                 "-i",
                 input_path,
                 "-frames:v",
