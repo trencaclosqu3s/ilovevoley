@@ -27,7 +27,7 @@ class PWAServiceWorkerTest(TestCase):
         response = service_worker(request)
         content = response.content.decode('utf-8')
 
-        self.assertIn('ilovevoley-pwa-v2', content)
+        self.assertIn('ilovevoley-pwa-v3', content)
         self.assertIn("importScripts('/static/js/upload_queue_blob.js')", content)
 
         precache_block = re.search(r'PRECACHE_URLS\s*=\s*\[(.*?)\]', content, re.S)
@@ -53,3 +53,15 @@ class PWAServiceWorkerTest(TestCase):
             )
             self.assertIn(f"pathname.startsWith('{prefix}')", content)
 
+
+
+    def test_service_worker_caches_only_whitelisted_private_pages(self):
+        # Decisión #610: HTML con sesión solo para /finde/ y /partidos/<id>/, nunca
+        # redirecciones (login caducado) y con la caché aparte para poder vaciarla en logout.
+        content = self.client.get('/sw.js').content.decode('utf-8')
+
+        self.assertIn("PAGES_CACHE_NAME = 'ilovevoley-pwa-pages-v1'", content)
+        self.assertIn('/^\\/finde\\/$/', content)
+        self.assertIn('/^\\/partidos\\/\\d+\\/$/', content)
+        self.assertIn('!response.redirected', content)
+        self.assertIn('/static/js/offline_pages.js', content)
