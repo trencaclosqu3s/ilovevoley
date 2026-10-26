@@ -16,6 +16,7 @@
     var DB_VERSION = 1;
     var STORE_NAME = "uploads";
     var SYNC_TAG = "sync-photo-uploads";
+    // Límite compartido: reintentos HTTP con backoff y pasadas por uploading obsoleto en cleanupStaleItems.
     var MAX_AUTO_ATTEMPTS = 4;
     var BACKOFF_DELAYS_MS = [2000, 5000, 12000, 25000];
     var UPLOAD_TIMEOUT_MS = 45000;
@@ -27,6 +28,12 @@
 
     var isProcessingQueue = false;
     var isPanelCollapsed = false;
+    var activeUploadAbortController = null;
+    var activeUploadClientId = null;
+
+    function materializeUploadBlob(item) {
+        return window.UploadQueueBlob.materializeFromRecord(item);
+    }
 
     function generateUuid() {
         if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -119,6 +126,25 @@
         });
     }
 
+    function getItemById(clientUploadId) {
+        return openDb()
+            .then(function (db) {
+                return new Promise(function (resolve, reject) {
+                    var tx = db.transaction(STORE_NAME, "readonly");
+                    var req = tx.objectStore(STORE_NAME).get(clientUploadId);
+                    req.onsuccess = function () {
+                        resolve(req.result || null);
+                    };
+                    req.onerror = function () {
+                        reject(req.error);
+                    };
+                });
+            })
+            .catch(function () {
+                return null;
+            });
+    }
+
     function putItem(item) {
         return openDb().then(function (db) {
             return new Promise(function (resolve, reject) {
@@ -155,6 +181,7 @@
         var now = Date.now();
         return getAllTenantItems().then(function (items) {
             var ops = [];
+            var staleUploadIds = [];
             items.forEach(function (item) {
                 if (now - (item.created_at || now) > EXPIRY_MS) {
                     ops.push(deleteItem(item.client_upload_id));
@@ -162,10 +189,31 @@
                     item.status === "uploading" &&
                     now - (item.updated_at || item.created_at || now) > STALE_UPLOADING_MS
                 ) {
+                    staleUploadIds.push(item.client_upload_id);
                     item.status = "pending";
+                    item.attempts = (item.attempts || 0) + 1;
+                    if (item.attempts >= MAX_AUTO_ATTEMPTS) {
+                        item.status = "error";
+                        item.error_message = getI18n(
+                            "stale-error",
+                            "La subida se interrumpió. Reintenta o quita la foto de la cola."
+                        );
+                    }
                     ops.push(putItem(item));
                 }
             });
+            if (staleUploadIds.length && activeUploadClientId && staleUploadIds.indexOf(activeUploadClientId) !== -1) {
+                if (activeUploadAbortController) {
+                    try {
+                        activeUploadAbortController.abort();
+                    } catch (abortErr) {
+                        /* ignore */
+                    }
+                    activeUploadAbortController = null;
+                }
+                activeUploadClientId = null;
+                isProcessingQueue = false;
+            }
             return Promise.all(ops);
         });
     }
@@ -483,10 +531,27 @@
     }
 
     function sendSingleItem(item) {
-        var formData = new FormData();
-        formData.append("client_upload_id", item.client_upload_id);
-        formData.append("batch_id", item.batch_id || item.client_upload_id);
-        formData.append("image", item.file_blob, item.file_name || "foto.jpg");
+        return materializeUploadBlob(item).then(function (uploadBlob) {
+            if (!uploadBlob || !uploadBlob.size) {
+                return {
+                    ok: false,
+                    status: 0,
+                    data: {
+                        error: getI18n("blob-read-error", window.UploadQueueBlob.BLOB_READ_ERROR)
+                    },
+                    blobMissing: true
+                };
+            }
+
+            var formData = new FormData();
+            formData.append("client_upload_id", item.client_upload_id);
+            formData.append("batch_id", item.batch_id || item.client_upload_id);
+            formData.append("image", uploadBlob, item.file_name || "foto.jpg");
+            return postUploadForm(item, formData);
+        });
+    }
+
+    function postUploadForm(item, formData) {
 
         var meta = item.metadata || {};
         if (meta.title) formData.append("title", meta.title);
@@ -512,6 +577,7 @@
             "";
 
         var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+        activeUploadAbortController = controller;
         var timer = null;
         if (controller) {
             timer = setTimeout(function () {
@@ -528,10 +594,63 @@
             credentials: "same-origin",
             body: formData,
             signal: controller ? controller.signal : undefined
-        }).finally(function () {
-            if (timer) {
-                clearTimeout(timer);
+        })
+            .then(function (response) {
+                return response
+                    .json()
+                    .catch(function () {
+                        return {};
+                    })
+                    .then(function (data) {
+                        return { ok: response.ok, status: response.status, data: data };
+                    });
+            })
+            .finally(function () {
+                if (timer) {
+                    clearTimeout(timer);
+                }
+                if (activeUploadAbortController === controller) {
+                    activeUploadAbortController = null;
+                }
+                if (activeUploadClientId === item.client_upload_id) {
+                    activeUploadClientId = null;
+                }
+            });
+    }
+
+    function applyUploadResultIfStillActive(clientUploadId, result, nextStep, handleRetryableFailure) {
+        return getItemById(clientUploadId).then(function (stored) {
+            if (!stored || stored.status !== "uploading") {
+                return nextStep();
             }
+
+            var status = result.status;
+            var data = result.data || {};
+            if (result.ok && data && data.ok) {
+                stored.status = "uploaded";
+                stored.error_message = "";
+                return putItem(stored).then(renderWidget).then(nextStep);
+            }
+
+            var isRetryableHttp =
+                !result.blobMissing &&
+                (status === 408 ||
+                    status === 429 ||
+                    status === 502 ||
+                    status === 503 ||
+                    status === 504 ||
+                    status >= 500 ||
+                    status === 0);
+            if (!isRetryableHttp) {
+                stored.status = "error";
+                stored.error_message = (data && data.error) || "Error (" + status + ")";
+                return putItem(stored).then(renderWidget).then(nextStep);
+            }
+
+            return handleRetryableFailure(
+                stored,
+                (data && data.error) || getI18n("network-error", "Corte de conexión. Se reintentará al recuperar señal.")
+            );
         });
     }
 
@@ -569,43 +688,31 @@
 
                 nextItem.status = "uploading";
                 nextItem.error_message = "";
+                activeUploadClientId = nextItem.client_upload_id;
                 return putItem(nextItem)
                     .then(renderWidget)
                     .then(function () {
                         return sendSingleItem(nextItem);
                     })
-                    .then(function (response) {
-                        var status = response.status;
-                        return response
-                            .json()
-                            .catch(function () {
-                                return {};
-                            })
-                            .then(function (data) {
-                                if (response.ok && data && data.ok) {
-                                    nextItem.status = "uploaded";
-                                    nextItem.error_message = "";
-                                    return putItem(nextItem).then(renderWidget).then(nextStep);
-                                }
-
-                                var isRetryableHttp =
-                                    status === 408 || status === 429 || status === 502 || status === 503 || status === 504 || status >= 500;
-                                if (!isRetryableHttp) {
-                                    nextItem.status = "error";
-                                    nextItem.error_message = (data && data.error) || "Error (" + status + ")";
-                                    return putItem(nextItem).then(renderWidget).then(nextStep);
-                                }
-
-                                return handleRetryableFailure(
-                                    nextItem,
-                                    (data && data.error) || getI18n("network-error", "Corte de conexión. Se reintentará al recuperar señal.")
-                                );
-                            });
+                    .then(function (result) {
+                        return applyUploadResultIfStillActive(
+                            nextItem.client_upload_id,
+                            result,
+                            nextStep,
+                            handleRetryableFailure
+                        );
                     })
                     .catch(function () {
-                        return handleRetryableFailure(
-                            nextItem,
-                            getI18n("network-error", "Corte de conexión. Se reintentará al recuperar señal.")
+                        return applyUploadResultIfStillActive(
+                            nextItem.client_upload_id,
+                            {
+                                ok: false,
+                                status: 0,
+                                data: {},
+                                blobMissing: false
+                            },
+                            nextStep,
+                            handleRetryableFailure
                         );
                     });
             });
@@ -664,7 +771,6 @@
                         tenant_origin: origin,
                         endpoint: endpoint,
                         csrf_token: csrfToken,
-                        file_blob: compressed.blob,
                         file_name: compressed.fileName,
                         preview_data_url: compressed.previewDataUrl,
                         metadata: itemMeta,
@@ -676,7 +782,14 @@
                         created_at: Date.now() + idx,
                         updated_at: Date.now() + idx
                     };
-                    return putItem(item);
+                    if (tooLarge || !compressed.blob) {
+                        return putItem(item);
+                    }
+                    return compressed.blob.arrayBuffer().then(function (buf) {
+                        item.file_bytes = buf;
+                        item.file_mime = compressed.blob.type || "image/jpeg";
+                        return putItem(item);
+                    });
                 });
             });
         });

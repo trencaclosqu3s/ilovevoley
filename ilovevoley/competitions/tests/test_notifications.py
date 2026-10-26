@@ -86,12 +86,139 @@ class MatchChangeNotificationsTest(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]
         self.assertEqual(email.to, ['test_admin@isitech.es'])
-        self.assertIn('Modificación federativa', email.subject)
+        self.assertIn('Cambio de horario', email.subject)
         self.assertIn('29/09/2026 12:00', email.body)
 
         log.refresh_from_db()
         self.assertTrue(log.notified)
         self.assertIsNotNone(log.notified_at)
+
+    def test_email_subject_and_body_reflect_change_subtype(self):
+        """El asunto y cuerpo del email distinguen hora/sede añadidas de cambios y estados (#585)."""
+        cases = [
+            (
+                'time_added_from_placeholder',
+                [
+                    MatchChangeLog(
+                        match=self.match, change_type='datetime', field_name='match_date',
+                        old_value='29/09/2026 00:00', new_value='29/09/2026 11:30', is_last_minute=True,
+                    ),
+                ],
+                '[Aviso de Partido] Hora confirmada: SANT JOSEP A vs MANACOR B',
+                'Hora confirmada',
+                'Sin confirmar',
+            ),
+            (
+                'venue_added',
+                [
+                    MatchChangeLog(
+                        match=self.match, change_type='venue', field_name='venue',
+                        old_value='', new_value='Polideportivo Municipal', is_last_minute=True,
+                    ),
+                ],
+                '[Aviso de Partido] Sede confirmada: SANT JOSEP A vs MANACOR B',
+                'Sede confirmada',
+                'Sin confirmar',
+            ),
+            (
+                'venue_changed',
+                [
+                    MatchChangeLog(
+                        match=self.match, change_type='venue', field_name='venue',
+                        old_value='Pabellón A', new_value='Pabellón B', is_last_minute=True,
+                    ),
+                ],
+                '[Aviso de Partido] Cambio de sede: SANT JOSEP A vs MANACOR B',
+                'Cambio de sede',
+                'Pabellón A',
+            ),
+            (
+                'status_postponed',
+                [
+                    MatchChangeLog(
+                        match=self.match, change_type='status', field_name='status',
+                        old_value='scheduled', new_value='postponed', is_last_minute=True,
+                    ),
+                ],
+                '[Aviso de Partido] Partido aplazado: SANT JOSEP A vs MANACOR B',
+                'Partido aplazado',
+                'scheduled',
+            ),
+            (
+                'time_and_venue_added',
+                [
+                    MatchChangeLog(
+                        match=self.match, change_type='datetime', field_name='match_date',
+                        old_value='', new_value='29/09/2026 11:30', is_last_minute=True,
+                    ),
+                    MatchChangeLog(
+                        match=self.match, change_type='venue', field_name='venue',
+                        old_value='', new_value='Pabellón C', is_last_minute=True,
+                    ),
+                ],
+                '[Aviso de Partido] Horario y sede confirmados: SANT JOSEP A vs MANACOR B',
+                'Hora confirmada',
+                'Sede confirmada',
+            ),
+            (
+                'status_takes_precedence_over_datetime',
+                [
+                    MatchChangeLog(
+                        match=self.match, change_type='status', field_name='status',
+                        old_value='scheduled', new_value='postponed', is_last_minute=True,
+                    ),
+                    MatchChangeLog(
+                        match=self.match, change_type='datetime', field_name='match_date',
+                        old_value='29/09/2026 10:00', new_value='05/10/2026 12:00', is_last_minute=True,
+                    ),
+                ],
+                '[Aviso de Partido] Partido aplazado: SANT JOSEP A vs MANACOR B',
+                'Partido aplazado',
+                'Cambio de horario',
+            ),
+        ]
+
+        for label, unsaved_logs, expected_subject, expected_in_body_1, expected_in_body_2 in cases:
+            with self.subTest(label):
+                mail.outbox.clear()
+                logs = MatchChangeLog.objects.bulk_create(unsaved_logs)
+                with override_settings(
+                    MATCH_CHANGE_NOTIFY_STAFF_ENABLED=False,
+                    MATCH_CHANGE_TEST_RECIPIENT='test_admin@isitech.es',
+                ):
+                    notify_match_changes(logs)
+
+                self.assertEqual(len(mail.outbox), 1)
+                email = mail.outbox[0]
+                self.assertEqual(email.subject, expected_subject)
+                self.assertIn(expected_in_body_1, email.body)
+                self.assertIn(expected_in_body_2, email.body)
+                html_body = email.alternatives[0][0]
+                self.assertIn(expected_in_body_1, html_body)
+                self.assertIn(expected_in_body_2, html_body)
+
+        # Destinatario en catalán recibe el asunto y cuerpo traducidos
+        mail.outbox.clear()
+        User.objects.create_user(
+            username='ca_admin', email='ca_admin@isitech.es', preferred_language='ca',
+        )
+        ca_log = MatchChangeLog.objects.create(
+            match=self.match, change_type='datetime', field_name='match_date',
+            old_value='29/09/2026 00:00', new_value='29/09/2026 11:30', is_last_minute=True,
+        )
+        with override_settings(
+            MATCH_CHANGE_NOTIFY_STAFF_ENABLED=False,
+            MATCH_CHANGE_NOTIFY_SUPERUSERS=False,
+            MATCH_CHANGE_TEST_RECIPIENT='ca_admin@isitech.es',
+        ):
+            notify_match_changes([ca_log])
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(
+            mail.outbox[0].subject,
+            '[Avís de Partit] Hora confirmada: SANT JOSEP A vs MANACOR B',
+        )
+        self.assertIn('Sense confirmar', mail.outbox[0].body)
 
     def test_production_mode_sends_to_staff_and_club_managers_fallback(self):
         log = MatchChangeLog.objects.create(

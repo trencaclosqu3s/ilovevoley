@@ -1,10 +1,10 @@
 {% extends "emails/base_email.html" %}
 {% load i18n %}
 
-{% block title %}{% blocktrans with home=match.home_team_display away=match.away_team_display %}Modificación federativa: {{ home }} vs {{ away }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans with summary=change_summary home=match.home_team_display away=match.away_team_display %}{{ summary }}: {{ home }} vs {{ away }}{% endblocktrans %}{% endblock %}
 
 {% block header_title %}
-    🏐 {% trans "Modificación de Partido" %}
+    🏐 {{ change_summary }}
 {% endblock %}
 
 {% block content %}
@@ -41,14 +41,21 @@
             </tr>
         </thead>
         <tbody>
+            {% trans "Sin confirmar" as unconfirmed_label %}
             {% for change in changes %}
             <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 10px; font-weight: bold; color: #334155;">
-                    {{ change.get_change_type_display }}
+                    {{ change.get_change_subtype_display }}
                 </td>
+                {% if change.is_addition %}
+                <td style="padding: 10px; color: #64748b; font-style: italic;">
+                    {{ unconfirmed_label }}
+                </td>
+                {% else %}
                 <td style="padding: 10px; color: #ef4444; text-decoration: line-through;">
                     {{ change.old_value|default:"—" }}
                 </td>
+                {% endif %}
                 <td style="padding: 10px; color: #16a34a; font-weight: bold;">
                     {{ change.new_value|default:"—" }}
                 </td>
