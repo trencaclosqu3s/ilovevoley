@@ -63,5 +63,6 @@ class PWAServiceWorkerTest(TestCase):
         self.assertIn("PAGES_CACHE_NAME = 'ilovevoley-pwa-pages-v1'", content)
         self.assertIn('/^\\/finde\\/$/', content)
         self.assertIn('/^\\/partidos\\/\\d+\\/$/', content)
-        self.assertIn('!response.redirected', content)
+        self.assertIn('response.redirected', content)
         self.assertIn('/static/js/offline_pages.js', content)
+        self.assertIn('prefetchMatchPages(cache, html)', content)

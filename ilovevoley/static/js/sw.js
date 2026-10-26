@@ -8,6 +8,7 @@ const CACHE_NAME = 'ilovevoley-pwa-v3';
 const PAGES_CACHE_NAME = 'ilovevoley-pwa-pages-v1';
 const PAGE_CACHE_PATHS = [/^\/finde\/$/, /^\/partidos\/\d+\/$/];
 const PAGES_MAX_ENTRIES = 30;
+const PREFETCH_MAX_MATCHES = 10;
 const PAGES_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const PRECACHE_URLS = [
     '/offline/',
@@ -58,19 +59,41 @@ async function trimPagesCache(cache) {
     await Promise.all(keys.slice(0, Math.max(0, keys.length - PAGES_MAX_ENTRIES)).map((k) => cache.delete(k)));
 }
 
+// Un login caducado redirige (200 final en /accounts/login/): solo se guardan respuestas directas
+async function storePage(cache, request, response) {
+    if (!response.ok || response.redirected || response.type !== 'basic') {
+        return false;
+    }
+    const stored = new Response(await response.clone().blob(), {
+        headers: { 'Content-Type': response.headers.get('Content-Type') || 'text/html; charset=utf-8', 'X-SW-Cached-At': String(Date.now()) },
+    });
+    await cache.put(request, stored);
+    return true;
+}
+
+// Al abrir «Este finde» con red se guardan también las fichas de partido que enlaza,
+// que es lo que se consulta en el pabellón sin cobertura.
+async function prefetchMatchPages(cache, html) {
+    const paths = [...new Set(html.match(/\/partidos\/\d+\//g) || [])].slice(0, PREFETCH_MAX_MATCHES);
+    await Promise.all(paths.map((path) =>
+        fetch(path).then((response) => storePage(cache, new Request(path), response)).catch(() => undefined)
+    ));
+    await trimPagesCache(cache);
+}
+
 // Red primero (datos frescos con cobertura) y, sin red, la última copia con su fecha en un <meta>
 // que offline_pages.js convierte en el aviso «datos de hace X».
-async function pageNetworkFirst(request) {
+async function pageNetworkFirst(event) {
+    const request = event.request;
     const cache = await caches.open(PAGES_CACHE_NAME);
     try {
         const response = await fetch(request);
-        // Un login caducado redirige (200 final en /accounts/login/): no se guarda
-        if (response.ok && !response.redirected && response.type === 'basic') {
-            const stored = new Response(await response.clone().blob(), {
-                headers: { 'Content-Type': response.headers.get('Content-Type') || 'text/html; charset=utf-8', 'X-SW-Cached-At': String(Date.now()) },
-            });
-            await cache.put(request, stored);
-            await trimPagesCache(cache);
+        if (await storePage(cache, request, response)) {
+            if (new URL(request.url).pathname === '/finde/') {
+                event.waitUntil(response.clone().text().then((html) => prefetchMatchPages(cache, html)));
+            } else {
+                await trimPagesCache(cache);
+            }
         }
         return response;
     } catch (err) {
@@ -111,7 +134,7 @@ self.addEventListener('fetch', (event) => {
     }
 
     if (event.request.mode === 'navigate' && PAGE_CACHE_PATHS.some((re) => re.test(pathname))) {
-        event.respondWith(pageNetworkFirst(event.request));
+        event.respondWith(pageNetworkFirst(event));
         return;
     }
 
