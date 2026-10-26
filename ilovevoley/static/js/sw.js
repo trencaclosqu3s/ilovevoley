@@ -1,6 +1,6 @@
 // Subir la versión cuando cambie /offline/: el navegador solo reinstala el SW (y refresca el precaché) si sw.js cambia.
 // Fuentes y logo no se precachean: en producción se piden con hash y el SWR de /static/ los guarda al usarlos.
-const CACHE_NAME = 'ilovevoley-pwa-v2';
+const CACHE_NAME = 'ilovevoley-pwa-v3';
 const PRECACHE_URLS = [
     '/offline/',
     '/static/css/app.css',
@@ -216,6 +216,21 @@ async function swPutUpload(item) {
     });
 }
 
+async function swMaterializeUploadBlob(item) {
+    if (item.file_bytes && item.file_bytes.byteLength) {
+        return new Blob([item.file_bytes], { type: item.file_mime || 'image/jpeg' });
+    }
+    const blob = item.file_blob;
+    if (!blob || typeof blob.arrayBuffer !== 'function') {
+        return null;
+    }
+    const buf = await blob.arrayBuffer();
+    if (!buf || !buf.byteLength) {
+        return null;
+    }
+    return new Blob([buf], { type: blob.type || 'image/jpeg' });
+}
+
 async function processQueueInServiceWorker() {
     const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
     const activeWindow = clientList.find((c) => new URL(c.url).origin === self.location.origin);
@@ -227,10 +242,18 @@ async function processQueueInServiceWorker() {
     const pending = await swGetPendingUploads();
     for (const item of pending) {
         try {
+            const uploadBlob = await swMaterializeUploadBlob(item);
+            if (!uploadBlob || !uploadBlob.size) {
+                item.status = 'error';
+                item.error_message = 'No se pudo leer la imagen guardada en el dispositivo.';
+                await swPutUpload(item);
+                continue;
+            }
+
             const formData = new FormData();
             formData.append('client_upload_id', item.client_upload_id);
             formData.append('batch_id', item.batch_id || item.client_upload_id);
-            formData.append('image', item.file_blob, item.file_name || 'photo.jpg');
+            formData.append('image', uploadBlob, item.file_name || 'photo.jpg');
             const meta = item.metadata || {};
             if (meta.title) formData.append('title', meta.title);
             if (meta.description) formData.append('description', meta.description);

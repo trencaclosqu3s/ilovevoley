@@ -27,6 +27,29 @@
 
     var isProcessingQueue = false;
     var isPanelCollapsed = false;
+    var activeUploadAbortController = null;
+
+    /**
+     * Safari/iOS con PWA (service worker activo) puede enviar multipart vacío si el
+     * Blob viene de IndexedDB o del picker sin copiar a memoria (WebKit #319985).
+     */
+    function materializeUploadBlob(item) {
+        if (item.file_bytes && item.file_bytes.byteLength) {
+            return Promise.resolve(
+                new Blob([item.file_bytes], { type: item.file_mime || "image/jpeg" })
+            );
+        }
+        var blob = item.file_blob;
+        if (!blob || typeof blob.arrayBuffer !== "function") {
+            return Promise.resolve(null);
+        }
+        return blob.arrayBuffer().then(function (buf) {
+            if (!buf || !buf.byteLength) {
+                return null;
+            }
+            return new Blob([buf], { type: blob.type || "image/jpeg" });
+        });
+    }
 
     function generateUuid() {
         if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -155,6 +178,7 @@
         var now = Date.now();
         return getAllTenantItems().then(function (items) {
             var ops = [];
+            var hadStaleUploading = false;
             items.forEach(function (item) {
                 if (now - (item.created_at || now) > EXPIRY_MS) {
                     ops.push(deleteItem(item.client_upload_id));
@@ -162,10 +186,30 @@
                     item.status === "uploading" &&
                     now - (item.updated_at || item.created_at || now) > STALE_UPLOADING_MS
                 ) {
+                    hadStaleUploading = true;
                     item.status = "pending";
+                    item.attempts = (item.attempts || 0) + 1;
+                    if (item.attempts >= MAX_AUTO_ATTEMPTS) {
+                        item.status = "error";
+                        item.error_message = getI18n(
+                            "stale-error",
+                            "La subida se interrumpió. Reintenta o quita la foto de la cola."
+                        );
+                    }
                     ops.push(putItem(item));
                 }
             });
+            if (hadStaleUploading) {
+                if (activeUploadAbortController) {
+                    try {
+                        activeUploadAbortController.abort();
+                    } catch (abortErr) {
+                        /* ignore */
+                    }
+                    activeUploadAbortController = null;
+                }
+                isProcessingQueue = false;
+            }
             return Promise.all(ops);
         });
     }
@@ -483,10 +527,30 @@
     }
 
     function sendSingleItem(item) {
-        var formData = new FormData();
-        formData.append("client_upload_id", item.client_upload_id);
-        formData.append("batch_id", item.batch_id || item.client_upload_id);
-        formData.append("image", item.file_blob, item.file_name || "foto.jpg");
+        return materializeUploadBlob(item).then(function (uploadBlob) {
+            if (!uploadBlob || !uploadBlob.size) {
+                return {
+                    ok: false,
+                    status: 0,
+                    data: {
+                        error: getI18n(
+                            "blob-read-error",
+                            "No se pudo leer la imagen guardada en el dispositivo."
+                        )
+                    },
+                    blobMissing: true
+                };
+            }
+
+            var formData = new FormData();
+            formData.append("client_upload_id", item.client_upload_id);
+            formData.append("batch_id", item.batch_id || item.client_upload_id);
+            formData.append("image", uploadBlob, item.file_name || "foto.jpg");
+            return postUploadForm(item, formData);
+        });
+    }
+
+    function postUploadForm(item, formData) {
 
         var meta = item.metadata || {};
         if (meta.title) formData.append("title", meta.title);
@@ -512,6 +576,7 @@
             "";
 
         var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+        activeUploadAbortController = controller;
         var timer = null;
         if (controller) {
             timer = setTimeout(function () {
@@ -528,11 +593,25 @@
             credentials: "same-origin",
             body: formData,
             signal: controller ? controller.signal : undefined
-        }).finally(function () {
-            if (timer) {
-                clearTimeout(timer);
-            }
-        });
+        })
+            .then(function (response) {
+                return response
+                    .json()
+                    .catch(function () {
+                        return {};
+                    })
+                    .then(function (data) {
+                        return { ok: response.ok, status: response.status, data: data };
+                    });
+            })
+            .finally(function () {
+                if (timer) {
+                    clearTimeout(timer);
+                }
+                if (activeUploadAbortController === controller) {
+                    activeUploadAbortController = null;
+                }
+            });
     }
 
     function sleep(ms) {
@@ -574,33 +653,34 @@
                     .then(function () {
                         return sendSingleItem(nextItem);
                     })
-                    .then(function (response) {
-                        var status = response.status;
-                        return response
-                            .json()
-                            .catch(function () {
-                                return {};
-                            })
-                            .then(function (data) {
-                                if (response.ok && data && data.ok) {
-                                    nextItem.status = "uploaded";
-                                    nextItem.error_message = "";
-                                    return putItem(nextItem).then(renderWidget).then(nextStep);
-                                }
+                    .then(function (result) {
+                        var status = result.status;
+                        var data = result.data || {};
+                        if (result.ok && data && data.ok) {
+                            nextItem.status = "uploaded";
+                            nextItem.error_message = "";
+                            return putItem(nextItem).then(renderWidget).then(nextStep);
+                        }
 
-                                var isRetryableHttp =
-                                    status === 408 || status === 429 || status === 502 || status === 503 || status === 504 || status >= 500;
-                                if (!isRetryableHttp) {
-                                    nextItem.status = "error";
-                                    nextItem.error_message = (data && data.error) || "Error (" + status + ")";
-                                    return putItem(nextItem).then(renderWidget).then(nextStep);
-                                }
+                        var isRetryableHttp =
+                            !result.blobMissing &&
+                            (status === 408 ||
+                                status === 429 ||
+                                status === 502 ||
+                                status === 503 ||
+                                status === 504 ||
+                                status >= 500 ||
+                                status === 0);
+                        if (!isRetryableHttp) {
+                            nextItem.status = "error";
+                            nextItem.error_message = (data && data.error) || "Error (" + status + ")";
+                            return putItem(nextItem).then(renderWidget).then(nextStep);
+                        }
 
-                                return handleRetryableFailure(
-                                    nextItem,
-                                    (data && data.error) || getI18n("network-error", "Corte de conexión. Se reintentará al recuperar señal.")
-                                );
-                            });
+                        return handleRetryableFailure(
+                            nextItem,
+                            (data && data.error) || getI18n("network-error", "Corte de conexión. Se reintentará al recuperar señal.")
+                        );
                     })
                     .catch(function () {
                         return handleRetryableFailure(
@@ -664,7 +744,6 @@
                         tenant_origin: origin,
                         endpoint: endpoint,
                         csrf_token: csrfToken,
-                        file_blob: compressed.blob,
                         file_name: compressed.fileName,
                         preview_data_url: compressed.previewDataUrl,
                         metadata: itemMeta,
@@ -676,7 +755,14 @@
                         created_at: Date.now() + idx,
                         updated_at: Date.now() + idx
                     };
-                    return putItem(item);
+                    if (tooLarge || !compressed.blob) {
+                        return putItem(item);
+                    }
+                    return compressed.blob.arrayBuffer().then(function (buf) {
+                        item.file_bytes = buf;
+                        item.file_mime = compressed.blob.type || "image/jpeg";
+                        return putItem(item);
+                    });
                 });
             });
         });
