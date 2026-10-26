@@ -14,6 +14,7 @@ import requests
 
 from ilovevoley.competitions.services.delta_detector import (
     detect_and_record_match_changes,
+    is_same_day_placeholder_revert,
     notify_match_result_after_save,
 )
 from ilovevoley.competitions.models import League, Match, ScrapingEndpoint, Standing
@@ -398,7 +399,8 @@ class FederationScraper:
                     match.federation_comment = (match_data.get('comentario') or '')
                     if fed_id:
                         match.federation_id = fed_id
-                    match.match_date = match_data['match_date']
+                    if not is_same_day_placeholder_revert(match.match_date, match_data['match_date']):
+                        match.match_date = match_data['match_date']
                     if round_number:
                         match.round_number = round_number
                     incoming_acta = build_acta_url(
@@ -903,8 +905,8 @@ class FederationScraper:
                         should_update = True
                     # Si el nuevo valor tiene más información (ej: hora específica vs 00:00)
                     elif key == 'match_date' and new_value and current_value:
-                        # Actualizar si el datetime ha cambiado (cambio de día, hora o ambos)
-                        if new_value != current_value:
+                        # Actualizar si el datetime ha cambiado y no retrocede a 00:00 en el mismo día
+                        if new_value != current_value and not is_same_day_placeholder_revert(current_value, new_value):
                             should_update = True
                     # Si tenemos nuevos resultados y el partido estaba sin resultados
                     elif key in ['home_score', 'away_score', 'status'] and new_value is not None:

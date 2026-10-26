@@ -1089,19 +1089,20 @@ class MatchChangeLog(models.Model):
             return 'status_changed'
         return self.change_type
 
+    SUBTYPE_LABELS = {
+        'time_added': _('Hora confirmada'),
+        'datetime_changed': _('Cambio de horario'),
+        'venue_added': _('Sede confirmada'),
+        'venue_changed': _('Cambio de sede'),
+        'status_postponed': _('Partido aplazado'),
+        'status_cancelled': _('Partido suspendido'),
+        'status_rescheduled': _('Partido reprogramado'),
+        'status_changed': _('Cambio de estado'),
+    }
+
     def get_change_subtype_display(self) -> str:
         """Etiqueta legible del subtipo de modificación."""
-        labels = {
-            'time_added': _('Hora confirmada'),
-            'datetime_changed': _('Cambio de horario'),
-            'venue_added': _('Sede confirmada'),
-            'venue_changed': _('Cambio de sede'),
-            'status_postponed': _('Partido aplazado'),
-            'status_cancelled': _('Partido suspendido'),
-            'status_rescheduled': _('Partido reprogramado'),
-            'status_changed': _('Cambio de estado'),
-        }
-        return str(labels.get(self.change_subtype, self.get_change_type_display()))
+        return str(self.SUBTYPE_LABELS.get(self.change_subtype, self.get_change_type_display()))
 
 
 class MatchChangeLogReview(models.Model):

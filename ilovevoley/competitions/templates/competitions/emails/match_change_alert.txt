@@ -7,8 +7,7 @@
 {% if match.league %}{% blocktrans with league=match.league.name %}Competición: {{ league }}{% endblocktrans %}{% endif %}
 
 {% trans "Se han detectado las siguientes variaciones oficiales:" %}
-{% trans "Sin confirmar" as unconfirmed_label %}
-{% trans "(vacío)" as empty_label %}
+{% trans "Sin confirmar" as unconfirmed_label %}{% trans "(vacío)" as empty_label %}
 {% for change in changes %}
 - {% blocktrans with change_type=change.get_change_subtype_display field=change.field_name %}{{ change_type }} ({{ field }}):{% endblocktrans %}
 {% if change.is_addition %}  {% blocktrans with old_value=unconfirmed_label %}Anterior: {{ old_value }}{% endblocktrans %}

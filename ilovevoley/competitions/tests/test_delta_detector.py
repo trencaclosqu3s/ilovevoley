@@ -94,18 +94,31 @@ class DeltaDetectorTest(TestCase):
         self.assertEqual(changes_placeholder[0].change_subtype, 'time_added')
         self.assertTrue(changes_placeholder[0].is_addition)
 
-        # 3. Partido ya con hora confirmada y un parser de calendario sin hora trae 00:00 del mismo día -> no es cambio
+        # 3. Partido ya con hora confirmada y un parser de calendario sin hora trae 00:00 del mismo día -> no es cambio ni pisa la hora
+        from ilovevoley.competitions.scraping.federation import FederationScraper
+
         match_confirmed = Match.objects.create(
             league=self.league,
             home_team=self.team_a,
             away_team=self.team_b,
             match_date=confirmed_dt,
+            round_number=1,
             status='scheduled',
         )
-        changes_reverted_placeholder = detect_and_record_match_changes(
-            match_confirmed, {'match_date': placeholder_dt}
+        scraper = FederationScraper(self.league)
+        scraper.update_matches(
+            [{
+                'home_team': self.team_a.name,
+                'away_team': self.team_b.name,
+                'match_date': placeholder_dt,
+                'round_number': 1,
+                'status': 'scheduled',
+            }],
+            {self.team_a.name: self.team_a, self.team_b.name: self.team_b},
         )
-        self.assertEqual(changes_reverted_placeholder, [])
+        match_confirmed.refresh_from_db()
+        self.assertEqual(match_confirmed.match_date, confirmed_dt)
+        self.assertEqual(MatchChangeLog.objects.filter(match=match_confirmed).count(), 0)
 
     def test_detect_match_date_change_not_last_minute(self):
         # Partido programado para dentro de 20 días
