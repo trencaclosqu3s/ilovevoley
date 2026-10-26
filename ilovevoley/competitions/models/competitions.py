@@ -551,7 +551,8 @@ class Match(models.Model):
         ]
 
     def __str__(self):
-        base = f'{self.home_team_display} vs {self.away_team_display} - {self.match_date.strftime("%d/%m/%Y")}'
+        date_str = f' - {self.match_date.strftime("%d/%m/%Y")}' if self.match_date else ''
+        base = f'{self.home_team_display} vs {self.away_team_display}{date_str}'
         if self.league_id:
             cats = self.league.categories.all()
             if cats:
@@ -1058,6 +1059,49 @@ class MatchChangeLog(models.Model):
 
     def __str__(self):
         return f'{self.match} - {self.get_change_type_display()} ({self.field_name}): {self.old_value} -> {self.new_value}'
+
+    @property
+    def is_addition(self) -> bool:
+        """Indica si el cambio añade un dato que antes no estaba confirmado."""
+        old_val = (self.old_value or '').strip()
+        new_val = (self.new_value or '').strip()
+        if self.change_type == 'datetime':
+            # En los parsers, 00:00 es el placeholder cuando la jornada no tiene hora confirmada.
+            return bool(new_val and not new_val.endswith(' 00:00') and (not old_val or old_val.endswith(' 00:00')))
+        if self.change_type == 'venue':
+            return bool(new_val and not old_val)
+        return False
+
+    @property
+    def change_subtype(self) -> str:
+        """Subtipo semántico deducido de change_type y old_value/new_value sin migración."""
+        if self.change_type == 'datetime':
+            return 'time_added' if self.is_addition else 'datetime_changed'
+        if self.change_type == 'venue':
+            return 'venue_added' if self.is_addition else 'venue_changed'
+        if self.change_type == 'status':
+            if self.new_value == 'postponed':
+                return 'status_postponed'
+            if self.new_value == 'cancelled':
+                return 'status_cancelled'
+            if self.new_value == 'scheduled':
+                return 'status_rescheduled'
+            return 'status_changed'
+        return self.change_type
+
+    def get_change_subtype_display(self) -> str:
+        """Etiqueta legible del subtipo de modificación."""
+        labels = {
+            'time_added': _('Hora confirmada'),
+            'datetime_changed': _('Cambio de horario'),
+            'venue_added': _('Sede confirmada'),
+            'venue_changed': _('Cambio de sede'),
+            'status_postponed': _('Partido aplazado'),
+            'status_cancelled': _('Partido suspendido'),
+            'status_rescheduled': _('Partido reprogramado'),
+            'status_changed': _('Cambio de estado'),
+        }
+        return str(labels.get(self.change_subtype, self.get_change_type_display()))
 
 
 class MatchChangeLogReview(models.Model):

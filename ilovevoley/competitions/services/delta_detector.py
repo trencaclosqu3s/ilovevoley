@@ -53,6 +53,12 @@ def _normalize_datetime(dt: Optional[datetime]) -> Optional[datetime]:
     return dt
 
 
+def _is_placeholder_time(dt: datetime) -> bool:
+    """00:00 local es la convención de 'hora pendiente de confirmar' en los parsers."""
+    local_dt = timezone.localtime(dt) if timezone.is_aware(dt) else dt
+    return local_dt.hour == 0 and local_dt.minute == 0
+
+
 def detect_and_record_match_changes(
     match: Match,
     new_data: Dict[str, Any],
@@ -97,8 +103,15 @@ def detect_and_record_match_changes(
         is_last_minute = True
 
     if new_match_date and cur_match_date:
-        # Considerar cambio si hay más de 60 segundos de diferencia
-        if abs((new_match_date - cur_match_date).total_seconds()) >= 60:
+        cur_local = timezone.localtime(cur_match_date)
+        new_local = timezone.localtime(new_match_date)
+        reverted_to_placeholder = (
+            cur_local.date() == new_local.date()
+            and not _is_placeholder_time(cur_local)
+            and _is_placeholder_time(new_local)
+        )
+        # Considerar cambio si hay más de 60 segundos de diferencia y no es solo un 00:00 del calendario
+        if not reverted_to_placeholder and abs((new_match_date - cur_match_date).total_seconds()) >= 60:
             _record(
                 MatchChangeLog(
                     match=match,
@@ -109,6 +122,17 @@ def detect_and_record_match_changes(
                     is_last_minute=is_last_minute,
                 )
             )
+    elif new_match_date and not cur_match_date and not _is_placeholder_time(new_match_date):
+        _record(
+            MatchChangeLog(
+                match=match,
+                change_type='datetime',
+                field_name='match_date',
+                old_value='',
+                new_value=_format_value(new_match_date),
+                is_last_minute=is_last_minute,
+            )
+        )
 
     # 2. Comprobar sede y pabellón (venue, field_address, city)
     venue_fields = [
