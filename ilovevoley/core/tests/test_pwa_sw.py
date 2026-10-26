@@ -27,7 +27,8 @@ class PWAServiceWorkerTest(TestCase):
         response = service_worker(request)
         content = response.content.decode('utf-8')
 
-        self.assertIn('ilovevoley-pwa-v3', content)
+        self.assertIn('ilovevoley-pwa-v4', content)
+        self.assertIn("importScripts('/static/js/upload_queue_blob.js')", content)
 
         precache_block = re.search(r'PRECACHE_URLS\s*=\s*\[(.*?)\]', content, re.S)
         self.assertIsNotNone(precache_block, 'el SW debe declarar PRECACHE_URLS')
@@ -36,6 +37,7 @@ class PWAServiceWorkerTest(TestCase):
         for asset in (
             '/offline/',
             '/static/css/app.css',
+            '/static/js/upload_queue_blob.js',
             '/static/images/icons/icon-192.png',
             '/static/images/icons/icon-512.png',
         ):

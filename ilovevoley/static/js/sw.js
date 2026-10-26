@@ -1,12 +1,15 @@
+importScripts('/static/js/upload_queue_blob.js');
+
 // Subir la versión cuando cambie /offline/: el navegador solo reinstala el SW (y refresca el precaché) si sw.js cambia.
 // Fuentes y logo no se precachean: en producción se piden con hash y el SWR de /static/ los guarda al usarlos.
-const CACHE_NAME = 'ilovevoley-pwa-v3';
+const CACHE_NAME = 'ilovevoley-pwa-v4';
 const PRECACHE_URLS = [
     '/offline/',
     '/static/css/app.css',
     '/static/js/csp_actions.js',
     '/static/js/pwa_nav.js',
     '/static/js/pwa_install.js',
+    '/static/js/upload_queue_blob.js',
     '/static/js/upload_queue.js',
     '/static/images/logo_app.png',
     '/static/images/icons/icon-192.png',
@@ -216,21 +219,6 @@ async function swPutUpload(item) {
     });
 }
 
-async function swMaterializeUploadBlob(item) {
-    if (item.file_bytes && item.file_bytes.byteLength) {
-        return new Blob([item.file_bytes], { type: item.file_mime || 'image/jpeg' });
-    }
-    const blob = item.file_blob;
-    if (!blob || typeof blob.arrayBuffer !== 'function') {
-        return null;
-    }
-    const buf = await blob.arrayBuffer();
-    if (!buf || !buf.byteLength) {
-        return null;
-    }
-    return new Blob([buf], { type: blob.type || 'image/jpeg' });
-}
-
 async function processQueueInServiceWorker() {
     const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
     const activeWindow = clientList.find((c) => new URL(c.url).origin === self.location.origin);
@@ -242,10 +230,10 @@ async function processQueueInServiceWorker() {
     const pending = await swGetPendingUploads();
     for (const item of pending) {
         try {
-            const uploadBlob = await swMaterializeUploadBlob(item);
+            const uploadBlob = await UploadQueueBlob.materializeFromRecord(item);
             if (!uploadBlob || !uploadBlob.size) {
                 item.status = 'error';
-                item.error_message = 'No se pudo leer la imagen guardada en el dispositivo.';
+                item.error_message = UploadQueueBlob.BLOB_READ_ERROR;
                 await swPutUpload(item);
                 continue;
             }

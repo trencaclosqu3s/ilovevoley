@@ -13745,6 +13745,14 @@ msgstr "El fitxer comprimit supera el límit de 10MB."
 msgid "Fotos añadidas a la cola de subida."
 msgstr "Fotos afegides a la cua de pujada."
 
+#: ilovevoley/templates/includes/upload_queue_widget.html:19
+msgid "La subida se interrumpió. Reintenta o quita la foto de la cola."
+msgstr "La pujada s'ha interromput. Reintenta o treu la foto de la cua."
+
+#: ilovevoley/templates/includes/upload_queue_widget.html:20
+msgid "No se pudo leer la imagen guardada en el dispositivo."
+msgstr "No s'ha pogut llegir la imatge guardada al dispositiu."
+
 #: ilovevoley/templates/includes/upload_queue_widget.html:42
 msgid "Mostrar u ocultar detalles de la cola"
 msgstr "Mostrar o ocultar detalls de la cua"

@@ -16,6 +16,7 @@
     var DB_VERSION = 1;
     var STORE_NAME = "uploads";
     var SYNC_TAG = "sync-photo-uploads";
+    // Límite compartido: reintentos HTTP con backoff y pasadas por uploading obsoleto en cleanupStaleItems.
     var MAX_AUTO_ATTEMPTS = 4;
     var BACKOFF_DELAYS_MS = [2000, 5000, 12000, 25000];
     var UPLOAD_TIMEOUT_MS = 45000;
@@ -28,27 +29,10 @@
     var isProcessingQueue = false;
     var isPanelCollapsed = false;
     var activeUploadAbortController = null;
+    var activeUploadClientId = null;
 
-    /**
-     * Safari/iOS con PWA (service worker activo) puede enviar multipart vacío si el
-     * Blob viene de IndexedDB o del picker sin copiar a memoria (WebKit #319985).
-     */
     function materializeUploadBlob(item) {
-        if (item.file_bytes && item.file_bytes.byteLength) {
-            return Promise.resolve(
-                new Blob([item.file_bytes], { type: item.file_mime || "image/jpeg" })
-            );
-        }
-        var blob = item.file_blob;
-        if (!blob || typeof blob.arrayBuffer !== "function") {
-            return Promise.resolve(null);
-        }
-        return blob.arrayBuffer().then(function (buf) {
-            if (!buf || !buf.byteLength) {
-                return null;
-            }
-            return new Blob([buf], { type: blob.type || "image/jpeg" });
-        });
+        return window.UploadQueueBlob.materializeFromRecord(item);
     }
 
     function generateUuid() {
@@ -142,6 +126,25 @@
         });
     }
 
+    function getItemById(clientUploadId) {
+        return openDb()
+            .then(function (db) {
+                return new Promise(function (resolve, reject) {
+                    var tx = db.transaction(STORE_NAME, "readonly");
+                    var req = tx.objectStore(STORE_NAME).get(clientUploadId);
+                    req.onsuccess = function () {
+                        resolve(req.result || null);
+                    };
+                    req.onerror = function () {
+                        reject(req.error);
+                    };
+                });
+            })
+            .catch(function () {
+                return null;
+            });
+    }
+
     function putItem(item) {
         return openDb().then(function (db) {
             return new Promise(function (resolve, reject) {
@@ -178,7 +181,7 @@
         var now = Date.now();
         return getAllTenantItems().then(function (items) {
             var ops = [];
-            var hadStaleUploading = false;
+            var staleUploadIds = [];
             items.forEach(function (item) {
                 if (now - (item.created_at || now) > EXPIRY_MS) {
                     ops.push(deleteItem(item.client_upload_id));
@@ -186,7 +189,7 @@
                     item.status === "uploading" &&
                     now - (item.updated_at || item.created_at || now) > STALE_UPLOADING_MS
                 ) {
-                    hadStaleUploading = true;
+                    staleUploadIds.push(item.client_upload_id);
                     item.status = "pending";
                     item.attempts = (item.attempts || 0) + 1;
                     if (item.attempts >= MAX_AUTO_ATTEMPTS) {
@@ -199,7 +202,7 @@
                     ops.push(putItem(item));
                 }
             });
-            if (hadStaleUploading) {
+            if (staleUploadIds.length && activeUploadClientId && staleUploadIds.indexOf(activeUploadClientId) !== -1) {
                 if (activeUploadAbortController) {
                     try {
                         activeUploadAbortController.abort();
@@ -208,6 +211,7 @@
                     }
                     activeUploadAbortController = null;
                 }
+                activeUploadClientId = null;
                 isProcessingQueue = false;
             }
             return Promise.all(ops);
@@ -533,10 +537,7 @@
                     ok: false,
                     status: 0,
                     data: {
-                        error: getI18n(
-                            "blob-read-error",
-                            "No se pudo leer la imagen guardada en el dispositivo."
-                        )
+                        error: getI18n("blob-read-error", window.UploadQueueBlob.BLOB_READ_ERROR)
                     },
                     blobMissing: true
                 };
@@ -611,7 +612,46 @@
                 if (activeUploadAbortController === controller) {
                     activeUploadAbortController = null;
                 }
+                if (activeUploadClientId === item.client_upload_id) {
+                    activeUploadClientId = null;
+                }
             });
+    }
+
+    function applyUploadResultIfStillActive(clientUploadId, result, nextStep, handleRetryableFailure) {
+        return getItemById(clientUploadId).then(function (stored) {
+            if (!stored || stored.status !== "uploading") {
+                return nextStep();
+            }
+
+            var status = result.status;
+            var data = result.data || {};
+            if (result.ok && data && data.ok) {
+                stored.status = "uploaded";
+                stored.error_message = "";
+                return putItem(stored).then(renderWidget).then(nextStep);
+            }
+
+            var isRetryableHttp =
+                !result.blobMissing &&
+                (status === 408 ||
+                    status === 429 ||
+                    status === 502 ||
+                    status === 503 ||
+                    status === 504 ||
+                    status >= 500 ||
+                    status === 0);
+            if (!isRetryableHttp) {
+                stored.status = "error";
+                stored.error_message = (data && data.error) || "Error (" + status + ")";
+                return putItem(stored).then(renderWidget).then(nextStep);
+            }
+
+            return handleRetryableFailure(
+                stored,
+                (data && data.error) || getI18n("network-error", "Corte de conexión. Se reintentará al recuperar señal.")
+            );
+        });
     }
 
     function sleep(ms) {
@@ -648,44 +688,31 @@
 
                 nextItem.status = "uploading";
                 nextItem.error_message = "";
+                activeUploadClientId = nextItem.client_upload_id;
                 return putItem(nextItem)
                     .then(renderWidget)
                     .then(function () {
                         return sendSingleItem(nextItem);
                     })
                     .then(function (result) {
-                        var status = result.status;
-                        var data = result.data || {};
-                        if (result.ok && data && data.ok) {
-                            nextItem.status = "uploaded";
-                            nextItem.error_message = "";
-                            return putItem(nextItem).then(renderWidget).then(nextStep);
-                        }
-
-                        var isRetryableHttp =
-                            !result.blobMissing &&
-                            (status === 408 ||
-                                status === 429 ||
-                                status === 502 ||
-                                status === 503 ||
-                                status === 504 ||
-                                status >= 500 ||
-                                status === 0);
-                        if (!isRetryableHttp) {
-                            nextItem.status = "error";
-                            nextItem.error_message = (data && data.error) || "Error (" + status + ")";
-                            return putItem(nextItem).then(renderWidget).then(nextStep);
-                        }
-
-                        return handleRetryableFailure(
-                            nextItem,
-                            (data && data.error) || getI18n("network-error", "Corte de conexión. Se reintentará al recuperar señal.")
+                        return applyUploadResultIfStillActive(
+                            nextItem.client_upload_id,
+                            result,
+                            nextStep,
+                            handleRetryableFailure
                         );
                     })
                     .catch(function () {
-                        return handleRetryableFailure(
-                            nextItem,
-                            getI18n("network-error", "Corte de conexión. Se reintentará al recuperar señal.")
+                        return applyUploadResultIfStillActive(
+                            nextItem.client_upload_id,
+                            {
+                                ok: false,
+                                status: 0,
+                                data: {},
+                                blobMissing: false
+                            },
+                            nextStep,
+                            handleRetryableFailure
                         );
                     });
             });
