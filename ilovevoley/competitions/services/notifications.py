@@ -207,6 +207,46 @@ def _match_organization(match, organizations_by_club):
     return None
 
 
+def _classify_change_flags(changes: List[MatchChangeLog]):
+    """Flags de resumen compartidos por email y Web Push."""
+    datetime_logs = [c for c in changes if c.change_type == 'datetime']
+    venue_logs = [c for c in changes if c.change_type == 'venue']
+    has_datetime = bool(datetime_logs)
+    has_venue = bool(venue_logs)
+    return {
+        'has_postponed': any(c.change_type == 'status' and c.new_value == 'postponed' for c in changes),
+        'has_cancelled': any(c.change_type == 'status' and c.new_value == 'cancelled' for c in changes),
+        'has_rescheduled': any(c.change_type == 'status' and c.new_value == 'scheduled' for c in changes),
+        'has_status': any(c.change_type == 'status' for c in changes),
+        'has_datetime': has_datetime,
+        'has_venue': has_venue,
+        'all_datetime_added': has_datetime and all(c.is_addition for c in datetime_logs),
+        'all_venue_added': has_venue and all(c.is_addition for c in venue_logs),
+    }
+
+
+def summarize_match_changes(changes: List[MatchChangeLog]) -> str:
+    """Resumen tipificado de las modificaciones de un partido para asunto y cabecera."""
+    f = _classify_change_flags(changes)
+    if f['has_postponed']:
+        return _('Partido aplazado')
+    if f['has_cancelled']:
+        return _('Partido suspendido')
+    if f['has_rescheduled']:
+        return _('Partido reprogramado')
+    if f['has_status']:
+        return _('Cambio de estado')
+    if f['has_datetime'] and f['has_venue']:
+        if f['all_datetime_added'] and f['all_venue_added']:
+            return _('Horario y sede confirmados')
+        return _('Cambio de horario y sede')
+    if f['has_datetime']:
+        return _('Hora confirmada') if f['all_datetime_added'] else _('Cambio de horario')
+    if f['has_venue']:
+        return _('Sede confirmada') if f['all_venue_added'] else _('Cambio de sede')
+    return _('Modificación de partido')
+
+
 def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
     """
     Envía notificaciones por email agrupadas por partido para cambios aún no notificados.
@@ -260,12 +300,15 @@ def notify_match_changes(change_logs: List[MatchChangeLog]) -> int:
         for lang, lang_recipients in group_emails_by_language(recipients).items():
             try:
                 with translation.override(lang):
-                    subject = _('[Aviso de Partido] Modificación federativa: %(home)s vs %(away)s') % {
+                    change_summary = summarize_match_changes(logs)
+                    subject = _('[Aviso de Partido] %(summary)s: %(home)s vs %(away)s') % {
+                        'summary': change_summary,
                         'home': match.home_team_display,
                         'away': match.away_team_display,
                     }
-                    html_content = render_to_string('competitions/emails/match_change_alert.html', context)
-                    text_content = render_to_string('competitions/emails/match_change_alert.txt', context)
+                    lang_context = {**context, 'change_summary': change_summary}
+                    html_content = render_to_string('competitions/emails/match_change_alert.html', lang_context)
+                    text_content = render_to_string('competitions/emails/match_change_alert.txt', lang_context)
 
                 if len(lang_recipients) == 1:
                     to_emails = lang_recipients
@@ -391,30 +434,36 @@ def format_match_change_push(match: Match, changes: List[MatchChangeLog]) -> tup
     teams_vs = f"{home_name} vs {away_name}"
     teams_dash = f"{home_name} - {away_name}"
 
-    has_postponed = any(c.change_type == 'status' and c.new_value == 'postponed' for c in changes)
-    has_cancelled = any(c.change_type == 'status' and c.new_value == 'cancelled' for c in changes)
-    has_datetime = any(c.change_type == 'datetime' for c in changes)
-    has_venue = any(c.change_type == 'venue' for c in changes)
+    f = _classify_change_flags(changes)
 
     # Título
-    if has_postponed:
+    if f['has_postponed']:
         title = _("Partido aplazado: %(teams)s") % {'teams': teams_vs}
-    elif has_cancelled:
+    elif f['has_cancelled']:
         title = _("Partido suspendido: %(teams)s") % {'teams': teams_vs}
-    elif has_datetime and has_venue:
-        title = _("Cambio de horario y pista: %(teams)s") % {'teams': teams_vs}
-    elif has_datetime:
-        title = _("Cambio de horario: %(teams)s") % {'teams': teams_vs}
-    elif has_venue:
-        title = _("Cambio de pista: %(teams)s") % {'teams': teams_vs}
+    elif f['has_datetime'] and f['has_venue']:
+        if f['all_datetime_added'] and f['all_venue_added']:
+            title = _("Horario y pista confirmados: %(teams)s") % {'teams': teams_vs}
+        else:
+            title = _("Cambio de horario y pista: %(teams)s") % {'teams': teams_vs}
+    elif f['has_datetime']:
+        if f['all_datetime_added']:
+            title = _("Hora confirmada: %(teams)s") % {'teams': teams_vs}
+        else:
+            title = _("Cambio de horario: %(teams)s") % {'teams': teams_vs}
+    elif f['has_venue']:
+        if f['all_venue_added']:
+            title = _("Pista confirmada: %(teams)s") % {'teams': teams_vs}
+        else:
+            title = _("Cambio de pista: %(teams)s") % {'teams': teams_vs}
     else:
         title = _("Modificación de partido: %(teams)s") % {'teams': teams_vs}
 
     # Cuerpo
     details = []
-    if has_postponed:
+    if f['has_postponed']:
         details.append(_("El partido %(teams)s ha sido aplazado") % {'teams': teams_dash})
-    elif has_cancelled:
+    elif f['has_cancelled']:
         details.append(_("El partido %(teams)s ha sido suspendido") % {'teams': teams_dash})
     else:
         details.append(_("Modificación en el partido %(teams)s") % {'teams': teams_dash})
@@ -422,10 +471,16 @@ def format_match_change_push(match: Match, changes: List[MatchChangeLog]) -> tup
     change_items = []
     for c in changes:
         if c.change_type == 'datetime':
-            change_items.append(_("Nueva fecha/hora: %(value)s") % {'value': c.new_value})
+            if c.is_addition:
+                change_items.append(_("Hora confirmada: %(value)s") % {'value': c.new_value})
+            else:
+                change_items.append(_("Nueva fecha/hora: %(value)s") % {'value': c.new_value})
         elif c.change_type == 'venue':
             label = _(_VENUE_FIELD_LABELS.get(c.field_name, 'pista'))
-            change_items.append(_("Nueva %(label)s: %(value)s") % {'label': label, 'value': c.new_value})
+            if c.is_addition and c.field_name == 'venue':
+                change_items.append(_("Pista confirmada: %(value)s") % {'value': c.new_value})
+            else:
+                change_items.append(_("Nueva %(label)s: %(value)s") % {'label': label, 'value': c.new_value})
 
     if change_items:
         body = f"{details[0]}. {'. '.join(change_items)}."

@@ -53,6 +53,29 @@ def _normalize_datetime(dt: Optional[datetime]) -> Optional[datetime]:
     return dt
 
 
+def _is_placeholder_time(dt: datetime) -> bool:
+    """00:00 local es la convención de 'hora pendiente de confirmar' en los parsers."""
+    local_dt = timezone.localtime(dt) if timezone.is_aware(dt) else dt
+    return local_dt.hour == 0 and local_dt.minute == 0
+
+
+def is_same_day_placeholder_revert(
+    cur_dt: Optional[datetime], new_dt: Optional[datetime]
+) -> bool:
+    """True si el partido ya tenía hora confirmada y el nuevo dato solo trae 00:00 del mismo día."""
+    cur_norm = _normalize_datetime(cur_dt)
+    new_norm = _normalize_datetime(new_dt)
+    if not cur_norm or not new_norm:
+        return False
+    cur_local = timezone.localtime(cur_norm)
+    new_local = timezone.localtime(new_norm)
+    return (
+        cur_local.date() == new_local.date()
+        and not _is_placeholder_time(cur_local)
+        and _is_placeholder_time(new_local)
+    )
+
+
 def detect_and_record_match_changes(
     match: Match,
     new_data: Dict[str, Any],
@@ -97,8 +120,9 @@ def detect_and_record_match_changes(
         is_last_minute = True
 
     if new_match_date and cur_match_date:
-        # Considerar cambio si hay más de 60 segundos de diferencia
-        if abs((new_match_date - cur_match_date).total_seconds()) >= 60:
+        reverted_to_placeholder = is_same_day_placeholder_revert(cur_match_date, new_match_date)
+        # Considerar cambio si hay más de 60 segundos de diferencia y no es solo un 00:00 del calendario
+        if not reverted_to_placeholder and abs((new_match_date - cur_match_date).total_seconds()) >= 60:
             _record(
                 MatchChangeLog(
                     match=match,
@@ -109,6 +133,17 @@ def detect_and_record_match_changes(
                     is_last_minute=is_last_minute,
                 )
             )
+    elif new_match_date and not cur_match_date and not _is_placeholder_time(new_match_date):
+        _record(
+            MatchChangeLog(
+                match=match,
+                change_type='datetime',
+                field_name='match_date',
+                old_value='',
+                new_value=_format_value(new_match_date),
+                is_last_minute=is_last_minute,
+            )
+        )
 
     # 2. Comprobar sede y pabellón (venue, field_address, city)
     venue_fields = [

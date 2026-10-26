@@ -1,4 +1,4 @@
-{% load i18n %}{% trans "Aviso de Modificación Federativa de Partido" %}
+{% load i18n %}{{ change_summary }}
 =============================================
 
 {% if is_test_mode %}[{% trans "MODO PRUEBAS / SIMULACIÓN" %}]{% endif %}
@@ -7,11 +7,12 @@
 {% if match.league %}{% blocktrans with league=match.league.name %}Competición: {{ league }}{% endblocktrans %}{% endif %}
 
 {% trans "Se han detectado las siguientes variaciones oficiales:" %}
-{% trans "(vacío)" as empty_label %}
+{% trans "Sin confirmar" as unconfirmed_label %}{% trans "(vacío)" as empty_label %}
 {% for change in changes %}
-- {% blocktrans with change_type=change.get_change_type_display field=change.field_name %}{{ change_type }} ({{ field }}):{% endblocktrans %}
-  {% blocktrans with old_value=change.old_value|default:empty_label %}Anterior: {{ old_value }}{% endblocktrans %}
-  {% blocktrans with new_value=change.new_value|default:empty_label %}Nuevo:    {{ new_value }}{% endblocktrans %}
+- {% blocktrans with change_type=change.get_change_subtype_display field=change.field_name %}{{ change_type }} ({{ field }}):{% endblocktrans %}
+{% if change.is_addition %}  {% blocktrans with old_value=unconfirmed_label %}Anterior: {{ old_value }}{% endblocktrans %}
+{% else %}  {% blocktrans with old_value=change.old_value|default:empty_label %}Anterior: {{ old_value }}{% endblocktrans %}
+{% endif %}  {% blocktrans with new_value=change.new_value|default:empty_label %}Nuevo:    {{ new_value }}{% endblocktrans %}
 {% endfor %}
 
 {% if match_url %}

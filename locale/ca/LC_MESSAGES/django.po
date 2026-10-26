@@ -1748,6 +1748,89 @@ msgstr ""
 msgid "[Aviso de Partido] Modificación federativa: %(home)s vs %(away)s"
 msgstr "[Avís de Partit] Modificació federativa: %(home)s vs %(away)s"
 
+#: ilovevoley/competitions/services/notifications.py
+#, python-format
+msgid "[Aviso de Partido] %(summary)s: %(home)s vs %(away)s"
+msgstr "[Avís de Partit] %(summary)s: %(home)s vs %(away)s"
+
+#: ilovevoley/competitions/models/competitions.py
+msgid "Hora confirmada"
+msgstr "Hora confirmada"
+
+#: ilovevoley/competitions/models/competitions.py
+msgid "Cambio de horario"
+msgstr "Canvi d'horari"
+
+#: ilovevoley/competitions/models/competitions.py
+msgid "Sede confirmada"
+msgstr "Seu confirmada"
+
+#: ilovevoley/competitions/models/competitions.py
+msgid "Cambio de sede"
+msgstr "Canvi de seu"
+
+#: ilovevoley/competitions/models/competitions.py
+msgid "Partido aplazado"
+msgstr "Partit ajornat"
+
+#: ilovevoley/competitions/models/competitions.py
+msgid "Partido suspendido"
+msgstr "Partit suspès"
+
+#: ilovevoley/competitions/models/competitions.py
+msgid "Partido reprogramado"
+msgstr "Partit reprogramat"
+
+#: ilovevoley/competitions/models/competitions.py
+msgid "Cambio de estado"
+msgstr "Canvi d'estat"
+
+#: ilovevoley/competitions/services/notifications.py
+msgid "Horario y sede confirmados"
+msgstr "Horari i seu confirmats"
+
+#: ilovevoley/competitions/services/notifications.py
+msgid "Cambio de horario y sede"
+msgstr "Canvi d'horari i seu"
+
+#: ilovevoley/competitions/services/notifications.py
+msgid "Modificación de partido"
+msgstr "Modificació de partit"
+
+#: ilovevoley/competitions/services/notifications.py
+#, python-format
+msgid "Horario y pista confirmados: %(teams)s"
+msgstr "Horari i pista confirmats: %(teams)s"
+
+#: ilovevoley/competitions/services/notifications.py
+#, python-format
+msgid "Hora confirmada: %(teams)s"
+msgstr "Hora confirmada: %(teams)s"
+
+#: ilovevoley/competitions/services/notifications.py
+#, python-format
+msgid "Pista confirmada: %(teams)s"
+msgstr "Pista confirmada: %(teams)s"
+
+#: ilovevoley/competitions/services/notifications.py
+#, python-format
+msgid "Hora confirmada: %(value)s"
+msgstr "Hora confirmada: %(value)s"
+
+#: ilovevoley/competitions/services/notifications.py
+#, python-format
+msgid "Pista confirmada: %(value)s"
+msgstr "Pista confirmada: %(value)s"
+
+#: ilovevoley/competitions/templates/competitions/emails/match_change_alert.html
+#, python-format
+msgid "%(summary)s: %(home)s vs %(away)s"
+msgstr "%(summary)s: %(home)s vs %(away)s"
+
+#: ilovevoley/competitions/templates/competitions/emails/match_change_alert.html
+msgid "Sin confirmar"
+msgstr "Sense confirmar"
+
 #: ilovevoley/competitions/services/notifications.py:318
 #, python-format
 msgid "Marcador final: %(result)s (%(sets)s)"
