@@ -1,3 +1,5 @@
+importScripts('/static/js/upload_queue_blob.js');
+
 // Subir la versión cuando cambie /offline/: el navegador solo reinstala el SW (y refresca el precaché) si sw.js cambia.
 // Fuentes y logo no se precachean: en producción se piden con hash y el SWR de /static/ los guarda al usarlos.
 const CACHE_NAME = 'ilovevoley-pwa-v2';
@@ -7,6 +9,7 @@ const PRECACHE_URLS = [
     '/static/js/csp_actions.js',
     '/static/js/pwa_nav.js',
     '/static/js/pwa_install.js',
+    '/static/js/upload_queue_blob.js',
     '/static/js/upload_queue.js',
     '/static/images/logo_app.png',
     '/static/images/icons/icon-192.png',
@@ -227,10 +230,18 @@ async function processQueueInServiceWorker() {
     const pending = await swGetPendingUploads();
     for (const item of pending) {
         try {
+            const uploadBlob = await UploadQueueBlob.materializeFromRecord(item);
+            if (!uploadBlob || !uploadBlob.size) {
+                item.status = 'error';
+                item.error_message = UploadQueueBlob.BLOB_READ_ERROR;
+                await swPutUpload(item);
+                continue;
+            }
+
             const formData = new FormData();
             formData.append('client_upload_id', item.client_upload_id);
             formData.append('batch_id', item.batch_id || item.client_upload_id);
-            formData.append('image', item.file_blob, item.file_name || 'photo.jpg');
+            formData.append('image', uploadBlob, item.file_name || 'photo.jpg');
             const meta = item.metadata || {};
             if (meta.title) formData.append('title', meta.title);
             if (meta.description) formData.append('description', meta.description);
