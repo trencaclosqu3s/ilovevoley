@@ -27,7 +27,7 @@ class PWAServiceWorkerTest(TestCase):
         response = service_worker(request)
         content = response.content.decode('utf-8')
 
-        self.assertIn('ilovevoley-pwa-v4', content)
+        self.assertIn('ilovevoley-pwa-v2', content)
         self.assertIn("importScripts('/static/js/upload_queue_blob.js')", content)
 
         precache_block = re.search(r'PRECACHE_URLS\s*=\s*\[(.*?)\]', content, re.S)
