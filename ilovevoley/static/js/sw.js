@@ -85,7 +85,7 @@ async function prefetchMatchPages(cache, html) {
 // que offline_pages.js convierte en el aviso «datos de hace X».
 async function pageNetworkFirst(event) {
     const pathname = new URL(event.request.url).pathname;
-    // Clave sin query string: una visita a /finde/?x se reutiliza al abrir /finde/ sin red
+    // Clave sin query string: /finde/?x se reutiliza al abrir /finde/ (las fichas con query ni llegan aquí)
     const key = new Request(self.location.origin + pathname);
     const cache = await caches.open(PAGES_CACHE_NAME);
     try {
@@ -135,7 +135,12 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (event.request.mode === 'navigate' && PAGE_CACHE_PATHS.some((re) => re.test(pathname))) {
+    // /finde/ ignora la query; las fichas con query (?story=…) cambian de contenido y van directas a red
+    if (
+        event.request.mode === 'navigate'
+        && PAGE_CACHE_PATHS.some((re) => re.test(pathname))
+        && (pathname === '/finde/' || !url.search)
+    ) {
         event.respondWith(pageNetworkFirst(event));
         return;
     }
