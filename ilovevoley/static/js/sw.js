@@ -84,12 +84,14 @@ async function prefetchMatchPages(cache, html) {
 // Red primero (datos frescos con cobertura) y, sin red, la última copia con su fecha en un <meta>
 // que offline_pages.js convierte en el aviso «datos de hace X».
 async function pageNetworkFirst(event) {
-    const request = event.request;
+    const pathname = new URL(event.request.url).pathname;
+    // Clave sin query string: una visita a /finde/?x se reutiliza al abrir /finde/ sin red
+    const key = new Request(self.location.origin + pathname);
     const cache = await caches.open(PAGES_CACHE_NAME);
     try {
-        const response = await fetch(request);
-        if (await storePage(cache, request, response)) {
-            if (new URL(request.url).pathname === '/finde/') {
+        const response = await fetch(event.request);
+        if (await storePage(cache, key, response)) {
+            if (pathname === '/finde/') {
                 event.waitUntil(response.clone().text().then((html) => prefetchMatchPages(cache, html)));
             } else {
                 await trimPagesCache(cache);
@@ -97,10 +99,10 @@ async function pageNetworkFirst(event) {
         }
         return response;
     } catch (err) {
-        const cached = await cache.match(request);
+        const cached = await cache.match(key);
         const cachedAt = cached ? Number(cached.headers.get('X-SW-Cached-At')) : 0;
         if (!cachedAt || Date.now() - cachedAt > PAGES_MAX_AGE_MS) {
-            if (cached) await cache.delete(request);
+            if (cached) await cache.delete(key);
             return caches.match('/offline/');
         }
         const html = (await cached.text()).replace('</head>', '<meta name="sw-cached-at" content="' + cachedAt + '"></head>');

@@ -1,7 +1,7 @@
 /*
  * Caché offline de páginas privadas (#610). El SW guarda «Este finde» y las fichas de partido;
  * aquí se avisa de la antigüedad cuando se sirven desde caché y se vacía al cerrar sesión o
- * al llegar al login (sesión caducada o cambio de cuenta), para no dejar HTML de otra persona.
+ * al llegar a una pantalla de acceso (sesión caducada o cambio de cuenta), para no dejar HTML de otra persona.
  */
 (function () {
     "use strict";
@@ -13,7 +13,8 @@
         return window.caches ? caches.delete(PAGES_CACHE).catch(function () {}) : Promise.resolve();
     }
 
-    if (location.pathname.indexOf("/accounts/login/") === 0) {
+    // Cualquier pantalla de acceso (login, registro, social), salvo la confirmación de logout, que se puede cancelar
+    if (location.pathname.indexOf("/accounts/") === 0 && location.pathname.indexOf("/accounts/logout/") !== 0) {
         clearPages();
     }
 
