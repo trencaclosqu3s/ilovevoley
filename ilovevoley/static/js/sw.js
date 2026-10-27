@@ -2,7 +2,14 @@ importScripts('/static/js/upload_queue_blob.js');
 
 // Subir la versión cuando cambie /offline/: el navegador solo reinstala el SW (y refresca el precaché) si sw.js cambia.
 // Fuentes y logo no se precachean: en producción se piden con hash y el SWR de /static/ los guarda al usarlos.
-const CACHE_NAME = 'ilovevoley-pwa-v2';
+const CACHE_NAME = 'ilovevoley-pwa-v3';
+// Páginas HTML privadas (requieren sesión) servidas sin red. Se vacía en logout/login (offline_pages.js)
+// y al subir PAGES_CACHE_NAME. Lista blanca explícita: nada fuera de PAGE_CACHE_PATHS se guarda.
+const PAGES_CACHE_NAME = 'ilovevoley-pwa-pages-v1';
+const PAGE_CACHE_PATHS = [/^\/finde\/$/, /^\/partidos\/\d+\/$/];
+const PAGES_MAX_ENTRIES = 30;
+const PREFETCH_MAX_MATCHES = 10;
+const PAGES_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const PRECACHE_URLS = [
     '/offline/',
     '/static/css/app.css',
@@ -11,6 +18,7 @@ const PRECACHE_URLS = [
     '/static/js/pwa_install.js',
     '/static/js/upload_queue_blob.js',
     '/static/js/upload_queue.js',
+    '/static/js/offline_pages.js',
     '/static/images/logo_app.png',
     '/static/images/icons/icon-192.png',
     '/static/images/icons/icon-512.png',
@@ -38,12 +46,69 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((keys) =>
             Promise.all(
                 keys
-                    .filter((key) => key.startsWith('ilovevoley-pwa-') && key !== CACHE_NAME)
+                    .filter((key) => key.startsWith('ilovevoley-pwa-') && key !== CACHE_NAME && key !== PAGES_CACHE_NAME)
                     .map((key) => caches.delete(key))
             )
         )
     );
 });
+
+async function trimPagesCache(cache) {
+    const keys = await cache.keys();
+    // keys() devuelve el orden de inserción: se descartan las más antiguas
+    await Promise.all(keys.slice(0, Math.max(0, keys.length - PAGES_MAX_ENTRIES)).map((k) => cache.delete(k)));
+}
+
+// Un login caducado redirige (200 final en /accounts/login/): solo se guardan respuestas directas
+async function storePage(cache, request, response) {
+    if (!response.ok || response.redirected || response.type !== 'basic') {
+        return false;
+    }
+    const stored = new Response(await response.clone().blob(), {
+        headers: { 'Content-Type': response.headers.get('Content-Type') || 'text/html; charset=utf-8', 'X-SW-Cached-At': String(Date.now()) },
+    });
+    await cache.put(request, stored);
+    return true;
+}
+
+// Al abrir «Este finde» con red se guardan también las fichas de partido que enlaza,
+// que es lo que se consulta en el pabellón sin cobertura.
+async function prefetchMatchPages(cache, html) {
+    const paths = [...new Set(html.match(/\/partidos\/\d+\//g) || [])].slice(0, PREFETCH_MAX_MATCHES);
+    await Promise.all(paths.map((path) =>
+        fetch(path).then((response) => storePage(cache, new Request(path), response)).catch(() => undefined)
+    ));
+    await trimPagesCache(cache);
+}
+
+// Red primero (datos frescos con cobertura) y, sin red, la última copia con su fecha en un <meta>
+// que offline_pages.js convierte en el aviso «datos de hace X».
+async function pageNetworkFirst(event) {
+    const pathname = new URL(event.request.url).pathname;
+    // Clave sin query string: /finde/?x se reutiliza al abrir /finde/ (las fichas con query ni llegan aquí)
+    const key = new Request(self.location.origin + pathname);
+    const cache = await caches.open(PAGES_CACHE_NAME);
+    try {
+        const response = await fetch(event.request);
+        if (await storePage(cache, key, response)) {
+            if (pathname === '/finde/') {
+                event.waitUntil(response.clone().text().then((html) => prefetchMatchPages(cache, html)));
+            } else {
+                await trimPagesCache(cache);
+            }
+        }
+        return response;
+    } catch (err) {
+        const cached = await cache.match(key);
+        const cachedAt = cached ? Number(cached.headers.get('X-SW-Cached-At')) : 0;
+        if (!cachedAt || Date.now() - cachedAt > PAGES_MAX_AGE_MS) {
+            if (cached) await cache.delete(key);
+            return caches.match('/offline/');
+        }
+        const html = (await cached.text()).replace('</head>', '<meta name="sw-cached-at" content="' + cachedAt + '"></head>');
+        return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+}
 
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') {
@@ -67,6 +132,16 @@ self.addEventListener('fetch', (event) => {
         pathname === '/manifest.webmanifest' ||
         pathname === '/sw.js'
     ) {
+        return;
+    }
+
+    // /finde/ ignora la query; las fichas con query (?story=…) cambian de contenido y van directas a red
+    if (
+        event.request.mode === 'navigate'
+        && PAGE_CACHE_PATHS.some((re) => re.test(pathname))
+        && (pathname === '/finde/' || !url.search)
+    ) {
+        event.respondWith(pageNetworkFirst(event));
         return;
     }
 

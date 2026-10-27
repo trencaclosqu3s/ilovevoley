@@ -12559,6 +12559,10 @@ msgstr ""
 "El %(item)s ha estat processat correctament i s'han enviat les notificacions "
 "corresponents."
 
+#: ilovevoley/templates/base.html
+msgid "Sin conexión. Datos guardados"
+msgstr "Sense connexió. Dades desades"
+
 #: ilovevoley/templates/offline.html:3
 msgid "Sin conexión - Balón fuera de cobertura"
 msgstr "Sense connexió - Pilota fora de cobertura"
