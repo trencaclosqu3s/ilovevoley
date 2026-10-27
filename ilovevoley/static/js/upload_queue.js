@@ -28,6 +28,7 @@
 
     var isProcessingQueue = false;
     var isPanelCollapsed = false;
+    var removedIds = {};
     var activeUploadAbortController = null;
     var activeUploadClientId = null;
 
@@ -146,6 +147,9 @@
     }
 
     function putItem(item) {
+        if (removedIds[item.client_upload_id]) {
+            return Promise.resolve(item);
+        }
         return openDb().then(function (db) {
             return new Promise(function (resolve, reject) {
                 var tx = db.transaction(STORE_NAME, "readwrite");
@@ -163,6 +167,7 @@
     }
 
     function deleteItem(clientUploadId) {
+        removedIds[clientUploadId] = true;
         return openDb().then(function (db) {
             return new Promise(function (resolve, reject) {
                 var tx = db.transaction(STORE_NAME, "readwrite");
@@ -482,7 +487,7 @@
                             '<button type="button" data-call="removeUploadItem" data-call-args="' + argJson + '" class="text-xs text-muted hover:text-red-600">' +
                             escapeHtml(getI18n("remove", "Quitar")) +
                             "</button>";
-                    } else if (item.status === "pending") {
+                    } else if (item.status === "pending" || item.status === "uploading") {
                         actionsHtml =
                             '<button type="button" data-call="removeUploadItem" data-call-args="' + argJson + '" class="text-xs text-muted hover:text-red-600">' +
                             escapeHtml(getI18n("remove", "Quitar")) +
@@ -917,8 +922,38 @@
             .then(processQueue);
     };
 
+    function abortActiveUpload(clientUploadId) {
+        if (clientUploadId && activeUploadClientId !== clientUploadId) {
+            return;
+        }
+        if (activeUploadAbortController) {
+            try {
+                activeUploadAbortController.abort();
+            } catch (abortErr) {
+                /* ignore */
+            }
+        }
+    }
+
     window.removeUploadItem = function (clientUploadId) {
-        deleteItem(clientUploadId).then(renderWidget);
+        abortActiveUpload(clientUploadId);
+        return deleteItem(clientUploadId)
+            .catch(function () {})
+            .then(renderWidget);
+    };
+
+    // Salida de emergencia: vacía toda la cola del tenant, también las fotos ilegibles o atascadas.
+    window.clearUploadQueue = function () {
+        abortActiveUpload();
+        return getAllTenantItems()
+            .then(function (items) {
+                return Promise.all(
+                    items.map(function (i) {
+                        return deleteItem(i.client_upload_id).catch(function () {});
+                    })
+                );
+            })
+            .then(renderWidget);
     };
 
     window.closeUploadQueueWidget = function () {

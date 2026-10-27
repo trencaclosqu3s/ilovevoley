@@ -40,6 +40,11 @@
                 {% trans "Reintentar" %}
             </button>
             <button type="button"
+                    data-call="clearUploadQueue"
+                    class="text-xs text-muted hover:text-red-600 px-1.5 py-1">
+                {% trans "Vaciar cola" %}
+            </button>
+            <button type="button"
                     data-call="toggleUploadQueuePanel"
                     aria-label="{% trans 'Mostrar u ocultar detalles de la cola' %}"
                     class="p-1.5 text-muted hover:text-ink rounded-lg">
