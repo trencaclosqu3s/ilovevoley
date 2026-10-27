@@ -17,11 +17,15 @@
         if (!blob || typeof blob.arrayBuffer !== "function") {
             return Promise.resolve(null);
         }
+        // En iOS el blob guardado en IndexedDB puede perder su contenido y arrayBuffer() rechaza:
+        // null = ilegible, no un corte de red que merezca reintentos.
         return blob.arrayBuffer().then(function (buf) {
             if (!buf || !buf.byteLength) {
                 return null;
             }
             return new Blob([buf], { type: blob.type || DEFAULT_MIME });
+        }).catch(function () {
+            return null;
         });
     }
 

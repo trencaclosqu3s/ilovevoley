@@ -13848,6 +13848,10 @@ msgstr "Mostrar o ocultar detalls de la cua"
 msgid "Cerrar cola de subida"
 msgstr "Tancar cua de pujada"
 
+#: ilovevoley/templates/includes/upload_queue_widget.html:44
+msgid "Vaciar cola"
+msgstr "Buidar la cua"
+
 #~ msgid "otro club"
 #~ msgstr "un altre club"
 
