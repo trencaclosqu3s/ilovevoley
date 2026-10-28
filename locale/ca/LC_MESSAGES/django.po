@@ -13153,6 +13153,10 @@ msgstr ""
 msgid "Enviar enlace de confirmación por correo"
 msgstr "Enviar enllaç de confirmació per correu"
 
+#: ilovevoley/users/views.py
+msgid "Esta cuenta no tiene correo. Añádelo en el perfil para poder confirmar el borrado."
+msgstr "Aquest compte no té correu. Afegeix-lo al perfil per poder confirmar l'eliminació."
+
 #: ilovevoley/templates/users/delete_account.html:88
 msgid "Cancelar y volver a mi perfil"
 msgstr "Cancel·lar i tornar al meu perfil"

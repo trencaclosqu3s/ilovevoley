@@ -296,36 +296,12 @@ def build_data_export_task(export_id, organization_id=None):
         export.status = DataExport.Status.READY
         export.expires_at = now + timedelta(days=7)
         export.save(update_fields=['file', 'status', 'expires_at'])
-
-        club_count = user.memberships.count()
-        PrivacyAuditEvent.objects.create(
-            user_id=None,
-            action=PrivacyAuditEvent.Action.EXPORT,
-            club_count=club_count,
-        )
-
-        token = generate_export_token(export)
-        path = reverse('download_data_export', args=[token])
-        org = Organization.objects.filter(pk=organization_id).first() if organization_id else None
-        if org is None:
-            first_membership = (
-                user.memberships.filter(is_approved=True)
-                .select_related('organization')
-                .first()
-            )
-            if first_membership:
-                org = first_membership.organization
-        download_url = build_absolute_url(path, tenant=org)
-
-        if user.email:
-            send_notification_email(
-                subject=lambda: _('Tus datos están listos'),
-                template_name='emails/data_export_ready.html',
-                context={'download_url': download_url, 'user': user},
-                recipient_list=[user.email],
-            )
     except Exception:
         logger.error('Error generating data export %s', export_id, exc_info=True)
+        try:
+            export.refresh_from_db()
+        except DataExport.DoesNotExist:
+            return
         if export.file:
             export.file.delete(save=False)
             export.file = ''
@@ -338,6 +314,35 @@ def build_data_export_task(export_id, organization_id=None):
                 context={'user': user},
                 recipient_list=[user.email],
             )
+        return
+
+    club_count = user.memberships.count()
+    PrivacyAuditEvent.objects.create(
+        user_id=None,
+        action=PrivacyAuditEvent.Action.EXPORT,
+        club_count=club_count,
+    )
+
+    token = generate_export_token(export)
+    path = reverse('download_data_export', args=[token])
+    org = Organization.objects.filter(pk=organization_id).first() if organization_id else None
+    download_url = build_absolute_url(path, tenant=org)
+
+    if not user.email:
+        return
+    try:
+        send_notification_email(
+            subject=lambda: _('Tus datos están listos'),
+            template_name='emails/data_export_ready.html',
+            context={'download_url': download_url, 'user': user},
+            recipient_list=[user.email],
+        )
+    except Exception:
+        logger.error(
+            'Data export %s is ready but the notification email failed',
+            export_id,
+            exc_info=True,
+        )
 
 
 @shared_task(name='cleanup_expired_data_exports')

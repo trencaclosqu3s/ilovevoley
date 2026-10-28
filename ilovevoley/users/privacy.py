@@ -175,154 +175,60 @@ def build_export_zip(user) -> bytes:
         'videos': videos,
     }
 
-    account_rows = [
+    account_rows = [{
+        'record_type': 'profile',
+        'is_approved': profile['is_approved'],
+        'joined_at': profile['date_joined'],
+        'first_name': profile['first_name'],
+        'last_name': profile['last_name'],
+    }]
+    account_rows += [{'record_type': 'membership', **m} for m in memberships]
+    account_rows += [
         {
-            'record_type': 'profile',
-            'organization': '',
-            'role': '',
-            'is_approved': profile['is_approved'],
-            'joined_at': profile['date_joined'],
-            'category': '',
-            'team': '',
-            'notification_type': '',
-            'is_enabled': '',
-            'person_id': '',
-            'first_name': profile['first_name'],
-            'last_name': profile['last_name'],
-            'birth_year': '',
-            'link': '',
-            'image_consent': '',
-            'title': '',
-            'url': '',
-        }
-    ]
-
-    for m in memberships:
-        account_rows.append({
-            'record_type': 'membership',
-            'organization': m['organization'],
-            'role': m['role'],
-            'is_approved': m['is_approved'],
-            'joined_at': m['joined_at'],
-            'category': '',
-            'team': '',
-            'notification_type': '',
-            'is_enabled': '',
-            'person_id': '',
-            'first_name': '',
-            'last_name': '',
-            'birth_year': '',
-            'link': '',
-            'image_consent': '',
-            'title': '',
-            'url': '',
-        })
-
-    for cp in category_preferences:
-        account_rows.append({
             'record_type': 'category_preference',
             'organization': cp['organization'],
-            'role': '',
-            'is_approved': '',
-            'joined_at': '',
             'category': ', '.join(cp['categories']),
             'team': ', '.join(cp['teams']),
-            'notification_type': '',
-            'is_enabled': '',
-            'person_id': '',
-            'first_name': '',
-            'last_name': '',
-            'birth_year': '',
-            'link': '',
-            'image_consent': '',
-            'title': '',
-            'url': '',
-        })
-
-    for np in notification_preferences:
-        account_rows.append({
-            'record_type': 'notification_preference',
-            'organization': np['organization'],
-            'role': '',
-            'is_approved': '',
-            'joined_at': '',
-            'category': '',
-            'team': '',
-            'notification_type': np['notification_type'],
-            'is_enabled': np['is_enabled'],
-            'person_id': '',
-            'first_name': '',
-            'last_name': '',
-            'birth_year': '',
-            'link': '',
-            'image_consent': '',
-            'title': '',
-            'url': '',
-        })
-
-    for p in persons:
-        account_rows.append({
+        }
+        for cp in category_preferences
+    ]
+    account_rows += [
+        {'record_type': 'notification_preference', **np}
+        for np in notification_preferences
+    ]
+    account_rows += [
+        {
             'record_type': 'person',
-            'organization': '',
-            'role': '',
-            'is_approved': '',
-            'joined_at': '',
-            'category': '',
-            'team': '',
-            'notification_type': '',
-            'is_enabled': '',
             'person_id': p['id'],
             'first_name': p['first_name'],
             'last_name': p['last_name'],
-            'birth_year': p['birth_year'] if p['birth_year'] is not None else '',
+            'birth_year': '' if p['birth_year'] is None else p['birth_year'],
             'link': p['link'],
             'image_consent': p['image_consent'],
-            'title': '',
-            'url': '',
-        })
+        }
+        for p in persons
+    ]
 
-    content_rows = []
-    for img in images:
-        content_rows.append({
+    content_rows = [
+        {
             'record_type': 'image',
             'organization': img['organization'],
-            'role': '',
-            'is_approved': '',
             'joined_at': img['uploaded_at'] or '',
-            'category': '',
-            'team': '',
-            'notification_type': '',
-            'is_enabled': '',
-            'person_id': '',
-            'first_name': '',
-            'last_name': '',
-            'birth_year': '',
-            'link': '',
-            'image_consent': '',
             'title': img['title'],
             'url': img['url'],
-        })
-
-    for vid in videos:
-        content_rows.append({
+        }
+        for img in images
+    ]
+    content_rows += [
+        {
             'record_type': 'video',
             'organization': vid['organization'],
-            'role': '',
-            'is_approved': '',
             'joined_at': vid['created_at'] or '',
-            'category': '',
-            'team': '',
-            'notification_type': '',
-            'is_enabled': '',
-            'person_id': '',
-            'first_name': '',
-            'last_name': '',
-            'birth_year': '',
-            'link': '',
-            'image_consent': '',
             'title': vid['title'],
             'url': vid['youtube_url'],
-        })
+        }
+        for vid in videos
+    ]
 
     account_csv = _render_csv(account_rows, CSV_COLUMNS)
     content_csv = _render_csv(content_rows, CSV_COLUMNS)
@@ -569,6 +475,24 @@ def _erase_account(user, content_choice):
     return paths
 
 
+def _lock_club_admins(user):
+    """Lock admin rows in pk order so two confirmations cannot both pass."""
+    from .models import Membership
+
+    org_ids = list(
+        Membership.objects.filter(
+            user=user, role='admin', is_approved=True,
+        ).values_list('organization_id', flat=True)
+    )
+    if not org_ids:
+        return
+    list(
+        Membership.objects.select_for_update()
+        .filter(organization_id__in=org_ids, role='admin', is_approved=True)
+        .order_by('pk')
+    )
+
+
 def apply_erasure(user, content_choice):
     from django.core.files.storage import default_storage
     from django.db import transaction
@@ -579,10 +503,11 @@ def apply_erasure(user, content_choice):
         return
     if user.is_staff or user.is_superuser:
         raise ErasureRefused('staff')
-    clubs = blocking_admin_clubs(user)
-    if clubs:
-        raise ErasureRefused('last_admin', clubs)
     with transaction.atomic():
+        _lock_club_admins(user)
+        clubs = blocking_admin_clubs(user)
+        if clubs:
+            raise ErasureRefused('last_admin', clubs)
         paths = _erase_account(user, content_choice)
     for name in paths:
         if name:

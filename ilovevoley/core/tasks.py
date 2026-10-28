@@ -315,7 +315,7 @@ def notify_image_moderation_result_task(image_id, approved, site_name=None):
         image = Image.objects.select_related('uploaded_by').get(pk=image_id)
     except Image.DoesNotExist:
         return False
-    if not image.uploaded_by.email:
+    if not image.uploaded_by or not image.uploaded_by.email:
         return False
 
     return send_notification_email(

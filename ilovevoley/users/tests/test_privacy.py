@@ -183,6 +183,20 @@ class ExportTaskTests(TestCase):
         self.assertFalse(export.file)
         self.assertEqual(len(mail.outbox), 0)
 
+    def test_email_failure_keeps_the_ready_export(self):
+        export = DataExport.objects.create(user=self.user, status=DataExport.Status.PENDING)
+        with patch(
+            'ilovevoley.core.email_utils.send_notification_email',
+            side_effect=RuntimeError('smtp'),
+        ):
+            build_data_export_task(export.pk, self.org.pk)
+        export.refresh_from_db()
+        self.assertEqual(export.status, DataExport.Status.READY)
+        self.assertTrue(export.file)
+        self.assertTrue(
+            PrivacyAuditEvent.objects.filter(action=PrivacyAuditEvent.Action.EXPORT).exists()
+        )
+
     def test_failed_build_leaves_no_file(self):
         export = DataExport.objects.create(user=self.user, status=DataExport.Status.PENDING)
         with patch('ilovevoley.users.tasks.build_export_zip', side_effect=RuntimeError('disk')):
@@ -603,6 +617,19 @@ class ErasureViewTests(TestCase):
             user=self.user, organization=self.org, role='member', is_approved=True,
         )
         self.client.force_login(self.user)
+
+    def test_account_without_email_is_not_told_the_link_was_sent(self):
+        self.user.email = ''
+        self.user.save(update_fields=['email'])
+        response = self.client.post(
+            reverse('delete_account'), {'content_choice': 'delete'}, HTTP_HOST=HOST,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Esta cuenta no tiene correo')
+        self.assertNotContains(response, 'Hemos enviado un enlace')
+        self.assertEqual(mail.outbox, [])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, 'ana')
 
     def test_post_sends_the_link_and_does_not_anonymize(self):
         url = reverse('delete_account')
