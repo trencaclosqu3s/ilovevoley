@@ -1,5 +1,6 @@
 import json
 import logging
+from urllib.parse import quote
 
 from django.conf import settings
 from django.db.models import Q
@@ -7,7 +8,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import HttpResponseBadRequest, JsonResponse
+from django.http import FileResponse, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -598,3 +599,27 @@ def deactivate_account_view(request, token):
         'target_user': target_user,
         'token': token,
     })
+
+
+@ratelimit(key='ip', rate='10/m', block=True)
+def download_data_export(request, token):
+    from .privacy import export_for_token
+
+    export = export_for_token(token)
+    if not export or not export.file:
+        return render(request, 'users/data_export_invalid.html', status=400)
+
+    if getattr(settings, 'PROTECTED_MEDIA_USE_X_ACCEL', False):
+        response = HttpResponse(content_type='application/zip')
+        prefix = getattr(settings, 'PROTECTED_MEDIA_INTERNAL_URL', '/protected-media/')
+        response['X-Accel-Redirect'] = f'{prefix}{quote(export.file.name, safe="/")}'
+        response['Content-Disposition'] = 'attachment; filename="mis-datos.zip"'
+    else:
+        response = FileResponse(
+            export.file.open('rb'),
+            as_attachment=True,
+            filename='mis-datos.zip',
+            content_type='application/zip',
+        )
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response

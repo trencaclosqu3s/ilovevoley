@@ -6,6 +6,7 @@ urlpatterns = [
     path('profile/', views.profile_view, name='profile'),
     path('profile/edit/', views.profile_edit, name='profile_edit'),
     path('profile/onboarding/descartar/', views.dismiss_onboarding, name='dismiss_onboarding'),
+    path('profile/exportar/<str:token>/', views.download_data_export, name='download_data_export'),
     path('get-calendar-token/', views.get_calendar_token, name='get_calendar_token'),
     path('regenerate-calendar-token/', views.regenerate_calendar_token, name='regenerate_calendar_token'),
     # Endpoints Web Push PWA

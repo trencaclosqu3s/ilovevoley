@@ -11,6 +11,7 @@ from ilovevoley.core.tenant_utils import build_absolute_url
 from .models import (
     CategoryPreference, NotificationPreference, WebPushAudit, WebPushSubscription,
 )
+from .privacy import build_export_zip
 from .webpush import send_web_push
 
 logger = logging.getLogger(__name__)
@@ -252,4 +253,104 @@ def process_inactive_users_task(first_warning_days=335, final_warning_days=358, 
         'final_warnings_sent': final_warnings_sent,
         'deactivated_count': deactivated_count,
     }
+
+
+@shared_task(name='build_data_export')
+def build_data_export_task(export_id, organization_id=None):
+    from django.core.files.base import ContentFile
+    from django.urls import reverse
+    from django.utils.translation import gettext as _
+    from ilovevoley.core.email_utils import send_notification_email
+    from .models import DataExport, PrivacyAuditEvent
+    from .privacy import (
+        generate_export_token,
+        is_erased,
+    )
+
+    try:
+        export = DataExport.objects.select_related('user').get(
+            pk=export_id, status=DataExport.Status.PENDING,
+        )
+    except DataExport.DoesNotExist:
+        return
+
+    user = export.user
+    if is_erased(user):
+        return
+
+    try:
+        payload = build_export_zip(user)
+
+        try:
+            export.refresh_from_db()
+            user.refresh_from_db()
+        except (DataExport.DoesNotExist, user.__class__.DoesNotExist):
+            return
+
+        if is_erased(user) or export.status != DataExport.Status.PENDING:
+            return
+
+        now = timezone.now()
+        filename = f'{user.pk}_{now.strftime("%Y%m%d%H%M%S")}.zip'
+        export.file.save(filename, ContentFile(payload), save=False)
+        export.status = DataExport.Status.READY
+        export.expires_at = now + timedelta(days=7)
+        export.save(update_fields=['file', 'status', 'expires_at'])
+
+        club_count = user.memberships.count()
+        PrivacyAuditEvent.objects.create(
+            user_id=None,
+            action=PrivacyAuditEvent.Action.EXPORT,
+            club_count=club_count,
+        )
+
+        token = generate_export_token(export)
+        path = reverse('download_data_export', args=[token])
+        org = Organization.objects.filter(pk=organization_id).first() if organization_id else None
+        if org is None:
+            first_membership = (
+                user.memberships.filter(is_approved=True)
+                .select_related('organization')
+                .first()
+            )
+            if first_membership:
+                org = first_membership.organization
+        download_url = build_absolute_url(path, tenant=org)
+
+        if user.email:
+            send_notification_email(
+                subject=lambda: _('Tus datos están listos'),
+                template_name='emails/data_export_ready.html',
+                context={'download_url': download_url, 'user': user},
+                recipient_list=[user.email],
+            )
+    except Exception:
+        logger.error('Error generating data export %s', export_id, exc_info=True)
+        if export.file:
+            export.file.delete(save=False)
+            export.file = ''
+        export.status = DataExport.Status.FAILED
+        export.save(update_fields=['file', 'status'])
+        if not is_erased(user) and user.email:
+            send_notification_email(
+                subject=lambda: _('Error al generar la exportación de tus datos'),
+                template_name='emails/data_export_failed.html',
+                context={'user': user},
+                recipient_list=[user.email],
+            )
+
+
+@shared_task(name='cleanup_expired_data_exports')
+def cleanup_expired_data_exports_task():
+    from .privacy import cleanup_expired_data_exports
+
+    cleanup_expired_data_exports()
+
+
+@shared_task(name='cleanup_expired_privacy_audit_events')
+def cleanup_expired_privacy_audit_events_task():
+    from .privacy import cleanup_expired_privacy_audit_events
+
+    cleanup_expired_privacy_audit_events()
+
 

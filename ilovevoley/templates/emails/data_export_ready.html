@@ -1,0 +1,31 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Tus datos están listos" %} - {{ site_name }}
+{% endblock %}
+
+{% block header_subtitle %}
+    {% trans "Exportación de datos de tu cuenta" %}
+{% endblock %}
+
+{% block content %}
+    <h3>{% blocktrans with name=user.get_full_name|default:user.username %}Hola {{ name }},{% endblocktrans %}</h3>
+
+    <p>{% trans "Hemos preparado la copia de tus datos personales asociados a tu cuenta en todos los clubes." %}</p>
+
+    <p>{% trans "El archivo comprimido en formato ZIP contiene tu información de perfil, membresías, preferencias y contenido en formatos JSON y CSV." %}</p>
+
+    <p>{% trans "Por motivos de seguridad, este enlace de descarga caducará en 7 días." %}</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{ download_url }}" class="button" style="font-size: 16px; font-weight: bold; background-color: #3498db;">
+            {% trans "Descargar mis datos" %}
+        </a>
+    </div>
+
+    <p style="font-size: 13px; color: #666;">
+        {% trans "Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:" %}<br>
+        <a href="{{ download_url }}">{{ download_url }}</a>
+    </p>
+{% endblock %}

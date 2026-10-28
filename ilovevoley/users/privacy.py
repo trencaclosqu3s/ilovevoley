@@ -4,15 +4,18 @@ import io
 import json
 import zipfile
 
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.db.models import Q
 from django.utils import timezone
 
 from ilovevoley.content.models import Image, Video
 from ilovevoley.rosters.models import Person
 
-from .models import DataExport
+from .models import DataExport, PrivacyAuditEvent
 
 EXPORT_PENDING_MAX_AGE = timedelta(hours=1)
+EXPORT_TOKEN_SALT = 'ilovevoley.users.data_export.v1'
+EXPORT_TOKEN_MAX_AGE = timedelta(days=7)
 
 CSV_COLUMNS = [
     'record_type',
@@ -330,4 +333,60 @@ def build_export_zip(user) -> bytes:
         zf.writestr('content.csv', content_csv)
 
     return zip_buffer.getvalue()
+
+
+def generate_export_token(export) -> str:
+    signer = TimestampSigner(salt=EXPORT_TOKEN_SALT)
+    return signer.sign(str(export.pk))
+
+
+def export_for_token(token) -> DataExport | None:
+    signer = TimestampSigner(salt=EXPORT_TOKEN_SALT)
+    try:
+        export_id = signer.unsign(token, max_age=EXPORT_TOKEN_MAX_AGE)
+    except (BadSignature, SignatureExpired, ValueError):
+        return None
+
+    try:
+        export = DataExport.objects.get(pk=export_id)
+    except DataExport.DoesNotExist:
+        return None
+
+    if export.status != DataExport.Status.READY:
+        return None
+    if not export.file:
+        return None
+    if export.expires_at is None or export.expires_at <= timezone.now():
+        return None
+
+    return export
+
+
+def cleanup_expired_data_exports() -> None:
+    cutoff_pending = timezone.now() - EXPORT_PENDING_MAX_AGE
+    DataExport.objects.filter(
+        status=DataExport.Status.PENDING,
+        created_at__lt=cutoff_pending,
+    ).update(status=DataExport.Status.FAILED)
+
+    expired_ready = DataExport.objects.filter(
+        status=DataExport.Status.READY,
+        expires_at__lt=timezone.now(),
+    )
+    for export in expired_ready:
+        if export.file:
+            export.file.delete(save=False)
+        export.delete()
+
+    cutoff_failed = timezone.now() - timedelta(days=7)
+    DataExport.objects.filter(
+        status=DataExport.Status.FAILED,
+        created_at__lt=cutoff_failed,
+    ).delete()
+
+
+def cleanup_expired_privacy_audit_events() -> None:
+    cutoff_audit = timezone.now() - timedelta(days=365)
+    PrivacyAuditEvent.objects.filter(created_at__lt=cutoff_audit).delete()
+
 
