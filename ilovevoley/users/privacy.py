@@ -390,3 +390,165 @@ def cleanup_expired_privacy_audit_events() -> None:
     PrivacyAuditEvent.objects.filter(created_at__lt=cutoff_audit).delete()
 
 
+class ErasureRefused(Exception):
+    def __init__(self, code, clubs=()):
+        super().__init__(code)
+        self.code = code
+        self.clubs = tuple(clubs)
+
+
+def blocking_admin_clubs(user):
+    from .models import Membership
+
+    clubs = []
+    memberships = Membership.objects.filter(
+        user=user,
+        role='admin',
+        is_approved=True,
+    ).select_related('organization')
+    for membership in memberships:
+        has_other = Membership.objects.filter(
+            organization_id=membership.organization_id,
+            role='admin',
+            is_approved=True,
+            user__is_active=True,
+        ).exclude(user_id=user.pk).exists()
+        if not has_other:
+            clubs.append(membership.organization)
+    return clubs
+
+
+def _storage_names(field):
+    name = getattr(field, 'name', '') or ''
+    return [name] if name else []
+
+
+def _clear_sessions(user):
+    from django.contrib.sessions.models import Session
+
+    user_id = str(user.pk)
+    for session in Session.objects.filter(expire_date__gte=timezone.now()).iterator():
+        if session.get_decoded().get('_auth_user_id') == user_id:
+            session.delete()
+
+
+def _erase_account(user, content_choice):
+    from allauth.account.models import EmailAddress
+    from allauth.socialaccount.models import SocialAccount
+
+    from ilovevoley.competitions.models.callups import CallUpPlayer
+    from ilovevoley.competitions.models.competitions import (
+        MatchActaPhoto,
+        MatchChangeLogReview,
+        MatchLineupPersonLink,
+        MatchShareLink,
+    )
+    from ilovevoley.competitions.models.story import StoryComposition
+    from ilovevoley.content.models import (
+        Comment,
+        ImageFavorite,
+        ImageRemovalRequest,
+        SharedUpload,
+    )
+    from ilovevoley.rosters.models import PersonLinkRequest
+
+    paths = []
+    Comment.objects.filter(user=user).delete()
+    ImageFavorite.objects.filter(user=user).delete()
+    StoryComposition.objects.filter(user=user).delete()
+    for upload in SharedUpload.objects.filter(owner=user):
+        paths.extend(_storage_names(upload.file))
+    SharedUpload.objects.filter(owner=user).delete()
+    PersonLinkRequest.objects.filter(user=user).delete()
+
+    images = Image.objects.filter(uploaded_by=user)
+    videos = Video.objects.filter(created_by=user)
+    if content_choice == 'delete':
+        for image in images:
+            for field_name in (
+                'image',
+                'thumbnail_small',
+                'thumbnail_large',
+                'thumbnail_small_avif',
+                'thumbnail_large_avif',
+            ):
+                paths.extend(_storage_names(getattr(image, field_name)))
+        images.delete()
+        videos.delete()
+    else:
+        images.update(uploaded_by=None)
+        videos.update(created_by=None)
+
+    Image.objects.filter(moderated_by=user).update(moderated_by=None)
+    ImageRemovalRequest.objects.filter(requested_by=user).update(requested_by=None, reason='')
+    ImageRemovalRequest.objects.filter(resolved_by=user).update(resolved_by=None)
+    PersonLinkRequest.objects.filter(resolved_by=user).update(resolved_by=None)
+    MatchShareLink.objects.filter(created_by=user).update(created_by=None)
+    MatchLineupPersonLink.objects.filter(created_by=user).update(created_by=None)
+    MatchChangeLogReview.objects.filter(reviewed_by=user).update(reviewed_by=None)
+    MatchActaPhoto.objects.filter(reviewed_by=user).update(reviewed_by=None)
+    CallUpPlayer.objects.filter(reviewed_by=user).update(reviewed_by=None)
+
+    Person.objects.filter(user=user).update(user=None)
+    user.children.clear()
+
+    club_count = user.memberships.count()
+    user.memberships.all().delete()
+    user.category_preferences.all().delete()
+    user.notification_preferences.all().delete()
+    user.web_push_subscriptions.all().delete()
+    _clear_sessions(user)
+    SocialAccount.objects.filter(user=user).delete()
+    EmailAddress.objects.filter(user=user).delete()
+
+    for export in user.data_exports.all():
+        paths.extend(_storage_names(export.file))
+    user.data_exports.all().delete()
+
+    paths.extend(_storage_names(user.avatar))
+    user.username = f'deleted-{user.pk}'
+    user.email = ''
+    user.first_name = ''
+    user.last_name = ''
+    user.parent_info = ''
+    user.preferred_language = ''
+    user.calendar_token = None
+    user.avatar = ''
+    user.is_active = False
+    user.is_approved = False
+    user.inactivity_warning_level = 0
+    user.inactivity_warning_sent_at = None
+    user.pending_profile_review = False
+    user.reactivation_requested_at = None
+    user.onboarding_dismissed_at = None
+    user.set_unusable_password()
+    user.save()
+    PrivacyAuditEvent.objects.create(
+        user_id=user.pk,
+        action=PrivacyAuditEvent.Action.ERASURE,
+        content_choice=content_choice,
+        club_count=club_count,
+    )
+    return paths
+
+
+def apply_erasure(user, content_choice):
+    from django.core.files.storage import default_storage
+    from django.db import transaction
+
+    if content_choice not in ('delete', 'retain'):
+        raise ValueError(content_choice)
+    if is_erased(user):
+        return
+    if user.is_staff or user.is_superuser:
+        raise ErasureRefused('staff')
+    clubs = blocking_admin_clubs(user)
+    if clubs:
+        raise ErasureRefused('last_admin', clubs)
+    with transaction.atomic():
+        paths = _erase_account(user, content_choice)
+    for name in paths:
+        if name:
+            default_storage.delete(name)
+
+
