@@ -435,34 +435,6 @@ def process_json_unified_task(self, json_url, op_type='1', league_id=None, categ
     except Exception:
         # Relanzar: Celery marca FAILURE y Sentry captura el traceback
         raise
-    
-    # Normalizar nombre para búsqueda
-    normalized_name = unidecode(team_name.upper())
-    normalized_name = ''.join(c for c in normalized_name if c.isalnum() or c.isspace())
-    normalized_name = ' '.join(normalized_name.split())
-    
-    # Obtener las categorías de la liga
-    league_categories = league.categories.all()
-
-    # Buscar por nombre exacto primero
-    team = Team.objects.filter(
-        name__iexact=team_name,
-        category__in=league_categories
-    ).first()
-
-    if team:
-        return team
-
-    # Buscar por nombre normalizado
-    for team in Team.objects.filter(category__in=league_categories):
-        team_normalized = unidecode(team.name.upper())
-        team_normalized = ''.join(c for c in team_normalized if c.isalnum() or c.isspace())
-        team_normalized = ' '.join(team_normalized.split())
-        
-        if team_normalized == normalized_name:
-            return team
-
-    return None
 
 __all__ = [
     'enrich_matches_json_task',
