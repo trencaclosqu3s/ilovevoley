@@ -4,13 +4,13 @@ version = "0.0.0"
 description = "Plataforma de gestión de vídeos, imágenes, competiciones y plantillas de voleibol"
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "Django==6.0.8",
+    "Django==6.0.9",
     "django-unfold==0.110.0",
     "psycopg2-binary==2.9.13",
     "python-decouple==3.8",
     "Pillow==13.0.0",
     "pillow-heif==1.8.1",
-    "django-allauth==65.19.7",
+    "django-allauth==65.20.1",
     "requests==2.34.2",
     # Requerido por allauth para verificar ID tokens de Google OAuth2
     # (evita el extra [socialaccount] que arrastra oauthlib/CVE-2026-49265)
