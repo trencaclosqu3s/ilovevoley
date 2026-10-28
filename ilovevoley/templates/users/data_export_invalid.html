@@ -1,0 +1,28 @@
+{% extends "base_auth.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Enlace no válido" %} - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-lg">
+    <div class="bg-surface rounded-lg shadow-lg p-6 sm:p-8 border-t-4 border-red-500">
+        <div class="text-center mb-6">
+            <div class="text-6xl mb-4">{% icon 'x-circle' %}</div>
+            <h1 class="text-2xl font-bold text-ink mb-2">
+                {% trans "Enlace de descarga no válido o caducado" %}
+            </h1>
+        </div>
+
+        <div class="space-y-4 mb-6 text-center text-sm text-muted">
+            <p>{% trans "El enlace para descargar tus datos no es válido o ha expirado." %}</p>
+            <p class="text-xs text-muted">{% trans "Puedes solicitar una nueva exportación desde tu perfil." %}</p>
+        </div>
+
+        <div class="text-center">
+            <a href="{% url 'profile' %}" class="inline-block bg-csj-purple-dark hover:bg-csj-purple-dark text-white px-6 py-3 rounded-lg font-medium transition touch-manipulation">
+                {% trans "Ir a mi perfil" %}
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

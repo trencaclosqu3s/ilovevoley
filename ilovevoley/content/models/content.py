@@ -54,7 +54,9 @@ class Video(models.Model):
         help_text=_('Temporada a la que pertenece el vídeo'),
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+    )
     organization = models.ForeignKey(
         'core.Organization',
         on_delete=models.PROTECT,
@@ -306,8 +308,10 @@ class Image(models.Model):
     # Metadatos
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='uploaded_images'
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_images',
     )
     upload_date = models.DateTimeField(auto_now_add=True)
 
@@ -602,7 +606,9 @@ class ImageRemovalRequest(models.Model):
     )
     requested_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='image_removal_requests',
         verbose_name=_('Solicitada por'),
     )
