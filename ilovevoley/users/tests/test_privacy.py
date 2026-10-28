@@ -6,9 +6,11 @@ from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 from PIL import Image as PilImage
 
@@ -216,5 +218,73 @@ class ExportTaskTests(TestCase):
         export.save(update_fields=['expires_at'])
         self.assertIsNone(export_for_token(token))
         self.assertIsNone(export_for_token('no-es-un-token'))
+
+
+HOST = 'club-a.ilovevoley.es'
+
+
+@override_settings(ALLOWED_HOSTS=[HOST, 'localhost'])
+class ExportViewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = get_user_model().objects.create_user(
+            username='ana', password='pass', email='ana@example.com',
+        )
+        self.org = Organization.objects.create(slug='club-a', name='Club A')
+        Membership.objects.create(
+            user=self.user, organization=self.org, role='member', is_approved=True,
+        )
+        self.client.force_login(self.user)
+
+    def test_second_post_does_not_create_another_export(self):
+        url = reverse('request_data_export')
+        self.client.post(url, HTTP_HOST=HOST)
+        self.client.post(url, HTTP_HOST=HOST)
+        self.assertEqual(DataExport.objects.filter(user=self.user).count(), 1)
+        self.assertEqual(
+            DataExport.objects.get(user=self.user).status, DataExport.Status.PENDING,
+        )
+
+    def test_bad_token_does_not_return_the_zip(self):
+        export = DataExport.objects.create(
+            user=self.user, status=DataExport.Status.READY,
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+        export.file.save('listo.zip', ContentFile(b'PK\x03\x04datos'), save=True)
+        bad = self.client.get(
+            reverse('download_data_export', args=['token-malo']), HTTP_HOST=HOST,
+        )
+        self.assertNotIn(b'PK\x03\x04datos', bad.content)
+        good = self.client.get(
+            reverse('download_data_export', args=[generate_export_token(export)]),
+            HTTP_HOST=HOST,
+        )
+        good_content = (
+            b''.join(good.streaming_content)
+            if hasattr(good, 'streaming_content')
+            else good.content
+        )
+        self.assertIn(b'PK\x03\x04datos', good_content)
+
+    def test_ready_export_without_file_does_not_serve_bytes(self):
+        export = DataExport.objects.create(
+            user=self.user, status=DataExport.Status.READY,
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+        response = self.client.get(
+            reverse('download_data_export', args=[generate_export_token(export)]),
+            HTTP_HOST=HOST,
+        )
+        self.assertNotIn(b'PK\x03\x04', response.content)
+
+    def test_media_url_does_not_serve_the_export(self):
+        export = DataExport.objects.create(
+            user=self.user, status=DataExport.Status.READY,
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+        export.file.save('listo.zip', ContentFile(b'PK\x03\x04datos'), save=True)
+        response = self.client.get('/media/' + export.file.name, HTTP_HOST=HOST)
+        self.assertNotIn(b'PK\x03\x04datos', response.content)
+
 
 

@@ -235,6 +235,20 @@
             {% endif %}
         </div>
         {% endif %}
+
+        <!-- Tus datos -->
+        <div class="bg-surface rounded-[20px] border border-line p-6">
+            <h2 class="text-base font-bold text-ink mb-1">{% trans "Tus datos" %}</h2>
+            <p class="text-xs text-muted mb-4">
+                {% trans "Puedes descargar una copia con los datos de tu cuenta en todos los clubes. Te enviaremos un enlace de descarga a tu correo que caducará a los 7 días." %}
+            </p>
+            <form method="post" action="{% url 'request_data_export' %}">
+                {% csrf_token %}
+                <button type="submit" class="px-4 py-2 bg-surface text-ink border border-line hover:bg-tint font-semibold rounded-xl text-sm transition">
+                    {% trans "Descargar mis datos" %}
+                </button>
+            </form>
+        </div>
     </div>
 
     <!-- ========================================== -->

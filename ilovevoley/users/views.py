@@ -602,6 +602,43 @@ def deactivate_account_view(request, token):
 
 
 @ratelimit(key='ip', rate='10/m', block=True)
+@login_required
+@require_POST
+def request_data_export(request):
+    from ilovevoley.core.email_utils import enqueue_on_commit
+    from .models import DataExport
+    from .privacy import active_export_for
+    from .tasks import build_data_export_task
+
+    user = request.user
+    if active_export_for(user):
+        messages.info(
+            request,
+            _('Ya hay una exportación en proceso. Recibirás el enlace por correo.'),
+        )
+        return redirect('profile')
+
+    export = DataExport.objects.create(
+        user=user,
+        status=DataExport.Status.PENDING,
+    )
+
+    tenant = getattr(request, 'tenant', None)
+    tenant_id = tenant.pk if tenant else None
+    if not tenant_id:
+        membership = user.memberships.filter(is_approved=True).first()
+        if membership:
+            tenant_id = membership.organization_id
+
+    enqueue_on_commit(build_data_export_task, export.pk, tenant_id)
+    messages.success(
+        request,
+        _('Estamos preparando la exportación de tus datos. Te enviaremos un correo con el enlace cuando esté lista.'),
+    )
+    return redirect('profile')
+
+
+@ratelimit(key='ip', rate='10/m', block=True)
 def download_data_export(request, token):
     from .privacy import export_for_token
 
