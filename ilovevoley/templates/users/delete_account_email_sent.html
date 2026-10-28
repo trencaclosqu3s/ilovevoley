@@ -1,0 +1,28 @@
+{% extends "base_auth.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Comprueba tu correo" %} - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-lg">
+    <div class="bg-surface rounded-lg shadow-lg p-6 sm:p-8 border-t-4 border-csj-purple-dark">
+        <div class="text-center mb-6">
+            <div class="text-6xl mb-4 text-csj-purple-dark">{% icon 'link' %}</div>
+            <h1 class="text-2xl font-bold text-ink mb-2">
+                {% trans "Comprueba tu correo" %}
+            </h1>
+        </div>
+
+        <div class="space-y-4 mb-6 text-center text-sm text-muted">
+            <p>{% trans "Hemos enviado un enlace de confirmación a tu dirección de correo electrónico." %}</p>
+            <p>{% trans "Para completar el borrado definitivo de tu cuenta, haz clic en el enlace del correo. El enlace caducará en 48 horas." %}</p>
+        </div>
+
+        <div class="text-center">
+            <a href="{% url 'profile' %}" class="inline-block bg-csj-purple-dark hover:opacity-90 text-white px-6 py-3 rounded-lg font-medium transition touch-manipulation">
+                {% trans "Volver a mi perfil" %}
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Confirmar el borrado de tu cuenta" %} - {{ site_name }}
+{% endblock %}
+
+{% block header_subtitle %}
+    {% trans "Confirmación de borrado de cuenta" %}
+{% endblock %}
+
+{% block content %}
+    <h3>{% blocktrans with name=user.get_full_name|default:user.username %}Hola {{ name }},{% endblocktrans %}</h3>
+
+    <p>{% trans "Hemos recibido una solicitud para borrar definitivamente tu cuenta y anonimizar tus datos personales en todos los clubes de I Love Voley." %}</p>
+
+    <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px 16px; margin: 20px 0; font-size: 14px; color: #856404;">
+        <p style="margin: 0 0 8px 0; font-weight: bold;">{% trans "Elección para tus contenidos:" %}</p>
+        <p style="margin: 0;">
+            {% if content_choice == 'delete' %}
+                {% trans "Has elegido eliminar las fotos y vídeos que has subido a la plataforma." %}
+            {% else %}
+                {% trans "Has elegido conservar tus fotos y vídeos para el archivo histórico del club (tu autoría se anonimizará)." %}
+            {% endif %}
+        </p>
+    </div>
+
+    <p>{% trans "Esta acción es irreversible: una vez confirmada, tu cuenta quedará desactivada, tus datos se anonimizarán y no podrás recuperarla." %}</p>
+
+    <p>{% trans "Por motivos de seguridad, este enlace de confirmación caducará en 48 horas." %}</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{ confirm_url }}" class="button" style="font-size: 16px; font-weight: bold; background-color: #dc3545;">
+            {% trans "Confirmar el borrado de mi cuenta" %}
+        </a>
+    </div>
+
+    <p style="font-size: 13px; color: #666;">
+        {% trans "Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:" %}<br>
+        <a href="{{ confirm_url }}">{{ confirm_url }}</a>
+    </p>
+
+    <p style="font-size: 12px; color: #999; margin-top: 30px;">
+        {% trans "Si tú no has solicitado el borrado de tu cuenta, puedes ignorar este mensaje; tu cuenta permanecerá activa y segura." %}
+    </p>
+{% endblock %}

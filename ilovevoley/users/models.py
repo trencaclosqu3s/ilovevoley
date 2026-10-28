@@ -426,3 +426,46 @@ class WebPushAudit(models.Model):
         type_str = self.notification_type or 'general'
         date_str = self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else ''
         return f'{date_str} @ {self.organization.name} ({type_str}): {self.dispatched_count}/{self.candidates_count}'
+
+
+def privacy_export_upload_to(instance, filename):
+    return f'privacy_exports/{filename}'
+
+
+class DataExport(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'pending', _('Pendiente')
+        READY = 'ready', _('Lista')
+        FAILED = 'failed', _('Fallida')
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='data_exports',
+    )
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    file = models.FileField(upload_to=privacy_export_upload_to, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = _('Exportación de datos')
+        verbose_name_plural = _('Exportaciones de datos')
+
+
+class PrivacyAuditEvent(models.Model):
+    class Action(models.TextChoices):
+        EXPORT = 'export', _('Exportación')
+        ERASURE = 'erasure', _('Supresión')
+
+    user_id = models.PositiveIntegerField(null=True, blank=True)
+    action = models.CharField(max_length=16, choices=Action.choices)
+    content_choice = models.CharField(max_length=16, blank=True, default='')
+    club_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = _('Evento de privacidad')
+        verbose_name_plural = _('Eventos de privacidad')

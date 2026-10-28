@@ -20,7 +20,7 @@ Plataforma web Django para la gestión integral de vídeos, imágenes, competici
 
 ## Tecnologías Utilizadas
 
-- **Backend**: Python 3.13 con **Django 6.0.8** y **PostgreSQL**
+- **Backend**: Python 3.13 con **Django 6.0.9** y **PostgreSQL**
 - **Panel Admin**: **django-unfold**
 - **PWA & Web Push**: Service Workers, Web App Manifest dinámico, `pywebpush` (VAPID RFC 8292)
 - **Internacionalización**: Django gettext (`es` y `ca`)

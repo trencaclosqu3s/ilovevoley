@@ -1,0 +1,96 @@
+{% extends "base_auth.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Borrar mi cuenta" %} - I Love Voley{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-lg">
+    <div class="bg-surface rounded-lg shadow-lg p-6 sm:p-8 border-t-4 border-red-500">
+        <div class="text-center mb-6">
+            <div class="text-6xl mb-4 text-red-500">{% icon 'warning' %}</div>
+            <h1 class="text-2xl font-bold text-ink mb-2">
+                {% trans "Borrar cuenta" %}
+            </h1>
+            <p class="text-sm text-muted">
+                {% trans "Esta acción eliminará tu cuenta y anonimizará tus datos personales en todos los clubes." %}
+            </p>
+        </div>
+
+        {% if error %}
+            <div class="bg-red-50 dark:bg-red-950/30 border-l-4 border-red-500 p-4 rounded text-sm text-red-800 dark:text-red-300 mb-6">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        {% if is_blocked %}
+            <div class="space-y-4 mb-6">
+                <div class="bg-amber-50 dark:bg-amber-950/30 border-l-4 border-amber-500 p-4 rounded text-sm text-amber-800 dark:text-amber-300">
+                    <h3 class="font-semibold mb-2">{% icon 'warning' %} {% trans "No es posible borrar la cuenta" %}</h3>
+                    {% if is_staff_or_superuser %}
+                        <p>{% trans "Las cuentas con permisos de administración o equipo técnico (staff) no pueden eliminarse mediante autoservicio. Ponte en contacto con el soporte técnico." %}</p>
+                    {% elif blocking_clubs %}
+                        <p class="mb-2">{% trans "Eres la única persona administradora activa en los siguientes clubes:" %}</p>
+                        <ul class="list-disc list-inside space-y-1 font-medium mb-2">
+                            {% for club in blocking_clubs %}
+                                <li>{{ club.name }}</li>
+                            {% endfor %}
+                        </ul>
+                        <p>{% trans "Para poder borrar tu cuenta, primero debes asignar el rol de administración a otra persona activa en esos clubes." %}</p>
+                    {% endif %}
+                </div>
+                <div class="text-center">
+                    <a href="{% url 'profile' %}" class="inline-block bg-surface hover:bg-tint text-ink border border-line px-6 py-3 rounded-lg font-medium transition touch-manipulation">
+                        {% trans "Volver a mi perfil" %}
+                    </a>
+                </div>
+            </div>
+        {% else %}
+            <div class="space-y-4 mb-6 text-sm text-muted">
+                <div class="bg-tint border border-line p-4 rounded-xl space-y-2">
+                    <h3 class="font-semibold text-ink">{% trans "¿Qué ocurrirá al borrar tu cuenta?" %}</h3>
+                    <ul class="list-disc list-inside space-y-1 text-xs">
+                        <li>{% trans "Tus datos personales (nombre, email, teléfono, sesiones) se anonimizarán por completo." %}</li>
+                        <li>{% trans "Las fichas federativas y las actas de partidos se conservan por ser el registro deportivo del club." %}</li>
+                        <li>{% trans "Las fichas de tus hijos/as se desvincularán de tu cuenta, pero seguirán existiendo en sus respectivos clubes." %}</li>
+                        <li>{% trans "Tus comentarios y favoritos serán eliminados." %}</li>
+                    </ul>
+                </div>
+
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+                    <div>
+                        <label class="block font-semibold text-ink mb-2">
+                            {% trans "¿Qué deseas hacer con las fotos y vídeos que has subido?" %}
+                        </label>
+                        <div class="space-y-3">
+                            <label class="flex items-start gap-3 p-3 rounded-xl border border-line hover:bg-tint/50 cursor-pointer transition">
+                                <input type="radio" name="content_choice" value="delete" class="mt-1" required>
+                                <div>
+                                    <span class="block font-medium text-ink">{% trans "Borrar mis fotos y vídeos" %}</span>
+                                    <span class="block text-xs text-muted">{% trans "Se eliminarán permanentemente todas las imágenes y vídeos que hayas subido." %}</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-3 p-3 rounded-xl border border-line hover:bg-tint/50 cursor-pointer transition">
+                                <input type="radio" name="content_choice" value="retain" class="mt-1" required>
+                                <div>
+                                    <span class="block font-medium text-ink">{% trans "Conservar fotos y vídeos para el club" %}</span>
+                                    <span class="block text-xs text-muted">{% trans "Se mantendrán en los álbumes del club para el recuerdo del equipo, pero se desvinculará tu autoría." %}</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition touch-manipulation">
+                            {% trans "Enviar enlace de confirmación por correo" %}
+                        </button>
+                        <a href="{% url 'profile' %}" class="block w-full text-center bg-tint hover:opacity-80 text-muted px-4 py-3 rounded-lg font-medium transition touch-manipulation">
+                            {% trans "Cancelar y volver a mi perfil" %}
+                        </a>
+                    </div>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

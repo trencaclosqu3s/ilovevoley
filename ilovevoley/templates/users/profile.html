@@ -235,6 +235,25 @@
             {% endif %}
         </div>
         {% endif %}
+
+        <!-- Tus datos -->
+        <div class="bg-surface rounded-[20px] border border-line p-6">
+            <h2 class="text-base font-bold text-ink mb-1">{% trans "Tus datos" %}</h2>
+            <p class="text-xs text-muted mb-4">
+                {% trans "Puedes descargar una copia con los datos de tu cuenta en todos los clubes. Te enviaremos un enlace de descarga a tu correo que caducará a los 7 días." %}
+            </p>
+            <div class="flex flex-wrap items-center gap-3">
+                <form method="post" action="{% url 'request_data_export' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="px-4 py-2 bg-surface text-ink border border-line hover:bg-tint font-semibold rounded-xl text-sm transition">
+                        {% trans "Descargar mis datos" %}
+                    </button>
+                </form>
+                <a href="{% url 'delete_account' %}" class="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 font-semibold rounded-xl text-sm transition border border-red-200 dark:border-red-900/50">
+                    {% trans "Borrar mi cuenta" %}
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- ========================================== -->
