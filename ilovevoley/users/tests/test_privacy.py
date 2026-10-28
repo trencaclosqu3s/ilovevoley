@@ -43,7 +43,9 @@ from ilovevoley.users.privacy import (
     build_export_zip,
     cleanup_expired_data_exports,
     cleanup_expired_privacy_audit_events,
+    erasure_from_token,
     export_for_token,
+    generate_erasure_token,
     generate_export_token,
     is_erased,
 )
@@ -582,6 +584,129 @@ class ErasureTests(TestCase):
         self.assertTrue(Membership.objects.filter(user=user).exists())
         self.assertTrue(Image.objects.filter(pk=image.pk).exists())
         self.assertTrue(default_storage.exists(image_name))
+
+
+@override_settings(
+    ALLOWED_HOSTS=[HOST, 'localhost'],
+    NOTIFICATION_EMAIL_ENABLED=True,
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    EMAIL_HOST_USER='test@example.com',
+)
+class ErasureViewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = get_user_model().objects.create_user(
+            username='ana', password='pass', email='ana@example.com',
+        )
+        self.org = Organization.objects.create(slug='club-a', name='Club A')
+        self.membership = Membership.objects.create(
+            user=self.user, organization=self.org, role='member', is_approved=True,
+        )
+        self.client.force_login(self.user)
+
+    def test_post_sends_the_link_and_does_not_anonymize(self):
+        url = reverse('delete_account')
+        response = self.client.post(url, {'content_choice': 'delete'}, HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, 'ana')
+        self.assertEqual(len(mail.outbox), 1)
+        email_body = mail.outbox[0].body
+        self.assertIn('/profile/borrar/confirmar/', email_body)
+
+        import re
+        match = re.search(r'https?://[^/\s]+(/profile/borrar/confirmar/[^\s"\'>]+)', email_body)
+        self.assertIsNotNone(match)
+        confirm_path = match.group(1)
+
+        confirm_resp = self.client.post(confirm_path, HTTP_HOST=HOST)
+        self.assertEqual(confirm_resp.status_code, 200)
+
+        profile_resp = self.client.get(reverse('profile'), HTTP_HOST=HOST)
+        self.assertEqual(profile_resp.status_code, 302)
+        self.assertIn(reverse('account_login'), profile_resp.url)
+
+    def test_last_admin_post_does_not_send_email(self):
+        self.membership.role = 'admin'
+        self.membership.save(update_fields=['role'])
+        url = reverse('delete_account')
+        response = self.client.post(url, {'content_choice': 'delete'}, HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 0)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, 'ana@example.com')
+
+    def test_staff_post_does_not_send_email(self):
+        self.user.is_staff = True
+        self.user.save(update_fields=['is_staff'])
+        url = reverse('delete_account')
+        response = self.client.post(url, {'content_choice': 'delete'}, HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 0)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, 'ana@example.com')
+
+    def test_confirm_uses_the_token_choice_not_the_form(self):
+        image = Image.objects.create(
+            image=tiny_jpeg('foto-token.jpg'),
+            title='Foto token',
+            uploaded_by=self.user,
+            organization=self.org,
+            status='approved',
+        )
+        token = generate_erasure_token(self.user, 'delete')
+        url = reverse('confirm_account_erasure', args=[token])
+        response = self.client.post(url, {'content_choice': 'retain'}, HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Image.objects.filter(pk=image.pk).exists())
+
+    def test_confirm_blocks_if_they_became_last_admin(self):
+        other_admin = get_user_model().objects.create_user(
+            username='otro', password='pass', email='otro@example.com',
+        )
+        self.membership.role = 'admin'
+        self.membership.save(update_fields=['role'])
+        Membership.objects.create(
+            user=other_admin, organization=self.org, role='admin', is_approved=True,
+        )
+        token = generate_erasure_token(self.user, 'delete')
+        other_admin.is_active = False
+        other_admin.save(update_fields=['is_active'])
+
+        url = reverse('confirm_account_erasure', args=[token])
+        response = self.client.post(url, HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, 'ana@example.com')
+        self.assertTrue(Membership.objects.filter(user=self.user, role='admin').exists())
+
+    def test_second_visit_of_an_erased_account_changes_nothing(self):
+        self.user.username = f'deleted-{self.user.pk}'
+        self.user.save(update_fields=['username'])
+        self.client.force_login(self.user)
+        events_before = PrivacyAuditEvent.objects.count()
+        response = self.client.get(reverse('delete_account'), HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PrivacyAuditEvent.objects.count(), events_before)
+
+    def test_bad_token_does_not_anonymize(self):
+        bad_url = reverse('confirm_account_erasure', args=['token-malo'])
+        response = self.client.get(bad_url, HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 400)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, 'ana@example.com')
+        self.assertNotIn('ana@example.com', response.content.decode())
+
+        import time
+        with patch('django.core.signing.time.time', return_value=time.time() - 49 * 3600):
+            expired_token = generate_erasure_token(self.user, 'delete')
+        self.assertIsNone(erasure_from_token(expired_token))
+        expired_url = reverse('confirm_account_erasure', args=[expired_token])
+        response = self.client.post(expired_url, HTTP_HOST=HOST)
+        self.assertEqual(response.status_code, 400)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, 'ana@example.com')
+
 
 
 

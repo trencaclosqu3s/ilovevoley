@@ -16,6 +16,8 @@ from .models import DataExport, PrivacyAuditEvent
 EXPORT_PENDING_MAX_AGE = timedelta(hours=1)
 EXPORT_TOKEN_SALT = 'ilovevoley.users.data_export.v1'
 EXPORT_TOKEN_MAX_AGE = timedelta(days=7)
+ERASURE_TOKEN_SALT = 'ilovevoley.users.account_erasure.v1'
+ERASURE_TOKEN_MAX_AGE = timedelta(hours=48)
 
 CSV_COLUMNS = [
     'record_type',
@@ -360,6 +362,41 @@ def export_for_token(token) -> DataExport | None:
         return None
 
     return export
+
+
+def generate_erasure_token(user, content_choice: str) -> str:
+    signer = TimestampSigner(salt=ERASURE_TOKEN_SALT)
+    return signer.sign(f'{user.pk}:{content_choice}')
+
+
+def erasure_from_token(token: str):
+    from django.contrib.auth import get_user_model
+
+    signer = TimestampSigner(salt=ERASURE_TOKEN_SALT)
+    try:
+        payload = signer.unsign(token, max_age=ERASURE_TOKEN_MAX_AGE)
+    except (BadSignature, SignatureExpired, ValueError):
+        return None
+
+    if ':' not in payload:
+        return None
+
+    user_id_str, choice = payload.split(':', 1)
+    if choice not in ('delete', 'retain'):
+        return None
+
+    try:
+        user_id = int(user_id_str)
+    except ValueError:
+        return None
+
+    User = get_user_model()
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return None
+
+    return user, choice
 
 
 def cleanup_expired_data_exports() -> None:

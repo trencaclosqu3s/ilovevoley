@@ -660,3 +660,109 @@ def download_data_export(request, token):
         )
     response['X-Content-Type-Options'] = 'nosniff'
     return response
+
+
+@ratelimit(key='ip', rate='10/m', block=True)
+@login_required
+def delete_account(request):
+    from ilovevoley.core.email_utils import send_notification_email
+    from ilovevoley.core.tenant_utils import build_absolute_url
+    from .privacy import (
+        blocking_admin_clubs,
+        generate_erasure_token,
+        is_erased,
+    )
+
+    user = request.user
+    if is_erased(user):
+        return render(request, 'users/delete_account_done.html')
+
+    is_staff_or_superuser = user.is_staff or user.is_superuser
+    blocking_clubs = blocking_admin_clubs(user)
+    is_blocked = is_staff_or_superuser or bool(blocking_clubs)
+
+    if request.method == 'POST':
+        if is_blocked:
+            return render(request, 'users/delete_account.html', {
+                'is_blocked': is_blocked,
+                'is_staff_or_superuser': is_staff_or_superuser,
+                'blocking_clubs': blocking_clubs,
+            })
+
+        content_choice = request.POST.get('content_choice')
+        if content_choice not in ('delete', 'retain'):
+            return render(request, 'users/delete_account.html', {
+                'is_blocked': is_blocked,
+                'is_staff_or_superuser': is_staff_or_superuser,
+                'blocking_clubs': blocking_clubs,
+                'error': _('Debes elegir qué hacer con tus fotos y vídeos.'),
+            })
+
+        token = generate_erasure_token(user, content_choice)
+        path = reverse('confirm_account_erasure', args=[token])
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            membership = user.memberships.filter(is_approved=True).select_related('organization').first()
+            if membership:
+                tenant = membership.organization
+        confirm_url = build_absolute_url(path, tenant=tenant, request=request)
+
+        if user.email:
+            send_notification_email(
+                subject=lambda: _('Confirmar el borrado de tu cuenta'),
+                template_name='emails/account_erasure_confirm.html',
+                context={
+                    'confirm_url': confirm_url,
+                    'user': user,
+                    'content_choice': content_choice,
+                },
+                recipient_list=[user.email],
+            )
+        return render(request, 'users/delete_account_email_sent.html')
+
+    return render(request, 'users/delete_account.html', {
+        'is_blocked': is_blocked,
+        'is_staff_or_superuser': is_staff_or_superuser,
+        'blocking_clubs': blocking_clubs,
+    })
+
+
+@ratelimit(key='ip', rate='10/m', block=True)
+def confirm_account_erasure(request, token):
+    from django.contrib.auth import logout
+    from .privacy import (
+        ErasureRefused,
+        apply_erasure,
+        erasure_from_token,
+        is_erased,
+    )
+
+    token_data = erasure_from_token(token)
+    if not token_data:
+        return render(request, 'users/delete_account_invalid.html', status=400)
+
+    target_user, content_choice = token_data
+    if is_erased(target_user):
+        return render(request, 'users/delete_account_done.html')
+
+    if request.method == 'POST':
+        try:
+            apply_erasure(target_user, content_choice)
+        except ErasureRefused as exc:
+            return render(request, 'users/delete_account.html', {
+                'is_blocked': True,
+                'is_staff_or_superuser': exc.code == 'staff',
+                'blocking_clubs': exc.clubs,
+            })
+
+        if request.user.is_authenticated and request.user.pk == target_user.pk:
+            logout(request)
+
+        return render(request, 'users/delete_account_done.html')
+
+    return render(request, 'users/delete_account_confirm.html', {
+        'target_user': target_user,
+        'content_choice': content_choice,
+        'token': token,
+    })
+
