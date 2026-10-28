@@ -10,7 +10,7 @@ dependencies = [
     "python-decouple==3.8",
     "Pillow==13.0.0",
     "pillow-heif==1.8.1",
-    "django-allauth==65.19.7",
+    "django-allauth==65.20.1",
     "requests==2.34.2",
     # Requerido por allauth para verificar ID tokens de Google OAuth2
     # (evita el extra [socialaccount] que arrastra oauthlib/CVE-2026-49265)
