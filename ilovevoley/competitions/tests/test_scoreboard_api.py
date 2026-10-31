@@ -277,13 +277,17 @@ class ScoreboardMatchesTodayTest(TestCase):
 
 @override_settings(SCOREBOARD_STREAM_TOKEN='s3cret', ALLOWED_HOSTS=['santjust.ilovevoley.es'])
 class ScoreboardMatchResultTest(TestCase):
-    """Reglas de negocio del endpoint de resultado del marcador (#576).
+    """Reglas de negocio del endpoint de resultado del marcador (#576, #652).
 
     Justificación (docs/ai-guidelines/testing-guidelines.md):
     - D-05: validación del marcador de sets y coherencia/ganador de cada parcial
       (con ``set_scores`` opcional para cuando se usan los botones ``set +/-``).
     - D-07: un resultado federativo previo (acta o penalización) bloquea con 409.
     - D-06: reenviar corrige el marcador pero envía la push una sola vez.
+    - #652: el bloque ``summary`` se persiste; si no viene, el resultado sigue
+      guardándose y no borra un resumen ya almacenado. El scrape posterior
+      actualiza el marcador oficial sin tocar esa cronología. La ficha muestra
+      duración, rachas, remontada y la diferencia punto a punto.
     No se duplican 403/405 del decorador ``scoreboard_api``.
     """
 
@@ -444,6 +448,212 @@ class ScoreboardMatchResultTest(TestCase):
         self.assertEqual((self.match.home_score, self.match.away_score), (3, 2))
         self.assertEqual(self.match.set_scores, second_partials)
         mock_push.assert_called_once()
+
+    def _summary(self):
+        return {
+            'duration_seconds': 5420,
+            'max_streak': {'home': 6, 'away': 4},
+            'max_comeback': {'home': 5, 'away': 2},
+            'corrections': 3,
+            'sets': [
+                {
+                    'set': 1,
+                    'home_points': 25,
+                    'away_points': 20,
+                    'winner': 'home',
+                    'duration_seconds': 1320,
+                    'max_streak': {'home': 6, 'away': 3},
+                    'max_comeback': 5,
+                    'corrections': 1,
+                    'timeline': [
+                        {'team': 'away', 'home': 0, 'away': 1, 't': 0},
+                        {'team': 'home', 'home': 1, 'away': 1, 't': 18},
+                    ],
+                },
+                {
+                    'set': 2,
+                    'home_points': 22,
+                    'away_points': 25,
+                    'winner': 'away',
+                    'duration_seconds': 1400,
+                    'max_comeback': 1,
+                    'timeline': [],
+                },
+            ],
+        }
+
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_summary_is_stored_and_kept_when_a_later_payload_omits_it(self, mock_push):
+        """#652: summary se guarda; un reenvío sin la clave no lo borra. null sí."""
+        summary = self._summary()
+        with self.captureOnCommitCallbacks(execute=True):
+            stored = self._post({
+                'match_id': self.match.pk,
+                'home_score': 3,
+                'away_score': 1,
+                'set_scores': [[25, 20], [22, 25], [25, 18], [25, 23]],
+                'summary': summary,
+            })
+            omitted = self._post({
+                'match_id': self.match.pk,
+                'home_score': 3,
+                'away_score': 1,
+                'set_scores': [[25, 20], [22, 25], [25, 18], [25, 23]],
+            })
+
+        self.assertEqual(stored.status_code, 200)
+        self.assertEqual(omitted.status_code, 200)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.scoreboard_summary, summary)
+        mock_push.assert_called_once()
+
+        cleared = self._post({
+            'match_id': self.match.pk,
+            'home_score': 3,
+            'away_score': 1,
+            'summary': None,
+        })
+        self.assertEqual(cleared.status_code, 200)
+        self.match.refresh_from_db()
+        self.assertIsNone(self.match.scoreboard_summary)
+
+    def test_invalid_summary_rejects_the_result(self):
+        """#652: un summary que no es el objeto del marcador no cierra el partido."""
+        response = self._post({
+            'match_id': self.match.pk,
+            'home_score': 3,
+            'away_score': 0,
+            'summary': ['no', 'es', 'un', 'objeto'],
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {'success': False, 'error': 'invalid summary'})
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, 'scheduled')
+        self.assertIsNone(self.match.home_score)
+        self.assertIsNone(self.match.scoreboard_summary)
+
+    @patch('ilovevoley.competitions.scraping.federation.notify_match_result_after_save')
+    def test_federation_result_update_keeps_scoreboard_summary(self, _notify):
+        """#652: el acta federativa puede cambiar el marcador y no borra la cronología."""
+        from ilovevoley.competitions.scraping.federation import FederationScraper
+
+        summary = self._summary()
+        self.match.scoreboard_summary = summary
+        self.match.home_score = 3
+        self.match.away_score = 1
+        self.match.status = 'finished'
+        self.match.round_number = 1
+        self.match.save()
+
+        FederationScraper(self.league).update_matches(
+            [{
+                'home_team': self.team1.name,
+                'away_team': self.team2.name,
+                'round_number': 1,
+                'is_result_only': True,
+                'home_score': 3,
+                'away_score': 0,
+                'status': 'finished',
+                'set_scores': [[25, 10], [25, 12], [25, 18]],
+            }],
+            {self.team1.name: self.team1, self.team2.name: self.team2},
+        )
+
+        self.match.refresh_from_db()
+        self.assertEqual((self.match.home_score, self.match.away_score), (3, 0))
+        self.assertEqual(self.match.scoreboard_summary, summary)
+
+    def _login_member(self):
+        from ilovevoley.users.models import Membership
+
+        user = get_user_model().objects.create_user(username='socio', password='pass')
+        Membership.objects.create(
+            user=user, organization=self.org, is_approved=True, role='member',
+        )
+        self.client.force_login(user)
+        return user
+
+    def test_match_page_shows_summary_momentum_and_story_toggle(self):
+        """#652: la ficha pinta duración, rachas, remontada, momentum y el toggle de la story."""
+        from io import BytesIO
+
+        from PIL import Image as PILImage
+
+        from ilovevoley.content.models import Image
+
+        self.match.scoreboard_summary = self._summary()
+        self.match.home_score = 3
+        self.match.away_score = 1
+        self.match.status = 'finished'
+        self.match.save()
+        user = self._login_member()
+        buffer = BytesIO()
+        PILImage.new('RGB', (8, 8), (10, 20, 30)).save(buffer, format='PNG')
+        Image.objects.create(
+            image=SimpleUploadedFile('photo.png', buffer.getvalue(), content_type='image/png'),
+            title='Foto', uploaded_by=user, match=self.match,
+            organization=self.org, status='approved',
+        )
+
+        page = self.client.get(
+            f'/competitions/partidos/{self.match.pk}/',
+            HTTP_HOST='santjust.ilovevoley.es',
+        )
+
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, '1 h 30 min')
+        self.assertContains(page, '22 min')
+        self.assertContains(page, 'Senior A remontó 5 puntos')
+        self.assertContains(page, 'Rival B remontó 1 punto')
+        self.assertContains(page, 'data-streak-home="6"')
+        self.assertContains(page, 'data-streak-away="4"')
+        self.assertContains(page, 'data-diffs="-1 0"')
+        self.assertContains(page, 'data-momentum-set="2"')
+        self.assertContains(page, 'Sin cronología en este set')
+        self.assertContains(page, 'id="se-summary"')
+
+        self.match.scoreboard_summary = {
+            'duration_seconds': 90,
+            'max_streak': {'home': 6},
+        }
+        self.match.save(update_fields=['scoreboard_summary'])
+        one_sided = self.client.get(
+            f'/competitions/partidos/{self.match.pk}/',
+            HTTP_HOST='santjust.ilovevoley.es',
+        )
+        self.assertContains(one_sided, '1 min')
+        self.assertNotContains(one_sided, 'data-streak-home')
+
+    def test_match_page_omits_summary_block_without_payload(self):
+        """#652: sin resumen del marcador la ficha no muestra el bloque ni el toggle."""
+        from io import BytesIO
+
+        from PIL import Image as PILImage
+
+        from ilovevoley.content.models import Image
+
+        self.match.home_score = 3
+        self.match.away_score = 0
+        self.match.status = 'finished'
+        self.match.save()
+        user = self._login_member()
+        buffer = BytesIO()
+        PILImage.new('RGB', (8, 8), (10, 20, 30)).save(buffer, format='PNG')
+        Image.objects.create(
+            image=SimpleUploadedFile('photo.png', buffer.getvalue(), content_type='image/png'),
+            title='Foto', uploaded_by=user, match=self.match,
+            organization=self.org, status='approved',
+        )
+
+        page = self.client.get(
+            f'/competitions/partidos/{self.match.pk}/',
+            HTTP_HOST='santjust.ilovevoley.es',
+        )
+
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'id="story-editor"')
+        self.assertNotContains(page, 'id="scoreboard-summary"')
+        self.assertNotContains(page, 'id="se-summary"')
 
 
 @override_settings(SCOREBOARD_STREAM_TOKEN='s3cret', ALLOWED_HOSTS=['santjust.ilovevoley.es'])

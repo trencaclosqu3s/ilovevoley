@@ -19,6 +19,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 from ilovevoley.core.image_utils import normalize_crest
 from ilovevoley.core.security import fetch_logo_bytes
 
+from .services.scoreboard_summary import caption_lines
 from .services.sets import extract_set_scores
 
 logger = logging.getLogger(__name__)
@@ -113,6 +114,7 @@ def normalize_layout(raw, card_format: str) -> dict:
             'scale': _num(score.get('scale'), 1.0, 0.5, 1.2),
         },
         'gradients': {'top': gradient('top'), 'bottom': gradient('bottom')},
+        'summary': bool(raw.get('summary')),
     }
 
 
@@ -623,6 +625,15 @@ def render_result_card(
         _unused_width, sets_height = _sets_row_size(
             draw, set_list, font_pill, round(20 * scale), round(9 * scale), round(14 * scale)
         )
+        summary_lines = (
+            caption_lines(getattr(match, 'scoreboard_summary', None))
+            if layout.get('summary') and not upcoming else []
+        )
+        caption_line_height = round(34 * scale)
+        caption_gap = round(18 * scale) if summary_lines else 0
+        caption_block = (
+            caption_gap + caption_line_height * len(summary_lines) if summary_lines else 0
+        )
         footer_font = font_xs
         footer_measured = _measure_footer(draw, footer_font)
         _footer_w, footer_height, _isotype, _bbox = footer_measured
@@ -631,7 +642,9 @@ def render_result_card(
         footer_y = content_bottom - footer_height
         names_gap, sets_gap = round(16 * scale), round(20 * scale)
         block_height = (
-            crest_size + names_gap + name_row_height + (sets_gap + sets_height if set_list else 0)
+            crest_size + names_gap + name_row_height
+            + (sets_gap + sets_height if set_list else 0)
+            + caption_block
         )
         if layout['score']['y'] is None:
             crest_top = footer_y - FOOTER_GAP - block_height
@@ -672,6 +685,19 @@ def render_result_card(
                     tdraw, set_list, font_pill, center_x=(bx + right) // 2, y=sets_y,
                     bg=pill_bg_marco, text_color=WHITE, scale=scale,
                 )
+            if summary_lines:
+                font_caption = _load_font(_FONT_REGULAR, round(30 * scale))
+                caption_y = (
+                    sets_y + sets_height + caption_gap if set_list
+                    else names_y + name_row_height + caption_gap
+                )
+                for line in summary_lines:
+                    text_w = _text_width(tdraw, line, font_caption)
+                    tdraw.text(
+                        ((bx + right - text_w) // 2, caption_y),
+                        line, font=font_caption, fill=WHITE,
+                    )
+                    caption_y += caption_line_height
         if layer != 'score':
             _draw_footer(
                 draw, image, width=width, y=footer_y, font=footer_font, text_color=WHITE,
@@ -845,10 +871,15 @@ def card_cache_key(*, match, organization, card_format, card_style, photo, layou
             file_identity(getattr(team, 'display_logo_file', None)),
         ]
 
+    # Solo el texto que se pinta. El JSON crudo cambia de orden al salir de jsonb
+    # y mete la cronología entera en claves de tarjetas que no muestran el resumen.
+    show_summary = isinstance(layout, dict) and bool(layout.get('summary'))
+    summary_caption = caption_lines(getattr(match, 'scoreboard_summary', None)) if show_summary else None
     fields = [
         _RENDER_VERSION, match.id, card_format, card_style, photo,
         json.dumps(layout, sort_keys=True), list(sets),
         match.home_score, match.away_score, str(match.match_date),
+        summary_caption,
         # La previa depende del pabellón y del día ("hoy jugamos" frente a "próximo partido").
         match.venue, getattr(getattr(match, 'venue_ref', None), 'name', ''), str(timezone.localdate()),
         getattr(getattr(match, 'league', None), 'name', ''),

@@ -48,6 +48,9 @@ PREVIEW_CACHE_TTL = 300
 # Una emisión no pasa de 12 h ni de unos cientos de jugadas marcadas.
 MARK_MAX_SECONDS = 12 * 3600
 MARK_MAX_PER_MATCH = 500
+# El resumen cabe en un partido: 9 sets y unos cientos de puntos, no un volcado libre.
+SUMMARY_MAX_BYTES = 48_000
+SUMMARY_MAX_TIMELINE = 400
 
 
 def live_state_key(match_id):
@@ -374,6 +377,36 @@ def _parse_result_payload(data):
     return home, away, partials
 
 
+def _parse_summary(raw):
+    """Acepta el bloque ``summary`` del marcador o None. Rechaza otra forma."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ScoreboardApiError({'success': False, 'error': 'invalid summary'}, 400)
+    sets = raw.get('sets', [])
+    if sets is None:
+        sets = []
+    if not isinstance(sets, list) or len(sets) > LIVE_MAX_HISTORY:
+        raise ScoreboardApiError({'success': False, 'error': 'invalid summary'}, 400)
+    for item in sets:
+        if not isinstance(item, dict):
+            raise ScoreboardApiError({'success': False, 'error': 'invalid summary'}, 400)
+        timeline = item.get('timeline', [])
+        if timeline is None:
+            continue
+        if not isinstance(timeline, list) or len(timeline) > SUMMARY_MAX_TIMELINE:
+            raise ScoreboardApiError({'success': False, 'error': 'invalid summary'}, 400)
+        if any(not isinstance(point, dict) for point in timeline):
+            raise ScoreboardApiError({'success': False, 'error': 'invalid summary'}, 400)
+    try:
+        encoded = json.dumps(raw, separators=(',', ':'))
+    except (TypeError, ValueError):
+        raise ScoreboardApiError({'success': False, 'error': 'invalid summary'}, 400)
+    if len(encoded) > SUMMARY_MAX_BYTES:
+        raise ScoreboardApiError({'success': False, 'error': 'invalid summary'}, 400)
+    return raw
+
+
 @scoreboard_api()
 def api_scoreboard_match_result(request, tenant):
     """Guarda el resultado provisional enviado desde el marcador (#576).
@@ -397,6 +430,10 @@ def api_scoreboard_match_result(request, tenant):
     league = match.league or SimpleNamespace(match_format='standard')
     if not validate_volleyball_score(home, away, league):
         return JsonResponse({'success': False, 'error': 'invalid score'}, status=400)
+    # Un marcador antiguo no manda summary: no se toca el histórico ya guardado.
+    # null explícito sí lo borra, para que el marcador pueda retractarlo.
+    has_summary = 'summary' in data
+    summary = _parse_summary(data.get('summary')) if has_summary else None
 
     # La comprobación de la federación y el guardado comparten el bloqueo de la
     # fila: si el scraping escribe el acta entre medias, no se pisa.
@@ -410,7 +447,11 @@ def api_scoreboard_match_result(request, tenant):
         match.away_score = away
         match.set_scores = partials
         match.status = 'finished'
-        match.save(update_fields=['home_score', 'away_score', 'set_scores', 'status'])
+        update_fields = ['home_score', 'away_score', 'set_scores', 'status']
+        if has_summary:
+            match.scoreboard_summary = summary
+            update_fields.append('scoreboard_summary')
+        match.save(update_fields=update_fields)
 
     notified = False
     try:

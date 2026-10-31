@@ -15,6 +15,7 @@
     const scoreBox = document.getElementById('se-score-box');
     const scoreLayer = document.getElementById('se-score-layer');
     const zoomInput = document.getElementById('se-zoom');
+    const summaryInput = document.getElementById('se-summary');
     const photosBox = document.getElementById('se-photos');
     const MAX_ZOOM = 4;
 
@@ -181,7 +182,12 @@
 
     // ---- Controles (zoom y degradados) ----
 
+    function syncSummary() {
+        if (summaryInput) summaryInput.checked = Boolean(state.layout.summary);
+    }
+
     function syncControls() {
+        syncSummary();
         const info = state.info || {};
         if (info.photo) {
             zoomInput.min = info.photo.min_zoom.toFixed(2);
@@ -195,6 +201,13 @@
             fieldset.querySelector('[data-se-prop="color"]').value = mine.color || msg.primary;
             fieldset.querySelector('[data-se-prop="alpha"]').value = mine.alpha !== undefined ? mine.alpha : server.alpha;
             fieldset.querySelector('[data-se-prop="height"]').value = mine.height !== undefined ? mine.height : server.height;
+        });
+    }
+
+    if (summaryInput) {
+        summaryInput.addEventListener('change', function () {
+            state.layout.summary = summaryInput.checked;
+            schedule(0, ['score']);
         });
     }
 
@@ -512,6 +525,7 @@
         const root = document.getElementById('result-card-actions');
         const first = photosBox.querySelector('button');
         const initial = state.photoId || (root && root.dataset.photoId) || (first && first.dataset.photoId);
+        syncSummary();
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         document.body.classList.add('overflow-hidden');

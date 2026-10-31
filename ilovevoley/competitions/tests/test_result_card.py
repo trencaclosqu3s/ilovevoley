@@ -125,6 +125,114 @@ class RenderResultCardTests(SimpleTestCase):
         self.assertIn('01/06/2026', drawn)
         self.assertNotIn('31/05/2026', drawn)
 
+    def test_summary_layout_draws_duration_and_streaks(self):
+        """#652: la story solo pinta rachas y duración cuando el editor lo pide."""
+        match = _fake_match(scoreboard_summary={
+            'duration_seconds': 5420,
+            'max_streak': {'home': 6, 'away': 4},
+        })
+        calls, spy = _capture_drawn_text()
+
+        with spy:
+            result_card.render_result_card(
+                match=match,
+                organization=_fake_org(),
+                card_style='marco',
+                photo=_fake_photo_bytes(),
+                layout={'summary': True},
+                sets=[(25, 20)],
+                logo_fetcher=lambda url: None,
+            )
+            drawn = [content for _, content, _ in calls]
+            calls.clear()
+            result_card.render_result_card(
+                match=match,
+                organization=_fake_org(),
+                card_style='marco',
+                photo=_fake_photo_bytes(),
+                layout={'summary': False},
+                sets=[(25, 20)],
+                logo_fetcher=lambda url: None,
+            )
+
+        self.assertIn('Duración 1 h 30 min', drawn)
+        self.assertIn('Rachas 6-4', drawn)
+        without = [content for _, content, _ in calls]
+        self.assertNotIn('Duración 1 h 30 min', without)
+        self.assertNotIn('Rachas 6-4', without)
+
+    def test_zero_duration_is_omitted_from_the_story(self):
+        """Un cronómetro a 0 no es una duración: la story no pinta «0 s»."""
+        match = _fake_match(scoreboard_summary={
+            'duration_seconds': 0,
+            'max_streak': {'home': 6, 'away': 4},
+        })
+        calls, spy = _capture_drawn_text()
+
+        with spy:
+            result_card.render_result_card(
+                match=match,
+                organization=_fake_org(),
+                card_style='marco',
+                photo=_fake_photo_bytes(),
+                layout={'summary': True},
+                sets=[(25, 20)],
+                logo_fetcher=lambda url: None,
+            )
+
+        drawn = [content for _, content, _ in calls]
+        self.assertNotIn('Duración 0 s', drawn)
+        self.assertIn('Rachas 6-4', drawn)
+
+    def test_summary_cache_key_uses_the_caption_not_the_raw_payload(self):
+        """La clave no depende del orden de claves ni de la cronología que no se pinta."""
+        org = _fake_org()
+        org.id = 7
+        when = datetime(2026, 10, 31, 12, 0, tzinfo=dt_timezone.utc)
+
+        def match_with(summary):
+            match = _fake_match(scoreboard_summary=summary, match_date=when, venue='')
+            match.venue_ref = None
+            match.league.name = 'Liga'
+            for team, name in ((match.home_team, 'Local'), (match.away_team, 'Visitante')):
+                team.display_name = name
+                team.display_logo = ''
+                team.display_logo_file = None
+            return match
+
+        ordered = {'duration_seconds': 90, 'max_streak': {'home': 2, 'away': 3}}
+        reordered = {'max_streak': {'away': 3, 'home': 2}, 'duration_seconds': 90}
+        with_timeline = {
+            'duration_seconds': 90,
+            'max_streak': {'home': 2, 'away': 3},
+            'sets': [{'timeline': [{'t': index} for index in range(40)]}],
+        }
+        kwargs = dict(
+            organization=org, card_format='square', card_style='marco',
+            photo=None, sets=[],
+        )
+        on = result_card.card_cache_key(
+            match=match_with(ordered), layout={'summary': True}, **kwargs,
+        )
+        self.assertEqual(
+            on,
+            result_card.card_cache_key(
+                match=match_with(reordered), layout={'summary': True}, **kwargs,
+            ),
+        )
+        self.assertEqual(
+            on,
+            result_card.card_cache_key(
+                match=match_with(with_timeline), layout={'summary': True}, **kwargs,
+            ),
+        )
+        self.assertNotEqual(
+            on,
+            result_card.card_cache_key(
+                match=match_with(ordered), layout={'summary': False}, **kwargs,
+            ),
+        )
+
     def test_long_team_names_do_not_overlap(self):
         match = _fake_match(
             home_team_display='Club Voleibol Universitario de Las Palmas de Gran Canaria',
