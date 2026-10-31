@@ -1,6 +1,7 @@
 """Presentación del resumen que envía el marcador al cerrar el partido (#652)."""
 
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 
 MAX_POINT = 99
 MAX_SECONDS = 12 * 3600
@@ -15,9 +16,12 @@ def _bounded_int(value, maximum):
 
 
 def format_duration(seconds):
-    """Duración legible. None si el valor no es un entero en rango."""
+    """Duración legible. None si no hay un entero positivo en rango.
+
+    0 no es una duración: el marcador lo manda cuando el cronómetro no arrancó.
+    """
     seconds = _bounded_int(seconds, MAX_SECONDS)
-    if seconds is None:
+    if not seconds:
         return None
     hours, rem = divmod(seconds, 3600)
     minutes, _secs = divmod(rem, 60)
@@ -103,10 +107,11 @@ def display_payload(summary, *, home_name, away_name):
             comeback = _bounded_int(raw.get('max_comeback'), MAX_POINT)
             comeback_label = None
             if winner_name and comeback:
-                comeback_label = _('%(team)s remontó %(points)s puntos') % {
-                    'team': winner_name,
-                    'points': comeback,
-                }
+                comeback_label = ngettext(
+                    '%(team)s remontó %(points)s punto',
+                    '%(team)s remontó %(points)s puntos',
+                    comeback,
+                ) % {'team': winner_name, 'points': comeback}
             points = momentum_points(raw.get('timeline'))
             sets.append({
                 'number': number,
@@ -115,12 +120,22 @@ def display_payload(summary, *, home_name, away_name):
                 'polyline': momentum_polyline(points),
                 'diffs': [point['diff'] for point in points],
             })
+    streak_home = _bounded_int(streaks.get('home'), MAX_POINT)
+    streak_away = _bounded_int(streaks.get('away'), MAX_POINT)
+    # La comparativa solo tiene sentido con los dos lados, igual que en la story.
+    if streak_home is None or streak_away is None:
+        streak_home = streak_away = None
     payload = {
         'duration_label': format_duration(summary.get('duration_seconds')),
-        'streak_home': _bounded_int(streaks.get('home'), MAX_POINT),
-        'streak_away': _bounded_int(streaks.get('away'), MAX_POINT),
+        'streak_home': streak_home,
+        'streak_away': streak_away,
         'sets': sets,
     }
-    if payload['duration_label'] is None and payload['streak_home'] is None and not sets:
+    if (
+        payload['duration_label'] is None
+        and streak_home is None
+        and streak_away is None
+        and not sets
+    ):
         return None
     return payload

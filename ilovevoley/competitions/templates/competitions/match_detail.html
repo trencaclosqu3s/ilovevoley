@@ -457,7 +457,7 @@
                 <div class="text-lg font-bold text-ink tabular-nums">{{ scoreboard_summary.duration_label }}</div>
             </div>
             {% endif %}
-            {% if scoreboard_summary.streak_home is not None %}
+            {% if scoreboard_summary.streak_home is not None and scoreboard_summary.streak_away is not None %}
             <div class="rounded-2xl bg-tint p-3"
                  data-streak-home="{{ scoreboard_summary.streak_home }}"
                  data-streak-away="{{ scoreboard_summary.streak_away }}">

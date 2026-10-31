@@ -476,7 +476,7 @@ class ScoreboardMatchResultTest(TestCase):
                     'away_points': 25,
                     'winner': 'away',
                     'duration_seconds': 1400,
-                    'max_comeback': 0,
+                    'max_comeback': 1,
                     'timeline': [],
                 },
             ],
@@ -604,12 +604,25 @@ class ScoreboardMatchResultTest(TestCase):
         self.assertContains(page, '1 h 30 min')
         self.assertContains(page, '22 min')
         self.assertContains(page, 'Senior A remontó 5 puntos')
+        self.assertContains(page, 'Rival B remontó 1 punto')
         self.assertContains(page, 'data-streak-home="6"')
         self.assertContains(page, 'data-streak-away="4"')
         self.assertContains(page, 'data-diffs="-1 0"')
         self.assertContains(page, 'data-momentum-set="2"')
         self.assertContains(page, 'Sin cronología en este set')
         self.assertContains(page, 'id="se-summary"')
+
+        self.match.scoreboard_summary = {
+            'duration_seconds': 90,
+            'max_streak': {'home': 6},
+        }
+        self.match.save(update_fields=['scoreboard_summary'])
+        one_sided = self.client.get(
+            f'/competitions/partidos/{self.match.pk}/',
+            HTTP_HOST='santjust.ilovevoley.es',
+        )
+        self.assertContains(one_sided, '1 min')
+        self.assertNotContains(one_sided, 'data-streak-home')
 
     def test_match_page_omits_summary_block_without_payload(self):
         """#652: sin resumen del marcador la ficha no muestra el bloque ni el toggle."""

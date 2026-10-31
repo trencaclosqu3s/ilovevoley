@@ -14355,8 +14355,10 @@ msgstr "Durada %(duration)s"
 msgid "Rachas %(home)s-%(away)s"
 msgstr "Ratxes %(home)s-%(away)s"
 
-msgid "%(team)s remontó %(points)s puntos"
-msgstr "%(team)s va remuntar %(points)s punts"
+msgid "%(team)s remontó %(points)s punto"
+msgid_plural "%(team)s remontó %(points)s puntos"
+msgstr[0] "%(team)s va remuntar %(points)s punt"
+msgstr[1] "%(team)s va remuntar %(points)s punts"
 
 msgid "Incluir rachas y duración"
 msgstr "Incloure ratxes i durada"

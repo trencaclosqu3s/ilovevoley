@@ -871,14 +871,15 @@ def card_cache_key(*, match, organization, card_format, card_style, photo, layou
             file_identity(getattr(team, 'display_logo_file', None)),
         ]
 
-    summary = getattr(match, 'scoreboard_summary', None)
-    if isinstance(summary, bool) or not isinstance(summary, (dict, list, str, int, float, type(None))):
-        summary = None
+    # Solo el texto que se pinta. El JSON crudo cambia de orden al salir de jsonb
+    # y mete la cronología entera en claves de tarjetas que no muestran el resumen.
+    show_summary = isinstance(layout, dict) and bool(layout.get('summary'))
+    summary_caption = caption_lines(getattr(match, 'scoreboard_summary', None)) if show_summary else None
     fields = [
         _RENDER_VERSION, match.id, card_format, card_style, photo,
         json.dumps(layout, sort_keys=True), list(sets),
         match.home_score, match.away_score, str(match.match_date),
-        summary,
+        summary_caption,
         # La previa depende del pabellón y del día ("hoy jugamos" frente a "próximo partido").
         match.venue, getattr(getattr(match, 'venue_ref', None), 'name', ''), str(timezone.localdate()),
         getattr(getattr(match, 'league', None), 'name', ''),
