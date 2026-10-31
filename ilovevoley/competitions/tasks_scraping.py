@@ -4,9 +4,9 @@ import logging
 
 from celery import chord, shared_task
 from django.conf import settings
-from django.core.mail import mail_admins
 from django.db import models as django_models
 
+from ilovevoley.core.email_utils import send_technical_alert
 from ilovevoley.competitions.models import League, Match
 from ilovevoley.competitions.scraping.federation import FederationScraper
 from ilovevoley.teams.models import Club, Team
@@ -21,13 +21,8 @@ def _active_leagues(category_filter=None):
 
 
 def _mail_admins_on_errors(subject, message):
-    """Avisa a admins si las notificaciones están habilitadas; un fallo del envío solo se loguea."""
-    if not settings.NOTIFICATION_EMAIL_ENABLED:
-        return
-    try:
-        mail_admins(subject, message, fail_silently=True)
-    except Exception as e:
-        logger.error(f"Error enviando email de notificación: {e}")
+    """Retrocompatibilidad interna: redirige a send_technical_alert."""
+    send_technical_alert(subject, message)
 
 
 def _get_league(league_pk, empty_stats):
@@ -171,7 +166,7 @@ def scrape_leagues_summary_task(self, league_stats):
         Errores detectados:
         {chr(10).join([f"- {e['league']} ({e['endpoint']}): {e['error']}" for e in total_results['errors'][:10]])}
         """
-        _mail_admins_on_errors(subject, message)
+        send_technical_alert(subject, message)
     
     return total_results
 
@@ -377,7 +372,7 @@ def scrape_endpoint_summary_task(self, league_stats, kind):
         Errores detectados:
         {chr(10).join([f"- {e['league']}: {e['error']}" for e in total_results['errors'][:10]])}
         """
-        _mail_admins_on_errors(subject, message)
+        send_technical_alert(subject, message)
     return total_results
 
 
@@ -723,11 +718,7 @@ def handle_withdrawn_teams_task(self, league_id=None, dry_run=False, reactivate_
             Los partidos de estos equipos han sido marcados como 'retirados' automáticamente.
             """
             
-            try:
-                mail_admins(subject, message, fail_silently=True)
-                logger.info("Email de notificación enviado a administradores")
-            except Exception as e:
-                logger.error(f"Error enviando email de notificación: {e}")
+            send_technical_alert(subject, message)
         
         return total_results
     
@@ -1000,11 +991,7 @@ def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
             {chr(10).join([f"- {e['endpoint']}: {e['error']}" for e in summary['errors']])}
             """
             
-            try:
-                mail_admins(subject, message, fail_silently=True)
-                logger.info("Email de notificación enviado a administradores")
-            except Exception as e:
-                logger.error(f"Error enviando email de notificación: {e}")
+            send_technical_alert(subject, message)
         
         return summary
     
