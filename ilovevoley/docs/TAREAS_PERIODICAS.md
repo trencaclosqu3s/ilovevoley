@@ -20,6 +20,10 @@ Las tareas periódicas permiten ejecutar automáticamente las funciones de scrap
 - **django-celery-beat**: Programador de tareas periódicas integrado con el admin de Django
 - **Redis**: Backend de mensajería y almacenamiento de resultados
 
+Las tareas programadas del proyecto están versionadas en `config/celery_schedule.py` (`CELERY_BEAT_SCHEDULE`). Beat corre con `django_celery_beat.schedulers:DatabaseScheduler`, que en cada arranque crea y **actualiza** las `PeriodicTask` desde ese diccionario (no borra las que ya no aparecen). Un cambio hecho en el admin sobre una de esas entradas se pierde al reiniciar beat: para cambiar horarios o kwargs, editar `config/celery_schedule.py`. Los `crontab` se interpretan en `CELERY_TIMEZONE` (`Europe/Madrid`), no en UTC.
+
+Las tareas se enrutan a tres colas (`CELERY_TASK_ROUTES` en `config/settings.py`): `default` (avisos y emails), `media` (Vision, miniaturas, ZIP de álbumes) y `scraping` (`scrape_*`, `enrich_*` y afines). El worker de desarrollo consume las tres (`-Q default,media,scraping`).
+
 ## Configuración inicial
 
 ### 1. Servicios requeridos
@@ -48,7 +52,7 @@ docker compose -f docker-compose.dev.yml run --rm web python manage.py migrate d
 
 ### 3. Acceder al admin
 
-1. Accede al admin de Django: `http://localhost:8000/admin/`
+1. Accede al admin de Django: `http://localhost:8008/admin/`
 2. En el menú lateral, busca la sección **"Django Celery Beat"**
 3. Encontrarás las siguientes opciones:
    - **Crontabs**: Programación tipo cron (horarios específicos)
@@ -59,7 +63,7 @@ docker compose -f docker-compose.dev.yml run --rm web python manage.py migrate d
 
 ### 1. scrape_all_leagues
 
-Ejecuta scraping de todas las ligas activas.
+Lanza el scraping de todas las ligas activas, **una tarea por liga** (#601): un `chord` de `scrape_league_stats` (una por liga) cuyo callback `scrape_leagues_summary` agrega las estadísticas y envía el email de errores. La tarea en sí solo devuelve `{'status': 'queued', 'leagues_queued': N}`.
 
 **Nombre de tarea**: `scrape_all_leagues`
 
@@ -74,7 +78,7 @@ Ejecuta scraping de todas las ligas activas.
 
 - `round_number`: Jornada específica a scrapear (por defecto: None)
 - `category_filter`: Filtrar solo ligas de una categoría específica (por defecto: None)
-- `delay`: Tiempo de espera entre ligas en segundos (por defecto: 2.0)
+- `delay`: Segundos entre el arranque de una liga y la siguiente, aplicado como `countdown` (no duerme el worker; por defecto: 2.0)
 
 **Ejemplo de kwargs**:
 ```json
@@ -111,7 +115,7 @@ Ejecuta scraping de una liga específica.
 
 ### 3. scrape_clubs
 
-Ejecuta scraping de clubes desde voleibolib.net y asocia equipos automáticamente.
+Ejecuta scraping de clubes desde voleibolib.net y asocia equipos automáticamente. Desde #601 se reparte en una tarea `scrape_club` por club y el callback `scrape_clubs_summary` hace el matching de equipos cuando ya están todos guardados.
 
 **Nombre de tarea**: `scrape_clubs`
 
@@ -124,7 +128,7 @@ Ejecuta scraping de clubes desde voleibolib.net y asocia equipos automáticament
 ```
 
 - `match_teams`: Si es true, ejecuta matching automático de equipos con clubes (por defecto: true)
-- `delay`: Delay entre requests en segundos (por defecto: 1.0)
+- `delay`: Segundos entre el arranque de un club y el siguiente, aplicado como `countdown` (por defecto: 1.0)
 
 ### 4. scrape_balearic_callups
 
@@ -156,6 +160,27 @@ Elimina del almacenamiento temporal los archivos ZIP de descarga de álbumes gen
 Envía recordatorios de partidos que se juegan dentro de las próximas 2 horas a los usuarios correspondientes.
 
 **Nombre de tarea**: `send_match_reminders_2h`
+
+### Programación actual (`config/celery_schedule.py`)
+
+| Tarea (`task`) | Horario (hora peninsular) |
+|---|---|
+| `cleanup_expired_album_zips`, `cleanup_expired_web_push_audits` | cada día |
+| `process_inactive_users` | 03:30 |
+| `send_match_reminders_2h` | cada 10 min |
+| `send_match_photo_reminders` | cada 15 min |
+| `redact_pending_wrapped_narratives` / `redact_pending_card_narratives` | 03:00 / 03:20 |
+| `scrape_clubs` (`match_teams=True`, `delay=2.0`) | 06:00 |
+| `scrape_and_enrich_all` | 07:30 |
+| `discover_leagues` | 07:45 |
+| `enrich_matches_json` | 08:00 |
+| `scrape_federation_circulars` / `scrape_federation_news` | 09:00 / 09:15 |
+| `scrape_all_leagues` (`delay=2.0`), `scrape_json_results`, `scrape_json_upcoming` | cada 4 h (en punto) |
+| `scrape_balearic_callups` / `scrape_balearic_tracking` | cada 6 h (en punto / y cuarto) |
+| `scrape_match_actas` | cada 6 h (y media) |
+| `process_pending_acta_photos` | cada 2 h (y cuarto) |
+
+`enrich_matches_json`, `scrape_json_results` y `scrape_json_upcoming` también se reparten en una tarea por liga desde #601 (`enrich_single_league_json`, `scrape_results_league`, `scrape_calendar_league`).
 
 > [!IMPORTANT]
 > **Nombre explícito de tareas**: Todas las tareas Celery del proyecto llevan `name=` explícito obligatorio (ej. `@shared_task(name='...')`). Las filas de `PeriodicTask` en base de datos dependen estrictamente de ese nombre y no de la ruta del módulo.
@@ -194,7 +219,7 @@ Envía recordatorios de partidos que se juegan dentro de las próximas 2 horas a
      - Day of week: `*`
      - Day of month: `*`
      - Month of year: `*`
-     - Timezone: `UTC`
+     - Timezone: `Europe/Madrid`
    - Guardar
 
 2. **Crear la tarea periódica**:
@@ -301,10 +326,9 @@ Si hay errores durante el scraping automático y tienes las notificaciones por e
 
 ```bash
 NOTIFICATION_EMAIL_ENABLED=True
-ADMIN_EMAIL_LIST=admin@example.com,otro@example.com
 ```
 
-Recibirás un email con el resumen de errores.
+el callback del scraping envía el resumen de errores con `mail_admins`, que usa el setting `ADMINS` de Django (no `ADMIN_EMAIL_LIST`). `config/settings.py` no define hoy `ADMINS`, así que sin él ese email no llega a nadie.
 
 ## Troubleshooting
 
@@ -334,7 +358,7 @@ Si al ejecutar una tarea manualmente desde el admin obtienes un error de "Tarea 
    - `scrape_league`
    - `scrape_clubs`
 
-2. Que el worker de Celery tenga acceso al archivo `tasks.py`
+2. Que el módulo de la tarea se importe en `config/celery.py` (las tareas viven en `ilovevoley/<app>/tasks.py` y en `ilovevoley/competitions/tasks_scraping.py`, `tasks_enrichment.py` y `tasks_rfevb.py`)
 
 3. Reiniciar el worker de Celery:
    ```bash
@@ -420,7 +444,7 @@ docker compose -f docker-compose.dev.yml exec redis redis-cli -n 0 KEYS "celery*
 
 - Las tareas se ejecutan de forma asíncrona en segundo plano
 - El scheduler (celery-beat) lee la configuración de la base de datos cada pocos segundos
-- Los cambios en el admin de tareas periódicas se aplican automáticamente sin necesidad de reiniciar servicios
+- Los cambios en el admin de tareas periódicas se aplican automáticamente sin necesidad de reiniciar servicios (salvo en las entradas de `config/celery_schedule.py`, que se sobrescriben al reiniciar beat)
 - Es recomendable no ejecutar múltiples scrapers de la misma liga simultáneamente para evitar rate limiting
 - Usa el parámetro `delay` para controlar el tiempo entre requests y evitar sobrecargar los servidores externos
 

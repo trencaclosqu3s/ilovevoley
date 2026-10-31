@@ -29,7 +29,7 @@ El modelo `Season` actúa como **fuente única de verdad** para las temporadas d
 
 ### Convención de Filtros de UI (`resolve_season_filter`)
 
-La función [`resolve_season_filter(request)`](file:///Users/jamartinmari/PycharmProjects/videosvoley/ilovevoley/core/season_utils.py) estandariza el filtrado en todas las vistas (vídeos, galerías, clasificaciones, plantillas):
+La función `resolve_season_filter(request)` (`ilovevoley/core/season_utils.py`) estandariza el filtrado en todas las vistas (vídeos, galerías, clasificaciones, plantillas):
 
 1. **Sin parámetro `season`** en la URL: Muestra la **temporada activa** (`current`).
 2. **`?season=` (vacío)**: Desactiva el filtro y muestra **todas las temporadas**.
@@ -43,30 +43,39 @@ La app `rosters` separa la identidad física de las personas de los roles deport
 
 ### 1. `Person`
 Representa a una persona (jugador, entrenadora, delegado, fisioterapeuta) de forma persistente a lo largo de los años:
-- **Campos**: Nombre, apellidos, alias, fecha de nacimiento, foto de perfil, y `organization` (club al que pertenece la ficha).
-- **Identidad Única por Club (`unique_person_identity`)**: Siguiendo la decisión de arquitectura #174, la unicidad evalúa `(organization, first_name, last_name, birth_date)`, no de forma global. Esto permite que una misma persona física pueda tener ficha deportiva en dos clubes diferentes (ej. entrenar en un club y jugar en otro). Las fichas legadas con `organization=NULL` comparten su propio grupo (`nulls_distinct=False`).
-- **Formularios**: Al instanciar formularios de personas se debe pasar siempre el tenant activo (`PersonForm(..., organization=request.tenant)`) para que la validación se realice contra el club correspondiente.
+- **Campos**: Nombre, apellidos, `birth_date` / `birth_year`, foto, contacto (`email`, `phone`), `notes`, `user` (cuenta vinculada), `image_consent`, `is_provisional` y `organizations` (M2M a `Organization` a través de `PersonOrganization`, con estado de alta/baja por club, #478).
+- **Identidad global (`unique_person_identity`)**: Desde #342 (sustituye la decisión A de #174) `Person` es global: la unicidad es `(first_name, last_name, birth_year)` en todos los clubes. Con `birth_year` NULL el constraint no aplica. `birth_year` es obligatorio en formularios (se deduce de `birth_date` si hay fecha).
+- **Visibilidad por tenant**: Una ficha se ve en un club si está en `Person.organizations` (alta o adopción) o si tiene roles en un equipo del club (`Person.objects.for_tenant`). Si el alta choca con una ficha de otro club, el formulario ofrece «Añadir a mi club» (`person_adopt`, que exige nombre y año exactos). Contacto y notas solo para quien pueda editar (`can_edit_person`).
+- **Fichas provisionales (#569)**: Las crea el acta (`ilovevoley/competitions/services/acta_roster.py`) con solo el apellido y `is_provisional=True`; el dorsal vive en su `PlayerRole`. El flag se limpia solo en `save()` al tener nombre y `birth_year`. Mientras siga provisional, el usuario puede reclamarla por id desde «Tú» (`person_link_claim`): son las únicas fichas que no se pueden verificar por nombre y año. Un manager del club puede descartar una creada por error (`person_provisional_discard`) si no tiene cuenta, familia, solicitud pendiente ni datos en otro club.
 
 ### 2. `PlayerRole`
 Representa la ficha deportiva como jugador de un equipo en una temporada concreta:
 - **`person`**: Clave foránea a `Person`.
-- **`team`**: Equipo federativo (`teams.Team`).
+- **`identity`**: Equipo, como `teams.TeamIdentity` (identidad estable del equipo entre temporadas, #428/#451), no `teams.Team`.
 - **`season`**: Clave foránea a `Season`.
 - **`jersey_number`**: Dorsal para esa temporada.
 - **`position`**: Posición deportiva (colocador, receptor, opuesto, central, líbero, etc.).
 - **`is_active`**: Estado del jugador en el equipo.
 - **Constraints de integridad**:
-  - `unique_active_player_role`: Una persona no puede tener dos fichas activas simultáneas en el mismo equipo durante la misma temporada.
-  - `unique_jersey_number_per_team`: El dorsal es único por equipo y temporada (distintos jugadores pueden usar el mismo dorsal en temporadas diferentes).
+  - `unique_active_player_role`: Una persona no puede tener dos fichas activas simultáneas en el mismo equipo durante la misma temporada (`person`, `identity`, `season`).
+  - `unique_jersey_number_per_team`: El dorsal es único por equipo y temporada entre roles activos (`identity`, `season`, `jersey_number`).
 
 ### 3. `StaffRole`
 Representa el rol en el cuerpo técnico para una temporada:
 - **`person`**: Clave foránea a `Person`.
-- **`team`**: Equipo federativo.
+- **`identity`**: Equipo (`teams.TeamIdentity`).
 - **`season`**: Clave foránea a `Season`.
 - **`role`**: Función técnica (primer entrenador, asistente, delegado, fisioterapeuta, etc.).
 - **`is_active`**: Estado del rol.
-- **Soporte multi-rol**: Una misma persona puede desempeñar múltiples roles en el mismo equipo (ej: primer entrenador y delegado) gracias al constraint `unique_active_staff_role` que evalúa `(person, team, role, season)`.
+- **Soporte multi-rol**: Una misma persona puede desempeñar múltiples roles en el mismo equipo (ej: primer entrenador y delegado) gracias al constraint `unique_active_staff_role` que evalúa `(person, identity, role, season)` entre roles activos.
+
+Los roles pertenecen al club de su equipo (`PersonRoleTenantQuerySet`). La vista «Tú» (`rosters:my_profile`) agrega los roles del usuario en todos los clubes.
+
+### 4. `PersonLinkRequest` (#531)
+Vínculo cuenta ↔ ficha self-service. El usuario pide enlazar su ficha (`kind=self`) o la de un hijo/a (`kind=child`) identificándola por nombre, apellidos y año exactos (`ilovevoley/rosters/link_requests.py`). Un moderador del club la resuelve en `/core/moderacion/`; aprobar (`approve_link_request`) es lo único que escribe `Person.user` o `User.children`. Solo una solicitud pendiente por (usuario, ficha) (`unique_pending_person_link_request`).
+
+### 5. `SeasonWrapped` (#458)
+Resumen de temporada por persona, temporada y modalidad (`unique_wrapped_per_season_modality`), congelado al cierre en `stats`. Lo genera la tarea `generate_season_wrappeds` (acciones de `SeasonAdmin`, con o sin aviso a jugadores); es idempotente y una corrección de acta posterior exige borrar la fila y relanzar. Las fotos se filtran por consentimiento al mostrar, no al congelar; el rival es el equipo, nunca un jugador; colores y escudo salen del club del rol de esa temporada (`season_organization`), no del dominio. El texto lo redacta un LLM en `redact_pending_wrapped_narratives` (#551, solo con `LLM_NARRATIVE_ENABLED`).
 
 ---
 

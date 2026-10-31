@@ -82,7 +82,7 @@ Almacena el registro de cada dispositivo suscrito:
 Relaciona a un usuario con sus categorías deportivas de interés (`categories` M2M con `core.Category`) por organización. Quien no especifique ninguna preferencia recibe los avisos de todas las categorías.
 
 ### 3. `NotificationPreference`
-Permite a los usuarios activar o desactivar selectivamente tipos concretos de aviso para un club (`match_result`, `album_published`, etc.).
+Permite a los usuarios activar o desactivar selectivamente tipos concretos de aviso para un club (`NotificationType`: `match_result`, `new_album`, `match_change`, `match_reminder`, `match_media`, `match_photos`, `image_tag`, `live_stream`).
 
 ### 4. `WebPushAudit`
 Registra el resultado de cada difusión masiva de notificaciones:
@@ -146,23 +146,33 @@ notify_web_push_organization_task.delay(
 ## 📸 Casos de Uso y Disparadores
 
 ### 1. Publicación de Fotos y Álbumes con Debounce
-- **Disparador**: Subida y aprobación de imágenes de un partido (`ilovevoley.content.views`).
-- **Comportamiento**: En lugar de enviar un push por cada foto individual subida, se programa la tarea Celery `notify_match_media_push` con una cuenta atrás (`countdown=MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS`).
-- Si se siguen subiendo fotos del mismo partido dentro de la ventana de espera, se renueva la ventana, garantizando un **único aviso consolidado**: *"Se han añadido 15 fotos del partido..."*.
+- **Disparador**: Subida y aprobación de fotos o vídeos de un partido (`ilovevoley.content.services.queue_match_media_push`).
+- **Comportamiento**: En lugar de enviar un push por cada foto individual subida, la primera subida programa la tarea Celery `notify_match_media_push` con una cuenta atrás (`countdown=MATCH_MEDIA_PUSH_DEBOUNCE_SECONDS`, tipo `match_media`).
+- Las fotos del mismo partido que llegan dentro de esa ventana se suman a la tarea ya programada (no la reprograman), garantizando un **único aviso consolidado**: *"Se han añadido 15 fotos del partido..."*. Tras el envío, un cooldown evita encolar otro aviso inmediato.
+- Las fotos subidas desde la cola offline (#611) se agrupan por lote (`queue_upload_batch_notifications` → tarea `content.flush_upload_batch_notifications`, ventana `UPLOAD_BATCH_DEBOUNCE_SECONDS`, 15 s por defecto) para emitir un solo aviso de álbum nuevo (`new_album`) y de fotos pendientes de moderar.
 
 ### 2. Actualización de Marcadores de Partidos
 - **Disparador**: Modificación o cierre del marcador oficial de un partido (`ilovevoley.competitions.views` o scraping federativo).
-- Envía inmediatamente un push a los usuarios interesados en esa liga/categoría.
+- Envía inmediatamente un push a los usuarios interesados en esa liga/categoría (`notify_match_result`, tipo `match_result`).
+
+### 3. Otros avisos (`ilovevoley.competitions.services.notifications` y `ilovevoley.content.tasks`)
+- **Cambios de horario o pista** (`notify_match_change_push`, `match_change`): según `Organization.notify_match_changes` y las ramas activas del club.
+- **Recordatorio 2 h antes** (`notify_match_reminder`, `match_reminder`): tarea periódica `send_match_reminders_2h`.
+- **Recordatorio para subir fotos** 1 h después del resultado (`notify_match_photo_reminder`, `match_photos`, #361): tarea periódica `send_match_photo_reminders`.
+- **Retransmisión en directo** (`notify_match_live_stream`, `live_stream`).
+- **Etiquetado en fotos** (tarea `notify_image_tagged_push`, `image_tag`): al jugador y a sus padres.
 
 ---
 
 ## 🧹 Tareas Periódicas de Mantenimiento
 
-Configuradas mediante Celery Beat:
+Configuradas mediante Celery Beat (`CELERY_BEAT_SCHEDULE` en `config/celery_schedule.py`):
 
 | Nombre de Tarea | Frecuencia Sugerida | Descripción |
 | :--- | :--- | :--- |
-| `cleanup_expired_web_push_audits` | Semanal (`0 3 * * 0`) | Purga los registros de auditoría `WebPushAudit` con más de 90 días de antigüedad. |
+| `cleanup_expired_web_push_audits` | Diaria | Purga los registros de auditoría `WebPushAudit` con más de 90 días de antigüedad. |
+| `send_match_reminders_2h` | Cada 10 min | Recordatorio push 2 h antes del partido (ventana de ±15 min). |
+| `send_match_photo_reminders` | Cada 15 min | Push para animar a subir fotos 1 h después del resultado (#361). |
 
 ---
 
@@ -172,7 +182,7 @@ Para ejecutar la suite de pruebas del módulo de Web Push:
 
 ```bash
 docker compose -f docker-compose.dev.yml run --rm web python -m pytest \
-  ilovevoley/users/tests/test_webpush_models.py \
+  ilovevoley/users/tests/test_profile_webpush.py \
   ilovevoley/users/tests/test_webpush_tasks.py \
   ilovevoley/users/tests/test_webpush_views.py \
   ilovevoley/users/tests/test_vapid_config.py \

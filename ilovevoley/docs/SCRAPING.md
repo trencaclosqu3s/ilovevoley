@@ -22,7 +22,9 @@ Este sistema permite obtener automáticamente datos de ligas de voleibol desde l
 - **`StandingsParser`**: Parser para tablas de clasificación
 - **`MatchesParser`**: Parser para calendarios y resultados
 - **`FederationScraper`**: Coordinador principal del scraping
-- **`ClubScraper`**: Sistema de scraping de clubes con matching inteligente
+- **`scrape_clubs`** (tarea Celery y management command): importación de clubes y asociación equipo → club
+
+Viven en `ilovevoley/competitions/scraping/` (`base.py`, `parsers.py`, `federation.py`, `rfevb.py`, `acta.py`); `ilovevoley/videos/scraping/` solo reexporta para compatibilidad (#593).
 
 ## Configuración de Nueva Liga
 
@@ -30,7 +32,7 @@ Este sistema permite obtener automáticamente datos de ligas de voleibol desde l
 
 ```bash
 # Liga estándar (masculino/femenino - 5 sets, ganar 3)
-docker-compose exec web python manage.py setup_league \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py setup_league \
   --name "Senior Masculino - Grupo 1" \
   --federation-id 7998 \
   --season "2024-25" \
@@ -38,7 +40,7 @@ docker-compose exec web python manage.py setup_league \
   --base-url "https://www.voleibolib.net"
 
 # Liga alevín balear (3 sets, jugar los 3)
-docker-compose exec web python manage.py setup_league \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py setup_league \
   --name "Alevín Balear - Grupo 1" \
   --federation-id 8000 \
   --season "2024-25" \
@@ -46,7 +48,7 @@ docker-compose exec web python manage.py setup_league \
   --match-format alevin_balear
 
 # Torneo especial 3 sets (ganar 2)
-docker-compose exec web python manage.py setup_league \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py setup_league \
   --name "Torneo 3 Sets" \
   --federation-id 8001 \
   --season "2024-25" \
@@ -54,7 +56,7 @@ docker-compose exec web python manage.py setup_league \
   --match-format tournament_3sets
 
 # Formato personalizado
-docker-compose exec web python manage.py setup_league \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py setup_league \
   --name "Liga Personalizada" \
   --federation-id 8002 \
   --season "2024-25" \
@@ -167,23 +169,20 @@ if input("¿Corregir? (y/N): ").lower() == 'y':
 
 ```bash
 # Scraping completo de todos los clubes desde voleibolib.net
-docker-compose exec web python manage.py scrape_clubs --verbose
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_clubs --verbose
 
 # Modo dry-run para ver qué se haría sin hacer cambios
-docker-compose exec web python manage.py scrape_clubs --dry-run --verbose
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_clubs --dry-run --verbose
 
 # Con delay personalizado entre requests (recomendado para ser respetuoso)
-docker-compose exec web python manage.py scrape_clubs --delay 2.0 --verbose
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_clubs --delay 2.0 --verbose
 ```
 
 ### Matching Automático de Equipos con Clubes
 
 ```bash
-# Solo ejecutar matching de equipos existentes con clubes
-docker-compose exec web python manage.py scrape_clubs --match-teams --verbose
-
-# Scraping de clubes + matching en una sola operación
-docker-compose exec web python manage.py scrape_clubs --match-teams --verbose
+# Scraping de clubes + matching en una sola operación (no hay modo "solo matching")
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_clubs --match-teams --verbose
 ```
 
 ### Funcionalidades del Sistema de Clubes
@@ -196,19 +195,14 @@ docker-compose exec web python manage.py scrape_clubs --match-teams --verbose
 - Redes sociales (Instagram, Facebook, Twitter, web)
 - Logo oficial automático desde federación
 
-#### **Matching Inteligente**
-El sistema asocia automáticamente equipos con patrocinadores a sus clubes oficiales:
-
-- `ALARO VOLEI CLINICA DENTAL` → `ALARO VOLEI CLUB ESPORTIU`
-- `CAIXA COLONYA CV MANACOR` → `CLUB VOLEIBOL MANACOR`
-- `CV SANT JOSEP` → `CLUB ESPORTIU SANT JOSEP OBRER`
-
-#### **Algoritmo de Matching**
-1. **Normalización**: Quita acentos, convierte a mayúsculas, elimina caracteres especiales
-2. **Similitud**: Usa difflib.SequenceMatcher para calcular similitud
-3. **Palabras clave**: Detecta coincidencias parciales significativas
-4. **Umbral**: Solo matches con confianza > 0.55 se aplican automáticamente
-5. **Manual**: Matches con menor confianza se reportan para revisión
+#### **Asociación equipo → club (#380)**
+El club de un equipo sale de los ids de club que la federación manda en sus
+partidos (`Match.federation_club_local_id` / `federation_club_away_id`), **nunca
+del nombre**: el matching difuso emparejaba clubes distintos (CV Mataró con Club
+Mayurqa). `resolve_team_clubs` (`ilovevoley/teams/services.py`) solo asigna club
+a equipos sin club cuyos partidos apuntan a un único club; si apuntan a varios,
+el equipo queda sin club para revisión manual. `score_club_match` (difflib, umbral
+0.55) solo lo usa una migración antigua.
 
 #### **Gestión desde Admin**
 - Vista previa de logos en listados
@@ -223,42 +217,32 @@ El sistema asocia automáticamente equipos con patrocinadores a sus clubes ofici
 
 ```bash
 # Scraping de TODAS las ligas activas
-docker-compose exec web python manage.py scrape_all_leagues --verbose
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_all_leagues --verbose
 
 # Scraping solo de una categoría específica
-docker-compose exec web python manage.py scrape_all_leagues --category "Senior" --verbose
-docker-compose exec web python manage.py scrape_all_leagues --category "Cadete" --verbose
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_all_leagues --category "Senior" --verbose
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_all_leagues --category "Cadete" --verbose
 
 # Con delay personalizado entre ligas (para ser más respetuoso)
-docker-compose exec web python manage.py scrape_all_leagues --delay 3.0
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_all_leagues --delay 3.0
 ```
 
 ### Scraping Manual (Individual)
 
 ```bash
 # Scraping completo de una liga
-docker-compose exec web python manage.py scrape_league --league-id 7998 --verbose
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_league --league-id 7998 --verbose
 
 # Scraping de una jornada específica (para endpoints que lo soporten)
-docker-compose exec web python manage.py scrape_league --league-id 7998 --round 5
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_league --league-id 7998 --round 5
 ```
 
 ### Automatización
 
-Para scraping automático, puedes usar cron:
-
-```bash
-# Scraping de todas las ligas diario a las 20:00
-0 20 * * * cd /path/to/project && docker-compose exec -T web python manage.py scrape_all_leagues
-
-# Scraping de clubes semanal (domingos a las 2:00 AM)
-0 2 * * 0 cd /path/to/project && docker-compose exec -T web python manage.py scrape_clubs --match-teams
-
-# O scraping individual por liga
-0 20 * * * cd /path/to/project && docker-compose exec -T web python manage.py scrape_league --league-id 7998
-```
-
-O configurar Celery para tareas programadas (opcional).
+El scraping automático corre con Celery Beat, programado en
+`config/celery_schedule.py` (`scrape_all_leagues` cada 4 h, `scrape_clubs` a las
+06:00, etc.). Desde #601 `scrape_all_leagues` y `scrape_clubs` se reparten en una
+tarea por liga / club escalonada con `countdown`. Ver `TAREAS_PERIODICAS.md`.
 
 ## Estructura de URLs de la Federación
 
@@ -304,12 +288,8 @@ Para equipos de ligas:
 2. Busca por similitud parcial
 3. Registra warnings para revisión manual
 
-Para matching Club-Team:
-1. Normaliza nombres de ambos
-2. Calcula similitud usando difflib
-3. Considera coincidencias de palabras clave
-4. Aplica umbral de confianza (0.55)
-5. Reporta matches potenciales para revisión manual
+Para matching Club-Team: por ids federativos de club de los partidos, no por
+nombre (ver *Asociación equipo → club* arriba).
 
 ## Configuración Avanzada
 
@@ -324,6 +304,8 @@ Para federaciones con estructura diferente:
 ### Rate Limiting
 
 Por defecto: 1 segundo entre requests. Modificable en `BaseParser.rate_limit()`.
+
+`BaseParser` reintenta cada petición 2 veces con backoff (2 s, 4 s) ante errores de conexión, timeouts y 502/503/504; solo si fallan todos lanza `ScrapingError`, sin `logger.error` previo para no duplicar la issue en Sentry.
 
 ### Logging
 
@@ -347,15 +329,11 @@ LOGGING = {
 El sistema ahora filtra **automáticamente por categoría y equipo del club**:
 
 #### **Configuración Multi-Equipo**
-```python
-# En settings.py
-CLUB_TEAM_NAMES = {
-    'default': 'SANT JOSEP',
-    'senior': ['SANT JOSEP', 'CV SANT JOSEP'],
-    'cadete': ['SANT JOSEP CADETE', 'CV SANT JOSEP CADETE'],
-    'infantil': ['SANT JOSEP INFANTIL', 'CV SANT JOSEP INFANTIL'],
-}
-```
+Por tenant, en el admin de `Organization`: el club federativo vinculado
+(`Organization.club`, filtra por `Team.club`) y, como respaldo para equipos aún
+sin club, `Organization.club_team_names` (JSON, p. ej.
+`{"Senior": "SANT JOSEP", "Juvenil": "SANT JOSEP B"}`, búsqueda por subcadena).
+Ver `get_club_team_filter` en `ilovevoley/core/mixins.py`.
 
 #### **Funcionamiento**
 - **Sin categoría**: Muestra partidos de todos los equipos del club
@@ -365,23 +343,23 @@ CLUB_TEAM_NAMES = {
 ### Vincular Videos a Partidos
 
 1. Al crear/editar video, seleccionar partido en campo "Partido (opcional)"
-2. **Solo aparecen partidos del equipo configurado** (SANT JOSEP)
+2. **Solo aparecen partidos de los equipos del tenant**
 3. Los videos aparecerán automáticamente en vistas de partido
 4. Filtros disponibles por liga/equipo en lista de videos
 
 ### Cambiar Equipo Principal
 
-Para cambiar el equipo que aparece en el formulario:
-
-1. Editar `config/settings.py`
-2. Cambiar `CLUB_TEAM_NAME = 'NUEVO_NOMBRE'`
-3. Reiniciar servidor Django
+Se cambia por tenant en el admin de `Organization` (`club` / `club_team_names`).
+`CLUB_TEAM_NAME` en `config/settings.py` solo es el respaldo cuando el tenant no
+define `club_team_names`.
 
 ### Nuevas Vistas
 
-- `/videos/ligas/`: Lista de todas las ligas
-- `/videos/ligas/{id}/`: Detalle de liga con partidos y clasificación
-- `/videos/partidos/{id}/`: Detalle de partido con videos
+- `/competitions/ligas/`: Lista de todas las ligas
+- `/competitions/ligas/{id}/`: Detalle de liga con partidos y clasificación
+- `/competitions/partidos/{id}/`: Detalle de partido con videos
+
+Las rutas antiguas `/videos/ligas/…` y `/videos/partidos/…` se mantienen como compatibilidad.
 
 ## Solución de Problemas
 
@@ -408,18 +386,17 @@ Si falta, añádelo a `pyproject.toml` y reconstruye la imagen (ver `AGENTS.md`)
 - Revisar rate limiting (aumentar delay si es necesario)
 
 **"Matching no encuentra clubes obvios"**
-- Revisar umbral de confianza en comando (ajustar --threshold si disponible)
-- Verificar normalización de nombres en logs verbose
+- El club sale de los ids federativos de los partidos: comprobar que los partidos del equipo traen `federation_club_local_id` / `federation_club_away_id` y que apuntan a un único club
 - Hacer matching manual desde Django admin
 
 ### Debugging
 
 ```bash
 # Scraping con logs detallados
-docker-compose exec web python manage.py scrape_league --league-id 7998 --verbose
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_league --league-id 7998 --verbose
 
 # Debug de clubes en modo dry-run
-docker-compose exec web python manage.py scrape_clubs --dry-run --verbose
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_clubs --dry-run --verbose
 
 # Verificar contenido de endpoint
 curl "https://www.voleibolib.net/JSON/get_clasificacion.asp?id=7998"
@@ -468,7 +445,7 @@ docker compose -f docker-compose.dev.yml run --rm web python manage.py shell
 Respaldar regularmente la base de datos:
 
 ```bash
-docker-compose exec db pg_dump -U volleyuser volleyvideos > backup.sql
+docker compose -f docker-compose.dev.yml exec db pg_dump -U volleyuser volleyvideos > backup.sql
 ```
 
 ## Extensibilidad
@@ -493,13 +470,13 @@ El sistema está diseñado para funcionar con cualquier federación que use estr
 
 ```bash
 # 1. Configurar múltiples ligas
-docker-compose exec web python manage.py setup_league \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py setup_league \
   --name "Senior Masculino" --federation-id 7998 --season "2024-25"
 
-docker-compose exec web python manage.py setup_league \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py setup_league \
   --name "Cadete Masculino" --federation-id 8001 --season "2024-25"
 
-docker-compose exec web python manage.py setup_league \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py setup_league \
   --name "Infantil Masculino" --federation-id 8002 --season "2024-25"
 
 # 2. Vincular ligas a categorías en Django Admin
@@ -508,29 +485,25 @@ docker-compose exec web python manage.py setup_league \
 # Infantil Masculino → Categoría "Infantil"
 
 # 3. Ejecutar scraping de todas las ligas
-docker-compose exec web python manage.py scrape_all_leagues --verbose
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_all_leagues --verbose
 
 # 4. Importar todos los clubes con matching automático
-docker-compose exec web python manage.py scrape_clubs --match-teams --verbose
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_clubs --match-teams --verbose
 
-# 5. Verificar datos en admin: http://localhost:8000/admin/
-# - Ver clubes en /admin/videos/club/
-# - Ver equipos asociados en /admin/videos/team/
+# 5. Verificar datos en admin: http://localhost:8008/admin/
+# - Ver clubes en /admin/teams/club/
+# - Ver equipos asociados en /admin/teams/team/
 # - Logos automáticos desde federación
 
-# 6. Programar scraping automático
-# Ligas diarias
-0 22 * * * cd /path/to/project && docker-compose exec -T web python manage.py scrape_all_leagues
-# Clubes semanales
-0 2 * * 0 cd /path/to/project && docker-compose exec -T web python manage.py scrape_clubs --match-teams
+# 6. Scraping automático: ya programado en config/celery_schedule.py (Celery Beat)
 
 # 7. Scraping por categorías específicas
-docker-compose exec web python manage.py scrape_all_leagues --category "Senior"
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_all_leagues --category "Senior"
 ```
 
 ### **Resultado:**
-- **Videos de Senior**: Solo muestran partidos de senior de SANT JOSEP
-- **Videos de Cadete**: Solo muestran partidos de cadete de SANT JOSEP  
+- **Videos de Senior**: Solo muestran partidos de senior del club del tenant
+- **Videos de Cadete**: Solo muestran partidos de cadete del club del tenant  
 - **Admin completo**: Ve todos los partidos para gestión integral
 - **Datos de clubes**: Información completa de contacto, ubicación y logos automáticos
 - **Matching inteligente**: Equipos con patrocinadores asociados automáticamente a clubes oficiales
