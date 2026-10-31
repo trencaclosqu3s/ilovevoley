@@ -125,6 +125,42 @@ class RenderResultCardTests(SimpleTestCase):
         self.assertIn('01/06/2026', drawn)
         self.assertNotIn('31/05/2026', drawn)
 
+    def test_summary_layout_draws_duration_and_streaks(self):
+        """#652: la story solo pinta rachas y duración cuando el editor lo pide."""
+        match = _fake_match(scoreboard_summary={
+            'duration_seconds': 5420,
+            'max_streak': {'home': 6, 'away': 4},
+        })
+        calls, spy = _capture_drawn_text()
+
+        with spy:
+            result_card.render_result_card(
+                match=match,
+                organization=_fake_org(),
+                card_style='marco',
+                photo=_fake_photo_bytes(),
+                layout={'summary': True},
+                sets=[(25, 20)],
+                logo_fetcher=lambda url: None,
+            )
+            drawn = [content for _, content, _ in calls]
+            calls.clear()
+            result_card.render_result_card(
+                match=match,
+                organization=_fake_org(),
+                card_style='marco',
+                photo=_fake_photo_bytes(),
+                layout={'summary': False},
+                sets=[(25, 20)],
+                logo_fetcher=lambda url: None,
+            )
+
+        self.assertIn('Duración 1 h 30 min', drawn)
+        self.assertIn('Rachas 6-4', drawn)
+        without = [content for _, content, _ in calls]
+        self.assertNotIn('Duración 1 h 30 min', without)
+        self.assertNotIn('Rachas 6-4', without)
+
     def test_long_team_names_do_not_overlap(self):
         match = _fake_match(
             home_team_display='Club Voleibol Universitario de Las Palmas de Gran Canaria',

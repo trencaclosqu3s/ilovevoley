@@ -446,6 +446,90 @@
         </div>
     </div>
 
+    {% if scoreboard_summary %}
+    <section id="scoreboard-summary" class="bg-surface rounded-3xl border border-line p-4 sm:p-6 space-y-4"
+             aria-label="{% trans 'Desarrollo del partido' %}">
+        <h2 class="text-lg sm:text-xl font-bold text-ink">{% trans "Desarrollo del partido" %}</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {% if scoreboard_summary.duration_label %}
+            <div class="rounded-2xl bg-tint p-3">
+                <div class="text-xs text-muted">{% trans "Duración" %}</div>
+                <div class="text-lg font-bold text-ink tabular-nums">{{ scoreboard_summary.duration_label }}</div>
+            </div>
+            {% endif %}
+            {% if scoreboard_summary.streak_home is not None %}
+            <div class="rounded-2xl bg-tint p-3"
+                 data-streak-home="{{ scoreboard_summary.streak_home }}"
+                 data-streak-away="{{ scoreboard_summary.streak_away }}">
+                <div class="text-xs text-muted">{% trans "Racha máxima" %}</div>
+                <div class="text-lg font-bold text-ink tabular-nums">{{ scoreboard_summary.streak_home }} · {{ scoreboard_summary.streak_away }}</div>
+                <div class="text-xs text-muted truncate">{{ match.home_team_display }} · {{ match.away_team_display }}</div>
+            </div>
+            {% endif %}
+        </div>
+        {% if scoreboard_summary.sets %}
+            {% if scoreboard_summary.sets|length > 1 %}
+            <div class="inline-flex rounded-full bg-tint p-1 text-sm" role="group" aria-label="{% trans 'Sets' %}">
+                {% for set in scoreboard_summary.sets %}
+                <button type="button"
+                        data-momentum-set="{{ set.number }}"
+                        aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}"
+                        class="px-3 py-1 rounded-full font-medium transition {% if forloop.first %}bg-csj-purple-dark text-white{% else %}text-muted{% endif %}">
+                    {% blocktrans with number=set.number %}Set {{ number }}{% endblocktrans %}
+                </button>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% for set in scoreboard_summary.sets %}
+            <div data-momentum-panel="{{ set.number }}" {% if not forloop.first %}hidden{% endif %} class="space-y-2">
+                {% if set.duration_label %}
+                <p class="text-sm text-muted">{% trans "Duración" %}: <span class="font-medium text-ink tabular-nums">{{ set.duration_label }}</span></p>
+                {% endif %}
+                {% if set.comeback_label %}
+                <p class="text-sm text-ink">{{ set.comeback_label }}</p>
+                {% endif %}
+                {% if set.polyline %}
+                <div>
+                    <p class="text-xs text-muted">{% trans "Local por delante" %}</p>
+                    <svg viewBox="0 0 100 40" class="w-full h-36 text-csj-purple-dark" role="img"
+                         aria-label="{% blocktrans with number=set.number %}Momentum del set {{ number }}{% endblocktrans %}">
+                        <line x1="0" y1="20" x2="100" y2="20" stroke="currentColor" stroke-opacity="0.25" stroke-width="0.4"></line>
+                        <polyline fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"
+                                  data-diffs="{{ set.diffs|join:' ' }}" points="{{ set.polyline }}"></polyline>
+                    </svg>
+                    <p class="text-xs text-muted">{% trans "Visitante por delante" %}</p>
+                </div>
+                {% else %}
+                <p class="text-sm text-muted">{% trans "Sin cronología en este set" %}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% endif %}
+    </section>
+    <script>
+    (function () {
+        var root = document.getElementById('scoreboard-summary');
+        if (!root) return;
+        var buttons = root.querySelectorAll('[data-momentum-set]');
+        buttons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                var set = button.getAttribute('data-momentum-set');
+                buttons.forEach(function (other) {
+                    var active = other === button;
+                    other.setAttribute('aria-pressed', active ? 'true' : 'false');
+                    other.classList.toggle('bg-csj-purple-dark', active);
+                    other.classList.toggle('text-white', active);
+                    other.classList.toggle('text-muted', !active);
+                });
+                root.querySelectorAll('[data-momentum-panel]').forEach(function (panel) {
+                    panel.hidden = panel.getAttribute('data-momentum-panel') !== set;
+                });
+            });
+        });
+    }());
+    </script>
+    {% endif %}
+
     {% if preview %}
     <div class="bg-surface rounded-[20px] border border-line overflow-hidden">
         <div class="bg-tint px-4 sm:px-6 py-3 sm:py-4 border-b border-line">

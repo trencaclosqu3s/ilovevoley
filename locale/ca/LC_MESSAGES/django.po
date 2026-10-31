@@ -14326,3 +14326,58 @@ msgstr ""
 #~ msgstr ""
 #~ "Desplaça't cap avall i selecciona <strong>«Afegir a la pantalla d'inici»</"
 #~ "strong>."
+
+msgid "Resumen del marcador"
+msgstr "Resum del marcador"
+
+msgid ""
+"Cronología y métricas enviadas por el marcador al cerrar el partido. El "
+"scraping federativo no las borra."
+msgstr ""
+"Cronologia i mètriques enviades pel marcador en tancar el partit. El "
+"scraping federatiu no les esborra."
+
+msgid "%(hours)s h %(minutes)s min"
+msgstr "%(hours)s h %(minutes)s min"
+
+msgid "%(hours)s h"
+msgstr "%(hours)s h"
+
+msgid "%(minutes)s min"
+msgstr "%(minutes)s min"
+
+msgid "%(seconds)s s"
+msgstr "%(seconds)s s"
+
+msgid "Duración %(duration)s"
+msgstr "Durada %(duration)s"
+
+msgid "Rachas %(home)s-%(away)s"
+msgstr "Ratxes %(home)s-%(away)s"
+
+msgid "%(team)s remontó %(points)s puntos"
+msgstr "%(team)s va remuntar %(points)s punts"
+
+msgid "Incluir rachas y duración"
+msgstr "Incloure ratxes i durada"
+
+msgid "Desarrollo del partido"
+msgstr "Desenvolupament del partit"
+
+msgid "Duración"
+msgstr "Durada"
+
+msgid "Racha máxima"
+msgstr "Ratxa màxima"
+
+msgid "Local por delante"
+msgstr "El local va per davant"
+
+msgid "Momentum del set %(number)s"
+msgstr "Momentum del set %(number)s"
+
+msgid "Visitante por delante"
+msgstr "El visitant va per davant"
+
+msgid "Sin cronología en este set"
+msgstr "Sense cronologia en aquest set"
