@@ -5,15 +5,14 @@ import logging
 
 from celery import chord, shared_task
 from django.conf import settings
-from django.core.mail import mail_admins
 from django.db import models as django_models
 
+from ilovevoley.core.email_utils import send_technical_alert
 from ilovevoley.competitions.models import League, Match, ScrapingEndpoint
 from ilovevoley.teams.models import Club, Team
 from ilovevoley.competitions.scraping.federation import FederationScraper
 from ilovevoley.competitions.tasks_scraping import (
     _get_league,
-    _mail_admins_on_errors,
     build_scrape_all_leagues_workflow,
 )
 
@@ -98,7 +97,7 @@ def enrich_leagues_summary_task(self, league_stats, notify=True):
         Errores detectados:
         {chr(10).join([f"- {e['league']}: {e['error']}" for e in total_results['errors'][:10]])}
         """
-        _mail_admins_on_errors(subject, message)
+        send_technical_alert(subject, message)
     return total_results
 
 
@@ -416,19 +415,15 @@ def process_json_unified_task(self, json_url, op_type='1', league_id=None, categ
                     )
                     logger.info(f'Endpoint {endpoint_type} creado para {league.name}')
         
-        # Enviar email de notificación si hay errores y está habilitado
-        if result.get('errors') and getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
-            try:
-                subject = f'Errores en procesamiento JSON (op={op_type}) - {result.get("leagues_errors", 0)} ligas con problemas'
-                message = f'Se encontraron errores en {result.get("leagues_errors", 0)} de {result.get("leagues_processed", 0)} ligas procesadas.\n\n'
-                message += 'Errores detallados:\n'
-                for error in result.get('errors', []):
-                    message += f'- {error["league"]}: {error["error"]}\n'
-                
-                mail_admins(subject, message)
-                logger.info('Email de notificación de errores enviado')
-            except Exception as e:
-                logger.error(f'Error enviando email de notificación: {e}')
+        # Enviar email de notificación si hay errores
+        if result.get('errors'):
+            subject = f'Errores en procesamiento JSON (op={op_type}) - {result.get("leagues_errors", 0)} ligas con problemas'
+            message = f'Se encontraron errores en {result.get("leagues_errors", 0)} de {result.get("leagues_processed", 0)} ligas procesadas.\n\n'
+            message += 'Errores detallados:\n'
+            for error in result.get('errors', []):
+                message += f'- {error["league"]}: {error["error"]}\n'
+            
+            send_technical_alert(subject, message)
         
         return result
         

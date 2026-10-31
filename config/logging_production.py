@@ -52,12 +52,6 @@ LOGGING = {
             'backupCount': 5,
             'formatter': 'verbose',
         },
-        'mail_admins': {
-            'level': 'ERROR',
-            'class': 'django.utils.log.AdminEmailHandler',
-            'filters': ['require_debug_false'],
-            'formatter': 'verbose',
-        },
     },
     'loggers': {
         # Logger principal de la aplicación
@@ -86,13 +80,13 @@ LOGGING = {
         },
         # Errores de Django
         'django.request': {
-            'handlers': ['error_file', 'mail_admins'],
+            'handlers': ['error_file'],
             'level': 'ERROR',
             'propagate': False,
         },
         # Errores de seguridad
         'django.security': {
-            'handlers': ['error_file', 'mail_admins'],
+            'handlers': ['error_file'],
             'level': 'ERROR',
             'propagate': False,
         },

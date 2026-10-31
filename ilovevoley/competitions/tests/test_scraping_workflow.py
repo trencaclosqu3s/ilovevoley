@@ -47,13 +47,13 @@ class ScrapeAllLeaguesWorkflowTest(TestCase):
             {'league': 'B', 'success': False, 'teams': 0, 'matches': 0, 'standings': 0,
              'errors': [{'league': 'B', 'endpoint': 'general', 'error': 'boom'}]},
         ]
-        with mock.patch('ilovevoley.competitions.tasks_scraping.mail_admins') as mail:
+        with mock.patch('ilovevoley.competitions.tasks_scraping.send_technical_alert') as alert:
             total = scrape_leagues_summary_task.run(stats)
         self.assertEqual(
             (total['leagues_processed'], total['leagues_success'], total['leagues_errors']), (2, 1, 1)
         )
         self.assertEqual((total['total_teams'], total['total_matches']), (2, 5))
-        mail.assert_called_once()
+        alert.assert_called_once()
 
 
 class EnrichLeaguesWorkflowTest(TestCase):
@@ -87,6 +87,17 @@ class EnrichLeaguesWorkflowTest(TestCase):
         total = enrich_leagues_summary_task.run(stats, notify=False)
         self.assertEqual((total['total_enriched'], total['total_new'], total['leagues_errors']), (3, 1, 1))
 
+    @override_settings(NOTIFICATION_EMAIL_ENABLED=True)
+    def test_enrich_summary_sends_technical_alert_on_errors(self):
+        stats = [
+            {'league': 'A', 'success': True, 'enriched': 3, 'new': 1, 'errors': []},
+            {'league': 'B', 'success': False, 'enriched': 0, 'new': 0, 'errors': [{'league': 'B', 'error': 'boom'}]},
+        ]
+        with mock.patch('ilovevoley.competitions.tasks_enrichment.send_technical_alert') as mock_alert:
+            enrich_leagues_summary_task.run(stats, notify=True)
+        mock_alert.assert_called_once()
+        self.assertIn('Errores en enriquecimiento JSON', mock_alert.call_args.args[0])
+
 
 class ScrapeResultsWorkflowTest(TestCase):
     def setUp(self):
@@ -110,9 +121,9 @@ class ScrapeResultsWorkflowTest(TestCase):
     def test_summary_subject_names_the_kind(self):
         stats = [{'league': 'B', 'success': False, 'matches': 0, 'rounds': 0,
                   'errors': [{'league': 'B', 'error': 'x'}]}]
-        with mock.patch('ilovevoley.competitions.tasks_scraping.mail_admins') as mail:
+        with mock.patch('ilovevoley.competitions.tasks_scraping.send_technical_alert') as alert:
             scrape_endpoint_summary_task.run(stats, 'calendario')
-        self.assertIn('calendario', mail.call_args.args[0])
+        self.assertIn('calendario', alert.call_args.args[0])
 
 
 class ScrapeClubsWorkflowTest(TestCase):
