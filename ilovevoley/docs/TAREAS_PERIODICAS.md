@@ -326,9 +326,12 @@ Si hay errores durante el scraping automático y tienes las notificaciones por e
 
 ```bash
 NOTIFICATION_EMAIL_ENABLED=True
+ADMIN_EMAIL_LIST=admin@example.com,otro@example.com
+# O específicamente para alertas técnicas:
+# TECHNICAL_ALERT_EMAILS=tech@example.com
 ```
 
-el callback del scraping envía el resumen de errores con `mail_admins`, que usa el setting `ADMINS` de Django (no `ADMIN_EMAIL_LIST`). `config/settings.py` no define hoy `ADMINS`, así que sin él ese email no llega a nadie.
+Recibirás un email con el resumen de errores (destinatarios configurados para alertas técnicas).
 
 ## Troubleshooting
 
