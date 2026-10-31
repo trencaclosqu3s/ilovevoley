@@ -16,10 +16,12 @@ Representa a cada club u organización en la plataforma:
 - **`name`**: Nombre completo del club (ej: "Club Voleibol Sant Josep").
 - **`club`**: Clave foránea opcional a `teams.Club` que vincula la organización con su club federativo oficial. Permite detectar automáticamente qué equipos y partidos pertenecen a este club sin necesidad de configuraciones estáticas.
 - **`logo`**: Logotipo específico del club para el navbar y encabezados.
-- **`primary_color`** y **`secondary_color`**: Colores corporativos hexadecimales aplicados dinámicamente en el tema visual.
+- **`primary_color`** y **`secondary_color`**: Colores corporativos hexadecimales aplicados dinámicamente en el tema visual. **`gradient_color`** (opcional) es el color final del degradado de la cabecera del perfil (vacío: usa el secundario).
 - **`default_home`**: Sección de inicio del tenant (`videos`, `images`, `competitions`). Define a dónde redirige la raíz del tenant y el logo del navbar.
 - **`instagram_url`**: Perfil de Instagram para enlaces sociales.
 - **`club_team_names`**: Diccionario JSON con nombres o prefijos de equipo por categoría (usado como fallback o ajuste fino).
+- **`is_active`**: Solo las organizaciones activas resuelven su subdominio.
+- **`notify_match_changes`** y **`has_male_branch`** / **`has_female_branch`** / **`has_mixed_branch`**: Controlan los avisos de cambios federativos de los partidos de sus equipos y de qué ramas.
 
 ### `Membership` (`ilovevoley.users.models.Membership`)
 
@@ -35,20 +37,20 @@ Gestiona la pertenencia de un usuario a un club:
 
 ## 🌐 Resolución de Tenant (`TenantMiddleware`)
 
-El middleware [`TenantMiddleware`](file:///Users/jamartinmari/PycharmProjects/videosvoley/ilovevoley/core/middleware.py) intercepta cada petición HTTP y resuelve la organización según el host:
+El middleware [`TenantMiddleware`](../core/middleware.py) intercepta cada petición HTTP y resuelve la organización según el host:
 
-1. Extrae el host de `request.META['HTTP_HOST']`.
+1. Extrae el host de `request.META['HTTP_HOST']` y toma las dos últimas etiquetas como dominio raíz (en local, `santjosep.localhost` no resuelve tenant: usar `santjosep.lvh.me:8008`, ver AGENTS.md).
 2. Si la petición accede al dominio raíz sin subdominio (ej: `ilovevoley.es`), `request.tenant` es `None` y se muestra la landing general.
 3. Si la petición accede a un subdominio reservado (ej: `www.ilovevoley.es`), emite una redirección permanente HTTP 301 al dominio raíz manteniendo ruta y query params.
 4. Si la petición accede al subdominio de un club (ej: `santjosep.ilovevoley.es`), busca la organización activa por `slug`.
 5. Si el subdominio no existe o está inactivo, devuelve `404 Not Found`.
-6. Rutas globales (como la suscripción a calendarios ICS) están exentas de la restricción de tenant.
+6. Sin tenant, las rutas `/videos/` redirigen a la landing, salvo las de `TENANT_EXEMPT_PREFIXES` (la suscripción ICS `/videos/calendario/suscripcion/`).
 
 ## 🛡️ Moderación Descentralizada de Membresías
 
 A diferencia de los paneles monolíticos clásicos:
 
-- **Los managers de cada club** tienen acceso a `/core/moderacion/` para aprobar las solicitudes de membresía (`Membership`) de su propio club, sin necesidad de permisos de superusuario global.
+- **Los managers de cada club** tienen acceso a `/core/moderacion/` para aprobar las solicitudes de membresía (`Membership`) y de vínculo cuenta ↔ ficha (`PersonLinkRequest`, #531) de su propio club, sin necesidad de permisos de superusuario global.
 - Al registrarse un usuario en el subdominio de un club, se envía una notificación por email a los administradores y managers de esa organización con un enlace de aprobación directa mediante token seguro.
 - Las imágenes y contenidos globales requieren supervisión de administradores con permisos de staff.
 
@@ -68,5 +70,5 @@ La arquitectura de la aplicación móvil instalable (PWA) está adaptada a la na
 1. **App Única Comunitaria**: El usuario instala una única aplicación ("I Love Voley"). Al acceder al subdominio de un club, la PWA adopta su `theme_color`, logotipo e identidad visual.
 2. **Sesión Compartida**: En producción, las cookies de sesión y CSRF se configuran a nivel de dominio comodín (`.ilovevoley.es`), permitiendo que el usuario mantenga su autenticación al navegar entre clubes de los que sea miembro.
 3. **Conmutación In-App y Scope Extensions**: Para evitar que el navegador expulse al usuario de la ventana de la PWA al cambiar de subdominio, el sistema publica el endpoint estandarizado `/.well-known/web-app-origin-association` con todos los tenants activos. El conmutador de clubes de la interfaz permite alternar de club sin abrir pestañas externas.
-4. **Ámbito de Personas y Plantillas**: Siguiendo la decisión de arquitectura #174, el modelo `Person` incluye `organization` en su constraint de identidad (`unique_person_identity`), permitiendo que la misma persona física (jugador/entrenador) mantenga fichas deportivas independientes en dos clubes distintos.
+4. **Ámbito de Personas y Plantillas**: `Person` es global (#342, sustituye la decisión A de #174): su identidad única (`unique_person_identity`) es (`first_name`, `last_name`, `birth_year`), sin organización. Una ficha es visible en un tenant si el club está en `Person.organizations` o si tiene roles en un equipo del club (`Person.objects.for_tenant`); si el alta choca con una ficha de otro club, se ofrece adoptarla (`person_adopt`).
 

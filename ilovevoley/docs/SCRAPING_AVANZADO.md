@@ -29,12 +29,12 @@ El sistema de scraping ha sido expandido para soportar diferentes tipos de ligas
 ```bash
 
 # Scraping masivo de ligas históricas
-docker-compose exec web python manage.py scrape_historical_leagues \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_historical_leagues \
     --visibility-type historical \
     --verbose
 
 # Modo dry-run para probar
-docker-compose exec web python manage.py scrape_historical_leagues \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_historical_leagues \
     --visibility-type historical \
     --dry-run \
     --verbose
@@ -44,7 +44,7 @@ docker-compose exec web python manage.py scrape_historical_leagues \
 
 ```bash
 # Scraping masivo de ligas externas
-docker-compose exec web python manage.py scrape_external_leagues \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_external_leagues \
     --federation-base-url "https://www.voleibolib.net" \
     --season "2024-25" \
     --category "Senior" \
@@ -53,7 +53,7 @@ docker-compose exec web python manage.py scrape_external_leagues \
     --verbose
 
 # Scraping de liga externa específica
-docker-compose exec web python manage.py scrape_external_leagues \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_external_leagues \
     --federation-base-url "https://www.voleibolib.net" \
     --season "2024-25" \
     --category "Senior" \
@@ -65,7 +65,7 @@ docker-compose exec web python manage.py scrape_external_leagues \
 
 ```bash
 # Crear ligas de referencia para análisis
-docker-compose exec web python manage.py scrape_historical_leagues \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_historical_leagues \
     --league-id "2001" \
     --season "2024-25" \
     --visibility-type reference \
@@ -74,12 +74,25 @@ docker-compose exec web python manage.py scrape_historical_leagues \
     --verbose
 ```
 
+### 4. Ligas históricas de categorías base (#404)
+
+```bash
+# Propone candidatas históricas (Alevín a Juvenil) de las 5 temporadas anteriores
+docker compose -f docker-compose.dev.yml run --rm web python manage.py discover_historical_leagues --seasons 5
+```
+
+No crea ligas: deja `LeagueCandidate` pendientes con `is_historical=True` (también
+la tarea `discover_historical_leagues`, sin programar en `config/celery_schedule.py`).
+Tras aprobarlas, la acción del admin de ligas *Sincronizar resultados históricos
+(una pasada)* encola `scrape_historical_leagues`, que trae clasificación, calendario
+y todas las jornadas de resultados (alimenta el H2H), un job por liga.
+
 ## Configuración en Admin
 
 ### Gestión de Ligas
-1. Acceder a `/admin/videos/league/`
+1. Acceder a `/admin/competitions/league/`
 2. Usar filtros por `visibility_type` para organizar ligas
-3. Usar acciones masivas para cambiar tipos de ligas:
+3. Usar acciones masivas (solo superusuarios) para cambiar tipos de ligas:
    - Marcar como ligas principales
    - Marcar como ligas de referencia
    - Marcar como ligas históricas
@@ -96,7 +109,7 @@ docker-compose exec web python manage.py scrape_historical_leagues \
 ### 1. Análisis Estadístico
 ```python
 # Obtener todas las ligas para análisis
-from ilovevoley.videos.models import League
+from ilovevoley.competitions.models import League
 
 # Ligas principales (visibles en app)
 main_leagues = League.objects.visible_in_app()
@@ -117,7 +130,7 @@ all_leagues = League.objects.all_for_admin()
 ### 2. Scraping de Datos Históricos
 ```bash
 # Scraping de temporadas anteriores
-docker-compose exec web python manage.py scrape_historical_leagues \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_historical_leagues \
     --league-id "1234" \
     --season "2022-23" \
     --visibility-type historical \
@@ -130,7 +143,7 @@ docker-compose exec web python manage.py scrape_historical_leagues \
 ### 3. Análisis de Competencia
 ```bash
 # Scraping de ligas de otros equipos/regiones
-docker-compose exec web python manage.py scrape_external_leagues \
+docker compose -f docker-compose.dev.yml run --rm web python manage.py scrape_external_leagues \
     --federation-base-url "https://www.voleibolib.net" \
     --season "2024-25" \
     --category "Senior" \
@@ -215,8 +228,8 @@ historical_endpoints = [
 
 ```bash
 # Verificar estado de ligas
-docker-compose exec web python manage.py shell
->>> from ilovevoley.videos.models import League
+docker compose -f docker-compose.dev.yml run --rm web python manage.py shell
+>>> from ilovevoley.competitions.models import League
 >>> League.objects.filter(visibility_type='external').count()
 >>> League.objects.filter(visibility_type='historical').count()
 

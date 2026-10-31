@@ -90,8 +90,8 @@ Vistas cuyos controles de formulario llevan el atributo `data-submit-on-change`.
   - *Antes*: el select de temporada tenía clase `auto-filter` pero no cargaba el script; los chips de posición y rol se pisaban entre sí en la query string.
   - *Ahora*: temporada con `data-submit-on-change`; los enlaces preservan `season`, `position` y `role` sin exclusión mutua.
 - **Vistas manuales / híbridas por diseño**:
-  - **Sedes (`competitions:where_plays`)**: buscador con debounce AJAX (`where_plays.js`); el botón «Buscar» no es el flujo principal con JS.
-  - **Alta masiva de plantilla (`rosters:roster_bulk_add`)**: el select de temporada ya hace submit on change (precarga); el buscador de personas es filtro en cliente.
+  - **Dónde juega (`where_plays`, `/donde-juega/`)**: buscador con debounce AJAX (`where_plays.js`); el botón «Buscar» no es el flujo principal con JS.
+  - **Alta masiva de plantilla (`rosters:player_roster_bulk_add`)**: el select de temporada hace submit on change con un listener propio en el script inline de la plantilla (precarga); el buscador de personas es filtro en cliente.
 
 ---
 

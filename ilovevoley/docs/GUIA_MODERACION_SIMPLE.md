@@ -4,7 +4,9 @@
 
 ### 🎯 ¿Qué Hace Esta Funcionalidad?
 
-Ahora puedes **aprobar o rechazar usuarios e imágenes directamente desde tu email**, sin necesidad de entrar al panel de administración. ¡Así de simple! 🎉
+Te llega un email por cada **usuario nuevo** y por cada **imagen pendiente**. Las imágenes puedes **aprobarlas o rechazarlas desde el propio email**; los usuarios se aprueban en el **panel de moderación** del club (`/core/moderacion/`), al que lleva el botón del email. ¡Así de simple! 🎉
+
+Los emails llegan a los superusuarios y a los **admins y managers aprobados del club** donde ocurre el alta o la subida.
 
 ---
 
@@ -31,24 +33,20 @@ Estado actual: ⏳ Pendiente de aprobación
 
 ### ¿Qué Hacer?
 
-**Opción 1: Aprobar (Lo Normal)**
-- Haz clic en el botón verde grande **"✓ Aprobar Usuario"**
+- Haz clic en el botón **"🔔 Revisar en el panel de moderación"** (necesitas tener la sesión iniciada)
+- En el panel verás la solicitud con sus datos y los botones para aprobarla o rechazarla
+
+**Aprobar (Lo Normal)**
 - ¡Listo! El usuario ya puede usar la web
 - Le llegará un email automático avisándole
 
-**Opción 2: Rechazar (Si Algo No Cuadra)**
-- Haz clic en el botón rojo **"✗ Rechazar Usuario"**
-- El usuario no podrá acceder
-- Su cuenta quedará desactivada
-
-**Opción 3: Ver Más Detalles**
-- Si no estás segura, haz clic en **"Ver en Admin Panel"**
-- Te llevará al panel de administración con todos los detalles
+**Rechazar (Si Algo No Cuadra)**
+- El usuario no podrá acceder al club
 
 ### 💡 Consejos:
 - ✅ **Aprueba** si ves que la información familiar tiene sentido (ej: "mamá de Luis de infantil")
 - ❌ **Rechaza** si parece spam o no tiene sentido
-- 🤔 **Revisa en Admin** si tienes dudas
+- 🤔 **Pregunta al equipo** si tienes dudas antes de decidir
 
 ---
 
@@ -72,16 +70,18 @@ Cuando alguien suba una foto, te llegará un email con:
 
 3. **Botones de Acción**: Aprobar o Rechazar directamente
 
+Si alguien sube **varias fotos de golpe** (cola de subida desde el móvil), en vez de un email por foto te llega **un solo email del lote** con el botón **"Ir al panel de moderación"**, y allí las moderas todas.
+
 ### ¿Qué Hacer?
 
 **Opción 1: Aprobar (Si la Imagen Está Bien)**
 - Revisa la imagen adjunta
-- Si es apropiada, haz clic en **"✓ Aprobar Imagen"**
-- La imagen aparecerá en la galería pública
+- Si es apropiada, haz clic en **"✓ Aprobar Imagen"** y confirma en la página que se abre
+- La imagen aparecerá en la galería del club
 - El usuario recibirá una notificación
 
 **Opción 2: Rechazar (Si No Es Apropiada)**
-- Si la imagen no es adecuada, haz clic en **"✗ Rechazar Imagen"**
+- Si la imagen no es adecuada, haz clic en **"✗ Rechazar Imagen"** y confirma
 - La imagen NO se publicará
 - El usuario recibirá una notificación de rechazo
 
@@ -105,24 +105,24 @@ Cuando alguien suba una foto, te llegará un email con:
 
 **¡Sí! Totalmente seguros:**
 
-- ✅ Los enlaces están **cifrados** con tecnología de Django
-- ✅ Solo funcionan durante **7 días** (después expiran)
-- ✅ Solo pueden aprobar/rechazar **ese usuario/imagen específico**
+- ✅ Los enlaces están **firmados** con tecnología de Django
+- ✅ Solo funcionan durante **60 minutos** (`MODERATION_TOKEN_MAX_AGE`) y **una sola vez**
+- ✅ Solo pueden aprobar/rechazar **esa imagen específica**
 - ✅ No pueden hacer nada más en la web
-- ✅ No necesitas hacer login
+- ✅ Necesitas tener la **sesión iniciada** con una cuenta que pueda moderar ese club (si no, te pedirá entrar)
 
 ### ¿Qué Pasa Si...?
 
 **❓ El enlace no funciona**
-- Probablemente haya expirado (más de 7 días)
-- Solución: Accede al panel de admin directamente
+- Probablemente haya expirado (más de 60 minutos) o ya se usó
+- Solución: Accede al panel de moderación (`/core/moderacion/`) directamente
 
 **❓ Ya aprobé/rechacé y hago clic de nuevo**
 - Te dirá que ya fue moderado
 - No pasa nada malo, está controlado
 
 **❓ Aprobé por error**
-- Accede al panel de admin
+- Accede al panel de administración
 - Busca el usuario/imagen
 - Cambia el estado manualmente
 
@@ -152,8 +152,8 @@ Cuando alguien suba una foto, te llegará un email con:
 
 1. 📧 Te llega el email: **"Nuevo usuario pendiente de aprobación: juanito_papa"**
 2. 👀 Lees la información del usuario
-3. ✅ Si todo parece OK, haces clic en el botón verde **"Aprobar Usuario"**
-4. 🌐 Se abre una página confirmando que fue aprobado
+3. 🔔 Haces clic en **"Revisar en el panel de moderación"**
+4. ✅ Si todo parece OK, lo apruebas desde el panel
 5. 🎉 ¡El usuario ya puede acceder!
 6. 📨 El usuario recibe un email automático: "Tu cuenta ha sido aprobada"
 
@@ -163,7 +163,7 @@ Cuando alguien suba una foto, te llegará un email con:
 2. 🖼️ **Ves la imagen directamente en el email** (grande y clara)
 3. 👀 Revisas que sea apropiada
 4. ✅ Si está bien, haces clic en el botón verde **"Aprobar Imagen"**
-5. 🌐 Se abre una página confirmando que fue aprobada
+5. 🌐 Se abre una página donde confirmas la aprobación
 6. 🎉 ¡La imagen ya está visible en la galería!
 7. 📨 El usuario recibe un email: "Tu imagen ha sido aprobada"
 
@@ -173,7 +173,7 @@ Cuando alguien suba una foto, te llegará un email con:
 
 ### No Me Llegan Los Emails
 - Revisa la carpeta de SPAM
-- Asegúrate de que tu email es superuser en el sistema
+- Asegúrate de que eres admin o manager aprobado del club (o superusuario) y tienes email en tu cuenta
 - Contacta con el desarrollador
 
 ### Los Botones No Funcionan
@@ -192,12 +192,12 @@ Cuando alguien suba una foto, te llegará un email con:
 
 ### Usuario Nuevo:
 ```
-Email → Ver Info → Botón Verde (aprobar) o Rojo (rechazar) → ¡Listo!
+Email → Ver Info → Panel de moderación → Aprobar o Rechazar → ¡Listo!
 ```
 
 ### Imagen Nueva:
 ```
-Email → Ver Imagen Adjunta → Botón Verde (aprobar) o Rojo (rechazar) → ¡Listo!
+Email → Ver Imagen Adjunta → Botón Verde (aprobar) o Rojo (rechazar) → Confirmar → ¡Listo!
 ```
 
 ---
@@ -210,7 +210,7 @@ Si tienes dudas o problemas:
 
 ---
 
-**¡Es así de fácil! No necesitas aprender a usar el admin panel. Todo desde tu email. 💪**
+**¡Es así de fácil! No necesitas aprender a usar el admin panel: el email y el panel de moderación bastan. 💪**
 
 🎉 **¡Feliz moderación!** 🎉
 
