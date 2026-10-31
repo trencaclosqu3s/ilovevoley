@@ -78,6 +78,7 @@ echo "DJANGO_ADMIN_URL=$(openssl rand -base64 24 | tr -d '/+=' | tr 'A-Z' 'a-z')
 2. **Protección contra ataques automatizados:** Los bots que buscan `/admin/` no encontrarán el panel
 3. **Reducción de intentos de acceso no autorizados:** Menos intentos de fuerza bruta
 4. **Flexibilidad:** Puedes cambiar la URL en cualquier momento sin modificar código
+5. **Sin exposición en robots.txt:** La ruta secreta no se publica en `robots.txt` (lo que anularía la ofuscación); en su lugar, las respuestas del admin envían la cabecera HTTP `X-Robots-Tag: noindex, nofollow` para evitar la indexación de forma segura.
 
 ## 🔄 Cambiar la URL en Producción
 
