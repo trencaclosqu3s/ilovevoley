@@ -13,6 +13,7 @@ import time
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,10 @@ TRANSIENT_HTTP_CODES = (429, 500, 502, 503, 504)
 _NON_FIGURE_KEYS = ('temporada', 'max_caracteres')
 _last_call = 0.0
 _LANGUAGE_NAMES = {'es': 'castellano', 'ca': 'catalán'}
+CACHE_KEY_LAST_CALL = 'core:narrative:last_call'
+CACHE_KEY_LOCK = 'core:narrative:lock'
+_LOCK_TIMEOUT = 10.0
+_LOCK_RETRY_DELAY = 0.05
 _STYLE_HEADERS = {
     'wrapped': (
         'Redacta un párrafo breve para el resumen de temporada de una persona que juega a '
@@ -96,17 +101,74 @@ def _build_prompt(payload: dict, style: str) -> str:
     ])
 
 
+def _now() -> float:
+    return time.time()
+
+
+def _acquire_lock() -> bool:
+    try:
+        if cache.add(CACHE_KEY_LOCK, '1', timeout=15):
+            return True
+        deadline = time.monotonic() + _LOCK_TIMEOUT
+        while time.monotonic() < deadline:
+            time.sleep(_LOCK_RETRY_DELAY)
+            if cache.add(CACHE_KEY_LOCK, '1', timeout=15):
+                return True
+    except Exception as e:
+        logger.warning('Fallo al adquirir el cerrojo de redacción en caché: %s', e)
+        return False
+    return False
+
+
+def _release_lock():
+    try:
+        cache.delete(CACHE_KEY_LOCK)
+    except Exception:
+        pass
+
+
 def _throttle():
     """Espacia las llamadas ``LLM_NARRATIVE_MIN_INTERVAL`` s (la capa gratuita de Gemini admite 15/min).
 
-    Las tandas nocturnas son secuenciales; el contador es por proceso, así que dos workers
-    concurrentes no se coordinan (0 desactiva la pausa en una cuenta de pago).
+    El límite es compartido entre workers vía caché (Redis en producción).
+    0 desactiva la pausa en una cuenta de pago.
     """
     global _last_call
-    wait = _last_call + settings.LLM_NARRATIVE_MIN_INTERVAL - time.monotonic()
+    interval = getattr(settings, 'LLM_NARRATIVE_MIN_INTERVAL', 0)
+    if interval <= 0:
+        return
+
+    now = _now()
+    locked = _acquire_lock()
+
+    if locked:
+        try:
+            last_call = cache.get(CACHE_KEY_LAST_CALL, 0.0)
+            try:
+                last_call = float(last_call) if last_call is not None else 0.0
+            except (ValueError, TypeError):
+                last_call = 0.0
+
+            # Si last_call está en el futuro lejano (> now + 120s) por desajuste de reloj o dato corrupto, resetear.
+            if last_call > now + 120.0:
+                last_call = 0.0
+
+            target_time = max(now, last_call + interval)
+            cache.set(CACHE_KEY_LAST_CALL, target_time, timeout=3600)
+            _last_call = target_time
+        except Exception as e:
+            logger.warning('Error actualizando el throttle compartido en caché: %s', e)
+            target_time = max(now, _last_call + interval)
+            _last_call = target_time
+        finally:
+            _release_lock()
+    else:
+        target_time = max(now, _last_call + interval)
+        _last_call = target_time
+
+    wait = target_time - _now()
     if wait > 0:
         time.sleep(wait)
-    _last_call = time.monotonic()
 
 
 def _post_to_provider(prompt: str) -> str:

@@ -32,6 +32,17 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'cleanup_expired_web_push_audits',
         'schedule': timedelta(days=1),
     },
+    # Limpieza de exportaciones de datos RGPD (#613).
+    'cleanup-expired-data-exports': {
+        'task': 'cleanup_expired_data_exports',
+        'schedule': timedelta(days=1),
+    },
+    # Limpieza de auditoría de privacidad RGPD (#613, retención 365 días).
+    'cleanup-expired-privacy-audit-events': {
+        'task': 'cleanup_expired_privacy_audit_events',
+        'schedule': timedelta(days=1),
+    },
+
     # Ciclo de vida y aviso de cuentas inactivas (#327). Pasada diaria a las 03:30 peninsular.
     'process-inactive-users': {
         'task': 'process_inactive_users',

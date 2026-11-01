@@ -70,11 +70,11 @@ declaradas se exponen en `window`), por lo que `data-call` las encuentra.
 
 ## Excepciones documentadas
 
-1. **Panel de administración (`/admin/`)**: Unfold y Alpine.js evalúan
+1. **Panel de administración (`/<ADMIN_URL>`, `/admin/` en desarrollo)**: Unfold y Alpine.js evalúan
    expresiones con `new Function` y sus plantillas inyectan `<script>`/`<style>`
    sin nonce. `ilovevoley.core.middleware.AdminCSPMiddleware` aplica una
-   política relajada (`'unsafe-inline'`, `'unsafe-eval'`) solo a las rutas del
-   admin. Está acotada a usuarios de staff.
+   política relajada (`ADMIN_CSP`: `'unsafe-inline'`, `'unsafe-eval'`) solo a las
+   rutas que empiezan por `settings.ADMIN_URL`. Está acotada a usuarios de staff.
 2. **Emails**: las plantillas de `*/templates/emails/` no se sirven como
    página; su HTML no pasa por esta CSP.
 3. **CDNs** `cdn.jsdelivr.net` (Notyf) y `cdnjs.cloudflare.com` (Cropper.js)

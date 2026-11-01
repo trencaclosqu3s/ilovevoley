@@ -394,7 +394,7 @@ ADMIN_CSP = {
 
 
 class AdminCSPMiddleware:
-    """Aplica una CSP relajada (Unfold/Alpine) a las rutas del admin.
+    """Aplica una CSP relajada (Unfold/Alpine) y cabecera noindex a las rutas del admin.
 
     Se registra justo después de ContentSecurityPolicyMiddleware: al procesar
     la respuesta en orden inverso, este middleware sobrescribe la config antes
@@ -407,7 +407,9 @@ class AdminCSPMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        if request.path.startswith(self.admin_prefix):
+        path = request.path
+        if path == self.admin_prefix.rstrip('/') or path.startswith(self.admin_prefix):
             response._csp_config = ADMIN_CSP
             response._csp_ro_config = None
+            response.headers['X-Robots-Tag'] = 'noindex, nofollow'
         return response

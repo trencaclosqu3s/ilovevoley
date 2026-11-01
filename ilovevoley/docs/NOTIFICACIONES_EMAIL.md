@@ -5,16 +5,23 @@ Este documento explica cómo configurar y usar el sistema de notificaciones por 
 ## ✨ Funcionalidades Implementadas
 
 ### 1. 👤 Notificaciones de Usuarios
-- **Nuevo usuario pendiente**: Email a admins cuando alguien se registra
-- **Usuario aprobado**: Email al usuario cuando es aprobado por un admin
+- **Nuevo usuario / membresía pendiente**: Email a los moderadores cuando alguien se registra o solicita unirse a un club
+- **Usuario aprobado / rechazado**: Email al usuario con el resultado de la moderación
+- **Reactivación pendiente** y **aviso de inactividad** (#327)
 
 ### 2. 📸 Notificaciones de Imágenes
-- **Imagen pendiente**: Email a admins cuando se sube una imagen nueva
+- **Imagen pendiente**: Email a los moderadores cuando se sube una imagen nueva (agrupado por lote en subidas múltiples)
 - **Imagen moderada**: Email al usuario cuando su imagen es aprobada/rechazada
+- **Error de Google Vision**: Aviso técnico si falla el análisis de la imagen
 
 ### 3. 🔍 Notificaciones de Errores 404
 - **Reporte diario**: Resumen diario de errores 404
 - **Alerta inmediata**: Email cuando hay muchos 404s en poco tiempo
+
+### 4. 🗂️ Otras
+- **Vínculo cuenta ↔ ficha** aprobado/rechazado (#531), **Season Wrapped** y novedades de temporada a jugadores y familias
+- **Ligas o identidades de equipo pendientes de validar** (a superusers, #377 / #428)
+- **Mensaje directo del admin** a usuarios (`send_admin_email_to_users`)
 
 ## ⚙️ Configuración
 
@@ -32,7 +39,7 @@ EMAIL_HOST_USER=tu-email@gmail.com
 EMAIL_HOST_PASSWORD=tu-app-password
 DEFAULT_FROM_EMAIL=tu-email@gmail.com
 
-# Sistema de notificaciones
+# Sistema de notificaciones (por defecto False: sin él no sale ningún aviso)
 NOTIFICATION_EMAIL_ENABLED=True
 
 # ADMIN_EMAIL_LIST ya NO es necesario - Los emails se envían automáticamente 
@@ -53,6 +60,7 @@ EMAIL_NOTIFY_USER_APPROVED=True
 EMAIL_NOTIFY_IMAGE_PENDING=True
 EMAIL_NOTIFY_IMAGE_MODERATED=True
 EMAIL_NOTIFY_404_DAILY=False
+EMAIL_NOTIFY_USER_INACTIVITY=False
 ```
 
 ### 2. Configuración de Gmail
@@ -94,25 +102,25 @@ EMAIL_HOST_PASSWORD=tu-password
 
 ```bash
 # Verificar configuración
-docker-compose exec web python manage.py send_test_emails --test-type=config
+docker compose -f docker-compose.dev.yml run --rm web python manage.py send_test_emails --test-type=config
 
 # Probar todas las notificaciones
-docker-compose exec web python manage.py send_test_emails --test-type=all
+docker compose -f docker-compose.dev.yml run --rm web python manage.py send_test_emails --test-type=all
 
 # Probar tipo específico
-docker-compose exec web python manage.py send_test_emails --test-type=user
-docker-compose exec web python manage.py send_test_emails --test-type=image
-docker-compose exec web python manage.py send_test_emails --test-type=404
+docker compose -f docker-compose.dev.yml run --rm web python manage.py send_test_emails --test-type=user
+docker compose -f docker-compose.dev.yml run --rm web python manage.py send_test_emails --test-type=image
+docker compose -f docker-compose.dev.yml run --rm web python manage.py send_test_emails --test-type=404
 
 # Enviar a email específico
-docker-compose exec web python manage.py send_test_emails --test-type=all --email=tu-email@example.com
+docker compose -f docker-compose.dev.yml run --rm web python manage.py send_test_emails --test-type=all --email=tu-email@example.com
 ```
 
 ### Prueba Rápida
 
 ```bash
 # Probar envío básico
-docker-compose exec web python manage.py shell
+docker compose -f docker-compose.dev.yml run --rm web python manage.py shell
 ```
 
 ```python
@@ -132,20 +140,20 @@ send_mail(
 
 ### ⚡ Sistema Dinámico de Destinatarios
 
-**¡IMPORTANTE!** Los emails a administradores se envían automáticamente a todos los **usuarios superuser** que tengan email configurado en la base de datos.
+**¡IMPORTANTE!** Los avisos de moderación (`get_moderation_recipients` en `ilovevoley/core/email_utils.py`) se envían automáticamente a todos los **usuarios superuser** con email y, cuando hay tenant, a los **managers/admins aprobados** de esa organización. Los avisos técnicos (404) usan `get_technical_alert_emails()` (`TECHNICAL_ALERT_EMAILS` > `ADMIN_EMAIL_LIST` > superusers).
 
 **Ventajas:**
 - ✅ No necesitas mantener listas manuales de emails
 - ✅ Cuando añades/quitas admins, los emails se actualizan automáticamente
 - ✅ Gestión centralizada desde el panel de Django Admin
 
-**Para recibir emails de notificaciones:**
-1. El usuario debe ser **superuser** (`is_superuser=True`)
+**Para recibir emails de moderación:**
+1. El usuario debe ser **superuser** (`is_superuser=True`) o **manager/admin** aprobado del club
 2. El usuario debe tener un **email configurado** en su perfil
 
 **Comprobar superusers con email:**
 ```bash
-docker-compose exec web python manage.py shell
+docker compose -f docker-compose.dev.yml run --rm web python manage.py shell
 >>> from django.contrib.auth import get_user_model
 >>> User = get_user_model()
 >>> User.objects.filter(is_superuser=True, email__isnull=False).exclude(email='').values('username', 'email')
@@ -158,11 +166,13 @@ docker-compose exec web python manage.py shell
 
 ### Triggers Automáticos
 
-1. **Usuario se registra** → Email a todos los superusers
-2. **Admin aprueba usuario** → Email al usuario
-3. **Usuario sube imagen** → Email a todos los superusers
-4. **Admin modera imagen** → Email al usuario
-5. **10+ errores 404 en 1 hora** → Alerta inmediata a superusers
+Se encolan como tareas Celery en `ilovevoley/core/tasks.py` (`notify_new_user_pending`, `notify_membership_pending`, `notify_image_pending`, `notify_images_pending_batch`, `notify_user_moderation_result`, `notify_image_moderation_result`, `send_404_immediate_alert`...):
+
+1. **Usuario se registra o solicita unirse a un club** → Email a los moderadores (superusers + managers/admins del club)
+2. **Moderador aprueba/rechaza usuario** → Email al usuario
+3. **Usuario sube imagen** → Email a los moderadores
+4. **Moderador modera imagen** → Email al usuario
+5. **10+ errores 404 en 1 hora** → Alerta inmediata a los destinatarios técnicos
 6. **Reporte diario 404** → Cron job (configurar por separado)
 
 ## 📋 Configuración de Reporte Diario 404
@@ -174,7 +184,7 @@ Para el reporte diario, añade a tu crontab:
 crontab -e
 
 # Añadir línea (envía reporte a las 8:00 AM todos los días)
-0 8 * * * /usr/bin/docker-compose -f /ruta/a/tu/proyecto/docker-compose.yml exec -T web python manage.py shell -c "from ilovevoley.core.middleware import send_404_daily_report; send_404_daily_report()"
+0 8 * * * /usr/bin/docker compose -f /ruta/a/tu/proyecto/docker-compose.yml exec -T web python manage.py shell -c "from ilovevoley.core.middleware import send_404_daily_report; send_404_daily_report()"
 ```
 
 O usando Django-Q/Celery si los tienes configurados.
@@ -185,12 +195,20 @@ Los templates están en `ilovevoley/templates/emails/`:
 
 - `base_email.html` - Template base con estilos
 - `new_user_pending.html` - Usuario pendiente
-- `user_approved.html` - Usuario aprobado
-- `image_pending.html` - Imagen pendiente
+- `new_membership_pending.html` - Membresía pendiente en un club
+- `reactivation_pending.html` - Reactivación de cuenta pendiente
+- `user_approved.html` / `user_rejected.html` - Usuario aprobado / rechazado
+- `user_inactivity_warning.html` - Aviso de inactividad
+- `image_pending.html` / `images_pending_batch.html` - Imagen(es) pendiente(s)
 - `image_approved.html` - Imagen aprobada
 - `image_rejected.html` - Imagen rechazada
 - `404_daily_report.html` - Reporte diario 404
 - `404_alert.html` - Alerta inmediata 404
+- `vision_api_error.html` - Error de Google Vision
+- `person_link_approved.html` / `person_link_rejected.html` - Vínculo cuenta ↔ ficha
+- `season_wrapped.html` / `season_highlights.html` - Wrapped y novedades de temporada
+- `league_candidates_pending.html` / `team_identity_candidates_pending.html` - Ligas e identidades por validar
+- `admin_direct_message.html` - Mensaje directo del admin
 
 ### Personalizar Estilos
 
@@ -206,12 +224,12 @@ Edita `base_email.html` para cambiar:
 
 1. **Verificar configuración**:
    ```bash
-   docker-compose exec web python manage.py send_test_emails --test-type=config
+   docker compose -f docker-compose.dev.yml run --rm web python manage.py send_test_emails --test-type=config
    ```
 
 2. **Revisar logs**:
    ```bash
-   docker-compose logs web | grep -i email
+   docker compose logs web celery-default | grep -i email
    ```
 
 3. **Problemas comunes**:
@@ -236,10 +254,10 @@ Edita `base_email.html` para cambiar:
 
 ### Logs de Email
 
-Los emails registran en stdout:
+Los envíos normales no se registran; solo los fallos y descartes (logger `ilovevoley.core.email_utils`):
 ```
-Email enviado: Nuevo usuario pendiente a admin@example.com
-Error enviando email: SMTP Error - Authentication failed
+Email no enviado: <asunto> - No hay destinatarios o configuración de email
+Error enviando email: <asunto>
 ```
 
 ### Estadísticas
@@ -253,16 +271,16 @@ Para ver estadísticas de emails enviados, puedes crear un modelo de log persona
 
 ### Añadir Nueva Notificación
 
-1. **Crear signal** en `signals.py`:
+1. **Crear tarea Celery** (con `name=` explícito) que llame a `send_notification_email` y encolarla con `enqueue_on_commit`. Para avisos en el idioma de cada destinatario, `subject` acepta un callable (ver `ilovevoley.core.i18n`):
    ```python
-   @receiver(post_save, sender=MiModelo)
-   def mi_notificacion(sender, instance, created, **kwargs):
-       if created:
-           send_notification_email(
-               subject='Mi notificación',
-               template_name='emails/mi_template.html',
-               context={'objeto': instance}
-           )
+   @shared_task(name='notify_mi_notificacion')
+   def notify_mi_notificacion_task(obj_id):
+       instance = MiModelo.objects.get(pk=obj_id)
+       send_notification_email(
+           subject=lambda: _('Mi notificación'),
+           template_name='emails/mi_template.html',
+           context={'objeto': instance},
+       )
    ```
 
 2. **Crear template** en `emails/mi_template.html`
@@ -281,13 +299,12 @@ Para ver estadísticas de emails enviados, puedes crear un modelo de log persona
 
 Usa el comando de prueba durante desarrollo:
 ```bash
-docker-compose exec web python manage.py send_test_emails --test-type=all --email=tu-email-dev@example.com
+docker compose -f docker-compose.dev.yml run --rm web python manage.py send_test_emails --test-type=all --email=tu-email-dev@example.com
 ```
 
 ## 📚 Referencias
 
-- [Django Email](https://docs.djangoproject.com/en/5.2/topics/email/)
-- [Django Signals](https://docs.djangoproject.com/en/5.2/topics/signals/)
+- [Django Email](https://docs.djangoproject.com/en/6.0/topics/email/)
 - [Gmail App Passwords](https://support.google.com/accounts/answer/185833)
 - [HTML Email Best Practices](https://www.campaignmonitor.com/dev-resources/guides/html-email-guide/)
 

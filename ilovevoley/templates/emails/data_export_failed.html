@@ -1,0 +1,26 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Error al preparar tus datos" %} - {{ site_name }}
+{% endblock %}
+
+{% block header_subtitle %}
+    {% trans "Exportación de datos de tu cuenta" %}
+{% endblock %}
+
+{% block content %}
+    <h3>{% blocktrans with name=user.get_full_name|default:user.username %}Hola {{ name }},{% endblocktrans %}</h3>
+
+    <div class="alert error">
+        <p>{% trans "Ha ocurrido un problema y no hemos podido generar el archivo de exportación de tus datos." %}</p>
+    </div>
+
+    <p>{% trans "Por favor, vuelve a intentarlo desde la sección de privacidad en tu perfil." %}</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{ profile_url|default:'/' }}" class="button" style="font-size: 16px; font-weight: bold; background-color: #2c3e50;">
+            {% trans "Ir a mi perfil" %}
+        </a>
+    </div>
+{% endblock %}

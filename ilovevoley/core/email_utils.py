@@ -66,6 +66,34 @@ def get_technical_alert_emails():
     return get_admin_emails()
 
 
+def send_technical_alert(subject, message):
+    """
+    Envía una alerta técnica en texto plano a los destinatarios configurados
+    (``get_technical_alert_emails()``) si las notificaciones están habilitadas.
+
+    Devuelve True si el email se envió correctamente, False en caso contrario.
+    """
+    if not getattr(settings, 'NOTIFICATION_EMAIL_ENABLED', False):
+        return False
+
+    recipients = get_technical_alert_emails()
+    if not recipients:
+        return False
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=recipients,
+            fail_silently=False,
+        )
+        return True
+    except Exception:
+        logger.exception("Error enviando alerta técnica: %s", subject)
+        return False
+
+
 def get_moderation_recipients(tenant=None):
     """
     Destinatarios de los avisos de moderación: superusers y, cuando hay tenant,

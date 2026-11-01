@@ -216,10 +216,8 @@ def healthz(request):
 
 def robots_txt(request):
     """robots.txt: permite la landing pública y bloquea rutas privadas."""
-    admin_path = '/' + settings.ADMIN_URL.strip('/') + '/'
     lines = [
         'User-agent: *',
-        f'Disallow: {admin_path}',
         'Disallow: /accounts/',
         'Disallow: /media/',
         'Disallow: /moderate/',

@@ -10,6 +10,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import requests
+from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 
 from ilovevoley.core import narrative
@@ -117,13 +118,73 @@ class ProviderErrorTests(SimpleTestCase):
 
 @override_settings(**{**ENABLED, 'LLM_NARRATIVE_MIN_INTERVAL': 4.5})
 class ThrottleTests(SimpleTestCase):
+    def setUp(self):
+        super().setUp()
+        cache.delete(narrative.CACHE_KEY_LAST_CALL)
+        cache.delete(narrative.CACHE_KEY_LOCK)
+        narrative._last_call = 0.0
+
+    def tearDown(self):
+        cache.delete(narrative.CACHE_KEY_LAST_CALL)
+        cache.delete(narrative.CACHE_KEY_LOCK)
+        narrative._last_call = 0.0
+        super().tearDown()
+
     def test_second_call_waits_out_the_interval(self):
         # Sin la pausa, una tanda de 20 textos supera los 15/min y el resto de la noche da 429.
         ok = http_response(200, {'candidates': [{'content': {'parts': [{'text': '{"text": "x"}'}]}}]})
         with patch.object(narrative.requests, 'post', return_value=ok), \
                 patch.object(narrative.time, 'sleep') as sleep, \
-                patch.object(narrative.time, 'monotonic', side_effect=[100.0, 100.0, 101.0, 101.0]):
-            narrative._last_call = 0.0
+                patch.object(narrative, '_now', side_effect=[100.0, 100.0, 101.0, 101.0]):
             narrative._post_to_provider('a')
             narrative._post_to_provider('b')
         sleep.assert_called_once_with(3.5)
+
+    def test_throttle_is_shared_across_workers(self):
+        # Dos workers concurrentes con memoria local limpia coordinan su espera vía caché (#602).
+        ok = http_response(200, {'candidates': [{'content': {'parts': [{'text': '{"text": "x"}'}]}}]})
+        with patch.object(narrative.requests, 'post', return_value=ok), \
+                patch.object(narrative.time, 'sleep') as sleep, \
+                patch.object(narrative, '_now', side_effect=[100.0, 100.0, 101.0, 101.0]):
+            # Worker 1 realiza la primera llamada a t=100.0
+            narrative._post_to_provider('worker1')
+            self.assertEqual(sleep.call_count, 0)
+
+            # Worker 2 simula otro proceso Celery con _last_call=0.0 en memoria local
+            narrative._last_call = 0.0
+            narrative._post_to_provider('worker2')
+
+        sleep.assert_called_once_with(3.5)
+
+    def test_throttle_fallback_when_cache_fails(self):
+        # Si la caché falla, el throttle local por proceso sigue protegiendo las llamadas (#602).
+        ok = http_response(200, {'candidates': [{'content': {'parts': [{'text': '{"text": "x"}'}]}}]})
+        with patch.object(narrative.cache, 'add', side_effect=Exception('Redis connection lost')), \
+                patch.object(narrative.requests, 'post', return_value=ok), \
+                patch.object(narrative.time, 'sleep') as sleep, \
+                patch.object(narrative, '_now', side_effect=[100.0, 100.0, 101.0, 101.0]):
+            narrative._post_to_provider('a')
+            narrative._post_to_provider('b')
+        sleep.assert_called_once_with(3.5)
+
+    def test_throttle_resets_far_future_drift(self):
+        # Si un valor en caché quedó muy en el futuro (> now + 120s) por salto de reloj, se resetea (#602).
+        cache.set(narrative.CACHE_KEY_LAST_CALL, 9999.0)
+        ok = http_response(200, {'candidates': [{'content': {'parts': [{'text': '{"text": "x"}'}]}}]})
+        with patch.object(narrative.requests, 'post', return_value=ok), \
+                patch.object(narrative.time, 'sleep') as sleep, \
+                patch.object(narrative, '_now', side_effect=[100.0, 100.0]):
+            narrative._post_to_provider('a')
+        self.assertEqual(sleep.call_count, 0)
+        self.assertEqual(cache.get(narrative.CACHE_KEY_LAST_CALL), 100.0)
+
+    @override_settings(LLM_NARRATIVE_MIN_INTERVAL=0)
+    def test_throttle_noop_when_interval_zero(self):
+        # Con intervalo 0 (p. ej. cuenta de pago), no se accede a caché ni se duerme (#602).
+        ok = http_response(200, {'candidates': [{'content': {'parts': [{'text': '{"text": "x"}'}]}}]})
+        with patch.object(narrative.requests, 'post', return_value=ok), \
+                patch.object(narrative.time, 'sleep') as sleep, \
+                patch.object(narrative.cache, 'add') as cache_add:
+            narrative._post_to_provider('a')
+        self.assertEqual(sleep.call_count, 0)
+        cache_add.assert_not_called()

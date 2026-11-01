@@ -554,12 +554,21 @@ class SeoEndpointsTest(TestCase):
         body = response.content.decode()
         self.assertIn('User-agent: *', body)
         for path in (
-            '/admin/', '/accounts/', '/media/', '/moderate/',
+            '/accounts/', '/media/', '/moderate/',
             '/videos/calendario/suscripcion/',
             '/competitions/calendario/suscripcion/',
         ):
             self.assertIn(f'Disallow: {path}', body)
         self.assertIn('Sitemap: https://ilovevoley.es/sitemap.xml', body)
+
+    def test_robots_txt_does_not_reveal_secret_admin_url(self):
+        """robots.txt no publica la ruta del admin para no desvelar DJANGO_ADMIN_URL (#651)."""
+        with self.settings(ADMIN_URL='secreto-panel-xyz/'):
+            response = self.client.get('/robots.txt', HTTP_HOST='ilovevoley.es')
+            self.assertEqual(response.status_code, 200)
+            body = response.content.decode()
+            self.assertNotIn('secreto-panel-xyz', body)
+            self.assertNotIn('/admin/', body)
 
     def test_sitemap_lists_only_public_pages(self):
         response = self.client.get('/sitemap.xml', HTTP_HOST='ilovevoley.es')

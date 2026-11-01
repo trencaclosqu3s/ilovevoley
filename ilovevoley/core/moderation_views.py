@@ -398,7 +398,7 @@ def moderate_image(request, token):
             notes=notes or default_notes
         )
 
-        if image.uploaded_by.email:
+        if image.uploaded_by and image.uploaded_by.email:
             site_name = tenant.name if tenant else 'I Love Voley'
             enqueue_on_commit(
                 notify_image_moderation_result_task, image.id, True, site_name
@@ -422,7 +422,7 @@ def moderate_image(request, token):
             notes=notes or default_notes
         )
 
-        if image.uploaded_by.email:
+        if image.uploaded_by and image.uploaded_by.email:
             site_name = tenant.name if tenant else 'I Love Voley'
             enqueue_on_commit(
                 notify_image_moderation_result_task, image.id, False, site_name

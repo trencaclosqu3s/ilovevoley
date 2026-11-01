@@ -65,6 +65,11 @@ class SecurityHeadersTest(TestCase):
         self.assertIn("'unsafe-eval'", csp)
         self.assertNotIn('Content-Security-Policy-Report-Only', response.headers)
 
+    def test_admin_responses_include_noindex_robots_tag(self):
+        """Las respuestas del admin incluyen X-Robots-Tag para no indexar (#651)."""
+        response = self.client.get('/admin/login/')
+        self.assertEqual(response.headers.get('X-Robots-Tag'), 'noindex, nofollow')
+
     @staticmethod
     def _directive(policy, name):
         for part in policy.split(';'):

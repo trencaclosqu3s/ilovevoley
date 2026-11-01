@@ -823,6 +823,8 @@ class MatchResultCardViewTests(TestCase):
 
     def test_marco_style_with_missing_photo_file_returns_json_400(self):
         """El fichero de la foto puede faltar en el storage aunque el registro exista (#241)."""
+        import uuid
+
         from django.core.files.uploadedfile import SimpleUploadedFile
 
         from ilovevoley.content.models import Image
@@ -840,7 +842,11 @@ class MatchResultCardViewTests(TestCase):
             status='approved',
             uploaded_by=self.user,
         )
-        photo.image.storage.delete(photo.image.name)
+        # La ruta descriptiva (equipos + fecha + secuencia) es la misma en todos
+        # los workers de xdist, que comparten MEDIA_ROOT. Borrar el fichero deja
+        # el hueco libre y otro test puede reescribirlo antes de esta petición.
+        photo.image.name = f'images/missing-{uuid.uuid4().hex}.jpg'
+        photo.save(update_fields=['image'])
 
         response = self.client.get(
             self._url(self.finished.id, 'square') + f'&style=marco&photo_id={photo.id}',

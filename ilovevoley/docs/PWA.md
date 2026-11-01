@@ -12,7 +12,7 @@ I Love Voley implementa el modelo de **App Única Comunitaria**: en lugar de pub
 1. **Instalación Directa**: Instalable como aplicación independiente (`display: standalone`) desde el navegador con un solo clic.
 2. **Identidad Dinámica de Tenant**: Aunque la PWA tiene el nombre universal "I Love Voley", el tema visual (`theme_color`), la cabecera y el entorno gráfico se adaptan dinámicamente al club activo en cada momento.
 3. **Navegación Multi-Club In-App**: Gracias al soporte de **Scope Extensions**, un usuario puede alternar entre clubes federados (`santjosep.ilovevoley.es`, `cvsoller.ilovevoley.es`, etc.) sin salirse de la ventana de la aplicación.
-4. **Resiliencia Offline**: Caché inteligente de recursos estáticos críticos y pantalla de contingencia con diseño propio cuando no hay conexión.
+4. **Resiliencia Offline**: Caché inteligente de recursos estáticos críticos, «Este finde» y fichas de partido disponibles sin red (#610), cola de subida de fotos tolerante a mala cobertura (#611) y pantalla de contingencia con diseño propio cuando no hay conexión.
 5. **Avisos Web Push y App Badging**: Recepción nativa de notificaciones push y contador en el icono de la app en sistemas compatibles.
 6. **Retroceso In-App**: En `display: standalone` el navegador no muestra sus flechas de navegación (y en iOS no existe gesto de swipe). La cabecera incorpora un botón "atrás" propio para no perder el contexto ni los filtros al volver.
 
@@ -41,14 +41,20 @@ Servido por la vista `ilovevoley.core.views.service_worker` desde la raíz con l
 
 #### Ciclo de Vida y Estrategia de Caché:
 - **`install` (Precache Resiliente)**:
-  - Precachea `/offline/`, CSS principal (`app.css`), acciones CSP (`csp_actions.js`), logo e iconos.
+  - Precachea (`PRECACHE_URLS`) `/offline/`, CSS principal (`app.css`), acciones CSP (`csp_actions.js`), los JS de PWA (`pwa_nav.js`, `pwa_install.js`, `offline_pages.js`, `upload_queue.js`, `upload_queue_blob.js`), logo e iconos (incluidos los de los shortcuts). Subir `CACHE_NAME` (hoy `ilovevoley-pwa-v3`) cuando cambie `/offline/`.
   - Cada recurso se procesa individualmente (`Promise.all` con `.catch(() => undefined)`): si un recurso no está disponible temporalmente, la instalación del Service Worker no se cancela.
 - **`activate` (Purga de Versiones)**:
-  - Elimina automáticamente cachés obsoletas con prefijo `ilovevoley-pwa-` que difieran de `CACHE_NAME`.
+  - Elimina automáticamente cachés obsoletas con prefijo `ilovevoley-pwa-` que difieran de `CACHE_NAME` y `PAGES_CACHE_NAME`.
 - **`fetch`**:
-  - **Exclusiones de Red**: Rutas mutables o privadas (`/media/`, `/admin/`, `/accounts/`, `/api/`, `sw.js`, `manifest.webmanifest`) se delegan siempre a la red sin pasar por caché.
+  - **Exclusiones de Red**: Rutas mutables o privadas (`/media/`, `/protected-media/`, `/admin/`, `/accounts/`, `/api/`, `sw.js`, `manifest.webmanifest`) y toda petición no-GET se delegan siempre a la red sin pasar por caché.
+  - **Páginas privadas offline (#610)**: `/finde/` y las fichas de partido (sin query string; lista blanca `PAGE_CACHE_PATHS`, hoy `/^\/finde\/$/` y `/^\/partidos\/\d+\/$/`) usan **Network-First** guardando la respuesta en `PAGES_CACHE_NAME` (`ilovevoley-pwa-pages-v1`, máx. 30 entradas y 7 días). Al cargar «Este finde» se precargan hasta 10 fichas de partido. Sin red se sirve la copia con su antigüedad (`offline_pages.js` muestra el aviso). `offline_pages.js` vacía esta caché al cerrar sesión (formularios con `data-clear-pages-cache`) y en cualquier pantalla de `/accounts/`, para no dejar HTML de otra cuenta.
   - **Navegación (`mode === 'navigate'`)**: Estrategia **Network-First** con fallback a `/offline/` solo si la conexión de red falla completamente.
   - **Recursos Estáticos (`/static/`)**: Estrategia **Stale-While-Revalidate** para peticiones GET que respondan 200 OK en el mismo origen.
+- **`sync` (Background Sync)**: Con la etiqueta `sync-photo-uploads` procesa la cola de subida de fotos (ver 2c).
+
+### 2c. Cola de subida de fotos (`static/js/upload_queue.js`, #611)
+- Comprime en el navegador (máx. 2560 px, JPEG 0.85, ≤10 MB), persiste la cola en IndexedDB (`ilovevoley_upload_queue`, aislada por origen/tenant) y sube foto a foto a `/content/api/imagenes/subir/` (`content:image_queue_upload_api`) con idempotencia por `client_upload_id`.
+- Reintenta con backoff exponencial, vía Background Sync en el SW y como fallback en `online` / `visibilitychange` / `DOMContentLoaded`. `upload_queue_blob.js` lo comparten página y SW (materializa los blobs en iOS, #636).
 
 ### 2b. Share Target (`share_target` del manifiesto)
 
@@ -128,7 +134,8 @@ Para evitar esta fragmentación:
 3. **Origin Association (`/.well-known/web-app-origin-association`)**:
    Implementado en `ilovevoley.core.views.web_app_origin_association`:
    - Publica el mapeo de todos los subdominios de organizaciones activas.
-   - La respuesta se cachea (`PWA_ORIGIN_ASSOCIATION_CACHE_KEY`) durante 24 horas y se invalida automáticamente mediante señales (`post_save`/`post_delete`) cuando se crea, edita o desactiva una organización.
+   - La lista de slugs activos se cachea en servidor (`PWA_ORIGIN_ASSOCIATION_CACHE_KEY`) 5 minutos y se invalida automáticamente mediante señales (`post_save`/`post_delete` → `invalidate_organization_cache`) cuando se crea, edita o desactiva una organización. La respuesta HTTP lleva `Cache-Control: public, max-age=86400`.
+   - En `DEBUG`, el manifiesto enumera cada origen de tenant activo en `scope_extensions` en vez del comodín.
 
 ---
 
@@ -160,7 +167,7 @@ docker compose -f docker-compose.dev.yml run --rm web python -m pytest \
   ilovevoley/core/tests/test_pwa_manifest.py \
   ilovevoley/core/tests/test_pwa_sw.py \
   ilovevoley/core/tests/test_pwa_offline.py \
-  ilovevoley/core/tests/test_pwa_icons.py \
   ilovevoley/core/tests/test_pwa_templates.py \
-  ilovevoley/core/tests/test_pwa_landing_memberships.py --create-db
+  ilovevoley/core/tests/test_pwa_landing_memberships.py \
+  ilovevoley/content/tests/test_upload_queue.py --create-db
 ```

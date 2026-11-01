@@ -598,3 +598,168 @@ def deactivate_account_view(request, token):
         'target_user': target_user,
         'token': token,
     })
+
+
+@ratelimit(key='ip', rate='10/m', block=True)
+@login_required
+@require_POST
+def request_data_export(request):
+    from ilovevoley.core.email_utils import enqueue_on_commit
+    from .models import DataExport
+    from .privacy import active_export_for
+    from .tasks import build_data_export_task
+
+    user = request.user
+    if active_export_for(user):
+        messages.info(
+            request,
+            _('Ya hay una exportación en proceso. Recibirás el enlace por correo.'),
+        )
+        return redirect('profile')
+
+    export = DataExport.objects.create(
+        user=user,
+        status=DataExport.Status.PENDING,
+    )
+
+    tenant = getattr(request, 'tenant', None)
+    tenant_id = tenant.pk if tenant else None
+    if not tenant_id:
+        membership = user.memberships.filter(is_approved=True).first()
+        if membership:
+            tenant_id = membership.organization_id
+
+    enqueue_on_commit(build_data_export_task, export.pk, tenant_id)
+    messages.success(
+        request,
+        _('Estamos preparando la exportación de tus datos. Te enviaremos un correo con el enlace cuando esté lista.'),
+    )
+    return redirect('profile')
+
+
+@ratelimit(key='ip', rate='10/m', block=True)
+def download_data_export(request, token):
+    from ilovevoley.core.protected_media import serve_protected_file
+    from .privacy import export_for_token
+
+    export = export_for_token(token)
+    if not export or not export.file:
+        return render(request, 'users/data_export_invalid.html', status=400)
+
+    response = serve_protected_file(export.file.name)
+    response['Content-Disposition'] = 'attachment; filename="mis-datos.zip"'
+    return response
+
+
+@ratelimit(key='ip', rate='10/m', block=True)
+@login_required
+def delete_account(request):
+    from ilovevoley.core.email_utils import send_notification_email
+    from ilovevoley.core.tenant_utils import build_absolute_url
+    from .privacy import (
+        blocking_admin_clubs,
+        generate_erasure_token,
+        is_erased,
+    )
+
+    user = request.user
+    if is_erased(user):
+        return render(request, 'users/delete_account_done.html')
+
+    is_staff_or_superuser = user.is_staff or user.is_superuser
+    blocking_clubs = blocking_admin_clubs(user)
+    is_blocked = is_staff_or_superuser or bool(blocking_clubs)
+
+    if request.method == 'POST':
+        if is_blocked:
+            return render(request, 'users/delete_account.html', {
+                'is_blocked': is_blocked,
+                'is_staff_or_superuser': is_staff_or_superuser,
+                'blocking_clubs': blocking_clubs,
+            })
+
+        content_choice = request.POST.get('content_choice')
+        if content_choice not in ('delete', 'retain'):
+            return render(request, 'users/delete_account.html', {
+                'is_blocked': is_blocked,
+                'is_staff_or_superuser': is_staff_or_superuser,
+                'blocking_clubs': blocking_clubs,
+                'error': _('Debes elegir qué hacer con tus fotos y vídeos.'),
+            })
+
+        if not user.email:
+            return render(request, 'users/delete_account.html', {
+                'is_blocked': is_blocked,
+                'is_staff_or_superuser': is_staff_or_superuser,
+                'blocking_clubs': blocking_clubs,
+                'error': _(
+                    'Esta cuenta no tiene correo. Añádelo en el perfil para poder confirmar el borrado.'
+                ),
+            })
+
+        token = generate_erasure_token(user, content_choice)
+        path = reverse('confirm_account_erasure', args=[token])
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            membership = user.memberships.filter(is_approved=True).select_related('organization').first()
+            if membership:
+                tenant = membership.organization
+        confirm_url = build_absolute_url(path, tenant=tenant, request=request)
+        send_notification_email(
+            subject=lambda: _('Confirmar el borrado de tu cuenta'),
+            template_name='emails/account_erasure_confirm.html',
+            context={
+                'confirm_url': confirm_url,
+                'user': user,
+                'content_choice': content_choice,
+            },
+            recipient_list=[user.email],
+        )
+        return render(request, 'users/delete_account_email_sent.html')
+
+    return render(request, 'users/delete_account.html', {
+        'is_blocked': is_blocked,
+        'is_staff_or_superuser': is_staff_or_superuser,
+        'blocking_clubs': blocking_clubs,
+    })
+
+
+@ratelimit(key='ip', rate='10/m', block=True)
+def confirm_account_erasure(request, token):
+    from django.contrib.auth import logout
+    from .privacy import (
+        ErasureRefused,
+        apply_erasure,
+        erasure_from_token,
+        is_erased,
+    )
+
+    token_data = erasure_from_token(token)
+    if not token_data:
+        return render(request, 'users/delete_account_invalid.html', status=400)
+
+    target_user, content_choice = token_data
+    if is_erased(target_user):
+        return render(request, 'users/delete_account_done.html')
+
+    if request.method == 'POST':
+        try:
+            apply_erasure(target_user, content_choice)
+        except ErasureRefused as exc:
+            return render(request, 'users/delete_account.html', {
+                'is_blocked': True,
+                'is_staff_or_superuser': exc.code == 'staff',
+                'blocking_clubs': exc.clubs,
+            })
+
+        if request.user.is_authenticated and request.user.pk == target_user.pk:
+            logout(request)
+
+        return render(request, 'users/delete_account_done.html')
+
+    return render(request, 'users/delete_account_confirm.html', {
+        'target_user': target_user,
+        'content_choice': content_choice,
+        'token': token,
+    })
+

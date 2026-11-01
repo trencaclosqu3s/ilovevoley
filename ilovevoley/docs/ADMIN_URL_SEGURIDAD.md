@@ -64,12 +64,11 @@ echo "DJANGO_ADMIN_URL=$(openssl rand -base64 24 | tr -d '/+=' | tr 'A-Z' 'a-z')
 
 ### Link en el Navbar
 - Solo visible para usuarios con `is_staff=True` o `is_superuser=True`
-- Aparece tanto en el menú desktop como móvil
-- Link: "⚙️ Administración"
+- Aparece tanto en el menú desktop (icono de engranaje con título «Administración») como en el móvil
 - Usa `{% url 'admin:index' %}` que genera automáticamente la URL correcta según la configuración
 
 ### Acceso directo
-- **Desarrollo:** `http://localhost:8000/admin/`
+- **Desarrollo:** `http://localhost:8008/admin/`
 - **Producción:** `https://tu-dominio.com/tu-url-cifrada/`
 
 ## 🛡️ Beneficios de Seguridad
@@ -78,12 +77,13 @@ echo "DJANGO_ADMIN_URL=$(openssl rand -base64 24 | tr -d '/+=' | tr 'A-Z' 'a-z')
 2. **Protección contra ataques automatizados:** Los bots que buscan `/admin/` no encontrarán el panel
 3. **Reducción de intentos de acceso no autorizados:** Menos intentos de fuerza bruta
 4. **Flexibilidad:** Puedes cambiar la URL en cualquier momento sin modificar código
+5. **Sin exposición en robots.txt:** La ruta secreta no se publica en `robots.txt` (lo que anularía la ofuscación); en su lugar, las respuestas del admin envían la cabecera HTTP `X-Robots-Tag: noindex, nofollow` para evitar la indexación de forma segura.
 
 ## 🔄 Cambiar la URL en Producción
 
 1. Genera una nueva URL segura
-2. Actualiza la variable `DJANGO_ADMIN_URL` en tu servidor
-3. Reinicia la aplicación Django
+2. Actualiza la variable `DJANGO_ADMIN_URL` en el `.env` del servidor
+3. Recrea los contenedores (`docker compose up -d`; un `restart` no relee el `.env`)
 4. La nueva URL estará activa inmediatamente
 
 ## 📋 Ejemplo Completo
@@ -105,13 +105,14 @@ Con esta configuración:
 2. **No compartas la URL:** Es sensible, como una contraseña
 3. **Usa HTTPS:** Siempre accede al admin por HTTPS en producción
 4. **Backup de acceso:** Asegúrate de que varios administradores conozcan la URL
+5. **Dónde aparece:** además de `config/urls.py`, la usan `AdminCSPMiddleware` (CSP relajada del admin) y los enlaces de los emails de moderación.
 
 ## 🔧 Troubleshooting
 
 ### No puedo acceder al admin en producción
 1. Verifica que la variable `DJANGO_ADMIN_URL` esté configurada correctamente
 2. Asegúrate de que termina con `/`
-3. Reinicia la aplicación después de cambiar la variable
+3. Recrea los contenedores (`docker compose up -d`) después de cambiar la variable
 4. Verifica los logs de Django para errores
 
 ### El link no aparece en el navbar

@@ -105,3 +105,31 @@ class MatchChangePushTest(TestCase):
             detect_and_record_match_changes(self.match, {'match_date': new_date})
 
         mock_push.assert_not_called()
+
+    @override_settings(MATCH_CHANGE_PUSH_ENABLED=True)
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_push_distinguishes_added_time_and_venue_from_changes(self, mock_push):
+        """Cuando se confirma hora (desde 00:00) o pista (desde vacío), el push lo indica como confirmación."""
+        target_day = timezone.localtime(timezone.now() + timedelta(days=3))
+        placeholder_dt = target_day.replace(hour=0, minute=0, second=0, microsecond=0)
+        confirmed_dt = target_day.replace(hour=17, minute=0, second=0, microsecond=0)
+
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team1,
+            away_team=self.team2,
+            match_date=placeholder_dt,
+            venue='',
+            status='scheduled',
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            detect_and_record_match_changes(
+                match, {'match_date': confirmed_dt, 'venue': 'Polideportivo Municipal'}
+            )
+
+        mock_push.assert_called_once()
+        _, kwargs = mock_push.call_args
+        self.assertIn('Horario y pista confirmados: Senior A vs Rival B', kwargs['title'])
+        self.assertIn('Hora confirmada:', kwargs['body'])
+        self.assertIn('Pista confirmada: Polideportivo Municipal', kwargs['body'])

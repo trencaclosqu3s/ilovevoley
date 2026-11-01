@@ -129,7 +129,7 @@ Dentro de `<script>`, todo `{% trans %}` va con `as x` + `{{ x|escapejs }}`.
 
 ## Restricciones y Reglas de Negocio
 
-- **Django fijado en 6.0.8** hasta que `django-celery-beat` soporte 6.1+.
+- **Django fijado en 6.0.x (hoy 6.0.9)** hasta que `django-celery-beat` soporte 6.1+.
 - **Tareas Celery**: Toda tarea Celery lleva `name=` explícito. **No quitarlo**:
   las filas de `PeriodicTask` en base de datos dependen de ese nombre, no de la
   ruta del módulo. Al borrar una tarea, comprobar antes que no queden llamadores

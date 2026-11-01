@@ -131,6 +131,22 @@ class P1P2NotificationTasksTest(TestCase):
 
         self.assertEqual(mail.outbox[0].subject, 'El teu compte ha estat aprovat a I Love Voley')
 
+    def test_image_moderation_result_without_uploader_does_not_raise(self):
+        from ilovevoley.content.models import Image
+        from ilovevoley.core.models import Organization
+        from ilovevoley.core.tasks import notify_image_moderation_result_task
+
+        org = Organization.objects.create(slug='club-img', name='Club')
+        image = Image.objects.create(
+            image=SimpleUploadedFile('foto.jpg', TINY_GIF, content_type='image/jpeg'),
+            title='Sin autor',
+            uploaded_by=None,
+            organization=org,
+            status='approved',
+        )
+        self.assertFalse(notify_image_moderation_result_task(image.id, True, 'Club'))
+        self.assertEqual(mail.outbox, [])
+
     def test_send_404_alert_task_sends_mail(self):
         from ilovevoley.core.tasks import send_404_immediate_alert_task
 

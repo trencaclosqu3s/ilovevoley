@@ -42,10 +42,12 @@ WORKDIR /app
 
 # postgresql-client aporta pg_isready para entrypoint.sh, curl para healthcheck.
 # gettext aporta msgfmt, necesario para `compilemessages` en el despliegue.
+# ffmpeg extrae fotogramas de Live Photos (ilovevoley.videos.utils).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     curl \
     gettext \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 RUN adduser --disabled-password --gecos '' --uid 1000 appuser

@@ -46,6 +46,8 @@ class DeltaDetectorTest(TestCase):
         self.assertEqual(len(changes), 1)
         log = changes[0]
         self.assertEqual(log.change_type, 'datetime')
+        self.assertEqual(log.change_subtype, 'datetime_changed')
+        self.assertFalse(log.is_addition)
         self.assertEqual(log.field_name, 'match_date')
         self.assertTrue(log.is_last_minute)
         expected_str = timezone.localtime(new_date).strftime('%d/%m/%Y %H:%M')
@@ -54,6 +56,69 @@ class DeltaDetectorTest(TestCase):
 
         # Verificar que se ha guardado en BD
         self.assertTrue(MatchChangeLog.objects.filter(id=log.id).exists())
+
+    def test_detect_time_added_from_none_or_placeholder(self):
+        """Añadir hora (desde None o desde 00:00) se registra como time_added; volver a 00:00 el mismo día se ignora."""
+        target_day = timezone.localtime(timezone.now() + timedelta(days=3))
+        placeholder_dt = target_day.replace(hour=0, minute=0, second=0, microsecond=0)
+        confirmed_dt = target_day.replace(hour=18, minute=30, second=0, microsecond=0)
+
+        # 1. Partido en memoria sin match_date previo -> recibe hora
+        match_no_date = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=placeholder_dt,
+            status='scheduled',
+        )
+        match_no_date.match_date = None
+        changes_none = detect_and_record_match_changes(match_no_date, {'match_date': confirmed_dt})
+        self.assertEqual(len(changes_none), 1)
+        self.assertEqual(changes_none[0].old_value, '')
+        self.assertEqual(changes_none[0].change_subtype, 'time_added')
+        self.assertTrue(changes_none[0].is_addition)
+        self.assertTrue(changes_none[0].is_last_minute)
+
+        # 2. Partido con placeholder 00:00 -> recibe hora confirmada
+        match_placeholder = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=placeholder_dt,
+            status='scheduled',
+        )
+        changes_placeholder = detect_and_record_match_changes(
+            match_placeholder, {'match_date': confirmed_dt}
+        )
+        self.assertEqual(len(changes_placeholder), 1)
+        self.assertEqual(changes_placeholder[0].change_subtype, 'time_added')
+        self.assertTrue(changes_placeholder[0].is_addition)
+
+        # 3. Partido ya con hora confirmada y un parser de calendario sin hora trae 00:00 del mismo día -> no es cambio ni pisa la hora
+        from ilovevoley.competitions.scraping.federation import FederationScraper
+
+        match_confirmed = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=confirmed_dt,
+            round_number=1,
+            status='scheduled',
+        )
+        scraper = FederationScraper(self.league)
+        scraper.update_matches(
+            [{
+                'home_team': self.team_a.name,
+                'away_team': self.team_b.name,
+                'match_date': placeholder_dt,
+                'round_number': 1,
+                'status': 'scheduled',
+            }],
+            {self.team_a.name: self.team_a, self.team_b.name: self.team_b},
+        )
+        match_confirmed.refresh_from_db()
+        self.assertEqual(match_confirmed.match_date, confirmed_dt)
+        self.assertEqual(MatchChangeLog.objects.filter(match=match_confirmed).count(), 0)
 
     def test_detect_match_date_change_not_last_minute(self):
         # Partido programado para dentro de 20 días

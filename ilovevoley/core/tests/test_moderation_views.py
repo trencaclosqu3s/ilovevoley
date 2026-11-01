@@ -179,6 +179,31 @@ class ModerationViewsSecurityTest(TestCase):
         self.assertEqual(self.pending_image.status, 'approved')
         self.assertEqual(self.pending_image.moderated_by, self.manager_org1)
 
+    def test_post_moderates_image_without_uploader(self):
+        self.pending_image.uploaded_by = None
+        self.pending_image.save(update_fields=['uploaded_by'])
+        self.client.force_login(self.manager_org1)
+        token = generate_moderation_token(
+            'image', self.pending_image.id, 'approve', tenant_id=self.org1.id,
+        )
+        response = self.client.post(reverse('moderate_image', kwargs={'token': token}))
+
+        self.assertEqual(response.status_code, 200)
+        self.pending_image.refresh_from_db()
+        self.assertEqual(self.pending_image.status, 'approved')
+        self.assertEqual(mail.outbox, [])
+
+        self.pending_image.status = 'pending'
+        self.pending_image.save(update_fields=['status'])
+        reject_token = generate_moderation_token(
+            'image', self.pending_image.id, 'reject', tenant_id=self.org1.id,
+        )
+        reject = self.client.post(reverse('moderate_image', kwargs={'token': reject_token}))
+        self.assertEqual(reject.status_code, 200)
+        self.pending_image.refresh_from_db()
+        self.assertEqual(self.pending_image.status, 'rejected')
+        self.assertEqual(mail.outbox, [])
+
     def test_post_rejects_image_with_authenticated_moderator(self):
         self.client.force_login(self.manager_org1)
         token = generate_moderation_token('image', self.pending_image.id, 'reject', tenant_id=self.org1.id)
