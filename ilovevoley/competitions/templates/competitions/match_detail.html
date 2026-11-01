@@ -506,7 +506,7 @@
             {% endfor %}
         {% endif %}
     </section>
-    <script>
+    <script nonce="{{ csp_nonce }}">
     (function () {
         var root = document.getElementById('scoreboard-summary');
         if (!root) return;
