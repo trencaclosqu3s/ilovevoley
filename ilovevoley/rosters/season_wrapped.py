@@ -8,7 +8,8 @@ from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 
 from ilovevoley.competitions.models import League
-from ilovevoley.competitions.services.lineups import _played_official_lineups
+from ilovevoley.competitions.services.lineups import _played_official_lineups, resolve_acta_team
+from ilovevoley.competitions.services.scoreboard_summary import MAX_POINT, _bounded_int
 from ilovevoley.content.favorites import annotate_favorites
 from ilovevoley.content.models import Image
 from ilovevoley.core import narrative
@@ -72,6 +73,19 @@ def build_screens(wrapped, user, tenant):
                                   ngettext('%(n)s partido', '%(n)s partidos', stats['rival']['matches'])
                                   % {'n': stats['rival']['matches']}, caption,
                                   crest_team_id=stats['rival'].get('team_id')))
+        comeback = stats.get('comeback')
+        if comeback:
+            screens.append(Screen(
+                'comeback',
+                _('La remontada'),
+                subtitle=_('Jugaste el set %(set)s en el que remontasteis de %(hole)s a %(final)s contra %(rival)s') % {
+                    'set': comeback['set'],
+                    'hole': f"{comeback['hole_own']}-{comeback['hole_rival']}",
+                    'final': f"{comeback['final_own']}-{comeback['final_rival']}",
+                    'rival': comeback['name'],
+                },
+                crest_team_id=comeback.get('team_id'),
+            ))
     if stats['photos_count']:
         screens.append(Screen('photos', _('Has salido en'), str(stats['photos_count']),
                               ngettext('foto', 'fotos', stats['photos_count'])))
@@ -146,6 +160,116 @@ def season_organization(person, season):
     return Organization.objects.filter(club=role.identity.club).first() if role else None
 
 
+def _point(value):
+    return _bounded_int(value, MAX_POINT)
+
+
+def _acta_sets_played(match, row):
+    """Números de set del acta (1, 2, …) en los que ese dorsal estuvo en pista.
+
+    Cuenta titular y suplente, igual que ``sets_played``. El marcador no dice
+    quién estaba dentro en el punto del hoyo.
+    """
+    acta = match.acta_data if isinstance(match.acta_data, dict) else None
+    jersey = row.jersey_number
+    if acta is None or jersey is None:
+        return set()
+    played = set()
+    for index, set_data in enumerate(acta.get('sets') or [], start=1):
+        if not isinstance(set_data, dict):
+            continue
+        for team_data in set_data.get('teams') or []:
+            if not isinstance(team_data, dict):
+                continue
+            team = resolve_acta_team(team_data.get('name'), match.home_team, match.away_team)
+            if team is None or team.id != row.team_id:
+                continue
+            for entry in team_data.get('lineup') or []:
+                if not isinstance(entry, dict):
+                    continue
+                sub = entry.get('sub')
+                sub_number = sub.get('number') if isinstance(sub, dict) else None
+                if entry.get('number') == jersey or sub_number == jersey:
+                    played.add(index)
+                    break
+    return played
+
+
+def _hole_score(timeline, own_home, size):
+    """Primer marcador (propio, rival) cuyo déficit es exactamente ``size``.
+
+    Sin ese punto no hay fondo del hoyo y el cromo no se inventa.
+    """
+    if not isinstance(timeline, list):
+        return None
+    for raw in timeline:
+        if not isinstance(raw, dict):
+            continue
+        home, away = _point(raw.get('home')), _point(raw.get('away'))
+        if home is None or away is None:
+            continue
+        own, rival = (home, away) if own_home else (away, home)
+        if rival - own == size:
+            return own, rival
+    return None
+
+
+def _final_score(raw, own_home):
+    home, away = _point(raw.get('home_points')), _point(raw.get('away_points'))
+    if home is None or away is None:
+        return None
+    return (home, away) if own_home else (away, home)
+
+
+def _best_comeback(lineups):
+    """Remontada mayor entre sets jugados y ganados, o ``None``.
+
+    El rival es el equipo. El tamaño sale de ``max_comeback``; el marcador del
+    hoyo, de la cronología. Si esa cronología no enseña el agujero, el set no cuenta.
+    """
+    best = None
+    for row in lineups:
+        match = row.match
+        summary = match.scoreboard_summary
+        sets = summary.get('sets') if isinstance(summary, dict) else None
+        if not isinstance(sets, list):
+            continue
+        own_home = match.home_team_id == row.team_id
+        played = _acta_sets_played(match, row)
+        rival_team = match.away_team if own_home else match.home_team
+        side = 'home' if own_home else 'away'
+        for raw in sets:
+            if not isinstance(raw, dict):
+                continue
+            number = raw.get('set')
+            if isinstance(number, bool) or not isinstance(number, int) or number not in played:
+                continue
+            if raw.get('winner') != side:
+                continue
+            size = _point(raw.get('max_comeback'))
+            if not size:
+                continue
+            hole = _hole_score(raw.get('timeline'), own_home, size)
+            final = _final_score(raw, own_home)
+            if hole is None or final is None:
+                continue
+            when = match.match_date.timestamp() if match.match_date else 0
+            key = (size, when, match.id, number)
+            if best is not None and key <= best[0]:
+                continue
+            best = (key, {
+                'name': rival_team.identity.core_name if rival_team.identity else rival_team.name,
+                'team_id': rival_team.id,
+                'set': number,
+                'size': size,
+                'hole_own': hole[0],
+                'hole_rival': hole[1],
+                'final_own': final[0],
+                'final_rival': final[1],
+            })
+    return best[1] if best else None
+
+
 def build_wrapped_stats(person, season, modality=League.MODALITY_INDOOR):
     """Cifras del jugador en la temporada y modalidad, o ``None`` si no hay nada que contar.
 
@@ -193,6 +317,7 @@ def build_wrapped_stats(person, season, modality=League.MODALITY_INDOOR):
         'sets': sum(row.sets_played or 0 for row in lineups),
         'wins': wins,
         'rival': rival,
+        'comeback': _best_comeback(lineups),
         'photos_count': photos_count,
         'top_photo_ids': top_photo_ids,
     }
