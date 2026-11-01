@@ -41,13 +41,16 @@ La aplicación ya implementa varias medidas de seguridad:
 3. **Branding mínimo**: Parámetro `modestbranding=1`
 4. **Sin API JavaScript**: Parámetro `enablejsapi=0` para mayor seguridad
 
+La URL de incrustación la construye `Video.get_embed_url()` (`ilovevoley/content/models/content.py`).
+
 ### Protección adicional por la web
 
 Además de usar vídeos "No listados", la web ofrece su propia capa de protección:
 
-1. **Autenticación requerida**: Solo usuarios registrados y aprobados pueden acceder
-2. **Control de acceso**: Los administradores aprueban manualmente cada usuario
-3. **Preferencias de categorías**: Los usuarios solo ven contenido de sus categorías autorizadas
+1. **Autenticación requerida**: Solo usuarios registrados con membresía aprobada en el club pueden acceder
+2. **Control de acceso**: Los admins y managers de cada club aprueban manualmente cada membresía
+3. **Preferencias de categorías**: El listado muestra por defecto las categorías preferidas del usuario (es un filtro, no un permiso)
+4. **Enlace público de partido**: `/p/partido/<token>/` muestra los vídeos del partido sin login mientras el enlace firmado no caduque (`MATCH_SHARE_LINK_DEFAULT_HOURS`, 48 h por defecto)
 
 ## Alternativas a YouTube
 
@@ -106,7 +109,7 @@ Sí, perfectamente. La web detecta automáticamente las URLs de livestreams (`yo
 
 Técnicamente sí, pero:
 - El enlace directo de YouTube solo funcionaría para quien lo reciba
-- Dentro de la web, solo usuarios autenticados pueden ver el reproductor
+- Dentro de la web, solo usuarios autenticados pueden ver el reproductor (salvo quien tenga un enlace público de partido vigente)
 - Puedes monitorear el acceso desde YouTube Analytics
 
 ### ¿Puedo cambiar un vídeo de "Privado" a "No listado"?

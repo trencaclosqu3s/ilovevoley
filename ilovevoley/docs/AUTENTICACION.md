@@ -18,12 +18,12 @@ Cuando se intenta hacer login con Google, puede aparecer el error `Error 400: re
    ```
    https://ilovevoley.es/accounts/google/login/callback/
    http://ilovevoley.es/accounts/google/login/callback/
-   http://localhost:8000/accounts/google/login/callback/
-   http://127.0.0.1:8000/accounts/google/login/callback/
+   http://localhost:8008/accounts/google/login/callback/
+   http://127.0.0.1:8008/accounts/google/login/callback/
    ```
 
 3. **Configurar el Site en Django Admin:**
-   - Acceder a `/admin/sites/site/1/change/`
+   - Acceder a `/<ADMIN_URL>sites/site/1/change/` (`/admin/` en desarrollo; ver [ADMIN_URL_SEGURIDAD.md](ADMIN_URL_SEGURIDAD.md))
    - Configurar:
      - **Domain name**: `ilovevoley.es`
      - **Display name**: `I Love Voley CV Sant Josep`
@@ -47,14 +47,20 @@ El sistema está configurado para permitir el **auto-registro** cuando un usuari
 ```python
 # Auto-signup habilitado
 SOCIALACCOUNT_AUTO_SIGNUP = True
-ACCOUNT_EMAIL_VERIFICATION = 'none'
+ACCOUNT_EMAIL_VERIFICATION = 'optional'  # Los registros locales reciben el correo de verificación, pero pueden entrar sin confirmarlo
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 
 # Obtener email de Google
 SOCIALACCOUNT_QUERY_EMAIL = True
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_STORE_TOKENS = False  # Solo identificación: no se almacenan tokens de acceso/refresco en base de datos
+
+# Login con Google sobre una cuenta local con el mismo email (solo si está verificado)
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 ```
+
+Los scopes de Google se limitan a `profile` y `email` (`GOOGLE_BASIC_SCOPES`); no se piden permisos de Calendar.
 
 ### Adapter Personalizado
 
@@ -64,8 +70,12 @@ El archivo `ilovevoley/users/adapters.py` contiene:
    - Permite auto-signup con `is_auto_signup_allowed()`
    - Genera automáticamente un username único basado en el email
    - Extrae información del perfil de Google
+   - `authenticate_by_email()` solo reutiliza una cuenta local si su email está verificado (evita el pre-secuestro de cuentas)
+   - `save_user()` crea la `Membership` pendiente en el tenant actual
 
-2. **Generación de Username**:
+2. **`CustomAccountAdapter`**: `pre_login()`/`post_login()` redirigen a `/profile/` el primer login tras una aprobación (`User.pending_profile_review`) o tras `LOGIN_PROFILE_REVIEW_INACTIVITY_DAYS` sin entrar, salvo que haya un `next` explícito (#544).
+
+3. **Generación de Username**:
    - Se toma la parte antes del `@` del email
    - Si existe, se añade un número al final (ej: `usuario1`, `usuario2`)
 
@@ -73,7 +83,7 @@ El archivo `ilovevoley/users/adapters.py` contiene:
 
 ## Páginas de Autenticación y Rate Limiting
 
-Las rutas críticas de autenticación (`/accounts/login/`, `/accounts/signup/`, `/accounts/password/reset/`) están protegidas contra ataques de fuerza bruta mediante vistas personalizadas con limitación de tasa (`RatelimitedLoginView`, `RatelimitedSignupView`, `RatelimitedPasswordResetView`) que tienen prioridad sobre las rutas estándar de allauth.
+Las rutas críticas de autenticación (`/accounts/login/`, `/accounts/signup/`, `/accounts/password/reset/`) están protegidas contra ataques de fuerza bruta mediante vistas personalizadas con limitación de tasa (`RatelimitedLoginView`, `RatelimitedSignupView`, `RatelimitedPasswordResetView`, `RatelimitedPasswordResetFromKeyView`, en `ilovevoley/users/views.py`) que tienen prioridad sobre las rutas estándar de allauth. Además, `ACCOUNT_RATE_LIMITS` quita a allauth el tramo `/key` de `login_failed` y `reset_password` para que un tercero no pueda bloquear la cuenta de la víctima (#202).
 
 ### Templates Disponibles
 
@@ -104,7 +114,7 @@ Usuario hace clic en "Entrar/Registrarse con Google"
 Se autentica con Google
     ↓
 ¿Usuario existe?
-    ├─ Sí → Login automático → Redirige a /videos/
+    ├─ Sí → Login automático → Redirige a la home del club (`LOGIN_REDIRECT_URL`) o a /profile/ (#544)
     └─ No → Crea cuenta automática → Pending approval
 ```
 
@@ -129,7 +139,7 @@ Por seguridad, **todas las cuentas nuevas** (tanto con Google como con registro 
 Todas las páginas de autenticación usan:
 
 - **TailwindCSS** para estilos responsivos
-- **Colores del club**: morado (`#9B7FBF`) y amarillo (`#F4D47C`)
+- **Colores del club**: los de la organización del tenant (variable CSS `--brand`), con morado (`#9B7FBF`) y amarillo (`#F4D47C`) como valores por defecto
 - **Logo del club** en la parte superior
 - **Optimizaciones móviles**:
   - Campos de formulario de mínimo 44px de alto
@@ -141,24 +151,19 @@ Todas las páginas de autenticación usan:
 
 ## Seguridad
 
-### HTTPS Recomendado
+### HTTPS
 
-Para producción, se recomienda usar **HTTPS** en lugar de HTTP:
+Producción ya sirve todo por **HTTPS**:
 
-1. El proyecto ya tiene configuración de Certbot en `/certbot/`
-2. Usar Let's Encrypt para certificado SSL gratuito
-3. Configurar nginx para redireccionar HTTP → HTTPS
-4. Actualizar los URIs en Google Cloud Console para usar solo HTTPS
+1. Certificado Let's Encrypt (comodín `*.ilovevoley.es`) gestionado por el servicio `certbot` (`certbot/dns-ovh`) en `certbot/`
+2. `nginx.conf` redirige HTTP → HTTPS
+3. Los URIs `http://` de Google Cloud Console solo hacen falta para desarrollo local
 
 ### CSRF Protection
 
 El sistema está protegido contra ataques CSRF:
 
-```python
-CSRF_TRUSTED_ORIGINS = ['https://ilovevoley.es']
-```
-
-Asegurar que este dominio coincida con el dominio de producción.
+`CSRF_TRUSTED_ORIGINS` se lee del `.env`; debe incluir el dominio de producción y, con subdominios por club, cada origen de tenant (`https://*.ilovevoley.es`). Las cookies de sesión y CSRF usan `SESSION_COOKIE_DOMAIN`/`CSRF_COOKIE_DOMAIN` (`.ilovevoley.es` en producción) para compartir sesión entre clubes.
 
 ---
 
@@ -166,13 +171,11 @@ Asegurar que este dominio coincida con el dominio de producción.
 
 ### El usuario no puede acceder después de login
 
-**Causa**: La cuenta no está aprobada
+**Causa**: La cuenta o su `Membership` en ese club no están aprobadas
 
 **Solución**:
-1. Ir a `/admin/users/user/`
-2. Encontrar el usuario
-3. Marcar `is_approved = True`
-4. Guardar
+1. Un manager/admin del club la aprueba en `/core/moderacion/`
+2. O, en el admin (`/<ADMIN_URL>users/membership/` y `/<ADMIN_URL>users/user/`), marcar `is_approved = True` en la membresía y en el usuario
 
 ### Google sigue pidiendo registro
 
@@ -200,11 +203,11 @@ Asegurar que este dominio coincida con el dominio de producción.
 1. Configurar Google OAuth Client ID para localhost
 2. Agregar en Google Cloud Console:
    ```
-   http://localhost:8000/accounts/google/login/callback/
-   http://127.0.0.1:8000/accounts/google/login/callback/
+   http://localhost:8008/accounts/google/login/callback/
+   http://127.0.0.1:8008/accounts/google/login/callback/
    ```
 3. Configurar en Django Admin Site:
-   - Domain: `localhost:8000`
+   - Domain: `localhost:8008`
 
 ### Probar en Producción
 
