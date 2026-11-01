@@ -497,6 +497,13 @@ class Match(models.Model):
             'de resultados o de la entrada manual; el acta tiene prioridad.'
         ),
     )
+    scoreboard_summary = models.JSONField(
+        null=True, blank=True, verbose_name=_('Resumen del marcador'),
+        help_text=_(
+            'Cronología y métricas enviadas por el marcador al cerrar el partido. '
+            'El scraping federativo no las borra.'
+        ),
+    )
     result_penalized = models.BooleanField(
         default=False, verbose_name=_('Resuelto por penalización'),
         help_text=_(

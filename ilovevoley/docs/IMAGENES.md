@@ -48,9 +48,10 @@ El sistema de gestión de imágenes permite a los usuarios subir, moderar y visu
 Las siguientes dependencias están incluidas en `pyproject.toml`:
 
 ```
-google-cloud-vision==3.8.0  # Para moderación automática (opcional)
-django-storages==1.14.4     # Para almacenamiento avanzado (opcional)
-Pillow==11.0.0              # Para procesamiento de imágenes (incluido)
+google-cloud-vision==3.16.0  # Para moderación automática (opcional)
+django-storages==1.14.6      # Para almacenamiento avanzado (opcional)
+Pillow==13.0.0               # Para procesamiento de imágenes (incluido)
+pillow-heif==1.8.1           # Lectura y conversión de HEIC/HEIF (iPhone)
 ```
 
 ### Variables de Entorno
@@ -62,8 +63,11 @@ Agrega estas variables a tu archivo `.env`:
 GOOGLE_VISION_ENABLED=false
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
 
-# Moderación automática (opcional)
+# Moderación automática (opcional; por defecto toma el valor de DEBUG)
 AUTO_MODERATION_ENABLED=false
+
+# Ventana de agrupación de avisos de la cola de subida (segundos, #611)
+UPLOAD_BATCH_DEBOUNCE_SECONDS=15
 ```
 
 ### Configuración de Almacenamiento
@@ -111,6 +115,9 @@ export AUTO_MODERATION_ENABLED=true  # Para auto-aprobación
 - **Auto-moderación**: aprueba automáticamente imágenes seguras
 - **Auto-etiquetado**: procesa etiquetas en español para voleibol
 - **Logging detallado**: guarda resultados para auditoría
+- **Asíncrono**: el análisis corre en la tarea Celery `analyze_image_with_vision` tras guardar la imagen; la auto-aprobación solo actúa si la imagen sigue `pending` (no pisa una decisión humana)
+
+> La lectura de actas fotografiadas usa **Gemini**, no Vision API, y es independiente de la galería: se activa con `ACTA_VISION_ENABLED` y `GEMINI_API_KEY` (modelo en `GEMINI_ACTA_MODEL`).
 
 ### Tipos de Verificación
 
@@ -161,7 +168,7 @@ export AUTO_MODERATION_ENABLED=true  # Para auto-aprobación
 ### Para Usuarios
 
 1. **Subir Imagen**:
-   - Acceder a `/videos/imagenes/subir/`
+   - Acceder a `/content/imagenes/subir/` (las rutas antiguas `/videos/...` redirigen con 301)
    - Arrastrar imagen o hacer clic para seleccionar
    - Completar título y seleccionar tipo de imagen
    - Agregar etiquetas manuales (opcional)
@@ -170,7 +177,7 @@ export AUTO_MODERATION_ENABLED=true  # Para auto-aprobación
    - Se procesan etiquetas automáticas si Vision API está habilitada
 
 2. **Ver Galería**:
-   - Acceder a `/videos/imagenes/`
+   - Acceder a `/content/imagenes/`
    - Usar filtros avanzados:
      - Búsqueda general en título, descripción y etiquetas
      - Filtro específico por etiquetas
@@ -180,15 +187,32 @@ export AUTO_MODERATION_ENABLED=true  # Para auto-aprobación
    - Ver etiquetas populares sugeridas
    - Hacer clic en imagen para vista expandida
 
+3. **Cola de subida tolerante a mala cobertura** (#611, #636):
+   - Las fotos se encolan en el navegador (IndexedDB `ilovevoley_upload_queue`), se comprimen a máx. 2560 px en JPEG 0.85 y se suben una a una a `/content/api/imagenes/subir/` (`static/js/upload_queue.js`)
+   - Reintentos con backoff exponencial y Background Sync del service worker (`sync-photo-uploads`); widget flotante global en `base.html` con «Quitar» por foto y «Vaciar cola»
+   - El endpoint es idempotente por `client_upload_id` (clave en Redis, 24 h): un corte de red tras guardar no duplica la foto
+   - Los avisos se agrupan por `batch_id`: la tarea `content.flush_upload_batch_notifications` envía un único email de moderación y un único push de álbum por lote (ventana `UPLOAD_BATCH_DEBOUNCE_SECONDS`)
+   - En iOS el blob se copia a memoria antes del POST (Safari mandaba multipart vacío con el SW activo); un blob ilegible pasa a error sin reintentar
+
+4. **Compartir desde la galería del móvil** (share target de la PWA, #524):
+   - El manifiesto declara `share_target` hacia `/content/imagenes/compartida/`; solo usuarios con membresía aprobada en el club
+   - Cada fichero se valida abriéndolo con Pillow (#599): JPG, PNG, WebP o HEIC de hasta 10 MB, máximo 20 por envío
+   - Se guardan en `SharedUpload` (filas efímeras de 24 h) y se redirige a la subida simple o múltiple con `?share=`
+
+5. **Solicitar la retirada de una foto** (#362):
+   - Desde el detalle de una imagen aprobada, el deportista etiquetado o su familia (`Person.user` o `User.children`) envía la solicitud con motivo opcional (`ImageRemovalRequest`)
+   - Solo una solicitud pendiente por imagen; la resuelve un moderador en `/core/moderacion/` (eliminar la foto o descartar) y el registro se conserva aunque la imagen se borre
+   - La página `/core/transparencia-imagen/` (#222) explica en claro quién ve las fotos
+
 ### Para Administradores
 
 1. **Moderar Imágenes**:
    ```bash
    # Acceder al admin de Django
-   /admin/videos/image/
+   /admin/content/image/   # en producción el prefijo es DJANGO_ADMIN_URL
    
    # O usar URLs específicas
-   /videos/admin/imagenes/moderar/
+   /content/admin/imagenes/moderar/
    ```
 
 2. **Acciones Disponibles**:
@@ -200,7 +224,7 @@ export AUTO_MODERATION_ENABLED=true  # Para auto-aprobación
 3. **Verificación Manual con Vision API**:
    ```python
    # En Django shell
-   from ilovevoley.content.utils import check_image_with_vision_api
+   from ilovevoley.videos.utils import check_image_with_vision_api
    from ilovevoley.content.models import Image
    
    image = Image.objects.get(id=1)
@@ -218,14 +242,23 @@ export AUTO_MODERATION_ENABLED=true  # Para auto-aprobación
 /content/imagenes/individual/          # Galería de imágenes individuales
 /content/imagenes/subir/               # Formulario de subida drag & drop
 /content/imagenes/subir-multiples/     # Subida múltiple
+/content/api/imagenes/subir/           # Endpoint unitario idempotente de la cola de subida (#611)
+/content/imagenes/compartida/          # Share target de la PWA (POST multipart)
+/content/imagenes/favoritas/           # Imágenes favoritas del usuario
 /content/imagenes/<id>/                # Detalle de imagen
+/content/imagenes/<id>/etiquetar/      # Etiquetar deportistas
+/content/imagenes/<id>/solicitar-retirada/  # Solicitud de retirada (deportista o familia)
 /content/partidos/<id>/imagenes/       # Imágenes de un partido
+/content/partidos/<id>/imagenes/zip/   # Descarga ZIP del álbum del partido
 /content/imagenes/album/<uuid>/        # Imágenes de un álbum grupal
+/core/transparencia-imagen/            # Página de transparencia: quién ve las fotos
 
 # Moderación
 /content/admin/imagenes/moderar/       # Panel de moderación de imágenes
 /content/admin/imagenes/<id>/moderar/  # Moderar imagen específica
-/core/moderacion/                      # Panel de moderación global (usuarios e imágenes)
+/content/admin/imagenes/moderar-masivo/ # Moderación en lote
+/core/moderacion/                      # Panel de moderación global (usuarios, imágenes y solicitudes de retirada)
+/core/api/image-removals/<id>/resolve/ # Resolver una solicitud de retirada
 ```
 
 ### Modelo de Datos (`ilovevoley.content.models.Image`)
@@ -244,17 +277,22 @@ class Image(models.Model):
     
     # Relaciones
     match = models.ForeignKey('competitions.Match', on_delete=models.CASCADE, null=True, blank=True)
+    set_number = models.PositiveSmallIntegerField(null=True, blank=True)
     categories = models.ManyToManyField('core.Category', blank=True)
-    season = models.ForeignKey('core.Season', on_delete=models.SET_NULL, null=True, blank=True)
-    organization = models.ForeignKey('core.Organization', on_delete=models.SET_NULL, null=True, blank=True)
+    persons = models.ManyToManyField('rosters.Person', blank=True)  # Deportistas etiquetados
+    season = models.ForeignKey('core.Season', on_delete=models.PROTECT, null=True, blank=True)
+    organization = models.ForeignKey('core.Organization', on_delete=models.PROTECT, null=True, blank=True)
     
     # Álbumes
     album_group_id = models.UUIDField(null=True, blank=True)
-    album_name = models.CharField(max_length=100, blank=True)
+    album_name = models.CharField(max_length=200, blank=True)
     
     # Conversión HEIC
     original_format = models.CharField(max_length=10, blank=True)
     was_converted = models.BooleanField(default=False)
+    
+    # Miniaturas WebP/AVIF (400 y 1600 px)
+    thumbnail_small / thumbnail_large / thumbnail_small_avif / thumbnail_large_avif
     
     # Usuario
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -262,7 +300,7 @@ class Image(models.Model):
     
     # Moderación
     status = models.CharField(choices=MODERATION_STATUS, default='pending')
-    moderated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True)
+    moderated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     moderation_date = models.DateTimeField(null=True, blank=True)
     moderation_notes = models.TextField(blank=True)
     
@@ -278,32 +316,39 @@ class Image(models.Model):
 
 ```bash
 # Verificar que todo esté configurado correctamente
-docker-compose exec web python manage.py check
+docker compose -f docker-compose.dev.yml run --rm web python manage.py check
 
 # Crear migraciones si es necesario
-docker-compose exec web python manage.py makemigrations
+docker compose -f docker-compose.dev.yml run --rm web python manage.py makemigrations
 
 # Aplicar migraciones
-docker-compose exec web python manage.py migrate
+docker compose -f docker-compose.dev.yml run --rm web python manage.py migrate
 ```
 
 ### Auto-etiquetado Masivo
 
 ```bash
 # Auto-etiquetar todas las imágenes aprobadas pendientes
-docker-compose exec web python manage.py autotag_images
+docker compose -f docker-compose.dev.yml run --rm web python manage.py autotag_images
 
 # Procesar solo 10 imágenes con delay de 2 segundos
-docker-compose exec web python manage.py autotag_images --limit 10 --delay 2.0
+docker compose -f docker-compose.dev.yml run --rm web python manage.py autotag_images --limit 10 --delay 2.0
 
 # Procesar todas las imágenes (incluso las ya verificadas)
-docker-compose exec web python manage.py autotag_images --force --status all
+docker compose -f docker-compose.dev.yml run --rm web python manage.py autotag_images --force --status all
 
 # Simular procesamiento sin hacer cambios
-docker-compose exec web python manage.py autotag_images --dry-run
+docker compose -f docker-compose.dev.yml run --rm web python manage.py autotag_images --dry-run
 
 # Ver ayuda completa
-docker-compose exec web python manage.py autotag_images --help
+docker compose -f docker-compose.dev.yml run --rm web python manage.py autotag_images --help
+```
+
+### Renombrado de Ficheros
+
+```bash
+# Renombrar imágenes con nombres descriptivos y actualizar títulos genéricos
+docker compose -f docker-compose.dev.yml run --rm web python manage.py rename_content_images --dry-run
 ```
 
 ### Moderación Masiva (Django Shell)
@@ -328,7 +373,7 @@ print(f"Aprobadas {pending_images.count()} imágenes")
 ```python
 # Verificar imágenes pendientes con Vision API
 from ilovevoley.content.models import Image
-from ilovevoley.content.utils import check_image_with_vision_api
+from ilovevoley.videos.utils import check_image_with_vision_api
 
 for image in Image.objects.filter(vision_api_checked=False):
     try:
@@ -351,13 +396,14 @@ for image in Image.objects.filter(vision_api_checked=False):
 ## Validaciones y Restricciones
 
 ### Archivos
-- **Formatos permitidos**: JPG, JPEG, PNG, WebP
+- **Formatos permitidos**: JPG, JPEG, PNG, WebP, HEIC/HEIF (se convierten a JPEG con `pillow-heif`)
 - **Tamaño máximo**: 10MB
 - **Validación**: Automática en formulario y modelo
+- **Live Photo** (#594): `extract_frame_from_live_photo` (`ilovevoley/videos/utils.py`) extrae el fotograma con `ffmpeg` (instalado en la imagen Docker; sin él devuelve `None`). Hoy no está enganchado a las vistas de subida
 
 ### Permisos
 - **Subida**: Usuarios autenticados y aprobados
-- **Moderación**: Solo staff/administradores
+- **Moderación**: admins y managers del club (tenant actual) y superusuarios
 - **Visualización**: 
   - Usuarios normales: solo imágenes aprobadas
   - Administradores: todas las imágenes
@@ -443,7 +489,7 @@ def clean_image(self):
 ### Cambiar Umbral de Vision API
 
 ```python
-# En utils.py
+# En ilovevoley/videos/utils.py (hoy el umbral está fijo en 3 dentro de la función)
 def check_image_with_vision_api(image_file, threshold=3):
     # Cambiar umbral de seguridad
     unsafe_reasons = []
@@ -489,7 +535,7 @@ class Image(models.Model):
 
 Para problemas o dudas sobre el sistema de imágenes:
 
-1. Revisar logs de Django: `docker-compose logs web`
+1. Revisar logs de Django: `docker compose -f docker-compose.dev.yml logs web`
 2. Verificar configuración en `settings.py`
 3. Comprobar variables de entorno en `.env`
 4. Revisar documentación de Google Vision API

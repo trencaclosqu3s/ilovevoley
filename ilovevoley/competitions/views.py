@@ -71,6 +71,7 @@ from .services.marks import match_marks, serve_mark_clip
 from .services.notifications import notify_match_live_stream, notify_match_result
 from .services.preview import build_match_preview, preview_card_pills
 
+from .services.scoreboard_summary import display_payload
 from .services.sets import extract_set_scores, match_set_scores
 from .services.where_plays import MIN_QUERY_LENGTH, search_locations
 from .share import (
@@ -425,6 +426,11 @@ def match_detail(request, match_id):
         'share_hours_choices': ALLOWED_HOURS,
         'share_default_hours': default_hours(),
         'set_scores': match_set_scores(match),
+        'scoreboard_summary': display_payload(
+            match.scoreboard_summary,
+            home_name=match.home_team_display,
+            away_name=match.away_team_display,
+        ),
         'max_sets': league_max_sets(match.league) if match.league else 5,
         'preview': build_match_preview(match),
         'marks': marks,
