@@ -77,9 +77,9 @@ class WrappedStatsTests(WrappedTestBase):
     def test_sin_actas_ni_fotos_no_hay_wrapped(self):
         self.assertIsNone(build_wrapped_stats(self.person, self.season))
 
-    def test_elige_la_remontada_del_set_que_jugo_y_gano_su_equipo(self):
-        # Visitante. El set 1 no lo jugó (agujero mayor). El 3 lo jugó y se perdió.
-        # El 2 entra de cambio, se gana, y el hoyo es el 1-10 de la cronología, no el primer punto atrás.
+    def test_elige_la_remontada_mayor_aunque_el_set_se_pierda(self):
+        # Visitante. El set 1 no lo jugó (agujero mayor). El 2 se gana de 1-10, pero es más pequeño.
+        # El 3 se pierde y aun así es el cromo: el hoyo de 0-20 manda sobre el resultado del set.
         def acta(ours, theirs, lineup):
             return {'title': '', 'teams': [
                 {'name': self.rival.name, 'points': theirs, 'lineup': _lineup(False)},
@@ -94,8 +94,8 @@ class WrappedStatsTests(WrappedTestBase):
             ],
             [
                 {
-                    'set': 1, 'winner': 'away', 'home_points': 5, 'away_points': 25, 'max_comeback': 15,
-                    'timeline': [{'team': 'home', 'home': 15, 'away': 0, 't': 30}],
+                    'set': 1, 'winner': 'away', 'home_points': 5, 'away_points': 25, 'max_comeback': 25,
+                    'timeline': [{'team': 'home', 'home': 25, 'away': 0, 't': 30}],
                 },
                 {
                     'set': 2, 'winner': 'away', 'home_points': 10, 'away_points': 25, 'max_comeback': 9,
@@ -107,7 +107,7 @@ class WrappedStatsTests(WrappedTestBase):
                 },
                 {
                     'set': 3, 'winner': 'home', 'home_points': 25, 'away_points': 20, 'max_comeback': 20,
-                    'timeline': [{'team': 'away', 'home': 2, 'away': 22, 't': 40}],
+                    'timeline': [{'team': 'home', 'home': 20, 'away': 0, 't': 40}],
                 },
             ],
         )
@@ -117,12 +117,12 @@ class WrappedStatsTests(WrappedTestBase):
         self.assertEqual(stats['comeback'], {
             'name': self.rival.name,
             'team_id': self.rival.id,
-            'set': 2,
-            'size': 9,
-            'hole_own': 1,
-            'hole_rival': 10,
-            'final_own': 25,
-            'final_rival': 10,
+            'set': 3,
+            'size': 20,
+            'hole_own': 0,
+            'hole_rival': 20,
+            'final_own': 20,
+            'final_rival': 25,
         })
 
     def test_sin_cronologia_del_hoyo_no_hay_remontada(self):

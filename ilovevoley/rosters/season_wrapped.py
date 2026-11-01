@@ -222,10 +222,12 @@ def _final_score(raw, own_home):
 
 
 def _best_comeback(lineups):
-    """Remontada mayor entre sets jugados y ganados, o ``None``.
+    """Remontada mayor entre los sets que jugó, o ``None``.
 
-    El rival es el equipo. El tamaño sale de ``max_comeback``; el marcador del
-    hoyo, de la cronología. Si esa cronología no enseña el agujero, el set no cuenta.
+    Da igual que el set se gane o se pierda: manda el tamaño del hoyo. El rival
+    es el equipo. El tamaño sale de ``max_comeback``; el marcador del hoyo, de
+    la cronología y solo si el déficit es el de su propio equipo. Si esa
+    cronología no enseña el agujero, el set no cuenta.
     """
     best = None
     for row in lineups:
@@ -237,14 +239,11 @@ def _best_comeback(lineups):
         own_home = match.home_team_id == row.team_id
         played = _acta_sets_played(match, row)
         rival_team = match.away_team if own_home else match.home_team
-        side = 'home' if own_home else 'away'
         for raw in sets:
             if not isinstance(raw, dict):
                 continue
             number = raw.get('set')
             if isinstance(number, bool) or not isinstance(number, int) or number not in played:
-                continue
-            if raw.get('winner') != side:
                 continue
             size = _point(raw.get('max_comeback'))
             if not size:
