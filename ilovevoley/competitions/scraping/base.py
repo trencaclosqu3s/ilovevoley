@@ -118,6 +118,21 @@ def parse_set_scores_string(value):
     return scores or None
 
 
+def clean_venue_name(name: Any) -> str:
+    """Limpia y normaliza el nombre de una sede o pabellón federativo.
+
+    - Reemplaza signos de interrogación '?' por espacios (defecto conocido de
+      la plantilla ASP de resultados de la federación balear).
+    - Normaliza la abreviatura 'EXT' / 'EXT.' a 'EXTERIOR'.
+    - Colapsa espacios múltiples y elimina espacios en los extremos.
+    """
+    if not name:
+        return ''
+    text = str(name).replace('?', ' ')
+    text = re.sub(r'\bext(?:\.|\b)', 'EXTERIOR', text, flags=re.IGNORECASE)
+    return re.sub(r'\s+', ' ', text).strip()
+
+
 def is_penalty_result(set_scores) -> bool:
     """Detecta un resultado por penalización/incomparecencia.
 
@@ -207,6 +222,7 @@ class BaseParser:
 
 
 __all__ = [
+    'clean_venue_name',
     'validate_volleyball_score',
     'validate_set_scores',
     'league_max_sets',

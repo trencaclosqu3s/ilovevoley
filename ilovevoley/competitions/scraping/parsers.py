@@ -14,6 +14,7 @@ from ilovevoley.competitions.scraping.base import (
     BaseParser,
     ScrapingError,
     build_acta_url,
+    clean_venue_name,
     parse_set_scores_string,
     validate_volleyball_score,
 )
@@ -212,7 +213,7 @@ class MatchesParser(BaseParser):
             'federation_club_local_id': club_id(team_spans[0]),
             'federation_club_away_id': club_id(team_spans[1]),
             'match_date': match_datetime,
-            'venue': venue_span.get_text(strip=True) if venue_span else '',
+            'venue': clean_venue_name(venue_span.get_text(strip=True)) if venue_span else '',
             'city': city_span.get_text(strip=True) if city_span else '',
             'round_number': round_number,
             'home_score': home_score,
@@ -478,7 +479,7 @@ class JSONMatchesParser(BaseParser):
         delegate = (partido_data.get('delegado') or '').strip()
         
         # Información del campo
-        field_name = (partido_data.get('Campo') or '').strip()
+        field_name = clean_venue_name(partido_data.get('Campo') or '')
         field_address = (partido_data.get('Direccion_Campo') or '').strip()
         city = (partido_data.get('Municipio') or '').strip()
         
@@ -639,7 +640,7 @@ class JSONUnifiedParser(BaseParser):
         delegate = (partido_data.get('delegado') or '').strip()
         
         # Información del campo
-        field_name = (partido_data.get('Campo') or '').strip()
+        field_name = clean_venue_name(partido_data.get('Campo') or '')
         field_address = (partido_data.get('Direccion_Campo') or '').strip()
         city = (partido_data.get('Municipio') or '').strip()
         

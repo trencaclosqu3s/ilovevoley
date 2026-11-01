@@ -6,6 +6,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from ilovevoley.competitions.models import Match, MatchChangeLog
+from ilovevoley.competitions.scraping.base import clean_venue_name
 from ilovevoley.competitions.services.notifications import (
     notify_match_change_push,
     notify_match_changes,
@@ -155,6 +156,9 @@ def detect_and_record_match_changes(
         if field_name in new_data:
             new_val = (new_data.get(field_name) or '').strip()
             cur_val = (getattr(match, field_name, '') or '').strip()
+            if field_name == 'venue':
+                new_val = clean_venue_name(new_val)
+                cur_val = clean_venue_name(cur_val)
             # Solo si el nuevo valor tiene contenido y es distinto del actual
             if new_val and new_val != cur_val:
                 _record(
