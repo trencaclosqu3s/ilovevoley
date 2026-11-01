@@ -22,6 +22,7 @@ from ilovevoley.teams.models import Team
 from .base import (
     ScrapingError,
     build_acta_url,
+    clean_venue_name,
     is_penalty_result,
     validate_volleyball_score,
 )
@@ -388,7 +389,7 @@ class FederationScraper:
 
                     match.away_score = match_data['away_score']
                     match.status = incoming_status
-                    match.venue = match_data.get('venue', '')
+                    match.venue = clean_venue_name(match_data.get('venue', ''))
                     match.city = match_data.get('city', '')
                     match.referee1 = match_data.get('referee1', '')
                     match.referee2 = match_data.get('referee2', '')
@@ -439,7 +440,7 @@ class FederationScraper:
                         home_score=home_score,
                         away_score=away_score,
                         status=status,
-                        venue=match_data.get('venue', ''),
+                        venue=clean_venue_name(match_data.get('venue', '')),
                         city=match_data.get('city', ''),
                         referee1=match_data.get('referee1', ''),
                         referee2=match_data.get('referee2', ''),
@@ -923,6 +924,8 @@ class FederationScraper:
                         should_update = True
                     
                     if should_update:
+                        if key == 'venue':
+                            new_value = clean_venue_name(new_value)
                         setattr(existing_match, key, new_value)
                         updated_fields.append(key)
                 

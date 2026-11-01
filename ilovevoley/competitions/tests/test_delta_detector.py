@@ -391,3 +391,29 @@ class DeltaDetectorTest(TestCase):
         self.assertIsNone(match.home_score)
         self.assertIsNone(match.away_score)
         self.assertIsNone(match.set_scores)
+
+    def test_detect_venue_change_ignores_question_marks_and_ext_abbreviation(self):
+        """Los '?' espurios de la federación y la abreviatura EXT/EXTERIOR no deben contar como cambio de sede."""
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.team_a,
+            away_team=self.team_b,
+            match_date=timezone.now() + timedelta(days=2),
+            venue='Pav. Col. Sant Josep Obrer EXTERIOR',
+            status='scheduled',
+        )
+
+        # 1. Entrada con ? y EXT no debe generar cambios frente a EXTERIOR
+        changes = detect_and_record_match_changes(match, {'venue': 'Pav.?Col.?Sant?Josep?Obrer?EXT'})
+        self.assertEqual(len(changes), 0)
+
+        # 2. Entrada con EXT. tampoco
+        changes_dot = detect_and_record_match_changes(match, {'venue': 'Pav. Col. Sant Josep Obrer EXT.'})
+        self.assertEqual(len(changes_dot), 0)
+
+        # 3. Cambio real de pabellón sí genera cambio, y new_value se guarda limpio sin '?'
+        changes_real = detect_and_record_match_changes(match, {'venue': 'Pol.?Blanquerna'})
+        self.assertEqual(len(changes_real), 1)
+        self.assertEqual(changes_real[0].change_type, 'venue')
+        self.assertEqual(changes_real[0].new_value, 'Pol. Blanquerna')
+

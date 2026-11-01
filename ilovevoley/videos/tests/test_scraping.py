@@ -1563,6 +1563,26 @@ class MatchesParserSetScoresTests(TestCase):
         data = self.parser.parse_content(self._content(''))
         self.assertIsNone(data['matches'][0]['set_scores'])
 
+    def test_cleans_question_marks_and_ext_in_venue(self):
+        html = (
+            "<h3>JORNADA 1</h3>"
+            "<div class='info_partido little' align='center'>"
+            "  <div class='top'>"
+            "    <span class='pabellon'>Pav.?Col.?Sant?Josep?Obrer?EXT</span>"
+            "    <span class='municipio'>Palma</span>"
+            "    <span class='fecha'>26/09/2026 - 17:00</span>"
+            "  </div>"
+            "  <div class='datos_partido'>"
+            "    <span class='nombreEquipo'>LOCAL</span>"
+            "    <span class='marcador'></span>"
+            "    <span class='nombreEquipo'>VISITANTE</span>"
+            "  </div>"
+            "</div>"
+        )
+        data = self.parser.parse_content(html)
+        self.assertEqual(data['matches'][0]['venue'], 'Pav. Col. Sant Josep Obrer EXTERIOR')
+
+
 
 class UpdateMatchesSetScoresTests(TestCase):
     """Los parciales del scraping se persisten sin pisar correcciones previas."""
