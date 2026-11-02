@@ -7930,6 +7930,15 @@ msgstr[1] "victòries"
 msgid "Tu rival más repetido"
 msgstr "El teu rival més repetit"
 
+#: ilovevoley/rosters/season_wrapped.py:80
+msgid "La remontada"
+msgstr "La remuntada"
+
+#: ilovevoley/rosters/season_wrapped.py:81
+#, python-format
+msgid "Jugaste el set %(set)s en el que remontasteis de %(hole)s a %(final)s contra %(rival)s"
+msgstr "Vas jugar el set %(set)s en què vau remuntar de %(hole)s a %(final)s contra %(rival)s"
+
 #: ilovevoley/rosters/season_wrapped.py:76
 msgid "Has salido en"
 msgstr "Has sortit en"

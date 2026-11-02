@@ -6,10 +6,11 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from django.utils import translation
+from django.utils import timezone, translation
 from PIL import Image as PILImage
 
 from ilovevoley.competitions.models import League, Match
+from ilovevoley.competitions.services.lineups import store_match_lineups
 from ilovevoley.content.models import Image, ImageFavorite
 from ilovevoley.core import narrative
 from ilovevoley.rosters.models import Person, SeasonWrapped
@@ -22,7 +23,7 @@ from ilovevoley.rosters.season_wrapped import (
     season_organization,
 )
 from ilovevoley.rosters.tasks import generate_season_wrappeds_task, redact_pending_wrapped_narratives_task
-from ilovevoley.rosters.tests.test_player_card import PlayerCardTestBase, _lineup
+from ilovevoley.rosters.tests.test_player_card import JERSEY, PlayerCardTestBase, _lineup
 from ilovevoley.rosters.wrapped_render import render_wrapped_screen
 from ilovevoley.users.models import Membership
 
@@ -33,6 +34,23 @@ class WrappedTestBase(PlayerCardTestBase):
     def play_official(self, sets):
         match = self.play(sets)
         Match.objects.filter(pk=match.pk).update(federation_id=f'FED-{match.pk}')
+        return match
+
+    def away_with_summary(self, acta_sets, summary_sets):
+        """Partido oficial como visitante: girar home/away es parte del dato."""
+        self.round += 1
+        match = Match.objects.create(
+            league=self.league, home_team=self.rival, away_team=self.team, round_number=self.round,
+            match_date=timezone.now(), status='finished', home_score=1, away_score=2,
+            federation_id=f'FED-AWAY-{self.round}',
+        )
+        store_match_lineups(match, {
+            'home_team': self.rival.name, 'away_team': self.team.name,
+            'home_convocados': [], 'away_convocados': [f'{JERSEY} Marc Ferrer'],
+            'sets': acta_sets,
+        })
+        match.scoreboard_summary = {'sets': summary_sets}
+        match.save(update_fields=['scoreboard_summary'])
         return match
 
 
@@ -58,6 +76,75 @@ class WrappedStatsTests(WrappedTestBase):
 
     def test_sin_actas_ni_fotos_no_hay_wrapped(self):
         self.assertIsNone(build_wrapped_stats(self.person, self.season))
+
+    def test_elige_la_remontada_mayor_aunque_el_set_se_pierda(self):
+        # Visitante. El set 1 no lo jugó (agujero mayor). El 2 se gana de 1-10, pero es más pequeño.
+        # El 3 se pierde y aun así es el cromo: el hoyo de 0-20 manda sobre el resultado del set.
+        def acta(ours, theirs, lineup):
+            return {'title': '', 'teams': [
+                {'name': self.rival.name, 'points': theirs, 'lineup': _lineup(False)},
+                {'name': self.team.name, 'points': ours, 'lineup': lineup},
+            ]}
+
+        self.away_with_summary(
+            [
+                acta(25, 5, _lineup(False)),
+                acta(25, 10, _lineup(False, sub_for=2)),
+                acta(20, 25, _lineup()),
+            ],
+            [
+                {
+                    'set': 1, 'winner': 'away', 'home_points': 5, 'away_points': 25, 'max_comeback': 25,
+                    'timeline': [{'team': 'home', 'home': 25, 'away': 0, 't': 30}],
+                },
+                {
+                    'set': 2, 'winner': 'away', 'home_points': 10, 'away_points': 25, 'max_comeback': 9,
+                    'timeline': [
+                        {'team': 'home', 'home': 6, 'away': 5, 't': 20},
+                        {'team': 'home', 'home': 10, 'away': 1, 't': 80},
+                        {'team': 'away', 'home': 10, 'away': 12, 't': 200},
+                    ],
+                },
+                {
+                    'set': 3, 'winner': 'home', 'home_points': 25, 'away_points': 20, 'max_comeback': 20,
+                    'timeline': [{'team': 'home', 'home': 20, 'away': 0, 't': 40}],
+                },
+            ],
+        )
+
+        stats = build_wrapped_stats(self.person, self.season)
+
+        self.assertEqual(stats['comeback'], {
+            'name': self.rival.name,
+            'team_id': self.rival.id,
+            'set': 3,
+            'size': 20,
+            'hole_own': 0,
+            'hole_rival': 20,
+            'final_own': 20,
+            'final_rival': 25,
+        })
+
+    def test_sin_cronologia_del_hoyo_no_hay_remontada(self):
+        # max_comeback no basta: sin el marcador del hoyo en la cronología no se inventa el 1-10.
+        def acta(lineup):
+            return {'title': '', 'teams': [
+                {'name': self.rival.name, 'points': 20, 'lineup': _lineup(False)},
+                {'name': self.team.name, 'points': 25, 'lineup': lineup},
+            ]}
+
+        self.away_with_summary(
+            [acta(_lineup()), acta(_lineup())],
+            [
+                {'set': 1, 'winner': 'away', 'home_points': 20, 'away_points': 25, 'max_comeback': 8, 'timeline': []},
+                {
+                    'set': 2, 'winner': 'away', 'home_points': 18, 'away_points': 25, 'max_comeback': 8,
+                    'timeline': [{'team': 'home', 'home': 7, 'away': 5, 't': 40}],
+                },
+            ],
+        )
+
+        self.assertIsNone(build_wrapped_stats(self.person, self.season)['comeback'])
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
@@ -106,6 +193,38 @@ class WrappedScreensTests(WrappedTestBase):
         self.person.save()
         self.assertEqual([s for s in build_screens(wrapped, anonymous, self.org) if s.kind == 'top_photo'], [])
 
+    def test_el_cromo_cuenta_el_set_y_el_equipo_rival_no_a_la_persona(self):
+        # El texto se puede perfilar; lo que no puede hacer es atribuirle la remontada a ella.
+        self.away_with_summary(
+            [{'title': '', 'teams': [
+                {'name': self.rival.name, 'points': 10, 'lineup': _lineup(False)},
+                {'name': self.team.name, 'points': 25, 'lineup': _lineup()},
+            ]}],
+            [{
+                'set': 1, 'winner': 'away', 'home_points': 10, 'away_points': 25, 'max_comeback': 9,
+                'timeline': [{'team': 'home', 'home': 10, 'away': 1, 't': 80}],
+            }],
+        )
+        wrapped = self.snapshot()
+        screen = next(s for s in build_screens(wrapped, get_user_model()(), self.org) if s.kind == 'comeback')
+        text = f'{screen.title} {screen.value} {screen.subtitle}'
+
+        self.assertIn(self.rival.name, text)
+        self.assertIn('1-10', text)
+        self.assertIn('25-10', text)
+        self.assertNotIn(self.person.first_name, text)
+        self.assertEqual(screen.crest_team_id, self.rival.id)
+
+    def test_sin_remontada_o_sin_la_clave_antigua_no_hay_pantalla(self):
+        self.play_official([(25, 20, _lineup())] * 3)
+        wrapped = self.snapshot()
+        kinds = [s.kind for s in build_screens(wrapped, get_user_model()(), self.org)]
+        self.assertNotIn('comeback', kinds)
+
+        del wrapped.stats['comeback']
+        kinds = [s.kind for s in build_screens(wrapped, get_user_model()(), self.org)]
+        self.assertNotIn('comeback', kinds)
+
 
 class WrappedRenderTests(PlayerCardTestBase):
     def test_render_aguanta_nombre_de_rival_larguisimo_y_foto_ausente(self):
@@ -117,6 +236,9 @@ class WrappedRenderTests(PlayerCardTestBase):
             Screen('top_photo', 'Tu foto más votada', photo_id=1),
             Screen('cover', 'Marc Ferrer', '2025-26', 'Tu temporada'),
             Screen('narrative', 'Tu temporada en palabras', subtitle='Marc ha jugado muchos partidos. ' * 10),
+            Screen('comeback', 'La remontada', subtitle=(
+                'Jugaste el set 2 en el que remontasteis de 1-10 a 25-10 contra ' + 'Club Voleibol ' * 8
+            )),
         ):
             with self.subTest(kind=screen.kind):
                 png = render_wrapped_screen(organization=self.org, screen=screen)
