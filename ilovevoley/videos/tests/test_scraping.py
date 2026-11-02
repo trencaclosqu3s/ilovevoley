@@ -815,6 +815,119 @@ class ProcessJsonMatchesUnifiedTests(TestCase):
         self.away_team.refresh_from_db()
         self.assertEqual(self.away_team.sponsor_name, '')
 
+    def test_find_team_by_name_prefers_active_standing_team_over_inactive_base_name(self):
+        """Regla de #660: cuando un equipo tiene fila activa en la clasificación con patrocinador
+        (ej. 'CLUB VOLEIBOL EIVISSA SERVICIOS PALAU') y existe una fila previa inactiva con el nombre
+        base ('CLUB VOLEIBOL EIVISSA'), la búsqueda por JSON con sponsor_name o nombre base resuelve
+        al equipo activo de Standing para no crear partidos duplicados ni bucles de retirada."""
+        from ilovevoley.competitions.models import Standing
+
+        inactive_base = Team.objects.create(
+            name='CV EIVISSA',
+            federation_id='8246_cv_eivissa',
+            category=self.category,
+            is_active=False,
+        )
+        active_standing = Team.objects.create(
+            name='CV EIVISSA SERVICIOS PALAU',
+            federation_id='8246_cv_eivissa_servicios_palau',
+            category=self.category,
+            is_active=True,
+        )
+        Standing.objects.create(league=self.league, team=active_standing, position=1)
+
+        # 1. Búsqueda con base y sponsor
+        found_with_sponsor = self.scraper._find_team_by_name(
+            'CV EIVISSA', self.league, sponsor_name='CV EIVISSA SERVICIOS PALAU'
+        )
+        self.assertEqual(found_with_sponsor, active_standing)
+
+        # 2. Búsqueda con solo el nombre base: gracias al word-overlap contra equipos en Standing,
+        # debe preferir el equipo activo de la clasificación frente a la fila inactiva
+        found_base_only = self.scraper._find_team_by_name('CV EIVISSA', self.league)
+        self.assertEqual(found_base_only, active_standing)
+
+    def test_process_json_matches_unified_preserves_existing_venue_when_incoming_is_empty(self):
+        """Regla de #660: el JSON unificado no debe sobreescribir con vacío la sede ni el municipio
+        existentes si en el JSON entrante vienen en blanco o ausentes."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        match_date = datetime(2026, 10, 3, 12, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=match_date,
+            federation_id='85855',
+            status='scheduled',
+            venue='Pav. Son Angelats',
+            city='Sóller',
+            field_address='C/ Son Angelats s/n',
+        )
+
+        partidos_data = [{
+            'ID': 85855,
+            'ELOCAL': 'CLUB VOLEIBOL EIVISSA',
+            'EVISITANTE': 'CD MESTRAL IBIZA VOLEY',
+            'FECHA': '03/10/2026',
+            'HORA': '12:00',
+            'Campo': '',
+            'Municipio': '',
+            'Direccion': '',
+            'TORNEO': 8246,
+        }]
+
+        created, updated = self.scraper._process_json_matches_unified(
+            self.league, partidos_data, 'Juvenil', '8246', '1'
+        )
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+
+        match.refresh_from_db()
+        self.assertEqual(match.venue, 'Pav. Son Angelats')
+        self.assertEqual(match.city, 'Sóller')
+        self.assertEqual(match.field_address, 'C/ Son Angelats s/n')
+
+    def test_process_json_matches_unified_does_not_demote_active_team_to_inactive(self):
+        """Regla de #660: si el partido ya tiene asignado un equipo activo, el scraper JSON no debe
+        degradarlo a un equipo homónimo inactivo."""
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+
+        inactive_home = Team.objects.create(
+            name='CLUB VOLEIBOL EIVISSA INACTIVO',
+            federation_id='8246_eivissa_inact',
+            category=self.category,
+            is_active=False,
+        )
+
+        match_date = datetime(2026, 10, 3, 12, 0, tzinfo=ZoneInfo('Europe/Madrid'))
+        match = Match.objects.create(
+            league=self.league,
+            home_team=self.home_team,
+            away_team=self.away_team,
+            match_date=match_date,
+            federation_id='85860',
+            status='scheduled',
+        )
+
+        partidos_data = [{
+            'ID': 85860,
+            'ELOCAL': 'CLUB VOLEIBOL EIVISSA INACTIVO',
+            'EVISITANTE': 'CD MESTRAL IBIZA VOLEY',
+            'FECHA': '03/10/2026',
+            'HORA': '12:00',
+            'TORNEO': 8246,
+        }]
+
+        self.scraper._process_json_matches_unified(
+            self.league, partidos_data, 'Juvenil', '8246', '1'
+        )
+
+        match.refresh_from_db()
+        self.assertEqual(match.home_team, self.home_team)
+
 
 # ---------------------------------------------------------------------------
 # Intercambio de localía federativa (#485): reutilizar sin duplicar en espejo
@@ -1177,6 +1290,21 @@ class WithdrawnTeamDetectionTests(TestCase):
         self.match.refresh_from_db()
         self.assertTrue(self.team_a.is_active)
         self.assertTrue(self.team_b.is_active)
+        self.assertEqual(self.match.status, 'scheduled')
+
+    def test_detect_withdrawn_teams_does_not_deactivate_team_in_season_standings(self):
+        """Regla de #660: un equipo presente en la clasificación oficial (Standing) de una liga
+        de la temporada actual no debe ser marcado como inactivo por detect_withdrawn_teams aunque
+        no aparezca en los federation_ids de un scrape parcial o cruzado."""
+        from ilovevoley.competitions.models import Standing
+
+        Standing.objects.create(league=self.league, team=self.team_b, position=2)
+
+        self.scraper.detect_withdrawn_teams({'g_a'})
+
+        self.team_b.refresh_from_db()
+        self.assertTrue(self.team_b.is_active)
+        self.match.refresh_from_db()
         self.assertEqual(self.match.status, 'scheduled')
 
 
