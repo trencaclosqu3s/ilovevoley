@@ -323,8 +323,12 @@ class FederationScraper:
                 )
 
                 # Buscar equipos
-                home_team = self._find_team_by_name(match_data['home_team'], league)
-                away_team = self._find_team_by_name(match_data['away_team'], league)
+                home_team = self._find_team_by_name(
+                    match_data['home_team'], league, sponsor_name=match_data.get('home_sponsor_name', '')
+                )
+                away_team = self._find_team_by_name(
+                    match_data['away_team'], league, sponsor_name=match_data.get('away_sponsor_name', '')
+                )
                 
                 if not home_team or not away_team:
                     league_category = league.categories.first()
@@ -389,14 +393,20 @@ class FederationScraper:
 
                     match.away_score = match_data['away_score']
                     match.status = incoming_status
-                    match.venue = clean_venue_name(match_data.get('venue', ''))
-                    match.city = match_data.get('city', '')
+                    incoming_venue = clean_venue_name(match_data.get('venue', ''))
+                    if incoming_venue:
+                        match.venue = incoming_venue
+                    incoming_city = (match_data.get('city') or '').strip()
+                    if incoming_city:
+                        match.city = incoming_city
                     match.referee1 = match_data.get('referee1', '')
                     match.referee2 = match_data.get('referee2', '')
                     match.scorer = match_data.get('scorer', '')
                     match.timekeeper = match_data.get('timekeeper', '')
                     match.delegate = match_data.get('delegate', '')
-                    match.field_address = match_data.get('field_address', '')
+                    incoming_address = (match_data.get('field_address') or '').strip()
+                    if incoming_address:
+                        match.field_address = incoming_address
                     match.federation_comment = (match_data.get('comentario') or '')
                     if fed_id:
                         match.federation_id = fed_id
@@ -411,9 +421,11 @@ class FederationScraper:
                     if incoming_acta:
                         match.acta_html = incoming_acta
                     if home_team and match.home_team_id != home_team.id:
-                        match.home_team = home_team
+                        if not (match.home_team and match.home_team.is_active and not home_team.is_active):
+                            match.home_team = home_team
                     if away_team and match.away_team_id != away_team.id:
-                        match.away_team = away_team
+                        if not (match.away_team and match.away_team.is_active and not away_team.is_active):
+                            match.away_team = away_team
                     match.save()
                     notify_match_result_after_save(match, already_finished)
                     matches_updated += 1
@@ -588,6 +600,17 @@ class FederationScraper:
         withdrawn_teams = list(
             existing_teams_in_league.exclude(federation_id__in=current_federation_ids)
         )
+
+        if withdrawn_teams:
+            from ilovevoley.competitions.models import Standing
+            standing_team_ids = set(
+                Standing.objects.filter(
+                    league__season=self.league.season,
+                    team__in=withdrawn_teams,
+                ).values_list('team_id', flat=True)
+            )
+            if standing_team_ids:
+                withdrawn_teams = [t for t in withdrawn_teams if t.pk not in standing_team_ids]
 
         if withdrawn_teams:
             Team.objects.filter(pk__in=[t.pk for t in withdrawn_teams]).update(is_active=False)
@@ -1690,15 +1713,17 @@ class FederationScraper:
             return False
         
         # Buscar equipos en la base de datos
-        home_team = self._find_team_by_name(home_team_name, league)
-        away_team = self._find_team_by_name(away_team_name, league)
+        home_sponsor = (partido_data.get('ELOCALPAT') or '').strip()
+        away_sponsor = (partido_data.get('EVISITANTEPAT') or '').strip()
+        home_team = self._find_team_by_name(home_team_name, league, sponsor_name=home_sponsor)
+        away_team = self._find_team_by_name(away_team_name, league, sponsor_name=away_sponsor)
         
         if not home_team or not away_team:
             logger.debug(f"Teams not found for JSON match: {home_team_name} vs {away_team_name}")
             return False
 
-        self._sync_sponsor_name(home_team, home_team_name, (partido_data.get('ELOCALPAT') or '').strip())
-        self._sync_sponsor_name(away_team, away_team_name, (partido_data.get('EVISITANTEPAT') or '').strip())
+        self._sync_sponsor_name(home_team, home_team_name, home_sponsor)
+        self._sync_sponsor_name(away_team, away_team_name, away_sponsor)
         
         # Parsear fecha
         fecha_str = partido_data.get('FECHA', '')
@@ -1754,7 +1779,7 @@ class FederationScraper:
             match_date=match_datetime,
             home_score=home_score,
             away_score=away_score,
-            venue=(partido_data.get('Campo') or '').strip(),
+            venue=clean_venue_name(partido_data.get('Campo') or ''),
             city=(partido_data.get('Municipio') or '').strip(),
             referee1=(partido_data.get('arbitro1') or '').strip(),
             referee2=(partido_data.get('arbitro2') or '').strip(),
@@ -1793,25 +1818,68 @@ class FederationScraper:
             team.sponsor_name = new_value
             team.save(update_fields=['sponsor_name'])
 
-    def _find_team_by_name(self, team_name: str, league: League) -> Optional[Team]:
-        """Busca un equipo por nombre en la liga específica"""
+    def _find_team_by_name(self, team_name: str, league: League, sponsor_name: str = '') -> Optional[Team]:
+        """Busca un equipo por nombre o patrocinador en la liga específica"""
         # Obtener las categorías de la liga
         league_categories = league.categories.all()
 
-        # Buscar por nombre exacto en cualquiera de las categorías de la liga
+        # 1. Búsqueda exacta por nombre o patrocinador
+        name_q = models.Q(name=team_name)
+        sponsor_clean = (sponsor_name or '').strip()
+        if sponsor_clean and sponsor_clean != team_name:
+            name_q |= models.Q(name=sponsor_clean) | models.Q(sponsor_name=sponsor_clean)
+        elif not sponsor_clean:
+            name_q |= models.Q(sponsor_name=team_name)
+
         team = self._prefer_league_team(
-            Team.objects.filter(name=team_name, category__in=league_categories), league
+            Team.objects.filter(name_q, category__in=league_categories), league
         )
-        if team:
+        if team and team.is_active:
             return team
 
-        # Buscar por similitud
+        # 2. Búsqueda por nombre o patrocinador normalizado
         normalized_name = self._normalize_team_name(team_name)
-        return self._prefer_league_team(
+        normalized_sponsor = self._normalize_team_name(sponsor_clean) if sponsor_clean else None
+
+        def _name_or_sponsor_normalized_matches(t: Team) -> bool:
+            t_name_norm = self._normalize_team_name(t.name)
+            t_spon_norm = self._normalize_team_name(t.sponsor_name) if t.sponsor_name else None
+            if t_name_norm == normalized_name or (t_spon_norm and t_spon_norm == normalized_name):
+                return True
+            if normalized_sponsor and (
+                t_name_norm == normalized_sponsor or (t_spon_norm and t_spon_norm == normalized_sponsor)
+            ):
+                return True
+            return False
+
+        team_norm = self._prefer_league_team(
             (t for t in Team.objects.filter(category__in=league_categories)
-             if self._normalize_team_name(t.name) == normalized_name),
+             if _name_or_sponsor_normalized_matches(t)),
             league,
         )
+        if team_norm and team_norm.is_active:
+            return team_norm
+
+        # 3. Coincidencia por palabras contra los equipos activos de la liga (en Standing)
+        standing_teams = list(Team.objects.filter(standings__league=league, is_active=True).distinct())
+        words = set(normalized_name.split())
+        if normalized_sponsor:
+            words |= set(normalized_sponsor.split())
+
+        word_candidates = []
+        for st in standing_teams:
+            for label in (st.name, st.sponsor_name):
+                if not label:
+                    continue
+                other = set(self._normalize_team_name(label).split())
+                if other <= words or words <= other:
+                    word_candidates.append(st)
+                    break
+        if len(word_candidates) == 1:
+            return word_candidates[0]
+
+        # 4. Fallback a candidato encontrado previamente (incluso si está inactivo)
+        return team or team_norm
 
     @staticmethod
     def _prefer_league_team(candidates, league: League) -> Optional[Team]:
@@ -1831,6 +1899,7 @@ class FederationScraper:
         prefix = f'{league.federation_id}_'
         return min(candidates, key=lambda t: (
             not ((t.federation_id or '').startswith(prefix) or t.pk in in_standings),
+            not (t.is_active and t.pk in in_standings),
             not t.is_active,
             -t.pk,
         ))
