@@ -94,6 +94,9 @@ def render_wrapped_screen(*, organization, screen, photo=None, rival_logo=None) 
     elif screen.kind == 'narrative':
         _centered(draw, width, _TOP + 160, screen.title, _FONT_BOLD, 64, inner_w)
         _draw_paragraph(draw, width, _TOP + 300, footer_y - 60, screen.subtitle, inner_w)
+    elif screen.kind == 'comeback':
+        _centered(draw, width, _TOP + 160, screen.title, _FONT_BOLD, 64, inner_w)
+        _draw_paragraph(draw, width, _TOP + 320, footer_y - 60, screen.subtitle, inner_w, size=64, min_size=36)
     else:
         y = height // 2 - 260
         if screen.caption:
