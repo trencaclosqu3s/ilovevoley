@@ -10,7 +10,7 @@ dependencies = [
     "python-decouple==3.8",
     "Pillow==13.0.0",
     "pillow-heif==1.8.1",
-    "django-allauth==65.20.1",
+    "django-allauth==65.21.0",
     "requests==2.34.2",
     # Requerido por allauth para verificar ID tokens de Google OAuth2
     # (evita el extra [socialaccount] que arrastra oauthlib/CVE-2026-49265)
@@ -27,14 +27,14 @@ dependencies = [
     "gunicorn==26.2.0",
     "django-ical==1.9.2",
     "pypdf>=6.21.4",
-    "sentry-sdk[django]==2.72.0",
+    "sentry-sdk[django]==2.73.0",
     "django-ratelimit==4.1.0",
     "pywebpush==2.5.0",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "pytest-django==4.14.0",
     "pytest-xdist==3.8.0",
     "bandit==1.9.4",
