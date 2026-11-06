@@ -19,6 +19,7 @@ from ilovevoley.competitions.services.delta_detector import (
 )
 from ilovevoley.competitions.models import League, Match, ScrapingEndpoint, Standing
 from ilovevoley.teams.models import Team
+from ilovevoley.teams.utils import normalize_team_name
 from .base import (
     ScrapingError,
     build_acta_url,
@@ -483,7 +484,6 @@ class FederationScraper:
         completa de la liga): ver ``detect_withdrawn_teams()``.
         """
         from ilovevoley.teams.identity import notify_new_identity_candidates, resolve_team_identity
-        from ilovevoley.videos.utils import normalize_team_name
 
         self._new_identity_candidates = []
         team_objects = {}
@@ -1526,12 +1526,6 @@ class FederationScraper:
                     
                     # ESTRATEGIA 2: Si no se encontró por clubes, buscar por nombres (fallback)
                     if not match and equipo_local and equipo_visitante:
-                        # Normalizar nombres para búsqueda más flexible
-                        def normalize_team_name(name):
-                            """Normaliza nombres de equipos para búsqueda flexible"""
-                            from ilovevoley.videos.utils import normalize_team_name as normalize_team_name_util
-                            return normalize_team_name_util(name)
-                        
                         equipo_local_norm = normalize_team_name(equipo_local)
                         equipo_visitante_norm = normalize_team_name(equipo_visitante)
                         logger.info(f"Nombres normalizados - JSON: local='{equipo_local_norm}', visitante='{equipo_visitante_norm}'")

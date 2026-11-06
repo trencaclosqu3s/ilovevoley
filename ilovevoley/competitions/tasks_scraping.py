@@ -919,7 +919,7 @@ def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
                         updated = True
                     if existing_team.name != team_name:
                         # Solo actualizar el nombre si no es un duplicado por nombre normalizado
-                        from ilovevoley.videos.utils import normalize_team_name
+                        from ilovevoley.teams.utils import normalize_team_name
                         if normalize_team_name(existing_team.name) != normalize_team_name(team_name):
                             existing_team.name = team_name
                             updated = True
@@ -934,7 +934,7 @@ def scrape_teams_task(league_id, category_name, dry_run=False, delay=1.0):
                         logger.info(f'  - Sin cambios: {existing_team.name}')
                 else:
                     # Buscar duplicado por nombre normalizado antes de crear
-                    from ilovevoley.videos.utils import find_duplicate_team_by_name
+                    from ilovevoley.teams.utils import find_duplicate_team_by_name
                     duplicate_team = find_duplicate_team_by_name(team_name, category=category)
                     
                     if duplicate_team:

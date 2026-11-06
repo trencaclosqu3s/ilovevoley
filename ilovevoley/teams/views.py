@@ -26,7 +26,7 @@ from ilovevoley.teams.identity import (
     stable_roster_label,
 )
 from ilovevoley.teams.models import Club, Team
-from ilovevoley.videos.utils import normalize_team_name
+from ilovevoley.teams.utils import normalize_team_name
 
 logger = logging.getLogger(__name__)
 

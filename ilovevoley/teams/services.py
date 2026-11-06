@@ -7,7 +7,7 @@ poder reutilizarse con los modelos históricos de una migración.
 from collections import defaultdict
 from difflib import SequenceMatcher
 
-from ilovevoley.videos.utils import normalize_team_name
+from ilovevoley.teams.utils import normalize_team_name
 
 # Ids de club vacíos tal como los guarda el parser (``str(None)`` incluido).
 EMPTY_CLUB_IDS = {'', 'None', '0'}
