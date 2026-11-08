@@ -6,7 +6,7 @@ from html import unescape
 from django.db import IntegrityError
 
 from ilovevoley.core.email_utils import send_notification_email
-from ilovevoley.videos.utils import normalize_team_name
+from ilovevoley.teams.utils import normalize_team_name
 
 # Umbral solo para CREAR candidatas, nunca para auto-enlace.
 CANDIDATE_SIMILARITY_MIN = 0.85

@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction, models
 from django.db.models import Q
 from ilovevoley.videos.models import Team, Match, Category
-from ilovevoley.videos.utils import find_similar_team_by_name
+from ilovevoley.teams.utils import find_similar_team_by_name
 
 class Command(BaseCommand):
     help = 'Fixes matches erroneously marked as withdrawn due to duplicate teams'

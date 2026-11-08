@@ -4,7 +4,7 @@ Comando para limpiar equipos duplicados basados en nombres normalizados
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from ilovevoley.videos.models import Team
-from ilovevoley.videos.utils import normalize_team_name
+from ilovevoley.teams.utils import normalize_team_name
 
 
 class Command(BaseCommand):
