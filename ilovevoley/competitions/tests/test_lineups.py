@@ -156,7 +156,7 @@ class MatchLineupBuildingTests(TestCase):
             jersey_number=7, is_active=False,
         )
         data = _lineup_data(
-            home_convocados=['7 Dorsal'],
+            home_convocados=['7 Temporada'],
             sets=[_set('Set 1', [_entry('I', 7), _entry('II', 2), _entry('III', 3),
                                  _entry('IV', 4), _entry('V', 5), _entry('VI', 6)], _six(11))],
         )
@@ -180,7 +180,7 @@ class MatchLineupBuildingTests(TestCase):
             jersey_number=7, is_active=False,
         )
         data = _lineup_data(
-            home_convocados=['7 Dorsal'],
+            home_convocados=['7 Dos'],
             sets=[_set('Set 1', [_entry('I', 7), _entry('II', 2), _entry('III', 3),
                                  _entry('IV', 4), _entry('V', 5), _entry('VI', 6)], _six(11))],
         )
@@ -297,6 +297,26 @@ class MatchLineupPersonLinkTests(TestCase):
         self.assertEqual(rows[14].person_id, enlazada.id)
         # El dorsal 4 sin enlace sigue resolviéndose por la plantilla.
         self.assertEqual(rows[4].person_id, ficha.id)
+
+    def test_dorsal_que_contradice_el_apellido_no_se_apunta_a_nadie(self):
+        # Camisetas prestadas: Torrado juega con el 4 (de Santa María, lesionado) y
+        # Ruiz figura con el 14 (el de Torrado). Solo dorsal + apellido juntos asignan.
+        identity = identity_of(self.team)
+        for jersey, first, last in ((4, 'André', 'Santa María'), (14, 'Sergi', 'Torrado'),
+                                    (25, 'Adrián', 'Ruiz'), (13, 'Lluc', 'Riera')):
+            PlayerRole.objects.create(
+                person=self._person(first, last), identity=identity, season=self.season,
+                jersey_number=jersey, is_active=True,
+            )
+        data = _lineup_data(
+            home_convocados=['4 TORRADO', '14 RUIZ', '13 RIERA'],
+            sets=[_set('Set 1', _six(1), _six(21))],
+        )
+
+        rows = {r.jersey_number: r for r in build_match_lineups(self.match, data)}
+        self.assertIsNone(rows[4].person)
+        self.assertIsNone(rows[14].person)
+        self.assertEqual(rows[13].person.last_name, 'Riera')
 
     def test_relink_no_pisa_el_enlace_manual(self):
         por_dorsal = self._person('Dorsal', 'Catorce')

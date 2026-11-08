@@ -709,8 +709,14 @@
 
             <!-- Convocados -->
             <div class="p-4 sm:p-6">
-                <h3 class="text-xs font-bold text-muted uppercase tracking-widest mb-3">{% trans "Convocados" %}</h3>
-                <div class="grid grid-cols-2 gap-4 sm:gap-6">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <h3 class="text-xs font-bold text-muted uppercase tracking-widest">{% trans "Convocados" %}</h3>
+                    <button type="button" id="lineup-link-toggle" aria-pressed="false"
+                            class="hidden text-xs font-semibold text-brand-text border border-line rounded-full px-3 py-1 hover:bg-tint transition">
+                        {% trans "Vincular jugadores" %}
+                    </button>
+                </div>
+                <div id="lineup-convocados-grid" class="grid grid-cols-2 gap-4 sm:gap-6">
                     <div class="bg-csj-purple bg-opacity-5 rounded-lg p-3 sm:p-4">
                         <div class="mb-2">
                             <div class="text-xs font-semibold text-brand-text uppercase tracking-wide mb-0.5">{% trans "Local" %}</div>
@@ -1788,6 +1794,30 @@ document.addEventListener('DOMContentLoaded', function() {
 (function() {
 
     var canEditActa = {{ can_edit_acta|yesno:"true,false" }};
+    // Los selectores de vínculo solo se muestran en modo edición: siempre visibles
+    // estrechaban la lista hasta hacerla ilegible en móvil.
+    var linkMode = false;
+    var lastLineup = null;
+    var linkToggle = document.getElementById('lineup-link-toggle');
+    var LINK_LABEL = '{% trans "Vincular jugadores" as js_msg %}{{ js_msg|escapejs }}';
+    var DONE_LABEL = '{% trans "Hecho" as js_msg %}{{ js_msg|escapejs }}';
+
+    function renderAllConvocados() {
+        var data = lastLineup;
+        var grid = document.getElementById('lineup-convocados-grid');
+        // En modo edición, una columna por equipo para dar sitio al selector
+        grid.classList.toggle('grid-cols-2', !linkMode);
+        grid.classList.toggle('grid-cols-1', linkMode);
+        linkToggle.textContent = linkMode ? DONE_LABEL : LINK_LABEL;
+        linkToggle.setAttribute('aria-pressed', linkMode ? 'true' : 'false');
+        renderConvocados(document.getElementById('lineup-home-list'), data.home_convocados, data.home_team_id, linkMode && data.home_linkable ? data.home_roster : null);
+        renderConvocados(document.getElementById('lineup-away-list'), data.away_convocados, data.away_team_id, linkMode && data.away_linkable ? data.away_roster : null);
+    }
+
+    linkToggle.addEventListener('click', function() {
+        linkMode = !linkMode;
+        renderAllConvocados();
+    });
 
     // ── Convocados ──────────────────────────────────────────────────────────
     // Renderiza lista de convocados [{number, name_acta, person}] en un <ul>
@@ -1844,7 +1874,8 @@ document.addEventListener('DOMContentLoaded', function() {
         wrap.className = 'flex-shrink-0';
         var select = document.createElement('select');
         select.className = 'text-xs border border-line rounded px-1 py-0.5 bg-surface text-ink';
-        select.style.maxWidth = '9rem';
+        select.style.width = '14rem';
+        select.style.maxWidth = '55vw';
         select.title = '{% trans "Vincular este dorsal del acta con un deportista" as js_msg %}{{ js_msg|escapejs }}';
 
         var placeholder = document.createElement('option');
@@ -2132,8 +2163,9 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('lineup-away-captain').textContent = data.away_captain || '-';
             document.getElementById('lineup-home-coach').textContent = data.home_coach || '-';
             document.getElementById('lineup-away-coach').textContent = data.away_coach || '-';
-            renderConvocados(document.getElementById('lineup-home-list'), data.home_convocados, data.home_team_id, data.home_linkable ? data.home_roster : null);
-            renderConvocados(document.getElementById('lineup-away-list'), data.away_convocados, data.away_team_id, data.away_linkable ? data.away_roster : null);
+            lastLineup = data;
+            linkToggle.classList.toggle('hidden', !(canEditActa && (data.home_linkable || data.away_linkable)));
+            renderAllConvocados();
             renderSets(document.getElementById('lineup-sets'), data.sets);
             renderOfficials(data.referees, data.officials);
             renderObservations(data.observations);
