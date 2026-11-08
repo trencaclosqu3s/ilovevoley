@@ -14392,3 +14392,11 @@ msgstr "El visitant va per davant"
 
 msgid "Sin cronología en este set"
 msgstr "Sense cronologia en aquest set"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html
+msgid "Vincular jugadores"
+msgstr "Vincular jugadors"
+
+#: ilovevoley/competitions/templates/competitions/match_detail.html
+msgid "Hecho"
+msgstr "Fet"

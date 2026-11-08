@@ -1182,11 +1182,22 @@ def ajax_acta_lineup(request, match_id):
         for team in teams_to_query if team.id in own_team_ids
     }
 
+    # Apellido del acta por dorsal: también decide en las rotaciones de los sets,
+    # que solo traen el número.
+    acta_names = {}
+    for key, team in (('home_convocados', match.home_team), ('away_convocados', match.away_team)):
+        for entry in lineup_data.get(key) or []:
+            m = _re.match(r'^(\d+)\s+(.+)$', str(entry or '').strip())
+            if m and team:
+                acta_names[(team.id, int(m.group(1)))] = m.group(2)
+
     def _resolve(team, jersey):
         """(persona, rol) de un dorsal del acta: enlace manual primero, luego dorsal."""
         if team is None or jersey is None:
             return None, None
-        person = _resolve_person(team.id, jersey, links_lookup, roles_lookup)
+        person = _resolve_person(
+            team.id, jersey, links_lookup, roles_lookup, acta_names.get((team.id, jersey), ''),
+        )
         role = roles_lookup.get((team.id, jersey))
         if role and (person is None or role.person_id != person.id):
             role = None

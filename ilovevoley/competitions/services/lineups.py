@@ -94,11 +94,14 @@ def _person_links_lookup(match):
     }
 
 
-def _resolve_person(team_id, jersey_number, links, roles):
+def _resolve_person(team_id, jersey_number, links, roles, name_acta=''):
     """Persona de una entrada del acta: enlace manual primero, luego el dorsal.
 
     Una persona enlazada a mano en un dorsal queda reservada: su dorsal natural
     deja de resolverla en ese partido (dorsales cruzados), así no cuenta dos veces.
+    El dorsal solo resuelve si el apellido del acta no lo contradice: con camisetas
+    prestadas, «4 TORRADO» no es el 4 de la ficha. Sin nombre (rotaciones de los
+    sets) manda el dorsal.
     """
     if jersey_number is None:
         return None
@@ -109,6 +112,8 @@ def _resolve_person(team_id, jersey_number, links, roles):
     if not role:
         return None
     if any(k[0] == team_id and p.id == role.person_id for k, p in links.items()):
+        return None
+    if not _names_match(name_acta, role.person.last_name, role.person.first_name):
         return None
     return role.person
 
@@ -174,7 +179,7 @@ def build_match_lineups(match, lineup_data):
         rows.append(MatchLineup(
             match=match,
             team=team,
-            person=_resolve_person(team.id, item['jersey_number'], links, roles),
+            person=_resolve_person(team.id, item['jersey_number'], links, roles, item['name_acta']),
             jersey_number=item['jersey_number'],
             name_acta=item['name_acta'],
             is_convocado=item['is_convocado'],
@@ -247,7 +252,7 @@ def relink_orphan_lineups():
         roles = _roles_lookup(match)
         links = _person_links_lookup(match)
         for row in rows:
-            person = _resolve_person(row.team_id, row.jersey_number, links, roles)
+            person = _resolve_person(row.team_id, row.jersey_number, links, roles, row.name_acta)
             if person is not None:
                 row.person = person
                 linked.append(row)
@@ -266,13 +271,16 @@ def _refresh_lineup_person(match, team, jersey_number):
     roles = _roles_lookup(match)
     rows = list(MatchLineup.objects.filter(match=match, team=team))
     changed = []
+    name_acta = ''
     for row in rows:
-        person = _resolve_person(team.id, row.jersey_number, links, roles)
+        person = _resolve_person(team.id, row.jersey_number, links, roles, row.name_acta)
         if person != row.person:
             row.person = person
             changed.append(row)
+        if row.jersey_number == jersey_number:
+            name_acta = row.name_acta
     MatchLineup.objects.bulk_update(changed, ['person'])
-    return _resolve_person(team.id, jersey_number, links, roles)
+    return _resolve_person(team.id, jersey_number, links, roles, name_acta)
 
 
 class ActaLinkConflict(ValueError):
