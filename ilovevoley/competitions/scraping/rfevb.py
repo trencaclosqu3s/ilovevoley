@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 from bs4 import BeautifulSoup
 from django.utils import timezone
 
-from ilovevoley.competitions.scraping.base import BaseParser, validate_volleyball_score
+from ilovevoley.competitions.scraping.base import BaseParser, clean_venue_name, validate_volleyball_score
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class RFEVBPhaseParser(BaseParser):
 
             teams_text = tds[0].get_text(strip=True)
             date_text = tds[1].get_text(strip=True)
-            venue = tds[2].get_text(strip=True)
+            venue = clean_venue_name(tds[2].get_text(strip=True))
             score_text = tds[3].get_text(strip=True)
 
             parts = teams_text.split(' - ', 1)
