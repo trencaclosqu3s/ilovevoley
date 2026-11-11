@@ -429,15 +429,15 @@ wheels = [
 
 [[package]]
 name = "django-allauth"
-version = "65.21.0"
+version = "65.21.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asgiref" },
     { name = "django" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/99/e4/ee7ec90e0efc1c091ff1e93bfa8737c0e46ab492e21c495ad79752373e9f/django_allauth-65.21.0.tar.gz", hash = "sha256:26ab74262fbe1aa4bb5a3494d0af220b1606d040c0e31f1af6c9dc0bf7447f61", size = 2305918, upload-time = "2026-10-26T14:02:11.602Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3e/36/bf94a4ba9dc77ee289c0ff1bad9c751915fc5b648a986c33ed82a3bb3197/django_allauth-65.21.1.tar.gz", hash = "sha256:128344e260a22b62796747be0a2249ad9488a509c1aa34ab35e3fcf22862dd9e", size = 2309127, upload-time = "2026-10-30T18:27:34.273Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/31/d840d33e4dcda897158413e03fff0b97ce274322ce532eab2a8431d6c801/django_allauth-65.21.0-py3-none-any.whl", hash = "sha256:0f55a8bf7c4f7d66df45064eb004f53c6bb50d17381df3b281ae4759e62ab1b5", size = 2077985, upload-time = "2026-10-26T14:02:08.373Z" },
+    { url = "https://files.pythonhosted.org/packages/97/8c/b497051da2f3d0727eacaf8e91d0557af3e5d3da2087a08553082e1ef0ff/django_allauth-65.21.1-py3-none-any.whl", hash = "sha256:7bdf018c9f3f0a32c80677f84e7777272d9c833b180bd6734314c4831c802a9e", size = 2078751, upload-time = "2026-10-30T18:27:31.165Z" },
 ]
 
 [[package]]
@@ -519,14 +519,14 @@ wheels = [
 
 [[package]]
 name = "django-unfold"
-version = "0.110.0"
+version = "0.110.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/44/45/8fed87cc80291ab694c46fa3c113dff3e25cc7b1de843f5c334679f9128d/django_unfold-0.110.0.tar.gz", hash = "sha256:cd0bbfd3b96454b6e6eccea98996f9de634e1aa08956807943011b12f2fbcdf2", size = 1172280, upload-time = "2026-10-13T06:47:18.085Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/a6/d5f7f3bcb0c9da5719dbf32d13a5d4877994975dffae4aeaa2bd7b2d823c/django_unfold-0.110.1.tar.gz", hash = "sha256:8274da7e3c92583c7f875b3ac3ceef0ed75346a1a28b03bede667aba3205e286", size = 1172856, upload-time = "2026-11-01T08:39:32.508Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2b/d1/d9f998dcd02fbdcc5a63836ac3025e170f3a99cfdc0b64efe7a4ab1e861c/django_unfold-0.110.0-py3-none-any.whl", hash = "sha256:5b20e87cf389376398dee19f9e168ad1f8c4cd5e53850b4b7d38bb1e17c14f9a", size = 1301431, upload-time = "2026-10-13T06:47:16.414Z" },
+    { url = "https://files.pythonhosted.org/packages/04/11/66c648c4252ccebbda446b516dcab5fa02328df231b1f5006954ed1af430/django_unfold-0.110.1-py3-none-any.whl", hash = "sha256:92b1bb09e56fcbc8535cef53d19579bd417483fdb8981ceac00de409e8cc5a98", size = 1302025, upload-time = "2026-11-01T08:39:31.147Z" },
 ]
 
 [[package]]
@@ -613,15 +613,15 @@ grpc = [
 
 [[package]]
 name = "google-auth"
-version = "2.62.0"
+version = "2.62.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "pyasn1-modules" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f5/b9/4b2528f30114b106e3c3a7298ba38d85e682fd1f83fe7c4a5b77c7677082/google_auth-2.62.0.tar.gz", hash = "sha256:0bef0ce54bdf9ce226c5d66e4264413bd918141c31bbe49fb52eac882f513d69", size = 398180, upload-time = "2026-10-12T19:20:48.328Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c4/38/d79ab09dcfc1e1638d887c8f65657619d3ebc454165c558ef79355971ce3/google_auth-2.62.1.tar.gz", hash = "sha256:3c8e1ce2553784ae17fd220e6f88df3281d86ab98019278f436d06dffab17a9e", size = 398519, upload-time = "2026-11-03T03:06:03.008Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/a3/87fe9b7203ec2e56ea6a57c75e6d632eaf9487c7f7978cdad1d801bee0af/google_auth-2.62.0-py3-none-any.whl", hash = "sha256:4ff4319aeb4ad128409759d397a9fcafad126d0031d241cc0dd6b9a00b43e3f3", size = 267911, upload-time = "2026-10-12T19:20:46.355Z" },
+    { url = "https://files.pythonhosted.org/packages/14/dd/2e11f0976ecb3ce48ef3f324837460e9ea50071fa4eb01f1e49df87d3cee/google_auth-2.62.1-py3-none-any.whl", hash = "sha256:015399a5abde39033c69404cc1c079e6d4c2de2993e164c9f4eac6e5376ad72b", size = 267975, upload-time = "2026-11-03T03:06:01.422Z" },
 ]
 
 [[package]]
@@ -773,13 +773,13 @@ requires-dist = [
     { name = "celery", specifier = "==5.6.3" },
     { name = "cryptography", specifier = "==50.0.2" },
     { name = "django", specifier = "==6.0.9" },
-    { name = "django-allauth", specifier = "==65.21.0" },
+    { name = "django-allauth", specifier = "==65.21.1" },
     { name = "django-celery-beat", specifier = "==2.9.0" },
     { name = "django-ical", specifier = "==1.9.2" },
     { name = "django-ratelimit", specifier = "==4.1.0" },
     { name = "django-storages", specifier = "==1.14.6" },
-    { name = "django-unfold", specifier = "==0.110.0" },
-    { name = "google-auth", specifier = "==2.62.0" },
+    { name = "django-unfold", specifier = "==0.110.1" },
+    { name = "google-auth", specifier = "==2.62.1" },
     { name = "google-cloud-vision", specifier = "==3.16.0" },
     { name = "gunicorn", specifier = "==26.2.0" },
     { name = "pillow", specifier = "==13.0.0" },
