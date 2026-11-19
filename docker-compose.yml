@@ -35,6 +35,10 @@ x-celery-base: &celery-base
 services:
   db:
     image: postgres:18-alpine
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.monitor-only=true
+      - com.centurylinklabs.watchtower.no-pull=true
     volumes:
       - /opt/videosvoley/postgres:/var/lib/postgresql
     environment:
@@ -47,6 +51,9 @@ services:
 
   redis:
     image: redis:8-alpine
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.monitor-only=true
     restart: unless-stopped
     networks:
       - app-network
@@ -124,6 +131,9 @@ services:
 
   nginx:
     image: nginx:alpine
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.monitor-only=true
     ports:
       - "80:80"
       - "443:443"
@@ -144,6 +154,9 @@ services:
 
   certbot:
     image: certbot/dns-ovh
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.monitor-only=true
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
