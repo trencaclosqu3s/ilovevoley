@@ -18,7 +18,7 @@ dependencies = [
     "cryptography==50.0.2",
     "unidecode==1.4.0",
     "beautifulsoup4==4.15.0",
-    "celery==5.7.0",
+    "celery[redis]==5.7.0",
     "django-celery-beat==2.9.0",
     "google-cloud-vision==3.16.0",
     "google-auth==2.62.2",
