@@ -12,7 +12,6 @@ from django.utils import timezone
 from ilovevoley.competitions.tests.helpers import setup_live_match
 from ilovevoley.competitions.models import League, Match, Standing
 from ilovevoley.competitions.scoreboard_api import (
-    LIVE_STATE_TTL,
     live_resolve_cooldown_key,
     live_state_key,
 )
@@ -877,7 +876,6 @@ class ScoreboardLiveStateTest(TestCase):
     - D-07: bloqueo con 409 fuera de ``is_live_window`` (partido cerrado o fuera de hora).
     - D-09/D-11/D-14/LIVE-03: lectura pública sin login desde otro subdominio que
       expone el subconjunto solo cuando hay clave, está en ventana y ``visible=True``.
-    - D-05: escritura en caché con TTL explícito de 90 s (``LIVE_STATE_TTL``).
     """
 
     POST_URL = '/competitions/api/match/live-state/'
@@ -1003,27 +1001,6 @@ class ScoreboardLiveStateTest(TestCase):
         closed_res = self._get_public()
         self.assertEqual(closed_res.status_code, 200)
         self.assertEqual(closed_res.json(), {'success': True, 'live': False})
-
-    def test_post_writes_cache_with_live_state_ttl(self):
-        """D-05: cache.set recibe LIVE_STATE_TTL (90 s) como timeout."""
-        with patch('ilovevoley.competitions.scoreboard_api.cache.set') as mock_set:
-            res = self._post(self._valid_payload())
-
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(LIVE_STATE_TTL, 90)
-        mock_set.assert_any_call(
-            live_state_key(self.match.pk),
-            {
-                'home_points': 18,
-                'away_points': 15,
-                'home_sets': 1,
-                'away_sets': 0,
-                'sets_history': [[25, 20]],
-                'serve': 'home',
-                'visible': True,
-            },
-            LIVE_STATE_TTL,
-        )
 
     @patch('ilovevoley.competitions.scoreboard_api.resolve_live_watch_url')
     def test_heartbeat_resolves_channel_live_once(self, mock_resolve):

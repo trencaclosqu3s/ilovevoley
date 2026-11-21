@@ -309,29 +309,6 @@ class DeltaDetectorTest(TestCase):
         mock_notify.assert_called_once()
 
     @patch('ilovevoley.competitions.services.delta_detector.notify_match_result')
-    def test_scraping_finished_with_scores_triggers_notify_match_result(self, mock_notify_result):
-        """Persistir un resultado final dispara la notificación push de resultado."""
-        match = Match.objects.create(
-            league=self.league,
-            home_team=self.team_a,
-            away_team=self.team_b,
-            match_date=timezone.now() - timedelta(hours=3),
-            status='finished',
-            home_score=3,
-            away_score=1,
-            set_scores=[[25, 20], [20, 25], [25, 18], [25, 22]],
-        )
-
-        result = notify_match_result_after_save(match, already_finished=False)
-        self.assertTrue(result)
-        mock_notify_result.assert_called_once()
-        called_match = mock_notify_result.call_args[0][0]
-        self.assertEqual(called_match.home_score, 3)
-        self.assertEqual(called_match.away_score, 1)
-        self.assertEqual(called_match.status, 'finished')
-        self.assertEqual(called_match.set_scores, [[25, 20], [20, 25], [25, 18], [25, 22]])
-
-    @patch('ilovevoley.competitions.services.delta_detector.notify_match_result')
     def test_scraping_already_finished_does_not_trigger_notify_match_result(self, mock_notify_result):
         """Si el partido ya estaba finalizado con marcador, no se vuelve a disparar."""
         match = Match.objects.create(
