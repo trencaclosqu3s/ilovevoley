@@ -1913,3 +1913,50 @@ class BackfillMatchRoundsCommandTests(RoundFixtureMixin, TestCase):
         call_command('backfill_match_rounds', '--delay', '0', stdout=StringIO())
         vuelta.refresh_from_db()
         self.assertEqual(vuelta.round_number, 2)
+
+
+class UpdateStandingsFromMatchesTests(TestCase):
+    """La tabla federativa agrupa G3 (3-0 y 3-1) y en alevín trae G/P erróneos: el
+    desglose sale de los partidos guardados, con lado local/visitante correcto, y un
+    equipo sin partidos finalizados conserva lo que dice la federación (#677)."""
+
+    def setUp(self):
+        from datetime import timedelta
+
+        self.category = Category.objects.create(name='Juvenil')
+        self.league = League.objects.create(
+            name='Juvenil Masculino', federation_id='9100',
+            season=Season.objects.resolve('2026-27'), competition_type='regular',
+            match_format='standard', visibility_type='main',
+        )
+        self.league.categories.add(self.category)
+        self.a, self.b, self.c = (
+            Team.objects.create(name=n, federation_id=f'9100_{n}', category=self.category, is_active=True)
+            for n in ('A', 'B', 'C')
+        )
+        when = timezone.now() - timedelta(days=7)
+        for home, away, hs, as_ in ((self.a, self.b, 3, 1), (self.b, self.a, 3, 0)):
+            Match.objects.create(league=self.league, home_team=home, away_team=away,
+                                 home_score=hs, away_score=as_, status='finished', match_date=when)
+
+    def _run(self):
+        from ilovevoley.competitions.scraping.federation import FederationScraper
+
+        rows = [{'team_name': t.name, 'position': i, 'played': 2, 'won': 9, 'lost': 9, 'wins_3_0': 7}
+                for i, t in enumerate((self.a, self.b, self.c), 1)]
+        FederationScraper(self.league).update_standings(rows, {t.name: t for t in (self.a, self.b, self.c)})
+        return {s.team_id: s for s in Standing.objects.filter(league=self.league)}
+
+    def test_breakdown_comes_from_matches_on_the_right_side(self):
+        standings = self._run()
+        a, b, c = standings[self.a.id], standings[self.b.id], standings[self.c.id]
+        self.assertEqual((a.wins_3_0, a.wins_3_1, a.losses_0_3, a.losses_1_3), (0, 1, 1, 0))
+        self.assertEqual((b.wins_3_0, b.wins_3_1, b.losses_0_3, b.losses_1_3), (1, 0, 0, 1))
+        self.assertEqual((c.wins_3_0, c.won), (7, 9))  # sin partidos: dato federativo intacto
+
+    def test_alevin_won_lost_recomputed_from_matches(self):
+        self.league.match_format = 'alevin_balear'
+        self.league.save()
+        standings = self._run()
+        self.assertEqual((standings[self.a.id].won, standings[self.a.id].lost), (1, 1))
+        self.assertEqual((standings[self.c.id].won, standings[self.c.id].lost), (9, 9))
