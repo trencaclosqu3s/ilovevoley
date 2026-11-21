@@ -96,6 +96,9 @@ jobs:
       - name: No debe haber migraciones pendientes de generar
         run: uv run --locked python manage.py makemigrations --check --dry-run
 
+      - name: Las migraciones se aplican sobre una BD vacía
+        run: uv run --locked python manage.py migrate --noinput
+
       - name: Compilar catálogos de traducción
         run: uv run --locked python manage.py compilemessages
 
