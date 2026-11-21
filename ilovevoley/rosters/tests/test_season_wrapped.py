@@ -23,7 +23,7 @@ from ilovevoley.rosters.season_wrapped import (
     season_organization,
 )
 from ilovevoley.rosters.tasks import generate_season_wrappeds_task, redact_pending_wrapped_narratives_task
-from ilovevoley.rosters.tests.test_player_card import JERSEY, PlayerCardTestBase, _lineup
+from ilovevoley.rosters.tests.helpers import JERSEY, PlayerCardTestBase, _lineup
 from ilovevoley.rosters.wrapped_render import render_wrapped_screen
 from ilovevoley.users.models import Membership
 

@@ -17,6 +17,23 @@ repos:
         pass_filenames: false
         stages: [pre-commit]
 
+      # Un test_*.py no importa de otro: al podar uno se rompe la colección
+      # del otro. Lo compartido va en tests/helpers.py o en conftest.py.
+      - id: no-importar-de-test
+        name: Prohibir imports entre ficheros test_*.py
+        entry: '^\s*(from\s+\S*\btest_\w+\s+import|import\s+\S*\btest_\w+)'
+        language: pygrep
+        types: [python]
+
+      # Mocks de código propio y SimpleNamespace en tests: regla 9 de
+      # docs/ai-guidelines/testing-guidelines.md. Solo mira las líneas añadidas.
+      - id: avisar-mocks-propios
+        name: Avisar de mocks de código propio en tests
+        entry: python3 scripts/avisar_mocks_propios.py
+        language: system
+        files: (^|/)tests?/.*\.py$|(^|/)test_[^/]*\.py$
+        verbose: true
+
   # Mantiene uv.lock en sincronía cuando se toca pyproject.toml.
   - repo: https://github.com/astral-sh/uv-pre-commit
     rev: 0.13.1

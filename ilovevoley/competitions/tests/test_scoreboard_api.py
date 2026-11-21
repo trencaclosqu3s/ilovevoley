@@ -9,6 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
+from ilovevoley.competitions.tests.helpers import setup_live_match
 from ilovevoley.competitions.models import League, Match, Standing
 from ilovevoley.competitions.scoreboard_api import (
     LIVE_STATE_TTL,
@@ -30,11 +31,7 @@ class ScoreboardApiMatchIdTest(TestCase):
     LIVE = 'https://www.youtube.com/@canal/live'
 
     def setUp(self):
-        # Import perezoso: si la clase queda en el módulo, pytest vuelve a
-        # recolectar sus tests aquí.
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
         self.match.stream_url = ''
         self.match.save(update_fields=['stream_url'])
         patcher = patch(
@@ -133,9 +130,7 @@ class ScoreboardMatchesTodayTest(TestCase):
     URL = '/competitions/api/matches/today/'
 
     def setUp(self):
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
 
     def _today_at(self, hour, minute=0):
         return timezone.localtime(timezone.now()).replace(
@@ -294,9 +289,7 @@ class ScoreboardMatchResultTest(TestCase):
     URL = '/competitions/api/match/result/'
 
     def setUp(self):
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
 
     def _post(self, payload, token='s3cret'):
         headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'} if token else {}
@@ -675,9 +668,7 @@ class ScoreboardStreamEndedTest(TestCase):
     WATCH_2 = 'https://www.youtube.com/watch?v=12345678901'
 
     def setUp(self):
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
         self.user = get_user_model().objects.create_user(
             username='scoreboard_video_bot',
             email='scoreboard@example.com',
@@ -892,9 +883,7 @@ class ScoreboardLiveStateTest(TestCase):
     POST_URL = '/competitions/api/match/live-state/'
 
     def setUp(self):
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
         cache.clear()
         other_club = Club.objects.create(official_name='Otro Club Live', federation_id='OT99')
         Organization.objects.create(name='Otro CV Live', slug='otroclub', club=other_club)
@@ -1103,9 +1092,7 @@ class ScoreboardMatchPreviewTest(TestCase):
     URL = '/competitions/api/matches/preview/'
 
     def setUp(self):
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
         cache.clear()
 
     def _get(self):
