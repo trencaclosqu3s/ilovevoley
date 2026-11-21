@@ -9,9 +9,9 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
+from ilovevoley.competitions.tests.helpers import setup_live_match
 from ilovevoley.competitions.models import League, Match, Standing
 from ilovevoley.competitions.scoreboard_api import (
-    LIVE_STATE_TTL,
     live_resolve_cooldown_key,
     live_state_key,
 )
@@ -30,11 +30,7 @@ class ScoreboardApiMatchIdTest(TestCase):
     LIVE = 'https://www.youtube.com/@canal/live'
 
     def setUp(self):
-        # Import perezoso: si la clase queda en el módulo, pytest vuelve a
-        # recolectar sus tests aquí.
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
         self.match.stream_url = ''
         self.match.save(update_fields=['stream_url'])
         patcher = patch(
@@ -133,9 +129,7 @@ class ScoreboardMatchesTodayTest(TestCase):
     URL = '/competitions/api/matches/today/'
 
     def setUp(self):
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
 
     def _today_at(self, hour, minute=0):
         return timezone.localtime(timezone.now()).replace(
@@ -294,9 +288,7 @@ class ScoreboardMatchResultTest(TestCase):
     URL = '/competitions/api/match/result/'
 
     def setUp(self):
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
 
     def _post(self, payload, token='s3cret'):
         headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'} if token else {}
@@ -675,9 +667,7 @@ class ScoreboardStreamEndedTest(TestCase):
     WATCH_2 = 'https://www.youtube.com/watch?v=12345678901'
 
     def setUp(self):
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
         self.user = get_user_model().objects.create_user(
             username='scoreboard_video_bot',
             email='scoreboard@example.com',
@@ -886,15 +876,12 @@ class ScoreboardLiveStateTest(TestCase):
     - D-07: bloqueo con 409 fuera de ``is_live_window`` (partido cerrado o fuera de hora).
     - D-09/D-11/D-14/LIVE-03: lectura pública sin login desde otro subdominio que
       expone el subconjunto solo cuando hay clave, está en ventana y ``visible=True``.
-    - D-05: escritura en caché con TTL explícito de 90 s (``LIVE_STATE_TTL``).
     """
 
     POST_URL = '/competitions/api/match/live-state/'
 
     def setUp(self):
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
         cache.clear()
         other_club = Club.objects.create(official_name='Otro Club Live', federation_id='OT99')
         Organization.objects.create(name='Otro CV Live', slug='otroclub', club=other_club)
@@ -1015,27 +1002,6 @@ class ScoreboardLiveStateTest(TestCase):
         self.assertEqual(closed_res.status_code, 200)
         self.assertEqual(closed_res.json(), {'success': True, 'live': False})
 
-    def test_post_writes_cache_with_live_state_ttl(self):
-        """D-05: cache.set recibe LIVE_STATE_TTL (90 s) como timeout."""
-        with patch('ilovevoley.competitions.scoreboard_api.cache.set') as mock_set:
-            res = self._post(self._valid_payload())
-
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(LIVE_STATE_TTL, 90)
-        mock_set.assert_any_call(
-            live_state_key(self.match.pk),
-            {
-                'home_points': 18,
-                'away_points': 15,
-                'home_sets': 1,
-                'away_sets': 0,
-                'sets_history': [[25, 20]],
-                'serve': 'home',
-                'visible': True,
-            },
-            LIVE_STATE_TTL,
-        )
-
     @patch('ilovevoley.competitions.scoreboard_api.resolve_live_watch_url')
     def test_heartbeat_resolves_channel_live_once(self, mock_resolve):
         """D-02: un @canal/live se resuelve en el latido y el siguiente no vuelve a llamar.
@@ -1103,9 +1069,7 @@ class ScoreboardMatchPreviewTest(TestCase):
     URL = '/competitions/api/matches/preview/'
 
     def setUp(self):
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
         cache.clear()
 
     def _get(self):

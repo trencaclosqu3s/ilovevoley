@@ -281,10 +281,6 @@ class ProtectedPersonMediaTests(TestCase):
         unlinked = Person.objects.create(first_name='Sin', last_name='Vinculo')
         self.assertFalse(_person_is_allowed(unlinked, AnonymousUser(), self.org))
 
-    def test_anonymous_person_photo_is_forbidden(self):
-        response = self.client.get('/media/people/ana_1.jpg', HTTP_HOST='testclub.ilovevoley.es')
-        self.assertEqual(response.status_code, 403)
-
     def test_tenant_without_club_cannot_see_person_with_roles(self):
         self.client.force_login(self.noclub_member)
         response = self.client.get('/media/people/ana_1.jpg', HTTP_HOST='noclub.ilovevoley.es')

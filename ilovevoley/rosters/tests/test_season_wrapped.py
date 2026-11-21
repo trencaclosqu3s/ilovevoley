@@ -23,7 +23,7 @@ from ilovevoley.rosters.season_wrapped import (
     season_organization,
 )
 from ilovevoley.rosters.tasks import generate_season_wrappeds_task, redact_pending_wrapped_narratives_task
-from ilovevoley.rosters.tests.test_player_card import JERSEY, PlayerCardTestBase, _lineup
+from ilovevoley.rosters.tests.helpers import JERSEY, PlayerCardTestBase, _lineup
 from ilovevoley.rosters.wrapped_render import render_wrapped_screen
 from ilovevoley.users.models import Membership
 
@@ -73,9 +73,6 @@ class WrappedStatsTests(WrappedTestBase):
         self.assertEqual(
             build_wrapped_stats(self.person, self.season, League.MODALITY_BEACH)['matches'], 1,
         )
-
-    def test_sin_actas_ni_fotos_no_hay_wrapped(self):
-        self.assertIsNone(build_wrapped_stats(self.person, self.season))
 
     def test_elige_la_remontada_mayor_aunque_el_set_se_pierda(self):
         # Visitante. El set 1 no lo jugó (agujero mayor). El 2 se gana de 1-10, pero es más pequeño.

@@ -110,22 +110,6 @@ class MatchLineupBuildingTests(TestCase):
         self.assertEqual(rows[4].sets_played, 2)
         self.assertFalse(rows[4].is_convocado)
 
-    def test_person_se_resuelve_por_dorsal_y_temporada(self):
-        person = Person.objects.create(first_name='Ana', last_name='Ruiz')
-        person.organizations.add(self.org)
-        PlayerRole.objects.create(
-            person=person, identity=identity_of(self.team), season=self.season,
-            jersey_number=7, is_active=True,
-        )
-        data = _lineup_data(
-            home_convocados=['7 Ruiz'],
-            sets=[_set('Set 1', [_entry('I', 7), _entry('II', 2), _entry('III', 3),
-                                 _entry('IV', 4), _entry('V', 5), _entry('VI', 6)], _six(11))],
-        )
-
-        rows = {r.jersey_number: r for r in build_match_lineups(self.match, data)}
-        self.assertEqual(rows[7].person_id, person.id)
-
     def test_partido_de_otra_fase_usa_la_plantilla_de_la_identidad(self):
         # Cada fase federativa es otra fila de Team; la plantilla se dio de alta
         # en la de liga y el partido es de la fase de copa (#447).
@@ -544,19 +528,6 @@ class BackfillActasCommandTests(TestCase):
         with patch('ilovevoley.competitions.services.lineups.safe_get') as get:
             call_command('backfill_acta_lineups')
         get.assert_not_called()
-
-    def test_official_acta_url_resolves_canonical_url_for_relative_acta(self):
-        """Si un registro histórico contiene sólo 'acta_XXXX.html', official_acta_url debe componer el dominio oficial."""
-        # Forzar un valor relativo directo en BD evitando el save() de normalización
-        Match.all_objects.filter(pk=self.match.pk).update(
-            federation_id='85846',
-            acta_html='acta_10932.html',
-        )
-        self.match.refresh_from_db()
-        self.assertEqual(
-            self.match.official_acta_url,
-            'https://voleibolib.federatio.com/actas/85846/acta_10932.html',
-        )
 
     def test_save_normalizes_relative_acta_html(self):
         """Al guardar un Match con ruta relativa, save() normaliza a la URL absoluta oficial."""

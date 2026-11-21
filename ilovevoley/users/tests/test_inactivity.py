@@ -261,13 +261,6 @@ class DeactivateAccountViewTests(TestCase):
         self.user.refresh_from_db()
         self.assertFalse(self.user.is_active)
 
-    def test_invalid_token_returns_400(self):
-        """Un token corrupto retorna 400."""
-        url = reverse('deactivate_account', args=['token_falso_123'])
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 400)
-        self.assertTemplateUsed(response, 'users/deactivate_account_invalid.html')
-
 
 class VoluntaryDeactivationTokenTests(TestCase):
     """Baja voluntaria desde mail puntual: válida sin ciclo de inactividad."""

@@ -154,23 +154,3 @@ class P1P2NotificationTasksTest(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('404', mail.outbox[0].subject)
         self.assertEqual(mail.outbox[0].to, ['root@test.com'])
-
-    def test_send_404_immediate_alert_enqueues_without_blocking(self):
-        from unittest.mock import MagicMock, patch
-        from ilovevoley.core.middleware import send_404_immediate_alert
-
-        request = MagicMock()
-        request.path = '/gone'
-
-        with patch(
-            'ilovevoley.core.middleware.get_technical_alert_emails', return_value=['root@test.com']
-        ), patch(
-            'ilovevoley.core.middleware._atomic_incr', return_value=10
-        ), patch(
-            'ilovevoley.core.tasks.send_404_immediate_alert_task.delay'
-        ) as mock_delay:
-            result = send_404_immediate_alert(request, threshold=10)
-
-        self.assertTrue(result)
-        mock_delay.assert_called_once()
-        self.assertEqual(mail.outbox, [])

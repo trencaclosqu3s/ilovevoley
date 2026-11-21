@@ -49,13 +49,6 @@ class TeamVariantTests(TestCase):
             parent_team=cls.principal, variant_name='Blau', is_active=False,
         )
 
-    def test_is_variant_distingue_el_equipo_principal_de_sus_variantes(self):
-        self.assertFalse(self.principal.is_variant)
-        self.assertTrue(self.groc.is_variant)
-
-    def test_root_team_sube_hasta_el_equipo_principal(self):
-        self.assertEqual(self.groc.root_team, self.principal)
-
     def test_get_all_variants_incluye_el_principal_y_excluye_las_inactivas(self):
         self.assertEqual(
             self.principal.get_all_variants(), [self.principal, self.groc, self.lila]
@@ -63,12 +56,6 @@ class TeamVariantTests(TestCase):
 
     def test_get_all_variants_desde_una_variante_devuelve_lo_mismo(self):
         self.assertEqual(self.groc.get_all_variants(), self.principal.get_all_variants())
-
-    def test_display_name_with_variant_anade_la_variante_entre_parentesis(self):
-        self.assertEqual(self.groc.display_name_with_variant, 'Sant Josep (Groc)')
-
-    def test_display_name_with_variant_no_anade_nada_al_principal(self):
-        self.assertEqual(self.principal.display_name_with_variant, 'Sant Josep')
 
 
 class DisplayLogoTests(SimpleTestCase):

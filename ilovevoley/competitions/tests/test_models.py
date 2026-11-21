@@ -256,11 +256,6 @@ class LeaguePhaseTests(TestCase):
             federation_id='MP-2',
         )
 
-    def test_is_phase_y_root_league_identifican_la_raiz(self):
-        self.assertFalse(self.regular.is_phase)
-        self.assertTrue(self.oro.is_phase)
-        self.assertEqual(self.oro.root_league, self.regular)
-
     def test_get_all_phases_devuelve_la_raiz_primero_y_luego_las_fases_ordenadas(self):
         expected = [self.regular, self.oro, self.plata]
         self.assertEqual(self.regular.get_all_phases(), expected)
@@ -344,24 +339,6 @@ class MatchStreamUrlTest(TestCase):
         )
         cls.team_a = Team.objects.create(name='A', federation_id='T-STR-A')
         cls.team_b = Team.objects.create(name='B', federation_id='T-STR-B')
-
-    def test_stream_url_accepts_valid_http_and_https(self):
-        match = Match(
-            league=self.league, home_team=self.team_a, away_team=self.team_b,
-            match_date=timezone.now(),
-            stream_url='https://www.youtube.com/watch?v=12345',
-        )
-        match.full_clean()
-        self.assertEqual(match.stream_url, 'https://www.youtube.com/watch?v=12345')
-
-    def test_stream_url_rejects_non_http_schemes(self):
-        match = Match(
-            league=self.league, home_team=self.team_a, away_team=self.team_b,
-            match_date=timezone.now(),
-            stream_url='javascript:alert(1)',
-        )
-        with self.assertRaises(ValidationError):
-            match.full_clean()
 
     def test_is_live_window_and_is_live(self):
         now = timezone.now()

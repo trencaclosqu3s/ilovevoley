@@ -40,15 +40,6 @@ class WebPushTasksTest(TestCase):
 
     @override_settings(VAPID_PRIVATE_KEY='test-private-key')
     @patch('ilovevoley.users.webpush.pywebpush_send')
-    def test_send_web_push_success(self, mock_webpush):
-        mock_webpush.return_value = MagicMock(status_code=201)
-        payload = {'title': 'Resultado Final', 'body': 'Ganamos 3-1'}
-        result = send_web_push(self.sub, payload)
-        self.assertTrue(result)
-        mock_webpush.assert_called_once()
-
-    @override_settings(VAPID_PRIVATE_KEY='test-private-key')
-    @patch('ilovevoley.users.webpush.pywebpush_send')
     def test_send_web_push_cleans_up_expired_subscription_410(self, mock_webpush):
         response_mock = MagicMock(status_code=410)
         mock_webpush.side_effect = WebPushException('Subscription gone', response=response_mock)

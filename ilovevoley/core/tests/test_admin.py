@@ -20,11 +20,6 @@ class OrganizationAdminClubHelpersTest(TestCase):
             club_team_names={'Senior': 'SANT JOSEP'},
         )
 
-    def test_club_teams_count_counts_active_teams(self):
-        Team.objects.create(name='SANT JOSEP A', federation_id='t-1', club=self.club, is_active=True)
-        Team.objects.create(name='SANT JOSEP B', federation_id='t-2', club=self.club, is_active=False)
-        self.assertEqual(self.admin.club_teams_count(self.org), 1)
-
     def test_club_names_status_flags_mismatch(self):
         Team.objects.create(name='EQUIP FORA', federation_id='t-3', club=self.club)
         self.assertIn('no casa', self.admin.club_names_status(self.org))

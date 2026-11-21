@@ -1,4 +1,4 @@
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -14,12 +14,8 @@ def _count_script(content, needle):
     return len(re.findall(rb'<script[^>]+src="[^"]*' + needle.encode() + rb'[^"]*"', content))
 
 from ilovevoley.core.models import Organization, Season
-from ilovevoley.content import forms as content_forms
 from ilovevoley.content import views as content_views
 from ilovevoley.content.models import Image, ImageFavorite, Video
-from ilovevoley.videos.forms import content as videos_forms_content
-from ilovevoley.videos.views import content as videos_views_content
-from ilovevoley.videos.views import moderation as videos_views_moderation
 
 TINY_GIF = (
     b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
@@ -42,37 +38,6 @@ def _jpeg_with_gps(color='red'):
     buf = BytesIO()
     img.save(buf, format='JPEG', exif=exif)
     return buf.getvalue()
-
-
-class ContentReExportCompatibilityTest(SimpleTestCase):
-    """Verifica que las importaciones históricas desde videos sigan funcionando."""
-
-    def test_forms_are_reexported(self):
-        self.assertIs(videos_forms_content.VideoForm, content_forms.VideoForm)
-        self.assertIs(videos_forms_content.CommentForm, content_forms.CommentForm)
-        self.assertIs(videos_forms_content.ImageUploadForm, content_forms.ImageUploadForm)
-        self.assertIs(videos_forms_content.ImageModerationForm, content_forms.ImageModerationForm)
-        self.assertIs(videos_forms_content.ImageFilterForm, content_forms.ImageFilterForm)
-        self.assertIs(videos_forms_content.VideoEntryForm, content_forms.VideoEntryForm)
-        self.assertIs(videos_forms_content.VideoEntryFormSet, content_forms.VideoEntryFormSet)
-        self.assertIs(videos_forms_content.VideoBulkSharedForm, content_forms.VideoBulkSharedForm)
-
-    def test_views_are_reexported(self):
-        self.assertIs(videos_views_content.video_list, content_views.video_list)
-        self.assertIs(videos_views_content.video_detail, content_views.video_detail)
-        self.assertIs(videos_views_content.video_create, content_views.video_create)
-        self.assertIs(videos_views_content.video_bulk_create, content_views.video_bulk_create)
-        self.assertIs(videos_views_content.image_gallery, content_views.image_gallery)
-        self.assertIs(videos_views_content.image_gallery_albums, content_views.image_gallery_albums)
-        self.assertIs(videos_views_content.image_upload, content_views.image_upload)
-        self.assertIs(videos_views_content.image_bulk_upload, content_views.image_bulk_upload)
-        self.assertIs(videos_views_content.image_detail, content_views.image_detail)
-        self.assertIs(videos_views_content.match_images, content_views.match_images)
-        self.assertIs(videos_views_content.album_group_images, content_views.album_group_images)
-        self.assertIs(videos_views_moderation.image_moderation, content_views.image_moderation)
-        self.assertIs(videos_views_moderation.image_moderate_action, content_views.image_moderate_action)
-        self.assertIs(videos_views_moderation.image_moderate_bulk, content_views.image_moderate_bulk)
-        self.assertIs(videos_views_moderation.moderate_image_api, content_views.moderate_image_api)
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])

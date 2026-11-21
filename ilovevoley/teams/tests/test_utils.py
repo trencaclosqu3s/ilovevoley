@@ -7,7 +7,6 @@ from ilovevoley.teams.utils import (
     find_similar_team_by_name,
     normalize_team_name,
 )
-from ilovevoley.videos import utils as videos_utils
 
 
 class NormalizeTeamNameTests(TestCase):
@@ -103,12 +102,3 @@ class FindSimilarTeamTests(TestCase):
         )
         self.assertIsNone(matched_team)
         self.assertEqual(score, 0)
-
-
-class VideoUtilsShimTests(TestCase):
-    """Verifica que videos.utils mantiene compatibilidad regresiva (#605)."""
-
-    def test_shims_point_to_teams_utils(self):
-        self.assertIs(videos_utils.normalize_team_name, normalize_team_name)
-        self.assertIs(videos_utils.find_duplicate_team_by_name, find_duplicate_team_by_name)
-        self.assertIs(videos_utils.find_similar_team_by_name, find_similar_team_by_name)

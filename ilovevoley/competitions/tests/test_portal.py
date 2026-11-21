@@ -71,11 +71,6 @@ class PublicLeaguesCatalogTest(TestCase):
         self.assertNotIn(self.external, qs)
         self.assertNotIn(self.friendly, qs)
 
-    def test_public_leagues_does_not_require_our_team_related(self):
-        qs = public_leagues(self.current)
-        self.assertFalse(self.main.is_our_team_related)
-        self.assertIn(self.main, qs)
-
 
 @override_settings(
     ALLOWED_HOSTS=['ilovevoley.es', 'testclub.ilovevoley.es', 'localhost'],

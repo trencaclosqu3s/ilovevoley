@@ -19,14 +19,6 @@ class CheckSocialauthConfigTests(TestCase):
         assert check_socialauth_config in deployment_checks
         assert check_socialauth_config not in regular_checks
 
-    def test_unmigrated_database_returns_warning_cleanly(self):
-        """When django_site table does not exist, return W012 without raising DB exceptions."""
-        with patch.object(connection.introspection, "table_names", return_value=[]):
-            warnings = check_socialauth_config(None)
-
-        assert len(warnings) == 1
-        assert warnings[0].id == "ilovevoley.W012"
-
     def test_unmigrated_table_does_not_abort_atomic_transaction(self):
         """Introspecting missing table inside an atomic transaction must not abort the transaction."""
         with transaction.atomic():

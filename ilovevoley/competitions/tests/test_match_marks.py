@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from ilovevoley.competitions.models import MatchLineup, MatchMark
 from ilovevoley.competitions.services.lineups import mark_person_choices
+from ilovevoley.competitions.tests.helpers import setup_live_match
 from ilovevoley.rosters.models import Person, PlayerRole
 from ilovevoley.teams.tests.helpers import identity_of
 
@@ -14,9 +15,7 @@ class MatchMarkTest(TestCase):
     """Marcas de jugada (#580): el etiquetado depende del acta o, sin ella, de la plantilla."""
 
     def setUp(self):
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
-
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
         self.roster_person = Person.objects.create(first_name='Ana', last_name='Ruiz')
         PlayerRole.objects.create(
             person=self.roster_person, identity=identity_of(self.team1),
@@ -109,10 +108,9 @@ class MatchMarkClipTest(TestCase):
 
         from django.contrib.auth import get_user_model
 
-        from ilovevoley.competitions.tests.test_live_stream_push import LiveStreamPushTest
         from ilovevoley.users.models import Membership
 
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.clips = Path(tmp.name)

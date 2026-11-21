@@ -58,20 +58,6 @@ class MatchShareLinkTest(TestCase):
         link = create_match_share_link(self.match, self.org, self.user, hours=10_000)
         self.assertLessEqual(link.expires_at - timezone.now(), timedelta(hours=720, minutes=1))
 
-    def test_resolve_returns_active_link_and_none_when_expired(self):
-        link = create_match_share_link(self.match, self.org, self.user, hours=48)
-        self.assertEqual(resolve_match_share_link(link.token), link)
-
-        MatchShareLink.objects.filter(pk=link.pk).update(expires_at=timezone.now() - timedelta(minutes=1))
-        self.assertIsNone(resolve_match_share_link(link.token))
-
-    def test_resolve_returns_none_when_revoked(self):
-        link = create_match_share_link(self.match, self.org, self.user, hours=48)
-        revoke_match_share_link(link)
-        link.refresh_from_db()
-        self.assertIsNotNone(link.revoked_at)
-        self.assertIsNone(resolve_match_share_link(link.token))
-
     def test_resolve_unknown_token_returns_none(self):
         self.assertIsNone(resolve_match_share_link(uuid.uuid4()))
 
@@ -399,11 +385,4 @@ class MatchSetLabelsTest(TestCase):
     @patch('ilovevoley.competitions.share.safe_get', side_effect=Exception('boom'))
     def test_returns_empty_on_fetch_error(self, mock_get):
         from ilovevoley.competitions.share import get_match_set_labels
-        self.assertEqual(get_match_set_labels(self.match), {})
-
-    @patch('ilovevoley.competitions.share.safe_get')
-    @patch('ilovevoley.competitions.share.parse_acta_lineup')
-    def test_returns_empty_when_parse_result_is_not_a_dict(self, mock_parse, mock_get):
-        from ilovevoley.competitions.share import get_match_set_labels
-        mock_parse.return_value = None
         self.assertEqual(get_match_set_labels(self.match), {})

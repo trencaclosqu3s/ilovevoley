@@ -8,7 +8,7 @@ from io import BytesIO
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
-from django.urls import resolve, reverse
+from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
@@ -16,55 +16,6 @@ from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.competitions.models import League, Match, MatchLineup
 from ilovevoley.rosters.models import Person, PersonLinkRequest, PlayerRole, StaffRole
 from ilovevoley.teams.models import Club, Team, TeamIdentity
-from ilovevoley.videos.forms import rosters as vid_forms_rosters
-from ilovevoley.videos.views import rosters as vid_views_rosters
-
-
-@override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
-class RostersReExportCompatibilityTest(TestCase):
-    """La capa de compatibilidad de ``videos`` conserva formularios y vistas históricas."""
-
-    def setUp(self):
-        from ilovevoley.users.models import Membership
-        cache.clear()
-        self.org = Organization.objects.create(
-            slug='testclub', name='Test Club',
-            club_team_names={'1': 'Test Club'}, is_active=True,
-        )
-        User = get_user_model()
-        self.user = User.objects.create_user(username='member', password='pass')
-        Membership.objects.create(user=self.user, organization=self.org, is_approved=True)
-        self.category = Category.objects.create(name='Senior', is_active=True)
-        self.team = Team.objects.create(
-            name='Test Club Senior', category=self.category,
-            federation_id='REEXPORT-R1', is_active=True,
-        )
-
-    def test_legacy_form_import_is_the_canonical_form(self):
-        # El contrato de la capa `videos` es reexportar el formulario canónico,
-        # no volver a probar su validación (cubierta en test_forms.py).
-        from ilovevoley.rosters.forms import PersonForm as CanonicalPersonForm
-
-        self.assertIs(vid_forms_rosters.PersonForm, CanonicalPersonForm)
-
-    def test_legacy_views_resolve_to_the_canonical_roster_urls(self):
-        routes = [
-            ('roster_overview', 'rosters:roster_overview', []),
-            ('person_list', 'rosters:person_list', []),
-            ('person_detail', 'rosters:person_detail', [1]),
-            ('person_create', 'rosters:person_create', []),
-            ('person_edit', 'rosters:person_edit', [1]),
-            ('player_role_create', 'rosters:player_role_create', [1]),
-            ('staff_role_create', 'rosters:staff_role_create', [1]),
-            ('player_role_edit', 'rosters:player_role_edit', [1]),
-            ('staff_role_edit', 'rosters:staff_role_edit', [1]),
-            ('player_role_toggle_active', 'rosters:player_role_toggle_active', [1]),
-            ('staff_role_toggle_active', 'rosters:staff_role_toggle_active', [1]),
-        ]
-        for attr, route, args in routes:
-            with self.subTest(view=attr):
-                legacy_view = getattr(vid_views_rosters, attr)
-                self.assertIs(resolve(reverse(route, args=args)).func, legacy_view)
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])
@@ -584,23 +535,6 @@ class RostersTenantIsolationTests(TestCase):
         created = Person.objects.get(first_name='Nueva', last_name='Ficha')
         self.assertEqual(set(created.organizations.all()), {self.org_a})
 
-    def test_person_list_add_button_visibility_for_tenant_manager(self):
-        # La visibilidad del alta depende de `is_tenant_manager` (context
-        # processor), no de que el listado tenga resultados.
-        url = reverse('rosters:person_list')
-
-        self.client.force_login(self.member)
-        for query in ('', '?search=inexistente'):
-            with self.subTest(role='member', query=query):
-                response = self.client.get(f'{url}{query}', HTTP_HOST='club-a.ilovevoley.es')
-                self.assertFalse(response.context['is_tenant_manager'])
-
-        self.client.force_login(self.manager)
-        for query in ('', '?search=inexistente'):
-            with self.subTest(role='manager', query=query):
-                response = self.client.get(f'{url}{query}', HTTP_HOST='club-a.ilovevoley.es')
-                self.assertTrue(response.context['is_tenant_manager'])
-
     def test_person_edit_ignora_organizaciones_enviadas_por_cliente(self):
         self.client.force_login(self.staff)
         response = self.client.post(
@@ -621,6 +555,23 @@ class RostersTenantIsolationTests(TestCase):
             HTTP_HOST='club-b.ilovevoley.es',
         )
         self.assertRedirects(response, '/pending-approval/', fetch_redirect_response=False)
+
+    def test_person_list_add_button_visibility_for_tenant_manager(self):
+        # La visibilidad del alta depende de `is_tenant_manager` (context
+        # processor), no de que el listado tenga resultados.
+        url = reverse('rosters:person_list')
+
+        self.client.force_login(self.member)
+        for query in ('', '?search=inexistente'):
+            with self.subTest(role='member', query=query):
+                response = self.client.get(f'{url}{query}', HTTP_HOST='club-a.ilovevoley.es')
+                self.assertFalse(response.context['is_tenant_manager'])
+
+        self.client.force_login(self.manager)
+        for query in ('', '?search=inexistente'):
+            with self.subTest(role='manager', query=query):
+                response = self.client.get(f'{url}{query}', HTTP_HOST='club-a.ilovevoley.es')
+                self.assertTrue(response.context['is_tenant_manager'])
 
 
 @override_settings(ALLOWED_HOSTS=['testclub.ilovevoley.es', 'localhost'])

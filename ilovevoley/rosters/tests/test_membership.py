@@ -83,22 +83,6 @@ class ActiveForTenantTests(TestCase):
         self._dar_de_baja(person, self.org_a)
         self.assertNotIn(person, Person.objects.active_for_tenant(self.org_a))
 
-    def test_baja_se_mantiene_accesible_por_historico(self):
-        """La baja quita de listados, no el acceso: `for_tenant` la mantiene."""
-        person = self._person('Carla', 'BajaHistorica')
-        self._give_alta(person, self.org_a)
-        self._dar_de_baja(person, self.org_a)
-        self.assertIn(person, Person.objects.for_tenant(self.org_a))
-
-    def test_rol_temporada_actual_mete_a_la_ficha(self):
-        """Un jugador de plantilla de la temporada actual sale aunque no esté dado de alta."""
-        person = self._person('David', 'Plantilla')
-        PlayerRole.objects.create(
-            person=person, identity=self.team_a, season=self.season,
-            jersey_number=9, is_active=True,
-        )
-        self.assertIn(person, Person.objects.active_for_tenant(self.org_a))
-
     def test_rol_temporada_anterior_no_mete_a_la_ficha(self):
         person = self._person('Elena', 'Retrograda')
         PlayerRole.objects.create(

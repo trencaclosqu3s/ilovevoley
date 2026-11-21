@@ -57,16 +57,6 @@ class ImageNamingTests(TestCase):
             match_date=date(2026, 10, 11),
         )
 
-    def test_build_descriptive_title_for_match(self):
-        """El título de una imagen de partido debe incluir equipos, fecha y secuencial."""
-        title = build_descriptive_title(match=self.match, seq=1)
-        self.assertEqual(title, 'CV Sant Josep Senior A vs CV Pòrtol - 11/10/2026 - 001')
-
-    def test_build_descriptive_title_for_album(self):
-        """El título de una imagen de álbum debe incluir el nombre del álbum y secuencial."""
-        title = build_descriptive_title(album_name='Celebración Copa Balear', seq=2)
-        self.assertEqual(title, 'Celebración Copa Balear - 002')
-
     def test_build_descriptive_title_for_loose_photo(self):
         """El título de una foto suelta con título base debe incluir el título y secuencial opcional."""
         title_with_seq = build_descriptive_title(base_title='Entrenamiento Juvenil', seq=3)

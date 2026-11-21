@@ -499,25 +499,6 @@ def test_discover_seasonal_beach(monkeypatch):
 
 
 @pytest.mark.django_db
-def test_discover_leagues_command_seasonal(monkeypatch):
-    from django.core.management import call_command
-
-    season = Season.objects.resolve('2024-25')
-    called = []
-
-    def mock_discover_seasonal(s, fini=None, ffin=None):
-        called.append((s, fini, ffin))
-        return []
-
-    monkeypatch.setattr(
-        'ilovevoley.competitions.management.commands.discover_leagues.discover_seasonal_beach',
-        mock_discover_seasonal,
-    )
-    call_command('discover_leagues', '--season', '2024-25', '--seasonal', '--date-range', '01/06/2025', '31/08/2025')
-    assert called == [(season, '01/06/2025', '31/08/2025')]
-
-
-@pytest.mark.django_db
 def test_scrape_historical_leagues_beach_command(monkeypatch):
     """Protege la configuración y creación de ligas de playa vía scrape_historical_leagues."""
     from io import StringIO

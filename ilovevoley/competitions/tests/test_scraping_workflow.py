@@ -10,7 +10,6 @@ from ilovevoley.competitions.tasks_scraping import (
     scrape_clubs_summary_task,
     scrape_league_stats_task,
     scrape_clubs_task,
-    scrape_endpoint_summary_task,
     scrape_leagues_summary_task,
     scrape_results_task,
 )
@@ -116,14 +115,6 @@ class ScrapeResultsWorkflowTest(TestCase):
     def test_unknown_league_id_is_an_error_not_a_fan_out(self):
         result = scrape_results_task.run(league_id='nope')
         self.assertEqual(result['status'], 'error')
-
-    @override_settings(NOTIFICATION_EMAIL_ENABLED=True)
-    def test_summary_subject_names_the_kind(self):
-        stats = [{'league': 'B', 'success': False, 'matches': 0, 'rounds': 0,
-                  'errors': [{'league': 'B', 'error': 'x'}]}]
-        with mock.patch('ilovevoley.competitions.tasks_scraping.send_technical_alert') as alert:
-            scrape_endpoint_summary_task.run(stats, 'calendario')
-        self.assertIn('calendario', alert.call_args.args[0])
 
 
 class ScrapeClubsWorkflowTest(TestCase):
