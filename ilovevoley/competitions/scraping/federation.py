@@ -9,6 +9,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from django.db import models, transaction
+from django.db.models import prefetch_related_objects
 from django.utils import timezone
 import requests
 
@@ -47,6 +48,9 @@ class FederationScraper:
     
     def __init__(self, league: League):
         self.league = league
+        # Match.__str__ (logs) y las búsquedas de equipo leen league.categories por fila (#677);
+        # no-op si el llamador ya las prefetcheó.
+        prefetch_related_objects([league], 'categories')
         self.parsers = {
             'table_standings': StandingsParser(league),
             'match_results': MatchesParser(league),
@@ -536,7 +540,7 @@ class FederationScraper:
                 team.sponsor_name = sponsor_name
                 updated = True
 
-            if league_category and team.category != league_category:
+            if league_category and team.category_id != league_category.id:
                 team.category = league_category
                 updated = True
                 logger.info(f"Assigned category '{league_category}' to team: {team.name}")
@@ -624,33 +628,33 @@ class FederationScraper:
 
         return withdrawn_teams
     
-    def _calculate_won_lost_from_matches(self, team) -> Dict[str, int]:
+    @staticmethod
+    def _team_results(finished, team) -> List[tuple]:
+        """(sets a favor, sets en contra) de ``team`` en ``finished`` (filas home_id, away_id, home, away)."""
+        return [
+            (home, away) if home_id == team.id else (away, home)
+            for home_id, away_id, home, away in finished
+            if team.id in (home_id, away_id)
+        ]
+
+    def _calculate_won_lost_from_matches(self, results) -> Dict[str, int]:
         """
         Calcula partidos ganados y perdidos desde los partidos finalizados.
         Especialmente importante para formato alevín, donde la tabla de la federación
         puede tener estructura distinta (ej. todos con 0 perdidos).
         """
-        matches = Match.objects.filter(
-            league=self.league,
-            status='finished'
-        ).filter(
-            models.Q(home_team=team) | models.Q(away_team=team)
-        )
         won = 0
         lost = 0
-        for match in matches:
-            if match.home_score is None or match.away_score is None:
+        for sets_won, sets_lost in results:
+            if sets_won is None or sets_lost is None:
                 continue
-            is_home = (match.home_team == team)
-            sets_won = match.home_score if is_home else match.away_score
-            sets_lost = match.away_score if is_home else match.home_score
             if sets_won > sets_lost:
                 won += 1
             elif sets_lost > sets_won:
                 lost += 1
         return {'won': won, 'lost': lost}
 
-    def _calculate_team_stats_from_matches(self, team) -> Dict[str, int]:
+    def _calculate_team_stats_from_matches(self, results) -> Dict[str, int]:
         """
         Calcula estadísticas detalladas (breakdown de resultados) desde los partidos guardados.
         Esto es necesario porque la tabla de la federación agrupa G3 (3-0 y 3-1) y P0 (0-3 y 1-3),
@@ -667,23 +671,11 @@ class FederationScraper:
         if self.league.match_format == 'alevin_balear':
             return stats
 
-        # Obtener todos los partidos finalizados de este equipo en esta liga
-        matches = Match.objects.filter(
-            league=self.league,
-            status='finished'
-        ).filter(
-            models.Q(home_team=team) | models.Q(away_team=team)
-        )
-        
-        for match in matches:
+        for sets_won, sets_lost in results:
             # Asegurarse de tener resultados válidos
-            if match.home_score is None or match.away_score is None:
+            if sets_won is None or sets_lost is None:
                 continue
-                
-            is_home = (match.home_team == team)
-            sets_won = match.home_score if is_home else match.away_score
-            sets_lost = match.away_score if is_home else match.home_score
-            
+
             # Clasificar resultado (formato estándar 5 sets)
             if sets_won == 3:
                 if sets_lost == 0: stats['wins_3_0'] += 1
@@ -702,7 +694,13 @@ class FederationScraper:
         
         # Eliminar clasificaciones existentes para esta liga
         Standing.objects.filter(league=self.league).delete()
-        
+
+        # Una consulta para toda la liga, no tres por equipo (#677)
+        finished = list(
+            Match.objects.filter(league=self.league, status='finished')
+            .values_list('home_team_id', 'away_team_id', 'home_score', 'away_score')
+        )
+
         for standing_data in standings_data:
             team_name = standing_data.pop('team_name')
             team = team_objects.get(team_name)
@@ -711,24 +709,16 @@ class FederationScraper:
                 logger.warning(f"Team not found: {team_name}")
                 continue
             
-            # Calcular estadísticas detalladas desde los partidos reales
-            # Esto corrige el problema de interpretación de G3/G2/etc de la federación
-            detailed_stats = self._calculate_team_stats_from_matches(team)
-            
             # Solo si tenemos partidos para calcular (para no poner ceros si no tenemos partidos scrapeados aún)
-            matches_exist = Match.objects.filter(
-                league=self.league,
-                status='finished'
-            ).filter(
-                models.Q(home_team=team) | models.Q(away_team=team)
-            ).exists()
-            
-            if matches_exist:
-                standing_data.update(detailed_stats)
+            results = self._team_results(finished, team)
+            if results:
+                # Calcular estadísticas detalladas desde los partidos reales
+                # Esto corrige el problema de interpretación de G3/G2/etc de la federación
+                standing_data.update(self._calculate_team_stats_from_matches(results))
                 # Formato alevín: la tabla de la federación suele tener estructura distinta
                 # (ej. todos con 0 perdidos). Calculamos G/P desde los partidos reales.
                 if self.league.match_format == 'alevin_balear':
-                    won_lost = self._calculate_won_lost_from_matches(team)
+                    won_lost = self._calculate_won_lost_from_matches(results)
                     standing_data['won'] = won_lost['won']
                     standing_data['lost'] = won_lost['lost']
             
@@ -748,6 +738,18 @@ class FederationScraper:
         # Partidos que este scrape confirma como vigentes: la federación es la
         # autoridad de qué fila del calendario vive y cuál es espejo (#485).
         confirmed_pks = set()
+
+        # Los partidos oficiales de la liga en un solo SELECT: buscarlos fila a fila
+        # por jornada era el N+1 de Sentry (#677). Se busca con escaneo lineal sobre las
+        # instancias vivas para ver lo ya modificado en esta llamada; techo O(partidos²)
+        # por liga, suficiente con cientos de partidos.
+        known = {m.pk: m for m in Match.all_objects.filter(league=self.league, is_friendly=False)}
+
+        def find_by_round(home, away, round_number):
+            return next((
+                m for m in known.values()
+                if m.home_team_id == home.id and m.away_team_id == away.id and m.round_number == round_number
+            ), None)
 
         for match_data in matches_data:
             home_team_name = match_data.pop('home_team')
@@ -805,15 +807,10 @@ class FederationScraper:
             
             # Si es solo un resultado (sin fecha), buscar partido existente para actualizar
             if is_result_only:
-                existing_match = Match.all_objects.filter(
-                    league=self.league,
-                    home_team=home_team,
-                    away_team=away_team,
-                    round_number=round_number,
-                    is_friendly=False
-                ).first()
-                
+                existing_match = find_by_round(home_team, away_team, round_number)
+
                 if existing_match:
+                    self._attach_loaded(existing_match, home_team, away_team)
                     confirmed_pks.add(existing_match.pk)
                     # Validar resultado antes de actualizar
                     home_score = match_data.get('home_score')
@@ -851,13 +848,7 @@ class FederationScraper:
             
             # PRIORIDAD 1: Buscar por jornada (más preciso para detectar cambios de fecha)
             if round_number:
-                existing_match = Match.all_objects.filter(
-                    league=self.league,
-                    home_team=home_team,
-                    away_team=away_team,
-                    round_number=round_number,
-                    is_friendly=False  # Solo actualizar partidos oficiales, no amistosos
-                ).first()
+                existing_match = find_by_round(home_team, away_team, round_number)
 
                 if existing_match:
                     logger.info(f"Found existing match by round: {home_team.name} vs {away_team.name} in round {round_number}")
@@ -868,12 +859,16 @@ class FederationScraper:
                 existing_match = self._find_calendar_match(
                     self.league, home_team, away_team, match_date
                 )
+                if existing_match:
+                    # Misma instancia que el índice: otra fila del scrape debe ver estos cambios
+                    existing_match = known.setdefault(existing_match.pk, existing_match)
                 
                 if existing_match:
                     logger.info(f"Found existing match by date: {home_team.name} vs {away_team.name} on {match_date.date()}")
             
             # Crear o actualizar el partido con merge inteligente
             if existing_match:
+                self._attach_loaded(existing_match, home_team, away_team)
                 confirmed_pks.add(existing_match.pk)
                 # Detectar y registrar modificaciones federativas
                 already_finished = self._result_already_published(existing_match)
@@ -992,6 +987,7 @@ class FederationScraper:
                     away_team=away_team,
                     **valid_match_data
                 )
+                known[match.pk] = match
                 if match.set_scores and is_penalty_result(match.set_scores):
                     match.result_penalized = True
                     match.save(update_fields=['result_penalized'])
@@ -1001,6 +997,15 @@ class FederationScraper:
         self._mark_withdrawn_matches()
         self._deduplicate_mirror_matches(self.league, confirmed_pks)
     
+    def _attach_loaded(self, match, *teams):
+        """Liga y equipos ya en memoria: ``Match.__str__`` en los logs los leía por fila (#677)."""
+        match.league = self.league
+        loaded = {team.id: team for team in teams}
+        for field in ('home_team', 'away_team'):
+            team = loaded.get(getattr(match, f'{field}_id'))
+            if team:
+                setattr(match, field, team)
+
     def _mark_withdrawn_matches(self):
         """Marca como 'withdrawn' los partidos que involucran equipos inactivos"""
         # Encontrar partidos en esta liga que involucran equipos inactivos
@@ -1456,6 +1461,11 @@ class FederationScraper:
             
             logger.info(f"Collected {len(all_matches)} matches from {processed_groups} groups (skipped {skipped_groups} groups)")
             
+            # Ids ya en BD en una consulta, no un exists() por partido (#677)
+            existing_ids = set(Match.all_objects.filter(
+                federation_id__in={str(p.get('ID', '')) for p in all_matches} - {''}
+            ).values_list('federation_id', flat=True))
+
             # Procesar todos los partidos recopilados
             for partido_data in all_matches:
                 league = partido_data.pop('_league')
@@ -1463,9 +1473,11 @@ class FederationScraper:
                 
                 # Verificar si el partido ya existe
                 json_match_id = str(partido_data.get('ID', ''))
-                match_exists = Match.all_objects.filter(federation_id=json_match_id).exists() if json_match_id else False
-                
+                match_exists = json_match_id in existing_ids
+
                 enriched = self._enrich_single_match(partido_data, league)
+                if enriched and json_match_id:
+                    existing_ids.add(json_match_id)  # un id repetido en el JSON ya existe la segunda vez
                 if enriched:
                     if match_exists:
                         enriched_count += 1
