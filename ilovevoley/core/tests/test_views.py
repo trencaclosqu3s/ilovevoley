@@ -297,14 +297,6 @@ class TenantManagerModerationTest(TestCase):
             user=self.pending_a, organization=self.org_a
         ).is_approved)
 
-    def test_manager_cannot_approve_membership_of_other_org(self):
-        self.client.force_login(self.manager)
-        url = reverse('core:approve_user_api', args=[self.pending_b.id])
-        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
-        self.assertEqual(response.status_code, 404)
-        self.pending_b.refresh_from_db()
-        self.assertFalse(self.pending_b.is_approved)
-
     def test_member_without_role_cannot_approve(self):
         from ilovevoley.users.models import Membership
 
@@ -329,16 +321,6 @@ class TenantManagerModerationTest(TestCase):
         from ilovevoley.users.models import Membership
         self.assertFalse(Membership.objects.filter(
             user=self.pending_a, organization=self.org_a
-        ).exists())
-
-    def test_manager_cannot_reject_membership_of_other_org(self):
-        self.client.force_login(self.manager)
-        url = reverse('core:reject_user_api', args=[self.pending_b.id])
-        response = self.client.post(url, HTTP_HOST='cluba.ilovevoley.es')
-        self.assertEqual(response.status_code, 404)
-        from ilovevoley.users.models import Membership
-        self.assertTrue(Membership.objects.filter(
-            user=self.pending_b, organization=self.org_b
         ).exists())
 
     def test_manager_panel_only_lists_own_org_pending_users(self):

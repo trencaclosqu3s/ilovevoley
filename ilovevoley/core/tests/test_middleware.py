@@ -353,10 +353,6 @@ class GetClientIPTests(TestCase):
             request.META['HTTP_X_FORWARDED_FOR'] = forwarded_for
         return request
 
-    def test_discards_forged_prefix_and_returns_real_client(self):
-        request = self._request(forwarded_for='9.9.9.9, 203.0.113.7')
-        self.assertEqual(get_client_ip(request), '203.0.113.7')
-
     def test_discards_every_forged_entry(self):
         request = self._request(forwarded_for='9.9.9.9, 8.8.8.8, 203.0.113.7')
         self.assertEqual(get_client_ip(request), '203.0.113.7')

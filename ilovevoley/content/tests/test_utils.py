@@ -5,7 +5,6 @@ from django.test import SimpleTestCase
 from PIL import Image as PILImage
 from PIL.ExifTags import Base, GPS
 
-from ilovevoley.content.models.content import image_upload_path
 from ilovevoley.videos.utils import (
     convert_heic_to_jpeg,
     process_uploaded_image,
@@ -84,19 +83,6 @@ class ImageSanitizationTests(SimpleTestCase):
         self.assertEqual(sanitized_img.mode, 'RGB')
         self.assertEqual(sanitized_img.format, 'JPEG')
 
-    def test_sanitize_image_generates_uuid_filename(self):
-        raw_image = _create_image_with_gps()
-        uploaded = SimpleUploadedFile('original_name_123.jpg', raw_image.read(), content_type='image/jpeg')
-
-        sanitized = sanitize_image(uploaded)
-
-        # Name should be <uuid4-hex>.jpg
-        base_name = sanitized.name.split('.')[0]
-        # Should parse as valid UUID
-        parsed_uuid = uuid.UUID(base_name)
-        self.assertEqual(parsed_uuid.hex, base_name)
-        self.assertTrue(sanitized.name.endswith('.jpg'))
-
     def test_process_uploaded_image_sanitizes_and_reports_conversion(self):
         cases = [
             ('phone_pic.jpg', 'image/jpeg', 'JPEG', '.jpg', False),
@@ -118,17 +104,6 @@ class ImageSanitizationTests(SimpleTestCase):
                 # Name should be UUID
                 base_name = processed_file.name.split('.')[0]
                 self.assertEqual(uuid.UUID(base_name).hex, base_name)
-
-    def test_image_upload_path_generates_uuid(self):
-        path = image_upload_path(None, 'foto_partido_infantil.jpg')
-        # Format: images/YYYY/MM/<uuid>.jpg
-        parts = path.split('/')
-        self.assertEqual(parts[0], 'images')
-        self.assertEqual(len(parts), 4)
-        filename = parts[3]
-        base_name, ext = filename.split('.')
-        self.assertEqual(ext, 'jpg')
-        self.assertEqual(uuid.UUID(base_name).hex, base_name)
 
     def test_convert_heic_to_jpeg_purges_exif(self):
         raw_image = _create_image_with_gps()

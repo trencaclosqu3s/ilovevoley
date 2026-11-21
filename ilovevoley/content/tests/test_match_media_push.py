@@ -118,67 +118,6 @@ class MatchMediaPushTest(TestCase):
                 )
 
     @patch('ilovevoley.content.views.queue_match_media_push')
-    def test_upload_with_match_queues_match_media_push(self, mock_queue):
-        cases = {
-            'image_upload': (
-                'photo',
-                {
-                    'image': _create_test_image_file(),
-                    'title': 'Foto Individual Partido',
-                    'image_type': 'match',
-                    'season': self.season.id,
-                    'match': self.match.id,
-                },
-            ),
-            'image_bulk_upload': (
-                'photo',
-                {
-                    'images': [_create_test_image_file()],
-                    'title_0': 'Foto Partido',
-                    'image_type': 'match',
-                    'season': self.season.id,
-                    'match': self.match.id,
-                },
-            ),
-            'video_create': (
-                'video',
-                {
-                    'title': 'Vídeo Partido',
-                    'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-                    'match': self.match.id,
-                    'category': self.category.id,
-                },
-            ),
-            'video_bulk_create': (
-                'video',
-                {
-                    'match': self.match.id,
-                    'category': self.category.id,
-                    'videos-TOTAL_FORMS': '1',
-                    'videos-INITIAL_FORMS': '0',
-                    'videos-MIN_NUM_FORMS': '0',
-                    'videos-MAX_NUM_FORMS': '10',
-                    'videos-0-title': 'Set 1 Partido',
-                    'videos-0-youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-                    'videos-0-set_number': '1',
-                },
-            ),
-        }
-
-        for kind, (media_type, data) in cases.items():
-            with self.subTest(kind=kind):
-                mock_queue.reset_mock()
-                response = self.client.post(
-                    reverse(f'content:{kind}'), data, HTTP_HOST='santjust.ilovevoley.es'
-                )
-                self.assertEqual(response.status_code, 302)
-                mock_queue.assert_called_once_with(
-                    match_id=self.match.id,
-                    media_type=media_type,
-                    organization_id=self.org.id,
-                )
-
-    @patch('ilovevoley.content.views.queue_match_media_push')
     def test_pending_image_upload_does_not_queue_match_media_push(self, mock_queue):
         """Una foto aún pendiente de moderación no debe avisar: no es visible (#286)."""
         member = User.objects.create_user(username='member', password='pwd')

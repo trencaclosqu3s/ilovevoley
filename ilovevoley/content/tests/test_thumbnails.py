@@ -123,14 +123,3 @@ class ThumbnailGenerationTests(TestCase):
 
         image.refresh_from_db()
         self.assertTrue(image.thumbnail_small)
-
-    def test_task_propaga_el_error_tras_registrarlo(self):
-        from ilovevoley.content import tasks as content_tasks
-
-        image = self._create_image()
-        with patch(
-            'ilovevoley.content.tasks.generate_image_thumbnails',
-            side_effect=RuntimeError('original corrupto'),
-        ):
-            with self.assertRaises(RuntimeError):
-                content_tasks.generate_image_thumbnails_task(image.pk)

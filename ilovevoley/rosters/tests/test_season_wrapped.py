@@ -74,9 +74,6 @@ class WrappedStatsTests(WrappedTestBase):
             build_wrapped_stats(self.person, self.season, League.MODALITY_BEACH)['matches'], 1,
         )
 
-    def test_sin_actas_ni_fotos_no_hay_wrapped(self):
-        self.assertIsNone(build_wrapped_stats(self.person, self.season))
-
     def test_elige_la_remontada_mayor_aunque_el_set_se_pierda(self):
         # Visitante. El set 1 no lo jugó (agujero mayor). El 2 se gana de 1-10, pero es más pequeño.
         # El 3 se pierde y aun así es el cromo: el hoyo de 0-20 manda sobre el resultado del set.

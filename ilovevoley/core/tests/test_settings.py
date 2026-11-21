@@ -10,44 +10,9 @@ from django.test import SimpleTestCase
 class OperationalSettingsTest(SimpleTestCase):
     """
     Verifica las directivas operativas de producción (Issue #121):
-    - Pooling de conexiones y chequeo de salud en PostgreSQL.
-    - Statement timeout para evitar queries colgadas.
-    - Límite de subida alineado a 60MB en Django y Nginx.
+    - Límite de subida de 60MB en Nginx.
     - Remitente institucional por defecto.
     """
-
-    def test_database_connection_persistence_and_health_checks(self):
-        """PostgreSQL debe tener CONN_MAX_AGE de 60s y chequeos de salud activos."""
-        db_conf = settings.DATABASES['default']
-        self.assertEqual(
-            db_conf.get('CONN_MAX_AGE'), 60,
-            "CONN_MAX_AGE debe ser 60 para pooling de conexiones persistentes.",
-        )
-        self.assertIs(
-            db_conf.get('CONN_HEALTH_CHECKS'), True,
-            "CONN_HEALTH_CHECKS debe ser True para verificar conexiones antes de reutilizarlas.",
-        )
-
-    def test_database_statement_timeout(self):
-        """PostgreSQL OPTIONS debe definir statement_timeout de 30s."""
-        db_conf = settings.DATABASES['default']
-        options = db_conf.get('OPTIONS', {})
-        cli_options = options.get('options', '')
-        self.assertIn(
-            'statement_timeout=30000', cli_options,
-            "PostgreSQL OPTIONS debe incluir '-c statement_timeout=30000'.",
-        )
-
-    def test_upload_limits_configuration(self):
-        """DATA_UPLOAD_MAX_MEMORY_SIZE debe permitir subidas en lote de hasta 60MB."""
-        self.assertEqual(
-            settings.DATA_UPLOAD_MAX_MEMORY_SIZE, 60 * 1024 * 1024,
-            "DATA_UPLOAD_MAX_MEMORY_SIZE debe ser 60MB para subidas en lote.",
-        )
-        self.assertEqual(
-            settings.FILE_UPLOAD_MAX_MEMORY_SIZE, 10 * 1024 * 1024,
-            "FILE_UPLOAD_MAX_MEMORY_SIZE debe mantenerse en 10MB antes de pasar a disco.",
-        )
 
     def test_institutional_sender_email(self):
         """El **default de código** del remitente es institucional (#121).

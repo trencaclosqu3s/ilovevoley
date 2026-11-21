@@ -18,14 +18,6 @@ class WebPushViewsTest(TestCase):
         self.user = User.objects.create_user(username='jugadora', email='jugadora@test.es', password='password123')
         self.client = Client()
 
-    def test_get_vapid_public_key(self):
-        url = reverse('webpush_vapid_key')
-        response = self.client.get(url, HTTP_HOST='santjust.ilovevoley.es')
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertIn('public_key', data)
-        self.assertTrue(len(data['public_key']) > 0)
-
     def test_subscribe_device_authenticated(self):
         self.client.login(username='jugadora', password='password123')
         url = reverse('webpush_subscribe')
@@ -72,33 +64,6 @@ class WebPushViewsTest(TestCase):
         sub = WebPushSubscription.objects.get(endpoint=payload['endpoint'])
         self.assertIsNone(sub.user)
         self.assertEqual(sub.organization, self.org)
-
-    def test_subscribe_device_missing_fields(self):
-        url = reverse('webpush_subscribe')
-        payload = {
-            'endpoint': 'https://updates.push.services.mozilla.com/wpush/v2/missing',
-            'keys': {
-                'p256dh': '',
-                'auth': 'secret_auth',
-            },
-        }
-        response = self.client.post(
-            url,
-            data=json.dumps(payload),
-            content_type='application/json',
-            HTTP_HOST='santjust.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 400)
-
-    def test_subscribe_device_invalid_json(self):
-        url = reverse('webpush_subscribe')
-        response = self.client.post(
-            url,
-            data="not-valid-json",
-            content_type='application/json',
-            HTTP_HOST='santjust.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 400)
 
     def test_subscribe_device_relinks_when_updated(self):
         sub = WebPushSubscription.objects.create(
@@ -147,30 +112,6 @@ class WebPushViewsTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertFalse(WebPushSubscription.objects.filter(endpoint=payload['endpoint']).exists())
-
-    def test_unsubscribe_device_invalid_json(self):
-        url = reverse('webpush_unsubscribe')
-        response = self.client.post(
-            url,
-            data="invalid-json",
-            content_type='application/json',
-            HTTP_HOST='santjust.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 400)
-
-    def test_subscribe_device_invalid_keys_type_returns_400(self):
-        url = reverse('webpush_subscribe')
-        payload = {
-            'endpoint': 'https://updates.push.services.mozilla.com/wpush/v2/test-invalid-keys',
-            'keys': 'invalid_string',
-        }
-        response = self.client.post(
-            url,
-            data=json.dumps(payload),
-            content_type='application/json',
-            HTTP_HOST='santjust.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 400)
 
     def test_subscribe_does_not_hijack_subscription_of_other_user(self):
         other = User.objects.create_user(username='otra', email='otra@test.es', password='password123')

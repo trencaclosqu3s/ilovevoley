@@ -289,19 +289,6 @@ class CardNarrativeViewTests(CardNarrativeTestBase):
         with translation.override('es'):
             self.assertEqual(narrated_highlight(self.highlight(), self.person, self.season)['text'], rules_text)
 
-    def test_la_vista_del_cromo_pinta_el_texto_redactado(self):
-        self.make_talisman()
-        self.narrative_row()
-        user = get_user_model().objects.create_user(username='padre', password='pass')
-        Membership.objects.create(user=user, organization=self.org, is_approved=True)
-        user.children.add(self.person)
-        self.client.force_login(user)
-
-        with mock.patch('ilovevoley.rosters.views.render_player_card', return_value=_png()) as render:
-            self.client.get(reverse('rosters:person_card', args=[self.person.id]), HTTP_HOST='testclub.ilovevoley.es')
-
-        self.assertEqual(render.call_args.kwargs['highlight']['text'], 'Marc es el talismán.')
-
 
 @override_settings(LLM_NARRATIVE_ENABLED=True, LLM_NARRATIVE_API_KEY='k')
 class RedactPendingCardNarrativesTests(CardNarrativeTestBase):

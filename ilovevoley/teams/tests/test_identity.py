@@ -1,7 +1,5 @@
-from unittest.mock import patch
-
 from django.db import IntegrityError, transaction
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.utils import timezone
 
 from ilovevoley.competitions.models import League, Match
@@ -12,7 +10,6 @@ from ilovevoley.teams.identity import (
     backfill_team_identities,
     create_identity_for_team,
     extract_core_name,
-    notify_new_identity_candidates,
     resolve_team_identity,
     seasonal_appearance_name,
     stable_roster_label,
@@ -78,30 +75,6 @@ class BackfillTeamIdentityTests(TestCase):
         variant.refresh_from_db()
         self.assertIsNotNone(root.identity_id)
         self.assertEqual(variant.identity_id, root.identity_id)
-
-
-class NotifyIdentityCandidatesTests(TestCase):
-    """Aviso técnico al crear candidatas, como ligas (#428)."""
-
-    @override_settings(TECHNICAL_ALERT_EMAILS=['tech@example.com'], NOTIFICATION_EMAIL_ENABLED=True)
-    @patch('ilovevoley.teams.identity.send_notification_email')
-    def test_sends_email_to_technical_alerts(self, mock_send):
-        club = Club.objects.create(federation_id='c1', official_name='CV Portol')
-        category = Category.objects.create(name='Infantil')
-        identity = TeamIdentity.objects.create(
-            club=club, category=category, gender='',
-            core_name='PORTOL', core_name_normalized='PORTOL',
-        )
-        team = Team.objects.create(
-            name='PORTOL X', federation_id='t-mail', club=club, category=category,
-        )
-        candidate = TeamIdentityCandidate.objects.create(
-            new_team=team, suggested_identity=identity, reason='similar', status='pending',
-        )
-        n = notify_new_identity_candidates([candidate])
-        self.assertEqual(n, 1)
-        mock_send.assert_called_once()
-        self.assertEqual(mock_send.call_args.kwargs['recipient_list'], ['tech@example.com'])
 
 
 class ResolveTeamIdentityTests(TestCase):

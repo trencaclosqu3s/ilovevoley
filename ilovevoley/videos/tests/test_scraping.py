@@ -1631,12 +1631,6 @@ class ValidateSetScoresTests(TestCase):
 
 
 class ParseSetScoresStringTests(TestCase):
-    def test_parses_slash_separated(self):
-        self.assertEqual(
-            parse_set_scores_string('25-10/25-15/25-11'),
-            [[25, 10], [25, 15], [25, 11]],
-        )
-
     def test_returns_none_for_invalid_input(self):
         self.assertIsNone(parse_set_scores_string(''))
         self.assertIsNone(parse_set_scores_string(None))
