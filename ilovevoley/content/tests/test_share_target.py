@@ -258,11 +258,11 @@ class ShareTargetBulkUploadTests(TestCase):
 
     setUp = ShareTargetSingleUploadTests.setUp
 
-    def _make_rows(self, n):
+    def _make_rows(self, n, owner=None):
         batch = uuid_mod.uuid4()
         rows = [
             SharedUpload.objects.create(
-                batch=batch, file=jpeg_bytes(f'IMG_{i}.jpg'), owner=self.user,
+                batch=batch, file=jpeg_bytes(f'IMG_{i}.jpg'), owner=owner or self.user,
                 organization=self.org, original_name=f'IMG_{i}.jpg',
                 content_type='image/jpeg',
             )
@@ -333,3 +333,25 @@ class ShareTargetBulkUploadTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(f'share={batch}', response['Location'])
         self.assertTrue(SharedUpload.objects.filter(pk=row.pk).exists())
+
+    def test_foreign_share_batch_is_rejected_on_get_and_post(self):
+        """Evita que un usuario del mismo club previsualice, consuma o borre el lote SharedUpload de otro."""
+        from ilovevoley.content.models import Image as ImageModel
+
+        batch, rows = self._make_rows(2, owner=self.other)
+        url = reverse('content:image_bulk_upload')
+
+        get_response = self.client.get(
+            url, {'share': str(batch)}, HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(get_response.context['shared_rows'], [])
+        self.assertNotContains(get_response, rows[0].file.url)
+
+        post_response = self.client.post(
+            url,
+            {'share_batch': str(batch), 'image_type': 'training'},
+            HTTP_HOST='testclub.ilovevoley.es',
+        )
+        self.assertEqual(post_response.status_code, 302)
+        self.assertEqual(ImageModel.objects.count(), 0)
+        self.assertEqual(SharedUpload.objects.filter(batch=batch).count(), 2)

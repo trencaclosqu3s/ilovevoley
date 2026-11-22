@@ -192,6 +192,68 @@ class MatchMediaPushTest(TestCase):
         self.assertEqual(kwargs['notification_type'], 'match_media')
         self.assertIn('Fotos', kwargs['title'])
 
+    @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
+    def test_each_upload_path_queues_match_media_push(self, mock_push):
+        """Evita que alguna vía de subida aprobada asociada a partido deje de enviar push."""
+        cases = [
+            (
+                'image_upload',
+                reverse('content:image_upload'),
+                lambda: {
+                    'image': _create_test_image_file('solo.jpg'),
+                    'title': 'Foto Individual',
+                    'image_type': 'match',
+                    'season': self.season.id,
+                    'match': self.match.id,
+                },
+                'Fotos',
+            ),
+            (
+                'video_create',
+                reverse('content:video_create'),
+                lambda: {
+                    'title': 'Vídeo Individual',
+                    'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                    'match': self.match.id,
+                    'category': self.category.id,
+                },
+                'Vídeos',
+            ),
+            (
+                'video_bulk_create',
+                reverse('content:video_bulk_create'),
+                lambda: {
+                    'match': self.match.id,
+                    'category': self.category.id,
+                    'videos-TOTAL_FORMS': '1',
+                    'videos-INITIAL_FORMS': '0',
+                    'videos-MIN_NUM_FORMS': '0',
+                    'videos-MAX_NUM_FORMS': '1000',
+                    'videos-0-title': 'Set 1',
+                    'videos-0-youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                },
+                'Vídeos',
+            ),
+        ]
+
+        for name, url, payload_fn, title_fragment in cases:
+            with self.subTest(path=name):
+                cache.clear()
+                mock_push.reset_mock()
+                with self.captureOnCommitCallbacks(execute=True):
+                    response = self.client.post(
+                        url,
+                        payload_fn(),
+                        HTTP_HOST='santjust.ilovevoley.es',
+                    )
+
+                self.assertEqual(response.status_code, 302)
+                mock_push.assert_called_once()
+                _, kwargs = mock_push.call_args
+                self.assertEqual(kwargs['organization_id'], self.org.id)
+                self.assertEqual(kwargs['notification_type'], 'match_media')
+                self.assertIn(title_fragment, kwargs['title'])
+
 
 class ModerationApprovalTriggersMediaPushTest(TestCase):
     """El aviso de fotos de partido se encola al aprobar la imagen, no al subirla (#286)."""
