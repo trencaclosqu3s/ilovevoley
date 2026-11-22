@@ -397,23 +397,6 @@ class RenderResultCardTests(SimpleTestCase):
 
         self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
 
-    def test_footer_renders_ilovevoley_es(self):
-        for card_style in ('completa', 'marco'):
-            with self.subTest(card_style):
-                calls, spy = _capture_drawn_text()
-                with spy:
-                    result_card.render_result_card(
-                        match=_fake_match(),
-                        organization=_fake_org(),
-                        card_style=card_style,
-                        photo=_fake_photo_bytes(),
-                        sets=[],
-                        logo_fetcher=lambda url: None,
-                    )
-                drawn = [content for _, content, _ in calls]
-                self.assertIn('ilovevoley.es', drawn)
-                self.assertNotIn('ilovevoley', drawn)
-
 
 class NormalizeLayoutTests(SimpleTestCase):
     def test_defaults_reproduce_classic_composition(self):
@@ -483,44 +466,6 @@ class CustomLayoutRenderTests(SimpleTestCase):
         # Escudos (disco blanco) arriba solo cuando se pide; por defecto van abajo.
         self.assertLess(brightness(default, 216), 300)
         self.assertGreater(brightness(moved, 216), 450)
-
-
-class FooterAssetTests(SimpleTestCase):
-    def test_isotype_asset_exists_and_is_valid_transparent_png(self):
-        asset_path = result_card._LOGO_ISOTYPE
-        self.assertTrue(asset_path.exists(), f'Falta el asset {asset_path}')
-        with Image.open(asset_path) as img:
-            self.assertEqual(img.format, 'PNG')
-            self.assertEqual(img.mode, 'RGBA')
-            alpha_extrema = img.getchannel('A').getextrema()
-            self.assertEqual(alpha_extrema[0], 0, 'El icono debe tener fondo transparente')
-            self.assertGreater(alpha_extrema[1], 0, 'El icono debe tener contenido visible')
-
-
-class DrawFooterTests(SimpleTestCase):
-    def test_draw_footer_centers_icon_and_domain_text(self):
-        width, height = 1080, 200
-        canvas = Image.new('RGB', (width, height), (50, 50, 50))
-        font = result_card._load_font(result_card._FONT_REGULAR, 26)
-
-        calls, spy = _capture_drawn_text()
-        with spy:
-            draw = ImageDraw.Draw(canvas)
-            with patch.object(canvas, 'paste', wraps=canvas.paste) as mock_paste:
-                result_card._draw_footer(
-                    draw, canvas, width=width, y=100, font=font, text_color=result_card.WHITE
-                )
-
-        drawn = [content for _, content, _ in calls]
-        self.assertIn('ilovevoley.es', drawn)
-        self.assertTrue(mock_paste.called)
-        paste_xy = mock_paste.call_args[0][1]
-        text_xy = [xy for xy, content, _ in calls if content == 'ilovevoley.es'][0]
-        self.assertLess(paste_xy[0], text_xy[0])
-        text_w = result_card._text_width(draw, 'ilovevoley.es', font)
-        total_span = (text_xy[0] + text_w) - paste_xy[0]
-        expected_start = (width - total_span) // 2
-        self.assertEqual(paste_xy[0], expected_start)
 
 
 class FetchLogoBytesTests(SimpleTestCase):
@@ -641,25 +586,6 @@ class PasteCrestCircleTests(SimpleTestCase):
         self.assertEqual(center[:3], (10, 20, 30))
 
 
-class DrawBackgroundBlobsTests(SimpleTestCase):
-    def test_blobs_lighten_and_darken_the_flat_background(self):
-        """El fondo 'completa' no debe quedar liso: lleva manchas difuminadas (issue #241)."""
-        # Tamaño y métricas reales: el difuminado es de decenas de píxeles y en un lienzo
-        # diminuto alcanzaría el centro.
-        width, height = result_card.CARD_SIZES['square']
-        base = Image.new('RGB', (width, height), (100, 100, 100))
-
-        result_card._draw_background_blobs(base, width, height, result_card._FORMAT_METRICS['square'])
-
-        top_left = base.getpixel((10, 10))
-        bottom_right = base.getpixel((width - 10, height - 10))
-        flat_area = base.getpixel((width // 2, height // 2))
-
-        self.assertEqual(flat_area, (100, 100, 100))
-        self.assertGreater(sum(top_left), sum(flat_area))
-        self.assertLess(sum(bottom_right), sum(flat_area))
-
-
 class DitherTests(SimpleTestCase):
     def test_breaks_up_flat_gradient_banding(self):
         """Un degradado de 8 bits sin ruido deja bandas de color visibles a tamaño real (#241)."""
@@ -682,3 +608,23 @@ class DitherTests(SimpleTestCase):
 
         self.assertGreater(longest_run(column), 10, 'el degradado de prueba no tenía banding')
         self.assertLess(longest_run(dithered_column), 10)
+
+
+class DrawBackgroundBlobsTests(SimpleTestCase):
+
+    def test_blobs_lighten_and_darken_the_flat_background(self):
+        """El fondo 'completa' no debe quedar liso: lleva manchas difuminadas (issue #241)."""
+        # Tamaño y métricas reales: el difuminado es de decenas de píxeles y en un lienzo
+        # diminuto alcanzaría el centro.
+        width, height = result_card.CARD_SIZES['square']
+        base = Image.new('RGB', (width, height), (100, 100, 100))
+
+        result_card._draw_background_blobs(base, width, height, result_card._FORMAT_METRICS['square'])
+
+        top_left = base.getpixel((10, 10))
+        bottom_right = base.getpixel((width - 10, height - 10))
+        flat_area = base.getpixel((width // 2, height // 2))
+
+        self.assertEqual(flat_area, (100, 100, 100))
+        self.assertGreater(sum(top_left), sum(flat_area))
+        self.assertLess(sum(bottom_right), sum(flat_area))

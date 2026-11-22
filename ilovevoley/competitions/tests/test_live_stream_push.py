@@ -6,10 +6,9 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from ilovevoley.competitions.models import League, Match
+from ilovevoley.competitions.models import Match
 from ilovevoley.competitions.services.notifications import notify_match_live_stream
-from ilovevoley.core.models import Category, Organization, Season
-from ilovevoley.teams.models import Club, Team
+from ilovevoley.competitions.tests.helpers import setup_live_match
 from ilovevoley.users.models import NotificationType
 
 User = get_user_model()
@@ -19,28 +18,7 @@ class LiveStreamPushTest(TestCase):
     """Pruebas del servicio de notificación push de retransmisión en directo (#359)."""
 
     def setUp(self):
-        self.club = Club.objects.create(official_name='Sant Just', federation_id='SJ01')
-        self.org = Organization.objects.create(
-            name='CV Sant Just', slug='santjust', club=self.club
-        )
-        self.season = Season.objects.create(name='2025-26', start_year=2025, is_current=True)
-        self.category = Category.objects.create(name='Senior Femenino')
-        self.team1 = Team.objects.create(
-            name='Senior A', club=self.club, federation_id='T01', category=self.category
-        )
-        self.team2 = Team.objects.create(name='Rival B', federation_id='T02')
-        self.league = League.objects.create(name='1a Balear', season=self.season)
-        self.league.categories.add(self.category)
-
-        # Partido dentro de la ventana de directo (en 15 minutos)
-        self.match = Match.objects.create(
-            league=self.league,
-            home_team=self.team1,
-            away_team=self.team2,
-            match_date=timezone.now() + timedelta(minutes=15),
-            status='scheduled',
-            stream_url='https://www.youtube.com/watch?v=live123',
-        )
+        setup_live_match(self)
 
     @patch('ilovevoley.users.tasks.notify_web_push_organization_task.delay')
     def test_live_stream_push_sent_when_in_window(self, mock_push):
@@ -110,7 +88,7 @@ class ScoreboardStreamWebhookTest(TestCase):
     LIVE = 'https://www.youtube.com/@canal/live'
 
     def setUp(self):
-        LiveStreamPushTest.setUp(self)
+        setup_live_match(self)
         self.match.stream_url = ''
         self.match.save(update_fields=['stream_url'])
 

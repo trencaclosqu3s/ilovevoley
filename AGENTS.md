@@ -163,39 +163,18 @@ Dentro de `<script>`, todo `{% trans %}` va con `as x` + `{{ x|escapejs }}`.
 
 ## Testing
 
-**Obligatorio antes de crear o modificar un test: justificar que es necesario
-según `docs/ai-guidelines/testing-guidelines.md`.** No basta con que suba
-cobertura ni con que sea fácil de escribir. Si el test no encaja en ninguna de
-las reglas de "debe existir" de esa guía, no se escribe. Deja la justificación
-explícita (en la conversación y, si aplica, en el mensaje de commit o PR).
+**Antes de crear, modificar o borrar un test, lee
+`docs/ai-guidelines/testing-guidelines.md`.** Lo esencial:
 
-Un test existe solo si protege una decisión propia del producto.
-
-**Debe existir si**: protege una regla de negocio; cubre un caso límite que ya
-falló o sería caro detectar en producción; verifica una transformación de datos
-no trivial (parsing, normalización, resolución de duplicados); cubre un flujo
-con efectos persistentes; comprueba manejo de errores en un camino crítico
-(rollback, idempotencia); documenta una decisión ambigua.
-
-**No debe existir si**: solo comprueba que Django o el ORM hacen lo suyo; solo
-valida `status_code` sin comprobar efecto o payload; comprueba HTML decorativo o
-clases CSS; duplica otro test más fuerte; mockea tanto que solo verifica el
-mock; prueba getters, setters o properties simples; pinea configuración de
-entorno que el despliegue puede sobreescribir; o testea una **migración de datos**
-de una sola vez (evento irrepetible: 10 de esos tests eran el 45 % del tiempo de
-la suite, ver #536).
-
-**Antes de añadir un test**: si falla, ¿qué comportamiento real se habría roto?
-¿Obligaría a cambiar código de producto o solo el test? ¿Prueba nuestra lógica o
-la de la librería? ¿Hay ya otro test que cubra el mismo riesgo? Si no hay una
-respuesta concreta, no se escribe o se reescribe.
-
-**Estructura**: `app_name/tests/` con `__init__.py`, separando `test_models.py`,
-`test_views.py`, `test_forms.py`, `test_utils.py`, `test_templatetags.py`,
-`test_admin.py` (este último solo si hay lógica propia).
-
-**Admin**: saltar configuración de `ModelAdmin` y CRUD estándar; testear solo
-métodos con lógica, `get_queryset()` complejos, acciones custom y `save_model()`
-con validación.
-
-Guía completa y criterios detallados en: `docs/ai-guidelines/testing-guidelines.md`.
+- Cada test nombra en una frase el defecto que evita; si no se puede, no se
+  escribe. Un test existe solo si protege una decisión propia del producto.
+- Ningún test se entrega sin haberlo visto en rojo: `scripts/en_rojo.py` aplica
+  una mutación plausible, ejecuta pytest y restaura el fichero. La PR lleva la
+  tabla *mutación → tests que fallan*.
+- Más de 3 tests nuevos: proponer antes la lista (test y defecto que evita).
+- Nunca tests de migraciones de datos (#536): se validan en la PR.
+- Mockear solo fronteras (red y scraping federativo, Google Vision, Web Push,
+  email, broker de Celery, reloj), nunca servicios propios ni `SimpleNamespace`.
+- Al podar, «ya lo cubre X» se demuestra con una mutación que sigue en rojo, y
+  el tamaño de la poda es un resultado, nunca una cuota
+  (`scripts/tests_borrados.py` para revisarla).

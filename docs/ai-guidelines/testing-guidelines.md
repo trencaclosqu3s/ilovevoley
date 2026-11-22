@@ -1,133 +1,131 @@
-## Testing Guidelines
+# Estándares de tests
 
-Execute tests with:
+**Criterio de entrada:** cada test nombra en una frase el defecto que evita.
+Si no se puede nombrar, el test no se escribe, y si ya existe se borra. No
+basta con que suba cobertura, pase en CI o sea fácil de escribir.
+
+## Escribir
+
+1. **Ningún test es fiable hasta que lo has visto en rojo.** Rompe el código
+   que protege, o revierte el fix si es un bug, y confirma que falla por la
+   razón correcta. `scripts/en_rojo.py` aplica la mutación, ejecuta pytest y
+   restaura el fichero. Hecho cuando cada test nuevo o reescrito tiene una fila
+   en la tabla *mutación → tests que fallan* de la PR; un test sin fila no se
+   entrega. La mutación imita una regresión plausible (un filtro de tenant
+   quitado, una condición invertida); una mutación inventada para que el test
+   falle no cuenta. Si dos mecanismos producen el mismo efecto (una vista y una
+   task que limpian el mismo flag, un `unique` y una validación de formulario),
+   la mutación de uno sobrevive: el test aísla el que protege.
+2. **Lo temporal se valida en la PR, no en la suite.** Una migración de datos
+   o un mecanismo de transición se comprueba con un script o una ejecución
+   anotada en la PR. Nunca un test de migración: `MigrationExecutor` desaplica y
+   reaplica toda la cadena, y 10 de esos tests eran el 45 % del tiempo de la
+   suite (#536). La lógica que importa una migración (p. ej.
+   `normalize_season_name`) se prueba donde vive. No se prueba `reverse()`: se
+   despliega solo hacia adelante.
+3. **`transaction=True` (o `TransactionTestCase`) solo si otra conexión tiene
+   que ver los commits**, por ejemplo un hilo o un proceso aparte. Su teardown
+   vacía todas las tablas. Para `on_commit`, usa
+   `self.captureOnCommitCallbacks(execute=True)` o la fixture
+   `django_capture_on_commit_callbacks`.
+4. **Ajusta la implementación, no el test.** Una aserción solo se debilita si
+   cambia el comportamiento esperado, y la PR lo explica.
+5. **Más de 3 tests nuevos: propón antes la lista** (test y defecto que evita)
+   y espera a que la valide quien pidió el trabajo.
+6. **Una PR con tests escritos por IA** indica qué queda sin cubrir y por qué,
+   y antes de entregarse la revisa un agente sin el contexto de quien los
+   escribió: marca cada test nuevo como esencial, prescindible o borrar, y se
+   borran los dos últimos. Lo que queda sin cubrir es información para la PR,
+   no una lista de tests por escribir; revisar o podar no autoriza a ampliar la
+   cobertura.
+
+## Revisar y podar
+
+7. **Señales de un test que sobra:**
+   - comprueba llamadas a mocks en lugar de estado, payload o resultado;
+   - monta objetos con `SimpleNamespace` o mockea servicios propios en lugar
+     de usar las fronteras: red y scraping federativo (voleibolib, RFEVB,
+     circulares), Google Vision, Web Push, email, YouTube, broker de Celery
+     (`.delay`) y reloj. El hook `avisar-mocks-propios` avisa de los nuevos;
+   - solo valida `status_code` sin un efecto, payload o contexto propio;
+   - su única aserción es `is not None`;
+   - prueba `__str__`, getters, properties o filtros ORM sin regla de negocio;
+   - repite lo que ya garantiza Django, el ORM o un mixin estándar
+     (`LoginRequiredMixin`, `required` de un formulario, validadores de campo);
+   - comprueba HTML decorativo, clases CSS o copy;
+   - pinea configuración que el despliegue puede sobreescribir;
+   - reproduce la implementación en vez de comprobar comportamiento;
+   - repite el riesgo de otro test;
+   - su arrange no crea lo que dice su nombre (un id inexistente donde el
+     nombre habla de una ficha de otro club).
+8. **Señales de un test que se queda**, aunque se parezca a otro:
+   - aísla por tenant/club una vía con su propio filtro
+     (`Person.objects.for_tenant`, `PersonRoleTenantQuerySet`, otro queryset u
+     otra acción);
+   - reproduce la condición de un incidente (#NNN) que ningún otro test
+     reproduce;
+   - fija marcadores, clasificaciones, dorsales, temporadas (corte del 1 de
+     septiembre, temporada activa única) o fechas (zona horaria, borde de mes)
+     que se publican o se notifican;
+   - fija una transformación no trivial: parsing de actas, HTML o JSON
+     federativo, normalización o resolución de duplicados;
+   - fija qué se hace cuando falla un sistema externo: no borrar partidos, no
+     notificar, no marcar como finalizado.
+9. **Borrar un test de poco valor es una mejora.** Si un refactor que no
+   cambia el comportamiento lo rompe, reescríbelo contra la vía pública.
+10. **«Ya lo cubre X» se demuestra en rojo.** Quien borra un test por repetir
+   el riesgo de otro escribe la mutación que el borrado detectaba y la pasa por
+   `en_rojo.py` contra los tests que quedan. Si sale verde, el test vuelve.
+   La mutación va en la vía que el test fija (la acción, el queryset propio),
+   no en el código que comparten varias: un test de la regla 8 sobrevive a la
+   mutación compartida y cae solo con la propia. Todos los borrados de la PR se
+   prueban a la vez (cierre: cada mutación con todos deseleccionados), y se
+   repite el cierre tras el último merge de main, que puede borrar detectores.
+   Hecho cuando cada borrado por repetición tiene su fila *mutación → test que
+   la detecta* en la PR, y ese test existe en el árbol final y cae por el mismo
+   comportamiento (no por un 500 ni por otro efecto). Los borrados por otra
+   señal de la regla 7 no la necesitan.
+11. **El tamaño de una poda es un resultado, nunca un objetivo.** Cada borrado
+   sale de la regla 7 o de la 10. Un encargo de poda a subagentes apunta a
+   esta sección sin añadir criterios: en otro proyecto, una cuota del 40 %
+   borró cientos de tests con defecto nombrado. Quien revisa la poda parte de
+   `scripts/tests_borrados.py listar <ruta>`, sin los motivos de quien podó, y
+   devuelve los que hagan falta con `scripts/tests_borrados.py restaurar`.
+
+## Diseño
+
+- Comportamiento observable antes que detalles internos; una aserción fuerte
+  sobre persistencia, payload o efecto de dominio antes que varias de estado
+  superficial.
+- El nivel más bajo que conserve el contrato: función pura para lógica pura,
+  `RequestFactory` para una rama de una vista, `client` cuando el contrato
+  incluye routing, middleware de tenant, sesión o mensajes.
+- Un test lento justifica su lentitud: abrir ficheros reales o recorrer un
+  flujo de integración valioso, sí; renderizar una plantilla pesada para mirar
+  una cabecera, no.
+- **Admin:** solo métodos con lógica, `get_queryset()` complejos, acciones
+  custom y `save_model()` con validación; nunca configuración de `ModelAdmin`.
+- **Ubicación:** `app/tests/` con `__init__.py`; `test_models.py`,
+  `test_views.py`, `test_forms.py`, `test_api.py`, `test_utils.py`,
+  `test_templatetags.py` y `test_admin.py` solo si hay lógica propia.
+
+## Ejecución
+
 ```bash
 docker compose -f docker-compose.dev.yml run --rm web python -m pytest --create-db -n auto
 ```
-**Nota:** Usar `--create-db` para forzar la creación de la base de datos de test y aplicar migraciones correctamente. Sin ese flag la BD de test puede quedar desactualizada y los tests fallar (p. ej. columnas faltantes).
 
-**Nota:** `-n auto` reparte la suite entre los núcleos disponibles (`pytest-xdist`). En iteración local, sustituye `--create-db` por `--reuse-db` para no recrear la BD en cada ejecución (más rápido, pero acuérdate de volver a `--create-db` si cambian las migraciones).
+`--create-db` siempre que cambien modelos o migraciones; en iteración local,
+`--reuse-db`.
 
-## Test Value Rules
-
-Un test es necesario cuando protege una decisión propia del producto. No basta con que aumente cobertura, pase en CI o sea fácil de escribir.
-
-### Un test debe existir si cumple al menos una regla
-
-- Protege una regla de negocio
-- Protege un caso límite que ya falló, puede fallar de forma realista o sería caro de detectar en producción.
-- Verifica una transformación de datos no trivial: normalización, parsing de actas/HTML/JSON federativo, serialización de API o resolución de duplicados.
-- Cubre un flujo con efectos persistentes: crea, actualiza, bloquea, revierte o borra datos relevantes.
-- Comprueba manejo de errores en un camino crítico: rollback, idempotencia, errores externos, respuestas parciales o recuperación.
-- Documenta una decisión ambigua que un futuro cambio podría romper sin darse cuenta.
-- Da confianza sobre integración entre componentes propios del proyecto, no sobre el framework.
-
-### Un test no debe existir si su valor principal es la cobertura
-
-- Solo comprueba que Django, DRF, pytest, el ORM o un mixin estándar hacen lo que ya está probado por la librería.
-- Solo valida `status_code == 200`, `302`, `403` o `404` sin comprobar un efecto, payload, contexto o regla propia.
-- Solo comprueba HTML decorativo, clases CSS, textos cosméticos, spinners o estructura visual frágil sin contrato funcional.
-- Duplica otro test más fuerte que ya cubre el mismo riesgo con mejores aserciones.
-- Mockea tanto la unidad bajo prueba que el test solo verifica el mock.
-- Reproduce literalmente la implementación en el test, en vez de comprobar comportamiento observable.
-- Prueba getters, setters, propiedades simples o filtros ORM triviales sin regla de negocio.
-- Cubre permisos genéricos de `LoginRequiredMixin` o `PermissionRequiredMixin` salvo que haya lógica de autorización propia.
-- Testea una migración de datos de una sola vez (ver "Migraciones de datos").
-- Pinea valores de configuración o de entorno que el despliegue puede sobreescribir legítimamente (p. ej. `DEFAULT_FROM_EMAIL` en un `.env` local). Si el test falla con una configuración válida, el test está mal, no la configuración.
-
-### Preguntas de revisión antes de añadir o conservar un test
-
-1. Si este test falla, ¿qué comportamiento real se habría roto?
-2. ¿El fallo obligaría a cambiar código de producto, o solo actualizar el test?
-3. ¿Está probando nuestra lógica o la librería?
-4. ¿Hay otro test que ya cubre el mismo riesgo de forma más directa?
-5. ¿El test seguirá siendo útil si cambia el HTML, el copy o una clase CSS?
-6. ¿El coste de mantenerlo está justificado por el riesgo que reduce?
-
-Si la respuesta no identifica un riesgo concreto, el test debe eliminarse o reescribirse.
-
-### Preferencias de diseño
-
-- Prioriza tests de comportamiento observable sobre detalles internos.
-- Prefiere una aserción fuerte sobre persistencia, payload o efecto de dominio antes que varias aserciones de estado superficial.
-- Usa el nivel más bajo que conserve el contrato: método puro para lógica pura, vista/API para contratos HTTP, E2E solo para flujos de usuario completos.
-- Usa `RequestFactory` cuando el objetivo sea ejercitar una vista concreta sin middleware, sesión ni renderizado innecesario.
-- Usa `client` cuando el contrato incluya routing, auth, middleware, mensajes, templates o integración HTTP completa.
-- Evita renderizar templates pesados si el test solo necesita probar una rama de `post`; stubbea el retorno visual solo si las aserciones siguen cubriendo efectos reales.
-- No mezcles ubicaciones: lógica de modelo en `test_models.py`, filtros de template en `test_templatetags.py`, APIs en `test_api.py`, vistas HTML en `test_views.py`.
-- Un test lento debe justificar su lentitud. Si abre archivos reales, llama a importadores o recorre un flujo de integración valioso, puede quedarse. Si solo mira una cabecera, no.
-
-### Migraciones de datos
-
-**No se escriben tests para migraciones de datos.** Una migración es un evento irrepetible: se ejecuta una vez y no vuelve a hacerlo. Un test que la vigila no protege ningún comportamiento futuro (el código queda congelado) y, por usar `TransactionTestCase` + `MigrationExecutor`, desaplica y reaplica **toda** la cadena de migraciones del proyecto: es, con diferencia, el test más caro de la suite con el valor más bajo. Medido en #536: 10 tests de migración consumían el 45 % del tiempo total.
-
-- Si una migración falla, se arregla la migración, no se escribe un test que la vigile.
-- La lógica reutilizable que una migración importa (p. ej. `normalize_season_name`) se prueba donde vive esa lógica, nunca a través de la migración.
-- No se testea `reverse()` de una migración: este proyecto despliega solo hacia adelante.
-- Si existe un `tests/test_migrations.py`, se elimina.
-
-### Paralelización y velocidad de la suite
-
-La suite se ejecuta en paralelo con `pytest-xdist`. En local, `--reuse-db` evita recrear la base de datos en cada iteración:
-
-### Automatic Test Generation Rules
-When working with business logic, automatically generate tests that cover:
-```yaml
-business_logic_testing:
-  always_test:
-    - Custom model methods with business rules
-    - Data validation beyond Django's built-in validators  
-    - Permission and authorization logic
-    - Multi-tenant isolation and tenant scoping
-    - State machines and workflow transitions
-    - Custom managers and QuerySets with complex logic
-  
-  test_selectively:
-    - Views with complex conditional logic
-    - API endpoints that transform data
-    - Custom form validation methods
-    
-  skip_testing:
-    - Basic Django CRUD operations
-    - Simple property getters/setters
-    - Standard Django field validations
-    - Basic template rendering without logic
-
-  focus_areas:
-    - Edge cases in business rules
-    - Error handling in critical paths
-    - Integration points between business domains
-
-admin_testing:
-  skip:
-    - Basic ModelAdmin configuration
-    - Standard CRUD operations  
-    - Built-in admin functionality
-    - Simple list_display/search_fields
-  
-  test_when_present:
-    - Custom admin methods with business logic
-    - Complex get_queryset() implementations
-    - Custom admin actions
-    - save_model() with validation logic
-    - Custom admin views or forms
-    - Permission-based admin behavior
-```
-
-## Test Organization Structure
-
-### Mandatory Test Directory Structure
-```yaml
-test_structure:
-  location: "app_name/tests/"
-  organization:
-    models: "test_models.py"
-    views: "test_views.py" 
-    forms: "test_forms.py"
-    utils: "test_utils.py"
-    api: "test_api.py"
-    admin: "test_admin.py"  # only if custom logic exists
-  
-  required_files:
-    - "tests/__init__.py"  # always required
-```
+- **Mutaciones:** para «¿lo detecta este test?» (regla 1), pasa a `en_rojo.py`
+  solo los tests que tocan el código mutado (fichero o nodeid); para «¿lo
+  detecta la suite?» (regla 10), la carpeta `tests/` de la app: con un nodeid,
+  otro test que sí la detecta no cuenta y sale un verde falso. Para más de dos,
+  `en_rojo.py --lote FICHERO.jsonl` arranca Django una vez. Ver
+  `scripts/en_rojo.py --help` para el formato.
+- **Helpers compartidos** van en `tests/helpers.py` o `conftest.py`; el hook
+  `no-importar-de-test` rechaza importar de otro `test_*.py` (al podar uno se
+  rompe la colección del otro).
+- **Casos en un `TestCase`:** `self.subTest(...)`; `pytest.mark.parametrize`
+  solo funciona en tests de función o clases sin `TestCase`.

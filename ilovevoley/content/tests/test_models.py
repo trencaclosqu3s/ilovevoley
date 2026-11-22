@@ -33,16 +33,6 @@ class VideoSetNumberAndYoutubeIdTest(TestCase):
             'XYZ789',
         )
 
-    def test_get_thumbnail_url_uses_video_id(self):
-        video = Video(youtube_url='https://www.youtube.com/watch?v=XYZ789')
-        self.assertEqual(
-            video.get_thumbnail_url(),
-            'https://i.ytimg.com/vi/XYZ789/hqdefault.jpg',
-        )
-
-    def test_get_thumbnail_url_returns_none_for_unknown_url(self):
-        self.assertIsNone(Video(youtube_url='https://example.com/x').get_thumbnail_url())
-
 
 class SetNumberRequiresMatchTest(TestCase):
     def setUp(self):

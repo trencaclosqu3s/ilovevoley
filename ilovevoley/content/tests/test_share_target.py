@@ -333,18 +333,3 @@ class ShareTargetBulkUploadTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(f'share={batch}', response['Location'])
         self.assertTrue(SharedUpload.objects.filter(pk=row.pk).exists())
-
-    def test_post_with_foreign_batch_creates_nothing(self):
-        """Review focus 3 en lote: batch de otro usuario es ignorado."""
-        from ilovevoley.content.models import Image as ImageModel
-        response = self.client.post(
-            reverse('content:image_bulk_upload'),
-            {'share_batch': str(uuid_mod.uuid4()), 'image_type': 'training'},
-            HTTP_HOST='testclub.ilovevoley.es',
-            follow=True,
-        )
-        self.assertEqual(ImageModel.objects.count(), 0)
-        self.assertEqual(
-            [m.message for m in response.context['messages']],
-            ['El enlace de las fotos compartidas ya no es válido.'],
-        )

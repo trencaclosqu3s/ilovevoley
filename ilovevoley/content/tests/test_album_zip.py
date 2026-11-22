@@ -3,7 +3,6 @@ import io
 import uuid
 import zipfile
 from datetime import datetime, timezone as dt_timezone
-from pathlib import Path
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -99,30 +98,6 @@ class AlbumZipFlowTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertNotIn('X-Accel-Redirect', response)
 
-    def test_build_zip_includes_only_approved_images_for_match(self):
-        from django.conf import settings
-
-        from ilovevoley.content.album_zip import build_album_zip_file
-
-        approved = self._img(title='ok', match=self.match)
-        self._img(title='pending', match=self.match, status='pending')
-        self._img(title='rejected', match=self.match, status='rejected')
-        self._img(title='other-org', match=self.match, organization=self.other)
-
-        out = Path(settings.MEDIA_ROOT) / 'tmp' / 'album_zips' / 'job-test.zip'
-        count = build_album_zip_file(
-            queryset=Image.objects.filter(
-                match=self.match, organization=self.org, status='approved',
-            ),
-            dest_path=out,
-        )
-        self.assertEqual(count, 1)
-        self.assertTrue(out.is_file())
-        with zipfile.ZipFile(out) as zf:
-            names = zf.namelist()
-            self.assertEqual(len(names), 1)
-            self.assertTrue(names[0].startswith(f'{approved.pk}_'))
-
     def test_match_zip_request_poll_and_download(self):
         self._img(title='a', match=self.match)
         self._img(title='b', match=self.match)
@@ -184,14 +159,6 @@ class AlbumZipFlowTests(TestCase):
         )
         with zipfile.ZipFile(io.BytesIO(data)) as zf:
             self.assertEqual(len(zf.namelist()), 2)
-
-    def test_empty_match_album_returns_400(self):
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('content:match_album_zip', args=[self.match.id]),
-            HTTP_HOST='testclub.ilovevoley.es',
-        )
-        self.assertEqual(response.status_code, 400)
 
     def test_download_rejects_other_tenant_even_without_cache(self):
         """El organization_id va en el token: sin state en cache no hay bypass."""

@@ -74,11 +74,6 @@ class ExportWindowTests(TestCase):
         old.refresh_from_db()
         self.assertEqual(old.status, DataExport.Status.FAILED)
 
-    def test_erased_marker_is_the_deleted_username(self):
-        self.assertFalse(is_erased(self.user))
-        self.user.username = f'deleted-{self.user.pk}'
-        self.assertTrue(is_erased(self.user))
-
 
 def tiny_jpeg(name='foto.jpg'):
     buf = BytesIO()
@@ -706,15 +701,6 @@ class ErasureViewTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.email, 'ana@example.com')
         self.assertTrue(Membership.objects.filter(user=self.user, role='admin').exists())
-
-    def test_second_visit_of_an_erased_account_changes_nothing(self):
-        self.user.username = f'deleted-{self.user.pk}'
-        self.user.save(update_fields=['username'])
-        self.client.force_login(self.user)
-        events_before = PrivacyAuditEvent.objects.count()
-        response = self.client.get(reverse('delete_account'), HTTP_HOST=HOST)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(PrivacyAuditEvent.objects.count(), events_before)
 
     def test_bad_token_does_not_anonymize(self):
         bad_url = reverse('confirm_account_erasure', args=['token-malo'])

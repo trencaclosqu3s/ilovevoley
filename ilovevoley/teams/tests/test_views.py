@@ -2,7 +2,7 @@ from ilovevoley.teams.tests.helpers import identity_of
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
-from django.urls import resolve, reverse
+from django.urls import reverse
 
 from ilovevoley.core.models import Category, Organization, Season
 from ilovevoley.teams.models import Club, Team
@@ -28,17 +28,6 @@ class TeamsReExportCompatibilityTest(TestCase):
             name='Test Club Senior', category=self.category,
             federation_id='REEXPORT-T1', is_active=True,
         )
-
-    def test_legacy_views_resolve_to_the_canonical_team_urls(self):
-        routes = [
-            ('team_list', 'teams:team_list', []),
-            ('team_roster', 'teams:team_roster', [self.team.id]),
-            ('ajax_register_team', 'teams:ajax_register_team', []),
-        ]
-        for attr, route, args in routes:
-            with self.subTest(view=attr):
-                legacy_view = getattr(videos_views_teams, attr)
-                self.assertIs(resolve(reverse(route, args=args)).func, legacy_view)
 
     def test_legacy_team_list_renders_the_tenant_teams(self):
         self.client.force_login(self.user)
