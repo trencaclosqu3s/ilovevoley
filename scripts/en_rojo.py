@@ -284,13 +284,20 @@ def lote(
                     cola = (cola + linea)[-3000:]
             proceso.wait()
         finally:
-            if proceso.poll() is None:
-                proceso.terminate()
-            # Red de seguridad: el proceso de dentro restaura cada mutación, pero
-            # un contenedor matado a mitad no llega a hacerlo.
-            for fichero, texto in originales.items():
-                if fichero.read_text(encoding="utf-8") != texto:
-                    fichero.write_text(texto, encoding="utf-8")
+            try:
+                if proceso.poll() is None:
+                    proceso.terminate()
+                    try:
+                        proceso.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        proceso.kill()
+                        proceso.wait()
+            finally:
+                # Red de seguridad: el proceso de dentro restaura cada mutación,
+                # pero un contenedor matado a mitad no llega a hacerlo.
+                for fichero, texto in originales.items():
+                    if fichero.read_text(encoding="utf-8") != texto:
+                        fichero.write_text(texto, encoding="utf-8")
 
     if len(resultados) < len(mutaciones):
         _decir(cola)
@@ -307,7 +314,10 @@ def lote(
 
 
 def _modulo(fichero: Path) -> str:
-    return ".".join(fichero.relative_to(RAIZ).with_suffix("").parts)
+    partes = fichero.relative_to(RAIZ).with_suffix("").parts
+    if partes and partes[-1] == "__init__":
+        partes = partes[:-1]
+    return ".".join(partes)
 
 
 def _pytest_en_hijo(tests: list[str], timeout: int) -> tuple[int, str]:
@@ -327,15 +337,23 @@ def _pytest_en_hijo(tests: list[str], timeout: int) -> tuple[int, str]:
                 sys.stderr.flush()
                 os._exit(codigo)
         limite = time.monotonic() + timeout
-        while True:
-            terminado, estado = os.waitpid(pid, os.WNOHANG)
-            if terminado:
-                break
-            if time.monotonic() > limite:
+        try:
+            while True:
+                terminado, estado = os.waitpid(pid, os.WNOHANG)
+                if terminado:
+                    break
+                if time.monotonic() > limite:
+                    os.kill(pid, signal.SIGKILL)
+                    os.waitpid(pid, 0)
+                    return HUBO_TIMEOUT, ""
+                time.sleep(0.1)
+        except BaseException:
+            try:
                 os.kill(pid, signal.SIGKILL)
                 os.waitpid(pid, 0)
-                return HUBO_TIMEOUT, ""
-            time.sleep(0.1)
+            except (ProcessLookupError, ChildProcessError):
+                pass
+            raise
         salida.seek(0)
         return os.waitstatus_to_exitcode(estado), salida.read()
 
@@ -360,6 +378,7 @@ def _correr(fichero: Path, tests: list[str], timeout: int) -> tuple[int, str]:
 
 def dentro() -> int:
     """Ejecuta el lote dentro del contenedor; un resultado por línea."""
+    _restaurar_al_salir()
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings_test")
     sys.path.insert(0, str(RAIZ))
     import django
@@ -379,7 +398,9 @@ def dentro() -> int:
             if m.get("primero"):
                 codigo, salida = _correr(fichero, m["primero"], timeout)
                 etapa = "etapa 1: tests que citan el módulo"
-            if codigo != 1:
+            # Solo seguimos a etapa 2 si etapa 1 no se ejecutó, salió verde (0)
+            # o no recolectó tests (5, p. ej. todos excluidos con --deselect).
+            if codigo in (0, 5):
                 if m.get("solo_etapa_1"):
                     # Pendiente de la carpeta completa: se anota como verde.
                     etapa = "solo etapa 1: falta la carpeta completa"

@@ -44,7 +44,8 @@ def _es_fichero_de_tests(ruta: str) -> bool:
 
 
 def _inicio(nodo: ast.AST) -> int:
-    return min([d.lineno for d in nodo.decorator_list] + [nodo.lineno])
+    decoradores = getattr(nodo, "decorator_list", ())
+    return min([d.lineno for d in decoradores] + [nodo.lineno])
 
 
 def _tests(fuente: str) -> dict[tuple[str, ...], ast.AST]:
@@ -86,7 +87,7 @@ def listar(ref: str, rutas: list[str]) -> int:
 def _cabecera_de_clase(lineas: list[str], clase: ast.ClassDef) -> str:
     """La clase de REF sin sus métodos: decoradores, `class ...:` y docstring."""
     primero = clase.body[0]
-    fin = primero.lineno - 1
+    fin = _inicio(primero) - 1
     if isinstance(primero, ast.Expr) and isinstance(
         getattr(primero, "value", None), ast.Constant
     ):

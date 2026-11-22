@@ -4,8 +4,8 @@
 Hook de pre-commit (regla 7 de docs/ai-guidelines/testing-guidelines.md).
 Solo mira las líneas añadidas en el commit, no el código heredado. Señala:
 
-- `patch("ilovevoley....")` / `patch.object` sobre un módulo propio que no está en
-  FRONTERAS;
+- `patch("ilovevoley....")` (en una línea o multilínea) sobre un módulo propio
+  que no está en FRONTERAS;
 - `SimpleNamespace(` usado para montar objetos de dominio.
 
 Una línea que mockea una frontera no listada se silencia con `# frontera`.
@@ -25,10 +25,12 @@ FRONTERAS = re.compile(
     r"safe_get|requests\b|getaddrinfo|_fetch_|fetch_|download_|_pdf_text"
     r"|acta_vision|read_acta|vision"
     r"|send_web_push|pywebpush_send"
-    r"|send_mail|send_notification_email|send_technical_alert"
+    r"|send_mail"
     r"|\.delay$|\.chord$|\.logger\b|timezone\.now"
 )
-PATCH_PROPIO = re.compile(r"""patch(?:\.object)?\(\s*["'](ilovevoley\.[\w.]+)""")
+PATCH_PROPIO = re.compile(r"""\bpatch\(\s*["'](ilovevoley\.[\w.]+)""")
+PATCH_MULTILINEA = re.compile(r"\bpatch\(\s*$")
+CADENA_PROPIA = re.compile(r"""^\s*["'](ilovevoley\.[\w.]+)""")
 SIMPLE_NAMESPACE = re.compile(r"\bSimpleNamespace\(")
 
 
@@ -54,10 +56,19 @@ def lineas_añadidas(ficheros: list[str]) -> list[tuple[str, str]]:
 
 def main(ficheros: list[str]) -> int:
     avisos = []
+    fichero_anterior = ""
+    esperando_objetivo = False
     for fichero, linea in lineas_añadidas(ficheros):
+        if fichero != fichero_anterior:
+            fichero_anterior = fichero
+            esperando_objetivo = False
         if "# frontera" in linea:
+            esperando_objetivo = False
             continue
         objetivo = PATCH_PROPIO.search(linea)
+        if not objetivo and esperando_objetivo:
+            objetivo = CADENA_PROPIA.match(linea)
+        esperando_objetivo = bool(PATCH_MULTILINEA.search(linea))
         if objetivo and not FRONTERAS.search(objetivo.group(1)):
             avisos.append(f"{fichero}: mock de código propio: {objetivo.group(1)}")
         if SIMPLE_NAMESPACE.search(linea):
