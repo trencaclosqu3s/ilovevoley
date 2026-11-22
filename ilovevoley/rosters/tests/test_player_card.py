@@ -289,6 +289,51 @@ class CardNarrativeViewTests(CardNarrativeTestBase):
         with translation.override('es'):
             self.assertEqual(narrated_highlight(self.highlight(), self.person, self.season)['text'], rules_text)
 
+    def test_person_card_renders_narrated_text_in_png(self):
+        """Evita que la vista del cromo deje de pintar el texto redactado en CardNarrative."""
+        from io import BytesIO
+        from PIL import Image as PILImage
+
+        self.make_talisman()
+        parent = get_user_model().objects.create_user(username='padre_cromo', password='pass')
+        Membership.objects.create(user=parent, organization=self.org, is_approved=True)
+        parent.children.add(self.person)
+        self.client.force_login(parent)
+        url = reverse('rosters:person_card', args=[self.person.id])
+
+        def highlight_pixels():
+            response = self.client.get(
+                url, HTTP_HOST='testclub.ilovevoley.es', HTTP_ACCEPT_LANGUAGE='es',
+            )
+            self.assertEqual(response['Content-Type'], 'image/png')
+            self.assertTrue(response.content.startswith(b'\x89PNG'))
+            # El fondo lleva dither aleatorio; localizamos la banda blanca sólida más alta
+            # de la mitad inferior (caja del perfil) para no acoplarnos a coordenadas fijas.
+            img = PILImage.open(BytesIO(response.content)).convert('RGB')
+            w, h = img.size
+            runs, start = [], None
+            for y in range(h // 2, h):
+                is_band = sum(img.getpixel((x, y)) == (255, 255, 255) for x in range(0, w, 10)) > w // 20
+                if is_band and start is None:
+                    start = y
+                elif not is_band and start is not None:
+                    runs.append((y - start, start, y - 1))
+                    start = None
+            if start is not None:
+                runs.append((h - start, start, h - 1))
+            self.assertTrue(runs)
+            _, top, bottom = max(runs)
+            top, bottom = top + 16, bottom - 16
+            white_cols = [x for x in range(w) if img.getpixel((x, top)) == (255, 255, 255)]
+            left, right = min(white_cols) + 16, max(white_cols) - 16
+            return img.crop((left, top, right, bottom)).tobytes()
+
+        rules_pixels = highlight_pixels()
+        self.assertEqual(rules_pixels, highlight_pixels())
+
+        self.narrative_row(text='{nombre} marca el ritmo en los finales apretados.')
+        self.assertNotEqual(highlight_pixels(), rules_pixels)
+
 
 @override_settings(LLM_NARRATIVE_ENABLED=True, LLM_NARRATIVE_API_KEY='k')
 class RedactPendingCardNarrativesTests(CardNarrativeTestBase):

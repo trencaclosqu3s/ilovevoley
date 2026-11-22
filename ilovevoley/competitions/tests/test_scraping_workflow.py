@@ -2,12 +2,14 @@
 import json
 from unittest import mock
 
+from django.core import mail
 from django.test import TestCase, override_settings
 
 from ilovevoley.competitions.models import League
 from ilovevoley.competitions.tasks_scraping import (
     build_scrape_all_leagues_workflow,
     scrape_clubs_summary_task,
+    scrape_endpoint_summary_task,
     scrape_league_stats_task,
     scrape_clubs_task,
     scrape_leagues_summary_task,
@@ -115,6 +117,38 @@ class ScrapeResultsWorkflowTest(TestCase):
     def test_unknown_league_id_is_an_error_not_a_fan_out(self):
         result = scrape_results_task.run(league_id='nope')
         self.assertEqual(result['status'], 'error')
+
+    @override_settings(
+        NOTIFICATION_EMAIL_ENABLED=True,
+        TECHNICAL_ALERT_EMAILS=['tech@example.com'],
+    )
+    def test_endpoint_summary_emails_alert_only_on_errors_with_kind(self):
+        """Evita que fallen en silencio los scrapings de calendario o resultados sin alerta por email."""
+        error_stats = [
+            {'league': 'A', 'success': True, 'rounds': 2, 'matches': 4, 'errors': []},
+            {
+                'league': 'B',
+                'success': False,
+                'rounds': 0,
+                'matches': 0,
+                'errors': [{'league': 'B', 'error': 'timeout federación'}],
+            },
+        ]
+        for kind in ('calendario', 'resultados'):
+            with self.subTest(kind=kind):
+                mail.outbox.clear()
+                total = scrape_endpoint_summary_task.run(error_stats, kind)
+                self.assertEqual(total['leagues_errors'], 1)
+                self.assertEqual(len(mail.outbox), 1)
+                self.assertEqual(mail.outbox[0].to, ['tech@example.com'])
+                self.assertIn(kind, mail.outbox[0].subject)
+                self.assertIn('timeout federación', mail.outbox[0].body)
+
+        ok_stats = [{'league': 'A', 'success': True, 'rounds': 2, 'matches': 4, 'errors': []}]
+        mail.outbox.clear()
+        total = scrape_endpoint_summary_task.run(ok_stats, 'calendario')
+        self.assertEqual(total['leagues_errors'], 0)
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class ScrapeClubsWorkflowTest(TestCase):

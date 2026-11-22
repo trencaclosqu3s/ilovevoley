@@ -185,3 +185,70 @@ class AlbumZipFlowTests(TestCase):
         self.client.force_login(other_user)
         response = self.client.get(url, HTTP_HOST='other.ilovevoley.es')
         self.assertEqual(response.status_code, 404)
+
+    def test_album_zip_excludes_unapproved_images(self):
+        """Evita que fotos pendientes o rechazadas se cuelen en el ZIP descargado."""
+        from PIL import Image as PILImage
+
+        def _solid_jpg(name, color):
+            buf = io.BytesIO()
+            PILImage.new('RGB', (4, 4), color=color).save(buf, format='JPEG')
+            return SimpleUploadedFile(name, buf.getvalue(), content_type='image/jpeg')
+
+        approved = self._img(
+            title='aprobada', match=self.match, status='approved',
+            image=_solid_jpg('aprobada.jpg', (10, 200, 10)),
+        )
+        self._img(
+            title='pendiente', match=self.match, status='pending',
+            image=_solid_jpg('pendiente.jpg', (200, 10, 10)),
+        )
+        self._img(
+            title='rechazada', match=self.match, status='rejected',
+            image=_solid_jpg('rechazada.jpg', (10, 10, 200)),
+        )
+
+        self.client.force_login(self.user)
+        host = 'testclub.ilovevoley.es'
+        start = self.client.post(
+            reverse('content:match_album_zip', args=[self.match.id]),
+            HTTP_HOST=host,
+        )
+        self.assertEqual(start.status_code, 200)
+        status = self.client.get(
+            reverse('content:album_zip_status', args=[start.json()['job_id']]),
+            HTTP_HOST=host,
+        ).json()
+        download = self.client.get(status['download_url'], HTTP_HOST=host)
+        data = (
+            b''.join(download.streaming_content)
+            if hasattr(download, 'streaming_content')
+            else download.content
+        )
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            names = zf.namelist()
+            self.assertEqual(len(names), 1)
+            with approved.image.open('rb') as f:
+                self.assertEqual(zf.read(names[0]), f.read())
+
+    @mock.patch('ilovevoley.content.views_album_zip.build_album_zip_task.delay')
+    def test_match_zip_rejects_empty_or_unapproved_only_match(self, mock_delay):
+        """Evita devolver 200 y encolar un job ZIP si el partido no tiene fotos aprobadas."""
+        self.client.force_login(self.user)
+        url = reverse('content:match_album_zip', args=[self.match.id])
+
+        for case in ('empty', 'unapproved_only'):
+            with self.subTest(case=case):
+                cache.clear()
+                mock_delay.reset_mock()
+                if case == 'unapproved_only':
+                    self._img(title='pendiente', match=self.match, status='pending')
+                    self._img(title='rechazada', match=self.match, status='rejected')
+
+                response = self.client.post(url, HTTP_HOST='testclub.ilovevoley.es')
+
+                self.assertEqual(response.status_code, 400)
+                payload = response.json()
+                self.assertIn('error', payload)
+                self.assertNotIn('job_id', payload)
+                mock_delay.assert_not_called()
